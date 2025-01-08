@@ -178,8 +178,8 @@ extern "C" auto clingo_string_builder_new(clingo_string_builder_t **bld) -> clin
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_string_builder_copy(clingo_string_builder_t const *src,
-                                           clingo_string_builder_t **dst) -> clingo_result_t {
+extern "C" auto clingo_string_builder_copy(clingo_string_builder_t const *src, clingo_string_builder_t **dst)
+    -> clingo_result_t {
     CLINGO_TRY {
         auto oss = std::make_unique<std::ostringstream>();
         *oss << cpp_cast(src)->view();
@@ -193,8 +193,8 @@ extern "C" void clingo_string_builder_free(clingo_string_builder_t const *bld) {
     delete cpp_cast(bld);
 }
 
-extern "C" auto clingo_string_builder_string(clingo_string_builder_t const *bld, char const **str,
-                                             size_t *size) -> clingo_result_t {
+extern "C" auto clingo_string_builder_string(clingo_string_builder_t const *bld, char const **str, size_t *size)
+    -> clingo_result_t {
     CLINGO_TRY {
         auto view = cpp_cast(bld)->view();
         *str = view.data();
@@ -260,8 +260,8 @@ extern "C" auto clingo_position_compare(clingo_position_t const *a, clingo_posit
     return c_cast(*cpp_cast(a) <=> *cpp_cast(b));
 }
 
-extern "C" auto clingo_position_to_string(clingo_position_t const *pos,
-                                          clingo_string_builder_t *str) -> clingo_result_t {
+extern "C" auto clingo_position_to_string(clingo_position_t const *pos, clingo_string_builder_t *str)
+    -> clingo_result_t {
     CLINGO_TRY { *cpp_cast(str) << *cpp_cast(pos); }
     CLINGO_CATCH;
 }
@@ -312,8 +312,8 @@ extern "C" auto clingo_location_compare(clingo_location_t const *a, clingo_locat
     return c_cast(*cpp_cast(a) <=> *cpp_cast(b));
 }
 
-extern "C" auto clingo_location_to_string(clingo_location_t const *loc,
-                                          clingo_string_builder_t *str) -> clingo_result_t {
+extern "C" auto clingo_location_to_string(clingo_location_t const *loc, clingo_string_builder_t *str)
+    -> clingo_result_t {
     CLINGO_TRY { *cpp_cast(str) << *cpp_cast(loc); }
     CLINGO_CATCH;
 }

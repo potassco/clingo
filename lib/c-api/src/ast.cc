@@ -141,14 +141,14 @@ class ASTVec {
 // {{{ make_ast
 
 template <class U>
-auto make_ast(std::shared_ptr<U> owner,
-              Clingo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(std::shared_ptr<U> owner, Clingo::Input::LGuard::value_type const &guard)
+    -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_left_guard, &guard);
 }
 
 template <class U>
-auto make_ast(std::shared_ptr<U> owner,
-              Clingo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(std::shared_ptr<U> owner, Clingo::Input::RGuard::value_type const &guard)
+    -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_right_guard, &guard);
 }
 
@@ -309,26 +309,26 @@ auto make_ast(std::shared_ptr<U> owner, Clingo::Input::TheoryElement const &elem
 }
 
 template <class U>
-auto make_ast(std::shared_ptr<U> owner,
-              Clingo::Input::SetAggregateElement const &elem) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(std::shared_ptr<U> owner, Clingo::Input::SetAggregateElement const &elem)
+    -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_set_aggregate_element, &elem);
 }
 
 template <class U>
-auto make_ast(std::shared_ptr<U> owner,
-              Clingo::Input::BdLitAggregateElement const &elem) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(std::shared_ptr<U> owner, Clingo::Input::BdLitAggregateElement const &elem)
+    -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_body_aggregate_element, &elem);
 }
 
 template <class U>
-auto make_ast(std::shared_ptr<U> owner,
-              Clingo::Input::HdLitAggregateElement const &elem) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(std::shared_ptr<U> owner, Clingo::Input::HdLitAggregateElement const &elem)
+    -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_head_aggregate_element, &elem);
 }
 
 template <class U>
-auto make_ast(std::shared_ptr<U> owner,
-              Clingo::Input::HdLitDisjunctionElement const &elem) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(std::shared_ptr<U> owner, Clingo::Input::HdLitDisjunctionElement const &elem)
+    -> std::unique_ptr<clingo_ast_t> {
     using namespace Clingo::Input;
     return std::visit(
         [&owner]<class T>(T const &x) {
@@ -347,20 +347,20 @@ auto make_ast(std::shared_ptr<U> owner, Clingo::Input::TheoryOpDefinition const 
 }
 
 template <class U>
-auto make_ast(std::shared_ptr<U> owner,
-              Clingo::Input::TheoryRGuardDefinition const &def) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(std::shared_ptr<U> owner, Clingo::Input::TheoryRGuardDefinition const &def)
+    -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_theory_guard_definition, &def);
 }
 
 template <class U>
-auto make_ast(std::shared_ptr<U> owner,
-              Clingo::Input::TheoryTermDefinition const &def) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(std::shared_ptr<U> owner, Clingo::Input::TheoryTermDefinition const &def)
+    -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_theory_term_definition, &def);
 }
 
 template <class U>
-auto make_ast(std::shared_ptr<U> owner,
-              Clingo::Input::TheoryAtomDefinition const &def) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(std::shared_ptr<U> owner, Clingo::Input::TheoryAtomDefinition const &def)
+    -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_theory_atom_definition, &def);
 }
 
@@ -1502,8 +1502,8 @@ auto clingo_ast::compare(clingo_ast_t const &other) const -> std::strong_orderin
 }
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast,
-                                     ...) -> clingo_result_t {
+extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...)
+    -> clingo_result_t {
     using namespace Clingo::Input;
     CLINGO_TRY {
         if (lib == nullptr || ast == nullptr) {
@@ -2314,8 +2314,8 @@ extern "C" auto clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) 
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                int *value) -> clingo_result_t {
+extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int *value)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
             throw std::invalid_argument("invalid arguments");
@@ -2359,8 +2359,8 @@ extern "C" auto clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                char const **value) -> clingo_result_t {
+extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute, char const **value)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
             throw std::invalid_argument("invalid arguments");
@@ -2392,8 +2392,8 @@ extern "C" auto clingo_ast_attribute_get_string_array(clingo_ast_t *ast, clingo_
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                             clingo_ast_t **value) -> clingo_result_t {
+extern "C" auto clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t **value)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
             throw std::invalid_argument("invalid arguments");
@@ -2536,8 +2536,8 @@ struct clingo_ast_scanner {
     bool parse_error_ = false;
 };
 
-extern "C" auto clingo_ast_scan_string(clingo_lib_t *lib, char const *program,
-                                       clingo_ast_scanner_t **scanner) -> clingo_result_t {
+extern "C" auto clingo_ast_scan_string(clingo_lib_t *lib, char const *program, clingo_ast_scanner_t **scanner)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || program == nullptr || scanner == nullptr) {
             throw std::invalid_argument("invalid arguments");
@@ -2600,8 +2600,8 @@ struct clingo_ast_rewrite_context {
     Clingo::Input::ParamUnmap param_unmap;
 };
 
-extern "C" auto clingo_ast_rewrite_context_create(clingo_lib_t *lib,
-                                                  clingo_ast_rewrite_context_t **context) -> clingo_result_t {
+extern "C" auto clingo_ast_rewrite_context_create(clingo_lib_t *lib, clingo_ast_rewrite_context_t **context)
+    -> clingo_result_t {
     CLINGO_TRY {
         // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
         *context = new clingo_ast_rewrite_context{lib};
@@ -2614,8 +2614,8 @@ extern "C" void clingo_ast_rewrite_context_free(clingo_ast_rewrite_context_t *co
     delete context;
 }
 
-extern "C" auto clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context,
-                                                     char const *param) -> clingo_result_t {
+extern "C" auto clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context, char const *param)
+    -> clingo_result_t {
     auto *lib = context->lib;
     CLINGO_TRY {
         if (auto prm = lib->store->string(param); context->param_map.emplace(prm).second) {
@@ -2631,8 +2631,8 @@ extern "C" void clingo_ast_rewrite_context_clear_params(clingo_ast_rewrite_conte
     context->param_unmap.clear();
 }
 
-extern "C" auto clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context_t *context,
-                                                      clingo_ast_t const *theory) -> clingo_result_t {
+extern "C" auto clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context_t *context, clingo_ast_t const *theory)
+    -> clingo_result_t {
     auto *lib = context->lib;
     CLINGO_TRY {
         auto stm = convert<Clingo::Input::StmTheory>(theory);
@@ -2652,8 +2652,8 @@ extern "C" void clingo_ast_rewrite_context_set_project_anonymous(clingo_ast_rewr
     context->options.project_anonymous = value;
 }
 
-extern "C" auto
-clingo_ast_rewrite_context_get_project_mode(clingo_ast_rewrite_context_t *context) -> clingo_projection_mode_t {
+extern "C" auto clingo_ast_rewrite_context_get_project_mode(clingo_ast_rewrite_context_t *context)
+    -> clingo_projection_mode_t {
     return static_cast<clingo_projection_mode_t>(context->options.project_mode);
 }
 

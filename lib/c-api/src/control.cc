@@ -62,8 +62,8 @@ extern "C" void clingo_control_free(clingo_control_t *control) {
     delete control;
 }
 
-extern "C" auto clingo_control_parse_files(clingo_control_t *control, char const **files,
-                                           size_t files_size) -> clingo_result_t {
+extern "C" auto clingo_control_parse_files(clingo_control_t *control, char const **files, size_t files_size)
+    -> clingo_result_t {
     CLINGO_TRY { control->slv->parse(std::vector<std::string_view>{files, files + files_size}); }
     CLINGO_CATCH;
 }
@@ -112,8 +112,8 @@ class Context : public Clingo::Ground::ScriptCallback {
 } // namespace
 
 extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size,
-                                      clingo_ground_callback_t ground_callback,
-                                      void *ground_callback_data) -> clingo_result_t {
+                                      clingo_ground_callback_t ground_callback, void *ground_callback_data)
+    -> clingo_result_t {
     CLINGO_TRY {
         auto ctx = ground_callback != nullptr
                        ? std::make_optional<Context>(control->lib, ground_callback, ground_callback_data)
@@ -193,8 +193,8 @@ class CScript : public Clingo::Control::Script {
 
 } // namespace
 
-CLINGO_VISIBILITY_DEFAULT auto clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script,
-                                                      void *data) -> clingo_result_t {
+CLINGO_VISIBILITY_DEFAULT auto clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script, void *data)
+    -> clingo_result_t {
     CLINGO_TRY {
         auto const *name = script->name(data);
         lib->scripts.register_script(name, std::make_unique<CScript>(lib, *script, data));

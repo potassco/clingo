@@ -186,12 +186,12 @@ FULL_PATH_NAMES        = YES
 
 STRIP_FROM_PATH        = \
     ../lib/c-api/include \
-    ../lib/control/include/clingo \
-    ../lib/core/include/clingo \
-    ../lib/ground/include/clingo \
-    ../lib/input/include/clingo \
-    ../lib/output/include/clingo \
-    ../lib/util/include/clingo
+    ../lib/control/include \
+    ../lib/core/include \
+    ../lib/ground/include \
+    ../lib/input/include \
+    ../lib/output/include \
+    ../lib/util/include
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of the
 # path mentioned in the documentation of a class, which tells the reader which
@@ -958,6 +958,7 @@ INPUT                  = mainpage.hh \
                          ../lib/ground/include/clingo/ground \
                          ../lib/output/include/clingo/output \
                          ../lib/control/include/clingo/control \
+                         ../lib/c-api/include/clingo \
                          ../lib/c-api/include
 
 # This tag can be used to specify the character encoding of the source files

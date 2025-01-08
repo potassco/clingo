@@ -24,8 +24,8 @@ extern "C" auto clingo_symbol_create_number(int32_t number) -> clingo_symbol_t {
     return Clingo::Symbol::to_rep(Clingo::SymbolStore::num_ref(number));
 }
 
-extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *number,
-                                                clingo_symbol_t *symbol) -> clingo_result_t {
+extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *number, clingo_symbol_t *symbol)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || number == nullptr || symbol == nullptr) {
             return clingo_result_invalid;
@@ -35,8 +35,8 @@ extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *n
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *string,
-                                            clingo_symbol_t *symbol) -> clingo_result_t {
+extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *string, clingo_symbol_t *symbol)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || string == nullptr || symbol == nullptr) {
             return clingo_result_invalid;
@@ -46,8 +46,8 @@ extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *strin
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool sign,
-                                        clingo_symbol_t *symbol) -> clingo_result_t {
+extern "C" auto clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool sign, clingo_symbol_t *symbol)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || name == nullptr || symbol == nullptr) {
             return clingo_result_invalid;
@@ -71,8 +71,8 @@ extern "C" auto clingo_symbol_create_tuple(clingo_lib_t *lib, clingo_symbol_t co
 }
 
 extern "C" auto clingo_symbol_create_function(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments,
-                                              size_t arguments_size, bool sign,
-                                              clingo_symbol_t *symbol) -> clingo_result_t {
+                                              size_t arguments_size, bool sign, clingo_symbol_t *symbol)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || name == nullptr || symbol == nullptr) {
             return clingo_result_invalid;

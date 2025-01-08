@@ -329,8 +329,8 @@ class SimplifyTerm {
     }
 
     //! Simplify the given variable.
-    auto operator()([[maybe_unused]] TermVariable const &term,
-                    [[maybe_unused]] SimplifyTermFlags flags) const -> TermResult {
+    auto operator()([[maybe_unused]] TermVariable const &term, [[maybe_unused]] SimplifyTermFlags flags) const
+        -> TermResult {
         // a variable can represent any term
         return TermType::any;
     }
@@ -772,8 +772,8 @@ class MakeMatchableTerm {
     }
 
     //! Make the given variable term matchable.
-    auto operator()([[maybe_unused]] TermVariable const &term,
-                    [[maybe_unused]] SimplifyTermFlags flags) const -> Result {
+    auto operator()([[maybe_unused]] TermVariable const &term, [[maybe_unused]] SimplifyTermFlags flags) const
+        -> Result {
         return std::nullopt;
     }
 
@@ -1104,8 +1104,8 @@ class LiteralToTuple {
 //! In the disjunctive case empty pools evaluate conjunctively, and the result is top.
 //!
 //! @note The automatic extension with the aux elements makes for a somewhat awkward interface.
-[[nodiscard]] auto simplify_litvec(RewriteContext &ctx, LitArray const &lits,
-                                   bool conjunctive = true) -> SimplifyResult<std::vector<Lit>> {
+[[nodiscard]] auto simplify_litvec(RewriteContext &ctx, LitArray const &lits, bool conjunctive = true)
+    -> SimplifyResult<std::vector<Lit>> {
     auto state_fixed = conjunctive ? TruthValue::bot : TruthValue::top;
     auto state_empty = conjunctive ? TruthValue::top : TruthValue::bot;
     auto state_lits = state_empty;
@@ -1159,8 +1159,8 @@ class LiteralToTuple {
 //! - case: A+B is undefined
 //!   - p :- q(X,Z): r(Z).
 //!   - this is the same as obtained from 1.1.1
-[[nodiscard]] auto simplify_condlit(RewriteContext &ctx, CondLit const &lit,
-                                    bool conjunctive) -> SimplifyResult<CondLit> {
+[[nodiscard]] auto simplify_condlit(RewriteContext &ctx, CondLit const &lit, bool conjunctive)
+    -> SimplifyResult<CondLit> {
     auto guard = ctx.push();
     auto [state_lit, res_lit] =
         simplify(conjunctive ? SimplifyLiteralFlags::head : SimplifyLiteralFlags::matchable, ctx, lit.lit());
@@ -1190,8 +1190,8 @@ class LiteralToTuple {
 }
 
 //! Simplify the left guard of an aggregate.
-[[nodiscard]] auto simplify_guard(RewriteContext &ctx, LGuard const &guard,
-                                  bool matchable) -> Util::ResultState<LGuard::value_type> {
+[[nodiscard]] auto simplify_guard(RewriteContext &ctx, LGuard const &guard, bool matchable)
+    -> Util::ResultState<LGuard::value_type> {
     if (guard.has_value()) {
         auto [state, res] =
             simplify(matchable ? SimplifyTermFlags::matchable : SimplifyTermFlags::none, ctx, guard->first);
@@ -1203,8 +1203,8 @@ class LiteralToTuple {
 }
 
 //! Simplify the right guard of an aggregate.
-[[nodiscard]] auto simplify_guard(RewriteContext &ctx, RGuard const &guard,
-                                  bool matchable) -> Util::ResultState<RGuard::value_type> {
+[[nodiscard]] auto simplify_guard(RewriteContext &ctx, RGuard const &guard, bool matchable)
+    -> Util::ResultState<RGuard::value_type> {
     if (guard.has_value()) {
         auto [state, res] =
             simplify(matchable ? SimplifyTermFlags::matchable : SimplifyTermFlags::none, ctx, guard->second);
@@ -1216,8 +1216,8 @@ class LiteralToTuple {
 }
 
 //! Simplify a head aggregate element.
-[[nodiscard]] auto simplify_element(RewriteContext &ctx,
-                                    HdLitAggregateElement const &elem) -> SimplifyResult<HdLitAggregateElement> {
+[[nodiscard]] auto simplify_element(RewriteContext &ctx, HdLitAggregateElement const &elem)
+    -> SimplifyResult<HdLitAggregateElement> {
     auto guard = ctx.push();
     auto [state_tuple, res_tuple] = simplify_termvec(ctx, elem.tuple());
     auto [state_lit, res_lit] = simplify(SimplifyLiteralFlags::none, ctx, elem.lit());
@@ -1261,8 +1261,8 @@ class LiteralToTuple {
 }
 
 //! Simplify a body aggregate element.
-[[nodiscard]] auto simplify_element(RewriteContext &ctx,
-                                    BdLitAggregateElement const &elem) -> SimplifyResult<BdLitAggregateElement> {
+[[nodiscard]] auto simplify_element(RewriteContext &ctx, BdLitAggregateElement const &elem)
+    -> SimplifyResult<BdLitAggregateElement> {
     auto guard = ctx.push();
     auto [state_tuple, res_tuple] = simplify_termvec(ctx, elem.tuple());
     auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond());
@@ -1428,8 +1428,8 @@ template <bool head> [[nodiscard]] auto is_assignment(HBAggregate<head> const &l
 
 //! Simplify a head or body aggregate.
 template <bool head>
-[[nodiscard]] auto simplify_aggregate(RewriteContext &ctx,
-                                      HBAggregate<head> const &lit) -> SimplifyResult<HBLiteral<head>> {
+[[nodiscard]] auto simplify_aggregate(RewriteContext &ctx, HBAggregate<head> const &lit)
+    -> SimplifyResult<HBLiteral<head>> {
     auto const &lit_lhs = lit.lhs();
     auto const &lit_rhs = lit.rhs();
     auto [state_lhs, res_lhs] = simplify_guard(ctx, lit_lhs, lit_lhs && is_assignment<head>(lit, lit_lhs->second));

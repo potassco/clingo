@@ -38,9 +38,8 @@ extern "C" {
 //! as well as iteratively receiving models and solve results.
 //!
 //! For an example showing how to solve asynchronously, see @ref solve-async.c.
+//!
 //! @ingroup Control
-
-//! @addtogroup SolveHandle
 //! @{
 
 //! @enum clingo_solve_result_e
@@ -86,15 +85,17 @@ typedef unsigned clingo_solve_event_type_t;
 //!
 //! The event is either a pointer to a model, a pointer to an int64_t* and a size_t, a pointer to two statistics objects
 //! (per step and accumulated statistics), or a solve result.
+//!
 //! @attention If the search is finished, the model is NULL.
 //!
 //! @param[in] event the current event.
 //! @param[in] data user data of the callback
 //! @param[out] goon can be set to false to stop solving
-//! @return whether the call was successful
+//! @return the result code
 //!
 //! @see clingo_control_solve()
-typedef bool (*clingo_solve_event_callback_t)(clingo_solve_event_type_t type, void *event, void *data, bool *goon);
+typedef clingo_result_t (*clingo_solve_event_callback_t)(clingo_solve_event_type_t type, void *event, void *data,
+                                                         bool *goon);
 
 //! Search handle to a solve call.
 //!
@@ -109,11 +110,9 @@ typedef struct clingo_solve_handle clingo_solve_handle_t;
 //!
 //! @param[in] handle the target
 //! @param[out] result the solve result
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *handle,
-                                                       clingo_solve_result_bitset_t *result);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_get(clingo_solve_handle_t *handle,
+                                                                  clingo_solve_result_bitset_t *result);
 //! Wait for the specified amount of time to check if the next result is ready.
 //!
 //! If the time is set to zero, this function can be used to poll if the search is still active.
@@ -127,10 +126,9 @@ CLINGO_VISIBILITY_DEFAULT void clingo_solve_handle_wait(clingo_solve_handle_t *h
 //!
 //! @param[in] handle the target
 //! @param[out] model the model (it is NULL if there are no more models)
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_model(clingo_solve_handle_t *handle,
+                                                                    clingo_model_t const **model);
 //! When a problem is unsatisfiable, get a subset of the assumptions that made the problem unsatisfiable.
 //!
 //! If the program is not unsatisfiable, core is set to NULL and size to zero.
@@ -138,47 +136,41 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *
 //! @param[in] handle the target
 //! @param[out] core pointer where to store the core
 //! @param[out] size size of the given array
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_literal_t const **core,
-                                                        size_t *size);
-//! When a problem is satisfiable and the search is finished, get the last computed model.
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_core(clingo_solve_handle_t *handle,
+                                                                   clingo_literal_t const **core, size_t *size);
+//! When a problem is satisfiable and the search is finished, get the last
+//! computed model.
 //!
 //! If the program is unsatisfiable or the search is not finished, model is set to NULL.
 //!
 //! @param[in] handle the target
 //! @param[out] model the last computed model (or NULL if the program is unsatisfiable or the search is still ongoing)
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_last(clingo_solve_handle_t *handle, clingo_model_t const **model);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_last(clingo_solve_handle_t *handle,
+                                                                   clingo_model_t const **model);
 //! Discards the last model and starts the search for the next one.
 //!
-//! If the search has been started asynchronously, this function continues the search in the background.
+//! If the search has been started asynchronously, this function continues the
+//! search in the background.
 //!
 //! @note This function does not block.
 //!
 //! @param[in] handle the target
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t *handle);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_resume(clingo_solve_handle_t *handle);
 //! Stop the running search and block until done.
 //!
 //! @param[in] handle the target
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_cancel(clingo_solve_handle_t *handle);
 //! Stops the running search and releases the handle.
 //!
 //! Blocks until the search is stopped (as if an implicit cancel was called before the handle is released).
 //!
 //! @param[in] handle the target
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_close(clingo_solve_handle_t *handle);
 
 //! @}
 

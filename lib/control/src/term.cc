@@ -187,14 +187,14 @@ class BuilderTheoryTerm {
 } // namespace
 
 //! Translates input theory terms to their ground representation.
-auto build_term(Util::unordered_map<String, size_t> const &var_map, Input::Term const &term,
-                bool &has_projection) -> Ground::UTerm {
+auto build_term(Util::unordered_map<String, size_t> const &var_map, Input::Term const &term, bool &has_projection)
+    -> Ground::UTerm {
     return std::visit(BuilderTerm{has_projection, var_map}, term);
 }
 
 //! Translates input theory terms to their ground representation.
-auto build_theory_term(Util::unordered_map<String, size_t> const &var_map,
-                       Input::TheoryTerm const &term) -> Ground::UTheoryTerm {
+auto build_theory_term(Util::unordered_map<String, size_t> const &var_map, Input::TheoryTerm const &term)
+    -> Ground::UTheoryTerm {
     return std::visit(BuilderTheoryTerm{var_map}, term);
 }
 

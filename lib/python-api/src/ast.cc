@@ -46,16 +46,16 @@ void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visi
                  py::kwargs const &kwargs, Cons cons);
 
 template <class Array>
-auto transform_array(Array arr, py::handle transform, py::args const &args,
-                     py::kwargs const &kwargs) -> std::pair<Array, bool>;
+auto transform_array(Array arr, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    -> std::pair<Array, bool>;
 
 template <class Value>
-auto transform_value(Value val, py::handle transform, py::args const &args,
-                     py::kwargs const &kwargs) -> std::pair<Value, bool>;
+auto transform_value(Value val, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    -> std::pair<Value, bool>;
 
 template <class Value>
-auto transform_opt_value(Value opt, py::handle transform, py::args const &args,
-                         py::kwargs const &kwargs) -> std::pair<Value, bool>;
+auto transform_opt_value(Value opt, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    -> std::pair<Value, bool>;
 
 class ASTBase {
   public:
@@ -259,8 +259,8 @@ class Projection : public ASTBase {
     auto location() -> Location;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<Projection>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<Projection>;
     auto update(Library &lib, py::kwargs const &kwargs) -> Projection;
 
     static auto construct(Library &lib, Location const &location) -> Projection;
@@ -314,8 +314,8 @@ class TermVariable : public ASTBase {
     auto anonymous() -> bool;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TermVariable>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TermVariable>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermVariable;
 
     static auto construct(Library &lib, Location const &location, char const *name, bool anonymous) -> TermVariable;
@@ -341,8 +341,8 @@ class TermSymbolic : public ASTBase {
     auto symbol() -> Symbol;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TermSymbolic>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TermSymbolic>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermSymbolic;
 
     static auto construct(Library &lib, Location const &location, Symbol const &symbol) -> TermSymbolic;
@@ -368,8 +368,8 @@ class TermAbsolute : public ASTBase {
     auto pool() -> TermArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TermAbsolute>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TermAbsolute>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermAbsolute;
 
     static auto construct(Library &lib, Location const &location, TermIterable const &pool) -> TermAbsolute;
@@ -396,12 +396,12 @@ class TermUnaryOperation : public ASTBase {
     auto right() -> Term;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TermUnaryOperation>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TermUnaryOperation>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermUnaryOperation;
 
-    static auto construct(Library &lib, Location const &location, UnaryOperator const &operator_type,
-                          Term const &right) -> TermUnaryOperation;
+    static auto construct(Library &lib, Location const &location, UnaryOperator const &operator_type, Term const &right)
+        -> TermUnaryOperation;
     static auto acquire(clingo_ast_t *ast) -> TermUnaryOperation { return {ast}; }
 
     friend auto operator==(TermUnaryOperation const &a, TermUnaryOperation const &b) -> bool = default;
@@ -426,8 +426,8 @@ class TermBinaryOperation : public ASTBase {
     auto right() -> Term;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TermBinaryOperation>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TermBinaryOperation>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermBinaryOperation;
 
     static auto construct(Library &lib, Location const &location, Term const &left, BinaryOperator const &operator_type,
@@ -435,8 +435,8 @@ class TermBinaryOperation : public ASTBase {
     static auto acquire(clingo_ast_t *ast) -> TermBinaryOperation { return {ast}; }
 
     friend auto operator==(TermBinaryOperation const &a, TermBinaryOperation const &b) -> bool = default;
-    friend auto operator<=>(TermBinaryOperation const &a,
-                            TermBinaryOperation const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(TermBinaryOperation const &a, TermBinaryOperation const &b)
+        -> std::strong_ordering = default;
 
   private:
     TermBinaryOperation(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -455,8 +455,8 @@ class TermTuple : public ASTBase {
     auto pool() -> TermOrArgumentTupleArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TermTuple>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TermTuple>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermTuple;
 
     static auto construct(Library &lib, Location const &location, TermOrArgumentTupleIterable const &pool) -> TermTuple;
@@ -484,8 +484,8 @@ class TermFunction : public ASTBase {
     auto external() -> bool;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TermFunction>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TermFunction>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermFunction;
 
     static auto construct(Library &lib, Location const &location, char const *name, ArgumentTupleIterable const &pool,
@@ -511,8 +511,8 @@ class ArgumentTuple : public ASTBase {
     auto arguments() -> TermOrProjectionArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<ArgumentTuple>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<ArgumentTuple>;
     auto update(Library &lib, py::kwargs const &kwargs) -> ArgumentTuple;
 
     static auto construct(Library &lib, TermOrProjectionIterable const &arguments) -> ArgumentTuple;
@@ -548,8 +548,8 @@ class LeftGuard : public ASTBase {
     auto relation() -> Relation;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<LeftGuard>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<LeftGuard>;
     auto update(Library &lib, py::kwargs const &kwargs) -> LeftGuard;
 
     static auto construct(Library &lib, Term const &term, Relation const &relation) -> LeftGuard;
@@ -577,8 +577,8 @@ class RightGuard : public ASTBase {
     auto term() -> Term;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<RightGuard>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<RightGuard>;
     auto update(Library &lib, py::kwargs const &kwargs) -> RightGuard;
 
     static auto construct(Library &lib, Relation const &relation, Term const &term) -> RightGuard;
@@ -612,8 +612,8 @@ class LiteralBoolean : public ASTBase {
     auto value() -> bool;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<LiteralBoolean>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<LiteralBoolean>;
     auto update(Library &lib, py::kwargs const &kwargs) -> LiteralBoolean;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, bool value) -> LiteralBoolean;
@@ -641,8 +641,8 @@ class LiteralComparison : public ASTBase {
     auto right() -> RightGuardArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<LiteralComparison>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<LiteralComparison>;
     auto update(Library &lib, py::kwargs const &kwargs) -> LiteralComparison;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
@@ -670,12 +670,12 @@ class LiteralSymbolic : public ASTBase {
     auto atom() -> Term;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<LiteralSymbolic>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<LiteralSymbolic>;
     auto update(Library &lib, py::kwargs const &kwargs) -> LiteralSymbolic;
 
-    static auto construct(Library &lib, Location const &location, Sign const &sign,
-                          Term const &atom) -> LiteralSymbolic;
+    static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &atom)
+        -> LiteralSymbolic;
     static auto acquire(clingo_ast_t *ast) -> LiteralSymbolic { return {ast}; }
 
     friend auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool = default;
@@ -718,8 +718,8 @@ class UnparsedElement : public ASTBase {
     auto term() -> TheoryTerm;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<UnparsedElement>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<UnparsedElement>;
     auto update(Library &lib, py::kwargs const &kwargs) -> UnparsedElement;
 
     static auto construct(Library &lib, StringIterable const &operators, TheoryTerm const &term) -> UnparsedElement;
@@ -751,12 +751,12 @@ class TheoryTermVariable : public ASTBase {
     auto anonymous() -> bool;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TheoryTermVariable>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TheoryTermVariable>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermVariable;
 
-    static auto construct(Library &lib, Location const &location, char const *name,
-                          bool anonymous) -> TheoryTermVariable;
+    static auto construct(Library &lib, Location const &location, char const *name, bool anonymous)
+        -> TheoryTermVariable;
     static auto acquire(clingo_ast_t *ast) -> TheoryTermVariable { return {ast}; }
 
     friend auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool = default;
@@ -779,8 +779,8 @@ class TheoryTermSymbolic : public ASTBase {
     auto symbol() -> Symbol;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TheoryTermSymbolic>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TheoryTermSymbolic>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermSymbolic;
 
     static auto construct(Library &lib, Location const &location, Symbol const &symbol) -> TheoryTermSymbolic;
@@ -807,8 +807,8 @@ class TheoryTermTuple : public ASTBase {
     auto arguments() -> TheoryTermArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TheoryTermTuple>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TheoryTermTuple>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermTuple;
 
     static auto construct(Library &lib, Location const &location, TheoryTupleType const &tuple_type,
@@ -836,12 +836,12 @@ class TheoryTermFunction : public ASTBase {
     auto arguments() -> TheoryTermArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TheoryTermFunction>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TheoryTermFunction>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermFunction;
 
-    static auto construct(Library &lib, Location const &location, char const *name,
-                          TheoryTermIterable const &arguments) -> TheoryTermFunction;
+    static auto construct(Library &lib, Location const &location, char const *name, TheoryTermIterable const &arguments)
+        -> TheoryTermFunction;
     static auto acquire(clingo_ast_t *ast) -> TheoryTermFunction { return {ast}; }
 
     friend auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool = default;
@@ -864,12 +864,12 @@ class TheoryTermUnparsed : public ASTBase {
     auto elements() -> UnparsedElementArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TheoryTermUnparsed>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TheoryTermUnparsed>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermUnparsed;
 
-    static auto construct(Library &lib, Location const &location,
-                          UnparsedElementIterable const &elements) -> TheoryTermUnparsed;
+    static auto construct(Library &lib, Location const &location, UnparsedElementIterable const &elements)
+        -> TheoryTermUnparsed;
     static auto acquire(clingo_ast_t *ast) -> TheoryTermUnparsed { return {ast}; }
 
     friend auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool = default;
@@ -892,8 +892,8 @@ class TheoryRightGuard : public ASTBase {
     auto term() -> TheoryTerm;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TheoryRightGuard>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TheoryRightGuard>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryRightGuard;
 
     static auto construct(Library &lib, char const *theory_operator, TheoryTerm const &term) -> TheoryRightGuard;
@@ -927,8 +927,8 @@ class SetAggregateElement : public ASTBase {
     auto condition() -> LiteralArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<SetAggregateElement>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<SetAggregateElement>;
     auto update(Library &lib, py::kwargs const &kwargs) -> SetAggregateElement;
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
@@ -936,8 +936,8 @@ class SetAggregateElement : public ASTBase {
     static auto acquire(clingo_ast_t *ast) -> SetAggregateElement { return {ast}; }
 
     friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool = default;
-    friend auto operator<=>(SetAggregateElement const &a,
-                            SetAggregateElement const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(SetAggregateElement const &a, SetAggregateElement const &b)
+        -> std::strong_ordering = default;
 
   private:
     SetAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -962,8 +962,8 @@ class BodyAggregateElement : public ASTBase {
     auto condition() -> LiteralArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<BodyAggregateElement>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<BodyAggregateElement>;
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyAggregateElement;
 
     static auto construct(Library &lib, Location const &location, TermIterable const &tuple,
@@ -971,8 +971,8 @@ class BodyAggregateElement : public ASTBase {
     static auto acquire(clingo_ast_t *ast) -> BodyAggregateElement { return {ast}; }
 
     friend auto operator==(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool = default;
-    friend auto operator<=>(BodyAggregateElement const &a,
-                            BodyAggregateElement const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(BodyAggregateElement const &a, BodyAggregateElement const &b)
+        -> std::strong_ordering = default;
 
   private:
     BodyAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -997,8 +997,8 @@ class TheoryAtomElement : public ASTBase {
     auto condition() -> LiteralArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TheoryAtomElement>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TheoryAtomElement>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomElement;
 
     static auto construct(Library &lib, Location const &location, TheoryTermIterable const &tuple,
@@ -1049,8 +1049,8 @@ class BodySimpleLiteral : public ASTBase {
     auto literal() -> Literal;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<BodySimpleLiteral>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<BodySimpleLiteral>;
     auto update(Library &lib, py::kwargs const &kwargs) -> BodySimpleLiteral;
 
     static auto construct(Library &lib, Literal const &literal) -> BodySimpleLiteral;
@@ -1080,8 +1080,8 @@ class BodyAggregate : public ASTBase {
     auto right() -> OptionalRightGuard;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<BodyAggregate>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<BodyAggregate>;
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyAggregate;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
@@ -1112,13 +1112,13 @@ class BodySetAggregate : public ASTBase {
     auto right() -> OptionalRightGuard;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<BodySetAggregate>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<BodySetAggregate>;
     auto update(Library &lib, py::kwargs const &kwargs) -> BodySetAggregate;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
-                          SetAggregateElementIterable const &elements,
-                          OptionalRightGuard const &right) -> BodySetAggregate;
+                          SetAggregateElementIterable const &elements, OptionalRightGuard const &right)
+        -> BodySetAggregate;
     static auto acquire(clingo_ast_t *ast) -> BodySetAggregate { return {ast}; }
 
     friend auto operator==(BodySetAggregate const &a, BodySetAggregate const &b) -> bool = default;
@@ -1144,13 +1144,13 @@ class BodyTheoryAtom : public ASTBase {
     auto right() -> OptionalTheoryRightGuard;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<BodyTheoryAtom>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<BodyTheoryAtom>;
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyTheoryAtom;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &name,
-                          TheoryAtomElementIterable const &elements,
-                          OptionalTheoryRightGuard const &right) -> BodyTheoryAtom;
+                          TheoryAtomElementIterable const &elements, OptionalTheoryRightGuard const &right)
+        -> BodyTheoryAtom;
     static auto acquire(clingo_ast_t *ast) -> BodyTheoryAtom { return {ast}; }
 
     friend auto operator==(BodyTheoryAtom const &a, BodyTheoryAtom const &b) -> bool = default;
@@ -1174,8 +1174,8 @@ class BodyConditionalLiteral : public ASTBase {
     auto condition() -> LiteralArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<BodyConditionalLiteral>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<BodyConditionalLiteral>;
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyConditionalLiteral;
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
@@ -1183,8 +1183,8 @@ class BodyConditionalLiteral : public ASTBase {
     static auto acquire(clingo_ast_t *ast) -> BodyConditionalLiteral { return {ast}; }
 
     friend auto operator==(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b) -> bool = default;
-    friend auto operator<=>(BodyConditionalLiteral const &a,
-                            BodyConditionalLiteral const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b)
+        -> std::strong_ordering = default;
 
   private:
     BodyConditionalLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -1204,8 +1204,8 @@ class HeadConditionalLiteral : public ASTBase {
     auto condition() -> LiteralArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<HeadConditionalLiteral>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<HeadConditionalLiteral>;
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadConditionalLiteral;
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
@@ -1213,8 +1213,8 @@ class HeadConditionalLiteral : public ASTBase {
     static auto acquire(clingo_ast_t *ast) -> HeadConditionalLiteral { return {ast}; }
 
     friend auto operator==(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b) -> bool = default;
-    friend auto operator<=>(HeadConditionalLiteral const &a,
-                            HeadConditionalLiteral const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b)
+        -> std::strong_ordering = default;
 
   private:
     HeadConditionalLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -1244,8 +1244,8 @@ class HeadAggregateElement : public ASTBase {
     auto condition() -> LiteralArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<HeadAggregateElement>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<HeadAggregateElement>;
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadAggregateElement;
 
     static auto construct(Library &lib, Location const &location, TermIterable const &tuple, Literal const &literal,
@@ -1253,8 +1253,8 @@ class HeadAggregateElement : public ASTBase {
     static auto acquire(clingo_ast_t *ast) -> HeadAggregateElement { return {ast}; }
 
     friend auto operator==(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool = default;
-    friend auto operator<=>(HeadAggregateElement const &a,
-                            HeadAggregateElement const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(HeadAggregateElement const &a, HeadAggregateElement const &b)
+        -> std::strong_ordering = default;
 
   private:
     HeadAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -1291,8 +1291,8 @@ class HeadSimpleLiteral : public ASTBase {
     auto literal() -> Literal;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<HeadSimpleLiteral>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<HeadSimpleLiteral>;
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadSimpleLiteral;
 
     static auto construct(Library &lib, Literal const &literal) -> HeadSimpleLiteral;
@@ -1321,8 +1321,8 @@ class HeadAggregate : public ASTBase {
     auto right() -> OptionalRightGuard;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<HeadAggregate>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<HeadAggregate>;
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadAggregate;
 
     static auto construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
@@ -1352,13 +1352,13 @@ class HeadSetAggregate : public ASTBase {
     auto right() -> OptionalRightGuard;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<HeadSetAggregate>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<HeadSetAggregate>;
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadSetAggregate;
 
     static auto construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
-                          SetAggregateElementIterable const &elements,
-                          OptionalRightGuard const &right) -> HeadSetAggregate;
+                          SetAggregateElementIterable const &elements, OptionalRightGuard const &right)
+        -> HeadSetAggregate;
     static auto acquire(clingo_ast_t *ast) -> HeadSetAggregate { return {ast}; }
 
     friend auto operator==(HeadSetAggregate const &a, HeadSetAggregate const &b) -> bool = default;
@@ -1383,13 +1383,13 @@ class HeadTheoryAtom : public ASTBase {
     auto right() -> OptionalTheoryRightGuard;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<HeadTheoryAtom>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<HeadTheoryAtom>;
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadTheoryAtom;
 
     static auto construct(Library &lib, Location const &location, Term const &name,
-                          TheoryAtomElementIterable const &elements,
-                          OptionalTheoryRightGuard const &right) -> HeadTheoryAtom;
+                          TheoryAtomElementIterable const &elements, OptionalTheoryRightGuard const &right)
+        -> HeadTheoryAtom;
     static auto acquire(clingo_ast_t *ast) -> HeadTheoryAtom { return {ast}; }
 
     friend auto operator==(HeadTheoryAtom const &a, HeadTheoryAtom const &b) -> bool = default;
@@ -1412,12 +1412,12 @@ class HeadDisjunction : public ASTBase {
     auto elements() -> DisjunctionElementArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<HeadDisjunction>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<HeadDisjunction>;
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadDisjunction;
 
-    static auto construct(Library &lib, Location const &location,
-                          DisjunctionElementIterable const &elements) -> HeadDisjunction;
+    static auto construct(Library &lib, Location const &location, DisjunctionElementIterable const &elements)
+        -> HeadDisjunction;
     static auto acquire(clingo_ast_t *ast) -> HeadDisjunction { return {ast}; }
 
     friend auto operator==(HeadDisjunction const &a, HeadDisjunction const &b) -> bool = default;
@@ -1442,8 +1442,8 @@ class TheoryOperatorDefinition : public ASTBase {
     auto operator_type() -> TheoryOperatorType;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TheoryOperatorDefinition>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TheoryOperatorDefinition>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryOperatorDefinition;
 
     static auto construct(Library &lib, Location const &location, char const *name, int priority,
@@ -1451,8 +1451,8 @@ class TheoryOperatorDefinition : public ASTBase {
     static auto acquire(clingo_ast_t *ast) -> TheoryOperatorDefinition { return {ast}; }
 
     friend auto operator==(TheoryOperatorDefinition const &a, TheoryOperatorDefinition const &b) -> bool = default;
-    friend auto operator<=>(TheoryOperatorDefinition const &a,
-                            TheoryOperatorDefinition const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(TheoryOperatorDefinition const &a, TheoryOperatorDefinition const &b)
+        -> std::strong_ordering = default;
 
   private:
     TheoryOperatorDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -1477,8 +1477,8 @@ class TheoryTermDefinition : public ASTBase {
     auto operators() -> TheoryOperatorDefinitionArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TheoryTermDefinition>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TheoryTermDefinition>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermDefinition;
 
     static auto construct(Library &lib, Location const &location, char const *name,
@@ -1486,8 +1486,8 @@ class TheoryTermDefinition : public ASTBase {
     static auto acquire(clingo_ast_t *ast) -> TheoryTermDefinition { return {ast}; }
 
     friend auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool = default;
-    friend auto operator<=>(TheoryTermDefinition const &a,
-                            TheoryTermDefinition const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(TheoryTermDefinition const &a, TheoryTermDefinition const &b)
+        -> std::strong_ordering = default;
 
   private:
     TheoryTermDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -1511,16 +1511,16 @@ class TheoryGuardDefinition : public ASTBase {
     auto term() -> char const *;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TheoryGuardDefinition>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TheoryGuardDefinition>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryGuardDefinition;
 
     static auto construct(Library &lib, StringIterable const &operators, char const *term) -> TheoryGuardDefinition;
     static auto acquire(clingo_ast_t *ast) -> TheoryGuardDefinition { return {ast}; }
 
     friend auto operator==(TheoryGuardDefinition const &a, TheoryGuardDefinition const &b) -> bool = default;
-    friend auto operator<=>(TheoryGuardDefinition const &a,
-                            TheoryGuardDefinition const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(TheoryGuardDefinition const &a, TheoryGuardDefinition const &b)
+        -> std::strong_ordering = default;
 
   private:
     TheoryGuardDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -1545,18 +1545,18 @@ class TheoryAtomDefinition : public ASTBase {
     auto atom_type() -> TheoryAtomType;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<TheoryAtomDefinition>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TheoryAtomDefinition>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomDefinition;
 
     static auto construct(Library &lib, Location const &location, char const *name, int arity, char const *term,
-                          OptionalTheoryGuardDefinition const &guard,
-                          TheoryAtomType const &atom_type) -> TheoryAtomDefinition;
+                          OptionalTheoryGuardDefinition const &guard, TheoryAtomType const &atom_type)
+        -> TheoryAtomDefinition;
     static auto acquire(clingo_ast_t *ast) -> TheoryAtomDefinition { return {ast}; }
 
     friend auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool = default;
-    friend auto operator<=>(TheoryAtomDefinition const &a,
-                            TheoryAtomDefinition const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b)
+        -> std::strong_ordering = default;
 
   private:
     TheoryAtomDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -1581,12 +1581,12 @@ class OptimizeTuple : public ASTBase {
     auto terms() -> TermArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<OptimizeTuple>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<OptimizeTuple>;
     auto update(Library &lib, py::kwargs const &kwargs) -> OptimizeTuple;
 
-    static auto construct(Library &lib, Term const &weight, OptionalTerm const &priority,
-                          TermIterable const &terms) -> OptimizeTuple;
+    static auto construct(Library &lib, Term const &weight, OptionalTerm const &priority, TermIterable const &terms)
+        -> OptimizeTuple;
     static auto acquire(clingo_ast_t *ast) -> OptimizeTuple { return {ast}; }
 
     friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool = default;
@@ -1609,12 +1609,12 @@ class OptimizeElement : public ASTBase {
     auto condition() -> LiteralArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<OptimizeElement>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<OptimizeElement>;
     auto update(Library &lib, py::kwargs const &kwargs) -> OptimizeElement;
 
-    static auto construct(Library &lib, OptimizeTuple const &tuple,
-                          LiteralIterable const &condition) -> OptimizeElement;
+    static auto construct(Library &lib, OptimizeTuple const &tuple, LiteralIterable const &condition)
+        -> OptimizeElement;
     static auto acquire(clingo_ast_t *ast) -> OptimizeElement { return {ast}; }
 
     friend auto operator==(OptimizeElement const &a, OptimizeElement const &b) -> bool = default;
@@ -1642,8 +1642,8 @@ class Edge : public ASTBase {
     auto v() -> Term;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<Edge>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<Edge>;
     auto update(Library &lib, py::kwargs const &kwargs) -> Edge;
 
     static auto construct(Library &lib, Term const &u, Term const &v) -> Edge;
@@ -1719,8 +1719,8 @@ class StatementRule : public ASTBase {
     auto body() -> BodyLiteralArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementRule>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementRule>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementRule;
 
     static auto construct(Library &lib, Location const &location, HeadLiteral const &head,
@@ -1749,13 +1749,13 @@ class StatementTheory : public ASTBase {
     auto atoms() -> TheoryAtomDefinitionArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementTheory>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementTheory>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementTheory;
 
     static auto construct(Library &lib, Location const &location, char const *name,
-                          TheoryTermDefinitionIterable const &terms,
-                          TheoryAtomDefinitionIterable const &atoms) -> StatementTheory;
+                          TheoryTermDefinitionIterable const &terms, TheoryAtomDefinitionIterable const &atoms)
+        -> StatementTheory;
     static auto acquire(clingo_ast_t *ast) -> StatementTheory { return {ast}; }
 
     friend auto operator==(StatementTheory const &a, StatementTheory const &b) -> bool = default;
@@ -1779,8 +1779,8 @@ class StatementOptimize : public ASTBase {
     auto optimize_type() -> OptimizeType;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementOptimize>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementOptimize>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementOptimize;
 
     static auto construct(Library &lib, Location const &location, OptimizeElementIterable const &elements,
@@ -1808,8 +1808,8 @@ class StatementWeakConstraint : public ASTBase {
     auto tuple() -> OptimizeTuple;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementWeakConstraint>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementWeakConstraint>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementWeakConstraint;
 
     static auto construct(Library &lib, Location const &location, BodyLiteralIterable const &body,
@@ -1817,8 +1817,8 @@ class StatementWeakConstraint : public ASTBase {
     static auto acquire(clingo_ast_t *ast) -> StatementWeakConstraint { return {ast}; }
 
     friend auto operator==(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool = default;
-    friend auto operator<=>(StatementWeakConstraint const &a,
-                            StatementWeakConstraint const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(StatementWeakConstraint const &a, StatementWeakConstraint const &b)
+        -> std::strong_ordering = default;
 
   private:
     StatementWeakConstraint(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -1838,12 +1838,12 @@ class StatementShow : public ASTBase {
     auto body() -> BodyLiteralArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementShow>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementShow>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShow;
 
-    static auto construct(Library &lib, Location const &location, Term const &term,
-                          BodyLiteralIterable const &body) -> StatementShow;
+    static auto construct(Library &lib, Location const &location, Term const &term, BodyLiteralIterable const &body)
+        -> StatementShow;
     static auto acquire(clingo_ast_t *ast) -> StatementShow { return {ast}; }
 
     friend auto operator==(StatementShow const &a, StatementShow const &b) -> bool = default;
@@ -1865,16 +1865,16 @@ class StatementShowNothing : public ASTBase {
     auto location() -> Location;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementShowNothing>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementShowNothing>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShowNothing;
 
     static auto construct(Library &lib, Location const &location) -> StatementShowNothing;
     static auto acquire(clingo_ast_t *ast) -> StatementShowNothing { return {ast}; }
 
     friend auto operator==(StatementShowNothing const &a, StatementShowNothing const &b) -> bool = default;
-    friend auto operator<=>(StatementShowNothing const &a,
-                            StatementShowNothing const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(StatementShowNothing const &a, StatementShowNothing const &b)
+        -> std::strong_ordering = default;
 
   private:
     StatementShowNothing(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -1895,17 +1895,17 @@ class StatementShowSignature : public ASTBase {
     auto sign() -> bool;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementShowSignature>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementShowSignature>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShowSignature;
 
-    static auto construct(Library &lib, Location const &location, char const *name, int arity,
-                          bool sign) -> StatementShowSignature;
+    static auto construct(Library &lib, Location const &location, char const *name, int arity, bool sign)
+        -> StatementShowSignature;
     static auto acquire(clingo_ast_t *ast) -> StatementShowSignature { return {ast}; }
 
     friend auto operator==(StatementShowSignature const &a, StatementShowSignature const &b) -> bool = default;
-    friend auto operator<=>(StatementShowSignature const &a,
-                            StatementShowSignature const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(StatementShowSignature const &a, StatementShowSignature const &b)
+        -> std::strong_ordering = default;
 
   private:
     StatementShowSignature(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -1925,12 +1925,12 @@ class StatementProject : public ASTBase {
     auto body() -> BodyLiteralArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementProject>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementProject>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProject;
 
-    static auto construct(Library &lib, Location const &location, Term const &atom,
-                          BodyLiteralIterable const &body) -> StatementProject;
+    static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralIterable const &body)
+        -> StatementProject;
     static auto acquire(clingo_ast_t *ast) -> StatementProject { return {ast}; }
 
     friend auto operator==(StatementProject const &a, StatementProject const &b) -> bool = default;
@@ -1955,17 +1955,17 @@ class StatementProjectSignature : public ASTBase {
     auto sign() -> bool;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementProjectSignature>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementProjectSignature>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProjectSignature;
 
-    static auto construct(Library &lib, Location const &location, char const *name, int arity,
-                          bool sign) -> StatementProjectSignature;
+    static auto construct(Library &lib, Location const &location, char const *name, int arity, bool sign)
+        -> StatementProjectSignature;
     static auto acquire(clingo_ast_t *ast) -> StatementProjectSignature { return {ast}; }
 
     friend auto operator==(StatementProjectSignature const &a, StatementProjectSignature const &b) -> bool = default;
-    friend auto operator<=>(StatementProjectSignature const &a,
-                            StatementProjectSignature const &b) -> std::strong_ordering = default;
+    friend auto operator<=>(StatementProjectSignature const &a, StatementProjectSignature const &b)
+        -> std::strong_ordering = default;
 
   private:
     StatementProjectSignature(clingo_ast_t *ast) : ASTBase{ast} {}
@@ -1986,12 +1986,12 @@ class StatementDefined : public ASTBase {
     auto sign() -> bool;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementDefined>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementDefined>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementDefined;
 
-    static auto construct(Library &lib, Location const &location, char const *name, int arity,
-                          bool sign) -> StatementDefined;
+    static auto construct(Library &lib, Location const &location, char const *name, int arity, bool sign)
+        -> StatementDefined;
     static auto acquire(clingo_ast_t *ast) -> StatementDefined { return {ast}; }
 
     friend auto operator==(StatementDefined const &a, StatementDefined const &b) -> bool = default;
@@ -2016,8 +2016,8 @@ class StatementExternal : public ASTBase {
     auto external_type() -> OptionalTerm;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementExternal>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementExternal>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementExternal;
 
     static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralIterable const &body,
@@ -2045,8 +2045,8 @@ class StatementEdge : public ASTBase {
     auto body() -> BodyLiteralArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementEdge>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementEdge>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementEdge;
 
     static auto construct(Library &lib, Location const &location, EdgeIterable const &pool,
@@ -2077,8 +2077,8 @@ class StatementHeuristic : public ASTBase {
     auto priority() -> OptionalTerm;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementHeuristic>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementHeuristic>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementHeuristic;
 
     static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralIterable const &body,
@@ -2106,12 +2106,12 @@ class StatementScript : public ASTBase {
     auto script_type() -> char const *;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementScript>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementScript>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementScript;
 
-    static auto construct(Library &lib, Location const &location, char const *value,
-                          char const *script_type) -> StatementScript;
+    static auto construct(Library &lib, Location const &location, char const *value, char const *script_type)
+        -> StatementScript;
     static auto acquire(clingo_ast_t *ast) -> StatementScript { return {ast}; }
 
     friend auto operator==(StatementScript const &a, StatementScript const &b) -> bool = default;
@@ -2135,12 +2135,12 @@ class StatementInclude : public ASTBase {
     auto include_type() -> IncludeType;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementInclude>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementInclude>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementInclude;
 
-    static auto construct(Library &lib, Location const &location, char const *value,
-                          IncludeType const &include_type) -> StatementInclude;
+    static auto construct(Library &lib, Location const &location, char const *value, IncludeType const &include_type)
+        -> StatementInclude;
     static auto acquire(clingo_ast_t *ast) -> StatementInclude { return {ast}; }
 
     friend auto operator==(StatementInclude const &a, StatementInclude const &b) -> bool = default;
@@ -2164,12 +2164,12 @@ class StatementProgram : public ASTBase {
     auto arguments() -> std::vector<char const *>;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementProgram>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementProgram>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProgram;
 
-    static auto construct(Library &lib, Location const &location, char const *name,
-                          StringIterable const &arguments) -> StatementProgram;
+    static auto construct(Library &lib, Location const &location, char const *name, StringIterable const &arguments)
+        -> StatementProgram;
     static auto acquire(clingo_ast_t *ast) -> StatementProgram { return {ast}; }
 
     friend auto operator==(StatementProgram const &a, StatementProgram const &b) -> bool = default;
@@ -2194,8 +2194,8 @@ class StatementConst : public ASTBase {
     auto const_type() -> ConstType;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementConst>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementConst>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementConst;
 
     static auto construct(Library &lib, Location const &location, char const *name, Term const &value,
@@ -2223,12 +2223,12 @@ class StatementComment : public ASTBase {
     auto comment_type() -> CommentType;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-    auto transform(Library &lib, py::handle transform, py::args const &args,
-                   py::kwargs const &kwargs) -> std::optional<StatementComment>;
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementComment>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementComment;
 
-    static auto construct(Library &lib, Location const &location, char const *value,
-                          CommentType const &comment_type) -> StatementComment;
+    static auto construct(Library &lib, Location const &location, char const *value, CommentType const &comment_type)
+        -> StatementComment;
     static auto acquire(clingo_ast_t *ast) -> StatementComment { return {ast}; }
 
     friend auto operator==(StatementComment const &a, StatementComment const &b) -> bool = default;
@@ -2307,8 +2307,8 @@ void Projection::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py:
                        [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto Projection::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                           [[maybe_unused]] py::args const &args,
-                           [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<Projection> {
+                           [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<Projection> {
     return std::nullopt;
 }
 
@@ -2473,8 +2473,8 @@ void TermVariable::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] p
                          [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto TermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                             [[maybe_unused]] py::args const &args,
-                             [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TermVariable> {
+                             [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TermVariable> {
     return std::nullopt;
 }
 
@@ -2507,8 +2507,8 @@ void TermSymbolic::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] p
                          [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto TermSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                             [[maybe_unused]] py::args const &args,
-                             [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TermSymbolic> {
+                             [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TermSymbolic> {
     return std::nullopt;
 }
 
@@ -2544,8 +2544,8 @@ void TermAbsolute::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] p
 }
 
 auto TermAbsolute::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                             [[maybe_unused]] py::args const &args,
-                             [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TermAbsolute> {
+                             [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TermAbsolute> {
     auto [pool_value, pool_changed] = transform_array(pool(), transform, args, kwargs);
     if (pool_changed) {
         return TermAbsolute::construct(lib, location(), pool_value);
@@ -2591,8 +2591,8 @@ void TermUnaryOperation::visit([[maybe_unused]] py::handle visitor, [[maybe_unus
 }
 
 auto TermUnaryOperation::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                   [[maybe_unused]] py::args const &args,
-                                   [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TermUnaryOperation> {
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TermUnaryOperation> {
     auto [right_value, right_changed] = transform_value(right(), transform, args, kwargs);
     if (right_changed) {
         return TermUnaryOperation::construct(lib, location(), operator_type(), right_value);
@@ -2647,8 +2647,8 @@ void TermBinaryOperation::visit([[maybe_unused]] py::handle visitor, [[maybe_unu
 }
 
 auto TermBinaryOperation::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                    [[maybe_unused]] py::args const &args,
-                                    [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TermBinaryOperation> {
+                                    [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TermBinaryOperation> {
     auto [left_value, left_changed] = transform_value(left(), transform, args, kwargs);
     auto [right_value, right_changed] = transform_value(right(), transform, args, kwargs);
     if (left_changed || right_changed) {
@@ -2678,8 +2678,8 @@ auto TermTuple::pool() -> TermOrArgumentTupleArray {
     return construct_term_or_argument_tuple_array(ast, size);
 }
 
-auto TermTuple::construct(Library &lib, Location const &location,
-                          TermOrArgumentTupleIterable const &pool) -> TermTuple {
+auto TermTuple::construct(Library &lib, Location const &location, TermOrArgumentTupleIterable const &pool)
+    -> TermTuple {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
@@ -2693,8 +2693,8 @@ void TermTuple::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::
 }
 
 auto TermTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                          [[maybe_unused]] py::args const &args,
-                          [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TermTuple> {
+                          [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TermTuple> {
     auto [pool_value, pool_changed] = transform_array(pool(), transform, args, kwargs);
     if (pool_changed) {
         return TermTuple::construct(lib, location(), pool_value);
@@ -2747,8 +2747,8 @@ void TermFunction::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] p
 }
 
 auto TermFunction::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                             [[maybe_unused]] py::args const &args,
-                             [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TermFunction> {
+                             [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TermFunction> {
     auto [pool_value, pool_changed] = transform_array(pool(), transform, args, kwargs);
     if (pool_changed) {
         return TermFunction::construct(lib, location(), name(), pool_value, external());
@@ -2783,8 +2783,8 @@ void ArgumentTuple::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] 
 }
 
 auto ArgumentTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                              [[maybe_unused]] py::args const &args,
-                              [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<ArgumentTuple> {
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<ArgumentTuple> {
     auto [arguments_value, arguments_changed] = transform_array(arguments(), transform, args, kwargs);
     if (arguments_changed) {
         return ArgumentTuple::construct(lib, arguments_value);
@@ -2845,8 +2845,8 @@ void LeftGuard::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::
 }
 
 auto LeftGuard::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                          [[maybe_unused]] py::args const &args,
-                          [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<LeftGuard> {
+                          [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<LeftGuard> {
     auto [term_value, term_changed] = transform_value(term(), transform, args, kwargs);
     if (term_changed) {
         return LeftGuard::construct(lib, term_value, relation());
@@ -2884,8 +2884,8 @@ void RightGuard::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py:
 }
 
 auto RightGuard::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                           [[maybe_unused]] py::args const &args,
-                           [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<RightGuard> {
+                           [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<RightGuard> {
     auto [term_value, term_changed] = transform_value(term(), transform, args, kwargs);
     if (term_changed) {
         return RightGuard::construct(lib, relation(), term_value);
@@ -2945,8 +2945,8 @@ void LiteralBoolean::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]]
                            [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto LiteralBoolean::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                               [[maybe_unused]] py::args const &args,
-                               [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<LiteralBoolean> {
+                               [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<LiteralBoolean> {
     return std::nullopt;
 }
 
@@ -2997,8 +2997,8 @@ void LiteralComparison::visit([[maybe_unused]] py::handle visitor, [[maybe_unuse
 }
 
 auto LiteralComparison::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                  [[maybe_unused]] py::args const &args,
-                                  [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<LiteralComparison> {
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<LiteralComparison> {
     auto [left_value, left_changed] = transform_value(left(), transform, args, kwargs);
     auto [right_value, right_changed] = transform_array(right(), transform, args, kwargs);
     if (left_changed || right_changed) {
@@ -3033,8 +3033,8 @@ auto LiteralSymbolic::atom() -> Term {
     return construct_term(ast);
 }
 
-auto LiteralSymbolic::construct(Library &lib, Location const &location, Sign const &sign,
-                                Term const &atom) -> LiteralSymbolic {
+auto LiteralSymbolic::construct(Library &lib, Location const &location, Sign const &sign, Term const &atom)
+    -> LiteralSymbolic {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_literal_symbolic, &res_,
                                       static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
@@ -3048,8 +3048,8 @@ void LiteralSymbolic::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]
 }
 
 auto LiteralSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                [[maybe_unused]] py::args const &args,
-                                [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<LiteralSymbolic> {
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<LiteralSymbolic> {
     auto [atom_value, atom_changed] = transform_value(atom(), transform, args, kwargs);
     if (atom_changed) {
         return LiteralSymbolic::construct(lib, location(), sign(), atom_value);
@@ -3124,8 +3124,8 @@ auto UnparsedElement::term() -> TheoryTerm {
     return construct_theory_term(ast);
 }
 
-auto UnparsedElement::construct(Library &lib, StringIterable const &operators,
-                                TheoryTerm const &term) -> UnparsedElement {
+auto UnparsedElement::construct(Library &lib, StringIterable const &operators, TheoryTerm const &term)
+    -> UnparsedElement {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_unparsed_element, &res_, c_cast(operators).data(),
                                       operators.size(), c_cast(term)));
@@ -3138,8 +3138,8 @@ void UnparsedElement::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]
 }
 
 auto UnparsedElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                [[maybe_unused]] py::args const &args,
-                                [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<UnparsedElement> {
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<UnparsedElement> {
     auto [term_value, term_changed] = transform_value(term(), transform, args, kwargs);
     if (term_changed) {
         return UnparsedElement::construct(lib, to_string_array(operators()), term_value);
@@ -3188,8 +3188,8 @@ auto TheoryTermVariable::anonymous() -> bool {
     return ret != 0;
 }
 
-auto TheoryTermVariable::construct(Library &lib, Location const &location, char const *name,
-                                   bool anonymous) -> TheoryTermVariable {
+auto TheoryTermVariable::construct(Library &lib, Location const &location, char const *name, bool anonymous)
+    -> TheoryTermVariable {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_variable, &res_,
                                       static_cast<clingo_location_t const *>(location), name,
@@ -3201,8 +3201,8 @@ void TheoryTermVariable::visit([[maybe_unused]] py::handle visitor, [[maybe_unus
                                [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto TheoryTermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                   [[maybe_unused]] py::args const &args,
-                                   [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TheoryTermVariable> {
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryTermVariable> {
     return std::nullopt;
 }
 
@@ -3236,8 +3236,8 @@ void TheoryTermSymbolic::visit([[maybe_unused]] py::handle visitor, [[maybe_unus
                                [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto TheoryTermSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                   [[maybe_unused]] py::args const &args,
-                                   [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TheoryTermSymbolic> {
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryTermSymbolic> {
     return std::nullopt;
 }
 
@@ -3281,8 +3281,8 @@ void TheoryTermTuple::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]
 }
 
 auto TheoryTermTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                [[maybe_unused]] py::args const &args,
-                                [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TheoryTermTuple> {
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryTermTuple> {
     auto [arguments_value, arguments_changed] = transform_array(arguments(), transform, args, kwargs);
     if (arguments_changed) {
         return TheoryTermTuple::construct(lib, location(), tuple_type(), arguments_value);
@@ -3331,8 +3331,8 @@ void TheoryTermFunction::visit([[maybe_unused]] py::handle visitor, [[maybe_unus
 }
 
 auto TheoryTermFunction::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                   [[maybe_unused]] py::args const &args,
-                                   [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TheoryTermFunction> {
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryTermFunction> {
     auto [arguments_value, arguments_changed] = transform_array(arguments(), transform, args, kwargs);
     if (arguments_changed) {
         return TheoryTermFunction::construct(lib, location(), name(), arguments_value);
@@ -3360,8 +3360,8 @@ auto TheoryTermUnparsed::elements() -> UnparsedElementArray {
     return construct_unparsed_element_array(ast, size);
 }
 
-auto TheoryTermUnparsed::construct(Library &lib, Location const &location,
-                                   UnparsedElementIterable const &elements) -> TheoryTermUnparsed {
+auto TheoryTermUnparsed::construct(Library &lib, Location const &location, UnparsedElementIterable const &elements)
+    -> TheoryTermUnparsed {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_unparsed, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
@@ -3375,8 +3375,8 @@ void TheoryTermUnparsed::visit([[maybe_unused]] py::handle visitor, [[maybe_unus
 }
 
 auto TheoryTermUnparsed::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                   [[maybe_unused]] py::args const &args,
-                                   [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TheoryTermUnparsed> {
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryTermUnparsed> {
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     if (elements_changed) {
         return TheoryTermUnparsed::construct(lib, location(), elements_value);
@@ -3402,8 +3402,8 @@ auto TheoryRightGuard::term() -> TheoryTerm {
     return construct_theory_term(ast);
 }
 
-auto TheoryRightGuard::construct(Library &lib, char const *theory_operator,
-                                 TheoryTerm const &term) -> TheoryRightGuard {
+auto TheoryRightGuard::construct(Library &lib, char const *theory_operator, TheoryTerm const &term)
+    -> TheoryRightGuard {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_right_guard, &res_, theory_operator, c_cast(term)));
     return TheoryRightGuard::acquire(res_);
@@ -3415,8 +3415,8 @@ void TheoryRightGuard::visit([[maybe_unused]] py::handle visitor, [[maybe_unused
 }
 
 auto TheoryRightGuard::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                 [[maybe_unused]] py::args const &args,
-                                 [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TheoryRightGuard> {
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryRightGuard> {
     auto [term_value, term_changed] = transform_value(term(), transform, args, kwargs);
     if (term_changed) {
         return TheoryRightGuard::construct(lib, theory_operator(), term_value);
@@ -3482,8 +3482,8 @@ void SetAggregateElement::visit([[maybe_unused]] py::handle visitor, [[maybe_unu
 }
 
 auto SetAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                    [[maybe_unused]] py::args const &args,
-                                    [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<SetAggregateElement> {
+                                    [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<SetAggregateElement> {
     auto [literal_value, literal_changed] = transform_value(literal(), transform, args, kwargs);
     auto [condition_value, condition_changed] = transform_array(condition(), transform, args, kwargs);
     if (literal_changed || condition_changed) {
@@ -3552,8 +3552,8 @@ void BodyAggregateElement::visit([[maybe_unused]] py::handle visitor, [[maybe_un
 }
 
 auto BodyAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                     [[maybe_unused]] py::args const &args,
-                                     [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<BodyAggregateElement> {
+                                     [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<BodyAggregateElement> {
     auto [tuple_value, tuple_changed] = transform_array(tuple(), transform, args, kwargs);
     auto [condition_value, condition_changed] = transform_array(condition(), transform, args, kwargs);
     if (tuple_changed || condition_changed) {
@@ -3622,8 +3622,8 @@ void TheoryAtomElement::visit([[maybe_unused]] py::handle visitor, [[maybe_unuse
 }
 
 auto TheoryAtomElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                  [[maybe_unused]] py::args const &args,
-                                  [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TheoryAtomElement> {
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryAtomElement> {
     auto [tuple_value, tuple_changed] = transform_array(tuple(), transform, args, kwargs);
     auto [condition_value, condition_changed] = transform_array(condition(), transform, args, kwargs);
     if (tuple_changed || condition_changed) {
@@ -3720,8 +3720,8 @@ void BodySimpleLiteral::visit([[maybe_unused]] py::handle visitor, [[maybe_unuse
 }
 
 auto BodySimpleLiteral::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                  [[maybe_unused]] py::args const &args,
-                                  [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<BodySimpleLiteral> {
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<BodySimpleLiteral> {
     auto [literal_value, literal_changed] = transform_value(literal(), transform, args, kwargs);
     if (literal_changed) {
         return BodySimpleLiteral::construct(lib, literal_value);
@@ -3802,8 +3802,8 @@ void BodyAggregate::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] 
 }
 
 auto BodyAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                              [[maybe_unused]] py::args const &args,
-                              [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<BodyAggregate> {
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<BodyAggregate> {
     auto [left_value, left_changed] = transform_opt_value(left(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     auto [right_value, right_changed] = transform_opt_value(right(), transform, args, kwargs);
@@ -3884,8 +3884,8 @@ void BodySetAggregate::visit([[maybe_unused]] py::handle visitor, [[maybe_unused
 }
 
 auto BodySetAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                 [[maybe_unused]] py::args const &args,
-                                 [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<BodySetAggregate> {
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<BodySetAggregate> {
     auto [left_value, left_changed] = transform_opt_value(left(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     auto [right_value, right_changed] = transform_opt_value(right(), transform, args, kwargs);
@@ -3940,8 +3940,8 @@ auto BodyTheoryAtom::right() -> OptionalTheoryRightGuard {
 }
 
 auto BodyTheoryAtom::construct(Library &lib, Location const &location, Sign const &sign, Term const &name,
-                               TheoryAtomElementIterable const &elements,
-                               OptionalTheoryRightGuard const &right) -> BodyTheoryAtom {
+                               TheoryAtomElementIterable const &elements, OptionalTheoryRightGuard const &right)
+    -> BodyTheoryAtom {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_body_theory_atom, &res_,
                                       static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
@@ -3959,8 +3959,8 @@ void BodyTheoryAtom::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]]
 }
 
 auto BodyTheoryAtom::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                               [[maybe_unused]] py::args const &args,
-                               [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<BodyTheoryAtom> {
+                               [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<BodyTheoryAtom> {
     auto [name_value, name_changed] = transform_value(name(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     auto [right_value, right_changed] = transform_opt_value(right(), transform, args, kwargs);
@@ -4169,8 +4169,8 @@ void HeadAggregateElement::visit([[maybe_unused]] py::handle visitor, [[maybe_un
 }
 
 auto HeadAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                     [[maybe_unused]] py::args const &args,
-                                     [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<HeadAggregateElement> {
+                                     [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<HeadAggregateElement> {
     auto [tuple_value, tuple_changed] = transform_array(tuple(), transform, args, kwargs);
     auto [literal_value, literal_changed] = transform_value(literal(), transform, args, kwargs);
     auto [condition_value, condition_changed] = transform_array(condition(), transform, args, kwargs);
@@ -4252,8 +4252,8 @@ void HeadSimpleLiteral::visit([[maybe_unused]] py::handle visitor, [[maybe_unuse
 }
 
 auto HeadSimpleLiteral::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                  [[maybe_unused]] py::args const &args,
-                                  [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<HeadSimpleLiteral> {
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<HeadSimpleLiteral> {
     auto [literal_value, literal_changed] = transform_value(literal(), transform, args, kwargs);
     if (literal_changed) {
         return HeadSimpleLiteral::construct(lib, literal_value);
@@ -4327,8 +4327,8 @@ void HeadAggregate::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] 
 }
 
 auto HeadAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                              [[maybe_unused]] py::args const &args,
-                              [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<HeadAggregate> {
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<HeadAggregate> {
     auto [left_value, left_changed] = transform_opt_value(left(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     auto [right_value, right_changed] = transform_opt_value(right(), transform, args, kwargs);
@@ -4381,8 +4381,8 @@ auto HeadSetAggregate::right() -> OptionalRightGuard {
 }
 
 auto HeadSetAggregate::construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
-                                 SetAggregateElementIterable const &elements,
-                                 OptionalRightGuard const &right) -> HeadSetAggregate {
+                                 SetAggregateElementIterable const &elements, OptionalRightGuard const &right)
+    -> HeadSetAggregate {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_head_set_aggregate, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(left),
@@ -4402,8 +4402,8 @@ void HeadSetAggregate::visit([[maybe_unused]] py::handle visitor, [[maybe_unused
 }
 
 auto HeadSetAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                 [[maybe_unused]] py::args const &args,
-                                 [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<HeadSetAggregate> {
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<HeadSetAggregate> {
     auto [left_value, left_changed] = transform_opt_value(left(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     auto [right_value, right_changed] = transform_opt_value(right(), transform, args, kwargs);
@@ -4451,8 +4451,8 @@ auto HeadTheoryAtom::right() -> OptionalTheoryRightGuard {
 }
 
 auto HeadTheoryAtom::construct(Library &lib, Location const &location, Term const &name,
-                               TheoryAtomElementIterable const &elements,
-                               OptionalTheoryRightGuard const &right) -> HeadTheoryAtom {
+                               TheoryAtomElementIterable const &elements, OptionalTheoryRightGuard const &right)
+    -> HeadTheoryAtom {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_head_theory_atom, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(name),
@@ -4470,8 +4470,8 @@ void HeadTheoryAtom::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]]
 }
 
 auto HeadTheoryAtom::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                               [[maybe_unused]] py::args const &args,
-                               [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<HeadTheoryAtom> {
+                               [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<HeadTheoryAtom> {
     auto [name_value, name_changed] = transform_value(name(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     auto [right_value, right_changed] = transform_opt_value(right(), transform, args, kwargs);
@@ -4502,8 +4502,8 @@ auto HeadDisjunction::elements() -> DisjunctionElementArray {
     return construct_disjunction_element_array(ast, size);
 }
 
-auto HeadDisjunction::construct(Library &lib, Location const &location,
-                                DisjunctionElementIterable const &elements) -> HeadDisjunction {
+auto HeadDisjunction::construct(Library &lib, Location const &location, DisjunctionElementIterable const &elements)
+    -> HeadDisjunction {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_head_disjunction, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
@@ -4517,8 +4517,8 @@ void HeadDisjunction::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]
 }
 
 auto HeadDisjunction::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                [[maybe_unused]] py::args const &args,
-                                [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<HeadDisjunction> {
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<HeadDisjunction> {
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     if (elements_changed) {
         return HeadDisjunction::construct(lib, location(), elements_value);
@@ -4568,9 +4568,10 @@ auto TheoryOperatorDefinition::construct(Library &lib, Location const &location,
 void TheoryOperatorDefinition::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
                                      [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto TheoryOperatorDefinition::transform(
-    [[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform, [[maybe_unused]] py::args const &args,
-    [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TheoryOperatorDefinition> {
+auto TheoryOperatorDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                         [[maybe_unused]] py::args const &args,
+                                         [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryOperatorDefinition> {
     return std::nullopt;
 }
 
@@ -4633,8 +4634,8 @@ void TheoryTermDefinition::visit([[maybe_unused]] py::handle visitor, [[maybe_un
 }
 
 auto TheoryTermDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                     [[maybe_unused]] py::args const &args,
-                                     [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TheoryTermDefinition> {
+                                     [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryTermDefinition> {
     auto [operators_value, operators_changed] = transform_array(operators(), transform, args, kwargs);
     if (operators_changed) {
         return TheoryTermDefinition::construct(lib, location(), name(), operators_value);
@@ -4681,8 +4682,8 @@ auto TheoryGuardDefinition::term() -> char const * {
     return ret;
 }
 
-auto TheoryGuardDefinition::construct(Library &lib, StringIterable const &operators,
-                                      char const *term) -> TheoryGuardDefinition {
+auto TheoryGuardDefinition::construct(Library &lib, StringIterable const &operators, char const *term)
+    -> TheoryGuardDefinition {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_guard_definition, &res_, c_cast(operators).data(),
                                       operators.size(), term));
@@ -4762,8 +4763,8 @@ void TheoryAtomDefinition::visit([[maybe_unused]] py::handle visitor, [[maybe_un
 }
 
 auto TheoryAtomDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                     [[maybe_unused]] py::args const &args,
-                                     [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<TheoryAtomDefinition> {
+                                     [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryAtomDefinition> {
     auto [guard_value, guard_changed] = transform_opt_value(guard(), transform, args, kwargs);
     if (guard_changed) {
         return TheoryAtomDefinition::construct(lib, location(), name(), arity(), term(), guard_value, atom_type());
@@ -4821,8 +4822,8 @@ auto OptimizeTuple::terms() -> TermArray {
     return construct_term_array(ast, size);
 }
 
-auto OptimizeTuple::construct(Library &lib, Term const &weight, OptionalTerm const &priority,
-                              TermIterable const &terms) -> OptimizeTuple {
+auto OptimizeTuple::construct(Library &lib, Term const &weight, OptionalTerm const &priority, TermIterable const &terms)
+    -> OptimizeTuple {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_optimize_tuple, &res_, c_cast(weight), c_cast(priority),
                                       c_cast(terms).data(), terms.size()));
@@ -4839,8 +4840,8 @@ void OptimizeTuple::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] 
 }
 
 auto OptimizeTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                              [[maybe_unused]] py::args const &args,
-                              [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<OptimizeTuple> {
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<OptimizeTuple> {
     auto [weight_value, weight_changed] = transform_value(weight(), transform, args, kwargs);
     auto [priority_value, priority_changed] = transform_opt_value(priority(), transform, args, kwargs);
     auto [terms_value, terms_changed] = transform_array(terms(), transform, args, kwargs);
@@ -4869,8 +4870,8 @@ auto OptimizeElement::condition() -> LiteralArray {
     return construct_literal_array(ast, size);
 }
 
-auto OptimizeElement::construct(Library &lib, OptimizeTuple const &tuple,
-                                LiteralIterable const &condition) -> OptimizeElement {
+auto OptimizeElement::construct(Library &lib, OptimizeTuple const &tuple, LiteralIterable const &condition)
+    -> OptimizeElement {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_optimize_element, &res_, c_cast(tuple),
                                       c_cast(condition).data(), condition.size()));
@@ -4884,8 +4885,8 @@ void OptimizeElement::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]
 }
 
 auto OptimizeElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                [[maybe_unused]] py::args const &args,
-                                [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<OptimizeElement> {
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<OptimizeElement> {
     auto [tuple_value, tuple_changed] = transform_value(tuple(), transform, args, kwargs);
     auto [condition_value, condition_changed] = transform_array(condition(), transform, args, kwargs);
     if (tuple_changed || condition_changed) {
@@ -4942,8 +4943,8 @@ void Edge::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args 
 }
 
 auto Edge::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                     [[maybe_unused]] py::args const &args,
-                     [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<Edge> {
+                     [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<Edge> {
     auto [u_value, u_changed] = transform_value(u(), transform, args, kwargs);
     auto [v_value, v_changed] = transform_value(v(), transform, args, kwargs);
     if (u_changed || v_changed) {
@@ -5077,8 +5078,8 @@ void StatementRule::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] 
 }
 
 auto StatementRule::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                              [[maybe_unused]] py::args const &args,
-                              [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementRule> {
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementRule> {
     auto [head_value, head_changed] = transform_value(head(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
     if (head_changed || body_changed) {
@@ -5120,8 +5121,8 @@ auto StatementTheory::atoms() -> TheoryAtomDefinitionArray {
 }
 
 auto StatementTheory::construct(Library &lib, Location const &location, char const *name,
-                                TheoryTermDefinitionIterable const &terms,
-                                TheoryAtomDefinitionIterable const &atoms) -> StatementTheory {
+                                TheoryTermDefinitionIterable const &terms, TheoryAtomDefinitionIterable const &atoms)
+    -> StatementTheory {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_theory, &res_,
                                       static_cast<clingo_location_t const *>(location), name, c_cast(terms).data(),
@@ -5136,8 +5137,8 @@ void StatementTheory::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]
 }
 
 auto StatementTheory::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                [[maybe_unused]] py::args const &args,
-                                [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementTheory> {
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementTheory> {
     auto [terms_value, terms_changed] = transform_array(terms(), transform, args, kwargs);
     auto [atoms_value, atoms_changed] = transform_array(atoms(), transform, args, kwargs);
     if (terms_changed || atoms_changed) {
@@ -5188,8 +5189,8 @@ void StatementOptimize::visit([[maybe_unused]] py::handle visitor, [[maybe_unuse
 }
 
 auto StatementOptimize::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                  [[maybe_unused]] py::args const &args,
-                                  [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementOptimize> {
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementOptimize> {
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     if (elements_changed) {
         return StatementOptimize::construct(lib, location(), elements_value, optimize_type());
@@ -5238,9 +5239,10 @@ void StatementWeakConstraint::visit([[maybe_unused]] py::handle visitor, [[maybe
     visitor(tuple(), *args, **kwargs);
 }
 
-auto StatementWeakConstraint::transform(
-    [[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform, [[maybe_unused]] py::args const &args,
-    [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementWeakConstraint> {
+auto StatementWeakConstraint::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                        [[maybe_unused]] py::args const &args,
+                                        [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementWeakConstraint> {
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
     auto [tuple_value, tuple_changed] = transform_value(tuple(), transform, args, kwargs);
     if (body_changed || tuple_changed) {
@@ -5275,8 +5277,8 @@ auto StatementShow::body() -> BodyLiteralArray {
     return construct_body_literal_array(ast, size);
 }
 
-auto StatementShow::construct(Library &lib, Location const &location, Term const &term,
-                              BodyLiteralIterable const &body) -> StatementShow {
+auto StatementShow::construct(Library &lib, Location const &location, Term const &term, BodyLiteralIterable const &body)
+    -> StatementShow {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_show, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(term),
@@ -5291,8 +5293,8 @@ void StatementShow::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] 
 }
 
 auto StatementShow::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                              [[maybe_unused]] py::args const &args,
-                              [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementShow> {
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementShow> {
     auto [term_value, term_changed] = transform_value(term(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
     if (term_changed || body_changed) {
@@ -5324,8 +5326,8 @@ void StatementShowNothing::visit([[maybe_unused]] py::handle visitor, [[maybe_un
                                  [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto StatementShowNothing::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                     [[maybe_unused]] py::args const &args,
-                                     [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementShowNothing> {
+                                     [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementShowNothing> {
     return std::nullopt;
 }
 
@@ -5358,8 +5360,8 @@ auto StatementShowSignature::sign() -> bool {
     return ret != 0;
 }
 
-auto StatementShowSignature::construct(Library &lib, Location const &location, char const *name, int arity,
-                                       bool sign) -> StatementShowSignature {
+auto StatementShowSignature::construct(Library &lib, Location const &location, char const *name, int arity, bool sign)
+    -> StatementShowSignature {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_show_signature, &res_,
                                       static_cast<clingo_location_t const *>(location), name, arity,
@@ -5419,8 +5421,8 @@ void StatementProject::visit([[maybe_unused]] py::handle visitor, [[maybe_unused
 }
 
 auto StatementProject::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                 [[maybe_unused]] py::args const &args,
-                                 [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementProject> {
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementProject> {
     auto [atom_value, atom_changed] = transform_value(atom(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
     if (atom_changed || body_changed) {
@@ -5472,9 +5474,10 @@ auto StatementProjectSignature::construct(Library &lib, Location const &location
 void StatementProjectSignature::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
                                       [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto StatementProjectSignature::transform(
-    [[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform, [[maybe_unused]] py::args const &args,
-    [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementProjectSignature> {
+auto StatementProjectSignature::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                          [[maybe_unused]] py::args const &args,
+                                          [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementProjectSignature> {
     return std::nullopt;
 }
 
@@ -5510,8 +5513,8 @@ auto StatementDefined::sign() -> bool {
     return ret != 0;
 }
 
-auto StatementDefined::construct(Library &lib, Location const &location, char const *name, int arity,
-                                 bool sign) -> StatementDefined {
+auto StatementDefined::construct(Library &lib, Location const &location, char const *name, int arity, bool sign)
+    -> StatementDefined {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_defined, &res_,
                                       static_cast<clingo_location_t const *>(location), name, arity,
@@ -5523,8 +5526,8 @@ void StatementDefined::visit([[maybe_unused]] py::handle visitor, [[maybe_unused
                              [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto StatementDefined::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                 [[maybe_unused]] py::args const &args,
-                                 [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementDefined> {
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementDefined> {
     return std::nullopt;
 }
 
@@ -5566,8 +5569,8 @@ auto StatementExternal::external_type() -> OptionalTerm {
 }
 
 auto StatementExternal::construct(Library &lib, Location const &location, Term const &atom,
-                                  BodyLiteralIterable const &body,
-                                  OptionalTerm const &external_type) -> StatementExternal {
+                                  BodyLiteralIterable const &body, OptionalTerm const &external_type)
+    -> StatementExternal {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_external, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(atom),
@@ -5585,8 +5588,8 @@ void StatementExternal::visit([[maybe_unused]] py::handle visitor, [[maybe_unuse
 }
 
 auto StatementExternal::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                  [[maybe_unused]] py::args const &args,
-                                  [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementExternal> {
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementExternal> {
     auto [atom_value, atom_changed] = transform_value(atom(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
     auto [external_type_value, external_type_changed] = transform_opt_value(external_type(), transform, args, kwargs);
@@ -5640,8 +5643,8 @@ void StatementEdge::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] 
 }
 
 auto StatementEdge::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                              [[maybe_unused]] py::args const &args,
-                              [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementEdge> {
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementEdge> {
     auto [pool_value, pool_changed] = transform_array(pool(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
     if (pool_changed || body_changed) {
@@ -5719,8 +5722,8 @@ void StatementHeuristic::visit([[maybe_unused]] py::handle visitor, [[maybe_unus
 }
 
 auto StatementHeuristic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                   [[maybe_unused]] py::args const &args,
-                                   [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementHeuristic> {
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementHeuristic> {
     auto [atom_value, atom_changed] = transform_value(atom(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
     auto [weight_value, weight_changed] = transform_value(weight(), transform, args, kwargs);
@@ -5761,8 +5764,8 @@ auto StatementScript::script_type() -> char const * {
     return ret;
 }
 
-auto StatementScript::construct(Library &lib, Location const &location, char const *value,
-                                char const *script_type) -> StatementScript {
+auto StatementScript::construct(Library &lib, Location const &location, char const *value, char const *script_type)
+    -> StatementScript {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_script, &res_,
                                       static_cast<clingo_location_t const *>(location), value, script_type));
@@ -5773,8 +5776,8 @@ void StatementScript::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]
                             [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto StatementScript::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                [[maybe_unused]] py::args const &args,
-                                [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementScript> {
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementScript> {
     return std::nullopt;
 }
 
@@ -5816,8 +5819,8 @@ void StatementInclude::visit([[maybe_unused]] py::handle visitor, [[maybe_unused
                              [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto StatementInclude::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                 [[maybe_unused]] py::args const &args,
-                                 [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementInclude> {
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementInclude> {
     return std::nullopt;
 }
 
@@ -5862,8 +5865,8 @@ void StatementProgram::visit([[maybe_unused]] py::handle visitor, [[maybe_unused
                              [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto StatementProgram::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                 [[maybe_unused]] py::args const &args,
-                                 [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementProgram> {
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementProgram> {
     return std::nullopt;
 }
 
@@ -5913,8 +5916,8 @@ void StatementConst::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]]
 }
 
 auto StatementConst::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                               [[maybe_unused]] py::args const &args,
-                               [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementConst> {
+                               [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementConst> {
     auto [value_value, value_changed] = transform_value(value(), transform, args, kwargs);
     if (value_changed) {
         return StatementConst::construct(lib, location(), name(), value_value, const_type());
@@ -5960,8 +5963,8 @@ void StatementComment::visit([[maybe_unused]] py::handle visitor, [[maybe_unused
                              [[maybe_unused]] py::kwargs const &kwargs) {}
 
 auto StatementComment::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
-                                 [[maybe_unused]] py::args const &args,
-                                 [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementComment> {
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementComment> {
     return std::nullopt;
 }
 
@@ -6010,8 +6013,8 @@ void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visi
 }
 
 template <class Array>
-auto transform_array(Array arr, py::handle transform, py::args const &args,
-                     py::kwargs const &kwargs) -> std::pair<Array, bool> {
+auto transform_array(Array arr, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    -> std::pair<Array, bool> {
     bool changed = false;
     for (auto &elem : arr) {
         if (auto res = transform(elem, *args, **kwargs); !res.is_none()) {
@@ -6023,15 +6026,15 @@ auto transform_array(Array arr, py::handle transform, py::args const &args,
 }
 
 template <class Value>
-auto transform_value(Value val, py::handle transform, py::args const &args,
-                     py::kwargs const &kwargs) -> std::pair<Value, bool> {
+auto transform_value(Value val, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    -> std::pair<Value, bool> {
     auto res = transform(val, *args, **kwargs);
     return {res.is_none() ? std::move(val) : py::cast<Value>(res), !res.is_none()};
 }
 
 template <class Value>
-auto transform_opt_value(Value opt, py::handle transform, py::args const &args,
-                         py::kwargs const &kwargs) -> std::pair<Value, bool> {
+auto transform_opt_value(Value opt, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    -> std::pair<Value, bool> {
     if (opt) {
         auto res = transform(*opt, *args, **kwargs);
         return {res.is_none() ? std::move(opt) : py::cast<Value>(res), !res.is_none()};

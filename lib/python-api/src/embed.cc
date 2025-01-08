@@ -62,8 +62,8 @@ class MainScript {
 
     static auto c_call(clingo_lib_t *lib, clingo_location_t const *loc, char const *name,
                        clingo_symbol_t const *arguments, size_t arguments_size,
-                       clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
-                       void *data) -> clingo_result_t {
+                       clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data)
+        -> clingo_result_t {
         // Note that the location could in principle be used for better error reporting.
         static_cast<void>(loc);
         auto *self = cast(data);

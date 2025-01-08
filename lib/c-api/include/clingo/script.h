@@ -5,10 +5,13 @@
 extern "C" {
 #endif
 
-#include <clingo/control.h>
 #include <clingo/core.h>
+#include <clingo/symbol.h>
 
 // NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
+
+// Note: forward declaration
+typedef struct clingo_control clingo_control_t;
 
 //! @defgroup Script Scripting Support for Grounding
 //! Support for calling exteral functions during grounding and customizing the main solving loop.

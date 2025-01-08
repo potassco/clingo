@@ -28,6 +28,7 @@ extern "C" {
 #include <clingo/app.h>
 #include <clingo/ast.h>
 #include <clingo/base.h>
+#include <clingo/control.h>
 #include <clingo/core.h>
 #include <clingo/model.h>
 #include <clingo/script.h>

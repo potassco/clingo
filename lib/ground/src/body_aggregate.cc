@@ -524,8 +524,8 @@ auto LitBdAggr::do_single_pass() const -> bool {
     return state().index() == stratified_index || sign_ == Sign::once || state().single_pass_elems();
 }
 
-auto LitBdAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-                           std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+auto LitBdAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type, std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
     symbol_ = nullptr;
     offset_ = invalid_offset;
     auto &match = static_cast<MatchBdAggr &>(*this);

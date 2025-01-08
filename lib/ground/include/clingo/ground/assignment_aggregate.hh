@@ -241,8 +241,8 @@ class MatchAssignAggr {
     [[nodiscard]] auto vars() const -> VariableSet;
 
     //! Get the signature of the matcher.
-    [[nodiscard]] auto signature(VariableSet const &bound,
-                                 [[maybe_unused]] VariableSet const &bind) const -> VariableVec;
+    [[nodiscard]] auto signature(VariableSet const &bound, [[maybe_unused]] VariableSet const &bind) const
+        -> VariableVec;
 
     //! Match a span of symbols representing an atom or element with the assignment.
     [[nodiscard]] auto match(EvalContext const &ctx, Key key) const -> bool;
@@ -275,9 +275,9 @@ class LitAssignAggr : public Lit, private MatchAssignAggr {
     //! Returns true if the aggregate needs only one grounding pass.
     [[nodiscard]] auto do_single_pass() const -> bool override;
 
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
 
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
 
@@ -369,9 +369,9 @@ class LitAssignAggrStrat : public Lit, private MatchAssignAggr {
 
     [[nodiscard]] auto do_single_pass() const -> bool override;
 
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
 
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
 

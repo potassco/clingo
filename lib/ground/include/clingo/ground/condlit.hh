@@ -370,8 +370,8 @@ class MatchCondLit {
     [[nodiscard]] auto vars() const -> VariableSet;
 
     //! Get the signature of the matcher.
-    [[nodiscard]] auto signature(VariableSet const &bound,
-                                 [[maybe_unused]] VariableSet const &bind) const -> VariableVec;
+    [[nodiscard]] auto signature(VariableSet const &bound, [[maybe_unused]] VariableSet const &bind) const
+        -> VariableVec;
 
     //! Match a span of symbols representing an atom or element with the assignment.
     [[nodiscard]] auto match(EvalContext const &ctx, Symbol const *sym) const -> bool;
@@ -405,9 +405,9 @@ class LitCondLit : public Lit, private MatchCondLit {
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
     [[nodiscard]] auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
@@ -431,9 +431,9 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
     [[nodiscard]] auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;

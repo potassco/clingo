@@ -613,8 +613,8 @@ auto LitHdAggr::do_domain() const -> bool {
 
 auto LitHdAggr::do_single_pass() const -> bool { return state().single_pass_body(); }
 
-auto LitHdAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-                           std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+auto LitHdAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type, std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
     offset_ = invalid_offset;
     auto &match = static_cast<MatchHdAggr &>(*this);
     auto index = std::optional<size_t>{};
@@ -632,8 +632,8 @@ auto LitHdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const 
 
 void LitHdAggr::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitHdAggr::do_output([[maybe_unused]] InstantiationContext const &ctx,
-                          [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitHdAggr::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
+    -> bool {
     return false;
 }
 

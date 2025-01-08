@@ -94,8 +94,8 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit) {
 namespace {
 
 //! Analyze the given conditional literal and return the required indices for grounding.
-[[nodiscard]] auto analyze(BuildContext &ctx,
-                           Input::CondLit const &lit) -> std::tuple<bool, bool, bool, size_t, size_t, size_t> {
+[[nodiscard]] auto analyze(BuildContext &ctx, Input::CondLit const &lit)
+    -> std::tuple<bool, bool, bool, size_t, size_t, size_t> {
     assert(!Input::is_fixed(lit.lit()).value_or(false));
 
     auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();

@@ -336,8 +336,8 @@ auto MatchDisjunction::vars() const -> VariableSet {
     return VariableSet{state_->global().begin(), state_->global().end()};
 }
 
-auto MatchDisjunction::signature(VariableSet const &bound,
-                                 [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
+auto MatchDisjunction::signature(VariableSet const &bound, [[maybe_unused]] VariableSet const &bind) const
+    -> VariableVec {
     static_cast<void>(this);
     return {bound.begin(), bound.end()};
 }
@@ -406,8 +406,8 @@ auto LitDisjunction::do_score([[maybe_unused]] std::vector<bool> const &bound) c
 
 void LitDisjunction::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitDisjunction::do_output([[maybe_unused]] InstantiationContext const &ctx,
-                               [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitDisjunction::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
+    -> bool {
     return false;
 }
 

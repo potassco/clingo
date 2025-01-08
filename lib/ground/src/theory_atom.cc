@@ -113,8 +113,8 @@ auto StateTheory::find_atom(Assignment &ass) -> AtomMap::iterator {
     return jt;
 }
 
-auto StateTheory::insert_atom(Symbol name, std::optional<size_t> rhs,
-                              Assignment &ass) -> std::pair<AtomMap::iterator, bool> {
+auto StateTheory::insert_atom(Symbol name, std::optional<size_t> rhs, Assignment &ass)
+    -> std::pair<AtomMap::iterator, bool> {
     auto n = global_.size() * sizeof(Symbol);
     if (atom_key_ == nullptr) {
         atom_key_ = static_cast<Symbol *>(mbr_->allocate(n, alignof(Symbol)));
@@ -249,8 +249,8 @@ auto LitMatchTheory::do_score([[maybe_unused]] std::vector<bool> const &bound) c
 
 void LitMatchTheory::do_print(std::ostream &out) const { state().print(out); }
 
-auto LitMatchTheory::do_output([[maybe_unused]] InstantiationContext const &ctx,
-                               [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitMatchTheory::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
+    -> bool {
     return false;
 }
 

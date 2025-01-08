@@ -12,8 +12,8 @@ static constexpr double score_maybe_fast = -0.1;
 
 void LitInterval::do_print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << *upper_; }
 
-auto LitInterval::do_output([[maybe_unused]] InstantiationContext const &ctx,
-                            [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitInterval::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
+    -> bool {
     return false;
 }
 
@@ -46,8 +46,8 @@ void LitInterval::do_vars(VariableSet &vars, VarSelectMode mode) const {
 }
 
 auto LitInterval::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
-                             [[maybe_unused]] MatcherType type,
-                             std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+                             [[maybe_unused]] MatcherType type, std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
     return {make_interval_matcher(bound, *lhs_, *lower_, *upper_), std::nullopt};
 }
 
@@ -101,8 +101,8 @@ auto LitInterval::do_compare_to(Lit const &other) const -> std::weak_ordering {
 
 void LitComparison::do_print(std::ostream &out) const { out << *lhs_ << cmp_ << *rhs_; }
 
-auto LitComparison::do_output([[maybe_unused]] InstantiationContext const &ctx,
-                              [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitComparison::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
+    -> bool {
     return false;
 }
 
@@ -189,8 +189,8 @@ void LitExternal::do_print(std::ostream &out) const {
     }
 }
 
-auto LitExternal::do_output([[maybe_unused]] InstantiationContext const &ctx,
-                            [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitExternal::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
+    -> bool {
     return false;
 }
 
@@ -225,8 +225,8 @@ void LitExternal::do_vars(VariableSet &vars, VarSelectMode mode) const {
 }
 
 auto LitExternal::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
-                             [[maybe_unused]] MatcherType type,
-                             std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+                             [[maybe_unused]] MatcherType type, std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
     class ExternalMatcher : public Matcher {
       public:
         ExternalMatcher(LitExternal &lit, VariableVec free) : lit_{&lit}, free_{std::move(free)} {
@@ -299,8 +299,8 @@ void LitSymbolic::do_print(std::ostream &out) const {
 
 namespace {
 
-auto get_atom(Base &base, OutputStm &out, Sign sign, size_t index, Symbol symbol,
-              size_t offset) -> std::optional<Base::MapAtom::iterator> {
+auto get_atom(Base &base, OutputStm &out, Sign sign, size_t index, Symbol symbol, size_t offset)
+    -> std::optional<Base::MapAtom::iterator> {
     // avoid lookups if the literal is known to be true
     if ((index == stratified_index || sign == Sign::none) && base.domain()) {
         return std::nullopt;
@@ -359,8 +359,8 @@ void LitSymbolic::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitSymbolic::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-                             std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+auto LitSymbolic::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type, std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
     offset_ = invalid_offset;
     if (sign_ == Sign::once) {
         return {make_non_fact_matcher(*base_, *atom_, symbol_), std::nullopt};
@@ -470,8 +470,8 @@ void LitProject::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-                            std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type, std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
     class MatcherProject : public Matcher {
       public:
         MatcherProject(State &state, UMatcher matcher) : state_{&state}, matcher_{std::move(matcher)} {}
@@ -592,8 +592,8 @@ void LitTuple::do_print(std::ostream &out) const {
     out << "#once(" << Util::p_range(vars_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
 }
 
-auto LitTuple::do_output([[maybe_unused]] InstantiationContext const &ctx,
-                         [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitTuple::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
+    -> bool {
     return false;
 }
 
@@ -622,8 +622,8 @@ auto LitCheck::do_single_pass() const -> bool { return true; }
 
 auto LitCheck::do_domain() const -> bool { return true; }
 
-auto LitCheck::do_output([[maybe_unused]] InstantiationContext const &ctx,
-                         [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitCheck::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
+    -> bool {
     return false;
 }
 
@@ -725,8 +725,8 @@ void LitSimpleAggr::do_print(std::ostream &out) const {
         << (tuples_.empty() ? "}" : " }");
 }
 
-auto LitSimpleAggr::do_output([[maybe_unused]] InstantiationContext const &ctx,
-                              [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitSimpleAggr::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
+    -> bool {
     return false;
 }
 
@@ -772,8 +772,8 @@ void LitSimpleAggr::do_vars(VariableSet &vars, VarSelectMode mode) const {
 }
 
 auto LitSimpleAggr::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
-                               [[maybe_unused]] MatcherType type,
-                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+                               [[maybe_unused]] MatcherType type, std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
     class AggrMatcher : public OnceMatcher {
       public:
         AggrMatcher(LitSimpleAggr &lit, VariableVec free) : lit_{&lit}, free_{std::move(free)} {

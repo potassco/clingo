@@ -84,9 +84,9 @@ class Lit {
     virtual void do_vars(VariableSet &vars, VarSelectMode mode) const = 0;
     [[nodiscard]] virtual auto do_domain() const -> bool = 0;
     [[nodiscard]] virtual auto do_single_pass() const -> bool { return false; }
-    [[nodiscard]] virtual auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> = 0;
+    [[nodiscard]] virtual auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                          std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> = 0;
     [[nodiscard]] virtual auto do_score(std::vector<bool> const &bound) const -> double = 0;
     virtual void do_print(std::ostream &out) const = 0;
     virtual auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool = 0;
@@ -106,9 +106,9 @@ class LitComparison : public Lit {
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -136,9 +136,9 @@ class LitExternal : public Lit {
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -168,9 +168,9 @@ class LitInterval : public Lit {
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -201,9 +201,9 @@ class LitSymbolic : public Lit {
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -274,9 +274,9 @@ class LitProject : public Lit {
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
     auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
@@ -309,9 +309,9 @@ class LitTuple : public Lit {
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
     auto do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool override;
@@ -331,9 +331,9 @@ class LitCheck : public Lit {
 
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
@@ -412,9 +412,9 @@ class LitSimpleAggr : public Lit {
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;

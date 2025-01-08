@@ -642,9 +642,9 @@ void StmHeuristic::init_() {
             }
         }
 
-        [[nodiscard]] auto
-        do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-                   std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override {
+        [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                      std::vector<bool> const &bound)
+            -> std::pair<UMatcher, std::optional<size_t>> override {
             return {make_atom_matcher(mbr, bound, *stm_->base_, *stm_->atom_, type, stm_->offset_), std::nullopt};
         }
 
@@ -863,9 +863,9 @@ void StmProject::init_() {
             }
         }
 
-        [[nodiscard]] auto
-        do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-                   std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override {
+        [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                      std::vector<bool> const &bound)
+            -> std::pair<UMatcher, std::optional<size_t>> override {
             return {make_atom_matcher(mbr, bound, *stm_->base_, *stm_->atom_, type, stm_->offset_), std::nullopt};
         }
 

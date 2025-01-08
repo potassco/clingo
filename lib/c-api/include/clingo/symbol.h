@@ -50,6 +50,16 @@ typedef int clingo_symbol_type_t;
 //! <tt>\#sup</tt>.
 typedef uint64_t clingo_symbol_t;
 
+//! Callback function to inject symbols.
+//!
+//! @param symbols array of symbols
+//! @param symbols_size size of the symbol array
+//! @param data user data of the callback
+//! @return the result code; might return one of the following codes:
+//! - ::clingo_result_bad_alloc
+//! @see ::clingo_ground_callback_t
+typedef clingo_result_t (*clingo_symbol_callback_t)(clingo_symbol_t const *symbols, size_t symbols_size, void *data);
+
 //! @name Symbol Construction Functions
 //! @{
 

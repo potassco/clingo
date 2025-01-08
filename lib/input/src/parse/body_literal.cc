@@ -58,8 +58,8 @@ auto parse_bd_aggr_elem(ParserState &state) -> std::optional<BdLitAggregateEleme
 }
 
 //! Continue parsing a body aggregate.
-auto cont_bd_aggregate(ParserState &state, Position pos, Sign sign, LGuard lguard,
-                       AggregateFunction fun) -> std::optional<BdLit> {
+auto cont_bd_aggregate(ParserState &state, Position pos, Sign sign, LGuard lguard, AggregateFunction fun)
+    -> std::optional<BdLit> {
     // parse elements
     if (auto elems = state.delimited(TokenType::lbrace, parse_bd_aggr_elem, TokenType::sem, TokenType::rbrace)) {
         auto loc = std::move(pos) + state.cursor_pos();

@@ -390,8 +390,8 @@ class Number::Impl {
         return z.release_repr();
     }
 
-    static auto op_binary(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &&a,
-                          Number const &b) -> Number {
+    static auto op_binary(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &&a, Number const &b)
+        -> Number {
         if (!repr_is_int(a.repr_)) {
             auto *int_a = repr_to_bigint(a.repr_);
             // op(big, int)
@@ -408,8 +408,8 @@ class Number::Impl {
         return op_binary(op, op_value, op_value_inv, op_check, a, b);
     }
 
-    static auto op_binary(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number const &a,
-                          Number &&b) -> Number {
+    static auto op_binary(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number const &a, Number &&b)
+        -> Number {
         if (!repr_is_int(b.repr_)) {
             auto *int_b = repr_to_bigint(b.repr_);
             // op(int, big)
@@ -426,8 +426,8 @@ class Number::Impl {
         return op_binary(op, op_value, op_value_inv, op_check, a, b);
     }
 
-    static auto op_binary(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &&a,
-                          Number &&b) -> Number {
+    static auto op_binary(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &&a, Number &&b)
+        -> Number {
         // op(big, *)
         if (!repr_is_int(a.repr_)) {
             return op_binary(op, op_value, op_value_inv, op_check, std::move(a), b);
@@ -439,8 +439,8 @@ class Number::Impl {
         return op_binary(op, op_value, op_value_inv, op_check, a, b);
     }
 
-    static auto op_assign(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &a,
-                          Number const &b) -> Number & {
+    static auto op_assign(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &a, Number const &b)
+        -> Number & {
         if (repr_is_int(a.repr_)) {
             // op(int, int)
             if (repr_is_int(b.repr_)) {
@@ -475,8 +475,8 @@ class Number::Impl {
     }
 
     // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
-    static auto op_assign(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &a,
-                          Number &&b) -> Number & {
+    static auto op_assign(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &a, Number &&b)
+        -> Number & {
         // op(int, big)
         if (repr_is_int(a.repr_) && !repr_is_int(b.repr_)) {
             std::swap(a.repr_, b.repr_);

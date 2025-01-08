@@ -124,8 +124,8 @@ class IntervalMatcher : public Matcher {
 
 auto make_once_matcher() -> UMatcher { return std::make_unique<OnceMatcher>(); }
 
-auto make_interval_matcher(std::vector<bool> const &bound, Term const &lhs, Term const &lower,
-                           Term const &upper) -> UMatcher {
+auto make_interval_matcher(std::vector<bool> const &bound, Term const &lhs, Term const &lower, Term const &upper)
+    -> UMatcher {
     VariableSet vars;
     lhs.vars(vars);
     erase_if(vars, [&bound](auto const &var) { return bound[var]; });

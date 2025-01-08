@@ -155,8 +155,8 @@ struct CheckSyntax {
         });
     }
 
-    auto operator()(CondLit const &lit,
-                    SyntaxCheck check = SyntaxCheck::project | SyntaxCheck::project_tuple) const -> bool {
+    auto operator()(CondLit const &lit, SyntaxCheck check = SyntaxCheck::project | SyntaxCheck::project_tuple) const
+        -> bool {
         return this->operator()(lit.lit(), check) && operator()(lit.cond());
     }
 

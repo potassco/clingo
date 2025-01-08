@@ -310,8 +310,8 @@ auto LitCondLit::do_domain() const -> bool { return type() != LitCondLitType::li
 
 auto LitCondLit::do_single_pass() const -> bool { return index_ == stratified_index; }
 
-auto LitCondLit::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-                            std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+auto LitCondLit::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type, std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
     auto index = std::optional<size_t>{};
     if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
         index = index_;

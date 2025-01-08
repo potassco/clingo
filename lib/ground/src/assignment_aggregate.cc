@@ -384,8 +384,8 @@ auto MatchAssignAggr::vars() const -> VariableSet {
     return res;
 }
 
-auto MatchAssignAggr::signature(VariableSet const &bound,
-                                [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
+auto MatchAssignAggr::signature(VariableSet const &bound, [[maybe_unused]] VariableSet const &bind) const
+    -> VariableVec {
     static_cast<void>(this);
     return {bound.begin(), bound.end()};
 }

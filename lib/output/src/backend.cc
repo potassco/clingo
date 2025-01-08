@@ -510,8 +510,8 @@ template <class Sym> class BuilderMinMax {
     //! @param elems the elements of the aggregate
     //! @param guards the guards of the aggregate
     //! @return the lower bound, upper bound, and bounds
-    auto analyze_(BuilderBase &bld, OutputStm::BdElemSpan elems,
-                  OutputStm::GuardSpan guards) -> std::tuple<Sym, Sym, Util::interval_set<Sym>> {
+    auto analyze_(BuilderBase &bld, OutputStm::BdElemSpan elems, OutputStm::GuardSpan guards)
+        -> std::tuple<Sym, Sym, Util::interval_set<Sym>> {
         // simplify the elements
         elems_.clear();
         elems_.reserve(elems.size());
@@ -868,8 +868,8 @@ class BuilderSum {
     //! @param elems the elements of the aggregate
     //! @param guards the guards of the aggregate
     //! @return the range, bounds, and cycles to consider for depencies
-    auto analyze_(BuilderBase &bld, OutputStm::BdElemSpan elems,
-                  OutputStm::GuardSpan guards) -> std::tuple<NumberSet::interval, NumberSet, CycleType> {
+    auto analyze_(BuilderBase &bld, OutputStm::BdElemSpan elems, OutputStm::GuardSpan guards)
+        -> std::tuple<NumberSet::interval, NumberSet, CycleType> {
         // simplify the aggregate
         auto fixed = Number(0);
         elems_.clear();

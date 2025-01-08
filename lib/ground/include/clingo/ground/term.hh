@@ -104,8 +104,8 @@ class Term {
     //!
     //! This renames variables in the term in ascending order and then return a pair of the term and the bound
     //! variables.
-    [[nodiscard]] auto signature(VariableSet const &bound,
-                                 VariableSet const &bind) const -> std::pair<UTerm, VariableVec> {
+    [[nodiscard]] auto signature(VariableSet const &bound, VariableSet const &bind) const
+        -> std::pair<UTerm, VariableVec> {
         auto names = Util::unordered_map<size_t, size_t>{};
         names.reserve(bind.size() + bound.size());
         auto sig_term = rename(names);
@@ -137,8 +137,8 @@ class Term {
     [[nodiscard]] virtual auto do_score(double size, std::vector<bool> const &bound) const -> double = 0;
     [[nodiscard]] virtual auto do_match(EvalContext const &ctx, Symbol sym) const -> bool = 0;
     [[nodiscard]] virtual auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> = 0;
-    [[nodiscard]] virtual auto do_rename(SymbolStore &store, RenameMode mode, String const *name,
-                                         size_t *vars) const -> UTerm = 0;
+    [[nodiscard]] virtual auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
+        -> UTerm = 0;
     [[nodiscard]] virtual auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm = 0;
     virtual void do_vars(VariableSet &vars, bool provide) const = 0;
     virtual void do_print(std::ostream &out) const = 0;
@@ -158,8 +158,8 @@ class TermProjection : public Term {
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto do_match(EvalContext const &ctx, Symbol sym) const -> bool override;
     [[nodiscard]] auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name,
-                                 size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
+        -> UTerm override;
     [[nodiscard]] auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void do_vars(VariableSet &vars, bool provide) const override;
     void do_print(std::ostream &out) const override;
@@ -182,8 +182,8 @@ class TermSymbol : public Term {
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto do_match(EvalContext const &ctx, Symbol sym) const -> bool override;
     [[nodiscard]] auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name,
-                                 size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
+        -> UTerm override;
     [[nodiscard]] auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void do_vars(VariableSet &vars, bool provide) const override;
     void do_print(std::ostream &out) const override;
@@ -205,8 +205,8 @@ class TermVariable : public Term {
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto do_match(EvalContext const &ctx, Symbol sym) const -> bool override;
     [[nodiscard]] auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name,
-                                 size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
+        -> UTerm override;
     [[nodiscard]] auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void do_vars(VariableSet &vars, bool provide) const override;
     void do_print(std::ostream &out) const override;
@@ -229,8 +229,8 @@ class TermLinear : public Term {
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto do_match(EvalContext const &ctx, Symbol sym) const -> bool override;
     [[nodiscard]] auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name,
-                                 size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
+        -> UTerm override;
     [[nodiscard]] auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void do_vars(VariableSet &vars, bool provide) const override;
     void do_print(std::ostream &out) const override;
@@ -264,8 +264,8 @@ class TermUnary : public Term {
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto do_match(EvalContext const &ctx, Symbol sym) const -> bool override;
     [[nodiscard]] auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name,
-                                 size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
+        -> UTerm override;
     [[nodiscard]] auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void do_vars(VariableSet &vars, bool provide) const override;
     void do_print(std::ostream &out) const override;
@@ -305,8 +305,8 @@ class TermBinary : public Term {
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto do_match(EvalContext const &ctx, Symbol sym) const -> bool override;
     [[nodiscard]] auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name,
-                                 size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
+        -> UTerm override;
     [[nodiscard]] auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void do_vars(VariableSet &vars, bool provide) const override;
     void do_print(std::ostream &out) const override;
@@ -333,8 +333,8 @@ class TermTuple : public Term {
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto do_match(EvalContext const &ctx, Symbol sym) const -> bool override;
     [[nodiscard]] auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name,
-                                 size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
+        -> UTerm override;
     [[nodiscard]] auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void do_vars(VariableSet &vars, bool provide) const override;
     void do_print(std::ostream &out) const override;
@@ -357,8 +357,8 @@ class TermFunction : public Term {
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto do_match(EvalContext const &ctx, Symbol sym) const -> bool override;
     [[nodiscard]] auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name,
-                                 size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
+        -> UTerm override;
     [[nodiscard]] auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void do_vars(VariableSet &vars, bool provide) const override;
     void do_print(std::ostream &out) const override;

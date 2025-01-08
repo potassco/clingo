@@ -358,9 +358,9 @@ class LitHdAggr : public Lit, private MatchHdAggr {
     //! Returns true if the aggregate needs only one grounding pass.
     [[nodiscard]] auto do_single_pass() const -> bool override;
 
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                  std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
 
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 

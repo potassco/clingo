@@ -47,8 +47,8 @@ class BaseHelper {
     }
 
     //! Add a base for the given projection.
-    [[nodiscard]] auto add_project(SymbolStore &store, Ground::UTerm const &term,
-                                   Ground::Base &base) -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
+    [[nodiscard]] auto add_project(SymbolStore &store, Ground::UTerm const &term, Ground::Base &base)
+        -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
         size_t vars = 0;
         auto [it, ins] =
             project_base_->try_emplace(term->rename(store, Ground::RenameMode::rename_vars, nullptr, &vars));
@@ -126,8 +126,8 @@ class BuildContext {
     [[nodiscard]] auto context() const -> Ground::ScriptCallback * { return context_; }
 
     //! Add a base for a projection.
-    auto add_project(Ground::UTerm const &term,
-                     Ground::Base &base) -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
+    auto add_project(Ground::UTerm const &term, Ground::Base &base)
+        -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
         return base_.add_project(*store_, term, base);
     }
 

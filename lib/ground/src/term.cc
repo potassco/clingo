@@ -49,8 +49,8 @@ auto rename_args(UTermVec const &args, SymbolStore &store, RenameMode mode, size
 
 // TermProjection
 
-auto TermProjection::do_score([[maybe_unused]] double size,
-                              [[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto TermProjection::do_score([[maybe_unused]] double size, [[maybe_unused]] std::vector<bool> const &bound) const
+    -> double {
     return 0;
 }
 
@@ -102,8 +102,8 @@ auto TermProjection::do_compare_to([[maybe_unused]] Term const &other) const -> 
 
 auto TermSymbol::do_match([[maybe_unused]] EvalContext const &ctx, Symbol sym) const -> bool { return sym == *sym_; }
 
-auto TermSymbol::do_score([[maybe_unused]] double size,
-                          [[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto TermSymbol::do_score([[maybe_unused]] double size, [[maybe_unused]] std::vector<bool> const &bound) const
+    -> double {
     return 0;
 }
 
@@ -371,8 +371,8 @@ auto TermUnary::do_compare_to([[maybe_unused]] Term const &other) const -> std::
 
 // TermBinary
 
-auto TermBinary::do_score([[maybe_unused]] double size,
-                          [[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto TermBinary::do_score([[maybe_unused]] double size, [[maybe_unused]] std::vector<bool> const &bound) const
+    -> double {
     return 0;
 }
 
@@ -546,8 +546,8 @@ auto TermTuple::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
     return std::nullopt;
 }
 
-auto TermTuple::do_rename(SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
-                          size_t *vars) const -> UTerm {
+auto TermTuple::do_rename(SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name, size_t *vars) const
+    -> UTerm {
     assert(name == nullptr);
     return std::make_unique<TermTuple>(rename_args(args_, store, mode, vars));
 }

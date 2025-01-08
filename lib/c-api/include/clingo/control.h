@@ -31,6 +31,8 @@ typedef struct clingo_program clingo_program_t;
 //! Functions to control the grounding and solving process.
 //!
 //! For an example, see @ref control.c.
+//! @ingroup CAPI
+
 //! @addtogroup Control
 //! @{
 
@@ -53,16 +55,6 @@ typedef struct clingo_part {
     clingo_symbol_t const *params; //!< array of parameters
     size_t size;                   //!< number of parameters
 } clingo_part_t;
-
-//! Callback function to inject symbols.
-//!
-//! @param symbols array of symbols
-//! @param symbols_size size of the symbol array
-//! @param data user data of the callback
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! @see ::clingo_ground_callback_t
-typedef clingo_result_t (*clingo_symbol_callback_t)(clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 
 //! Callback function to implement external functions.
 //!

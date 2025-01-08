@@ -13,8 +13,8 @@ template <class C> auto check_true([[maybe_unused]] Logger &log, [[maybe_unused]
 }
 
 template <class P, class C>
-auto parse_expr(Parse::ParserState &state, Parse::Condition cond, P parse,
-                C check) -> std::invoke_result_t<P, Parse::ParserState &> {
+auto parse_expr(Parse::ParserState &state, Parse::Condition cond, P parse, C check)
+    -> std::invoke_result_t<P, Parse::ParserState &> {
     auto lock = GCLock{state.store()};
     state.condition(cond);
     state.consume();

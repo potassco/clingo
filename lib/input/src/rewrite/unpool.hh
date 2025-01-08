@@ -50,8 +50,8 @@ auto unpool_apply(B build, U const &unpool, E const &elem, Es const &...elems) -
 } // namespace Detail
 
 template <typename Span>
-auto unpool_crossproduct(Span const &elems,
-                         auto unpool) -> std::optional<std::vector<std::vector<typename Span::value_type>>> {
+auto unpool_crossproduct(Span const &elems, auto unpool)
+    -> std::optional<std::vector<std::vector<typename Span::value_type>>> {
     // setup values to unpool + offsets
     std::vector<std::tuple<size_t, size_t, size_t>> offsets;
     std::vector<typename Span::value_type> pool;
