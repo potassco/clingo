@@ -25,13 +25,10 @@ extern "C" {
 //!
 //! ## Code ##
 
-//! @defgroup SymbolicAtoms Symbolic Atom Inspection
+//! @addtogroup c_base
 //! Inspection of atoms occurring in ground logic programs.
 //!
 //! For an example, see @ref symbolic-atoms.c.
-//! @ingroup Control
-
-//! @addtogroup SymbolicAtoms
 //! @{
 
 //! Represents a predicate signature.

@@ -13,10 +13,9 @@ extern "C" {
 // Note: forward declaration
 typedef struct clingo_control clingo_control_t;
 
-//! @defgroup Script Scripting Support for Grounding
+//! @addtogroup c_script
 //! Support for calling exteral functions during grounding and customizing the main solving loop.
-
-//! @addtogroup Script
+//!
 //! @{
 
 //! Custom scripting language to run functions during grounding.

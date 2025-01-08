@@ -31,7 +31,7 @@ extern "C" {
 //!
 //! ## Code ##
 
-//! @defgroup SolveHandle Solving
+//! @addtogroup c_solving Solving
 //! Interact with a running search.
 //!
 //! A ::clingo_solve_handle_t objects can be used for both synchronous and asynchronous search,
@@ -39,7 +39,6 @@ extern "C" {
 //!
 //! For an example showing how to solve asynchronously, see @ref solve-async.c.
 //!
-//! @ingroup Control
 //! @{
 
 //! @enum clingo_solve_result_e

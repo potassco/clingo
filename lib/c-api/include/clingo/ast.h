@@ -28,10 +28,9 @@ extern "C" {
 //!
 //! ## Code ##
 
-//! @defgroup AST Abstract Syntax Trees
+//! @addtogroup c_ast
 //! Functions and data structures to work with program ASTs.
 //!
-//! @ingroup CAPI
 //! @{
 
 //! Enumeration of AST types.

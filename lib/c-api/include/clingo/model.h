@@ -32,13 +32,10 @@ extern "C" {
 //!
 //! ## Code ##
 
-//! @defgroup Model Model Inspection
+//! @addtogroup c_model
 //! Inspection of models and a high-level interface to add constraints during solving.
 //!
 //! For an example, see @ref model.c.
-//! @ingroup Control
-
-//! @addtogroup Model
 //! @{
 
 //! Object to add clauses during search.

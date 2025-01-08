@@ -45,7 +45,7 @@ extern "C" {
 #define CLINGO_DEPRECATED
 #endif
 
-// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
+// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,cppcoreguidelines-macro-to-enum,performance-enum-size)
 
 //! @example version.c
 //! The example shows how to get version information.
@@ -59,7 +59,7 @@ extern "C" {
 //!
 //! ## Code ##
 
-//! @defgroup Core Core Functionality
+//! @addtogroup c_core
 //! Core types and functions used throughout all modules and version information.
 //!
 //! For an example, see @ref version.c.
@@ -385,7 +385,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_location_to_string(clingo_locat
 
 //! @}
 
-// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
+// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,cppcoreguidelines-macro-to-enum,performance-enum-size)
 
 #ifdef __cplusplus
 }

@@ -9,10 +9,9 @@ extern "C" {
 
 // NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 
-//! @defgroup Application Applications on top of Clingo
+//! @addtogroup c_app
 //! Support for building applications on top of clingo.
-
-//! @addtogroup Application
+//!
 //! @{
 
 //! Run a clingo application with the given library and arguments.

@@ -8,7 +8,7 @@
 //!
 //! The documentation is structured into different modules.
 //! To get an overview, checkout the [Topics](topics.html) page.
-//! To get started, take a look at the documentation of the @ref Control module.
+//! To get started, take a look at the documentation of the @ref c_control module.
 //!
 //! The source code of clingo is available on [github.com/potassco/clingo](https://github.com/potassco/clingo).
 //!
@@ -35,10 +35,33 @@ extern "C" {
 #include <clingo/solve.h>
 #include <clingo/symbol.h>
 
-//! @defgroup CAPI C API
+//! @defgroup c_api C API
 //! API providing a stable interface for applications using Clingo.
 //!
 //! The API is mainly intended for developing higher level language bindings.
+//! @{
+//! @defgroup c_core Core Functionality
+
+//! @defgroup c_symbol Symbol Handling
+
+//! @defgroup c_ast Abstract Syntax Trees
+
+//! @defgroup c_control Grounding and Solving
+//! @{
+
+//! @defgroup c_base Symbolic Atom Inspection
+
+//! @defgroup c_model Model Inspection
+
+//! @defgroup c_solving Solving
+
+//! @}
+
+//! @defgroup c_script Scripting Support for Grounding
+
+//! @defgroup c_app Applications on top of Clingo
+
+//! @}
 
 #ifdef __cplusplus
 }
