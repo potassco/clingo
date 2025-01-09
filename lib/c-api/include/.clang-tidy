@@ -19,7 +19,8 @@ Checks: >
   -readability-identifier-length,
   -readability-suspicious-call-argument,
   -cppcoreguidelines-macro-usage,
-  -performance-enum-size
+  -performance-enum-size,
+  -cppcoreguidelines-macro-to-enum
 WarningsAsErrors: ""
 HeaderFilterRegex: ""
 FormatStyle: none

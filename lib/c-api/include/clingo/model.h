@@ -81,23 +81,22 @@ typedef int clingo_consequence_t;
 //!
 //! @param[in] model the target
 //! @param[out] type the type of the model
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_type(clingo_model_t const *model, clingo_model_type_t *type);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_type(clingo_model_t const *model, clingo_model_type_t *type);
 //! Get the running number of the model.
 //!
 //! @param[in] model the target
 //! @param[out] number the number of the model
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_number(clingo_model_t const *model, uint64_t *number);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_number(clingo_model_t const *model, uint64_t *number);
 //! Get the number of symbols of the selected types in the model.
 //!
 //! @param[in] model the target
 //! @param[in] show which symbols to select
 //! @param[out] size the number symbols
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_symbols_size(clingo_model_t const *model, clingo_show_type_bitset_t show,
-                                                         size_t *size);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_symbols_size(clingo_model_t const *model,
+                                                                    clingo_show_type_bitset_t show, size_t *size);
 //! Get the symbols of the selected types in the model.
 //!
 //! @note CSP assignments are represented using functions with name "$"
@@ -108,29 +107,27 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_symbols_size(clingo_model_t const *m
 //! @param[in] show which symbols to select
 //! @param[out] symbols the resulting symbols
 //! @param[in] size the number of selected symbols
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if the size is too small
-//!
+//! @return the result code
 //! @see clingo_model_symbols_size()
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_symbols(clingo_model_t const *model, clingo_show_type_bitset_t show,
-                                                    clingo_symbol_t *symbols, size_t size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_symbols(clingo_model_t const *model,
+                                                               clingo_show_type_bitset_t show, clingo_symbol_t *symbols,
+                                                               size_t size);
 //! Constant time lookup to test whether an atom is in a model.
 //!
 //! @param[in] model the target
 //! @param[in] atom the atom to lookup
 //! @param[out] contained whether the atom is contained
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_contains(clingo_model_t const *model, clingo_symbol_t atom,
-                                                     bool *contained);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_contains(clingo_model_t const *model, clingo_symbol_t atom,
+                                                                bool *contained);
 //! Check if a program literal is true in a model.
 //!
 //! @param[in] model the target
 //! @param[in] literal the literal to lookup
 //! @param[out] result whether the literal is true
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_is_true(clingo_model_t const *model, clingo_literal_t literal,
-                                                    bool *result);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_is_true(clingo_model_t const *model, clingo_literal_t literal,
+                                                               bool *result);
 //! Check if the given literal is a consequence.
 //!
 //! While enumerating cautious or brave consequences, there is partial
@@ -142,27 +139,25 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_is_true(clingo_model_t const *model,
 //! @param[in] model the target
 //! @param[in] literal the literal to lookup
 //! @param[out] result whether the literal is a consequence
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_is_consequence(clingo_model_t const *model, clingo_literal_t literal,
-                                                           clingo_consequence_t *result);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_is_consequence(clingo_model_t const *model,
+                                                                      clingo_literal_t literal,
+                                                                      clingo_consequence_t *result);
 //! Get the number of cost values of a model.
 //!
 //! @param[in] model the target
 //! @param[out] size the number of costs
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost_size(clingo_model_t const *model, size_t *size);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_cost_size(clingo_model_t const *model, size_t *size);
 //! Get the cost vector of a model.
 //!
 //! @param[in] model the target
 //! @param[out] costs the resulting costs
 //! @param[in] size the number of costs
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if the size is too small
-//!
+//! @return the result code
 //! @see clingo_model_cost_size()
 //! @see clingo_model_optimality_proven()
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost(clingo_model_t const *model, int64_t *costs, size_t size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_cost(clingo_model_t const *model, int64_t *costs, size_t size);
 //! Get the priorities of the costs.
 //!
 //! The size of the array can be obtained with clingo_model_cost_size().
@@ -170,27 +165,23 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost(clingo_model_t const *model, in
 //! @param[in] model the target
 //! @param[out] priorities the resulting priorities
 //! @param[in] size the number of priorities
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if the size is too small
-//!
+//! @return the result code
 //! @see clingo_model_cost_size()
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_priority(clingo_model_t const *model, clingo_weight_t *priorities,
-                                                     size_t size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_priority(clingo_model_t const *model,
+                                                                clingo_weight_t *priorities, size_t size);
 //! Whether the optimality of a model has been proven.
 //!
 //! @param[in] model the target
 //! @param[out] proven whether the optimality has been proven
-//! @return whether the call was successful
-//!
+//! @return the result code
 //! @see clingo_model_cost()
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_optimality_proven(clingo_model_t const *model, bool *proven);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_optimality_proven(clingo_model_t const *model, bool *proven);
 //! Get the id of the solver thread that found the model.
 //!
 //! @param[in] model the target
 //! @param[out] id the resulting thread id
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_thread_id(clingo_model_t const *model, clingo_id_t *id);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_thread_id(clingo_model_t const *model, clingo_id_t *id);
 //! Add symbols to the model.
 //!
 //! These symbols will appear in clingo's output, which means that this
@@ -200,8 +191,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_thread_id(clingo_model_t const *mode
 //! @param[in] model the target
 //! @param[in] symbols the symbols to add
 //! @param[in] size the number of symbols to add
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_extend(clingo_model_t *model, clingo_symbol_t const *symbols, size_t size);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_extend(clingo_model_t *model, clingo_symbol_t const *symbols,
+                                                              size_t size);
 //! @}
 
 //! @name Functions for Adding Clauses
@@ -212,15 +204,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_extend(clingo_model_t *model, clingo
 //! This object allows for adding clauses during model enumeration.
 //! @param[in] model the target
 //! @param[out] control the resulting solve control object
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_context(clingo_model_t const *model, clingo_solve_control_t **control);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_context(clingo_model_t const *model,
+                                                               clingo_solve_control_t **control);
 //! Get an object to inspect the symbolic atoms.
 //!
 //! @param[in] control the target
 //! @param[out] atoms the resulting object
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_control_symbolic_atoms(clingo_solve_control_t const *control,
-                                                                   clingo_symbolic_atoms_t const **atoms);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_control_symbolic_atoms(clingo_solve_control_t const *control,
+                                                                              clingo_symbolic_atoms_t const **atoms);
 //! Add a clause that applies to the current solving step during model
 //! enumeration.
 //!
@@ -230,11 +223,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_control_symbolic_atoms(clingo_solve_
 //! @param[in] control the target
 //! @param[in] clause array of literals representing the clause
 //! @param[in] size the size of the literal array
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if adding the clause fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_control_add_clause(clingo_solve_control_t *control,
-                                                               clingo_literal_t const *clause, size_t size);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_control_add_clause(clingo_solve_control_t *control,
+                                                                          clingo_literal_t const *clause, size_t size);
 //! @}
 
 //! @}
