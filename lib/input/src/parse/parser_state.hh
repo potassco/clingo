@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <clingo/input/statement.hh>
 
 #include <clingo/core/logger.hh>
@@ -480,7 +481,7 @@ class ParserState {
             view = view.substr(2);
         }
         auto &buf = this->buf(view.size());
-        std::copy_if(view.begin(), view.end(), std::back_inserter(buf), [](char c) { return c != '\''; });
+        std::ranges::copy_if(view, std::back_inserter(buf), [](char c) { return c != '\''; });
         return Number{buf.c_str(), base};
     }
 

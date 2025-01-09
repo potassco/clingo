@@ -264,7 +264,7 @@ template <class Span>
 
 void vv_(auto const &x, VarVisitFun fun) { visit_variables(x, std::move(fun)); }
 
-template <class T> void vv_(Util::immutable_array<T> const &vec, VarVisitFun fun) {
+template <class T> void vv_(Util::immutable_array<T> const &vec, VarVisitFun const &fun) {
     for (auto const &term : vec) {
         vv_(term, fun);
     }

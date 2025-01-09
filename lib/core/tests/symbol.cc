@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <clingo/core/symbol.hh>
 
 #include <catch2/catch_test_macros.hpp>
@@ -10,7 +11,7 @@ namespace Clingo {
 
 // Note: to enable ADL for catch
 using SL = std::initializer_list<Symbol>;
-auto operator==(SymbolSpan a, SL b) -> bool { return std::equal(a.begin(), a.end(), b.begin(), b.end()); }
+auto operator==(SymbolSpan a, SL b) -> bool { return std::ranges::equal(a, b); }
 
 constexpr auto operator"" _uz(unsigned long long n) -> std::size_t { return n; }
 

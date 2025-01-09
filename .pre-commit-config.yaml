@@ -24,10 +24,11 @@ repos:
     rev: v19.1.2
     hooks:
       - id: clang-format
-        types_or: [c++, c]
+        types_or: [c, c++]
 
-  - repo: https://github.com/pocc/pre-commit-hooks
-    rev: v1.3.5
+  - repo: https://github.com/mxmlnrdr/clang_tidy_hook
+    rev: v0.3.0
     hooks:
       - id: clang-tidy
         args: ["-fix", "--warnings-as-errors=*"]
+        verbose: false

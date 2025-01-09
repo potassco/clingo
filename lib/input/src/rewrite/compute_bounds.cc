@@ -4,6 +4,7 @@
 #include <clingo/input/rewrite/compute_bounds.hh>
 
 #include <clingo/util/type_traits.hh>
+#include <utility>
 
 namespace Clingo::Input {
 
@@ -292,8 +293,9 @@ class ApplyBounds {
             return TermSymbol{sym.loc(), store_->num_ref(bound)};
         };
         auto make_relation = [this, &lit](auto lhs, Relation rel, Location loc, auto bound) {
-            return lit.update(a_lhs = std::move(lhs), a_rhs = Util::make_vec<Guard>(Guard{
-                                                          rel, TermSymbol{loc, store_->num_ref(std::move(bound))}}));
+            return lit.update(a_lhs = std::move(lhs),
+                              a_rhs = Util::make_vec<Guard>(
+                                  Guard{rel, TermSymbol{std::move(loc), store_->num_ref(std::move(bound))}}));
         };
         auto make_interval = [&lit](auto var, auto loc, auto u, auto v) -> Util::ResultState<Lit> {
             if (u.value() == v.value()) {

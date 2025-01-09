@@ -223,7 +223,7 @@ template <class T> class RefCounted {
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     template <class Alloc> static auto alloc(Alloc &alloc, size_t n, bool referenced) -> RefCounted * {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,cppcoreguidelines-owning-memory)
-        return new (alloc.alloc(sizeof(RefCounted) + sizeof(value_type) * (n + adjust))) RefCounted(referenced);
+        return new (alloc.alloc(sizeof(RefCounted) + (sizeof(value_type) * (n + adjust)))) RefCounted(referenced);
     }
     template <class Alloc> auto dealloc(Alloc &alloc) { alloc.dealloc(this); }
     auto data() -> T * {

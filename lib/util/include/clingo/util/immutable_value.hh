@@ -3,6 +3,10 @@
 #include <cstddef>
 #include <utility>
 
+#ifdef __clang_analyzer__
+#include <memory>
+#endif
+
 namespace Clingo::Util {
 
 //! @addtogroup util_immutable
@@ -10,9 +14,7 @@ namespace Clingo::Util {
 
 //! An immutable value imlementation.
 //!
-//! This implementation aims to ease C integration
-//! making it is easy to extend to provide full control over the reference count.
-//! It should also be faster than the STL implementation.
+//! It is faster than the std::shared_ptr implementation.
 //! However, it cannot be used safely in multi-threaded applications.
 template <typename T> class immutable_value {
   public:
@@ -29,6 +31,16 @@ template <typename T> class immutable_value {
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     template <class U> immutable_value(U &&value) : immutable_value{std::in_place, std::forward<U>(value)} {}
 
+#ifdef __clang_analyzer__
+    template <class... Args>
+    immutable_value([[maybe_unused]] std::in_place_t tag, Args &&...args)
+        : data_{std::make_shared<T>(std::forward<Args>(args)...)} {}
+    immutable_value(immutable_value const &other) noexcept = default;
+    immutable_value(immutable_value &&other) noexcept = default;
+    auto operator=(immutable_value const &other) noexcept -> immutable_value & = default;
+    auto operator=(immutable_value &&other) noexcept -> immutable_value & = default;
+    ~immutable_value() noexcept = default;
+#else
     //! Construct a value in place.
     template <class... Args>
     immutable_value([[maybe_unused]] std::in_place_t tag, Args &&...args)
@@ -51,10 +63,16 @@ template <typename T> class immutable_value {
 
     //! Move assign an immutable value.
     auto operator=(immutable_value &&other) noexcept -> immutable_value & {
-        dec_();
-        data_ = std::exchange(other.data_, nullptr);
+        if (this != &other) {
+            dec_();
+            data_ = std::exchange(other.data_, nullptr);
+        }
         return *this;
     }
+
+    //! Decrement reference count and delete contained pointer if zero.
+    ~immutable_value() noexcept { dec_(); }
+#endif
 
     //! Check if the value is engaged.
     [[nodiscard]] auto has_value() const noexcept -> bool { return data_ != nullptr; }
@@ -63,7 +81,13 @@ template <typename T> class immutable_value {
     [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
 
     //! Get the value.
-    [[nodiscard]] auto get() const noexcept -> element_type const & { return data_->value; }
+    [[nodiscard]] auto get() const noexcept -> element_type const & {
+#ifdef __clang_analyzer__
+        return *data_;
+#else
+        return data_->value;
+#endif
+    }
 
     //! Get the value.
     [[nodiscard]] auto operator*() const noexcept -> element_type const & { return get(); }
@@ -74,10 +98,10 @@ template <typename T> class immutable_value {
     //! Conversion operator.
     [[nodiscard]] operator T const &() const noexcept { return get(); }
 
-    //! Decrement reference count and delete contained pointer if zero.
-    ~immutable_value() noexcept { dec_(); }
-
   private:
+#ifdef __clang_analyzer__
+    std::shared_ptr<T> data_;
+#else
     struct data_type {
         template <class... Args> data_type(Args &&...args) : value{std::forward<Args>(args)...} {}
         size_t refs = 1;
@@ -101,6 +125,7 @@ template <typename T> class immutable_value {
     }
 
     data_type *data_ = nullptr;
+#endif
 };
 
 //! Construct an immutable value.

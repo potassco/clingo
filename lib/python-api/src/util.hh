@@ -90,7 +90,7 @@ template <class T, void (*deleter)(T *) noexcept> class owner_ptr {
             if (own_) {
                 deleter(ptr_);
             }
-            ptr_ = other.lib_;
+            ptr_ = other.ptr_;
             own_ = false;
         }
         return *this;

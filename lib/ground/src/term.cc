@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <clingo/ground/term.hh>
 
 #include <clingo/util/optional.hh>
@@ -595,8 +596,7 @@ auto TermTuple::do_hash() const -> size_t { return Util::value_hash_record<TermT
 
 auto TermTuple::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermTuple const *>(&other);
-    return x != nullptr && std::equal(args_.begin(), args_.end(), x->args_.begin(), x->args_.end(),
-                                      [](auto const &a, auto const &b) { return *a == *b; });
+    return x != nullptr && std::ranges::equal(args_, x->args_, [](auto const &a, auto const &b) { return *a == *b; });
 }
 
 auto TermTuple::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
@@ -682,8 +682,7 @@ auto TermFunction::do_hash() const -> size_t { return Util::value_hash_record<Te
 auto TermFunction::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermFunction const *>(&other);
     return x != nullptr && name_ == x->name_ &&
-           std::equal(args_.begin(), args_.end(), x->args_.begin(), x->args_.end(),
-                      [](auto const &a, auto const &b) { return *a == *b; });
+           std::ranges::equal(args_, x->args_, [](auto const &a, auto const &b) { return *a == *b; });
 }
 
 auto TermFunction::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {

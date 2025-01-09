@@ -41,7 +41,7 @@ extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *strin
         if (lib == nullptr || string == nullptr || symbol == nullptr) {
             return clingo_result_invalid;
         }
-        *symbol = Clingo::SharedSymbol::to_rep(lib->store->str(*lib->store->string(string)));
+        *symbol = Clingo::SharedSymbol::to_rep(Clingo::SymbolStore::str(*lib->store->string(string)));
     }
     CLINGO_CATCH;
 }

@@ -6161,8 +6161,7 @@ class Scanner {
     Scanner(Library &lib, std::vector<std::string> files) : lib_{lib} {
         std::vector<char const *> cfiles;
         cfiles.reserve(cfiles.size());
-        std::transform(files.begin(), files.end(), std::back_inserter(cfiles),
-                       [](auto const &file) { return file.c_str(); });
+        std::ranges::transform(files, std::back_inserter(cfiles), [](auto const &file) { return file.c_str(); });
         handle_error(clingo_ast_scan_files(lib, cfiles.data(), cfiles.size(), &scanner_));
     }
 

@@ -173,8 +173,10 @@ void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
             }
         }
         if (guard_) {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
             guard->second = *atm.second.rhs();
         }
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         thy.atm(type_, *atm.second.uid(), atm.second.name(), elems, guard);
     }
 }
