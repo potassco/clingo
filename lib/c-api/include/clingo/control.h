@@ -8,8 +8,6 @@ extern "C" {
 #include <clingo/core.h>
 #include <clingo/symbol.h>
 
-// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
-
 // Note: forward declaration
 typedef struct clingo_program clingo_program_t;
 
@@ -219,8 +217,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_solve(clingo_control_t 
 //     clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_literal_t const *assumptions,
 //     size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle);
 //! @}
-
-// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 
 #ifdef __cplusplus
 }

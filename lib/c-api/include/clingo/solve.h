@@ -8,8 +8,6 @@ extern "C" {
 #include <clingo/core.h>
 #include <clingo/model.h>
 
-// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
-
 //! @example solve-async.c
 //! The example shows how to solve in the background.
 //!

@@ -8,8 +8,6 @@ extern "C" {
 #include <clingo/core.h>
 #include <clingo/symbol.h>
 
-// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
-
 // Note: forward declaration
 typedef struct clingo_control clingo_control_t;
 
@@ -77,8 +75,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_script_register(clingo_lib_t *l
 CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version(clingo_lib_t *lib, char const *name);
 
 //! @}
-
-// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 
 #ifdef __cplusplus
 }

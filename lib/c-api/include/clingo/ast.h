@@ -8,8 +8,6 @@ extern "C" {
 #include <clingo/core.h>
 #include <clingo/symbol.h>
 
-// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
-
 //! @example ast.c
 //! The example shows how to rewrite a non-ground logic program.
 //!
@@ -550,8 +548,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_program_add(clingo_program_t *p
 //! @}
 
 //! @}
-
-// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 
 #ifdef __cplusplus
 }

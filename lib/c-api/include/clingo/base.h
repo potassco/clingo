@@ -8,8 +8,6 @@ extern "C" {
 #include <clingo/core.h>
 #include <clingo/symbol.h>
 
-// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
-
 //! @example symbolic-atoms.c
 //! The example shows how to iterate over symbolic atoms.
 //!
@@ -181,8 +179,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbolic_atoms_is_valid(clingo_symbolic_at
                                                               clingo_symbolic_atom_iterator_t iterator, bool *valid);
 
 //! @}
-
-// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 
 #ifdef __cplusplus
 }

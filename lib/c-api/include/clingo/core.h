@@ -45,8 +45,6 @@ extern "C" {
 #define CLINGO_DEPRECATED
 #endif
 
-// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,cppcoreguidelines-macro-to-enum,performance-enum-size)
-
 //! @example version.c
 //! The example shows how to get version information.
 //!
@@ -384,8 +382,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_location_to_string(clingo_locat
                                                                     clingo_string_builder_t *str);
 
 //! @}
-
-// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,cppcoreguidelines-macro-to-enum,performance-enum-size)
 
 #ifdef __cplusplus
 }

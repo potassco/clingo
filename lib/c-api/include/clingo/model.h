@@ -9,8 +9,6 @@ extern "C" {
 #include <clingo/core.h>
 #include <clingo/symbol.h>
 
-// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
-
 //! @example model.c
 //! The example shows how to inspect a model.
 //!
@@ -240,8 +238,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_control_add_clause(clingo_solve_cont
 //! @}
 
 //! @}
-
-// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 
 #ifdef __cplusplus
 }

@@ -7,8 +7,6 @@ extern "C" {
 
 #include <clingo/core.h>
 
-// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
-
 //! @example symbol.c
 //! The example shows how to create and inspect symbols.
 //!
@@ -280,7 +278,5 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_symbol_hash(clingo_symbol_t symbol);
 #ifdef __cplusplus
 }
 #endif
-
-// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 
 #endif

@@ -7,8 +7,6 @@ extern "C" {
 
 #include <clingo/core.h>
 
-// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
-
 //! @addtogroup c_app
 //! Support for building applications on top of clingo.
 //!
@@ -23,8 +21,6 @@ extern "C" {
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size);
 
 //! @}
-
-// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 
 #ifdef __cplusplus
 }
