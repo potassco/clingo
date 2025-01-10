@@ -5,6 +5,8 @@ add_library(clingo
     "src/control.cc"
     "src/core.cc"
     "src/main.cc"
+    "src/script.cc"
+    "src/solve.cc"
     "src/symbol.cc"
     )
 target_link_libraries(clingo PRIVATE clingo::control CLI11)

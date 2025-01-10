@@ -78,6 +78,13 @@ inline auto handle_error() -> clingo_result_t {
     }
 }
 
+template <typename In, typename C, typename Pred> auto append_n(In begin, size_t n, C &out, Pred pred) {
+    out.reserve(out.size() + n);
+    for (auto end = begin + n; begin != end; ++begin) {
+        out.emplace_back(pred(*begin));
+    }
+}
+
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 
 #define CLINGO_TRY try

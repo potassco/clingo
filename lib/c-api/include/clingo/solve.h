@@ -171,8 +171,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_close(clingo_solve
 
 //! @}
 
-// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
-
 #ifdef __cplusplus
 }
 #endif
