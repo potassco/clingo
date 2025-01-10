@@ -93,9 +93,21 @@ class SolveHandle {
     virtual ~SolveHandle() = default;
 
     auto get() -> SolveResult { return do_get(); }
+    void cancel() { do_cancel(); }
+    void resume() { do_resume(); }
+    auto model() -> Model const & { return do_model(); }
+    auto last() -> Model const & { return do_last(); }
+    void core(Output::LitVec &lits) { do_core(lits); }
+    auto wait(double timeout) -> bool { return do_wait(timeout); }
 
   private:
     virtual auto do_get() -> SolveResult = 0;
+    virtual void do_cancel() = 0;
+    virtual void do_resume() = 0;
+    virtual auto do_model() -> Model const & = 0;
+    virtual auto do_last() -> Model const & = 0;
+    virtual void do_core(Output::LitVec &lits) = 0;
+    virtual auto do_wait(double timeout) -> bool = 0;
 };
 using USolveHandle = std::unique_ptr<SolveHandle>;
 

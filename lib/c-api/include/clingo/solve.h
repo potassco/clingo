@@ -96,6 +96,8 @@ typedef unsigned clingo_solve_event_type_t;
 typedef clingo_result_t (*clingo_solve_event_callback_t)(clingo_solve_event_type_t type, void *event, void *data,
                                                          bool *goon);
 
+typedef clingo_result_t (*clingo_literal_callback_t)(clingo_literal_t *literals, size_t size, void *data);
+
 //! Search handle to a solve call.
 //!
 //! @see clingo_control_solve()
@@ -137,7 +139,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_model(clingo_solve
 //! @param[out] size size of the given array
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_core(clingo_solve_handle_t *handle,
-                                                                   clingo_literal_t const **core, size_t *size);
+                                                                   clingo_literal_callback_t callback, void *data);
 //! When a problem is satisfiable and the search is finished, get the last
 //! computed model.
 //!

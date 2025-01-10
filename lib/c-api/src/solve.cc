@@ -3,6 +3,10 @@
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
+auto c_cast(Clingo::Control::Model const *model) -> clingo_model_t const * {
+    return reinterpret_cast<clingo_model_t const *>(model); // NOLINT
+}
+
 auto c_cast(Clingo::Control::SolveHandle *hnd) -> clingo_solve_handle_t * {
     return reinterpret_cast<clingo_solve_handle_t *>(hnd); // NOLINT
 }
@@ -18,56 +22,38 @@ extern "C" auto clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_so
 }
 
 extern "C" void clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result) {
-    static_cast<void>(handle);
-    static_cast<void>(timeout);
-    printf("implement me: wait");
-    *result = false;
+    *result = cpp_cast(handle)->wait(timeout);
 }
 
 extern "C" auto clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model)
     -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(handle);
-        *model = nullptr;
-        throw std::logic_error("implement me: model");
-    }
+    CLINGO_TRY { *model = c_cast(&cpp_cast(handle)->model()); }
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_literal_t const **core, size_t *size)
+extern "C" auto clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_literal_callback_t callback, void *data)
     -> clingo_result_t {
     CLINGO_TRY {
-        static_cast<void>(handle);
-        *core = nullptr;
-        *size = 0;
-        throw std::logic_error("implement me: core");
+        Clingo::Output::LitVec lits;
+        cpp_cast(handle)->core(lits);
+        handle_error(callback(lits.data(), lits.size(), data));
     }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_solve_handle_last(clingo_solve_handle_t *handle, clingo_model_t const **model)
     -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(handle);
-        *model = nullptr;
-        throw std::logic_error("implement me: last");
-    }
+    CLINGO_TRY { *model = c_cast(&cpp_cast(handle)->model()); }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_solve_handle_resume(clingo_solve_handle_t *handle) -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(handle);
-        throw std::logic_error("implement me: resume");
-    }
+    CLINGO_TRY { cpp_cast(handle)->resume(); }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_solve_handle_cancel(clingo_solve_handle_t *handle) -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(handle);
-        throw std::logic_error("implement me: cancel");
-    }
+    CLINGO_TRY { cpp_cast(handle)->cancel(); }
     CLINGO_CATCH;
 }
 

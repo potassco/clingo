@@ -408,6 +408,8 @@ class EventHandlerAdapter : public Clasp::EventHandler {
 class SolveHandleImpl : public SolveHandle {
   public:
     SolveHandleImpl(Clasp::SolveResult res) : res_{res} {}
+
+  private:
     auto do_get() -> SolveResult override {
         auto res = SolveResult::empty;
         if (res_.interrupted()) {
@@ -423,6 +425,18 @@ class SolveHandleImpl : public SolveHandle {
             res |= SolveResult::exhausted;
         }
         return res;
+    }
+    void do_cancel() override { throw std::logic_error("implement me: cancel"); }
+    void do_resume() override { throw std::logic_error("implement me: resume"); }
+    auto do_model() -> Model const & override { throw std::logic_error("implement me: model"); }
+    auto do_last() -> Model const & override { throw std::logic_error("implement me: last"); }
+    void do_core(Output::LitVec &lits) override {
+        static_cast<void>(lits);
+        throw std::logic_error("implement me: core");
+    }
+    auto do_wait(double timeout) -> bool override {
+        static_cast<void>(timeout);
+        throw std::logic_error("implement me: wait");
     }
 
     Clasp::SolveResult res_;
