@@ -278,14 +278,16 @@ class BackendClasp : public Output::Backend {
 } // namespace
 
 //! The model class.
-class Model::Impl {
+class ModelImpl : public Model {
   public:
-    Impl(BaseMap const &base, Clasp::Asp::LogicProgram &prg, Clasp::Solver const &slv, Clasp::Model const &mdl)
+    ModelImpl(BaseMap const &base, Clasp::Asp::LogicProgram &prg, Clasp::Solver const &slv, Clasp::Model const &mdl)
         : base_{&base}, prg_{&prg}, slv_{&slv}, mdl_{&mdl} {
         // TODO: remove once there is a use for slv_
         static_cast<void>(slv_);
     }
-    void symbols(SymbolSelectFlags type, SymbolVec &res) {
+
+  private:
+    void do_symbols(SymbolSelectFlags type, SymbolVec &res) const override {
         if ((type & (SymbolSelectFlags::Theory | SymbolSelectFlags::Complement)) != SymbolSelectFlags::None) {
             throw std::logic_error("implement me: theory and complement selection modes");
         }
@@ -305,14 +307,11 @@ class Model::Impl {
         }
     }
 
-  private:
     BaseMap const *base_;
     Clasp::Asp::LogicProgram const *prg_;
     Clasp::Solver const *slv_;
     Clasp::Model const *mdl_;
 };
-
-void Model::symbols(SymbolSelectFlags type, SymbolVec &res) { impl_->symbols(type, res); }
 
 Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
     : buf_{out}, out_{make_output_(store, mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
@@ -396,9 +395,8 @@ class EventHandlerAdapter : public Clasp::EventHandler {
         : base_{&base}, prg_{&prg}, eh_{&eh} {}
 
     auto onModel(Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
-        auto impl = Control::Model::Impl{*base_, *prg_, slv, mdl};
-        auto cm = Control::Model{impl};
-        return eh_->on_model(cm);
+        auto mdli = ModelImpl{*base_, *prg_, slv, mdl};
+        return eh_->on_model(mdli);
     }
 
   private:
@@ -407,9 +405,33 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     Control::EventHandler *eh_;
 };
 
+class SolveHandleImpl : public SolveHandle {
+  public:
+    SolveHandleImpl(Clasp::SolveResult res) : res_{res} {}
+    auto do_get() -> SolveResult override {
+        auto res = SolveResult::empty;
+        if (res_.interrupted()) {
+            res |= SolveResult::interrupted;
+        }
+        if (res_.sat()) {
+            res |= SolveResult::satisfiable;
+        }
+        if (res_.unsat()) {
+            res |= SolveResult::unsatisfiable;
+        }
+        if (res_.exhausted()) {
+            res |= SolveResult::exhausted;
+        }
+        return res;
+    }
+
+    Clasp::SolveResult res_;
+};
+
 } // namespace
 
-void Solver::solve(EventHandler *eh) {
+auto Solver::solve(EventHandler *eh) -> USolveHandle {
+    auto res = Clasp::SolveResult{0, 0};
     if (mode_ == AppMode::solve) {
         if (state_ == State::solved || state_ == State::updated) {
             // we inject an emtpy ground
@@ -420,12 +442,13 @@ void Solver::solve(EventHandler *eh) {
         // TODO: just for now
         if (eh == nullptr) {
             auto eh = EH{};
-            clasp_.solve(&eh);
+            res = clasp_.solve(&eh);
         } else {
             auto eha = EventHandlerAdapter{grd_.base(), *clasp_.asp(), *eh};
-            clasp_.solve(&eha);
+            res = clasp_.solve(&eha);
         }
     }
+    return std::make_unique<SolveHandleImpl>(res);
 }
 
 void Solver::join(Input::UnprocessedProgram const &prg) { grd_.join(prg); }

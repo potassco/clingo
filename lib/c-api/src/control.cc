@@ -7,8 +7,6 @@
 #include "control.hh"
 #include "lib.hh"
 
-// NOLINTBEGIN(cppcoreguidelines-owning-memory,cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
 extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *arguments, size_t arguments_size,
                                    clingo_control_t **control) -> clingo_result_t {
     CLINGO_TRY {
@@ -112,14 +110,6 @@ extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t c
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_control_solve(clingo_control_t *control) -> clingo_result_t {
-    CLINGO_TRY {
-        // TODO: handler!!
-        control->slv->solve(nullptr);
-    }
-    CLINGO_CATCH;
-}
-
 extern "C" auto clingo_control_main(clingo_control_t *control) -> clingo_result_t {
     CLINGO_TRY { control->slv->main(std::nullopt); }
     CLINGO_CATCH;
@@ -129,5 +119,3 @@ extern "C" auto clingo_control_buffer(clingo_control_t *control, char const **bu
     CLINGO_TRY { *buffer = control->slv->buf().c_str(); }
     CLINGO_CATCH;
 }
-
-// NOLINTEND(cppcoreguidelines-owning-memory,cppcoreguidelines-pro-bounds-pointer-arithmetic)

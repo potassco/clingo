@@ -71,20 +71,40 @@ void is_bit_set_enum(SymbolSelectFlags type);
 //! The model class.
 class Model {
   public:
-    class Impl;
-    explicit Model(Impl &impl) : impl_{&impl} {}
+    virtual ~Model() = default;
 
-    void symbols(SymbolSelectFlags type, SymbolVec &res);
+    void symbols(SymbolSelectFlags type, SymbolVec &res) const { do_symbols(type, res); }
 
   private:
-    Impl *impl_;
+    virtual void do_symbols(SymbolSelectFlags type, SymbolVec &res) const = 0;
 };
+
+enum class SolveResult : uint8_t {
+    empty = 0,
+    satisfiable = 1,
+    unsatisfiable = 2,
+    exhausted = 4,
+    interrupted = 8,
+};
+void is_bit_set_enum(SolveResult);
+
+class SolveHandle {
+  public:
+    virtual ~SolveHandle() = default;
+
+    auto get() -> SolveResult { return do_get(); }
+
+  private:
+    virtual auto do_get() -> SolveResult = 0;
+};
+using USolveHandle = std::unique_ptr<SolveHandle>;
 
 //! The event handler interface.
 class EventHandler {
   public:
+    virtual ~EventHandler() = default;
+
     auto on_model(Model &m) -> bool { return do_on_model(m); }
-    virtual ~EventHandler() noexcept = default;
 
   private:
     virtual auto do_on_model([[maybe_unused]] Model &m) -> bool { return true; }
@@ -118,7 +138,7 @@ class Solver {
     //! Solve the program.
     //!
     //! @todo Incomplete and just to get started.
-    void solve(EventHandler *eh);
+    auto solve(EventHandler *eh) -> USolveHandle;
 
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);

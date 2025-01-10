@@ -8,7 +8,6 @@ extern "C" {
 #include <clingo/core.h>
 #include <clingo/symbol.h>
 
-// Note: forward declaration
 typedef struct clingo_program clingo_program_t;
 
 //! @example control.c
@@ -145,19 +144,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_file(clingo_contr
 //! - ::clingo_result_runtime if parsing fails
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_string(clingo_control_t *control, char const *program);
 
-//! Extend the control objects's program with the given one.
-//!
-//! After extending the logic program, the corresponding program parts are typically grounded with
-//! ::clingo_control_ground.
-//!
-//! @param[in] control the target
-//! @param[in] program the program to add
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! - ::clingo_result_runtime if rewriting fails
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_join(clingo_control_t *control,
-                                                              clingo_program_t const *program);
-
 //! Ground the selected parts of the current (non-ground) logic program.
 //!
 //! After grounding, logic programs can be solved with ::clingo_control_solve().
@@ -200,22 +186,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_main(clingo_control_t *
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_buffer(clingo_control_t *control, char const **buffer);
 
-//! Solve the currently grounded logic program enumerating its models.
-//!
-//! See the @ref SolveHandle module for more information.
-//!
-//! @param[in] control the target
-//! @param[in] mode configures the search mode
-//! @param[in] assumptions array of assumptions to solve under
-//! @param[in] assumptions_size number of assumptions
-//! @param[in] notify the event handler to register
-//! @param[in] data the user data for the event handler
-//! @param[out] handle handle to the current search to enumerate models
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_solve(clingo_control_t *control);
-// CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_solve(
-//     clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_literal_t const *assumptions,
-//     size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle);
 //! @}
 
 #ifdef __cplusplus

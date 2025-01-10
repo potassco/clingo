@@ -6,6 +6,7 @@ compile_commands.json
 .gdb_history
 env.sh
 /*.lp
+/*.py
 test
 examples/html/js/parser.js
 examples/html/js/parser.wasm

@@ -8,6 +8,8 @@ extern "C" {
 #include <clingo/core.h>
 #include <clingo/symbol.h>
 
+typedef struct clingo_control clingo_control_t;
+
 //! @example ast.c
 //! The example shows how to rewrite a non-ground logic program.
 //!
@@ -546,6 +548,19 @@ CLINGO_VISIBILITY_DEFAULT void clingo_program_free(clingo_program_t *program);
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_program_add(clingo_program_t *program, clingo_ast_t *statement);
 
 //! @}
+
+//! Extend the control objects's program with the given one.
+//!
+//! After extending the logic program, the corresponding program parts are typically grounded with
+//! ::clingo_control_ground.
+//!
+//! @param[in] control the target
+//! @param[in] program the program to add
+//! @return the result code; might return one of the following codes:
+//! - ::clingo_result_bad_alloc
+//! - ::clingo_result_runtime if rewriting fails
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_join(clingo_control_t *control,
+                                                              clingo_program_t const *program);
 
 //! @}
 

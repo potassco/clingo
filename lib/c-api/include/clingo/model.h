@@ -53,13 +53,13 @@ typedef int clingo_model_type_t;
 
 //! Enumeration of bit flags to select symbols in models.
 enum clingo_show_type_e {
-    clingo_show_type_shown = 2,   //!< Select shown atoms and terms.
-    clingo_show_type_atoms = 4,   //!< Select all atoms.
-    clingo_show_type_terms = 8,   //!< Select all terms.
-    clingo_show_type_theory = 16, //!< Select symbols added by theory.
-    clingo_show_type_all = 31,    //!< Select everything.
+    clingo_show_type_shown = 1,  //!< Select shown atoms and terms.
+    clingo_show_type_atoms = 2,  //!< Select all atoms.
+    clingo_show_type_terms = 4,  //!< Select all terms.
+    clingo_show_type_theory = 8, //!< Select symbols added by theory.
+    clingo_show_type_all = 15,   //!< Select everything.
     clingo_show_type_complement =
-        32 //!< Select false instead of true atoms (::clingo_show_type_atoms) or terms (::clingo_show_type_terms).
+        16 //!< Select false instead of true atoms (::clingo_show_type_atoms) or terms (::clingo_show_type_terms).
 };
 //! Corresponding type to ::clingo_show_type_e.
 typedef unsigned clingo_show_type_bitset_t;
@@ -89,29 +89,17 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_type(clingo_model_t const
 //! @param[out] number the number of the model
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_number(clingo_model_t const *model, uint64_t *number);
-//! Get the number of symbols of the selected types in the model.
-//!
-//! @param[in] model the target
-//! @param[in] show which symbols to select
-//! @param[out] size the number symbols
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_symbols_size(clingo_model_t const *model,
-                                                                    clingo_show_type_bitset_t show, size_t *size);
+
 //! Get the symbols of the selected types in the model.
 //!
-//! @note CSP assignments are represented using functions with name "$"
-//! where the first argument is the name of the CSP variable and the second one its
-//! value.
-//!
 //! @param[in] model the target
 //! @param[in] show which symbols to select
-//! @param[out] symbols the resulting symbols
-//! @param[in] size the number of selected symbols
+//! @param[out] callback callback to copy symbols
+//! @param[in] data userdata for the callback
 //! @return the result code
-//! @see clingo_model_symbols_size()
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_symbols(clingo_model_t const *model,
-                                                               clingo_show_type_bitset_t show, clingo_symbol_t *symbols,
-                                                               size_t size);
+                                                               clingo_show_type_bitset_t show,
+                                                               clingo_symbol_callback_t callback, void *data);
 //! Constant time lookup to test whether an atom is in a model.
 //!
 //! @param[in] model the target

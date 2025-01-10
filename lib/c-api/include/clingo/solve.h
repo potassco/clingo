@@ -8,6 +8,8 @@ extern "C" {
 #include <clingo/core.h>
 #include <clingo/model.h>
 
+typedef struct clingo_control clingo_control_t;
+
 //! @example solve-async.c
 //! The example shows how to solve in the background.
 //!
@@ -168,6 +170,22 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_cancel(clingo_solv
 //! @param[in] handle the target
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_close(clingo_solve_handle_t *handle);
+
+//! Solve the currently grounded logic program enumerating its models.
+//!
+//! See the @ref SolveHandle module for more information.
+//!
+//! @param[in] control the target
+//! @param[in] mode configures the search mode
+//! @param[in] assumptions array of assumptions to solve under
+//! @param[in] assumptions_size number of assumptions
+//! @param[in] notify the event handler to register
+//! @param[in] data the user data for the event handler
+//! @param[out] handle handle to the current search to enumerate models
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_solve(
+    clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_literal_t const *assumptions,
+    size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle);
 
 //! @}
 

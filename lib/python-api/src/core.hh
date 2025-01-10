@@ -9,9 +9,9 @@
 // NOLINTBEGIN(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
 
 #define CLINGO_TRY try
-#define CLINGO_CATCH(lib)                                                                                              \
+#define CLINGO_CATCH(x)                                                                                                \
     catch (...) {                                                                                                      \
-        return handle_error(lib);                                                                                      \
+        return handle_error(x);                                                                                        \
     }                                                                                                                  \
     return clingo_result_success
 
@@ -44,6 +44,11 @@ class Library {
 
     owner_ptr<clingo_lib_t, free_lib_> lib_;
 };
+
+inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
+    ptr = std::current_exception();
+    return clingo_result_unknown;
+}
 
 inline auto handle_error(clingo_lib_t *lib) -> clingo_result_t {
     try {

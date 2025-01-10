@@ -34,12 +34,15 @@ constexpr auto doc(char const *str) -> char const * {
     return str + 1;
 }
 
-inline void handle_error(clingo_result_t code) {
+inline void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr) {
     switch (static_cast<clingo_result_e>(code)) {
         case clingo_result_success: {
             break;
         }
         case clingo_result_unknown: {
+            if (ptr != nullptr) {
+                std::rethrow_exception(ptr);
+            }
             throw std::runtime_error("unknown error");
         }
         case clingo_result_runtime: {
