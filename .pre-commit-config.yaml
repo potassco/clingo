@@ -24,7 +24,6 @@ repos:
     rev: v19.1.2
     hooks:
       - id: clang-format
-        types_or: [c, c++]
 
   - repo: https://github.com/mxmlnrdr/clang_tidy_hook
     rev: v0.3.1
