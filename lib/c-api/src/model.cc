@@ -11,19 +11,11 @@ auto cpp_cast(clingo_model_t const *model) -> Clingo::Control::Model const * {
 }
 
 extern "C" auto clingo_model_type(clingo_model_t const *model, clingo_model_type_t *type) -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(model);
-        *type = clingo_model_type_stable_model;
-        throw std::runtime_error("implement me!!!");
-    }
+    CLINGO_TRY { *type = static_cast<clingo_model_type_t>(cpp_cast(model)->type()); }
     CLINGO_CATCH;
 }
 extern "C" auto clingo_model_number(clingo_model_t const *model, uint64_t *number) -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(model);
-        *number = 0;
-        throw std::runtime_error("implement me!!!");
-    }
+    CLINGO_TRY { *number = cpp_cast(model)->number(); }
     CLINGO_CATCH;
 }
 extern "C" auto clingo_model_symbols(clingo_model_t const *model, clingo_show_type_bitset_t show,
@@ -40,23 +32,13 @@ extern "C" auto clingo_model_symbols(clingo_model_t const *model, clingo_show_ty
 
 extern "C" auto clingo_model_contains(clingo_model_t const *model, clingo_symbol_t atom, bool *contained)
     -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(model);
-        static_cast<void>(atom);
-        *contained = true;
-        throw std::runtime_error("implement me!!!");
-    }
+    CLINGO_TRY { *contained = cpp_cast(model)->contains(cpp_cast(atom)); }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_model_is_true(clingo_model_t const *model, clingo_literal_t literal, bool *result)
     -> clingo_result_t {
-    CLINGO_TRY {
-        *result = true;
-        static_cast<void>(model);
-        static_cast<void>(literal);
-        throw std::runtime_error("implement me!!!");
-    }
+    CLINGO_TRY { *result = cpp_cast(model)->is_true(literal); }
     CLINGO_CATCH;
 }
 

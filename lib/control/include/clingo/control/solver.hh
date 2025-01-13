@@ -58,25 +58,38 @@ enum class AppMode : uint8_t {
 };
 
 enum class SymbolSelectFlags : uint8_t {
-    None = 0,       //!< Select nothing.
-    Shown = 1,      //!< Select shown atoms and terms.
-    Atoms = 2,      //!< Select all atoms.
-    Terms = 4,      //!< Select all terms.
-    Theory = 8,     //!< Select symbols added by theory.
-    All = 15,       //!< Select everything.
-    Complement = 16 //!< Select false instead of true atoms (Atoms/Shown) or terms (Terms).
+    none = 0,       //!< Select nothing.
+    shown = 1,      //!< Select shown atoms and terms.
+    atoms = 2,      //!< Select all atoms.
+    terms = 4,      //!< Select all terms.
+    theory = 8,     //!< Select symbols added by theory.
+    all = 15,       //!< Select everything.
+    complement = 16 //!< Select false instead of true atoms (Atoms/Shown) or terms (Terms).
 };
 void is_bit_set_enum(SymbolSelectFlags type);
 
+enum class ModelType : uint8_t {
+    model = 0,                //!< The model represents a stable model.
+    brave_consequences = 1,   //!< The model represents a set of brave consequences.
+    cautious_consequences = 2 //!< The model represents a set of cautious consequences.
+};
 //! The model class.
 class Model {
   public:
     virtual ~Model() = default;
 
     void symbols(SymbolSelectFlags type, SymbolVec &res) const { do_symbols(type, res); }
+    [[nodiscard]] virtual auto number() const -> uint64_t { return do_number(); }
+    [[nodiscard]] virtual auto type() const -> ModelType { return do_type(); }
+    [[nodiscard]] virtual auto contains(Symbol sym) const -> bool { return do_contains(sym); }
+    [[nodiscard]] virtual auto is_true(Output::lit_t lit) const -> bool { return do_is_true(lit); }
 
   private:
     virtual void do_symbols(SymbolSelectFlags type, SymbolVec &res) const = 0;
+    [[nodiscard]] virtual auto do_number() const -> uint64_t = 0;
+    [[nodiscard]] virtual auto do_type() const -> ModelType = 0;
+    [[nodiscard]] virtual auto do_contains(Symbol sym) const -> bool = 0;
+    [[nodiscard]] virtual auto do_is_true(Output::lit_t lit) const -> bool = 0;
 };
 
 enum class SolveResult : uint8_t {

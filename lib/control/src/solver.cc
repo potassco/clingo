@@ -288,10 +288,10 @@ class ModelImpl : public Model {
 
   private:
     void do_symbols(SymbolSelectFlags type, SymbolVec &res) const override {
-        if ((type & (SymbolSelectFlags::Theory | SymbolSelectFlags::Complement)) != SymbolSelectFlags::None) {
+        if ((type & (SymbolSelectFlags::theory | SymbolSelectFlags::complement)) != SymbolSelectFlags::none) {
             throw std::logic_error("implement me: theory and complement selection modes");
         }
-        if (test(type, SymbolSelectFlags::Atoms)) {
+        if (test(type, SymbolSelectFlags::atoms)) {
             for (auto const &base : *base_) {
                 for (size_t i = 0, e = base.second->size(); i != e; ++i) {
                     auto [sym, state] = *base.second->nth(i);
@@ -302,9 +302,33 @@ class ModelImpl : public Model {
                 }
             }
         }
-        if (test(type, SymbolSelectFlags::Terms)) {
+        if (test(type, SymbolSelectFlags::terms)) {
             throw std::logic_error("implement me: store a term map somewhere");
         }
+    }
+
+    [[nodiscard]] auto do_number() const -> uint64_t override { return mdl_->num; }
+    [[nodiscard]] auto do_type() const -> ModelType override {
+        if (mdl_->type == Clasp::Model::brave) {
+            return ModelType::brave_consequences;
+        }
+        if (mdl_->type == Clasp::Model::cautious) {
+            return ModelType::cautious_consequences;
+        }
+        return ModelType::model;
+    }
+    [[nodiscard]] auto do_contains(Symbol sym) const -> bool override {
+        if (sym.type() != SymbolType::function) {
+            return false;
+        }
+        auto it = base_->find(std::tuple{sym.name(), sym.args().size(), sym.has_classical_sign()});
+        if (it == base_->end()) {
+            return false;
+        }
+        return it->second->find(sym).has_value();
+    }
+    [[nodiscard]] auto do_is_true(Output::lit_t lit) const -> bool override {
+        return mdl_->isTrue(Clasp::Asp::solverLiteral(*prg_, lit));
     }
 
     BaseMap const *base_;
