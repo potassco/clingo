@@ -278,7 +278,7 @@ class BackendClasp : public Output::Backend {
 } // namespace
 
 //! The model class.
-class ModelImpl : public Model {
+class ModelImpl : public Model, private SolveControl {
   public:
     ModelImpl(BaseMap const &base, Clasp::Asp::LogicProgram &prg, Clasp::Solver const &slv, Clasp::Model const &mdl)
         : base_{&base}, prg_{&prg}, slv_{&slv}, mdl_{&mdl} {}
@@ -357,7 +357,18 @@ class ModelImpl : public Model {
 
     [[nodiscard]] auto do_thread_id() const -> Output::id_t override { return mdl_->sId; }
 
-    [[nodiscard]] auto is_projected_(Potassco::Lit_t literal) const -> bool {
+    [[nodiscard]] auto do_control() -> SolveControl & override { return *this; }
+
+    [[nodiscard]] auto do_add_clause(Output::LitSpan lits) -> bool override {
+        std::vector<Clasp::Literal> clits;
+        clits.reserve(lits.size());
+        for (auto const &lit : lits) {
+            clits.emplace_back(Clasp::Asp::solverLiteral(*prg_, lit));
+        }
+        return mdl_->ctx->commitClause(clits);
+    }
+
+    [[nodiscard]] auto is_projected_(Output::lit_t literal) const -> bool {
         if (slv_->sharedContext()->output.projectMode() == Clasp::ProjectMode_t::project) {
             return prg_->isProjected(literal);
         }

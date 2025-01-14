@@ -80,6 +80,16 @@ enum class ConsequenceType : uint8_t {
     unknown = 2 //!< The literal might or might not be a consequence.
 };
 
+class SolveControl {
+  public:
+    virtual ~SolveControl() = default;
+
+    [[nodiscard]] auto add_clause(Output::LitSpan lits) -> bool { return do_add_clause(lits); }
+
+  private:
+    [[nodiscard]] virtual auto do_add_clause(Output::LitSpan lits) -> bool = 0;
+};
+
 //! The model class.
 class Model {
   public:
@@ -95,6 +105,7 @@ class Model {
     [[nodiscard]] auto priorities() const -> std::span<Output::weight_t const> { return do_priorities(); }
     [[nodiscard]] auto optimality_proven() const -> bool { return do_optimality_proven(); }
     [[nodiscard]] auto thread_id() const -> Output::id_t { return do_thread_id(); }
+    [[nodiscard]] auto context() -> SolveControl & { return do_control(); }
 
   private:
     virtual void do_symbols(SymbolSelectFlags type, SymbolVec &res) const = 0;
@@ -107,6 +118,7 @@ class Model {
     [[nodiscard]] virtual auto do_priorities() const -> std::span<Output::weight_t const> = 0;
     [[nodiscard]] virtual auto do_optimality_proven() const -> bool = 0;
     [[nodiscard]] virtual auto do_thread_id() const -> Output::id_t = 0;
+    [[nodiscard]] virtual auto do_control() -> SolveControl & = 0;
 };
 
 enum class SolveResult : uint8_t {

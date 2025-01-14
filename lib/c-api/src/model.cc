@@ -4,9 +4,24 @@
 
 #include "lib.hh"
 
+auto cpp_cast(clingo_model_t *model) -> Clingo::Control::Model * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Clingo::Control::Model *>(model);
+}
+
 auto cpp_cast(clingo_model_t const *model) -> Clingo::Control::Model const * {
     // NOLINTNEXTLINE
     return reinterpret_cast<Clingo::Control::Model const *>(model);
+}
+
+auto cpp_cast(clingo_solve_control_t *control) -> Clingo::Control::SolveControl * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Clingo::Control::SolveControl *>(control);
+}
+
+auto c_cast(Clingo::Control::SolveControl *control) -> clingo_solve_control_t * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_solve_control_t *>(control);
 }
 
 extern "C" auto clingo_model_type(clingo_model_t const *model, clingo_model_type_t *type) -> clingo_result_t {
@@ -87,12 +102,8 @@ extern "C" auto clingo_model_extend(clingo_model_t *model, clingo_symbol_t const
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_model_context(clingo_model_t const *model, clingo_solve_control_t **control) -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(model);
-        *control = nullptr;
-        throw std::runtime_error("implement me!!!");
-    }
+extern "C" auto clingo_model_context(clingo_model_t *model, clingo_solve_control_t **control) -> clingo_result_t {
+    CLINGO_TRY { *control = c_cast(&cpp_cast(model)->context()); }
     CLINGO_CATCH;
 }
 
@@ -108,11 +119,6 @@ extern "C" auto clingo_solve_control_symbolic_atoms(clingo_solve_control_t const
 
 extern "C" auto clingo_solve_control_add_clause(clingo_solve_control_t *control, clingo_literal_t const *clause,
                                                 size_t size) -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(control);
-        static_cast<void>(clause);
-        static_cast<void>(size);
-        throw std::runtime_error("implement me!!!");
-    }
+    CLINGO_TRY { std::ignore = cpp_cast(control)->add_clause({clause, size}); }
     CLINGO_CATCH;
 }

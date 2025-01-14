@@ -189,8 +189,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_extend(clingo_model_t *mo
 //! @param[in] model the target
 //! @param[out] control the resulting solve control object
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_context(clingo_model_t const *model,
-                                                               clingo_solve_control_t **control);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_control(clingo_model_t *model, clingo_solve_control_t **control);
 //! Get an object to inspect the symbolic atoms.
 //!
 //! @param[in] control the target
