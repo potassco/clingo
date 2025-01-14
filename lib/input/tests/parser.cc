@@ -2,6 +2,8 @@
 
 #include "test.hh"
 
+#include <catch2/catch_test_macros.hpp>
+
 namespace Clingo::Input::Test {
 
 TEST_CASE("parsev2") {

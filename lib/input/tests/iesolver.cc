@@ -2,6 +2,8 @@
 
 #include <clingo/input/rewrite/iesolver.hh>
 
+#include <catch2/catch_test_macros.hpp>
+
 namespace Clingo::Input::Test {
 
 // NOLINTBEGIN(readability-magic-numbers)

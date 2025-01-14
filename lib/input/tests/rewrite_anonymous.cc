@@ -2,6 +2,8 @@
 
 #include <clingo/input/rewrite/rewrite_anonymous.hh>
 
+#include <catch2/catch_test_macros.hpp>
+
 namespace Clingo::Input::Test {
 
 namespace {

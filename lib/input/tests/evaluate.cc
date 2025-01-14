@@ -4,6 +4,8 @@
 
 #include <cmath>
 
+#include <catch2/catch_test_macros.hpp>
+
 // NOLINTBEGIN(readability-magic-numbers)
 
 namespace Clingo::Input::Test {

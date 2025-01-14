@@ -2,6 +2,8 @@
 
 #include <clingo/input/rewrite/visit_variables.hh>
 
+#include <catch2/catch_test_macros.hpp>
+
 #include <algorithm>
 
 namespace Clingo::Input::Test {

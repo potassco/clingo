@@ -3,6 +3,8 @@
 #include <clingo/input/rewrite/compute_bounds.hh>
 #include <clingo/input/rewrite/iesolver.hh>
 
+#include <catch2/catch_test_macros.hpp>
+
 namespace Clingo::Input::Test {
 
 namespace {

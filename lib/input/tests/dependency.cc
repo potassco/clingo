@@ -3,6 +3,8 @@
 #include <clingo/input/rewrite/dependency.hh>
 #include <clingo/input/rewrite/simplify.hh>
 
+#include <catch2/catch_test_macros.hpp>
+
 namespace Clingo::Input::Test {
 
 namespace {

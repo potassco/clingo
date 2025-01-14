@@ -4,6 +4,8 @@
 
 #include <clingo/core/logger.hh>
 
+#include <catch2/catch_test_macros.hpp>
+
 namespace Clingo::Input::Test {
 
 namespace {
