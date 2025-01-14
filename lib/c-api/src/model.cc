@@ -67,20 +67,12 @@ extern "C" auto clingo_model_priority(clingo_model_t const *model, clingo_weight
 }
 
 extern "C" auto clingo_model_optimality_proven(clingo_model_t const *model, bool *proven) -> clingo_result_t {
-    CLINGO_TRY {
-        *proven = true;
-        static_cast<void>(model);
-        throw std::runtime_error("implement me!!!");
-    }
+    CLINGO_TRY { *proven = cpp_cast(model)->optimality_proven(); }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_model_thread_id(clingo_model_t const *model, clingo_id_t *id) -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(model);
-        *id = 0;
-        throw std::runtime_error("implement me!!!");
-    }
+    CLINGO_TRY { *id = cpp_cast(model)->thread_id(); }
     CLINGO_CATCH;
 }
 

@@ -345,14 +345,16 @@ class ModelImpl : public Model {
         return res;
     }
 
-    [[nodiscard]] auto do_costs() const -> std::span<Output::sum_t const> override {
-        return mdl_->hasCosts() ? mdl_->costs : std::span<Output::sum_t const>{};
-    }
+    [[nodiscard]] auto do_costs() const -> std::span<Output::sum_t const> override { return mdl_->costs; }
 
     [[nodiscard]] auto do_priorities() const -> std::span<Output::weight_t const> override {
         auto const *m = mdl_->ctx != nullptr ? mdl_->ctx->minimizer() : nullptr;
         return m != nullptr ? m->prios : std::span<Output::weight_t const>{};
     }
+
+    [[nodiscard]] auto do_optimality_proven() const -> bool override { return mdl_->opt; }
+
+    [[nodiscard]] auto do_thread_id() const -> Output::id_t override { return mdl_->sId; }
 
     [[nodiscard]] auto is_projected_(Potassco::Lit_t literal) const -> bool {
         if (slv_->sharedContext()->output.projectMode() == Clasp::ProjectMode_t::project) {
