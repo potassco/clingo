@@ -31,6 +31,8 @@ using lit_t = int32_t;
 using atom_t = uint32_t;
 //! A weight used in weight and minimize constraints.
 using weight_t = int32_t;
+//! Type to represent sums of weights.
+using sum_t = int64_t;
 //! A span of program literals.
 using LitSpan = std::span<lit_t const>;
 //! A vector of literals.

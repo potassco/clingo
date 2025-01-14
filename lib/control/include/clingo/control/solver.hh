@@ -91,6 +91,8 @@ class Model {
     [[nodiscard]] auto contains(Symbol sym) const -> bool { return do_contains(sym); }
     [[nodiscard]] auto is_true(Output::lit_t lit) const -> bool { return do_is_true(lit); }
     [[nodiscard]] auto is_consequence(Output::lit_t lit) const -> ConsequenceType { return do_is_consequence(lit); }
+    [[nodiscard]] auto costs() const -> std::span<Output::sum_t const> { return do_costs(); }
+    [[nodiscard]] auto priorities() const -> std::span<Output::weight_t const> { return do_priorities(); }
 
   private:
     virtual void do_symbols(SymbolSelectFlags type, SymbolVec &res) const = 0;
@@ -99,6 +101,8 @@ class Model {
     [[nodiscard]] virtual auto do_contains(Symbol sym) const -> bool = 0;
     [[nodiscard]] virtual auto do_is_true(Output::lit_t lit) const -> bool = 0;
     [[nodiscard]] virtual auto do_is_consequence(Output::lit_t lit) const -> ConsequenceType = 0;
+    [[nodiscard]] virtual auto do_costs() const -> std::span<Output::sum_t const> = 0;
+    [[nodiscard]] virtual auto do_priorities() const -> std::span<Output::weight_t const> = 0;
 };
 
 enum class SolveResult : uint8_t {

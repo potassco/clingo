@@ -145,28 +145,26 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_is_consequence(clingo_mod
                                                                       clingo_consequence_t *result);
 //! Get the costs of a model.
 //!
+//! @attention The lifetime of the costs array is tied to the lifetime of the object.
+//!
 //! @param[in] model the target
-//! @param[in] alloc the allocator for the costs array
-//! @param[in] data the userdata for the allocator
 //! @param[out] costs the resulting costs
 //! @param[out] size the size of the costs array
 //! @return the result code
 //! @see clingo_model_optimality_proven()
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_cost(clingo_model_t const *model, clingo_alloc_t alloc,
-                                                            void *data, int64_t **costs, size_t *size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_cost(clingo_model_t const *model, int64_t const **costs,
+                                                            size_t *size);
 //! Get the priorities of the costs.
 //!
-//! The size of the array can be obtained with clingo_model_cost_size().
+//! @attention The lifetime of the costs array is tied to the lifetime of the object.
 //!
 //! @param[in] model the target
-//! @param[in] alloc the allocator for the priorities array
-//! @param[in] data the userdata for the allocator
 //! @param[out] priorities the resulting priorities
 //! @param[out] size the size of the priorities array
 //! @return the result code
 //! @see clingo_model_cost_size()
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_priority(clingo_model_t const *model, clingo_alloc_t alloc,
-                                                                void *data, clingo_weight_t **priorities, size_t *size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_priority(clingo_model_t const *model,
+                                                                clingo_weight_t const **priorities, size_t *size);
 //! Whether the optimality of a model has been proven.
 //!
 //! @param[in] model the target
