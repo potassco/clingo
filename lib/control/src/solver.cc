@@ -281,10 +281,7 @@ class BackendClasp : public Output::Backend {
 class ModelImpl : public Model {
   public:
     ModelImpl(BaseMap const &base, Clasp::Asp::LogicProgram &prg, Clasp::Solver const &slv, Clasp::Model const &mdl)
-        : base_{&base}, prg_{&prg}, slv_{&slv}, mdl_{&mdl} {
-        // TODO: remove once there is a use for slv_
-        static_cast<void>(slv_);
-    }
+        : base_{&base}, prg_{&prg}, slv_{&slv}, mdl_{&mdl} {}
 
   private:
     void do_symbols(SymbolSelectFlags type, SymbolVec &res) const override {
@@ -308,6 +305,7 @@ class ModelImpl : public Model {
     }
 
     [[nodiscard]] auto do_number() const -> uint64_t override { return mdl_->num; }
+
     [[nodiscard]] auto do_type() const -> ModelType override {
         if (mdl_->type == Clasp::Model::brave) {
             return ModelType::brave_consequences;
@@ -317,6 +315,7 @@ class ModelImpl : public Model {
         }
         return ModelType::model;
     }
+
     [[nodiscard]] auto do_contains(Symbol sym) const -> bool override {
         if (sym.type() != SymbolType::function) {
             return false;
@@ -327,8 +326,30 @@ class ModelImpl : public Model {
         }
         return it->second->find(sym).has_value();
     }
+
     [[nodiscard]] auto do_is_true(Output::lit_t lit) const -> bool override {
         return mdl_->isTrue(Clasp::Asp::solverLiteral(*prg_, lit));
+    }
+
+    [[nodiscard]] auto do_is_consequence(Output::lit_t lit) const -> ConsequenceType override {
+        auto slit = Clasp::Asp::solverLiteral(*prg_, lit);
+        auto res = ConsequenceType::false_;
+        if (mdl_->isDef(slit)) {
+            res = ConsequenceType::true_;
+        } else if (mdl_->isEst(slit)) {
+            res = ConsequenceType::unknown;
+        }
+        if (res != ConsequenceType::false_ && !is_projected_(lit)) {
+            res = ConsequenceType::false_;
+        }
+        return res;
+    }
+
+    [[nodiscard]] auto is_projected_(Potassco::Lit_t literal) const -> bool {
+        if (slv_->sharedContext()->output.projectMode() == Clasp::ProjectMode_t::project) {
+            return prg_->isProjected(literal);
+        }
+        return prg_->isShown(literal);
     }
 
     BaseMap const *base_;

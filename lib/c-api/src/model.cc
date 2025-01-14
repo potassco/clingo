@@ -44,12 +44,7 @@ extern "C" auto clingo_model_is_true(clingo_model_t const *model, clingo_literal
 
 extern "C" auto clingo_model_is_consequence(clingo_model_t const *model, clingo_literal_t literal,
                                             clingo_consequence_t *result) -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(model);
-        static_cast<void>(literal);
-        *result = clingo_consequence_false;
-        throw std::runtime_error("implement me!!!");
-    }
+    CLINGO_TRY { *result = static_cast<clingo_consequence_t>(cpp_cast(model)->is_consequence(literal)); }
     CLINGO_CATCH;
 }
 

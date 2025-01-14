@@ -73,16 +73,24 @@ enum class ModelType : uint8_t {
     brave_consequences = 1,   //!< The model represents a set of brave consequences.
     cautious_consequences = 2 //!< The model represents a set of cautious consequences.
 };
+
+enum class ConsequenceType : uint8_t {
+    false_ = 0, //!< The literal is not a consequence.
+    true_ = 1,  //!< The literal is a consequence.
+    unknown = 2 //!< The literal might or might not be a consequence.
+};
+
 //! The model class.
 class Model {
   public:
     virtual ~Model() = default;
 
     void symbols(SymbolSelectFlags type, SymbolVec &res) const { do_symbols(type, res); }
-    [[nodiscard]] virtual auto number() const -> uint64_t { return do_number(); }
-    [[nodiscard]] virtual auto type() const -> ModelType { return do_type(); }
-    [[nodiscard]] virtual auto contains(Symbol sym) const -> bool { return do_contains(sym); }
-    [[nodiscard]] virtual auto is_true(Output::lit_t lit) const -> bool { return do_is_true(lit); }
+    [[nodiscard]] auto number() const -> uint64_t { return do_number(); }
+    [[nodiscard]] auto type() const -> ModelType { return do_type(); }
+    [[nodiscard]] auto contains(Symbol sym) const -> bool { return do_contains(sym); }
+    [[nodiscard]] auto is_true(Output::lit_t lit) const -> bool { return do_is_true(lit); }
+    [[nodiscard]] auto is_consequence(Output::lit_t lit) const -> ConsequenceType { return do_is_consequence(lit); }
 
   private:
     virtual void do_symbols(SymbolSelectFlags type, SymbolVec &res) const = 0;
@@ -90,6 +98,7 @@ class Model {
     [[nodiscard]] virtual auto do_type() const -> ModelType = 0;
     [[nodiscard]] virtual auto do_contains(Symbol sym) const -> bool = 0;
     [[nodiscard]] virtual auto do_is_true(Output::lit_t lit) const -> bool = 0;
+    [[nodiscard]] virtual auto do_is_consequence(Output::lit_t lit) const -> ConsequenceType = 0;
 };
 
 enum class SolveResult : uint8_t {
