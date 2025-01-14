@@ -72,18 +72,6 @@ enum clingo_consequence_e {
 };
 typedef int clingo_consequence_t;
 
-//! Allocator to (re)allocate client-side memory.
-//!
-//! In case a new block of memory is allocated, the callback is in charge of
-//! freeing the previous memory block and copying the previous data.
-//!
-//! @param[in] size the number of bytes to (re)allocate
-//! @param[in] data userdata for the callback
-//! @param[out] ptr pointer to the allocated memory
-//! @return the result code
-//! @todo Better put into core.
-typedef clingo_result_t (*clingo_alloc_t)(size_t size, void *data, void **ptr);
-
 //! Corresponding type to ::clingo_model_type_e.
 
 //! @name Functions for Inspecting Models

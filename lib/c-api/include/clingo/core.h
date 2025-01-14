@@ -210,6 +210,18 @@ CLINGO_VISIBILITY_DEFAULT void clingo_lib_free(clingo_lib_t *lib, bool fast);
 //! A builder for strings.
 typedef struct clingo_string_builder clingo_string_builder_t;
 
+//! Allocator to (re)allocate client-side memory.
+//!
+//! In case a new block of memory is allocated, the callback is in charge of
+//! freeing the previous memory block and copying the previous data.
+//!
+//! @param[in] size the number of bytes to (re)allocate
+//! @param[in] data userdata for the callback
+//! @param[out] ptr pointer to the allocated memory
+//! @return the result code
+//! @todo Decide how to use.
+typedef clingo_result_t (*clingo_alloc_t)(size_t size, void *data, void **ptr);
+
 //! Create a new string builder.
 //!
 //! @param[out] bld the resulting builder

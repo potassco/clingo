@@ -21,11 +21,11 @@ endif()
 
 add_subdirectory(CLI11)
 
-add_subdirectory(clasp)
-set_property(TARGET libclasp PROPERTY POSITION_INDEPENDENT_CODE ON)
-set_property(TARGET libpotassco PROPERTY POSITION_INDEPENDENT_CODE ON)
-
 if (PARSER_BUILD_TESTS)
+    set(CLASP_BUILD_TESTS ON CACHE INTERNAL "" FORCE)
     set(CATCH_BUILD_STATIC_LIBRARY ON CACHE INTERNAL "" FORCE)
     enable_testing()
 endif()
+add_subdirectory(clasp)
+set_property(TARGET libclasp PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET libpotassco PROPERTY POSITION_INDEPENDENT_CODE ON)

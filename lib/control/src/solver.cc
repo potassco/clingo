@@ -348,7 +348,8 @@ class ModelImpl : public Model {
     [[nodiscard]] auto do_costs() const -> std::span<Output::sum_t const> override { return mdl_->costs; }
 
     [[nodiscard]] auto do_priorities() const -> std::span<Output::weight_t const> override {
-        auto const *m = mdl_->ctx != nullptr ? mdl_->ctx->minimizer() : nullptr;
+        assert(mdl_->ctx != nullptr);
+        auto const *m = mdl_->ctx->minimizer();
         return m != nullptr ? m->prios : std::span<Output::weight_t const>{};
     }
 
