@@ -48,33 +48,27 @@ extern "C" auto clingo_model_is_consequence(clingo_model_t const *model, clingo_
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_model_cost_size(clingo_model_t const *model, size_t *size) -> clingo_result_t {
+extern "C" auto clingo_model_cost(clingo_model_t const *model, clingo_alloc_t alloc, void *data, int64_t **costs,
+                                  size_t *size) -> clingo_result_t {
     CLINGO_TRY {
         static_cast<void>(model);
+        static_cast<void>(alloc);
+        static_cast<void>(data);
         *size = 0;
+        *costs = nullptr;
         throw std::runtime_error("implement me!!!");
     }
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_model_cost(clingo_model_t const *model, int64_t *costs, size_t size) -> clingo_result_t {
+extern "C" auto clingo_model_priority(clingo_model_t const *model, clingo_alloc_t alloc, void *data,
+                                      clingo_weight_t **priorities, size_t *size) -> clingo_result_t {
     CLINGO_TRY {
         static_cast<void>(model);
-        if (size > 0) {
-            *costs = 0;
-        }
-        throw std::runtime_error("implement me!!!");
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" auto clingo_model_priority(clingo_model_t const *model, clingo_weight_t *priorities, size_t size)
-    -> clingo_result_t {
-    CLINGO_TRY {
-        static_cast<void>(model);
-        if (size > 0) {
-            *priorities = 0;
-        }
+        static_cast<void>(alloc);
+        static_cast<void>(data);
+        *size = 0;
+        *priorities = nullptr;
         throw std::runtime_error("implement me!!!");
     }
     CLINGO_CATCH;

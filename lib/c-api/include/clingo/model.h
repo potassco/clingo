@@ -72,6 +72,18 @@ enum clingo_consequence_e {
 };
 typedef int clingo_consequence_t;
 
+//! Allocator to (re)allocate client-side memory.
+//!
+//! In case a new block of memory is allocated, the callback is in charge of
+//! freeing the previous memory block and copying the previous data.
+//!
+//! @param[in] size the number of bytes to (re)allocate
+//! @param[in] data userdata for the callback
+//! @param[out] ptr pointer to the allocated memory
+//! @return the result code
+//! @todo Better put into core.
+typedef clingo_result_t (*clingo_alloc_t)(size_t size, void *data, void **ptr);
+
 //! Corresponding type to ::clingo_model_type_e.
 
 //! @name Functions for Inspecting Models
@@ -131,32 +143,30 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_is_true(clingo_model_t co
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_is_consequence(clingo_model_t const *model,
                                                                       clingo_literal_t literal,
                                                                       clingo_consequence_t *result);
-//! Get the number of cost values of a model.
+//! Get the costs of a model.
 //!
 //! @param[in] model the target
-//! @param[out] size the number of costs
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_cost_size(clingo_model_t const *model, size_t *size);
-//! Get the cost vector of a model.
-//!
-//! @param[in] model the target
+//! @param[in] alloc the allocator for the costs array
+//! @param[in] data the userdata for the allocator
 //! @param[out] costs the resulting costs
-//! @param[in] size the number of costs
+//! @param[out] size the size of the costs array
 //! @return the result code
-//! @see clingo_model_cost_size()
 //! @see clingo_model_optimality_proven()
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_cost(clingo_model_t const *model, int64_t *costs, size_t size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_cost(clingo_model_t const *model, clingo_alloc_t alloc,
+                                                            void *data, int64_t **costs, size_t *size);
 //! Get the priorities of the costs.
 //!
 //! The size of the array can be obtained with clingo_model_cost_size().
 //!
 //! @param[in] model the target
+//! @param[in] alloc the allocator for the priorities array
+//! @param[in] data the userdata for the allocator
 //! @param[out] priorities the resulting priorities
-//! @param[in] size the number of priorities
+//! @param[out] size the size of the priorities array
 //! @return the result code
 //! @see clingo_model_cost_size()
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_priority(clingo_model_t const *model,
-                                                                clingo_weight_t *priorities, size_t size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_priority(clingo_model_t const *model, clingo_alloc_t alloc,
+                                                                void *data, clingo_weight_t **priorities, size_t *size);
 //! Whether the optimality of a model has been proven.
 //!
 //! @param[in] model the target
