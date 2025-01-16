@@ -21,11 +21,13 @@ add_library(clingo::python ALIAS clingo_python_embed)
 target_include_directories(clingo_python_embed PUBLIC "include")
 target_link_libraries(clingo_python_embed PRIVATE pybind11::embed clingo clingo_python)
 target_compile_definitions(clingo_python_embed PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}")
-if (PYTHON_EXECUTABLE AND NOT Python_EXECUTABLE)
-    set(Python_EXECUTABLE "${PYTHON_EXECUTABLE}")
-endif()
 
-if (Python_EXECUTABLE)
-    add_test(NAME test_pyclingo COMMAND ${Python_EXECUTABLE} -m unittest discover -s "${CMAKE_CURRENT_SOURCE_DIR}/tests")
-    set_property(TEST test_pyclingo APPEND PROPERTY ENVIRONMENT "PYTHONPATH=$<TARGET_FILE_DIR:clingo_python_module>")
+if (PYTEST_EXECUTABLE)
+    pytest_discover_tests(
+        test_pyclingo
+        PYTHON_PATH_PREPEND
+            $<TARGET_FILE_DIR:clingo_python_module>
+        DEPENDS
+            clingo_python_module
+    )
 endif()

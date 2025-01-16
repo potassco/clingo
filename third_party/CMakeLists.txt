@@ -16,6 +16,8 @@ target_include_directories(imath INTERFACE
 add_library(imath::imath ALIAS imath)
 
 if (NOT PARSER_BUILD_WEB)
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/pytest-cmake/cmake")
+    find_package(Pytest 8.0.0)
     add_subdirectory(pybind11)
 endif()
 

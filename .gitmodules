@@ -19,3 +19,6 @@
 [submodule "third_party/clasp"]
 	path = third_party/clasp
 	url = ../../potassco/clasp
+[submodule "third_party/pytest-cmake"]
+	path = third_party/pytest-cmake
+	url = ../../python-cmake/pytest-cmake
