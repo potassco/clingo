@@ -16,44 +16,40 @@ jobs:
       matrix:
         cfg:
           - os: ubuntu-20.04
-            name: "*-manylinux_x86_64"
             env:
               CIBW_ARCHS_LINUX: x86_64
-              CIBW_BUILD: "cp313*-manylinux*"
+              CIBW_BUILD: "cp313-manylinux_x86_64"
           - os: ubuntu-20.04
-            name: "*-musllinux_x86_64"
             env:
               CIBW_ARCHS_LINUX: x86_64
-              CIBW_BUILD: "cp313*-musllinux*"
+              CIBW_BUILD: "cp313-musllinux_x86_64"
           - os: ubuntu-20.04
-            name: "*-manylinux_i686"
+            name: ""
             env:
               CIBW_ARCHS_LINUX: i686
-              CIBW_BUILD: "cp313*-manylinux*"
+              CIBW_BUILD: "cp313-manylinux_i686"
           - os: ubuntu-20.04
-            name: "*-musllinux-i686"
             env:
               CIBW_ARCHS_LINUX: i686
-              CIBW_BUILD: "cp313*-musllinux*"
+              CIBW_BUILD: "cp313-musllinux_i686"
           - os: ubuntu-20.04
-            name: "cp*-manylinux-aarch64"
             env:
               CIBW_ARCHS_LINUX: aarch64
-              CIBW_BUILD: "cp313*-manylinux*"
+              CIBW_BUILD: "cp313-manylinux_aarch64"
           - os: ubuntu-20.04
-            name: "*-manylinux-ppc64le"
             env:
               CIBW_ARCHS_LINUX: ppc64le
-              CIBW_BUILD: "cp313*-manylinux*"
+              CIBW_BUILD: "cp313-manylinux_ppc64le"
           - os: windows-2019
-            name: "cp*-win*"
             env:
-              CIBW_BUILD: "cp313*-win*"
+              CIBW_BUILD: "cp313-win_amd64"
+          - os: windows-2019
+            env:
+              CIBW_BUILD: "cp313-win32"
           - os: macos-11
-            name: "*-macos_{x86_64,arm64}"
             env:
               CIBW_ARCHS_MACOS: x86_64 arm64
-              CIBW_BUILD: "cp313*"
+              CIBW_BUILD: "cp313-macosx_*"
 
     steps:
       - uses: actions/checkout@v3
@@ -75,7 +71,7 @@ jobs:
         run: python .github/adjust_version.py --release
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.5
+        uses: pypa/cibuildwheel@v2.22.0
         env: ${{ matrix.cfg.env }}
 
       - uses: actions/upload-artifact@v3
