@@ -20,4 +20,3 @@ __pycache__
 .venv
 *.prof
 .nfs*
-pyproject.toml

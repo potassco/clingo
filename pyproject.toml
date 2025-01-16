@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+addopts = [
+    "--ignore=third_party",
+    "--ignore=doc",
+    "--ignore=.git",
+]
+testpaths = ["lib"]
