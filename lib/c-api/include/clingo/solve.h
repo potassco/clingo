@@ -132,14 +132,14 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_model(clingo_solve
                                                                     clingo_model_t const **model);
 //! When a problem is unsatisfiable, get a subset of the assumptions that made the problem unsatisfiable.
 //!
-//! If the program is not unsatisfiable, core is set to NULL and size to zero.
+//! If the program is not unsatisfiable, an empty core is returned.
 //!
 //! @param[in] handle the target
-//! @param[out] core pointer where to store the core
-//! @param[out] size size of the given array
+//! @param[out] literals array of literals in the core
+//! @param[out] size the size of the core
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_core(clingo_solve_handle_t *handle,
-                                                                   clingo_literal_callback_t callback, void *data);
+                                                                   clingo_literal_t const **literals, size_t *size);
 //! When a problem is satisfiable and the search is finished, get the last
 //! computed model.
 //!

@@ -76,7 +76,7 @@ class BackendClasp : public Output::Backend {
 
     void do_rule(Output::LitSpan head, Output::LitSpan body, bool choice) override {
         bld_.clear();
-        bld_.start(choice ? Potassco::Head_t::choice : Potassco::Head_t::disjunctive);
+        bld_.start(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive);
 #ifdef DEBUG_BACKEND
         std::cerr << (choice ? "{ " : "") << Util::p_range(head, ", ") << (choice ? " }" : "") << " :- "
                   << Util::p_range(body, ", ") << ".\n";
@@ -147,13 +147,13 @@ class BackendClasp : public Output::Backend {
         auto value = [type] {
             switch (type) {
                 case ExternalType::true_: {
-                    return Potassco::Value_t::true_;
+                    return Potassco::TruthValue::true_;
                 }
                 case ExternalType::false_: {
-                    return Potassco::Value_t::false_;
+                    return Potassco::TruthValue::false_;
                 }
                 case ExternalType::free: {
-                    return Potassco::Value_t::free;
+                    return Potassco::TruthValue::free;
                 }
             }
             Util::unreachable();
@@ -164,7 +164,7 @@ class BackendClasp : public Output::Backend {
     void do_project(Output::lit_t atom) override { prg_->addProject(std::array{static_cast<Potassco::Atom_t>(atom)}); }
 
     void do_minimize(Output::lit_t lit, Output::weight_t weight, Output::weight_t priority) override {
-        prg_->addMinimize(priority, std::array{Potassco::WeightLit_t{lit, weight}});
+        prg_->addMinimize(priority, std::array{Potassco::WeightLit{lit, weight}});
     }
 
     void do_show(Symbol sym, Output::LitSpan body) override {
@@ -191,13 +191,13 @@ class BackendClasp : public Output::Backend {
             [type] {
                 switch (type) {
                     case TheoryTermTupleType::tuple: {
-                        return Potassco::Tuple_t::paren;
+                        return Potassco::TupleType::paren;
                     }
                     case TheoryTermTupleType::list: {
-                        return Potassco::Tuple_t::bracket;
+                        return Potassco::TupleType::bracket;
                     }
                     case TheoryTermTupleType::set: {
-                        return Potassco::Tuple_t::brace;
+                        return Potassco::TupleType::brace;
                     }
                 }
                 Util::unreachable();
@@ -280,11 +280,26 @@ class BackendClasp : public Output::Backend {
 //! The model class.
 class ModelImpl : public Model, private SolveControl {
   public:
-    ModelImpl(BaseMap const &base, Clasp::Asp::LogicProgram &prg, Clasp::Solver const &slv, Clasp::Model const &mdl)
-        : base_{&base}, prg_{&prg}, slv_{&slv}, mdl_{&mdl} {}
+    ModelImpl(BaseMap const &base, Clasp::ClaspFacade &clasp, Clasp::Model const &mdl)
+        : base_{&base}, clasp_{&clasp}, mdl_{&mdl} {}
+
+    ModelImpl(BaseMap const &base, Clasp::ClaspFacade &clasp) : base_{&base}, clasp_{&clasp}, mdl_{nullptr} {}
+
+    //! Sets the given model returing true if it is not null.
+    auto set_model(Clasp::Model const *mdl) -> bool { return (mdl_ = mdl) != nullptr; }
+
+    //! Sets the last model returning true if it is not null.
+    auto set_last() -> bool {
+        return (mdl_ = clasp_->solved() && clasp_->summary().sat() && clasp_->summary().model() != nullptr
+                           ? clasp_->summary().model()
+                           : nullptr) != nullptr;
+    }
+
+    auto clasp() -> Clasp::ClaspFacade const & { return *clasp_; }
 
   private:
     void do_symbols(SymbolSelectFlags type, SymbolVec &res) const override {
+        assert(mdl_ != nullptr);
         if ((type & (SymbolSelectFlags::theory | SymbolSelectFlags::complement)) != SymbolSelectFlags::none) {
             throw std::logic_error("implement me: theory and complement selection modes");
         }
@@ -292,7 +307,7 @@ class ModelImpl : public Model, private SolveControl {
             for (auto const &base : *base_) {
                 for (size_t i = 0, e = base.second->size(); i != e; ++i) {
                     auto [sym, state] = *base.second->nth(i);
-                    auto lit = Clasp::Asp::solverLiteral(*prg_, static_cast<Potassco::Lit_t>(state.id));
+                    auto lit = solver_literal(state.id);
                     if (mdl_->isTrue(lit)) {
                         res.emplace_back(sym);
                     }
@@ -304,9 +319,13 @@ class ModelImpl : public Model, private SolveControl {
         }
     }
 
-    [[nodiscard]] auto do_number() const -> uint64_t override { return mdl_->num; }
+    [[nodiscard]] auto do_number() const -> uint64_t override {
+        assert(mdl_ != nullptr);
+        return mdl_->num;
+    }
 
     [[nodiscard]] auto do_type() const -> ModelType override {
+        assert(mdl_ != nullptr);
         if (mdl_->type == Clasp::Model::brave) {
             return ModelType::brave_consequences;
         }
@@ -317,6 +336,7 @@ class ModelImpl : public Model, private SolveControl {
     }
 
     [[nodiscard]] auto do_contains(Symbol sym) const -> bool override {
+        assert(mdl_ != nullptr);
         if (sym.type() != SymbolType::function) {
             return false;
         }
@@ -324,15 +344,21 @@ class ModelImpl : public Model, private SolveControl {
         if (it == base_->end()) {
             return false;
         }
-        return it->second->find(sym).has_value();
+        auto jt = it->second->find(sym);
+        if (!jt) {
+            return false;
+        }
+        return mdl_->isTrue(solver_literal(jt->value().id));
     }
 
     [[nodiscard]] auto do_is_true(Output::lit_t lit) const -> bool override {
-        return mdl_->isTrue(Clasp::Asp::solverLiteral(*prg_, lit));
+        assert(mdl_ != nullptr);
+        return mdl_->isTrue(solver_literal(lit));
     }
 
     [[nodiscard]] auto do_is_consequence(Output::lit_t lit) const -> ConsequenceType override {
-        auto slit = Clasp::Asp::solverLiteral(*prg_, lit);
+        assert(mdl_ != nullptr);
+        auto slit = solver_literal(lit);
         auto res = ConsequenceType::false_;
         if (mdl_->isDef(slit)) {
             res = ConsequenceType::true_;
@@ -345,39 +371,57 @@ class ModelImpl : public Model, private SolveControl {
         return res;
     }
 
-    [[nodiscard]] auto do_costs() const -> std::span<Output::sum_t const> override { return mdl_->costs; }
+    [[nodiscard]] auto do_costs() const -> std::span<Output::sum_t const> override {
+        assert(mdl_ != nullptr);
+        return mdl_->costs;
+    }
 
     [[nodiscard]] auto do_priorities() const -> std::span<Output::weight_t const> override {
-        assert(mdl_->ctx != nullptr);
+        assert(mdl_ != nullptr && mdl_->ctx != nullptr);
         auto const *m = mdl_->ctx->minimizer();
         return m != nullptr ? m->prios : std::span<Output::weight_t const>{};
     }
 
-    [[nodiscard]] auto do_optimality_proven() const -> bool override { return mdl_->opt; }
+    [[nodiscard]] auto do_optimality_proven() const -> bool override {
+        assert(mdl_ != nullptr);
+        return mdl_->opt;
+    }
 
-    [[nodiscard]] auto do_thread_id() const -> Output::id_t override { return mdl_->sId; }
+    [[nodiscard]] auto do_thread_id() const -> Output::id_t override {
+        assert(mdl_ != nullptr);
+        return mdl_->sId;
+    }
 
     [[nodiscard]] auto do_control() -> SolveControl & override { return *this; }
 
     [[nodiscard]] auto do_add_clause(Output::LitSpan lits) -> bool override {
+        assert(mdl_ != nullptr);
         std::vector<Clasp::Literal> clits;
         clits.reserve(lits.size());
         for (auto const &lit : lits) {
-            clits.emplace_back(Clasp::Asp::solverLiteral(*prg_, lit));
+            clits.emplace_back(solver_literal(lit));
         }
         return mdl_->ctx->commitClause(clits);
     }
 
     [[nodiscard]] auto is_projected_(Output::lit_t literal) const -> bool {
-        if (slv_->sharedContext()->output.projectMode() == Clasp::ProjectMode_t::project) {
-            return prg_->isProjected(literal);
+        if (slv().sharedContext()->output.projectMode() == Clasp::ProjectMode::project) {
+            return prg().isProjected(literal);
         }
-        return prg_->isShown(literal);
+        return prg().isShown(literal);
+    }
+
+    [[nodiscard]] auto prg() const -> Clasp::Asp::LogicProgram const & { return *clasp_->asp(); }
+    [[nodiscard]] auto slv() const -> Clasp::Solver const & { return *clasp_->ctx.solver(mdl_->sId); }
+    [[nodiscard]] auto solver_literal(Output::lit_t lit) const -> Clasp::Literal {
+        return Clasp::Asp::solverLiteral(prg(), lit);
+    }
+    [[nodiscard]] auto solver_literal(uint64_t lit) const -> Clasp::Literal {
+        return solver_literal(static_cast<Output::lit_t>(lit));
     }
 
     BaseMap const *base_;
-    Clasp::Asp::LogicProgram const *prg_;
-    Clasp::Solver const *slv_;
+    Clasp::ClaspFacade *clasp_;
     Clasp::Model const *mdl_;
 };
 
@@ -406,7 +450,7 @@ void Solver::main(std::span<std::string_view const> const &files,
 }
 
 //! Test model printer.
-class EH : public Clasp::EventHandler {
+class EventHandlerDefault : public Clasp::EventHandler {
   public:
     auto onModel(Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         buf_ << "Model:";
@@ -459,61 +503,91 @@ namespace {
 
 class EventHandlerAdapter : public Clasp::EventHandler {
   public:
-    EventHandlerAdapter(BaseMap const &base, Clasp::Asp::LogicProgram &prg, Control::EventHandler &eh)
-        : base_{&base}, prg_{&prg}, eh_{&eh} {}
+    EventHandlerAdapter(BaseMap const &base, Clasp::ClaspFacade &clasp, Control::UEventHandler eh)
+        : base_{&base}, clasp_{&clasp}, eh_{std::move(eh)} {}
 
-    auto onModel(Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
-        auto mdli = ModelImpl{*base_, *prg_, slv, mdl};
+    auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
+        auto mdli = ModelImpl{*base_, *clasp_, mdl};
         return eh_->on_model(mdli);
     }
 
   private:
     BaseMap const *base_;
-    Clasp::Asp::LogicProgram *prg_;
-    Control::EventHandler *eh_;
+    Clasp::ClaspFacade *clasp_;
+    Control::UEventHandler eh_;
+};
+
+class SolveHandleSimple : public SolveHandle {
+  private:
+    auto do_get() -> SolveResult override { return SolveResult::empty; }
+    void do_cancel() override {}
+    void do_resume() override {}
+    auto do_model() -> Model const * override { return nullptr; }
+    auto do_last() -> Model const * override { return nullptr; }
+    auto do_core() -> Output::LitSpan override { return {}; }
+    auto do_wait([[maybe_unused]] double timeout) -> bool override { return true; }
 };
 
 class SolveHandleImpl : public SolveHandle {
   public:
-    SolveHandleImpl(Clasp::SolveResult res) : res_{res} {}
+    SolveHandleImpl(std::unique_ptr<Clasp::EventHandler> eh, BaseMap const &base, Clasp::ClaspFacade &clasp,
+                    Clasp::ClaspFacade::SolveHandle const &hnd)
+        : mdl_{base, clasp}, hnd_{hnd}, eh_{std::move(eh)} {}
 
   private:
     auto do_get() -> SolveResult override {
+        static constexpr uint8_t i1 = 9;
+        static constexpr uint8_t i2 = 65;
+        auto cres = hnd_.get();
+        if (cres.interrupted() && cres.signal != 0 && cres.signal != i1 && cres.signal != i2) {
+            throw std::runtime_error("solving stopped by signal");
+        }
         auto res = SolveResult::empty;
-        if (res_.interrupted()) {
+        if (cres.interrupted()) {
             res |= SolveResult::interrupted;
         }
-        if (res_.sat()) {
+        if (cres.sat()) {
             res |= SolveResult::satisfiable;
         }
-        if (res_.unsat()) {
+        if (cres.unsat()) {
             res |= SolveResult::unsatisfiable;
         }
-        if (res_.exhausted()) {
+        if (cres.exhausted()) {
             res |= SolveResult::exhausted;
         }
         return res;
     }
-    void do_cancel() override { throw std::logic_error("implement me: cancel"); }
-    void do_resume() override { throw std::logic_error("implement me: resume"); }
-    auto do_model() -> Model const & override { throw std::logic_error("implement me: model"); }
-    auto do_last() -> Model const & override { throw std::logic_error("implement me: last"); }
-    void do_core(Output::LitVec &lits) override {
-        static_cast<void>(lits);
-        throw std::logic_error("implement me: core");
+    void do_cancel() override { hnd_.cancel(); }
+    void do_resume() override { hnd_.resume(); }
+    auto do_model() -> Model const * override { return mdl_.set_model(hnd_.model()) ? &mdl_ : nullptr; }
+    auto do_last() -> Model const * override { return mdl_.set_last() ? &mdl_ : nullptr; }
+    auto do_core() -> Output::LitSpan override {
+        auto const &clasp = mdl_.clasp();
+        core_.clear();
+        if (auto core = clasp.summary().unsatCore(); !core.empty()) {
+            clasp.asp()->translateCore(core, core_);
+        }
+        return core_;
     }
     auto do_wait(double timeout) -> bool override {
-        static_cast<void>(timeout);
-        throw std::logic_error("implement me: wait");
+        if (timeout == 0) {
+            return hnd_.ready();
+        }
+        if (timeout < 0) {
+            return hnd_.wait(), true;
+        }
+        return hnd_.waitFor(timeout);
     }
 
-    Clasp::SolveResult res_;
+    ModelImpl mdl_;
+    Clasp::ClaspFacade::SolveHandle hnd_;
+    std::unique_ptr<Clasp::EventHandler> eh_;
+    Potassco::LitVec mutable core_;
 };
 
 } // namespace
 
-auto Solver::solve(EventHandler *eh) -> USolveHandle {
-    auto res = Clasp::SolveResult{0, 0};
+auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode mode) -> USolveHandle {
     if (mode_ == AppMode::solve) {
         if (state_ == State::solved || state_ == State::updated) {
             // we inject an emtpy ground
@@ -521,16 +595,35 @@ auto Solver::solve(EventHandler *eh) -> USolveHandle {
         }
         state_ = State::solved;
         clasp_.prepare();
-        // TODO: just for now
-        if (eh == nullptr) {
-            auto eh = EH{};
-            res = clasp_.solve(&eh);
-        } else {
-            auto eha = EventHandlerAdapter{grd_.base(), *clasp_.asp(), *eh};
-            res = clasp_.solve(&eha);
-        }
+
+        // convert solve mode
+        auto cm = [](SolveMode mode) {
+            auto res = Clasp::SolveMode::def;
+            using Potassco::Ops::operator|=; // FIXME: remove once there is a solution
+            if (test(mode, SolveMode::yield)) {
+                res |= Clasp::SolveMode::yield;
+            }
+            if (test(mode, SolveMode::async)) {
+                res |= Clasp::SolveMode::async;
+            }
+            return res;
+        };
+        // convert assumptions
+        auto ca = [this](auto const &lits) {
+            auto res = Clasp::LitVec{};
+            res.reserve(lits.size());
+            std::ranges::transform(lits, std::back_inserter(res),
+                                   [this](auto const &lit) { return Clasp::Asp::solverLiteral(*clasp_.asp(), lit); });
+            return res;
+        };
+        // adapt the handler for clasp
+        auto eh = handler == nullptr ? std::unique_ptr<Clasp::EventHandler>{std::make_unique<EventHandlerDefault>()}
+                                     : std::make_unique<EventHandlerAdapter>(grd_.base(), clasp_, std::move(handler));
+        auto hnd = clasp_.solve(cm(mode), ca(assumptions), eh.get());
+        // adapt the handle which also manages the lifetime of the handler
+        return std::make_unique<SolveHandleImpl>(std::move(eh), grd_.base(), clasp_, hnd);
     }
-    return std::make_unique<SolveHandleImpl>(res);
+    return std::make_unique<SolveHandleSimple>();
 }
 
 void Solver::join(Input::UnprocessedProgram const &prg) { grd_.join(prg); }

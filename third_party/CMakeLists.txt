@@ -21,9 +21,6 @@ endif()
 
 add_subdirectory(CLI11)
 
-if (PARSER_BUILD_TESTS)
-    set(LIB_POTASSCO_SETUP_CATCH2 TRUE)
-endif()
 add_subdirectory(clasp)
 set_property(TARGET libclasp PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET libpotassco PROPERTY POSITION_INDEPENDENT_CODE ON)

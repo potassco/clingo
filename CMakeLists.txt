@@ -26,6 +26,7 @@ if (PARSER_BUILD_WEB)
 endif()
 
 if (PARSER_BUILD_TESTS)
+    set(LIB_POTASSCO_SETUP_CATCH2 TRUE)
     enable_testing()
 endif()
 

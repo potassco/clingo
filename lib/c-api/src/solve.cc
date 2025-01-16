@@ -27,23 +27,23 @@ extern "C" void clingo_solve_handle_wait(clingo_solve_handle_t *handle, double t
 
 extern "C" auto clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model)
     -> clingo_result_t {
-    CLINGO_TRY { *model = c_cast(&cpp_cast(handle)->model()); }
+    CLINGO_TRY { *model = c_cast(cpp_cast(handle)->model()); }
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_literal_callback_t callback, void *data)
+extern "C" auto clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_literal_t const **literals, size_t *size)
     -> clingo_result_t {
     CLINGO_TRY {
-        Clingo::Output::LitVec lits;
-        cpp_cast(handle)->core(lits);
-        handle_error(callback(lits.data(), lits.size(), data));
+        auto lits = cpp_cast(handle)->core();
+        *literals = lits.data();
+        *size = lits.size();
     }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_solve_handle_last(clingo_solve_handle_t *handle, clingo_model_t const **model)
     -> clingo_result_t {
-    CLINGO_TRY { *model = c_cast(&cpp_cast(handle)->model()); }
+    CLINGO_TRY { *model = c_cast(cpp_cast(handle)->model()); }
     CLINGO_CATCH;
 }
 
@@ -98,8 +98,8 @@ extern "C" auto clingo_control_solve(clingo_control_t *control, clingo_solve_mod
             throw std::runtime_error("implement me: assumptions");
         }
         if (notify != nullptr) {
-            auto eh = SolveEventHandler{notify, data};
-            *handle = c_cast(control->slv->solve(&eh).release());
+            auto eh = std::make_unique<SolveEventHandler>(notify, data);
+            *handle = c_cast(control->slv->solve(std::move(eh)).release());
         } else {
             *handle = c_cast(control->slv->solve(nullptr).release());
         }

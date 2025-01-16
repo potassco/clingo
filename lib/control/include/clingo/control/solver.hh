@@ -137,18 +137,18 @@ class SolveHandle {
     auto get() -> SolveResult { return do_get(); }
     void cancel() { do_cancel(); }
     void resume() { do_resume(); }
-    auto model() -> Model const & { return do_model(); }
-    auto last() -> Model const & { return do_last(); }
-    void core(Output::LitVec &lits) { do_core(lits); }
+    auto model() -> Model const * { return do_model(); }
+    auto last() -> Model const * { return do_last(); }
+    auto core() -> Output::LitSpan { return do_core(); }
     auto wait(double timeout) -> bool { return do_wait(timeout); }
 
   private:
     virtual auto do_get() -> SolveResult = 0;
     virtual void do_cancel() = 0;
     virtual void do_resume() = 0;
-    virtual auto do_model() -> Model const & = 0;
-    virtual auto do_last() -> Model const & = 0;
-    virtual void do_core(Output::LitVec &lits) = 0;
+    virtual auto do_model() -> Model const * = 0;
+    virtual auto do_last() -> Model const * = 0;
+    virtual auto do_core() -> Output::LitSpan = 0;
     virtual auto do_wait(double timeout) -> bool = 0;
 };
 using USolveHandle = std::unique_ptr<SolveHandle>;
@@ -163,6 +163,14 @@ class EventHandler {
   private:
     virtual auto do_on_model([[maybe_unused]] Model &m) -> bool { return true; }
 };
+using UEventHandler = std::unique_ptr<EventHandler>;
+
+enum class SolveMode : uint8_t {
+    none = 0,
+    async = 1,
+    yield = 2,
+};
+[[maybe_unused]] void is_bit_set_enum(SolveMode mode);
 
 //! A grounder and solver for logic programs.
 //!
@@ -191,8 +199,12 @@ class Solver {
     void ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx);
     //! Solve the program.
     //!
-    //! @todo Incomplete and just to get started.
-    auto solve(EventHandler *eh) -> USolveHandle;
+    //! @param handler optional event handler
+    //! @param assumptions assumptions for solving
+    //! @param mode mode for solving
+    //! @return solve handle to control the search
+    auto solve(UEventHandler handler = {}, Output::LitSpan assumptions = {}, SolveMode mode = SolveMode::none)
+        -> USolveHandle;
 
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);
