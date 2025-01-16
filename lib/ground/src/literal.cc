@@ -299,8 +299,8 @@ void LitSymbolic::do_print(std::ostream &out) const {
 
 namespace {
 
-auto get_atom(Base &base, OutputStm &out, Sign sign, size_t index, Symbol symbol, size_t offset)
-    -> std::optional<Base::MapAtom::iterator> {
+auto get_atom(AtomBase &base, OutputStm &out, Sign sign, size_t index, Symbol symbol, size_t offset)
+    -> std::optional<AtomBase::MapAtom::iterator> {
     // avoid lookups if the literal is known to be true
     if ((index == stratified_index || sign == Sign::none) && base.domain()) {
         return std::nullopt;

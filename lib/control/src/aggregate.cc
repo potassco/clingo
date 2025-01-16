@@ -83,7 +83,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
     }
 
     auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
-    using TermBase = std::optional<std::pair<Ground::UTerm, Ground::Base *>>;
+    using TermBase = std::optional<std::pair<Ground::UTerm, Ground::AtomBase *>>;
     auto elems = std::vector<std::tuple<Ground::UTermVec, TermBase, Location, Ground::ULitVec>>{};
     elems.reserve(lit.elems().size());
     Ground::BaseVec bases;

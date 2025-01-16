@@ -194,7 +194,7 @@ constexpr auto stratified_index = std::numeric_limits<size_t>::max();
 class LitSymbolic : public Lit {
   public:
     //! Construct the literal.
-    LitSymbolic(Base &base, Sign sign, UTerm atom, size_t index, bool domain)
+    LitSymbolic(AtomBase &base, Sign sign, UTerm atom, size_t index, bool domain)
         : base_{&base}, atom_{std::move(atom)}, index_{index}, sign_{sign}, domain_{domain} {}
 
   private:
@@ -215,7 +215,7 @@ class LitSymbolic : public Lit {
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
 
-    Base *base_;
+    AtomBase *base_;
     UTerm atom_;
     //! The index of the literal.
     //!
@@ -230,7 +230,7 @@ class LitSymbolic : public Lit {
 
 //! Represents a simple head literal which is either represented by a symbol
 //! term or `#false` captured by std::nullopt.
-using AtomSimple = std::optional<std::tuple<Ground::UTerm, Base &, std::vector<size_t>>>;
+using AtomSimple = std::optional<std::tuple<Ground::UTerm, AtomBase &, std::vector<size_t>>>;
 
 //! A literal similar to a symbolic literal.
 //!
@@ -241,14 +241,14 @@ class LitProject : public Lit {
     class State {
       public:
         //! Initialize the state.
-        State(String name, size_t vars, Base &base, UTerm p_head, UTerm p_body)
+        State(String name, size_t vars, AtomBase &base, UTerm p_head, UTerm p_body)
             : name_{name}, base_{&base}, p_head_{std::move(p_head)}, p_body_{std::move(p_body)} {
             ass_.resize(vars);
         }
         //! Get the base of the unprojected literal.
-        [[nodiscard]] auto base() const -> Base & { return *base_; }
+        [[nodiscard]] auto base() const -> AtomBase & { return *base_; }
         //! Get the base of the projected literal.
-        [[nodiscard]] auto p_base() -> Base & { return p_base_; }
+        [[nodiscard]] auto p_base() -> AtomBase & { return p_base_; }
         //! Get the auxiliary name of projected literal.
         [[nodiscard]] auto name() const -> String const & { return *name_; }
         //! Initialize the projected base.
@@ -258,8 +258,8 @@ class LitProject : public Lit {
 
       private:
         SharedString name_;
-        Base *base_;
-        Base p_base_;
+        AtomBase *base_;
+        AtomBase p_base_;
         UTerm p_head_;
         UTerm p_body_;
         Assignment ass_;
@@ -364,7 +364,7 @@ class LitBool : public LitCheck {
 class LitFactCheck : public LitCheck {
   public:
     //! Construct the literal.
-    LitFactCheck(Base &base, Term const &atom, Symbol &target) : base_{&base}, atom_{&atom}, target_{&target} {}
+    LitFactCheck(AtomBase &base, Term const &atom, Symbol &target) : base_{&base}, atom_{&atom}, target_{&target} {}
 
   private:
     [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override;
@@ -372,7 +372,7 @@ class LitFactCheck : public LitCheck {
     void do_print(std::ostream &out) const override;
     [[nodiscard]] auto do_copy() const -> ULit override;
 
-    Base *base_;
+    AtomBase *base_;
     Term const *atom_;
     Symbol *target_;
 };
@@ -399,7 +399,7 @@ class LitFailCheck : public LitCheck {
 //!
 //! Whenever a base has an update, its indices have to be propagated. The base
 //! is identified by the signature and the vector sorted by this signature.
-using BaseVec = std::vector<std::tuple<std::tuple<String, size_t, bool>, Base *, std::vector<size_t>>>;
+using BaseVec = std::vector<std::tuple<std::tuple<String, size_t, bool>, AtomBase *, std::vector<size_t>>>;
 
 //! An aggregate literal without conditions.
 class LitSimpleAggr : public Lit {

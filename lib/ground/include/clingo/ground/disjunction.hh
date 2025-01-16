@@ -94,7 +94,7 @@ class BaseDisjunction : public BaseImpl<Symbol const *, BaseDisjunction> {
 //!
 //! Whenever a base has an update, its indices have to be propagated. The base
 //! is identified by the signature and the vector sorted by this signature.
-using DisjunctionBaseVec = std::vector<std::tuple<std::tuple<String, size_t, bool>, Base *, std::vector<size_t>>>;
+using DisjunctionBaseVec = std::vector<std::tuple<std::tuple<String, size_t, bool>, AtomBase *, std::vector<size_t>>>;
 
 //! State storing all necessary information to ground disjunctions.
 class StateDisjunction : public State {
@@ -198,7 +198,7 @@ class StmDisjunction : public Stm {
 class StmDisjunctionElem : public Stm {
   public:
     //! Construct the statement.
-    StmDisjunctionElem(StateDisjunction &state, UTerm head, Base &base, ULitVec body)
+    StmDisjunctionElem(StateDisjunction &state, UTerm head, AtomBase &base, ULitVec body)
         : state_{&state}, head_{std::move(head)}, base_{&base}, body_{std::move(body)} {}
 
   private:
@@ -213,7 +213,7 @@ class StmDisjunctionElem : public Stm {
 
     StateDisjunction *state_;
     UTerm head_;
-    Base *base_;
+    AtomBase *base_;
     ULitVec body_;
 };
 

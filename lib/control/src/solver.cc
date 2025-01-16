@@ -255,6 +255,7 @@ class ModelImpl : public Model, private SolveControl {
   private:
     void do_symbols(SymbolSelectFlags type, SymbolVec &res) const override {
         assert(mdl_ != nullptr);
+        // TODO: implement me
         if ((type & (SymbolSelectFlags::theory | SymbolSelectFlags::complement)) != SymbolSelectFlags::none) {
             throw std::logic_error("implement me: theory and complement selection modes");
         }

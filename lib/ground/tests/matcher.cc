@@ -138,7 +138,7 @@ TEST_CASE("ground_matcher") {
         auto name = store->string_ref("f");
         auto sym = [&](auto num) { return store->fun_ref(name, SymbolVec{store->num_ref(num)}, false); };
         ass = {std::nullopt};
-        auto base = Base{};
+        auto base = AtomBase{};
         base.add(sym(1), StateAtom::fact, gen);
         base.add(sym(2), StateAtom::derived, gen);
         auto a1 = std::make_unique<TermVariable>(0);
@@ -177,7 +177,7 @@ TEST_CASE("ground_matcher") {
             return store->fun_ref(name, SymbolVec{store->num_ref(a), store->num_ref(b)}, false);
         };
         ass = {std::nullopt};
-        auto base = Base{};
+        auto base = AtomBase{};
         base.add(sym(1, 1), StateAtom::derived, gen);
         base.add(sym(2, 2), StateAtom::derived, gen);
         base.add(sym(1, 3), StateAtom::derived, gen);
@@ -230,7 +230,7 @@ TEST_CASE("ground_matcher") {
         };
         ass = {std::nullopt, std::nullopt, std::nullopt};
         ass[0] = Clingo::SymbolStore::num_ref(1);
-        auto base = Base{};
+        auto base = AtomBase{};
         // join: X=1, f(1,X,Y), f(1,Y,Z)
         auto a1 = std::make_unique<TermSymbol>(Clingo::SymbolStore::num_ref(1));
         auto a2 = std::make_unique<TermVariable>(0);

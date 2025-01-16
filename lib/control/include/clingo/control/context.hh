@@ -26,7 +26,7 @@ namespace Clingo::Control {
 using ProjectMap = Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>>;
 
 //! A map from signatures to atom bases.
-using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>>;
+using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::AtomBase>>;
 
 //! A map from terms to their condition ids.
 using TermBaseMap = Util::ordered_map<Symbol, std::pair<size_t, Util::small_vector<size_t>>>;
@@ -45,13 +45,13 @@ class BaseHelper {
         auto aux = std::get<0>(sig).starts_with("#");
         auto dom_it = (aux ? aux_base_ : atom_base_)->try_emplace(std::move(sig), nullptr).first;
         if (dom_it->second == nullptr) {
-            dom_it.value() = std::make_unique<Ground::Base>();
+            dom_it.value() = std::make_unique<Ground::AtomBase>();
         }
         return dom_it;
     }
 
     //! Add a base for the given projection.
-    [[nodiscard]] auto add_project(SymbolStore &store, Ground::UTerm const &term, Ground::Base &base)
+    [[nodiscard]] auto add_project(SymbolStore &store, Ground::UTerm const &term, Ground::AtomBase &base)
         -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
         size_t vars = 0;
         auto [it, ins] =
@@ -130,7 +130,7 @@ class BuildContext {
     [[nodiscard]] auto context() const -> Ground::ScriptCallback * { return context_; }
 
     //! Add a base for a projection.
-    auto add_project(Ground::UTerm const &term, Ground::Base &base)
+    auto add_project(Ground::UTerm const &term, Ground::AtomBase &base)
         -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
         return base_.add_project(*store_, term, base);
     }

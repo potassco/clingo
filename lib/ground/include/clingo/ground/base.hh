@@ -207,7 +207,7 @@ template <class KeyType, class BaseType> class BaseImpl {
 //! An atom base can also stores unknown atoms. For such atoms it is not yet
 //! know whether there will be a rule deriving them. The only purpose is to
 //! store them here is to associated them with a unique id.
-class Base : public BaseImpl<Symbol, Base> {
+class AtomBase : public BaseImpl<Symbol, AtomBase> {
   public:
     //! Map containing the atoms.
     using MapAtom = Util::ordered_map<Symbol, AtomInfo>;
@@ -311,7 +311,7 @@ class Base : public BaseImpl<Symbol, Base> {
 };
 
 //! A unique pointer holding a base.
-using UBase = std::unique_ptr<Base>;
+using UBase = std::unique_ptr<AtomBase>;
 
 //! Class to store state for grounding.
 class State {

@@ -280,8 +280,8 @@ class StmHdAggr : public Stm {
 class StmHdAggrElem : public Stm {
   public:
     //! Construct the statement.
-    StmHdAggrElem(StateHdAggr &state, std::optional<std::pair<UTerm, Base *>> head, Location loc_weight, UTermVec tuple,
-                  ULitVec body)
+    StmHdAggrElem(StateHdAggr &state, std::optional<std::pair<UTerm, AtomBase *>> head, Location loc_weight,
+                  UTermVec tuple, ULitVec body)
         : loc_weight_{std::move(loc_weight)}, state_{&state}, head_{head ? std::move(head->first) : nullptr},
           base_{head ? head->second : nullptr}, tuple_{std::move(tuple)}, body_{std::move(body)} {}
 
@@ -304,7 +304,7 @@ class StmHdAggrElem : public Stm {
     StateHdAggr *state_;
     StateHdAggr::ElementKey *elem_key_ = nullptr;
     UTerm head_;
-    Base *base_;
+    AtomBase *base_;
     UTermVec tuple_;
     ULitVec body_;
     bool logged_ = false;

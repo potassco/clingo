@@ -18,8 +18,8 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit) {
 
     auto vars_global = Ground::VariableSet{};
 
-    using TermBase = std::pair<Ground::UTerm, Ground::Base *>;
-    auto elems = std::vector<std::tuple<Ground::UTerm, Ground::Base *, Ground::ULitVec>>{};
+    using TermBase = std::pair<Ground::UTerm, Ground::AtomBase *>;
+    auto elems = std::vector<std::tuple<Ground::UTerm, Ground::AtomBase *, Ground::ULitVec>>{};
     elems.reserve(lit.elems().size());
     Ground::BaseVec bases;
     bases.reserve(elems.size());

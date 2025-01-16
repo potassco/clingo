@@ -106,7 +106,7 @@ class StmRule : public Stm {
     //!
     //! Note that this unique pointer is zero in case of constraints.
     UTerm head_;
-    Base *base_;
+    AtomBase *base_;
     //! A list of indices.
     //!
     //! Recursive body literals that unify with the rule head have matching indices.
@@ -121,7 +121,7 @@ class StmRule : public Stm {
 class StmExternal : public Stm {
   public:
     //! Construct the statement.
-    StmExternal(Ground::UTerm atom, Base &base, std::vector<size_t> indices, ULitVec body,
+    StmExternal(Ground::UTerm atom, AtomBase &base, std::vector<size_t> indices, ULitVec body,
                 std::optional<std::pair<Location, UTerm>> type)
         : type_{std::move(type)}, atom_{std::move(atom)}, base_{&base}, indices_{std::move(indices)},
           body_{std::move(body)} {
@@ -149,7 +149,7 @@ class StmExternal : public Stm {
     //!
     //! Note that this unique pointer is zero in case of constraints.
     UTerm atom_;
-    Base *base_;
+    AtomBase *base_;
     //! A list of indices.
     //!
     //! Recursive body literals that unify with the rule head have matching indices.
@@ -201,7 +201,7 @@ class StmWeakConstraint : public Stm {
 class StmHeuristic : public Stm {
   public:
     //! Construct the statement.
-    StmHeuristic(UTerm atom, Base &base, ULitVec body, Location loc_weight, UTerm weight,
+    StmHeuristic(UTerm atom, AtomBase &base, ULitVec body, Location loc_weight, UTerm weight,
                  std::optional<std::pair<Location, UTerm>> prio, Location loc_type, UTerm type)
         : loc_weight_{std::move(loc_weight)}, loc_prio_{prio ? std::move(prio->first) : loc_weight_},
           loc_type_{std::move(loc_type)}, atom_{std::move(atom)}, base_{&base}, weight_{std::move(weight)},
@@ -227,7 +227,7 @@ class StmHeuristic : public Stm {
     Location loc_prio_;
     Location loc_type_;
     UTerm atom_;
-    Base *base_;
+    AtomBase *base_;
     UTerm weight_;
     UTerm prio_;
     UTerm type_;
@@ -296,7 +296,8 @@ class StmShow : public Stm {
 class StmProject : public Stm {
   public:
     //! Construct the statement.
-    StmProject(UTerm atom, Base &base, ULitVec body) : atom_{std::move(atom)}, base_{&base}, body_{std::move(body)} {
+    StmProject(UTerm atom, AtomBase &base, ULitVec body)
+        : atom_{std::move(atom)}, base_{&base}, body_{std::move(body)} {
         init_();
     }
 
@@ -316,7 +317,7 @@ class StmProject : public Stm {
     [[nodiscard]] auto do_is_important([[maybe_unused]] size_t index) const -> bool override { return false; }
 
     UTerm atom_;
-    Base *base_;
+    AtomBase *base_;
     ULitVec body_;
     size_t offset_ = 0;
 };
