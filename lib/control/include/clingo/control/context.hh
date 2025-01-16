@@ -12,6 +12,7 @@
 
 #include <clingo/input/rewrite/analyze.hh>
 
+#include <clingo/util/small_vector.hh>
 #include <clingo/util/type_traits.hh>
 
 namespace Clingo::Control {
@@ -26,6 +27,9 @@ using ProjectMap = Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitP
 
 //! A map from signatures to atom bases.
 using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>>;
+
+//! A map from terms to their condition ids.
+using TermBaseMap = Util::ordered_map<Symbol, std::pair<size_t, Util::small_vector<size_t>>>;
 
 //! A helper that manages atom bases and auxiliary bases.
 class BaseHelper {

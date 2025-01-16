@@ -18,53 +18,12 @@
 
 namespace Clingo::Control {
 
-void Scripts::register_script(std::string_view name, UScript script) { scripts_.emplace_back(name, std::move(script)); }
-
-void Scripts::do_exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) {
-    bool found = false;
-    for (auto const &script : scripts_) {
-        if (script.first == name) {
-            script.second->exec(code);
-            found = true;
-        }
-    }
-    if (!found) {
-        GRINGO_REPORT_LOC(log, error, loc) << "script support for '" << name << "' not available";
-        throw std::runtime_error("script support not available");
-    }
-}
-
-void Scripts::main(Solver &slv) {
-    for (auto const &script : scripts_) {
-        if (script.second->callable("main", 0)) {
-            script.second->main(slv);
-        }
-    }
-}
-
-auto Scripts::do_callable(std::string_view name, size_t args) -> bool {
-    for (auto const &script : scripts_) {
-        if (script.second->callable(name, args)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void Scripts::do_call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) {
-    out.clear();
-    for (auto const &script : scripts_) {
-        if (script.second->callable(name, args.size())) {
-            script.second->call(loc, name, args, out);
-        }
-    }
-}
-
 namespace {
 
-class BackendClasp : public Output::Backend {
+//! Implementation of the backend interface.
+class BackendImpl : public Output::Backend {
   public:
-    BackendClasp(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
+    BackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
 
   private:
     auto do_next_lit() -> Output::lit_t override {
@@ -275,15 +234,10 @@ class BackendClasp : public Output::Backend {
     Clasp::Asp::LogicProgram *prg_;
 };
 
-} // namespace
-
-//! The model class.
+//! Implementation of the model interface.
 class ModelImpl : public Model, private SolveControl {
   public:
-    ModelImpl(BaseMap const &base, Clasp::ClaspFacade &clasp, Clasp::Model const &mdl)
-        : base_{&base}, clasp_{&clasp}, mdl_{&mdl} {}
-
-    ModelImpl(BaseMap const &base, Clasp::ClaspFacade &clasp) : base_{&base}, clasp_{&clasp}, mdl_{nullptr} {}
+    ModelImpl(BaseMap const &base, Clasp::ClaspFacade &clasp) : base_{&base}, clasp_{&clasp} {}
 
     //! Sets the given model returing true if it is not null.
     auto set_model(Clasp::Model const *mdl) -> bool { return (mdl_ = mdl) != nullptr; }
@@ -295,6 +249,7 @@ class ModelImpl : public Model, private SolveControl {
                            : nullptr) != nullptr;
     }
 
+    //! Get the underlying clasp facade.
     auto clasp() -> Clasp::ClaspFacade const & { return *clasp_; }
 
   private:
@@ -396,12 +351,12 @@ class ModelImpl : public Model, private SolveControl {
 
     [[nodiscard]] auto do_add_clause(Output::LitSpan lits) -> bool override {
         assert(mdl_ != nullptr);
-        std::vector<Clasp::Literal> clits;
-        clits.reserve(lits.size());
+        lits_.clear();
+        lits_.reserve(lits.size());
         for (auto const &lit : lits) {
-            clits.emplace_back(solver_literal(lit));
+            lits_.emplace_back(solver_literal(lit));
         }
-        return mdl_->ctx->commitClause(clits);
+        return mdl_->ctx->commitClause(lits_);
     }
 
     [[nodiscard]] auto is_projected_(Output::lit_t literal) const -> bool {
@@ -411,46 +366,29 @@ class ModelImpl : public Model, private SolveControl {
         return prg().isShown(literal);
     }
 
+    //! Get the underlying logic program.
     [[nodiscard]] auto prg() const -> Clasp::Asp::LogicProgram const & { return *clasp_->asp(); }
+    //! Get the underlying solver (which found the model).
     [[nodiscard]] auto slv() const -> Clasp::Solver const & { return *clasp_->ctx.solver(mdl_->sId); }
+    //! Map the given program literal to its solver literal.
     [[nodiscard]] auto solver_literal(Output::lit_t lit) const -> Clasp::Literal {
         return Clasp::Asp::solverLiteral(prg(), lit);
     }
+    //! Map the given id referring to a program literal to its solver literal.
     [[nodiscard]] auto solver_literal(uint64_t lit) const -> Clasp::Literal {
         return solver_literal(static_cast<Output::lit_t>(lit));
     }
 
     BaseMap const *base_;
     Clasp::ClaspFacade *clasp_;
-    Clasp::Model const *mdl_;
+    Clasp::Model const *mdl_ = nullptr;
+    std::vector<Clasp::Literal> lits_;
 };
 
-Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
-    : buf_{out}, out_{make_output_(store, mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
-
-auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
-    switch (mode) {
-        case AppMode::solve: {
-            // TODO: find a better place to do this
-            cfg_.solve.numModels = 0;
-            backend_ = std::make_unique<BackendClasp>(clasp_.startAsp(cfg_, true));
-            return Output::make_backend_output(store, *backend_);
-        }
-        default: {
-            return Output::make_text_output(buf_);
-        }
-    }
-    Util::unreachable();
-}
-
-void Solver::main(std::span<std::string_view const> const &files,
-                  std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
-    parse(files);
-    main(params);
-}
-
-//! Test model printer.
-class EventHandlerDefault : public Clasp::EventHandler {
+//! An event handler that prints models to stdout.
+//!
+//! @todo This handler only exsists for testing purposes.
+class EventHandlerTest : public Clasp::EventHandler {
   public:
     auto onModel(Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         buf_ << "Model:";
@@ -471,53 +409,27 @@ class EventHandlerDefault : public Clasp::EventHandler {
     Util::OutputBuffer buf_{stdout};
 };
 
-void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
-    if (scripts_->callable("main", 0)) {
-        scripts_->main(*this);
-    } else {
-        if (mode_ == AppMode::parse) {
-            output_unprocessed_program(std::cout);
-            return;
-        }
-        if (mode_ == AppMode::rewrite) {
-            output_program(std::cout);
-            return;
-        }
-        if (params) {
-            for (auto const &param : *params) {
-                ground(param, nullptr);
-                if (mode_ == AppMode::solve) {
-                    solve(nullptr);
-                }
-            }
-        } else {
-            ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}}, nullptr);
-            if (mode_ == AppMode::solve) {
-                solve(nullptr);
-            }
-        }
-    }
-}
-
-namespace {
-
+//! An event handler that adapts clingo's event handler to clasp's.
 class EventHandlerAdapter : public Clasp::EventHandler {
   public:
     EventHandlerAdapter(BaseMap const &base, Clasp::ClaspFacade &clasp, Control::UEventHandler eh)
-        : base_{&base}, clasp_{&clasp}, eh_{std::move(eh)} {}
+        : mdl_{base, clasp}, eh_{std::move(eh)} {}
 
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
-        auto mdli = ModelImpl{*base_, *clasp_, mdl};
-        return eh_->on_model(mdli);
+        mdl_.set_model(&mdl);
+        return eh_->on_model(mdl_);
     }
 
   private:
-    BaseMap const *base_;
-    Clasp::ClaspFacade *clasp_;
+    ModelImpl mdl_;
     Control::UEventHandler eh_;
 };
 
-class SolveHandleSimple : public SolveHandle {
+//! A solve handle that does nothing.
+//!
+//! @note This handle is used if no solver has been setup (for example, in
+//! ground-only mode).
+class SolveHandleFixed : public SolveHandle {
   private:
     auto do_get() -> SolveResult override { return SolveResult::empty; }
     void do_cancel() override {}
@@ -528,6 +440,7 @@ class SolveHandleSimple : public SolveHandle {
     auto do_wait([[maybe_unused]] double timeout) -> bool override { return true; }
 };
 
+//! The solve handle implementation.
 class SolveHandleImpl : public SolveHandle {
   public:
     SolveHandleImpl(std::unique_ptr<Clasp::EventHandler> eh, BaseMap const &base, Clasp::ClaspFacade &clasp,
@@ -587,6 +500,100 @@ class SolveHandleImpl : public SolveHandle {
 
 } // namespace
 
+void Scripts::register_script(std::string_view name, UScript script) { scripts_.emplace_back(name, std::move(script)); }
+
+void Scripts::do_exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) {
+    bool found = false;
+    for (auto const &script : scripts_) {
+        if (script.first == name) {
+            script.second->exec(code);
+            found = true;
+        }
+    }
+    if (!found) {
+        GRINGO_REPORT_LOC(log, error, loc) << "script support for '" << name << "' not available";
+        throw std::runtime_error("script support not available");
+    }
+}
+
+void Scripts::main(Solver &slv) {
+    for (auto const &script : scripts_) {
+        if (script.second->callable("main", 0)) {
+            script.second->main(slv);
+        }
+    }
+}
+
+auto Scripts::do_callable(std::string_view name, size_t args) -> bool {
+    for (auto const &script : scripts_) {
+        if (script.second->callable(name, args)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Scripts::do_call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) {
+    out.clear();
+    for (auto const &script : scripts_) {
+        if (script.second->callable(name, args.size())) {
+            script.second->call(loc, name, args, out);
+        }
+    }
+}
+
+Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
+    : buf_{out}, out_{make_output_(store, mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
+
+auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
+    switch (mode) {
+        case AppMode::solve: {
+            // FIXME: find a better place to do this
+            cfg_.solve.numModels = 0;
+            backend_ = std::make_unique<BackendImpl>(clasp_.startAsp(cfg_, true));
+            return Output::make_backend_output(store, *backend_);
+        }
+        default: {
+            return Output::make_text_output(buf_);
+        }
+    }
+    Util::unreachable();
+}
+
+void Solver::main(std::span<std::string_view const> const &files,
+                  std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
+    parse(files);
+    main(params);
+}
+
+void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
+    if (scripts_->callable("main", 0)) {
+        scripts_->main(*this);
+    } else {
+        if (mode_ == AppMode::parse) {
+            output_unprocessed_program(std::cout);
+            return;
+        }
+        if (mode_ == AppMode::rewrite) {
+            output_program(std::cout);
+            return;
+        }
+        if (params) {
+            for (auto const &param : *params) {
+                ground(param, nullptr);
+                if (mode_ == AppMode::solve) {
+                    solve(nullptr);
+                }
+            }
+        } else {
+            ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}}, nullptr);
+            if (mode_ == AppMode::solve) {
+                solve(nullptr);
+            }
+        }
+    }
+}
+
 auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode mode) -> USolveHandle {
     if (mode_ == AppMode::solve) {
         if (state_ == State::solved || state_ == State::updated) {
@@ -599,7 +606,8 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         // convert solve mode
         auto cm = [](SolveMode mode) {
             auto res = Clasp::SolveMode::def;
-            using Potassco::Ops::operator|=; // FIXME: remove once there is a solution
+            // FIXME: remove once there is a solution
+            using Potassco::Ops::operator|=;
             if (test(mode, SolveMode::yield)) {
                 res |= Clasp::SolveMode::yield;
             }
@@ -617,13 +625,13 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
             return res;
         };
         // adapt the handler for clasp
-        auto eh = handler == nullptr ? std::unique_ptr<Clasp::EventHandler>{std::make_unique<EventHandlerDefault>()}
+        auto eh = handler == nullptr ? std::unique_ptr<Clasp::EventHandler>{std::make_unique<EventHandlerTest>()}
                                      : std::make_unique<EventHandlerAdapter>(grd_.base(), clasp_, std::move(handler));
         auto hnd = clasp_.solve(cm(mode), ca(assumptions), eh.get());
         // adapt the handle which also manages the lifetime of the handler
         return std::make_unique<SolveHandleImpl>(std::move(eh), grd_.base(), clasp_, hnd);
     }
-    return std::make_unique<SolveHandleSimple>();
+    return std::make_unique<SolveHandleFixed>();
 }
 
 void Solver::join(Input::UnprocessedProgram const &prg) { grd_.join(prg); }
