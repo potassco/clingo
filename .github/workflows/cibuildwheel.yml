@@ -46,7 +46,7 @@ jobs:
           - os: windows-2019
             env:
               CIBW_BUILD: "cp313-win32"
-          - os: macos-11
+          - os: macos-latest
             env:
               CIBW_ARCHS_MACOS: x86_64 arm64
               CIBW_BUILD: "cp313-macosx_*"
