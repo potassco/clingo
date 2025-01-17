@@ -11,7 +11,10 @@ auto c_cast(Clingo::Control::SolveHandle *hnd) -> clingo_solve_handle_t * {
     return reinterpret_cast<clingo_solve_handle_t *>(hnd); // NOLINT
 }
 
-auto cpp_cast(clingo_solve_handle_t *hnd) -> Clingo::Control::SolveHandle * {
+auto cpp_cast(clingo_solve_handle_t *hnd, bool not_null = true) -> Clingo::Control::SolveHandle * {
+    if (hnd == nullptr && not_null) {
+        throw std::runtime_error("solve handle is null");
+    }
     return reinterpret_cast<Clingo::Control::SolveHandle *>(hnd); // NOLINT
 }
 
@@ -22,7 +25,9 @@ extern "C" auto clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_so
 }
 
 extern "C" void clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result) {
-    *result = cpp_cast(handle)->wait(timeout);
+    if (handle != nullptr) {
+        *result = cpp_cast(handle, false)->wait(timeout);
+    }
 }
 
 extern "C" auto clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model)
@@ -58,7 +63,7 @@ extern "C" auto clingo_solve_handle_cancel(clingo_solve_handle_t *handle) -> cli
 }
 
 extern "C" auto clingo_solve_handle_close(clingo_solve_handle_t *handle) -> clingo_result_t {
-    CLINGO_TRY { delete cpp_cast(handle); }
+    CLINGO_TRY { delete cpp_cast(handle, false); }
     CLINGO_CATCH;
 }
 

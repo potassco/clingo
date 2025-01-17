@@ -53,6 +53,36 @@ auto SolveHandle::get() -> SolveResult {
     return {res};
 }
 
+void SolveHandle::cancel() { handle_error(clingo_solve_handle_cancel(hnd_)); }
+
+void SolveHandle::resume() { handle_error(clingo_solve_handle_resume(hnd_)); }
+
+auto SolveHandle::model() -> std::optional<Model> {
+    auto const *mdl = static_cast<clingo_model_t const *>(nullptr);
+    handle_error(clingo_solve_handle_model(hnd_, &mdl));
+    return mdl != nullptr ? std::make_optional<Model>(mdl) : std::nullopt;
+}
+
+auto SolveHandle::last() -> std::optional<Model> {
+    auto const *mdl = static_cast<clingo_model_t const *>(nullptr);
+    handle_error(clingo_solve_handle_last(hnd_, &mdl));
+    return mdl != nullptr ? std::make_optional<Model>(mdl) : std::nullopt;
+}
+
+auto SolveHandle::core() -> std::vector<clingo_literal_t> {
+    auto const *lits = static_cast<clingo_literal_t *>(nullptr);
+    auto size = size_t{0};
+    handle_error(clingo_solve_handle_core(hnd_, &lits, &size));
+    // NOLINTNEXTLINE
+    return {lits, lits + size};
+}
+
+auto SolveHandle::wait(double timeout) -> bool {
+    bool result = false;
+    clingo_solve_handle_wait(hnd_, timeout, &result);
+    return result;
+}
+
 void SolveHandle::close() {
     if (hnd_ != nullptr) {
         clingo_solve_handle_close(std::exchange(hnd_, nullptr));
@@ -122,8 +152,8 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
     CLINGO_CATCH(eh->ptr_);
 }
 
-auto Control::solve(std::optional<ModelCallback> on_model) -> USolveHandle {
-    auto res = std::make_unique<SolveHandle>(std::move(on_model));
+auto Control::solve(std::optional<ModelCallback> on_model) -> SSolveHandle {
+    auto res = std::make_shared<SolveHandle>(std::move(on_model));
     handle_error(
         clingo_control_solve(ctl_.get(), 0, nullptr, 0, &SolveHandle::c_event_handler, res.get(), &res->handle()),
         res->exception_ptr());
@@ -168,24 +198,82 @@ a
 Get the symbols in the model.
 
 Args:
-    shown: Include shown atoms and terms.
-    atoms: Include all true atoms including hidden ones.
-    terms: Include shown terms.
-    theory: Include terms added by external theories.
-    complement:
-		Has to be used in combination with shown/atoms/terms. Selects atoms
-		that are false and terms with false conditions.
+  shown: Include shown atoms and terms.
+  atoms: Include all true atoms including hidden ones.
+  terms: Include shown terms.
+  theory: Include terms added by external theories.
+  complement:
+	Has to be used in combination with shown/atoms/terms. Selects atoms that
+	are false and terms with false conditions.
 )"));
 
-    py::class_<SolveHandle>(control, "SolveHandle", R"(An object to interact with a running search.)")
-        .def("get", &SolveHandle::get, R"(Get the solve result.)")
+    py::class_<SolveHandle>(control, "SolveHandle", doc(R"(
+An object to interact with a running search.
+
+It can be used to control solving, like, retrieving models or cancelling a
+search.
+
+A SolveHandle is a context manager and must be used with Python's with
+statement.
+
+Blocking functions in this object release the GIL. They are not thread-safe
+though.
+
+See also: `clingo.control.Control.solve`
+)"))
+        .def("get", &SolveHandle::get, doc(R"(
+Get the solve result.
+
+This is always the last function that should be called on a handle to ensure
+that the search is properly terminated. It might be preceded by a call to
+cancel to stop a running search.
+)"))
+        .def("core", &SolveHandle::core, doc(R"(
+Get the subset of assumptions that made the problem unsatisfiable.)"))
+        .def("model", &SolveHandle::model, doc(R"(
+Get the current model if there is any.
+)"))
+        .def("last", &SolveHandle::last, doc(R"(
+Get the last computed model if there is any.
+
+If the search is not completed yet or the problem is unsatisfiable, the
+function returns `None`.
+)"))
+        .def("resume", &SolveHandle::resume, doc(R"(
+Discards the last model and starts searching for the next one.
+
+If the search has been started asynchronously, this function starts the search
+in the background.
+)"))
+        .def("wait", &SolveHandle::wait, doc(R"(
+Wait for solve call to finish or the next result with an optional timeout.
+
+If a timeout is given, the behavior of the function changes depending on the
+sign of the timeout. If a postive timeout is given, the function blocks for the
+given amount time or until a result is ready. If the timeout is negative, the
+function will block until a result is ready, which also corresponds to the
+behavior of the function if no timeout is given. A timeout of zero can be used
+to poll if a result is ready.
+
+Args:
+  timeout:
+    If a timeout is given, the function blocks for at most timeout seconds.
+
+Returns:
+  Indicates whether the solve call has finished or the next result is ready.
+)"))
+        .def("cancel", &SolveHandle::cancel, doc(R"(
+Cancel the running search.
+
+See also: `clingo.control.Control.interrupt`
+)"))
         .def(
-            "__enter__", [&](py::object hnd) -> py::object { return hnd; }, "Start the search.")
+            "__enter__", [&](SSolveHandle hnd) -> SSolveHandle { return hnd; }, "Start the search.")
         .def(
             "__exit__",
-            [&](SolveHandle &hnd, [[maybe_unused]] const std::optional<pybind11::type> &type,
+            [&](SSolveHandle const &hnd, [[maybe_unused]] const std::optional<pybind11::type> &type,
                 [[maybe_unused]] const std::optional<pybind11::object> &value,
-                [[maybe_unused]] const std::optional<pybind11::object> &traceback) { hnd.close(); },
+                [[maybe_unused]] const std::optional<pybind11::object> &traceback) { hnd->close(); },
             "Stop the search closing the handle.");
 
     py::class_<Control>(control, "Control", R"(A control object for grounding and solving.)")
@@ -194,27 +282,27 @@ Args:
 Construct a control object.
 
 Args:
-    lib: The library storing symbols and scripts.
-    options: The command line options to initialize the control object.
+  lib: The library storing symbols and scripts.
+  options: The command line options to initialize the control object.
 )"))
         .def("join", &Control::join, py::arg("program"), doc(R"(
 Join with the given non-ground logic program.
 
 Args:
-    program: A non-ground logic program.
+  program: A non-ground logic program.
 )"))
         .def("parse_string", &Control::parse_string, py::arg("program"), doc(R"(
 Parses a logic program given as a string.
 
 Args:
-    program: The logic program as string.
+  program: The logic program as string.
 )"))
         .def("ground", &Control::ground, py::arg("parts") = std::nullopt, py::arg("context") = py::none(), doc(R"(
 Ground the given program parts.
 
 Args:
-    parts: A list of tuples of part names and their symbolic arguments.
-    context: An optional object with functions to call during grounding.
+  parts: A list of tuples of part names and their symbolic arguments.
+  context: An optional object with functions to call during grounding.
 )"))
         .def("solve", &Control::solve, py::arg("on_model") = std::nullopt, doc(R"(
 Solve the current ground program.

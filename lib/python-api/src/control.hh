@@ -34,12 +34,12 @@ class SolveResult {
 
 class Model {
   public:
-    Model(clingo_model_t *mdl) : mdl_{mdl} {}
+    Model(clingo_model_t const *mdl) : mdl_{mdl} {}
 
     auto symbols(bool shown, bool atoms, bool terms, bool theory, bool complement) -> SymbolVec;
 
   private:
-    clingo_model_t *mdl_;
+    clingo_model_t const *mdl_;
 };
 
 using ModelCallback = std::function<bool(Model &)>;
@@ -53,11 +53,17 @@ class SolveHandle {
     auto operator=(SolveHandle &&other) noexcept -> SolveHandle & = delete;
     ~SolveHandle() { close(); }
 
-    auto handle() -> clingo_solve_handle_t *& { return hnd_; }
     auto get() -> SolveResult;
-    auto exception_ptr() -> std::exception_ptr { return std::exchange(ptr_, nullptr); }
+    void cancel();
+    void resume();
+    auto model() -> std::optional<Model>;
+    auto last() -> std::optional<Model>;
+    auto core() -> std::vector<clingo_literal_t>;
+    auto wait(double timeout) -> bool;
     void close();
 
+    auto handle() -> clingo_solve_handle_t *& { return hnd_; }
+    auto exception_ptr() -> std::exception_ptr { return std::exchange(ptr_, nullptr); }
     static auto c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> clingo_result_t;
 
   private:
@@ -65,7 +71,7 @@ class SolveHandle {
     std::optional<ModelCallback> mdl_;
     std::exception_ptr ptr_;
 };
-using USolveHandle = std::unique_ptr<SolveHandle>;
+using SSolveHandle = std::shared_ptr<SolveHandle>;
 
 class Control {
   public:
@@ -75,7 +81,7 @@ class Control {
     void parse_string(char const *str);
     void join(Program &prg);
     void ground(std::optional<std::vector<std::pair<std::string, SymbolVec>>> const &parts, py::handle ctx);
-    auto solve(std::optional<ModelCallback> on_model = std::nullopt) -> USolveHandle;
+    auto solve(std::optional<ModelCallback> on_model = std::nullopt) -> SSolveHandle;
     void main();
     auto buffer() -> char const *;
 
