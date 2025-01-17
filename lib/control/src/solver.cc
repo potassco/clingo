@@ -607,8 +607,6 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         // convert solve mode
         auto cm = [](SolveMode mode) {
             auto res = Clasp::SolveMode::def;
-            // FIXME: remove once there is a solution
-            using Potassco::Ops::operator|=;
             if (test(mode, SolveMode::yield)) {
                 res |= Clasp::SolveMode::yield;
             }
