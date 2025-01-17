@@ -1,6 +1,7 @@
 SHELL := /bin/zsh
 CLANG_CC := $(shell test -e /usr/bin/clang-18 && echo /usr/bin/clang-18 || echo clang)
 CLANG_CXX := $(shell test -e /usr/bin/clang++-18 && echo /usr/bin/clang++-18 || echo clang++)
+CPU_COUNT := $(shell test -e /usr/bin/nproc && nproc || echo "1")
 
 all: debug
 
@@ -11,7 +12,7 @@ test_doc: doc
 	python3 -m http.server --directory=doc/html
 
 test: debug
-	$(MAKE) CTEST_OUTPUT_ON_FAILURE=1 -C build/debug $@
+	$(MAKE) CTEST_OUTPUT_ON_FAILURE=1 CTEST_PARALLEL_LEVEL=$(CPU_COUNT) -C build/debug $@
 
 compdb: all
 	compdb -p "build/debug" list -1 > compile_commands.json
