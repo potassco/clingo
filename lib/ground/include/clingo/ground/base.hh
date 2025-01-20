@@ -1,12 +1,14 @@
 #pragma once
 
 #include <clingo/ground/instantiator.hh>
+#include <clingo/ground/term.hh>
 
 #include <clingo/core/symbol.hh>
 
 #include <clingo/util/index_sequence.hh>
 #include <clingo/util/ordered_map.hh>
 #include <clingo/util/ordered_set.hh>
+#include <clingo/util/small_vector.hh>
 
 namespace Clingo::Ground {
 
@@ -311,7 +313,71 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
 };
 
 //! A unique pointer holding a base.
-using UBase = std::unique_ptr<AtomBase>;
+using UAtomBase = std::unique_ptr<AtomBase>;
+
+//! The state capturing the base of a projection.
+class ProjectState {
+  public:
+    //! Initialize the state.
+    ProjectState(String name, size_t vars, AtomBase &base, UTerm p_head, UTerm p_body)
+        : name_{name}, base_{&base}, p_head_{std::move(p_head)}, p_body_{std::move(p_body)} {
+        ass_.resize(vars);
+    }
+    //! Get the base of the unprojected literal.
+    [[nodiscard]] auto base() const -> AtomBase & { return *base_; }
+    //! Get the base of the projected literal.
+    [[nodiscard]] auto p_base() -> AtomBase & { return p_base_; }
+    //! Get the auxiliary name of projected literal.
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
+    //! Initialize the projected base.
+    //!
+    //! This populates the projected base.
+    void init(InitContext const &ctx, size_t gen);
+
+  private:
+    SharedString name_;
+    AtomBase *base_;
+    AtomBase p_base_;
+    UTerm p_head_;
+    UTerm p_body_;
+    Assignment ass_;
+    size_t imported_ = 0;
+};
+//! Unique pointer for `ProjectState`.
+using UProjectState = std::unique_ptr<ProjectState>;
+
+//! A map from a terms with projections associated state used during grounding.
+//!
+//! The terms represents a class of similar terms that can reuse the same projection state.
+using ProjectMap = Util::ordered_map<Ground::UTerm, UProjectState>;
+
+//! A map from signatures to atom bases.
+using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, UAtomBase>;
+
+//! A map from terms to their condition ids.
+using TermBaseMap = Util::ordered_map<Symbol, std::pair<size_t, Util::small_vector<size_t>>>;
+
+//! The base for all atoms and terms.
+class Base {
+  public:
+    //! Add an atom base.
+    //!
+    //! Names starting with a `#` are added as auxiliary bases.
+    [[nodiscard]] auto add_base(std::tuple<String, size_t, bool> sig) -> Ground::AtomBase &;
+
+    //! Add a base for a projected atom.
+    [[nodiscard]] auto add_project(SymbolStore &store, Ground::UTerm const &term, Ground::AtomBase &base)
+        -> std::pair<Ground::UTerm, ProjectState *>;
+
+    //! Clear auxiliary atom bases.
+    void clear_aux();
+
+  private:
+    BaseMap atom_base_;
+    // TODO: how to handle???
+    BaseMap aux_base_;
+    ProjectMap project_base_;
+};
 
 //! Class to store state for grounding.
 class State {

@@ -23,13 +23,13 @@ namespace Clingo::Control {
 //! A map from a terms with projections associated state used during grounding.
 //!
 //! The terms represents a class of similar terms that can reuse the same projection state.
-using ProjectMap = Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>>;
+using ProjectMap = Clingo::Ground::ProjectMap;
 
 //! A map from signatures to atom bases.
-using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::AtomBase>>;
+using BaseMap = Clingo::Ground::BaseMap;
 
 //! A map from terms to their condition ids.
-using TermBaseMap = Util::ordered_map<Symbol, std::pair<size_t, Util::small_vector<size_t>>>;
+using TermBaseMap = Clingo::Ground::TermBaseMap;
 
 //! A helper that manages atom bases and auxiliary bases.
 class BaseHelper {
@@ -52,7 +52,7 @@ class BaseHelper {
 
     //! Add a base for the given projection.
     [[nodiscard]] auto add_project(SymbolStore &store, Ground::UTerm const &term, Ground::AtomBase &base)
-        -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
+        -> std::pair<Ground::UTerm, Ground::ProjectState *> {
         size_t vars = 0;
         auto [it, ins] =
             project_base_->try_emplace(term->rename(store, Ground::RenameMode::rename_vars, nullptr, &vars));
@@ -62,8 +62,7 @@ class BaseHelper {
             auto p_name = store.string_ref("#p_" + std::to_string(project_base_->size()));
             auto p_head = p_key.rename(store, Ground::RenameMode::drop_projection, &p_name, nullptr);
             auto p_body = p_key.rename(store, Ground::RenameMode::rename_projection, nullptr, &vars);
-            state =
-                std::make_unique<Ground::LitProject::State>(p_name, vars, base, std::move(p_head), std::move(p_body));
+            state = std::make_unique<Ground::ProjectState>(p_name, vars, base, std::move(p_head), std::move(p_body));
         }
         return {term->rename(store, Ground::RenameMode::drop_projection, &state->name(), nullptr), state.get()};
     }
@@ -131,7 +130,7 @@ class BuildContext {
 
     //! Add a base for a projection.
     auto add_project(Ground::UTerm const &term, Ground::AtomBase &base)
-        -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
+        -> std::pair<Ground::UTerm, Ground::ProjectState *> {
         return base_.add_project(*store_, term, base);
     }
 

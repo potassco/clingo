@@ -237,36 +237,8 @@ using AtomSimple = std::optional<std::tuple<Ground::UTerm, AtomBase &, std::vect
 //! This literal takes care of projection during matching.
 class LitProject : public Lit {
   public:
-    //! The state capturing the base of a projection.
-    class State {
-      public:
-        //! Initialize the state.
-        State(String name, size_t vars, AtomBase &base, UTerm p_head, UTerm p_body)
-            : name_{name}, base_{&base}, p_head_{std::move(p_head)}, p_body_{std::move(p_body)} {
-            ass_.resize(vars);
-        }
-        //! Get the base of the unprojected literal.
-        [[nodiscard]] auto base() const -> AtomBase & { return *base_; }
-        //! Get the base of the projected literal.
-        [[nodiscard]] auto p_base() -> AtomBase & { return p_base_; }
-        //! Get the auxiliary name of projected literal.
-        [[nodiscard]] auto name() const -> String const & { return *name_; }
-        //! Initialize the projected base.
-        //!
-        //! This populates the projected base.
-        void init(InitContext const &ctx, size_t gen);
-
-      private:
-        SharedString name_;
-        AtomBase *base_;
-        AtomBase p_base_;
-        UTerm p_head_;
-        UTerm p_body_;
-        Assignment ass_;
-        size_t imported_ = 0;
-    };
     //! Construct the literal.
-    LitProject(State &state, Sign sign, UTerm atom, UTerm p_atom, size_t index, bool domain)
+    LitProject(ProjectState &state, Sign sign, UTerm atom, UTerm p_atom, size_t index, bool domain)
         : state_{&state}, atom_{std::move(atom)}, p_atom_{std::move(p_atom)}, index_{index}, sign_{sign},
           domain_{domain} {}
 
@@ -287,7 +259,7 @@ class LitProject : public Lit {
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
 
-    State *state_;
+    ProjectState *state_;
     UTerm atom_;
     UTerm p_atom_;
     size_t index_;

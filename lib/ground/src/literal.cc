@@ -404,23 +404,6 @@ auto LitSymbolic::do_compare_to(Lit const &other) const -> std::weak_ordering {
 // - quite a bit of c&p
 // - composition...
 
-void LitProject::State::init(InitContext const &ctx, size_t gen) {
-    base_->update(gen);
-    for (size_t n = base_->end(MatcherType::all_atoms); imported_ != n; ++imported_) {
-        auto atom = base_->nth(imported_);
-        for (auto &sym : ass_) {
-            sym = std::nullopt;
-        }
-        auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ass_};
-        if (p_body_->match(eval_ctx, atom->first)) {
-            if (auto sym = p_head_->eval(eval_ctx); sym) {
-                p_base_.add(*sym, atom->second.state, [id = atom->second.id]() { return id; });
-            }
-        }
-    }
-    p_base_.update(gen);
-}
-
 void LitProject::do_print(std::ostream &out) const {
     out << sign_ << *atom_;
     if (index_ != stratified_index) {
@@ -474,7 +457,7 @@ auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
     -> std::pair<UMatcher, std::optional<size_t>> {
     class MatcherProject : public Matcher {
       public:
-        MatcherProject(State &state, UMatcher matcher) : state_{&state}, matcher_{std::move(matcher)} {}
+        MatcherProject(ProjectState &state, UMatcher matcher) : state_{&state}, matcher_{std::move(matcher)} {}
 
       private:
         void do_init(InitContext const &ctx, size_t gen) override {
@@ -485,7 +468,7 @@ auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
         auto do_next(InstantiationContext const &ctx) -> bool override { return matcher_->next(ctx); }
         void do_print(std::ostream &out) const override { matcher_->print(out); }
 
-        State *state_;
+        ProjectState *state_;
         UMatcher matcher_;
     };
     auto m = [this]<class T>(T &&matcher) {

@@ -1,5 +1,6 @@
 add_library(clingo_ground
     "src/assignment_aggregate.cc"
+    "src/base.cc"
     "src/body_aggregate.cc"
     "src/condlit.cc"
     "src/disjunction.cc"
