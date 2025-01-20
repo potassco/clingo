@@ -73,14 +73,13 @@ template <class F, bool stratify = false> class BuilderLit {
         auto term = build_term(ctx_->var_map(), lit.term(), has_projection);
         auto idx = stratify && lit.sign() == Sign::none ? Ground::stratified_index : ctx_->index(lit);
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        auto dom_it = ctx_->add_base(Input::signature(lit.term()).value());
+        auto &base = ctx_->add_base(Input::signature(lit.term()).value());
         if (has_projection) {
-            auto [p_term, state] = ctx_->add_project(term, *dom_it.value());
+            auto [p_term, state] = ctx_->add_project(term, base);
             cb_(std::make_unique<Ground::LitProject>(*state, lit.sign(), std::move(term), std::move(p_term), idx,
                                                      ctx_->gcomp().domain()));
         } else {
-            cb_(std::make_unique<Ground::LitSymbolic>(*dom_it.value(), lit.sign(), std::move(term), idx,
-                                                      ctx_->gcomp().domain()));
+            cb_(std::make_unique<Ground::LitSymbolic>(base, lit.sign(), std::move(term), idx, ctx_->gcomp().domain()));
         }
     }
 

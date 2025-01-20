@@ -86,7 +86,7 @@ class BuilderStm {
         // NOLINTBEGIN(bugprone-unchecked-optional-access)
         build_body_(stm.body());
         auto atom = build_term_(stm.atom());
-        auto &base = *ctx_->add_base(*signature(stm.atom())).value();
+        auto &base = ctx_->add_base(*signature(stm.atom()));
         auto prio = build_term_(stm.prio());
         auto weight = build_term_(stm.weight());
         auto type = build_term_(stm.type());
@@ -128,7 +128,7 @@ class BuilderStm {
         build_body_(stm.body());
         auto atom = build_term_(stm.atom());
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        auto &base = *ctx_->add_base(*signature(stm.atom())).value();
+        auto &base = ctx_->add_base(*signature(stm.atom()));
         ctx_->gcomp().add(std::make_unique<Ground::StmProject>(std::move(atom), base, std::move(ctx_->body())));
     }
 

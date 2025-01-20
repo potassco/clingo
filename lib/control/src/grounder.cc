@@ -50,9 +50,10 @@ class Builder : public Input::DependencyBuilder {
     void do_param(Input::ProgramParam const &param) override {
         buf_.str({});
         buf_ << "#program_" << *param.first;
-        auto dom_it = base_.add_base(std::make_tuple(store_->string_ref(buf_.view()), param.second.size(), false));
-        dom_it.value()->add(store_->fun_ref(std::get<0>(dom_it.key()), as_symbol_span(param.second), false),
-                            Ground::StateAtom::fact, []() { return size_t{1}; });
+        auto name = store_->string_ref(buf_.view());
+        auto &base = base_.add_base(std::make_tuple(name, param.second.size(), false));
+        base.add(store_->fun_ref(name, as_symbol_span(param.second), false), Ground::StateAtom::fact,
+                 []() { return size_t{1}; });
     }
 
     //! Handle meta statements.
@@ -61,8 +62,8 @@ class Builder : public Input::DependencyBuilder {
     //! Handle facts.
     void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
-            auto dom_it = base_.add_base(std::make_tuple(fact.name(), fact.args().size(), fact.has_sign()));
-            auto it = dom_it->second->add(fact, Ground::StateAtom::fact, [this]() { return out_->uid(); }).first;
+            auto &base = base_.add_base(std::make_tuple(fact.name(), fact.args().size(), fact.has_sign()));
+            auto it = base.add(fact, Ground::StateAtom::fact, [this]() { return out_->uid(); }).first;
             out_->fact(fact, it->second.id);
         }
     }
@@ -79,9 +80,8 @@ class Builder : public Input::DependencyBuilder {
                 // negative cycle) and all bases it depends on are domain.
                 // A domain component only derives facts.
                 bool domain = test(ref_comp.type, Input::ComponentType::positive) &&
-                              std::ranges::all_of(ref_comp.depend, [this](auto const &sig) {
-                                  return base_.add_base(sig)->second->domain();
-                              });
+                              std::ranges::all_of(ref_comp.depend,
+                                                  [this](auto const &sig) { return base_.add_base(sig).domain(); });
                 auto gcomp = Ground::Component{domain};
                 auto states = Ground::UStateVec{};
                 for (auto const &stm : ref_comp.stms) {

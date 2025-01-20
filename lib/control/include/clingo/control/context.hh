@@ -41,13 +41,13 @@ class BaseHelper {
     //! Add a base.
     //!
     //! Names starting with a `#` are added as auxiliary bases.
-    [[nodiscard]] auto add_base(std::tuple<String, size_t, bool> sig) -> BaseMap::iterator {
+    [[nodiscard]] auto add_base(std::tuple<String, size_t, bool> sig) -> Ground::AtomBase & {
         auto aux = std::get<0>(sig).starts_with("#");
         auto dom_it = (aux ? aux_base_ : atom_base_)->try_emplace(std::move(sig), nullptr).first;
         if (dom_it->second == nullptr) {
             dom_it.value() = std::make_unique<Ground::AtomBase>();
         }
-        return dom_it;
+        return *dom_it.value();
     }
 
     //! Add a base for the given projection.
@@ -139,7 +139,7 @@ class BuildContext {
     [[nodiscard]] auto type() const -> Input::ComponentType { return comp_->type; };
 
     //! Add an atom base for the given signature.
-    auto add_base(std::tuple<String, size_t, bool> sig) -> BaseMap::iterator { return base_.add_base(sig); }
+    auto add_base(std::tuple<String, size_t, bool> sig) -> Ground::AtomBase & { return base_.add_base(sig); }
 
     //! Get the monotonic allocator for the component.
     [[nodiscard]] auto mbr() const -> std::pmr::monotonic_buffer_resource & { return *mbr_; }
@@ -187,8 +187,7 @@ class BuildContext {
         auto provides = std::vector<size_t>{};
         auto sig = signature(term);
         assert(sig);
-        auto dom_it = add_base(*sig);
-        auto &base = *dom_it->second;
+        auto &base = add_base(*sig);
         if (auto it = def_map_->find(&term); it != def_map_->end()) {
             provides = it->second;
         }
