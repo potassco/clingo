@@ -217,7 +217,7 @@ class OutputText : public OutputStm, OutputTheory {
         }
     }
 
-    void do_show_term(Symbol term) override {
+    auto do_show_term(Symbol term) -> size_t override {
         if (!body_.delayed()) {
             *out_ << "#show " << term;
             if (!body_.empty()) {
@@ -231,6 +231,8 @@ class OutputText : public OutputStm, OutputTheory {
             body_.buf() << "#show " << term << ": ";
             body_.prepend();
         }
+        // NOTE: there is no need to track conditions with the text output
+        return 0;
     }
 
     void do_external(Symbol atom, [[maybe_unused]] size_t uid, ExternalType type) override {

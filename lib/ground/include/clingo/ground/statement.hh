@@ -271,7 +271,10 @@ class StmEdge : public Stm {
 class StmShow : public Stm {
   public:
     //! Construct the statement.
-    StmShow(UTerm term, ULitVec body) : term_{std::move(term)}, body_{std::move(body)} { init_(); }
+    StmShow(TermBaseMap &base, UTerm term, ULitVec body)
+        : base_{&base}, term_{std::move(term)}, body_{std::move(body)} {
+        init_();
+    }
 
   private:
     void init_();
@@ -287,6 +290,7 @@ class StmShow : public Stm {
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
+    TermBaseMap *base_;
     UTerm term_;
     ULitVec body_;
     Symbol res_term_;

@@ -826,10 +826,21 @@ void StmShow::do_init([[maybe_unused]] size_t gen) {}
 
 auto StmShow::do_report(InstantiationContext const &ctx) -> bool {
     auto &out = ctx.out().body();
+    bool cond_fact = true;
     for (auto const &lit : body_) {
-        std::ignore = lit->output(ctx, out);
+        cond_fact = lit->output(ctx, out) && cond_fact;
     }
-    ctx.out().show_term(res_term_);
+    auto &[fact, seen, conds] = base_->try_emplace(res_term_, false, 0, Util::small_vector<size_t>{}).first.value();
+    if (!fact) {
+        size_t cond = 0;
+        // TODO: derive the cond from the below
+        ctx.out().show_term(res_term_);
+        if (cond_fact) {
+            fact = true;
+        } else {
+            conds.emplace_back(cond);
+        }
+    }
     return true;
 }
 

@@ -155,7 +155,7 @@ class OutputStm {
     //! Output the given show statement.
     //!
     //! The body of the rule has to be output first.
-    void show_term(Symbol term) { do_show_term(term); }
+    auto show_term(Symbol term) -> size_t { return do_show_term(term); }
 
     //! Return an output for a condition.
     auto cond() -> OutputLit & { return do_cond(); }
@@ -205,7 +205,7 @@ class OutputStm {
     virtual void do_heuristic(Symbol atom, size_t uid, Number const &weight, Number const *prio,
                               HeuristicType type) = 0;
     virtual void do_edge(Symbol src, Symbol dst) = 0;
-    virtual void do_show_term(Symbol term) = 0;
+    virtual auto do_show_term(Symbol term) -> size_t = 0;
 
     virtual auto do_cond() -> OutputLit & = 0;
     virtual auto do_cond_id() -> size_t = 0;

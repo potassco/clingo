@@ -92,6 +92,9 @@ class BuildContext {
         return base_->add_project(*store_, term, base);
     }
 
+    //! Get the term base map.
+    [[nodiscard]] auto term_base() -> Ground::TermBaseMap & { return base_->term_base(); }
+
     //! Get the component type.
     [[nodiscard]] auto type() const -> Input::ComponentType { return comp_->type; };
 

@@ -1564,7 +1564,13 @@ class OutputBackend : public OutputStm, OutputTheory {
         }
     }
 
-    void do_show_term(Symbol term) override { bld_.backend().show(term, body_.literals()); }
+    auto do_show_term(Symbol term) -> size_t override {
+        auto cond = bld_.cond(body_.literals());
+        bld_.mark(cond, EQType::implication);
+        // TODO: remove
+        bld_.backend().show(term, body_.literals());
+        return cond;
+    }
 
     void do_external([[maybe_unused]] Symbol atom, size_t uid, ExternalType type) override {
         bld_.backend().external(uid_to_atom(uid), type);
