@@ -47,6 +47,13 @@ auto Base::add_project(SymbolStore &store, Ground::UTerm const &term, Ground::At
     return {term->rename(store, Ground::RenameMode::drop_projection, &state->name(), nullptr), state.get()};
 }
 
+auto Base::get_base(std::tuple<String, size_t, bool> sig) const -> Ground::AtomBase * {
+    auto aux = std::get<0>(sig).starts_with("#");
+    auto const &dom = aux ? aux_base_ : atom_base_;
+    auto it = dom.find(sig);
+    return it != dom.end() ? it.value().get() : nullptr;
+}
+
 void Base::clear_aux() { aux_base_.clear(); }
 
 } // namespace Clingo::Ground

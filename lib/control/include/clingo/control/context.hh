@@ -31,48 +31,6 @@ using BaseMap = Clingo::Ground::BaseMap;
 //! A map from terms to their condition ids.
 using TermBaseMap = Clingo::Ground::TermBaseMap;
 
-//! A helper that manages atom bases and auxiliary bases.
-class BaseHelper {
-  public:
-    //! Construct the base helper.
-    BaseHelper(BaseMap &atom_base, BaseMap &aux_base, ProjectMap &project_base)
-        : atom_base_{&atom_base}, aux_base_{&aux_base}, project_base_{&project_base} {}
-
-    //! Add a base.
-    //!
-    //! Names starting with a `#` are added as auxiliary bases.
-    [[nodiscard]] auto add_base(std::tuple<String, size_t, bool> sig) -> Ground::AtomBase & {
-        auto aux = std::get<0>(sig).starts_with("#");
-        auto dom_it = (aux ? aux_base_ : atom_base_)->try_emplace(std::move(sig), nullptr).first;
-        if (dom_it->second == nullptr) {
-            dom_it.value() = std::make_unique<Ground::AtomBase>();
-        }
-        return *dom_it.value();
-    }
-
-    //! Add a base for the given projection.
-    [[nodiscard]] auto add_project(SymbolStore &store, Ground::UTerm const &term, Ground::AtomBase &base)
-        -> std::pair<Ground::UTerm, Ground::ProjectState *> {
-        size_t vars = 0;
-        auto [it, ins] =
-            project_base_->try_emplace(term->rename(store, Ground::RenameMode::rename_vars, nullptr, &vars));
-        auto const &p_key = *it->first;
-        auto &state = it.value();
-        if (ins) {
-            auto p_name = store.string_ref("#p_" + std::to_string(project_base_->size()));
-            auto p_head = p_key.rename(store, Ground::RenameMode::drop_projection, &p_name, nullptr);
-            auto p_body = p_key.rename(store, Ground::RenameMode::rename_projection, nullptr, &vars);
-            state = std::make_unique<Ground::ProjectState>(p_name, vars, base, std::move(p_head), std::move(p_body));
-        }
-        return {term->rename(store, Ground::RenameMode::drop_projection, &state->name(), nullptr), state.get()};
-    }
-
-  private:
-    BaseMap *atom_base_;
-    BaseMap *aux_base_;
-    ProjectMap *project_base_;
-};
-
 //! A map from variable names (input) to their indices (ground).
 using VarMap = Util::unordered_map<String, size_t>;
 
@@ -85,10 +43,10 @@ class BuildContext {
   public:
     //! Construct the build context.
     BuildContext(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store,
-                 TheorySigVec const &theory_directives, BaseHelper base, Input::Component const &comp, DefMap &def_map,
-                 Ground::Component &gcomp, VarMap &var_map, Ground::ULitVec &body, Ground::UStateVec &states,
-                 Ground::ScriptCallback *context)
-        : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{&theory_directives}, base_{base}, comp_{&comp},
+                 TheorySigVec const &theory_directives, Ground::Base &base, Input::Component const &comp,
+                 DefMap &def_map, Ground::Component &gcomp, VarMap &var_map, Ground::ULitVec &body,
+                 Ground::UStateVec &states, Ground::ScriptCallback *context)
+        : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{&theory_directives}, base_{&base}, comp_{&comp},
           def_map_{&def_map}, gcomp_{&gcomp}, var_map_{&var_map}, body_{&body}, states_{&states}, context_{context} {}
 
     //! Get the index of the given symbolic literal.
@@ -131,14 +89,14 @@ class BuildContext {
     //! Add a base for a projection.
     auto add_project(Ground::UTerm const &term, Ground::AtomBase &base)
         -> std::pair<Ground::UTerm, Ground::ProjectState *> {
-        return base_.add_project(*store_, term, base);
+        return base_->add_project(*store_, term, base);
     }
 
     //! Get the component type.
     [[nodiscard]] auto type() const -> Input::ComponentType { return comp_->type; };
 
     //! Add an atom base for the given signature.
-    auto add_base(std::tuple<String, size_t, bool> sig) -> Ground::AtomBase & { return base_.add_base(sig); }
+    auto add_base(std::tuple<String, size_t, bool> sig) -> Ground::AtomBase & { return base_->add_base(sig); }
 
     //! Get the monotonic allocator for the component.
     [[nodiscard]] auto mbr() const -> std::pmr::monotonic_buffer_resource & { return *mbr_; }
@@ -220,7 +178,7 @@ class BuildContext {
     Logger *log_;
     SymbolStore *store_;
     TheorySigVec const *theory_directives_;
-    BaseHelper base_;
+    Ground::Base *base_;
     Input::Component const *comp_;
     DefMap *def_map_;
     Ground::Component *gcomp_;

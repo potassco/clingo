@@ -365,9 +365,17 @@ class Base {
     //! Names starting with a `#` are added as auxiliary bases.
     [[nodiscard]] auto add_base(std::tuple<String, size_t, bool> sig) -> Ground::AtomBase &;
 
+    //! Get a base for the given signature.
+    //!
+    //! Returns a nullptr if there is no corresponding atom base.
+    [[nodiscard]] auto get_base(std::tuple<String, size_t, bool> sig) const -> Ground::AtomBase *;
+
     //! Add a base for a projected atom.
     [[nodiscard]] auto add_project(SymbolStore &store, Ground::UTerm const &term, Ground::AtomBase &base)
         -> std::pair<Ground::UTerm, ProjectState *>;
+
+    [[nodiscard]] auto atoms() const -> BaseMap const & { return atom_base_; }
+    [[nodiscard]] auto projected_atoms() const -> ProjectMap const & { return project_base_; }
 
     //! Clear auxiliary atom bases.
     void clear_aux();

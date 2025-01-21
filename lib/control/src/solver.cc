@@ -624,11 +624,12 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
             return res;
         };
         // adapt the handler for clasp
-        auto eh = handler == nullptr ? std::unique_ptr<Clasp::EventHandler>{std::make_unique<EventHandlerTest>()}
-                                     : std::make_unique<EventHandlerAdapter>(grd_.base(), clasp_, std::move(handler));
+        auto eh = handler == nullptr
+                      ? std::unique_ptr<Clasp::EventHandler>{std::make_unique<EventHandlerTest>()}
+                      : std::make_unique<EventHandlerAdapter>(grd_.base().atoms(), clasp_, std::move(handler));
         auto hnd = clasp_.solve(cm(mode), ca(assumptions), eh.get());
         // adapt the handle which also manages the lifetime of the handler
-        return std::make_unique<SolveHandleImpl>(std::move(eh), grd_.base(), clasp_, hnd);
+        return std::make_unique<SolveHandleImpl>(std::move(eh), grd_.base().atoms(), clasp_, hnd);
     }
     return std::make_unique<SolveHandleFixed>();
 }

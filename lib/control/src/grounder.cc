@@ -41,9 +41,9 @@ class Builder : public Input::DependencyBuilder {
   public:
     //! Construct the builder.
     Builder(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, TheorySigVec theory_directives,
-            BaseMap &base_atom, ProjectMap &base_project, Ground::ScriptCallback *context, OutputStm &out)
-        : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{std::move(theory_directives)},
-          base_{base_atom, base_aux_, base_project}, context_{context}, out_{&out} {}
+            Ground::Base &base, Ground::ScriptCallback *context, OutputStm &out)
+        : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{std::move(theory_directives)}, bases_{&base},
+          context_{context}, out_{&out} {}
 
   private:
     //! Handle program parameters.
@@ -51,7 +51,7 @@ class Builder : public Input::DependencyBuilder {
         buf_.str({});
         buf_ << "#program_" << *param.first;
         auto name = store_->string_ref(buf_.view());
-        auto &base = base_.add_base(std::make_tuple(name, param.second.size(), false));
+        auto &base = bases_->add_base(std::make_tuple(name, param.second.size(), false));
         base.add(store_->fun_ref(name, as_symbol_span(param.second), false), Ground::StateAtom::fact,
                  []() { return size_t{1}; });
     }
@@ -62,7 +62,7 @@ class Builder : public Input::DependencyBuilder {
     //! Handle facts.
     void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
-            auto &base = base_.add_base(std::make_tuple(fact.name(), fact.args().size(), fact.has_sign()));
+            auto &base = bases_->add_base(std::make_tuple(fact.name(), fact.args().size(), fact.has_sign()));
             auto it = base.add(fact, Ground::StateAtom::fact, [this]() { return out_->uid(); }).first;
             out_->fact(fact, it->second.id);
         }
@@ -81,7 +81,7 @@ class Builder : public Input::DependencyBuilder {
                 // A domain component only derives facts.
                 bool domain = test(ref_comp.type, Input::ComponentType::positive) &&
                               std::ranges::all_of(ref_comp.depend,
-                                                  [this](auto const &sig) { return base_.add_base(sig).domain(); });
+                                                  [this](auto const &sig) { return bases_->add_base(sig).domain(); });
                 auto gcomp = Ground::Component{domain};
                 auto states = Ground::UStateVec{};
                 for (auto const &stm : ref_comp.stms) {
@@ -102,7 +102,7 @@ class Builder : public Input::DependencyBuilder {
                         ++i;
                     }
                     auto ctx = BuildContext{*mbr_,   *log_,    *store_, theory_directives_,
-                                            base_,   ref_comp, def_map, gcomp,
+                                            *bases_, ref_comp, def_map, gcomp,
                                             var_map, body,     states,  context_};
                     build_stm(ctx, *stm);
                 }
@@ -128,8 +128,7 @@ class Builder : public Input::DependencyBuilder {
     Logger *log_;
     SymbolStore *store_;
     TheorySigVec theory_directives_;
-    BaseMap base_aux_;
-    BaseHelper base_;
+    Ground::Base *bases_;
     Ground::ScriptCallback *context_;
     OutputStm *out_;
     std::ostringstream buf_;
@@ -152,13 +151,13 @@ struct Grounder::Impl : Clingo::SymbolOwner {
     //! Mark symbols held by the grounder protecting them from garbage collection.
     void mark(SymbolCollector &gc) const override {
         GRINGO_REPORT(*log, trace) << "mark owners";
-        for (auto const &[key, base] : atom_base) {
+        for (auto const &[key, base] : bases.atoms()) {
             GRINGO_REPORT(*log, trace) << "  mark domain: " << (std::get<2>(key) ? "-" : "") << std::get<0>(key) << "/"
                                        << std::get<1>(key);
             gc.mark(std::get<0>(key));
             base->mark(gc);
         }
-        for (auto const &[key, state] : project_base) {
+        for (auto const &[key, state] : bases.projected_atoms()) {
             GRINGO_REPORT(*log, trace) << "  mark projection domain: " << *key;
             state->p_base().mark(gc);
         }
@@ -184,11 +183,9 @@ struct Grounder::Impl : Clingo::SymbolOwner {
             std::visit(
                 [&, this]<class T>(T const &stm) {
                     if constexpr (Util::matches<T, Input::StmProjectSig>) {
-                        if (auto it = atom_base.find(Input::Sig{stm.name(), stm.arity(), stm.sign()});
-                            it != atom_base.end()) {
-                            auto &base = *it->second;
-                            for (auto i = base.mark_projected(), n = base.size(); i != n; ++i) {
-                                auto atom = base.nth(i);
+                        if (auto *base = bases.get_base({stm.name(), stm.arity(), stm.sign()}); base != nullptr) {
+                            for (auto i = base->mark_projected(), n = base->size(); i != n; ++i) {
+                                auto atom = base->nth(i);
                                 out->project(atom.key(), atom.value().id);
                             }
                         }
@@ -196,16 +193,16 @@ struct Grounder::Impl : Clingo::SymbolOwner {
                         show_all = false;
                     } else if constexpr (Util::matches<T, Input::StmShowSig>) {
                         show_all = false;
-                        if (auto it = atom_base.find(Input::Sig{stm.name(), stm.arity(), stm.sign()});
-                            it != atom_base.end()) {
-                            show_base(*it->second);
+                        if (auto *base = bases.get_base(Input::Sig{stm.name(), stm.arity(), stm.sign()});
+                            base != nullptr) {
+                            show_base(*base);
                         }
                     }
                 },
                 stm);
         }
         if (show_all) {
-            for (auto const &[sig, base] : atom_base) {
+            for (auto const &[sig, base] : bases.atoms()) {
                 show_base(*base);
             }
         }
@@ -215,10 +212,10 @@ struct Grounder::Impl : Clingo::SymbolOwner {
     //!
     //! Clears indices associated with domains.
     void clear() {
-        for (auto const &[key, base] : atom_base) {
+        for (auto const &[key, base] : bases.atoms()) {
             base->clear_context();
         }
-        for (auto const &[key, state] : project_base) {
+        for (auto const &[key, state] : bases.projected_atoms()) {
             state->p_base().clear_context();
         }
         mbr.release();
@@ -237,10 +234,8 @@ struct Grounder::Impl : Clingo::SymbolOwner {
     Input::UnprocessedProgram unprocessed_prg;
     //! The program stored in the grounder.
     Input::Program prg;
-    //! Dictionary to map terms with projections to their replacement predicates.
-    ProjectMap project_base;
-    //! The atom base.
-    BaseMap atom_base;
+    //! The atom and term bases.
+    Ground::Base bases;
     //! The output.
     OutputStm *out;
     //! Indicate that the logic program might still be satisfiable.
@@ -315,9 +310,9 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
 #endif
     if (impl_->is_sat) {
         impl_->prg.check(*impl_->log);
-
-        auto bld = Builder{impl_->mbr,       *impl_->log,         *impl_->store, impl_->prg.theory_directives(),
-                           impl_->atom_base, impl_->project_base, context,       *impl_->out};
+        impl_->bases.clear_aux();
+        auto bld = Builder{impl_->mbr,   *impl_->log, *impl_->store, impl_->prg.theory_directives(),
+                           impl_->bases, context,     *impl_->out};
         impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
         impl_->meta();
         impl_->clear();
@@ -349,7 +344,7 @@ void Grounder::output_program(std::ostream &out) {
     out.flush();
 }
 
-auto Grounder::base() const -> BaseMap const & { return impl_->atom_base; }
+auto Grounder::base() const -> Ground::Base const & { return impl_->bases; }
 
 auto Grounder::store() const -> SymbolStore & { return *impl_->store; }
 
