@@ -358,7 +358,7 @@ using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, UAtomBase>;
 using TermBaseMap = Util::ordered_map<Symbol, std::tuple<bool, size_t, Util::small_vector<size_t>>>;
 
 //! The base for all atoms and terms.
-class Base {
+class Bases {
   public:
     //! Add an atom base.
     //!
@@ -374,18 +374,18 @@ class Base {
     [[nodiscard]] auto add_project(SymbolStore &store, Ground::UTerm const &term, Ground::AtomBase &base)
         -> std::pair<Ground::UTerm, ProjectState *>;
 
-    [[nodiscard]] auto atoms() const -> BaseMap const & { return atom_base_; }
-    [[nodiscard]] auto projected_atoms() const -> ProjectMap const & { return project_base_; }
-    [[nodiscard]] auto term_base() -> TermBaseMap & { return term_base_; }
+    [[nodiscard]] auto atoms() const -> BaseMap const & { return atoms_; }
+    [[nodiscard]] auto projected() const -> ProjectMap const & { return projected_; }
+    [[nodiscard]] auto terms() -> TermBaseMap & { return terms_; }
 
     //! Clear auxiliary atom bases.
     void clear_aux();
 
   private:
-    BaseMap atom_base_;
-    BaseMap aux_base_;
-    ProjectMap project_base_;
-    TermBaseMap term_base_;
+    BaseMap atoms_;
+    BaseMap aux_;
+    ProjectMap projected_;
+    TermBaseMap terms_;
 };
 
 //! Class to store state for grounding.

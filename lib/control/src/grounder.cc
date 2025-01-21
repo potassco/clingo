@@ -41,7 +41,7 @@ class Builder : public Input::DependencyBuilder {
   public:
     //! Construct the builder.
     Builder(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, TheorySigVec theory_directives,
-            Ground::Base &base, Ground::ScriptCallback *context, OutputStm &out)
+            Ground::Bases &base, Ground::ScriptCallback *context, OutputStm &out)
         : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{std::move(theory_directives)}, bases_{&base},
           context_{context}, out_{&out} {}
 
@@ -128,7 +128,7 @@ class Builder : public Input::DependencyBuilder {
     Logger *log_;
     SymbolStore *store_;
     TheorySigVec theory_directives_;
-    Ground::Base *bases_;
+    Ground::Bases *bases_;
     Ground::ScriptCallback *context_;
     OutputStm *out_;
     std::ostringstream buf_;
@@ -157,7 +157,7 @@ struct Grounder::Impl : Clingo::SymbolOwner {
             gc.mark(std::get<0>(key));
             base->mark(gc);
         }
-        for (auto const &[key, state] : bases.projected_atoms()) {
+        for (auto const &[key, state] : bases.projected()) {
             GRINGO_REPORT(*log, trace) << "  mark projection domain: " << *key;
             state->p_base().mark(gc);
         }
@@ -176,6 +176,7 @@ struct Grounder::Impl : Clingo::SymbolOwner {
                 auto it = base.nth(i);
                 auto const &atom = it.key();
                 out->body().lit(Sign::none, atom, it.value().id);
+                // TODO: this should rather be a show atom
                 out->show_term(atom);
             }
         };
@@ -206,6 +207,9 @@ struct Grounder::Impl : Clingo::SymbolOwner {
                 show_base(*base);
             }
         }
+        // TODO:
+        // - terms should be shown there
+        // - this requires addid an new function
     }
 
     //! Cleanup step-local state accumulated during grounding.
@@ -215,7 +219,7 @@ struct Grounder::Impl : Clingo::SymbolOwner {
         for (auto const &[key, base] : bases.atoms()) {
             base->clear_context();
         }
-        for (auto const &[key, state] : bases.projected_atoms()) {
+        for (auto const &[key, state] : bases.projected()) {
             state->p_base().clear_context();
         }
         mbr.release();
@@ -235,7 +239,7 @@ struct Grounder::Impl : Clingo::SymbolOwner {
     //! The program stored in the grounder.
     Input::Program prg;
     //! The atom and term bases.
-    Ground::Base bases;
+    Ground::Bases bases;
     //! The output.
     OutputStm *out;
     //! Indicate that the logic program might still be satisfiable.
@@ -344,7 +348,7 @@ void Grounder::output_program(std::ostream &out) {
     out.flush();
 }
 
-auto Grounder::base() const -> Ground::Base const & { return impl_->bases; }
+auto Grounder::base() const -> Ground::Bases const & { return impl_->bases; }
 
 auto Grounder::store() const -> SymbolStore & { return *impl_->store; }
 

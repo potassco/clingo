@@ -43,7 +43,7 @@ class BuildContext {
   public:
     //! Construct the build context.
     BuildContext(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store,
-                 TheorySigVec const &theory_directives, Ground::Base &base, Input::Component const &comp,
+                 TheorySigVec const &theory_directives, Ground::Bases &base, Input::Component const &comp,
                  DefMap &def_map, Ground::Component &gcomp, VarMap &var_map, Ground::ULitVec &body,
                  Ground::UStateVec &states, Ground::ScriptCallback *context)
         : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{&theory_directives}, base_{&base}, comp_{&comp},
@@ -93,7 +93,7 @@ class BuildContext {
     }
 
     //! Get the term base map.
-    [[nodiscard]] auto term_base() -> Ground::TermBaseMap & { return base_->term_base(); }
+    [[nodiscard]] auto terms() -> Ground::TermBaseMap & { return base_->terms(); }
 
     //! Get the component type.
     [[nodiscard]] auto type() const -> Input::ComponentType { return comp_->type; };
@@ -181,7 +181,7 @@ class BuildContext {
     Logger *log_;
     SymbolStore *store_;
     TheorySigVec const *theory_directives_;
-    Ground::Base *base_;
+    Ground::Bases *base_;
     Input::Component const *comp_;
     DefMap *def_map_;
     Ground::Component *gcomp_;

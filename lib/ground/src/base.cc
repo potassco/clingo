@@ -22,9 +22,9 @@ void ProjectState::init(InitContext const &ctx, size_t gen) {
 //! Add an atom base.
 //!
 //! Names starting with a `#` are added as auxiliary bases.
-auto Base::add_base(std::tuple<String, size_t, bool> sig) -> Ground::AtomBase & {
+auto Bases::add_base(std::tuple<String, size_t, bool> sig) -> Ground::AtomBase & {
     auto aux = std::get<0>(sig).starts_with("#");
-    auto dom_it = (aux ? aux_base_ : atom_base_).try_emplace(std::move(sig), nullptr).first;
+    auto dom_it = (aux ? aux_ : atoms_).try_emplace(std::move(sig), nullptr).first;
     if (dom_it->second == nullptr) {
         dom_it.value() = std::make_unique<Ground::AtomBase>();
     }
@@ -32,14 +32,14 @@ auto Base::add_base(std::tuple<String, size_t, bool> sig) -> Ground::AtomBase & 
 }
 
 //! Add a base for a projected atom.
-auto Base::add_project(SymbolStore &store, Ground::UTerm const &term, Ground::AtomBase &base)
+auto Bases::add_project(SymbolStore &store, Ground::UTerm const &term, Ground::AtomBase &base)
     -> std::pair<Ground::UTerm, ProjectState *> {
     size_t vars = 0;
-    auto [it, ins] = project_base_.try_emplace(term->rename(store, Ground::RenameMode::rename_vars, nullptr, &vars));
+    auto [it, ins] = projected_.try_emplace(term->rename(store, Ground::RenameMode::rename_vars, nullptr, &vars));
     auto const &p_key = *it->first;
     auto &state = it.value();
     if (ins) {
-        auto p_name = store.string_ref("#p_" + std::to_string(project_base_.size()));
+        auto p_name = store.string_ref("#p_" + std::to_string(projected_.size()));
         auto p_head = p_key.rename(store, Ground::RenameMode::drop_projection, &p_name, nullptr);
         auto p_body = p_key.rename(store, Ground::RenameMode::rename_projection, nullptr, &vars);
         state = std::make_unique<ProjectState>(p_name, vars, base, std::move(p_head), std::move(p_body));
@@ -47,13 +47,13 @@ auto Base::add_project(SymbolStore &store, Ground::UTerm const &term, Ground::At
     return {term->rename(store, Ground::RenameMode::drop_projection, &state->name(), nullptr), state.get()};
 }
 
-auto Base::get_base(std::tuple<String, size_t, bool> sig) const -> Ground::AtomBase * {
+auto Bases::get_base(std::tuple<String, size_t, bool> sig) const -> Ground::AtomBase * {
     auto aux = std::get<0>(sig).starts_with("#");
-    auto const &dom = aux ? aux_base_ : atom_base_;
+    auto const &dom = aux ? aux_ : atoms_;
     auto it = dom.find(sig);
     return it != dom.end() ? it.value().get() : nullptr;
 }
 
-void Base::clear_aux() { aux_base_.clear(); }
+void Bases::clear_aux() { aux_.clear(); }
 
 } // namespace Clingo::Ground
