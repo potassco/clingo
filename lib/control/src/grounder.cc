@@ -175,8 +175,9 @@ struct Grounder::Impl : Clingo::SymbolOwner {
             for (auto i = base.mark_shown(), n = base.size(); i != n; ++i) {
                 auto it = base.nth(i);
                 auto const &atom = it.key();
-                out->body().lit(Sign::none, atom, it.value().id);
                 // TODO: this should rather be a show atom
+                // out->show_atom(atom, it.value().id);
+                out->body().lit(Sign::none, atom, it.value().id);
                 out->show_term(atom);
             }
         };
@@ -210,6 +211,7 @@ struct Grounder::Impl : Clingo::SymbolOwner {
         // TODO:
         // - terms should be shown there
         // - this requires addid an new function
+        // out->show_terms(bases.terms())
     }
 
     //! Cleanup step-local state accumulated during grounding.
