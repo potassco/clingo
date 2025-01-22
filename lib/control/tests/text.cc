@@ -590,7 +590,7 @@ TEST_CASE("grounder_text") {
             REQUIRE(grd.ground(params));
             REQUIRE(buf.view() == "a.\n"
                                   "b.\n"
-                                  "#show a: a.\n"
+                                  "#show a/0.\n"
                                   "#show.\n");
         }
         SECTION("show_nothing") {

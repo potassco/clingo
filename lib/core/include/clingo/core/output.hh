@@ -3,6 +3,8 @@
 #include <clingo/core/core.hh>
 #include <clingo/core/symbol.hh>
 
+#include <clingo/util/small_vector.hh>
+
 namespace Clingo {
 
 //! @addtogroup core_output
@@ -152,10 +154,29 @@ class OutputStm {
     //!
     //! The body of the rule has to be output first.
     void edge(Symbol src, Symbol dst) { do_edge(src, dst); }
-    //! Output the given show statement.
+
+    //! Output the given atom.
+    void show_atom(Symbol atom, size_t uid) { do_show_atom(atom, uid); }
+    //! Output the given term.
     //!
-    //! The body of the rule has to be output first.
+    //! The body of the corresponding statement has to be output first.
+    //!
+    //! The function should return an id for the body. It is up to the output
+    //! how to output the statement. Currently, the text output outputs the
+    //! statement right away and returns zero. The backend output returns an id
+    //! for the condition and expects to be called again with the accumulated
+    //! conditions.
     auto show_term(Symbol term) -> size_t { return do_show_term(term); }
+    //! Output the given term.
+    //!
+    //! This function can show terms incremetally. If the function is called
+    //! with `conds.size() - done == 0`, then the term is unconditionally
+    //! shown.
+    //!
+    //! @param term The symbol to output.
+    //! @param done The number of previously processed conditions.
+    //! @param conds The vector of conditions.
+    void show_term(Symbol term, size_t done, IndexSpan conds) { do_show_term(term, done, conds); }
 
     //! Return an output for a condition.
     auto cond() -> OutputLit & { return do_cond(); }
@@ -205,7 +226,10 @@ class OutputStm {
     virtual void do_heuristic(Symbol atom, size_t uid, Number const &weight, Number const *prio,
                               HeuristicType type) = 0;
     virtual void do_edge(Symbol src, Symbol dst) = 0;
+
+    virtual void do_show_atom(Symbol atom, size_t uid) = 0;
     virtual auto do_show_term(Symbol term) -> size_t = 0;
+    virtual void do_show_term(Symbol term, size_t done, IndexSpan conds) = 0;
 
     virtual auto do_cond() -> OutputLit & = 0;
     virtual auto do_cond_id() -> size_t = 0;

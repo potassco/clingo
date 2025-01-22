@@ -217,6 +217,14 @@ class OutputText : public OutputStm, OutputTheory {
         }
     }
 
+    void do_show_atom(Symbol atom, [[maybe_unused]] size_t uid) override {
+        auto sign = atom.has_classical_sign();
+        auto name = atom.name();
+        auto arity = atom.args().size();
+        if (seen_.emplace(sign, name, arity).second) {
+            *out_ << "#show " << (sign ? "-" : "") << name << "/" << arity << ".\n";
+        }
+    }
     auto do_show_term(Symbol term) -> size_t override {
         if (!body_.delayed()) {
             *out_ << "#show " << term;
@@ -234,6 +242,9 @@ class OutputText : public OutputStm, OutputTheory {
         // NOTE: there is no need to track conditions with the text output
         return 0;
     }
+
+    void do_show_term([[maybe_unused]] Symbol term, [[maybe_unused]] size_t done,
+                      [[maybe_unused]] IndexSpan conds) override {}
 
     void do_external(Symbol atom, [[maybe_unused]] size_t uid, ExternalType type) override {
         *out_ << "#external " << atom << ". [" << type << "]\n";
@@ -526,6 +537,7 @@ class OutputText : public OutputStm, OutputTheory {
         body_.define(atom_uid, tmp_.str());
     }
 
+    Util::unordered_set<std::tuple<bool, SharedString, size_t>> seen_;
     Util::OutputBuffer *out_;
     Util::OutputBuffer tmp_;
     OutputBody body_{uids_};

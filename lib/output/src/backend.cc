@@ -1564,12 +1564,28 @@ class OutputBackend : public OutputStm, OutputTheory {
         }
     }
 
-    auto do_show_term(Symbol term) -> size_t override {
-        auto cond = bld_.cond(body_.literals());
-        bld_.mark(cond, EQType::implication);
-        // TODO: remove
-        bld_.backend().show(term, body_.literals());
-        return cond;
+    void do_show_atom([[maybe_unused]] Symbol atom, [[maybe_unused]] size_t uid) override {
+        bld_.backend().show(atom, std::array{uid_to_lit(uid)});
+    }
+    auto do_show_term([[maybe_unused]] Symbol term) -> size_t override { return bld_.cond(body_.literals()); }
+    void do_show_term(Symbol term, size_t done, IndexSpan conds) override {
+        auto body = LitVec{};
+        // none of the previous conditions under which the term is shown must hold
+        if (done > 0) {
+            body.reserve(done);
+            for (auto lit : std::span{conds.data(), done}) {
+                bld_.mark(uid_to_lit(lit), EQType::implication);
+                body.emplace_back(-uid_to_lit(lit));
+            }
+        }
+        // one of the new new conditions under which the term is show must hold
+        // if done equals conds.size(), the condition is assumed to be true
+        if (done < conds.size()) {
+            auto clause = LitVec{conds.begin() + static_cast<ssize_t>(done), conds.end()};
+            body.emplace_back(bld_.clause(clause, ClauseType::disjunctive));
+            bld_.mark(body.back(), EQType::implication);
+        }
+        bld_.backend().show(term, body);
     }
 
     void do_external([[maybe_unused]] Symbol atom, size_t uid, ExternalType type) override {

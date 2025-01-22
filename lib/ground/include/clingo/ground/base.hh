@@ -354,8 +354,18 @@ using ProjectMap = Util::ordered_map<Ground::UTerm, UProjectState>;
 //! A map from signatures to atom bases.
 using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, UAtomBase>;
 
+struct ShowTermState {
+    // NOLINTNEXTLINE
+    enum State : size_t {
+        none = 0,
+        fact = 1,
+        done = 2,
+    } state : 2 = none;
+    size_t offset : sizeof(size_t) - 2 = 0;
+};
+
 //! A map from terms to their condition ids.
-using TermBaseMap = Util::ordered_map<Symbol, std::tuple<bool, size_t, Util::small_vector<size_t>>>;
+using TermBaseMap = Util::ordered_map<Symbol, std::tuple<ShowTermState, Util::small_vector<size_t>>>;
 
 //! The base for all atoms and terms.
 class Bases {

@@ -68,6 +68,18 @@ class small_vector {
         return *this;
     }
 
+    //! Resize to the given size.
+    void resize(size_t n) {
+        if (n <= size()) {
+            erase(begin() + n, end());
+        } else {
+            // Note: could be optimized
+            while (n < size()) {
+                emplace_back();
+            }
+        }
+    }
+
     //! Get the size of the vector.
     [[nodiscard]] auto size() const -> size_t {
         if (is_small_()) {

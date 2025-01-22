@@ -52,20 +52,16 @@ class TestScript(TestCase):
             dedent(
                 """\
                 a.
-                #show a: a.
+                #show a/0.
                 #show.
                 b(0).
                 b(1).
                 b(2).
                 b(3).
                 b(4).
-                #show b(0): b(0).
-                #show b(1): b(1).
-                #show b(2): b(2).
-                #show b(3): b(3).
-                #show b(4): b(4).
+                #show b/1.
                 c.
-                #show c: c.
+                #show c/0.
                 """
             ),
         )
