@@ -19,9 +19,8 @@ enum class SyntaxCheck : uint8_t {
     project_tuple = 2,
     is_const = 4,
 };
-GRINGO_IGNORE_UNUSED_FUNCTION_B
-[[maybe_unused]] consteval void is_bit_set_enum(SyntaxCheck flags);
-GRINGO_IGNORE_UNUSED_FUNCTION_E
+
+CLINGO_ENABLE_BITSET_ENUM(SyntaxCheck);
 
 struct CheckSyntax {
   public:

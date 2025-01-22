@@ -19,7 +19,7 @@ enum class SimplifyTermFlags : uint8_t {
     preserve_toplevel = 8, //!< Preserve toplevel terms terms like u..t or \@f.
 };
 //! Indicate that the enum is a bitset.
-consteval void is_bit_set_enum(SimplifyTermFlags flags);
+CLINGO_ENABLE_BITSET_ENUM(SimplifyTermFlags);
 
 //! Flags controlling simplification of literals.
 enum class SimplifyLiteralFlags : uint8_t {
@@ -29,7 +29,7 @@ enum class SimplifyLiteralFlags : uint8_t {
     head = 4,       //!< Indicate literals occurring in rule heads.
 };
 //! Indicate that the enum is a bitset.
-consteval void is_bit_set_enum(SimplifyLiteralFlags flags);
+CLINGO_ENABLE_BITSET_ENUM(SimplifyLiteralFlags);
 
 //! The result of a simplification.
 template <class E> using SimplifyResult = Util::ResultState<E, TruthValue>;

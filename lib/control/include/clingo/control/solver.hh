@@ -66,7 +66,7 @@ enum class SymbolSelectFlags : uint8_t {
     all = 15,       //!< Select everything.
     complement = 16 //!< Select false instead of true atoms (Atoms/Shown) or terms (Terms).
 };
-void is_bit_set_enum(SymbolSelectFlags type);
+CLINGO_ENABLE_BITSET_ENUM(SymbolSelectFlags);
 
 enum class ModelType : uint8_t {
     model = 0,                //!< The model represents a stable model.
@@ -128,7 +128,7 @@ enum class SolveResult : uint8_t {
     exhausted = 4,
     interrupted = 8,
 };
-void is_bit_set_enum(SolveResult);
+CLINGO_ENABLE_BITSET_ENUM(SolveResult);
 
 class SolveHandle {
   public:
@@ -170,7 +170,7 @@ enum class SolveMode : uint8_t {
     async = 1,
     yield = 2,
 };
-[[maybe_unused]] void is_bit_set_enum(SolveMode mode);
+CLINGO_ENABLE_BITSET_ENUM(SolveMode);
 
 //! A grounder and solver for logic programs.
 //!

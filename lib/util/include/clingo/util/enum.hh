@@ -1,75 +1,46 @@
 #pragma once
 
-#include <type_traits>
+#include <type_traits> // IWYU pragma: keep
 
 namespace Clingo {
 
 //! @addtogroup util_enum
 //! @{
 
-namespace Detail {
+// NOLINTBEGIN
 
-//! Opt-in concept to enable bit operations for enums.
+//! Opt-in macro for enabling bit operations for a given enum type.
 //!
-//! To enable of operations for an enum T, a call to is_bit_set_enum must be well-defined.
-template <class T>
-concept BitSetEnum = std::is_enum_v<T> && requires(T e) { is_bit_set_enum(e); };
+//! Use CLINGO_ENABLE_BITSET_ENUM(E) to enable bitwise operators on the underlying type of enum E.
+//!
+//! @note If E is a class-local enum, POTASSCO_ENABLE_BIT_OPS(E, friend) can be
+//! used to enable bitwise operators from within the class definition.
+#define CLINGO_ENABLE_BITSET_ENUM(E, ...)                                                                              \
+    [[nodiscard]] CLINGO_ENUM_OP(~, (E a), __VA_ARGS__)->E {                                                           \
+        return static_cast<E>(~static_cast<std::underlying_type_t<E>>(a));                                             \
+    }                                                                                                                  \
+    [[nodiscard]] CLINGO_ENUM_OP(|, (E a, E b), __VA_ARGS__)->E {                                                      \
+        return static_cast<E>(static_cast<std::underlying_type_t<E>>(a) | static_cast<std::underlying_type_t<E>>(b));  \
+    }                                                                                                                  \
+    CLINGO_ENUM_OP(|=, (E & a, E b), __VA_ARGS__)->E & { return a = a | b; }                                           \
+    [[nodiscard]] CLINGO_ENUM_OP(&, (E a, E b), __VA_ARGS__)->E {                                                      \
+        return static_cast<E>(static_cast<std::underlying_type_t<E>>(a) & static_cast<std::underlying_type_t<E>>(b));  \
+    }                                                                                                                  \
+    CLINGO_ENUM_OP(&=, (E & a, E b), __VA_ARGS__)->E & { return a = a & b; }                                           \
+    [[nodiscard]] CLINGO_ENUM_OP(-, (E a, E b), __VA_ARGS__)->E {                                                      \
+        return static_cast<E>(static_cast<std::underlying_type_t<E>>(a) & static_cast<std::underlying_type_t<E>>(~b)); \
+    }                                                                                                                  \
+    CLINGO_ENUM_OP(-=, (E & a, E b), __VA_ARGS__)->E & { return a = a - b; }                                           \
+    [[nodiscard]] CLINGO_ENUM_OP(^, (E a, E b), __VA_ARGS__)->E {                                                      \
+        return static_cast<E>(static_cast<std::underlying_type_t<E>>(a) ^ static_cast<std::underlying_type_t<E>>(b));  \
+    }                                                                                                                  \
+    CLINGO_ENUM_OP(^=, (E & a, E b), __VA_ARGS__)->E & { return a = a ^ b; }                                           \
+    [[nodiscard]] [[maybe_unused]] inline __VA_ARGS__ constexpr auto test(E a, E b) -> bool { return (a & b) == b; }   \
+    static_assert(std::is_enum_v<E>)
 
-} // namespace Detail
+#define CLINGO_ENUM_OP(op, arg, ...) [[maybe_unused]] inline __VA_ARGS__ constexpr auto operator op arg noexcept
 
-//! Complement of a bit set.
-template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator~(T a) -> T {
-    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
-    return static_cast<T>(~static_cast<std::underlying_type_t<T>>(a));
-}
-
-//! Union of two bit sets.
-template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator|(T a, T b) -> T {
-    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
-    return static_cast<T>(static_cast<std::underlying_type_t<T>>(a) | static_cast<std::underlying_type_t<T>>(b));
-}
-
-//! Intersection of two bit sets.
-template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator&(T a, T b) -> T {
-    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
-    return static_cast<T>(static_cast<std::underlying_type_t<T>>(a) & static_cast<std::underlying_type_t<T>>(b));
-}
-
-//! Difference of two bit sets.
-template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator-(T a, T b) -> T { return a & (~b); }
-
-//! Symmetric difference of two bit sets.
-template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator^(T a, T b) -> T {
-    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
-    return static_cast<T>(static_cast<std::underlying_type_t<T>>(a) ^ static_cast<std::underlying_type_t<T>>(b));
-}
-
-//! Union assignment for bit sets.
-template <Detail::BitSetEnum T> inline auto operator|=(T &a, T b) -> T & {
-    a = a | b;
-    return a;
-}
-
-//! Intersection assignment for bit sets.
-template <Detail::BitSetEnum T> inline auto operator&=(T &a, T b) -> T & {
-    a = a & b;
-    return a;
-}
-
-//! Symmetric difference assignment for bit sets.
-template <Detail::BitSetEnum T> inline auto operator^=(T &a, T b) -> T & {
-    a = a ^ b;
-    return a;
-}
-
-//! Difference assignment for bit sets.
-template <Detail::BitSetEnum T> inline auto operator-=(T &a, T b) -> T & {
-    a = a - b;
-    return a;
-}
-
-//! Test if a is a superset of b.
-template <Detail::BitSetEnum T> [[nodiscard]] inline auto test(T a, T b) -> bool { return (a & b) == b; }
+// NOLINTEND
 
 //! @}
 

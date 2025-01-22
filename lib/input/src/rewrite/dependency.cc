@@ -26,9 +26,7 @@ enum class DependencyType : uint8_t {
     positive = 1,
     negative = 2,
 };
-GRINGO_IGNORE_UNUSED_FUNCTION_B
-[[maybe_unused]] consteval void is_bit_set_enum(DependencyType flags);
-GRINGO_IGNORE_UNUSED_FUNCTION_E
+CLINGO_ENABLE_BITSET_ENUM(DependencyType);
 
 auto safe_sig(Term const &term) -> std::tuple<String, size_t, bool> {
     return signature(term).value(); // NOLINT(bugprone-unchecked-optional-access)

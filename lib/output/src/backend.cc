@@ -853,7 +853,7 @@ class BuilderSum {
     //! Which weights have to be considered for cycle computation.
     enum class CycleType : uint8_t { none, positive, negative, both };
     // NOLINTNEXTLINE
-    friend void is_bit_set_enum(CycleType type);
+    CLINGO_ENABLE_BITSET_ENUM(CycleType, friend);
 
     //! Analyze a sum aggregate.
     //!

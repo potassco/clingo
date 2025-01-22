@@ -84,7 +84,7 @@ enum class ComponentType : uint8_t {
     single_pass = 2, //!< The component can be grounded in one pass.
 };
 //! Indicate that the component type is a bitset.
-[[maybe_unused]] consteval void is_bit_set_enum(ComponentType flags);
+CLINGO_ENABLE_BITSET_ENUM(ComponentType);
 
 //! A refined component.
 //!
