@@ -688,8 +688,8 @@ class BuilderSum {
         // add edges based on the monotonicity of the aggregate
         if (type != CycleType::none) {
             for (auto const &[num, clit] : elems_) {
-                if (clit > 0 &&
-                    ((test(type, CycleType::positive) && num > 0) || (test(type, CycleType::negative) && num < 0))) {
+                if (clit > 0 && ((intersects(type, CycleType::positive) && num > 0) ||
+                                 (intersects(type, CycleType::negative) && num < 0))) {
                     bld.add_edge(lit, clit);
                 }
             }

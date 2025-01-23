@@ -58,13 +58,12 @@ enum class AppMode : uint8_t {
 };
 
 enum class SymbolSelectFlags : uint8_t {
-    none = 0,       //!< Select nothing.
-    shown = 1,      //!< Select shown atoms and terms.
-    atoms = 2,      //!< Select all atoms.
-    terms = 4,      //!< Select all terms.
-    theory = 8,     //!< Select symbols added by theory.
-    all = 15,       //!< Select everything.
-    complement = 16 //!< Select false instead of true atoms (Atoms/Shown) or terms (Terms).
+    none = 0,   //!< Select nothing.
+    shown = 1,  //!< Select shown atoms and terms.
+    atoms = 2,  //!< Select all atoms.
+    terms = 4,  //!< Select all terms.
+    theory = 8, //!< Select symbols added by theory.
+    all = 15,   //!< Select everything.
 };
 CLINGO_ENABLE_BITSET_ENUM(SymbolSelectFlags);
 

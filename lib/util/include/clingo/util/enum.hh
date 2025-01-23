@@ -35,7 +35,9 @@ namespace Clingo {
         return static_cast<E>(static_cast<std::underlying_type_t<E>>(a) ^ static_cast<std::underlying_type_t<E>>(b));  \
     }                                                                                                                  \
     CLINGO_ENUM_OP(^=, (E & a, E b), __VA_ARGS__)->E & { return a = a ^ b; }                                           \
-    [[nodiscard]] [[maybe_unused]] inline __VA_ARGS__ constexpr auto test(E a, E b) -> bool { return (a & b) == b; }   \
+    [[nodiscard]] [[maybe_unused]] inline __VA_ARGS__ constexpr auto intersects(E a, E b) -> bool {                    \
+        return static_cast<std::underlying_type_t<E>>(a & b) != 0;                                                     \
+    }                                                                                                                  \
     static_assert(std::is_enum_v<E>)
 
 #define CLINGO_ENUM_OP(op, arg, ...) [[maybe_unused]] inline __VA_ARGS__ constexpr auto operator op arg noexcept

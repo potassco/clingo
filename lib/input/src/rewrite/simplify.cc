@@ -341,7 +341,7 @@ class SimplifyTerm {
             throw std::runtime_error("functions must be unpooled before simplifying");
         }
 
-        bool preserve = test(flags, SimplifyTermFlags::preserve_toplevel);
+        bool preserve = intersects(flags, SimplifyTermFlags::preserve_toplevel);
 
         flags &= ~SimplifyTermFlags::preserve_toplevel;
 
@@ -591,7 +591,7 @@ class SimplifyTerm {
                                                                                             << "  " << term << "\n";
                     return {};
                 }
-                if (test(flags, SimplifyTermFlags::preserve_toplevel)) {
+                if (intersects(flags, SimplifyTermFlags::preserve_toplevel)) {
                     return check_change(TermType::numeric, term,
                                         term.update(a_lhs = ResultAsTerm{*ctx_, term.lhs()}(std::forward<L>(res_lhs)),
                                                     a_op = BinaryOperator::dots,
@@ -603,7 +603,7 @@ class SimplifyTerm {
                     map_term(*ctx_, term.update(a_lhs = ResultAsTerm{*ctx_, term.lhs()}(std::forward<L>(res_lhs)),
                                                 a_op = BinaryOperator::dots,
                                                 a_rhs = ResultAsTerm{*ctx_, term.rhs()}(std::forward<R>(res_rhs))));
-                if (test(flags, SimplifyTermFlags::matchable)) {
+                if (intersects(flags, SimplifyTermFlags::matchable)) {
                     return TermResultLinear{std::move(var), Number{1}, Number{0}};
                 }
                 return TermResultChanged{TermType::numeric, std::move(var)};
@@ -796,22 +796,24 @@ class MakeMatchableTerm {
 
     //! Make the given absolute term matchable.
     auto operator()(TermAbs const &term, SimplifyTermFlags flags) const -> Result {
-        if (!test(flags, SimplifyTermFlags::unfailable) && test(flags, SimplifyTermFlags::nested_matchable)) {
+        if (!intersects(flags, SimplifyTermFlags::unfailable) &&
+            intersects(flags, SimplifyTermFlags::nested_matchable)) {
             return std::nullopt;
         }
-        return map_term(*ctx_, term, !test(flags, SimplifyTermFlags::unfailable));
+        return map_term(*ctx_, term, !intersects(flags, SimplifyTermFlags::unfailable));
     }
 
     //! Make the given unary term matchable.
     auto operator()(TermUnary const &term, SimplifyTermFlags flags) const -> Result {
-        if (!test(flags, SimplifyTermFlags::unfailable) && term.op() == UnaryOperator::minus) {
+        if (!intersects(flags, SimplifyTermFlags::unfailable) && term.op() == UnaryOperator::minus) {
             return Util::transform(operator()(term.rhs(), flags),
                                    [&term](auto arg) -> Term { return term.update(a_rhs = std::move(arg)); });
         }
-        if (!test(flags, SimplifyTermFlags::unfailable) && test(flags, SimplifyTermFlags::nested_matchable)) {
+        if (!intersects(flags, SimplifyTermFlags::unfailable) &&
+            intersects(flags, SimplifyTermFlags::nested_matchable)) {
             return std::nullopt;
         }
-        return map_term(*ctx_, term, !test(flags, SimplifyTermFlags::unfailable) && always_numeric(term));
+        return map_term(*ctx_, term, !intersects(flags, SimplifyTermFlags::unfailable) && always_numeric(term));
     }
 
     //! Make the given binary term matchable.
@@ -819,7 +821,7 @@ class MakeMatchableTerm {
         if (is_linear(term)) {
             // The goal here is to avoid adding additional assignments for auxiliary variables
             // that correspond to variables having a numeric value.
-            if (test(flags, SimplifyTermFlags::unfailable)) {
+            if (intersects(flags, SimplifyTermFlags::unfailable)) {
                 const auto &n = std::get<TermSymbol>(*term.rhs());
                 const auto &mx = std::get<TermBinary>(*term.lhs());
                 const auto &m = std::get<TermSymbol>(*mx.lhs());
@@ -837,10 +839,11 @@ class MakeMatchableTerm {
                 return std::nullopt;
             }
         }
-        if (!test(flags, SimplifyTermFlags::unfailable) && test(flags, SimplifyTermFlags::nested_matchable)) {
+        if (!intersects(flags, SimplifyTermFlags::unfailable) &&
+            intersects(flags, SimplifyTermFlags::nested_matchable)) {
             return std::nullopt;
         }
-        return map_term(*ctx_, term, !test(flags, SimplifyTermFlags::unfailable));
+        return map_term(*ctx_, term, !intersects(flags, SimplifyTermFlags::unfailable));
     }
 
   private:
@@ -916,7 +919,7 @@ class SimplifyLiteral {
     //! Assignments of form t=X are replaced by X=t if t is not a variable.
     auto operator()(LitComparison const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Lit> {
         // whether pools are treated disjunctively or conjunctively
-        bool head = test(flags, SimplifyLiteralFlags::head);
+        bool head = intersects(flags, SimplifyLiteralFlags::head);
         // whether the elements of the relation are disjunctive or conjunctive
         // (after applying the sign)
         bool disjunctive = head != (lit.sign() == Sign::once);
@@ -1024,12 +1027,12 @@ class SimplifyLiteral {
     //! (1) the literal is matchable if the corresponding flag has been set,
     //! (2) projection is accepted if the corresponding flag has been set.
     auto operator()(LitSymbolic const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Lit> {
-        bool head = test(flags, SimplifyLiteralFlags::head);
+        bool head = intersects(flags, SimplifyLiteralFlags::head);
         auto sub_flags = SimplifyTermFlags::none;
 
-        if (test(flags, SimplifyLiteralFlags::unfailable)) {
+        if (intersects(flags, SimplifyLiteralFlags::unfailable)) {
             sub_flags |= SimplifyTermFlags::matchable | SimplifyTermFlags::unfailable;
-        } else if (test(flags, SimplifyLiteralFlags::matchable) && (!head && lit.sign() == Sign::none)) {
+        } else if (intersects(flags, SimplifyLiteralFlags::matchable) && (!head && lit.sign() == Sign::none)) {
             sub_flags |= SimplifyTermFlags::matchable;
         }
         auto [state, res] = simplify(sub_flags, *ctx_, lit.term());
@@ -1803,7 +1806,7 @@ class SimplifyStatement {
 
 [[nodiscard]] auto simplify(SimplifyTermFlags flags, RewriteContext &ctx, Term const &term) -> SimplifyTermResult {
     auto make_matchable = [&](auto &&target, bool self = true) -> SimplifyTermResult {
-        if (test(flags, SimplifyTermFlags::matchable)) {
+        if (intersects(flags, SimplifyTermFlags::matchable)) {
             if (auto ret = MakeMatchableTerm{ctx}(target, flags); ret.has_value()) {
                 return {true, std::move(ret)};
             }

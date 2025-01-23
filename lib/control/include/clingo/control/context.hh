@@ -59,7 +59,7 @@ class BuildContext {
     }
     //! Check if the given input literal is single pass.
     [[nodiscard]] auto single_pass(Input::Lit const &lit) const -> bool {
-        if (test(comp_->type, Input::ComponentType::single_pass)) {
+        if (intersects(comp_->type, Input::ComponentType::single_pass)) {
             return true;
         }
         if (auto const *slit = std::get_if<Input::LitSymbolic>(&lit); slit != nullptr) {
@@ -70,7 +70,7 @@ class BuildContext {
 
     //! Check if the (current) body can be grounded in a single pass.
     [[nodiscard]] auto single_pass_body() const -> bool {
-        return test(comp_->type, Input::ComponentType::single_pass) ||
+        return intersects(comp_->type, Input::ComponentType::single_pass) ||
                std::ranges::all_of(*body_, [](auto const &lit) { return lit->single_pass(); });
     }
 

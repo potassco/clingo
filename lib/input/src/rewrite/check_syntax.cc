@@ -46,7 +46,7 @@ struct CheckSyntax {
     }
 
     auto operator()(TermVariable const &term, SyntaxCheck check) const -> bool {
-        if (test(check, SyntaxCheck::is_const)) {
+        if (intersects(check, SyntaxCheck::is_const)) {
             GRINGO_REPORT_LOC(*log_, error, term.loc()) << "variables not permitted in this context";
             return false;
         }
@@ -54,7 +54,7 @@ struct CheckSyntax {
     }
 
     auto operator()(Projection const &pro, SyntaxCheck check) const -> bool {
-        if (!test(check, SyntaxCheck::project)) {
+        if (!intersects(check, SyntaxCheck::project)) {
             GRINGO_REPORT_LOC(*log_, error, pro.loc()) << "projection not permitted in this context";
             return false;
         }
@@ -71,14 +71,14 @@ struct CheckSyntax {
     }
 
     auto operator()(TupleElement const &elem, SyntaxCheck check) const -> bool {
-        if (!test(check, SyntaxCheck::project_tuple)) {
+        if (!intersects(check, SyntaxCheck::project_tuple)) {
             check &= ~SyntaxCheck::project;
         }
         return std::visit(*this, elem, std::variant<SyntaxCheck>{check});
     }
 
     auto operator()(TermTuple const &term, SyntaxCheck check) const -> bool {
-        if (test(check, SyntaxCheck::is_const) && term.pool().size() != 1) {
+        if (intersects(check, SyntaxCheck::is_const) && term.pool().size() != 1) {
             GRINGO_REPORT_LOC(*log_, error, term.loc()) << "pools not permitted in this context";
             return false;
         }
@@ -87,7 +87,7 @@ struct CheckSyntax {
     }
 
     auto operator()(TermFunction const &term, SyntaxCheck check) const -> bool {
-        if (test(check, SyntaxCheck::is_const)) {
+        if (intersects(check, SyntaxCheck::is_const)) {
             if (term.external()) {
                 GRINGO_REPORT_LOC(*log_, error, term.loc()) << "external functions not permitted in this context";
                 return false;
@@ -101,7 +101,7 @@ struct CheckSyntax {
     }
 
     auto operator()(TermAbs const &term, SyntaxCheck check) const -> bool {
-        if (test(check, SyntaxCheck::is_const) && term.pool().size() != 1) {
+        if (intersects(check, SyntaxCheck::is_const) && term.pool().size() != 1) {
             GRINGO_REPORT_LOC(*log_, error, term.loc()) << "pools not permitted in this context";
             return false;
         }

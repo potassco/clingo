@@ -40,10 +40,10 @@ class AddDepend {
     void operator()(LitSymbolic const &lit, DependencyType type) const {
         auto const &term = lit.term();
         auto sig = safe_sig(term);
-        if (test(type, DependencyType::positive) && lit.sign() == Sign::none) {
+        if (intersects(type, DependencyType::positive) && lit.sign() == Sign::none) {
             map_->operator[](sig).emplace_back(idx_, &term, false);
         }
-        if (test(type, DependencyType::negative) || lit.sign() != Sign::none) {
+        if (intersects(type, DependencyType::negative) || lit.sign() != Sign::none) {
             map_->operator[](sig).emplace_back(idx_, &term, true);
         }
     }
@@ -688,8 +688,8 @@ void visualize(Components const &comps, std::ostream &out) {
             out << "    subgraph cluster_" << i << "_" << j << " {\n";
             out << "      label = \"subcomponent " << j << "\";\n";
             out << "      stms_" << i << "_" << j << " [label=<";
-            out << "statements[" << (test(comp.type, ComponentType::positive) ? "positive" : "negative") << ", "
-                << (test(comp.type, ComponentType::single_pass) ? "single-pass" : "multi-pass") << "]:";
+            out << "statements[" << (intersects(comp.type, ComponentType::positive) ? "positive" : "negative") << ", "
+                << (intersects(comp.type, ComponentType::single_pass) ? "single-pass" : "multi-pass") << "]:";
             for (auto const &stm : comp.stms) {
                 out << "<br/>";
                 encode_html(*stm, out);

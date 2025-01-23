@@ -21,7 +21,7 @@ auto symbol_callback(clingo_symbol_t const *symbols, size_t size, void *data) ->
 
 } // namespace
 
-auto Model::symbols(bool shown, bool atoms, bool terms, bool theory, bool complement) -> SymbolVec {
+auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVec {
     auto res = SymbolVec{};
     clingo_show_type_bitset_t show = 0;
     if (shown) {
@@ -35,9 +35,6 @@ auto Model::symbols(bool shown, bool atoms, bool terms, bool theory, bool comple
     }
     if (theory) {
         show |= clingo_show_type_theory;
-    }
-    if (complement) {
-        show |= clingo_show_type_complement;
     }
     handle_error(clingo_model_symbols(mdl_, show, symbol_callback, &res));
     return res;
@@ -170,7 +167,7 @@ This example shows how to solve both iteratively and asynchronously:
 
     py::class_<Model>(solving, "Model", R"(A view on the solver's current solution.)")
         .def("symbols", &Model::symbols, py::arg("shown") = false, py::arg("atoms") = false, py::arg("terms") = false,
-             py::arg("theory") = false, py::arg("complement") = false, doc(R"(
+             py::arg("theory") = false, doc(R"(
 Get the symbols in the model.
 
 Args:
@@ -178,9 +175,6 @@ Args:
   atoms: Include all true atoms including hidden ones.
   terms: Include shown terms.
   theory: Include terms added by external theories.
-  complement:
-	Has to be used in combination with shown/atoms/terms. Selects atoms that
-	are false and terms with false conditions.
 )"));
 
     py::class_<SolveHandle>(solving, "SolveHandle", doc(R"(

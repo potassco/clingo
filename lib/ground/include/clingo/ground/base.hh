@@ -268,6 +268,9 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
 
     //! Get the number of derived atoms.
     [[nodiscard]] auto size() const -> size_t { return derived_.size(); }
+    //! Get the number of derived atoms.
+    [[nodiscard]] auto num_shown() const -> size_t { return show_offset_; }
+
     //! Get the atom index of the given symbol.
     //!
     //! Note that only derived atoms have indices.
@@ -386,6 +389,7 @@ class Bases {
 
     [[nodiscard]] auto atoms() const -> BaseMap const & { return atoms_; }
     [[nodiscard]] auto projected() const -> ProjectMap const & { return projected_; }
+    [[nodiscard]] auto terms() const -> TermBaseMap const & { return terms_; }
     [[nodiscard]] auto terms() -> TermBaseMap & { return terms_; }
 
     //! Clear auxiliary atom bases.

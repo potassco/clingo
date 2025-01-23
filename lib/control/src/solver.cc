@@ -237,7 +237,7 @@ class BackendImpl : public Output::Backend {
 //! Implementation of the model interface.
 class ModelImpl : public Model, private SolveControl {
   public:
-    ModelImpl(BaseMap const &base, Clasp::ClaspFacade &clasp) : base_{&base}, clasp_{&clasp} {}
+    ModelImpl(Ground::Bases const &bases, Clasp::ClaspFacade &clasp) : bases_{&bases}, clasp_{&clasp} {}
 
     //! Sets the given model returing true if it is not null.
     auto set_model(Clasp::Model const *mdl) -> bool { return (mdl_ = mdl) != nullptr; }
@@ -255,30 +255,30 @@ class ModelImpl : public Model, private SolveControl {
   private:
     void do_symbols(SymbolSelectFlags type, SymbolVec &res) const override {
         assert(mdl_ != nullptr);
-        // TODO:
-        // - implement
-        //   - shown
-        //   - theory
-        //   - complement
-        //   - terms
-        // - need bases here
-        //   - maybe the shown signatures should also be maintained in bases
-        if ((type & (SymbolSelectFlags::theory | SymbolSelectFlags::complement)) != SymbolSelectFlags::none) {
+        // TODO: implement theory (should also be in included with SymbolSelectFlags::shown)
+        if (intersects(type, SymbolSelectFlags::theory)) {
             throw std::logic_error("implement me: theory and complement selection modes");
         }
-        if (test(type, SymbolSelectFlags::atoms)) {
-            for (auto const &base : *base_) {
-                for (size_t i = 0, e = base.second->size(); i != e; ++i) {
+        if (auto show_a = intersects(type, SymbolSelectFlags::atoms),
+            show_s = intersects(type, SymbolSelectFlags::shown);
+            show_a || show_s) {
+            for (auto const &base : bases_->atoms()) {
+                for (size_t i = 0, e = show_a ? base.second->size() : base.second->num_shown(); i != e; ++i) {
                     auto [sym, state] = *base.second->nth(i);
-                    auto lit = solver_literal(state.id);
-                    if (mdl_->isTrue(lit)) {
+                    if (mdl_->isTrue(solver_literal(state.id))) {
                         res.emplace_back(sym);
                     }
                 }
             }
         }
-        if (test(type, SymbolSelectFlags::terms)) {
-            throw std::logic_error("implement me: store a term map somewhere");
+        if (intersects(type, SymbolSelectFlags::terms | SymbolSelectFlags::shown)) {
+            for (auto const &[term, state] : bases_->terms()) {
+                auto const &[flags, conds] = state;
+                if (flags.state == Ground::ShowTermState::done ||
+                    std::ranges::any_of(conds, [this](auto const &uid) { return mdl_->isTrue(solver_literal(uid)); })) {
+                    res.emplace_back(term);
+                }
+            }
         }
     }
 
@@ -303,15 +303,15 @@ class ModelImpl : public Model, private SolveControl {
         if (sym.type() != SymbolType::function) {
             return false;
         }
-        auto it = base_->find(std::tuple{sym.name(), sym.args().size(), sym.has_classical_sign()});
-        if (it == base_->end()) {
+        auto *base = bases_->get_base(std::tuple{sym.name(), sym.args().size(), sym.has_classical_sign()});
+        if (base == nullptr) {
             return false;
         }
-        auto jt = it->second->find(sym);
-        if (!jt) {
+        auto it = base->find(sym);
+        if (!it) {
             return false;
         }
-        return mdl_->isTrue(solver_literal(jt->value().id));
+        return mdl_->isTrue(solver_literal(it->value().id));
     }
 
     [[nodiscard]] auto do_is_true(Output::lit_t lit) const -> bool override {
@@ -379,15 +379,11 @@ class ModelImpl : public Model, private SolveControl {
     //! Get the underlying solver (which found the model).
     [[nodiscard]] auto slv() const -> Clasp::Solver const & { return *clasp_->ctx.solver(mdl_->sId); }
     //! Map the given program literal to its solver literal.
-    [[nodiscard]] auto solver_literal(Output::lit_t lit) const -> Clasp::Literal {
-        return Clasp::Asp::solverLiteral(prg(), lit);
-    }
-    //! Map the given id referring to a program literal to its solver literal.
-    [[nodiscard]] auto solver_literal(uint64_t lit) const -> Clasp::Literal {
-        return solver_literal(static_cast<Output::lit_t>(lit));
+    [[nodiscard]] auto solver_literal(std::integral auto lit) const -> Clasp::Literal {
+        return Clasp::Asp::solverLiteral(prg(), static_cast<Output::lit_t>(lit));
     }
 
-    BaseMap const *base_;
+    Ground::Bases const *bases_;
     Clasp::ClaspFacade *clasp_;
     Clasp::Model const *mdl_ = nullptr;
     std::vector<Clasp::Literal> lits_;
@@ -420,8 +416,8 @@ class EventHandlerTest : public Clasp::EventHandler {
 //! An event handler that adapts clingo's event handler to clasp's.
 class EventHandlerAdapter : public Clasp::EventHandler {
   public:
-    EventHandlerAdapter(BaseMap const &base, Clasp::ClaspFacade &clasp, Control::UEventHandler eh)
-        : mdl_{base, clasp}, eh_{std::move(eh)} {}
+    EventHandlerAdapter(Ground::Bases const &bases, Clasp::ClaspFacade &clasp, Control::UEventHandler eh)
+        : mdl_{bases, clasp}, eh_{std::move(eh)} {}
 
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         mdl_.set_model(&mdl);
@@ -451,9 +447,9 @@ class SolveHandleFixed : public SolveHandle {
 //! The solve handle implementation.
 class SolveHandleImpl : public SolveHandle {
   public:
-    SolveHandleImpl(std::unique_ptr<Clasp::EventHandler> eh, BaseMap const &base, Clasp::ClaspFacade &clasp,
+    SolveHandleImpl(std::unique_ptr<Clasp::EventHandler> eh, Ground::Bases const &bases, Clasp::ClaspFacade &clasp,
                     Clasp::ClaspFacade::SolveHandle const &hnd)
-        : mdl_{base, clasp}, hnd_{hnd}, eh_{std::move(eh)} {}
+        : mdl_{bases, clasp}, hnd_{hnd}, eh_{std::move(eh)} {}
 
   private:
     auto do_get() -> SolveResult override {
@@ -614,10 +610,10 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         // convert solve mode
         auto cm = [](SolveMode mode) {
             auto res = Clasp::SolveMode::def;
-            if (test(mode, SolveMode::yield)) {
+            if (intersects(mode, SolveMode::yield)) {
                 res |= Clasp::SolveMode::yield;
             }
-            if (test(mode, SolveMode::async)) {
+            if (intersects(mode, SolveMode::async)) {
                 res |= Clasp::SolveMode::async;
             }
             return res;
@@ -631,12 +627,11 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
             return res;
         };
         // adapt the handler for clasp
-        auto eh = handler == nullptr
-                      ? std::unique_ptr<Clasp::EventHandler>{std::make_unique<EventHandlerTest>()}
-                      : std::make_unique<EventHandlerAdapter>(grd_.base().atoms(), clasp_, std::move(handler));
+        auto eh = handler == nullptr ? std::unique_ptr<Clasp::EventHandler>{std::make_unique<EventHandlerTest>()}
+                                     : std::make_unique<EventHandlerAdapter>(grd_.base(), clasp_, std::move(handler));
         auto hnd = clasp_.solve(cm(mode), ca(assumptions), eh.get());
         // adapt the handle which also manages the lifetime of the handler
-        return std::make_unique<SolveHandleImpl>(std::move(eh), grd_.base().atoms(), clasp_, hnd);
+        return std::make_unique<SolveHandleImpl>(std::move(eh), grd_.base(), clasp_, hnd);
     }
     return std::make_unique<SolveHandleFixed>();
 }

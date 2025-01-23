@@ -100,7 +100,7 @@ namespace {
 
     auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();
     auto sp_body = ctx.single_pass_body();
-    auto sp_premise = test(ctx.type(), Input::ComponentType::single_pass) ||
+    auto sp_premise = intersects(ctx.type(), Input::ComponentType::single_pass) ||
                       std::ranges::all_of(lit.cond(), [&](auto const &lit) { return ctx.single_pass(lit); });
     auto sp_conclusion = ctx.single_pass(lit.lit());
 

@@ -79,7 +79,7 @@ class Builder : public Input::DependencyBuilder {
                 // atoms. It is domain if it is positive (i.e., contains no
                 // negative cycle) and all bases it depends on are domain.
                 // A domain component only derives facts.
-                bool domain = test(ref_comp.type, Input::ComponentType::positive) &&
+                bool domain = intersects(ref_comp.type, Input::ComponentType::positive) &&
                               std::ranges::all_of(ref_comp.depend,
                                                   [this](auto const &sig) { return bases_->add_base(sig).domain(); });
                 auto gcomp = Ground::Component{domain};

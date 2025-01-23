@@ -58,8 +58,6 @@ enum clingo_show_type_e {
     clingo_show_type_terms = 4,  //!< Select all terms.
     clingo_show_type_theory = 8, //!< Select symbols added by theory.
     clingo_show_type_all = 15,   //!< Select everything.
-    clingo_show_type_complement =
-        16 //!< Select false instead of true atoms (::clingo_show_type_atoms) or terms (::clingo_show_type_terms).
 };
 //! Corresponding type to ::clingo_show_type_e.
 typedef unsigned clingo_show_type_bitset_t;
