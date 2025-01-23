@@ -107,8 +107,8 @@ extern "C" auto clingo_model_context(clingo_model_t *model, clingo_solve_control
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_solve_control_symbolic_atoms(clingo_solve_control_t const *control,
-                                                    clingo_symbolic_atoms_t const **atoms) -> clingo_result_t {
+extern "C" auto clingo_solve_control_base(clingo_solve_control_t const *control, clingo_base_t const **atoms)
+    -> clingo_result_t {
     CLINGO_TRY {
         static_cast<void>(control);
         *atoms = nullptr;

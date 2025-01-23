@@ -240,6 +240,11 @@ class Symbol {
     //! Compute the hash of the symbol.
     [[nodiscard]] auto hash() const -> size_t { return Clingo::Util::value_hash(rep_); }
 
+    //! Get the signature of the symbol.
+    //!
+    //! Returns `std::nullopt` if the symbol is not a function.
+    [[nodiscard]] auto signature() const -> std::optional<std::tuple<String, size_t, bool>>;
+
     //! Compare two symbols.
     friend auto compare(Symbol const &a, Symbol const &b) -> int;
     //! Compare two symbols.

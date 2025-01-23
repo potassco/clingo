@@ -193,8 +193,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_control(clingo_model_t *m
 //! @param[in] control the target
 //! @param[out] atoms the resulting object
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_control_symbolic_atoms(clingo_solve_control_t const *control,
-                                                                              clingo_symbolic_atoms_t const **atoms);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_control_base(clingo_solve_control_t const *control,
+                                                                    clingo_base_t const **atoms);
 //! Add a clause that applies to the current solving step during model
 //! enumeration.
 //!

@@ -762,6 +762,31 @@ auto Symbol::has_sign() const -> bool {
     }
 }
 
+auto Symbol::signature() const -> std::optional<std::tuple<String, size_t, bool>> {
+    auto s = false;
+    switch (rep_ & TYPE_MASK) {
+        case REP_SIGNED_ID: {
+            s = true;
+            [[fallthrough]];
+        }
+        case REP_ID: {
+            auto n = String::from_rep(rep_ & ~TYPE_MASK);
+            return std::tuple{n, 0, s};
+        }
+        case REP_SIGNED_FUN: {
+            s = true;
+            [[fallthrough]];
+        }
+        case REP_FUN: {
+            auto &a = SymbolArray::from_repr(rep_ & ~TYPE_MASK);
+            return std::tuple{a.head().str(), a.size() - 1, s};
+        }
+        default: {
+            return std::nullopt;
+        }
+    }
+}
+
 auto Symbol::flip_classical_sign() const -> std::optional<Symbol> {
     switch (rep_ & TYPE_MASK) {
         case REP_SIGNED_ID: {
