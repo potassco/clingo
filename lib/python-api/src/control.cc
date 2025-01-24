@@ -72,6 +72,12 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
     CLINGO_CATCH(eh->ptr_);
 }
 
+auto Control::base() -> Base {
+    auto base = clingo_base_t{};
+    clingo_control_base(ctl_.get(), &base);
+    return {base};
+}
+
 auto Control::solve(std::optional<ModelCallback> on_model) -> SSolveHandle {
     auto res = std::make_shared<SolveHandle>(std::move(on_model));
     handle_error(
@@ -89,7 +95,6 @@ auto Control::buffer() -> char const * {
 }
 
 void register_control(pybind11::module &m) {
-    register_solving(m);
     auto control = m.def_submodule("control", doc(R"(
 Module containing the Control class responsible for grounding and solving.
 
@@ -143,7 +148,8 @@ Ground and solver a logic program.
 This function proceeds as clingo calling the main function from a script if
 there is any.
 )"))
-        .def_property_readonly("buffer", &Control::buffer, R"(The content of the output bufer.)");
+        .def_property_readonly("buffer", &Control::buffer, R"(The content of the output bufer.)")
+        .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)");
 }
 
 } // namespace Clingo::Python

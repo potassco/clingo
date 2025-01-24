@@ -1,6 +1,7 @@
 # functionality shared between embedded library and standalone module
 add_library(clingo_python
     src/ast.cc
+    src/base.cc
     src/clingo.cc
     src/control.cc
     src/core.cc

@@ -13,7 +13,7 @@ namespace Clingo {
 //!
 //! Use CLINGO_ENABLE_BITSET_ENUM(E) to enable bitwise operators on the underlying type of enum E.
 //!
-//! @note If E is a class-local enum, POTASSCO_ENABLE_BIT_OPS(E, friend) can be
+//! @note If E is a class-local enum, CLINGO_ENABLE_BITSET_ENUM(E, friend) can be
 //! used to enable bitwise operators from within the class definition.
 #define CLINGO_ENABLE_BITSET_ENUM(E, ...)                                                                              \
     [[nodiscard]] CLINGO_ENUM_OP(~, (E a), __VA_ARGS__)->E {                                                           \

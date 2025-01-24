@@ -216,6 +216,13 @@ class Solver {
     //! this buffer contains the output of the textoutput.
     [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_; };
 
+    //! Get a reference to the underlying atom/term bases.
+    [[nodiscard]] auto bases() -> Ground::Bases const & { return grd_.base(); }
+    //! Get a pointer to the underlying clasp program.
+    //!
+    //! Only non-null in solving mode.
+    [[nodiscard]] auto clasp_program() -> Clasp::Asp::LogicProgram const * { return clasp_.asp(); }
+
   private:
     //! States for step transitions.
     //!

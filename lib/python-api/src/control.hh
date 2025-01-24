@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.hh"
+#include "base.hh"
 #include "solving.hh"
 #include "symbol.hh"
 
@@ -17,6 +18,7 @@ class Control {
     void join(Program &prg);
     void ground(std::optional<std::vector<std::pair<std::string, SymbolVec>>> const &parts, py::handle ctx);
     auto solve(std::optional<ModelCallback> on_model = std::nullopt) -> SSolveHandle;
+    auto base() -> Base;
     void main();
     auto buffer() -> char const *;
 
