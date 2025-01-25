@@ -34,6 +34,30 @@ class AtomBase {
     clingo_atom_base_t base_;
 };
 
+class Term {
+  public:
+    Term(clingo_term_base_t const &base, size_t index) : base_{&base}, index_{index} {}
+
+    auto symbol() -> Symbol;
+    auto condition() -> std::vector<clingo_literal_t>;
+
+  private:
+    clingo_term_base_t const *base_;
+    size_t index_;
+};
+
+class TermBase {
+  public:
+    TermBase(clingo_term_base_t const &base) : base_{&base} {}
+
+    auto size() -> size_t;
+    auto at(size_t index) -> Term;
+    auto lookup(Symbol const &symbol) -> Term;
+
+  private:
+    clingo_term_base_t const *base_;
+};
+
 class Base {
   public:
     using value_type = std::pair<std::tuple<std::string, size_t, bool>, AtomBase>;
@@ -43,6 +67,7 @@ class Base {
     auto size() -> size_t;
     auto at(size_t index) -> value_type;
     auto lookup(std::tuple<char const *, size_t, bool> sig) -> AtomBase;
+    auto terms() -> TermBase;
 
   private:
     clingo_base_t base_;

@@ -2,7 +2,6 @@
 #include <clingo/base.h>
 
 #include "base.hh"
-// #include "iterator.hh"
 #include "util.hh"
 
 namespace Clingo::Python {
@@ -44,6 +43,31 @@ auto AtomBase::lookup(Symbol const &symbol) -> Atom {
     throw std::logic_error("implement me: lookup");
 }
 
+auto Term::symbol() -> Symbol {
+    auto sym = clingo_symbol_t{0};
+    clingo_term_base_symbol(base_, index_, &sym);
+    return *cpp_cast(&sym);
+}
+
+auto Term::condition() -> std::vector<clingo_literal_t> {
+    static_cast<void>(this);
+    throw std::logic_error("implement me: condition");
+}
+
+auto TermBase::size() -> size_t {
+    size_t size = 0;
+    handle_error(clingo_term_base_size(base_, &size));
+    return size;
+}
+
+auto TermBase::at(size_t index) -> Term { return Term{*base_, index}; }
+
+auto TermBase::lookup(Symbol const &symbol) -> Term {
+    static_cast<void>(base_);
+    static_cast<void>(symbol);
+    throw std::logic_error("implement me: lookup");
+}
+
 auto Base::size() -> size_t {
     size_t size = 0;
     handle_error(clingo_base_atoms_size(&base_, &size));
@@ -64,7 +88,11 @@ auto Base::lookup(std::tuple<char const *, size_t, bool> sig) -> AtomBase {
     return AtomBase{atoms};
 }
 
-// TODO: terms
+auto Base::terms() -> TermBase {
+    auto const *terms = static_cast<clingo_term_base_t const *>(nullptr);
+    handle_error(clingo_base_terms(&base_, &terms));
+    return TermBase{*terms};
+}
 
 void register_base(pybind11::module &m) {
     using namespace Clingo::Python;
@@ -86,21 +114,26 @@ TODO)"));
             [](AtomBase &base, size_t index) { return index < base.size() ? base.at(index) : throw py::index_error{}; },
             "TODO: document it");
 
+    py::class_<Term>(base, "Term", R"(TODO.)")
+        .def_property_readonly("symbol", &Term::symbol, "Get the symbol of the term.")
+        .def_property_readonly("condition", &Term::condition, "Get the condition of the term.");
+
+    py::class_<TermBase>(base, "TermBase", R"(TODO.)")
+        .def("__len__", &TermBase::size, "Get the number of terms in the base.")
+        .def("lookup", &TermBase::lookup, "TODO: document it")
+        .def(
+            "__getitem__",
+            [](TermBase &base, size_t index) { return index < base.size() ? base.at(index) : throw py::index_error{}; },
+            "TODO: document it");
+
     py::class_<Base>(base, "Base", R"(TODO.)")
         .def("__len__", &Base::size, "Get the number of atom bases.")
         .def("lookup", &Base::lookup, "TODO: document it")
         .def(
             "__getitem__",
             [](Base &base, size_t index) { return index < base.size() ? base.at(index) : throw py::index_error{}; },
-            "TODO: document it");
-    /*
-    .def(
-        "__iter__",
-        [](Base &base) {
-            return py::make_iterator(RandomAccessIterator{base, 0}, RandomAccessIterator{base, base.size()});
-        },
-        "TODO: document it");
-    */
+            "TODO: document it")
+        .def_property_readonly("terms", &Base::terms, "the term base (from shown directives).");
 }
 
 } // namespace Clingo::Python
