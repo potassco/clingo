@@ -151,8 +151,26 @@ extern "C" auto clingo_term_base_symbol(clingo_term_base_t const *terms, size_t 
     CLINGO_CATCH;
 }
 
-// TODO:
-// - get conditions
+extern "C" auto clingo_term_base_condition(clingo_term_base_t const *terms, size_t index, clingo_literal_t **literals,
+                                           size_t *size) -> clingo_result_t {
+    CLINGO_TRY {
+        auto const &[state, cond] = cpp_cast(terms)->nth(index).value();
+        if (state.state == Clingo::Ground::ShowTermState::done) {
+            *literals = nullptr;
+            *size = 0;
+        } else {
+            assert(!cond.empty());
+            // FIXME: bad
+            // - little wrapper around the term base could avoid the thread_local
+            static thread_local auto result = std::vector<clingo_literal_t>{};
+            result.reserve(cond.size());
+            result.assign(cond.begin(), cond.end());
+            *literals = result.data();
+            *size = cond.size();
+        }
+    }
+    CLINGO_CATCH;
+}
 
 extern "C" auto clingo_control_base(clingo_control_t const *control, clingo_base_t *base) -> clingo_result_t {
     CLINGO_TRY {

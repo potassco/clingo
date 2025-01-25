@@ -172,6 +172,18 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_size(clingo_term_base
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_symbol(clingo_term_base_t const *terms, size_t index,
                                                                   clingo_symbol_t *term);
 
+//! Get the condition of a show directive.
+//!
+//! Note that the literals is set to NULL if the term is shown unconditionally.
+//!
+//! @param[in] terms the term base
+//! @param[in] index the index of the show diriective
+//! @param[out] literals the target literals
+//! @param[out] size the target size
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_condition(clingo_term_base_t const *terms, size_t index,
+                                                                     clingo_literal_t **literals, size_t *size);
+
 //! Get the base associated with the control object.
 //!
 //! The base can be used to query the atoms and terms occurring in a program.

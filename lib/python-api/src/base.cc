@@ -2,6 +2,7 @@
 #include <clingo/base.h>
 
 #include "base.hh"
+#include "iterable.hh" // IWYU pragma: keep
 #include "util.hh"
 
 namespace Clingo::Python {
@@ -45,13 +46,18 @@ auto AtomBase::lookup(Symbol const &symbol) -> Atom {
 
 auto Term::symbol() -> Symbol {
     auto sym = clingo_symbol_t{0};
-    clingo_term_base_symbol(base_, index_, &sym);
+    handle_error(clingo_term_base_symbol(base_, index_, &sym));
     return *cpp_cast(&sym);
 }
 
-auto Term::condition() -> std::vector<clingo_literal_t> {
-    static_cast<void>(this);
-    throw std::logic_error("implement me: condition");
+auto Term::condition() -> std::optional<std::span<clingo_literal_t const>> {
+    clingo_literal_t *lits = nullptr;
+    size_t size = 0;
+    handle_error(clingo_term_base_condition(base_, index_, &lits, &size));
+    if (lits == nullptr) {
+        return std::nullopt;
+    }
+    return std::make_optional<std::span<clingo_literal_t const>>(lits, size);
 }
 
 auto TermBase::size() -> size_t {

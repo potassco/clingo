@@ -6,6 +6,8 @@
 
 #include "symbol.hh"
 
+#include <span>
+
 namespace Clingo::Python {
 
 class Atom {
@@ -39,7 +41,7 @@ class Term {
     Term(clingo_term_base_t const &base, size_t index) : base_{&base}, index_{index} {}
 
     auto symbol() -> Symbol;
-    auto condition() -> std::vector<clingo_literal_t>;
+    auto condition() -> std::optional<std::span<clingo_literal_t const>>;
 
   private:
     clingo_term_base_t const *base_;

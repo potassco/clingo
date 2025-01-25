@@ -3,6 +3,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <span>
 #include <vector>
 
 namespace Clingo::Python {
@@ -80,13 +81,34 @@ template <typename T, typename A> class type_caster<Clingo::Python::Iterable<T, 
         auto l = list{src.size()};
         auto index = size_t{0};
         for (auto &&value : src) {
-            auto value_ = reinterpret_steal<object>(value_conv::cast(forward_like<T>(value), policy, parent));
-            if (!value_) {
+            auto py_value = reinterpret_steal<object>(value_conv::cast(forward_like<T>(value), policy, parent));
+            if (!py_value) {
                 return {};
             }
-            PyList_SET_ITEM(l.ptr(), static_cast<ssize_t>(index++), value_.release().ptr());
+            PyList_SET_ITEM(l.ptr(), static_cast<ssize_t>(index++), py_value.release().ptr());
         }
         return l.release();
+    }
+};
+
+template <typename T, size_t E> struct type_caster<std::span<T, E>> {
+    using value_type = std::remove_cv_t<T>;
+    using value_conv = make_caster<value_type>;
+    using type = std::span<T>;
+
+    PYBIND11_TYPE_CASTER(type, _("Sequence[") + make_caster<T>::name + _("]"));
+
+    static auto cast(std::span<T> const &src, [[maybe_unused]] return_value_policy policy, handle parent) -> handle {
+        list result{src.size()};
+        size_t index = 0;
+        for (auto const &item : src) {
+            auto py_item = reinterpret_steal<object>(value_conv::cast(item, return_value_policy::copy, parent));
+            if (!py_item) {
+                return {};
+            }
+            PyList_SET_ITEM(result.ptr(), static_cast<ssize_t>(index++), py_item.release().ptr());
+        }
+        return result.release();
     }
 };
 
