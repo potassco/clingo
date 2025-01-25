@@ -18,6 +18,7 @@ class Atom {
     auto symbol() -> Symbol;
     auto external() -> bool;
     auto fact() -> bool;
+    [[nodiscard]] auto index() const -> size_t;
 
   private:
     clingo_atom_base_t base_;
@@ -30,7 +31,8 @@ class AtomBase {
 
     auto size() -> size_t;
     auto at(size_t index) -> Atom;
-    auto lookup(Symbol const &symbol) -> Atom;
+    auto index(Symbol const &symbol) -> size_t;
+    auto lookup(Symbol const &symbol) -> std::optional<Atom>;
 
   private:
     clingo_atom_base_t base_;
@@ -42,6 +44,7 @@ class Term {
 
     auto symbol() -> Symbol;
     auto condition() -> std::optional<std::span<clingo_literal_t const>>;
+    [[nodiscard]] auto index() const -> size_t;
 
   private:
     clingo_term_base_t const *base_;
@@ -54,7 +57,8 @@ class TermBase {
 
     auto size() -> size_t;
     auto at(size_t index) -> Term;
-    auto lookup(Symbol const &symbol) -> Term;
+    auto index(Symbol const &symbol) -> size_t;
+    auto lookup(Symbol const &symbol) -> std::optional<Term>;
 
   private:
     clingo_term_base_t const *base_;

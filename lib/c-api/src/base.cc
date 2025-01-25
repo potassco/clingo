@@ -57,7 +57,7 @@ extern "C" auto clingo_base_atoms_find(clingo_base_t const *bases, clingo_signat
         auto const &atms = cpp_cast(bases)->atoms();
         auto sig = std::tuple{signature->name, signature->arity, signature->sign};
         auto it = atms.find(sig);
-        if (atoms != nullptr) {
+        if (atoms != nullptr && it->second != nullptr) {
             atoms->a = reinterpret_cast<uintptr_t>(it->second.get()); // NOLINT
             atoms->b = bases->b;
         }
@@ -122,6 +122,16 @@ extern "C" auto clingo_atom_base_literal(clingo_atom_base_t const *atoms, size_t
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_atom_base_find(clingo_atom_base_t const *atoms, clingo_symbol_t symbol, size_t *index)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (index != nullptr) {
+            *index = cpp_cast(atoms)->index(cpp_cast(symbol));
+        }
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" auto clingo_base_terms(clingo_base_t const *base, clingo_term_base_t const **terms) -> clingo_result_t {
     CLINGO_TRY {
         if (terms != nullptr) {
@@ -167,6 +177,17 @@ extern "C" auto clingo_term_base_condition(clingo_term_base_t const *terms, size
             result.assign(cond.begin(), cond.end());
             *literals = result.data();
             *size = cond.size();
+        }
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_term_base_find(clingo_term_base_t const *terms, clingo_symbol_t symbol, size_t *index)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        auto it = cpp_cast(terms)->find(cpp_cast(symbol));
+        if (index != nullptr) {
+            *index = std::distance(cpp_cast(terms)->begin(), it);
         }
     }
     CLINGO_CATCH;

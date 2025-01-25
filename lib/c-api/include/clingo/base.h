@@ -102,6 +102,17 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_find(clingo_base_t c
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_size(clingo_atom_base_t const *atoms, size_t *size);
 
+//! Find the index of the atom with the given symbol in the atom base.
+//!
+//! If the symbol is not found, return the size of the atom base.
+//!
+//! @param atoms the atom base
+//! @param symbol the symbol to lookup
+//! @param index the target index
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_find(clingo_atom_base_t const *atoms, clingo_symbol_t symbol,
+                                                                size_t *index);
+
 //! Check whether an atom is a fact.
 //!
 //! @note This does not determine if an atom is a cautious consequence. The
@@ -183,6 +194,17 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_symbol(clingo_term_ba
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_condition(clingo_term_base_t const *terms, size_t index,
                                                                      clingo_literal_t **literals, size_t *size);
+
+//! Get the index of the given symbol.
+//!
+//! If the symbol is not found, the index is set to the size of the base.
+//!
+//! @param[in] terms the term base
+//! @param[in] symbol the symbol to lookup
+//! @param[out] index the target index
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_find(clingo_term_base_t const *terms, clingo_symbol_t symbol,
+                                                                size_t *index);
 
 //! Get the base associated with the control object.
 //!

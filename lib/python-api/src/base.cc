@@ -30,6 +30,8 @@ auto Atom::fact() -> bool {
     return fact;
 }
 
+auto Atom::index() const -> size_t { return index_; }
+
 auto AtomBase::size() -> size_t {
     size_t size = 0;
     handle_error(clingo_atom_base_size(&base_, &size));
@@ -38,10 +40,10 @@ auto AtomBase::size() -> size_t {
 
 auto AtomBase::at(size_t index) -> Atom { return Atom{base_, index}; }
 
-auto AtomBase::lookup(Symbol const &symbol) -> Atom {
-    static_cast<void>(this);
-    static_cast<void>(symbol);
-    throw std::logic_error("implement me: lookup");
+auto AtomBase::lookup(Symbol const &symbol) -> std::optional<Atom> {
+    auto index = size_t{0};
+    handle_error(clingo_atom_base_find(&base_, *c_cast(&symbol), &index));
+    return index < size() ? std::make_optional<Atom>(base_, index) : std::nullopt;
 }
 
 auto Term::symbol() -> Symbol {
@@ -49,6 +51,8 @@ auto Term::symbol() -> Symbol {
     handle_error(clingo_term_base_symbol(base_, index_, &sym));
     return *cpp_cast(&sym);
 }
+
+auto Term::index() const -> size_t { return index_; }
 
 auto Term::condition() -> std::optional<std::span<clingo_literal_t const>> {
     clingo_literal_t *lits = nullptr;
@@ -68,10 +72,10 @@ auto TermBase::size() -> size_t {
 
 auto TermBase::at(size_t index) -> Term { return Term{*base_, index}; }
 
-auto TermBase::lookup(Symbol const &symbol) -> Term {
-    static_cast<void>(base_);
-    static_cast<void>(symbol);
-    throw std::logic_error("implement me: lookup");
+auto TermBase::lookup(Symbol const &symbol) -> std::optional<Term> {
+    auto index = size_t{0};
+    handle_error(clingo_term_base_find(base_, *c_cast(&symbol), &index));
+    return index < size() ? std::make_optional<Term>(*base_, index) : std::nullopt;
 }
 
 auto Base::size() -> size_t {
@@ -110,7 +114,8 @@ TODO)"));
         .def_property_readonly("literal", &Atom::literal, "Get the program literal of the atom.")
         .def_property_readonly("symbol", &Atom::symbol, "Get the symbol of the atom.")
         .def_property_readonly("external", &Atom::external, "Whether the atom is external.")
-        .def_property_readonly("fact", &Atom::fact, "Whether the atom is a fact.");
+        .def_property_readonly("fact", &Atom::fact, "Whether the atom is a fact.")
+        .def_property_readonly("index", &Atom::index, "The index of the atom in its atom base.");
 
     py::class_<AtomBase>(base, "AtomBase", R"(TODO.)")
         .def("__len__", &AtomBase::size, "Get the number of atoms in the base.")
@@ -122,7 +127,8 @@ TODO)"));
 
     py::class_<Term>(base, "Term", R"(TODO.)")
         .def_property_readonly("symbol", &Term::symbol, "Get the symbol of the term.")
-        .def_property_readonly("condition", &Term::condition, "Get the condition of the term.");
+        .def_property_readonly("condition", &Term::condition, "Get the condition of the term.")
+        .def_property_readonly("index", &Term::index, "The index of the term in its term base.");
 
     py::class_<TermBase>(base, "TermBase", R"(TODO.)")
         .def("__len__", &TermBase::size, "Get the number of terms in the base.")
