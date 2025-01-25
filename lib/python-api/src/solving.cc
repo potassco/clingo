@@ -42,10 +42,7 @@ auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVe
 
 auto SolveHandle::get() -> SolveResult {
     clingo_solve_result_bitset_t res = 0;
-    handle_error(clingo_solve_handle_get(hnd_, &res));
-    if (ptr_) {
-        std::rethrow_exception(std::exchange(ptr_, nullptr));
-    }
+    handle_error(clingo_solve_handle_get(hnd_, &res), ptr_);
     return {res};
 }
 
@@ -177,7 +174,7 @@ Args:
   theory: Include terms added by external theories.
 )"));
 
-    py::class_<SolveHandle>(solving, "SolveHandle", doc(R"(
+    py::class_<SolveHandle, SSolveHandle>(solving, "SolveHandle", doc(R"(
 An object to interact with a running search.
 
 It can be used to control solving, like, retrieving models or cancelling a
