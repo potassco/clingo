@@ -4,13 +4,31 @@
 
 #include <pybind11/pybind11.h>
 
+#include "symbol.hh"
+
 namespace Clingo::Python {
+
+class Atom {
+  public:
+    Atom(clingo_atom_base_t base, size_t index) : base_{base}, index_{index} {}
+
+    auto literal() -> clingo_literal_t;
+    auto symbol() -> Symbol;
+    auto external() -> bool;
+    auto fact() -> bool;
+
+  private:
+    clingo_atom_base_t base_;
+    size_t index_;
+};
 
 class AtomBase {
   public:
     AtomBase(clingo_atom_base_t base) : base_{base} {}
 
     auto size() -> size_t;
+    auto at(size_t index) -> Atom;
+    auto lookup(Symbol const &symbol) -> Atom;
 
   private:
     clingo_atom_base_t base_;
@@ -24,7 +42,7 @@ class Base {
 
     auto size() -> size_t;
     auto at(size_t index) -> value_type;
-    auto at(std::tuple<char const *, size_t, bool> sig) -> AtomBase;
+    auto lookup(std::tuple<char const *, size_t, bool> sig) -> AtomBase;
 
   private:
     clingo_base_t base_;
