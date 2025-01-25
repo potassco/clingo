@@ -1,3 +1,4 @@
 {
     "reportMissingModuleSource": false,
+    "venvPath": ".venv",
 }
