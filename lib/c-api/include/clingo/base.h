@@ -186,6 +186,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_symbol(clingo_term_ba
 //! Get the condition of a show directive.
 //!
 //! Note that the literals is set to NULL if the term is shown unconditionally.
+//! Furthermore, the lifetime of the resulting array is valid until the next
+//! call to this method in the same thread.
 //!
 //! @param[in] terms the term base
 //! @param[in] index the index of the show diriective

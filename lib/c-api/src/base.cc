@@ -170,8 +170,7 @@ extern "C" auto clingo_term_base_condition(clingo_term_base_t const *terms, size
             *size = 0;
         } else {
             assert(!cond.empty());
-            // FIXME: bad
-            // - little wrapper around the term base could avoid the thread_local
+            // NOTE: this seems to be the (safe) easiest way to convert from 64bit to 32bit here
             static thread_local auto result = std::vector<clingo_literal_t>{};
             result.reserve(cond.size());
             result.assign(cond.begin(), cond.end());
