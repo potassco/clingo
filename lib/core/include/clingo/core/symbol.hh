@@ -48,7 +48,7 @@ class String {
     [[nodiscard]] auto starts_with(std::string_view prefix) const -> bool;
 
     //! Compute the hash of the string.
-    [[nodiscard]] auto hash() const -> size_t { return Clingo::Util::value_hash(rep_); }
+    [[nodiscard]] auto hash() const -> size_t;
 
     //! Equality compare two strings.
     friend auto operator==(String a, String b) -> bool { return a.rep_ == b.rep_; }

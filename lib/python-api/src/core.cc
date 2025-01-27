@@ -174,7 +174,7 @@ auto operator<=>(Location const &a, Location const &b) -> std::strong_ordering {
 // register module
 
 void register_core(pybind11::module &m) {
-    auto core = m.def_submodule("core", doc(R"(
+    auto core = m.def_submodule("core", R"(
 Core functionality used throughout the clingo package.
 
 Examples
@@ -185,7 +185,7 @@ Examples
 >>> version()
 (6, 0, 0)
 ```
-)"));
+)"_d);
     core.def("version", &version, "Clingo's version as a tuple (major, minor, revision).");
 
     py::enum_<clingo_message_e>(core, "MessageType", "Message categories emitted by the logger.")
@@ -201,7 +201,7 @@ Examples
         .value("Warn", clingo_message_warn, R"(A warning message.)")
         .value("Error", clingo_message_error, R"(An error message.)");
 
-    py::class_<Library>(core, "Library", doc(R"(
+    py::class_<Library>(core, "Library", R"(
 Library objects are used to store the logger, symbols, strings, and scripts.
 
 Any function/or class that needs to create symbols takes this object as a
@@ -210,10 +210,10 @@ parameter.
 Destroying the library object frees the logger, the symbols, and the scripts.
 
 This class implements the ContextManager interface.
-)"))
+)"_d)
         .def(py::init<bool, bool, Logger, size_t>(), "Create a library object.", py::arg("shared") = true,
              py::arg("slotted") = true, py::arg("logger") = nullptr, py::arg("message_limit") = default_message_limit,
-             doc(R"(
+             R"(
 Create a library object.
 
 Args:
@@ -224,23 +224,23 @@ Args:
         single-threaded applications.
     logger: A logger to emit/intercept messages.
     message_limit: The maximum number of messages to emit.
-)"))
+)"_d)
         .def(
-            "__enter__", [](Library &lib) -> Library & { return lib; }, doc(R"(
+            "__enter__", [](Library &lib) -> Library & { return lib; }, R"(
 Return self.
-)"))
+)"_d)
         .def(
             "__exit__",
             [](Library &lib, py::object const &, py::object const &, py::object const &) -> bool {
                 lib.close();
                 return false;
             },
-            doc(R"(
+            R"(
 Close the library object.
-)"));
+)"_d);
     py::class_<Position>(core, "Position", R"(Position object tracking locations in files.)")
         .def(py::init<Library &, char const *, size_t, size_t>(), py::arg("lib"), py::arg("file"), py::arg("line"),
-             py::arg("column"), doc(R"(
+             py::arg("column"), R"(
 Create a position object.
 
 Args:
@@ -248,7 +248,7 @@ Args:
     file: The file name of the position.
     line: The line number of the postion.
     column: The column number of the postion.
-)"))
+)"_d)
         .def_property_readonly("file", &Position::file, "The file name.")
         .def_property_readonly("line", &Position::line, "The line number.")
         .def_property_readonly("column", &Position::column, "The column number.")
@@ -259,13 +259,13 @@ Args:
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<Location>(core, "Location", R"(Location tracking object.)")
-        .def(py::init<Position const &, Position const &>(), py::arg("begin"), py::arg("end"), doc(R"(
+        .def(py::init<Position const &, Position const &>(), py::arg("begin"), py::arg("end"), R"(
 Create a location object.
 
 Args:
     begin: The beginning of the location.
     end: The end of the location.
-)"))
+)"_d)
         .def_property_readonly("begin", &Location::begin, "The beginning of the location.")
         .def_property_readonly("end", &Location::end, "The end of the location.")
         .def("__str__", &Location::str)

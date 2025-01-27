@@ -52,12 +52,15 @@ extern "C" auto clingo_base_atoms_at(clingo_base_t const *bases, size_t index, c
 }
 
 extern "C" auto clingo_base_atoms_find(clingo_base_t const *bases, clingo_signature_t const *signature,
-                                       clingo_atom_base_t *atoms) -> clingo_result_t {
+                                       clingo_atom_base_t *atoms, bool *found) -> clingo_result_t {
     CLINGO_TRY {
         auto const &atms = cpp_cast(bases)->atoms();
         auto sig = std::tuple{signature->name, signature->arity, signature->sign};
         auto it = atms.find(sig);
-        if (atoms != nullptr && it->second != nullptr) {
+        if (found != nullptr) {
+            *found = it != atms.end();
+        }
+        if (atoms != nullptr && it != atms.end()) {
             atoms->a = reinterpret_cast<uintptr_t>(it->second.get()); // NOLINT
             atoms->b = bases->b;
         }

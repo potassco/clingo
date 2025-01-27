@@ -122,7 +122,7 @@ void reg_script(Library const &lib, Script &script) {
 }
 
 void register_script(pybind11::module &m) {
-    auto script = m.def_submodule("script", doc(R"(
+    auto script = m.def_submodule("script", R"(
 Module containing functions to add custom scripts, which can be embedded into logic programs.
 
 # Examples
@@ -157,16 +157,16 @@ The following example shows how to register a script that executes functions fro
 >>> ctl.buffer
 'p(9).\n#show p(9): p(9).\n#show.\n'
 ```
-)"));
+)");
     py::class_<Script>(script, "Script", R"(ABC for custom scripts.)")
         .def(py::init<>(), R"(Construct a script object.)")
-        .def("execute", &Script::execute, py::arg("code"), doc(R"(
+        .def("execute", &Script::execute, py::arg("code"), R"(
 Execute the given code.
 
 Args:
     code: The code to execute.
-)"))
-        .def("call", &Script::call, py::arg("lib"), py::arg("name"), py::arg("arguments"), doc(R"(
+)")
+        .def("call", &Script::call, py::arg("lib"), py::arg("name"), py::arg("arguments"), R"(
 Call the function with the given name and arguments.
 
 Args:
@@ -176,8 +176,8 @@ Args:
 
 Returns:
     A list of symbols.
-)"))
-        .def("callable", &Script::callable, py::arg("name"), py::arg("arguments"), doc(R"(
+)")
+        .def("callable", &Script::callable, py::arg("name"), py::arg("arguments"), R"(
 Check if the function with the given signature is callable.
 
 Args:
@@ -186,24 +186,24 @@ Args:
 
 Returns:
     Whether the function is callable.
-)"))
-        .def("main", &Script::main, py::arg("lib"), py::arg("control"), doc(R"(
+)")
+        .def("main", &Script::main, py::arg("lib"), py::arg("control"), R"(
 Run the main function.
 
 Args:
     lib: The (main) library object.
     control: The (main) control object.
-)"))
+)")
         .def("name", &Script::name, R"(Get the name of the script.)")
         .def("version", &Script::version, R"(Get the version of the script.)");
 
-    script.def("register", &reg_script, py::arg("lib"), py::arg("script"), doc(R"(
+    script.def("register", &reg_script, py::arg("lib"), py::arg("script"), R"(
 Registers a script language which can then be embedded into a logic program.
 
 Args:
     lib: The library to register the script with.
     script: The script to register.
-)"));
+)");
 }
 
 } // namespace Clingo::Python

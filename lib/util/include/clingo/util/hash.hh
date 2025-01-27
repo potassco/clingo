@@ -61,6 +61,15 @@ template <class T, class A> auto value_hash(std::vector<T, A> const &x) -> size_
 //! Compute the hash of an immutable array.
 template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t;
 
+//! Compute the hash of a string.
+auto value_hash(char const *x) -> size_t;
+
+//! Compute the hash of a string.
+auto value_hash(std::string_view const &x) -> size_t;
+
+//! Compute the hash of a string.
+auto value_hash(std::string const &x) -> size_t;
+
 //! Compute the hash for a given range of elements.
 template <class T> auto value_hash_range(T const &x) -> size_t;
 
@@ -80,6 +89,8 @@ struct value_equal_to {
 
     //! Basic comparison.
     template <class T, class U> auto operator()(T const &a, U const &b) const -> bool { return a == b; }
+    //! Compare c-strings by value.
+    auto operator()(char const *a, char const *b) const -> bool { return std::strcmp(a, b) == 0; }
     //! Compare reference wrappers by value.
     template <class T, class U>
     auto operator()(std::reference_wrapper<T> const &a, std::reference_wrapper<U> const &b) const -> bool {
@@ -313,6 +324,12 @@ template <class T, size_t E> auto value_hash(std::span<T, E> const &x) -> size_t
 template <class T, class A> auto value_hash(std::vector<T, A> const &x) -> size_t { return value_hash_range(x); }
 
 template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t { return value_hash_range(x); }
+
+inline auto value_hash(char const *x) -> size_t { return std::hash<std::string_view>{}(x); }
+
+inline auto value_hash(std::string_view const &x) -> size_t { return std::hash<std::string_view>{}(x); }
+
+inline auto value_hash(std::string const &x) -> size_t { return std::hash<std::string_view>{}(x); }
 
 template <class T, class... Args> auto value_hash_record(Args const &...x) -> size_t {
     return hash_combine(value_hash(x)...);

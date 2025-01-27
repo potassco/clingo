@@ -26,11 +26,9 @@ auto Atom::external() -> bool {
 }
 auto Atom::fact() -> bool {
     auto fact = false;
-    handle_error(clingo_atom_base_is_external(&base_, index_, &fact));
+    handle_error(clingo_atom_base_is_fact(&base_, index_, &fact));
     return fact;
 }
-
-auto Atom::index() const -> size_t { return index_; }
 
 auto AtomBase::size() -> size_t {
     size_t size = 0;
@@ -38,12 +36,15 @@ auto AtomBase::size() -> size_t {
     return size;
 }
 
-auto AtomBase::at(size_t index) -> Atom { return Atom{base_, index}; }
+auto AtomBase::at(size_t index) -> value_type {
+    auto atom = Atom{base_, index};
+    return index < size() ? value_type{atom.symbol(), atom} : throw py::index_error{"index out of range"};
+}
 
-auto AtomBase::lookup(Symbol const &symbol) -> std::optional<Atom> {
+auto AtomBase::lookup(key_type const &symbol) -> mapped_type {
     auto index = size_t{0};
     handle_error(clingo_atom_base_find(&base_, *c_cast(&symbol), &index));
-    return index < size() ? std::make_optional<Atom>(base_, index) : std::nullopt;
+    return index < size() ? Atom{base_, index} : throw py::key_error{"key not found"};
 }
 
 auto Term::symbol() -> Symbol {
@@ -51,8 +52,6 @@ auto Term::symbol() -> Symbol {
     handle_error(clingo_term_base_symbol(base_, index_, &sym));
     return *cpp_cast(&sym);
 }
-
-auto Term::index() const -> size_t { return index_; }
 
 auto Term::condition() -> std::optional<std::span<clingo_literal_t const>> {
     clingo_literal_t *lits = nullptr;
@@ -70,12 +69,15 @@ auto TermBase::size() -> size_t {
     return size;
 }
 
-auto TermBase::at(size_t index) -> Term { return Term{*base_, index}; }
+auto TermBase::at(size_t index) -> value_type {
+    auto term = Term{*base_, index};
+    return index < size() ? value_type{term.symbol(), term} : throw py::index_error{"index out of range"};
+}
 
-auto TermBase::lookup(Symbol const &symbol) -> std::optional<Term> {
+auto TermBase::lookup(key_type const &symbol) -> mapped_type {
     auto index = size_t{0};
     handle_error(clingo_term_base_find(base_, *c_cast(&symbol), &index));
-    return index < size() ? std::make_optional<Term>(*base_, index) : std::nullopt;
+    return index < size() ? Term{*base_, index} : throw py::key_error("key does not exist");
 }
 
 auto Base::size() -> size_t {
@@ -84,18 +86,26 @@ auto Base::size() -> size_t {
     return size;
 }
 
-auto Base::at(size_t index) -> std::pair<std::tuple<std::string, size_t, bool>, AtomBase> {
+auto Base::at(size_t index) -> value_type {
     auto sig = clingo_signature_t{};
     auto atoms = clingo_atom_base_t{};
-    handle_error(clingo_base_atoms_at(&base_, index, &sig, &atoms));
-    return std::pair{std::tuple{std::string{sig.name}, sig.arity, sig.sign}, AtomBase{atoms}};
+    if (index < size()) {
+        handle_error(clingo_base_atoms_at(&base_, index, &sig, &atoms));
+        return std::pair{std::tuple{sig.name, sig.arity, sig.sign}, AtomBase{atoms}};
+    }
+    throw py::index_error{"index out of range"};
 }
 
-auto Base::lookup(std::tuple<char const *, size_t, bool> sig) -> AtomBase {
+auto Base::lookup_short(std::pair<char const *, size_t> const &sig) -> mapped_type {
+    return lookup({get<0>(sig), get<1>(sig), false});
+}
+
+auto Base::lookup(key_type const &sig) -> mapped_type {
     auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
     auto atoms = clingo_atom_base_t{};
-    handle_error(clingo_base_atoms_find(&base_, &csig, &atoms));
-    return AtomBase{atoms};
+    auto found = false;
+    handle_error(clingo_base_atoms_find(&base_, &csig, &atoms, &found));
+    return found ? AtomBase{atoms} : throw py::key_error("key does not exist");
 }
 
 auto Base::terms() -> TermBase {
@@ -107,44 +117,108 @@ auto Base::terms() -> TermBase {
 void register_base(pybind11::module &m) {
     using namespace Clingo::Python;
 
-    auto base = m.def_submodule("base", doc(R"(
-TODO)"));
+    auto base = m.def_submodule("base", R"(
+Functions and classes to work with atom and term bases.
 
-    py::class_<Atom>(base, "Atom", R"(TODO.)")
+# Examples
+
+```python
+>>> from clingo.core import Library
+>>> from clingo.symbol import Function, Number
+>>> from clingo.control import Control
+>>> lib = Library()
+>>> ctl = Control(lib)
+>>> ctl.parse_string("""\
+... p(1).
+... { p(3) }.
+... #external p(1..3).
+...
+... q(X) :- p(X).
+... """)
+>>> ctl.ground()
+>>> len(ctl.base)
+2
+>>> p = ctl.base[("p", 1)]
+>>> Function(lib, "p", [Number(lib, 2)]) in p
+True
+>>> Function(lib, "p", [Number(lib, 4)]) in p
+False
+>>> [sig for sig in ctl.base]
+[('p', 1, False), ('q', 1, False)]
+>>> [(str(x.symbol), x.fact, x.external) for x in p.values()]
+[('p(1)', True, False), ('p(3)', False, False), ('p(2)', False, True)]
+```)"_d);
+
+    py::class_<Atom>(base, "Atom", R"(A class providing information about symbolic atoms.)")
         .def_property_readonly("literal", &Atom::literal, "Get the program literal of the atom.")
         .def_property_readonly("symbol", &Atom::symbol, "Get the symbol of the atom.")
         .def_property_readonly("external", &Atom::external, "Whether the atom is external.")
-        .def_property_readonly("fact", &Atom::fact, "Whether the atom is a fact.")
-        .def_property_readonly("index", &Atom::index, "The index of the atom in its atom base.");
+        .def_property_readonly("fact", &Atom::fact, "Whether the atom is a fact.");
 
-    py::class_<AtomBase>(base, "AtomBase", R"(TODO.)")
+    py::class_<AtomBase>(base, "AtomBase", R"(An atom base mapping symbols to atoms.)")
         .def("__len__", &AtomBase::size, "Get the number of atoms in the base.")
-        .def("lookup", &AtomBase::lookup, "TODO: document it")
+        .def("__getitem__", &AtomBase::lookup, R"( Get the atom with the given symbol.)")
         .def(
-            "__getitem__",
-            [](AtomBase &base, size_t index) { return index < base.size() ? base.at(index) : throw py::index_error{}; },
-            "TODO: document it");
+            "__iter__", [](AtomBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
+            "Get an iterable over the keys in the map.")
+        .def(
+            "items", [](AtomBase &base) { return py::make_iterator(base.begin(), base.end()); },
+            R"(Get an iterator over the items in the map.)")
+        .def(
+            "values", [](AtomBase &base) { return py::make_value_iterator(base.begin(), base.end()); },
+            R"(Get an iterator over the values in the map.)")
+        .def(
+            "keys", [](AtomBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
+            R"(Get get an iterator over the keys in the map.)");
 
-    py::class_<Term>(base, "Term", R"(TODO.)")
+    py::class_<Term>(base, "Term", R"(A class providing information about terms.)")
         .def_property_readonly("symbol", &Term::symbol, "Get the symbol of the term.")
-        .def_property_readonly("condition", &Term::condition, "Get the condition of the term.")
-        .def_property_readonly("index", &Term::index, "The index of the term in its term base.");
+        .def_property_readonly("condition", &Term::condition, "Get the condition of the term.");
 
-    py::class_<TermBase>(base, "TermBase", R"(TODO.)")
+    py::class_<TermBase>(base, "TermBase", R"(
+A term base mapping symbols to terms.
+
+The base is established by the show directives occurring in a program.)"_d)
         .def("__len__", &TermBase::size, "Get the number of terms in the base.")
-        .def("lookup", &TermBase::lookup, "TODO: document it")
+        .def("__getitem__", &TermBase::lookup, R"(Get the term with the given symbol.)")
         .def(
-            "__getitem__",
-            [](TermBase &base, size_t index) { return index < base.size() ? base.at(index) : throw py::index_error{}; },
-            "TODO: document it");
+            "__iter__", [](TermBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
+            "Get an iterator over the keys in the map.")
+        .def(
+            "items", [](TermBase &base) { return py::make_iterator(base.begin(), base.end()); },
+            R"(Get an iterator over the items in the map.)")
+        .def(
+            "values", [](TermBase &base) { return py::make_value_iterator(base.begin(), base.end()); },
+            R"(Get an iterator over the values in the map.)")
+        .def(
+            "keys", [](TermBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
+            R"(Get get an iterator over the keys in the map.)");
 
-    py::class_<Base>(base, "Base", R"(TODO.)")
+    py::class_<Base>(base, "Base", R"(
+The base provides information about atoms and terms occuring in a program.
+
+It implements a map from signatures to atom bases.
+)")
         .def("__len__", &Base::size, "Get the number of atom bases.")
-        .def("lookup", &Base::lookup, "TODO: document it")
+        .def("__getitem__", &Base::lookup_short,
+             R"(
+Get the element with the given signature.
+
+This function provides a shortcut assuming the sign is false.
+)"_d)
+        .def("__getitem__", &Base::lookup, R"(Get the element with the given signature.)")
         .def(
-            "__getitem__",
-            [](Base &base, size_t index) { return index < base.size() ? base.at(index) : throw py::index_error{}; },
-            "TODO: document it")
+            "__iter__", [](Base &base) { return py::make_key_iterator(base.begin(), base.end()); },
+            "Get an iterator over the keys in the map.")
+        .def(
+            "items", [](Base &base) { return py::make_iterator(base.begin(), base.end()); },
+            R"(Get an iterator over the items in the map.)")
+        .def(
+            "values", [](Base &base) { return py::make_value_iterator(base.begin(), base.end()); },
+            R"(Get an iterator over the values in the map.)")
+        .def(
+            "keys", [](Base &base) { return py::make_key_iterator(base.begin(), base.end()); },
+            R"(Get get an iterator over the keys in the map.)")
         .def_property_readonly("terms", &Base::terms, "the term base (from shown directives).");
 }
 

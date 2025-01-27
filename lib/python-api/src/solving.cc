@@ -83,7 +83,7 @@ void SolveHandle::close() {
 }
 
 void register_solving(pybind11::module &m) {
-    auto solving = m.def_submodule("solving", doc(R"(
+    auto solving = m.def_submodule("solving", R"(
 Functions and classes related to solving.
 
 Examples
@@ -154,7 +154,7 @@ This example shows how to solve both iteratively and asynchronously:
     a
     a b
     None
-)"));
+)"_d);
     py::class_<SolveResult>(solving, "SolveResult", R"(A solve result captures information about a solve call.)")
         .def("__str__", &SolveResult::str, R"(Get a string representation of the solve result.)")
         .def_property_readonly("satisfiable", &SolveResult::satisfiable, R"(True if there was at least one model.)")
@@ -164,7 +164,7 @@ This example shows how to solve both iteratively and asynchronously:
 
     py::class_<Model>(solving, "Model", R"(A view on the solver's current solution.)")
         .def("symbols", &Model::symbols, py::arg("shown") = false, py::arg("atoms") = false, py::arg("terms") = false,
-             py::arg("theory") = false, doc(R"(
+             py::arg("theory") = false, R"(
 Get the symbols in the model.
 
 Args:
@@ -172,9 +172,9 @@ Args:
   atoms: Include all true atoms including hidden ones.
   terms: Include shown terms.
   theory: Include terms added by external theories.
-)"));
+)"_d);
 
-    py::class_<SolveHandle, SSolveHandle>(solving, "SolveHandle", doc(R"(
+    py::class_<SolveHandle, SSolveHandle>(solving, "SolveHandle", R"(
 An object to interact with a running search.
 
 It can be used to control solving, like, retrieving models or cancelling a
@@ -187,32 +187,29 @@ Blocking functions in this object release the GIL. They are not thread-safe
 though.
 
 See also: `clingo.control.Control.solve`
-)"))
-        .def("get", &SolveHandle::get, doc(R"(
+)"_d)
+        .def("get", &SolveHandle::get, R"(
 Get the solve result.
 
 This is always the last function that should be called on a handle to ensure
 that the search is properly terminated. It might be preceded by a call to
 cancel to stop a running search.
-)"))
-        .def("core", &SolveHandle::core, doc(R"(
-Get the subset of assumptions that made the problem unsatisfiable.)"))
-        .def("model", &SolveHandle::model, doc(R"(
-Get the current model if there is any.
-)"))
-        .def("last", &SolveHandle::last, doc(R"(
+)"_d)
+        .def("core", &SolveHandle::core, R"(Get the subset of assumptions that made the problem unsatisfiable.)")
+        .def("model", &SolveHandle::model, R"(Get the current model if there is any.)")
+        .def("last", &SolveHandle::last, R"(
 Get the last computed model if there is any.
 
 If the search is not completed yet or the problem is unsatisfiable, the
 function returns `None`.
-)"))
-        .def("resume", &SolveHandle::resume, doc(R"(
+)"_d)
+        .def("resume", &SolveHandle::resume, R"(
 Discards the last model and starts searching for the next one.
 
 If the search has been started asynchronously, this function starts the search
 in the background.
-)"))
-        .def("wait", &SolveHandle::wait, doc(R"(
+)"_d)
+        .def("wait", &SolveHandle::wait, R"(
 Wait for solve call to finish or the next result with an optional timeout.
 
 If a timeout is given, the behavior of the function changes depending on the
@@ -228,12 +225,12 @@ Args:
 
 Returns:
   Indicates whether the solve call has finished or the next result is ready.
-)"))
-        .def("cancel", &SolveHandle::cancel, doc(R"(
+)"_d)
+        .def("cancel", &SolveHandle::cancel, R"(
 Cancel the running search.
 
 See also: `clingo.control.Control.interrupt`
-)"))
+)"_d)
         .def(
             "__enter__", [&](SSolveHandle hnd) -> SSolveHandle { return hnd; }, "Start the search.")
         .def(

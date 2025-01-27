@@ -4,6 +4,7 @@
 
 #include <pybind11/pybind11.h>
 
+#include "iterator.hh"
 #include "symbol.hh"
 
 #include <span>
@@ -18,7 +19,6 @@ class Atom {
     auto symbol() -> Symbol;
     auto external() -> bool;
     auto fact() -> bool;
-    [[nodiscard]] auto index() const -> size_t;
 
   private:
     clingo_atom_base_t base_;
@@ -27,12 +27,17 @@ class Atom {
 
 class AtomBase {
   public:
+    using key_type = Symbol;
+    using mapped_type = Atom;
+    using value_type = std::pair<key_type, mapped_type>;
+
     AtomBase(clingo_atom_base_t base) : base_{base} {}
 
     auto size() -> size_t;
-    auto at(size_t index) -> Atom;
-    auto index(Symbol const &symbol) -> size_t;
-    auto lookup(Symbol const &symbol) -> std::optional<Atom>;
+    auto at(size_t index) -> value_type;
+    auto lookup(key_type const &symbol) -> mapped_type;
+    [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }
+    [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_atom_base_t base_;
@@ -44,7 +49,6 @@ class Term {
 
     auto symbol() -> Symbol;
     auto condition() -> std::optional<std::span<clingo_literal_t const>>;
-    [[nodiscard]] auto index() const -> size_t;
 
   private:
     clingo_term_base_t const *base_;
@@ -53,12 +57,17 @@ class Term {
 
 class TermBase {
   public:
+    using key_type = Symbol;
+    using mapped_type = Term;
+    using value_type = std::pair<key_type, mapped_type>;
+
     TermBase(clingo_term_base_t const &base) : base_{&base} {}
 
     auto size() -> size_t;
-    auto at(size_t index) -> Term;
-    auto index(Symbol const &symbol) -> size_t;
-    auto lookup(Symbol const &symbol) -> std::optional<Term>;
+    auto at(size_t index) -> value_type;
+    auto lookup(key_type const &symbol) -> mapped_type;
+    [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }
+    [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_term_base_t const *base_;
@@ -66,14 +75,19 @@ class TermBase {
 
 class Base {
   public:
-    using value_type = std::pair<std::tuple<std::string, size_t, bool>, AtomBase>;
+    using key_type = std::tuple<char const *, size_t, bool>;
+    using mapped_type = AtomBase;
+    using value_type = std::pair<key_type, mapped_type>;
 
     Base(clingo_base_t base) : base_{base} {}
 
     auto size() -> size_t;
     auto at(size_t index) -> value_type;
-    auto lookup(std::tuple<char const *, size_t, bool> sig) -> AtomBase;
+    auto lookup(key_type const &sig) -> mapped_type;
+    auto lookup_short(std::pair<char const *, size_t> const &sig) -> mapped_type;
     auto terms() -> TermBase;
+    [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }
+    [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_base_t base_;

@@ -230,11 +230,12 @@ template <class T> class RefCounted {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         return data_;
     }
-    auto hash(size_t n) -> size_t {
+    auto hash() const -> size_t { return hash_; }
+    void compute_hash(size_t n) {
         if constexpr (std::is_same_v<T, char>) {
-            return std::hash<std::string_view>{}(std::string_view(data(), n));
+            hash_ = std::hash<std::string_view>{}(std::string_view(data(), n));
         } else {
-            return Util::value_hash(std::span(data(), n));
+            hash_ = Util::value_hash(std::span(data(), n));
         }
     }
     [[nodiscard]] auto span() noexcept -> std::span<T> { return {data(), size()}; }
@@ -249,6 +250,7 @@ template <class T> class RefCounted {
     RefCounted(bool referenced) : ref_count_{referenced ? 1U : 0U} {}
 
     std::atomic_size_t mutable ref_count_;
+    size_t hash_ = 0;
     GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
     T data_[0];
     GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
@@ -265,7 +267,7 @@ class KeySymbolArray {
         size_t n = symbols.size();
         auto *data = SymbolArray::alloc(alloc, n, referenced);
         std::ranges::copy(symbols, data->data());
-        hash_ = data->hash(n);
+        data->compute_hash(n);
         repr_ = reinterpret_cast<uintptr_t>(data);
     }
 
@@ -275,7 +277,7 @@ class KeySymbolArray {
         auto *data = SymbolArray::alloc(alloc, n, referenced);
         *data->data() = name;
         std::ranges::copy(symbols, data->data() + 1);
-        hash_ = data->hash(n);
+        data->compute_hash(n);
         repr_ = reinterpret_cast<uintptr_t>(data);
     }
 
@@ -285,7 +287,7 @@ class KeySymbolArray {
 
     static auto to_repr(KeySymbolArray const &arr) -> uint64_t { return arr.repr_ & ~mask_; }
 
-    [[nodiscard]] auto hash() const noexcept -> size_t { return hash_; }
+    [[nodiscard]] auto hash() const noexcept -> size_t { return repr().hash(); }
     [[maybe_unused]] friend auto operator==(KeySymbolArray const &a, KeySymbolArray const &b) -> bool {
         if (a.marked() || b.marked()) {
             auto sa = a.repr().span();
@@ -303,7 +305,6 @@ class KeySymbolArray {
     [[nodiscard]] auto marked() const noexcept -> bool { return (repr_ & mask_) == 0; }
 
     static constexpr uint64_t mask_ = 1U;
-    size_t hash_ = 0;
     uint64_t mutable repr_ = 0U;
 };
 
@@ -319,7 +320,8 @@ class KeyCharArray {
         auto *repr = CharArray::alloc(alloc, n, referenced);
         std::copy(str.begin(), str.end(), repr->data());
         std::fill_n(repr->data() + n, 1, '\0');
-        hash_ = repr->hash(n);
+        // TODO: store in SymbolArray
+        repr->compute_hash(n);
         repr_ = reinterpret_cast<uintptr_t>(repr);
     }
 
@@ -328,7 +330,7 @@ class KeyCharArray {
     void unmark() const noexcept { repr_ |= mask_; }
     static auto to_repr(KeyCharArray const &arr) -> uint64_t { return arr.repr_ & ~mask_; }
 
-    [[nodiscard]] auto hash() const noexcept -> size_t { return hash_; }
+    [[nodiscard]] auto hash() const noexcept -> size_t { return repr().hash(); }
     [[maybe_unused]] friend auto operator==(KeyCharArray const &a, KeyCharArray const &b) -> bool {
         if (a.marked() || b.marked()) {
             return a.repr().view() == b.repr().view();
@@ -342,7 +344,6 @@ class KeyCharArray {
     [[nodiscard]] auto marked() const noexcept -> bool { return (repr_ & mask_) == 0; }
 
     static constexpr uint64_t mask_ = 1U;
-    size_t hash_ = 0;
     uint64_t mutable repr_ = 0;
 };
 
@@ -438,8 +439,10 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
                 ++it;
             } else {
                 ++collected;
-                it->destroy(alloc_);
+                auto const &x = it.key();
+                // NOTE: erase won't throw
                 it = tuples_.erase(it);
+                x.destroy(alloc_);
             }
         }
         // destroy strings
@@ -455,8 +458,10 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
                 printf("  delete string: %s\n", CharArray::from_repr(KeyCharArray::to_repr(*it)).data());
 #endif
                 ++collected;
-                it->destroy(alloc_);
+                auto const &x = it.key();
+                // NOTE: erase won't throw
                 it = strings_.erase(it);
+                x.destroy(alloc_);
             }
         }
         // destroy numbers
@@ -605,6 +610,8 @@ auto String::empty() const -> bool { return *c_str() == '\0'; }
 auto String::size() const -> size_t { return rep_ != 0 ? CharArray::from_repr(rep_).size() : 0; }
 
 auto String::starts_with(std::string_view prefix) const -> bool { return view().starts_with(prefix); }
+
+auto String::hash() const -> size_t { return rep_ != 0 ? CharArray::from_repr(rep_).hash() : 0; }
 
 auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
     out << str.view();

@@ -33,11 +33,11 @@ auto Symbol::operator=(Symbol &&other) noexcept -> Symbol & {
 
 Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
 
-[[nodiscard]] auto Symbol::type() const -> clingo_symbol_type_e {
+auto Symbol::type() const -> clingo_symbol_type_e {
     return static_cast<clingo_symbol_type_e>(clingo_symbol_type(sym_));
 }
 
-[[nodiscard]] auto Symbol::number() const -> py::int_ {
+auto Symbol::number() const -> py::int_ {
     if (type() != clingo_symbol_type_number) {
         throw std::invalid_argument("symbol is not a number");
     }
@@ -48,7 +48,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
     return py::reinterpret_steal<py::int_>(PyLong_FromString(str().c_str(), nullptr, decimal_base));
 }
 
-[[nodiscard]] auto Symbol::string() const -> py::str {
+auto Symbol::string() const -> py::str {
     auto t = type();
     if (t != clingo_symbol_type_string) {
         throw std::invalid_argument("symbol is not a string");
@@ -58,7 +58,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
     return name;
 }
 
-[[nodiscard]] auto Symbol::name() const -> std::string_view {
+auto Symbol::name() const -> std::string_view {
     auto t = type();
     if (t != clingo_symbol_type_function) {
         throw std::invalid_argument("symbol is not a function");
@@ -68,7 +68,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
     return name;
 }
 
-[[nodiscard]] auto Symbol::arity() const -> size_t {
+auto Symbol::arity() const -> size_t {
     auto t = type();
     if (t != clingo_symbol_type_tuple && t != clingo_symbol_type_function) {
         throw std::invalid_argument("symbol is not a tuple or function");
@@ -79,7 +79,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
     return size;
 }
 
-[[nodiscard]] auto Symbol::args() const -> py::list {
+auto Symbol::args() const -> py::list {
     auto t = type();
     if (t != clingo_symbol_type_tuple && t != clingo_symbol_type_function) {
         throw std::invalid_argument("symbol is not a tuple or function");
@@ -95,7 +95,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
     return ret;
 }
 
-[[nodiscard]] auto Symbol::str() const -> std::string {
+auto Symbol::str() const -> std::string {
     size_t len = 0;
     handle_error(clingo_symbol_to_string_size(sym_, &len));
     std::string str;
@@ -107,7 +107,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
     return str;
 }
 
-[[nodiscard]] auto Symbol::repr() const -> std::string {
+auto Symbol::repr() const -> std::string {
     std::ostringstream oss;
     switch (type()) {
         case clingo_symbol_type_infimum: {
@@ -137,7 +137,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
     return oss.str();
 }
 
-[[nodiscard]] auto Symbol::sign() const -> bool {
+auto Symbol::sign() const -> bool {
     auto t = type();
     if (t != clingo_symbol_type_number && t != clingo_symbol_type_function) {
         throw std::invalid_argument("symbol is not a number or function");
@@ -147,18 +147,24 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
     return sign;
 }
 
-[[nodiscard]] auto Symbol::match_function(std::string_view name, size_t arity, bool sign) const -> bool {
+auto Symbol::match_function(std::string_view name, size_t arity, bool sign) const -> bool {
     return type() == clingo_symbol_type_function && name == this->name() && arity == this->arity() &&
            sign == this->sign();
 }
 
-[[nodiscard]] auto Symbol::match_tuple(size_t arity) const -> bool {
+auto Symbol::signature() const -> std::optional<std::tuple<std::string_view, size_t, bool>> {
+    return type() == clingo_symbol_type_function
+               ? std::make_optional<std::tuple<std::string_view, size_t, bool>>(name(), arity(), sign())
+               : std::nullopt;
+}
+
+auto Symbol::match_tuple(size_t arity) const -> bool {
     return type() == clingo_symbol_type_tuple && arity == this->arity();
 }
 
-[[nodiscard]] auto Symbol::hash() const -> size_t { return clingo_symbol_hash(sym_); }
+auto Symbol::hash() const -> size_t { return clingo_symbol_hash(sym_); }
 
-[[nodiscard]] auto Symbol::handle() const -> clingo_symbol_t { return sym_; }
+auto Symbol::handle() const -> clingo_symbol_t { return sym_; }
 
 auto operator==(Symbol const &a, Symbol const &b) -> bool { return clingo_symbol_equal(a.sym_, b.sym_); }
 
@@ -225,32 +231,30 @@ auto parse_term(Library &lib, std::string str) -> Symbol {
 }
 
 void register_symbol(pybind11::module &m) {
-    auto symbol = m.def_submodule("symbol", doc(R"(
+    auto symbol = m.def_submodule("symbol", R"(
 Functions and classes for symbol manipulation.
 
 Examples
 --------
 
-```python
->>> from clingo.core import Library
->>> from clingo.symbol import Function, Number, parse_term
->>>
->>> lib = Library()
->>>
->>> num = Number(lib, 42)
->>> num.number
-42
->>> fun = Function(lib, "f", [num])
->>> fun.name
-'f'
->>> [ str(arg) for arg in fun.arguments ]
-['42']
->>> parse_term(lib, str(fun)) == fun
-True
->>> parse_term(lib, 'p(1+2)')
-p(3)
-```
-)"));
+    >>> from clingo.core import Library
+    >>> from clingo.symbol import Function, Number, parse_term
+    >>>
+    >>> lib = Library()
+    >>>
+    >>> num = Number(lib, 42)
+    >>> num.number
+    42
+    >>> fun = Function(lib, "f", [num])
+    >>> fun.name
+    'f'
+    >>> [ str(arg) for arg in fun.arguments ]
+    ['42']
+    >>> parse_term(lib, str(fun)) == fun
+    True
+    >>> parse_term(lib, 'p(1+2)')
+    p(3)
+)"_d);
 
     py::enum_<clingo_symbol_type_e>(symbol, "SymbolType", R"(Enumeration of symbols types.)")
         .value("Number", clingo_symbol_type_number, R"(A numeric symbol, e.g., `1`.)")
@@ -260,7 +264,7 @@ p(3)
         .value("Tuple", clingo_symbol_type_tuple, R"("A tuple symbol `(1,a)`.")")
         .value("Function", clingo_symbol_type_function, R"(A function symbol, e.g., `c`, `-c`, or `f(1,"a")`.)");
 
-    py::class_<Symbol>(symbol, "Symbol", doc(R"(
+    py::class_<Symbol>(symbol, "Symbol", R"(
 Represents a clingo symbol.
 
 This includes `#inf` and `#sup`, numbers, strings, tuples, functions (including
@@ -273,11 +277,17 @@ representation corresponds to their clingo representation.
 Note that this class does not have a constructor. Instead there are the
 preconstructed symbols `Infimum` and `Supremum` and the functions `Number`,
 `String`, `Tuple_`, and `Function` to construct symbol objects.
-)"))
+)"_d)
         .def("__str__", &Symbol::str)
         .def("__repr__", &Symbol::repr)
         .def("__hash__", &Symbol::hash)
-        .def("match", &Symbol::match_function, py::arg("name"), py::arg("arity") = 0, py::arg("sign") = false, doc(R"(
+        .def("signature", &Symbol::signature, R"(
+Get the signature of function symbols.
+
+Returns:
+	The signature or None.
+)"_d)
+        .def("match", &Symbol::match_function, py::arg("name"), py::arg("arity") = 0, py::arg("sign") = false, R"(
 Check if this is a function symbol with the given signature.
 
 Args:
@@ -287,8 +297,8 @@ Args:
 
 Returns:
     Whether the function matches.
-)"))
-        .def("match", &Symbol::match_tuple, py::arg("arity") = 0, doc(R"(
+)"_d)
+        .def("match", &Symbol::match_tuple, py::arg("arity") = 0, R"(
 Check if this is a tuple symbol with the given arity.
 
 Args:
@@ -296,7 +306,7 @@ Args:
 
 Returns:
     Whether the tuple matches.
-)"))
+)"_d)
         .def_property_readonly("type", &Symbol::type, R"(The type of the symbol.)")
         .def_property_readonly("number", &Symbol::number, R"(The numeric value.)")
         .def_property_readonly("string", &Symbol::string, R"(The string value.)")
@@ -307,29 +317,29 @@ Returns:
 
     symbol.add_object("Infimum", py::cast(Infimum()));
     symbol.add_object("Supremum", py::cast(Supremum()));
-    symbol.def("Number", &Number, py::arg("lib"), py::arg("number"), doc(R"(
+    symbol.def("Number", &Number, py::arg("lib"), py::arg("number"), R"(
 Construct a numeric symbol given a number.
 
 Args:
     lib: A library object to store the function in.
     number: The given number.
-)"));
-    symbol.def("String", &String, py::arg("lib"), py::arg("string"), doc(R"(
+)"_d);
+    symbol.def("String", &String, py::arg("lib"), py::arg("string"), R"(
 Construct a string symbol given a string.
 
 Args:
     lib: A library object to store the function in.
     string: The given string.
-)"));
-    symbol.def("Tuple_", &Tuple, py::arg("lib"), py::arg("arguments"), doc(R"(
+)"_d);
+    symbol.def("Tuple_", &Tuple, py::arg("lib"), py::arg("arguments"), R"(
 Construct a tuple symbol.
 
 Args:
     lib: A library object to store the function in.
     arguments: The arguments in form of a list of symbols.
-)"));
+)"_d);
     symbol.def("Function", &Function, py::arg("lib"), py::arg("name"), py::arg("arguments") = std::vector<Symbol>{},
-               py::arg("sign") = false, doc(R"(
+               py::arg("sign") = false, R"(
 Construct a function symbol.
 
 This includes constants and tuples. Constants have an empty argument list and
@@ -341,8 +351,8 @@ Args:
     name: The name of the function.
     arguments: The arguments in form of a list of symbols.
     sign: The sign of the function.
-)"));
-    symbol.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), doc(R"(
+)"_d);
+    symbol.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), R"(
 Parse the given string using clingo's term parser for ground terms.
 
 The function also evaluates arithmetic functions.
@@ -350,7 +360,7 @@ The function also evaluates arithmetic functions.
 Args:
     lib: A library object to store parsed symbols in.
     string: The string to be parsed.
-)"));
+)"_d);
 }
 
 } // namespace Clingo::Python

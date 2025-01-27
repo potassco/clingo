@@ -90,10 +90,11 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_at(clingo_base_t con
 //! @param[in] base the base
 //! @param[in] signature the signature to lookup
 //! @param[out] atoms the target atom base
+//! @param[out] found whether a base has been found
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_find(clingo_base_t const *base,
                                                                  clingo_signature_t const *signature,
-                                                                 clingo_atom_base_t *atoms);
+                                                                 clingo_atom_base_t *atoms, bool *found);
 
 //! Get the size of the given atom base.
 //!

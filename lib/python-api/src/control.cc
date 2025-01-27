@@ -95,7 +95,7 @@ auto Control::buffer() -> char const * {
 }
 
 void register_control(pybind11::module &m) {
-    auto control = m.def_submodule("control", doc(R"(
+    auto control = m.def_submodule("control", R"(
 Module containing the Control class responsible for grounding and solving.
 
 ```python
@@ -110,44 +110,44 @@ Module containing the Control class responsible for grounding and solving.
 ...     hnd.get()
 a
 ```
-)"));
+)"_d);
     py::class_<Control>(control, "Control", R"(A control object for grounding and solving.)")
         .def(py::init<Library &, std::vector<std::string> const &>(), py::arg("lib"),
-             py::arg("options") = std::vector<std::string>{}, doc(R"(
+             py::arg("options") = std::vector<std::string>{}, R"(
 Construct a control object.
 
 Args:
   lib: The library storing symbols and scripts.
   options: The command line options to initialize the control object.
-)"))
-        .def("join", &Control::join, py::arg("program"), doc(R"(
+)"_d)
+        .def("join", &Control::join, py::arg("program"), R"(
 Join with the given non-ground logic program.
 
 Args:
   program: A non-ground logic program.
-)"))
-        .def("parse_string", &Control::parse_string, py::arg("program"), doc(R"(
+)"_d)
+        .def("parse_string", &Control::parse_string, py::arg("program"), R"(
 Parses a logic program given as a string.
 
 Args:
   program: The logic program as string.
-)"))
-        .def("ground", &Control::ground, py::arg("parts") = std::nullopt, py::arg("context") = py::none(), doc(R"(
+)"_d)
+        .def("ground", &Control::ground, py::arg("parts") = std::nullopt, py::arg("context") = py::none(), R"(
 Ground the given program parts.
 
 Args:
   parts: A list of tuples of part names and their symbolic arguments.
   context: An optional object with functions to call during grounding.
-)"))
-        .def("solve", &Control::solve, py::arg("on_model") = std::nullopt, doc(R"(
+)"_d)
+        .def("solve", &Control::solve, py::arg("on_model") = std::nullopt, R"(
 Solve the current ground program.
-)"))
-        .def("main", &Control::main, doc(R"(
+)"_d)
+        .def("main", &Control::main, R"(
 Ground and solver a logic program.
 
 This function proceeds as clingo calling the main function from a script if
 there is any.
-)"))
+)"_d)
         .def_property_readonly("buffer", &Control::buffer, R"(The content of the output bufer.)")
         .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)");
 }

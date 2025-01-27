@@ -29,10 +29,17 @@ namespace Clingo::Python {
 
 namespace py = pybind11;
 
-constexpr auto doc(char const *str) -> char const * {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return str + 1;
+// NOLINTBEGIN
+template <unsigned N> struct FixedString {
+    char buf[N];
+    constexpr FixedString(char const (&s)[N]) { std::copy_n(s, N, buf); }
+};
+
+template <FixedString S> consteval auto operator""_d() -> char const * {
+    static_assert(S.buf[0] == '\n', "string must start with a newline");
+    return S.buf + 1;
 }
+// NOLINTEND
 
 inline void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr) {
     switch (static_cast<clingo_result_e>(code)) {

@@ -31,6 +31,7 @@ class Symbol {
     [[nodiscard]] auto match_function(std::string_view name, size_t arity, bool sign) const -> bool;
     [[nodiscard]] auto match_tuple(size_t arity) const -> bool;
     [[nodiscard]] auto hash() const -> size_t;
+    [[nodiscard]] auto signature() const -> std::optional<std::tuple<std::string_view, size_t, bool>>;
 
     friend auto Infimum() -> Symbol;
     friend auto Supremum() -> Symbol;
