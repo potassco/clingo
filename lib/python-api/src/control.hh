@@ -11,13 +11,16 @@ namespace Clingo::Python {
 
 class Control {
   public:
+    using AssumptionVec = std::vector<std::variant<std::pair<Symbol, bool>, Lit_t>>;
+
     Control(Library &lib, std::vector<std::string> const &args);
     Control(clingo_control_t *ctl) : ctl_{ctl} {}
 
     void parse_string(char const *str);
     void join(Program &prg);
     void ground(std::optional<std::vector<std::pair<std::string, SymbolVec>>> const &parts, py::handle ctx);
-    auto solve(std::optional<ModelCallback> on_model = std::nullopt) -> SSolveHandle;
+    auto solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model, bool yield, bool async)
+        -> SSolveHandle;
     auto base() -> Base;
     void main();
     auto buffer() -> char const *;

@@ -7,7 +7,11 @@
 
 extern "C" void clingo_symbol_acquire(clingo_symbol_t symbol) { Clingo::Symbol::from_rep(symbol).acquire(); }
 
-extern "C" void clingo_symbol_release(clingo_symbol_t symbol) { Clingo::Symbol::from_rep(symbol).release(); }
+extern "C" void clingo_symbol_release(clingo_symbol_t symbol) {
+    if (symbol != 0) {
+        Clingo::Symbol::from_rep(symbol).release();
+    }
+}
 
 extern "C" auto clingo_symbol_create_infimum() -> clingo_symbol_t {
     // NOTE: does not need reference counting

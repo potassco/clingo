@@ -19,6 +19,50 @@ auto symbol_callback(clingo_symbol_t const *symbols, size_t size, void *data) ->
     CLINGO_CATCH(nullptr);
 }
 
+class ModelIterator {
+  public:
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using value_type = Model;
+    using pointer = Model *;
+    using reference = Model &;
+
+    ModelIterator() = default;
+    ModelIterator(SSolveHandle hnd) : hnd_(std::move(hnd)) { operator++(); }
+
+    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    auto operator*() -> reference { return mdl_.value(); }
+    auto operator->() -> pointer { return &mdl_.value(); }
+    // NOLINTEND(bugprone-unchecked-optional-access)
+
+    auto operator++() -> ModelIterator & {
+        if (hnd_) {
+            hnd_->resume();
+            mdl_ = hnd_->model();
+            if (!mdl_) {
+                hnd_.reset();
+            }
+        }
+        return *this;
+    }
+    auto operator++(int) -> ModelIterator {
+        ModelIterator tmp = *this;
+        ++(*this);
+        return tmp;
+    }
+
+    [[maybe_unused]] friend auto operator==(ModelIterator const &a, ModelIterator const &b) -> bool {
+        return a.hnd_ == b.hnd_;
+    }
+    [[maybe_unused]] friend auto operator!=(ModelIterator const &a, ModelIterator const &b) -> bool {
+        return a.hnd_ != b.hnd_;
+    }
+
+  private:
+    SSolveHandle hnd_;
+    std::optional<Model> mdl_;
+};
+
 } // namespace
 
 auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVec {
@@ -39,6 +83,17 @@ auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVe
     handle_error(clingo_model_symbols(mdl_, show, symbol_callback, &res));
     return res;
 }
+
+auto Model::str() -> std::string {
+    auto res = std::string{};
+    auto comma = false;
+    for (auto const &sym : symbols(true, false, false, false)) {
+        res += comma ? ", " : "";
+        res += sym.str();
+        comma = true;
+    }
+    return res;
+};
 
 auto SolveHandle::get() -> SolveResult {
     clingo_solve_result_bitset_t res = 0;
@@ -70,9 +125,9 @@ auto SolveHandle::core() -> std::vector<clingo_literal_t> {
     return {lits, lits + size};
 }
 
-auto SolveHandle::wait(double timeout) -> bool {
+auto SolveHandle::wait(std::optional<double> timeout) -> bool {
     bool result = false;
-    clingo_solve_handle_wait(hnd_, timeout, &result);
+    clingo_solve_handle_wait(hnd_, timeout ? *timeout : -1, &result);
     return result;
 }
 
@@ -91,76 +146,85 @@ Examples
 
 The following example shows how to intercept models with a callback:
 
-    >>> from clingo import Control
+    >>> from clingo.core import Library
+    >>> from clingo.control import Control
     >>>
-    >>> ctl = Control(["0"])
-    >>> ctl.add("base", [], "1 { a; b } 1.")
-    >>> ctl.ground([("base", [])])
-    >>> print(ctl.solve(on_model=print))
-    Answer: a
-    Answer: b
+    >>> lib = Library()
+    >>> ctl = Control(lib, ["0"])
+    >>> ctl.parse_string("1 { a; b } 1.")
+    >>> ctl.ground()
+    >>> with ctl.solve(on_model=print) as hnd:
+    ...     print(hnd.get())
+    ...
+    a
+    b
     SAT
 
 The following example shows how to yield models:
 
-    >>> from clingo import Control
+    >>> from clingo.core import Library
+    >>> from clingo.control import Control
     >>>
-    >>> ctl = Control(["0"])
-    >>> ctl.add("base", [], "1 { a; b } 1.")
-    >>> ctl.ground([("base", [])])
+    >>> lib = Library()
+    >>> ctl = Control(lib, ["0"])
+    >>> ctl.parse_string("1 { a; b } 1.")
+    >>> ctl.ground()
     >>> with ctl.solve(yield_=True) as hnd:
     ...     for m in hnd:
     ...         print(m)
     ...     print(hnd.get())
     ...
-    Answer: a
-    Answer: b
+    a
+    b
     SAT
 
 The following example shows how to solve asynchronously:
 
-    >>> from clingo import Control
+    >>> from clingo.core import Library
+    >>> from clingo.control import Control
     >>>
-    >>> ctl = Control(["0"])
-    >>> ctl.add("base", [], "1 { a; b } 1.")
-    >>> ctl.ground([("base", [])])
+    >>> lib = Library()
+    >>> ctl = Control(lib, ["0"])
+    >>> ctl.parse_string("1 { a; b } 1.")
+    >>> ctl.ground()
     >>> with ctl.solve(on_model=print, async_=True) as hnd:
     ...     # some computation here
-    ...     hnd.wait()
     ...     print(hnd.get())
     ...
-    Answer: a
-    Answer: b
+    a
+    b
     SAT
 
 This example shows how to solve both iteratively and asynchronously:
 
-    >>> from clingo import Control
+    >>> from clingo.core import Library
+    >>> from clingo.control import Control
     >>>
-    >>> ctl = Control(["0"])
-    >>> ctl.add("base", [], "1 { a; b } 1.")
-    >>> ctl.ground([("base", [])])
+    >>> lib = Library()
+    >>> ctl = Control(lib, ["0"])
+    >>> ctl.parse_string("1 { a; b } 1.")
+    >>> ctl.ground()
     >>> with ctl.solve(yield_=True, async_=True) as hnd:
     ...     while True:
     ...         hnd.resume()
     ...         # some computation here
-    ...         _ = hnd.wait()
     ...         m = hnd.model()
     ...         if m is None:
     ...             print(hnd.get())
     ...             break
     ...         print(m)
+    ...
     b
     a
-    a b
-    None
+    SAT
 )"_d);
     py::class_<SolveResult>(solving, "SolveResult", R"(A solve result captures information about a solve call.)")
         .def("__str__", &SolveResult::str, R"(Get a string representation of the solve result.)")
-        .def_property_readonly("satisfiable", &SolveResult::satisfiable, R"(True if there was at least one model.)")
-        .def_property_readonly("unsatisfiable", &SolveResult::unsatisfiable, R"(True if there was no model.)")
-        .def_property_readonly("exhausted", &SolveResult::exhausted, R"(True if all models have been enumerated.)")
-        .def_property_readonly("interrupted", &SolveResult::interrupted, R"(True if the search was interrupted.)");
+        .def_property_readonly("satisfiable", &SolveResult::satisfiable, R"(Whether there was at least one model.)")
+        .def_property_readonly("unsatisfiable", &SolveResult::unsatisfiable, R"(Whether there was no model.)")
+        .def_property_readonly("unknown", &SolveResult::unknown, R"(Whether the satisfiablity could be determined.)")
+        .def_property_readonly("exhausted", &SolveResult::exhausted, R"(Whether all models have been enumerated.)")
+        .def_property_readonly("interrupted", &SolveResult::interrupted, R"(Whether the search was interrupted.)");
 
     py::class_<Model>(solving, "Model", R"(A view on the solver's current solution.)")
         .def("symbols", &Model::symbols, py::arg("shown") = false, py::arg("atoms") = false, py::arg("terms") = false,
@@ -172,7 +236,8 @@ Args:
   atoms: Include all true atoms including hidden ones.
   terms: Include shown terms.
   theory: Include terms added by external theories.
-)"_d);
+)"_d)
+        .def("__str__", &Model::str, "Get a string representation of the model.");
 
     py::class_<SolveHandle, SSolveHandle>(solving, "SolveHandle", R"(
 An object to interact with a running search.
@@ -209,7 +274,7 @@ Discards the last model and starts searching for the next one.
 If the search has been started asynchronously, this function starts the search
 in the background.
 )"_d)
-        .def("wait", &SolveHandle::wait, R"(
+        .def("wait", &SolveHandle::wait, py::arg("timeout") = std::nullopt, R"(
 Wait for solve call to finish or the next result with an optional timeout.
 
 If a timeout is given, the behavior of the function changes depending on the
@@ -238,7 +303,11 @@ See also: `clingo.control.Control.interrupt`
             [&](SSolveHandle const &hnd, [[maybe_unused]] const std::optional<pybind11::type> &type,
                 [[maybe_unused]] const std::optional<pybind11::object> &value,
                 [[maybe_unused]] const std::optional<pybind11::object> &traceback) { hnd->close(); },
-            "Stop the search closing the handle.");
+            "Stop the search closing the handle.")
+        .def(
+            "__iter__",
+            [&](SSolveHandle const &hnd) { return pybind11::make_iterator(ModelIterator{hnd}, ModelIterator{}); },
+            "Get an iterator over the models.");
 }
 
 } // namespace Clingo::Python

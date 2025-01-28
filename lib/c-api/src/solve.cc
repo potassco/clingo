@@ -92,22 +92,19 @@ extern "C" auto clingo_control_solve(clingo_control_t *control, clingo_solve_mod
     -> clingo_result_t {
     CLINGO_TRY {
         *handle = nullptr;
+        auto cpp_mode = Clingo::Control::SolveMode::none;
         if ((mode & clingo_solve_mode_yield) != 0) {
-            throw std::runtime_error("implement me: yield");
+            cpp_mode |= Clingo::Control::SolveMode::yield;
         }
         if ((mode & clingo_solve_mode_async) != 0) {
-            throw std::runtime_error("implement me: async");
+            cpp_mode |= Clingo::Control::SolveMode::async;
         }
-        if (assumptions_size > 0) {
-            static_cast<void>(assumptions);
-            throw std::runtime_error("implement me: assumptions");
-        }
+        auto cpp_assumptions = std::span{assumptions, assumptions_size};
+        auto cpp_eh = Clingo::Control::UEventHandler{};
         if (notify != nullptr) {
-            auto eh = std::make_unique<SolveEventHandler>(notify, data);
-            *handle = c_cast(control->slv->solve(std::move(eh)).release());
-        } else {
-            *handle = c_cast(control->slv->solve(nullptr).release());
+            cpp_eh = std::make_unique<SolveEventHandler>(notify, data);
         }
+        *handle = c_cast(control->slv->solve(std::move(cpp_eh), cpp_assumptions, cpp_mode).release());
     }
     CLINGO_CATCH;
 }

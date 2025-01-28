@@ -12,6 +12,7 @@ namespace py = pybind11;
 
 class Symbol {
   public:
+    explicit Symbol() noexcept : sym_{0} {}
     explicit Symbol(clingo_symbol_t sym, bool acquire) noexcept;
     Symbol(Symbol const &other) noexcept;
     Symbol(Symbol &&other) noexcept;
@@ -22,16 +23,16 @@ class Symbol {
     [[nodiscard]] auto type() const -> clingo_symbol_type_e;
     [[nodiscard]] auto number() const -> py::int_;
     [[nodiscard]] auto string() const -> py::str;
-    [[nodiscard]] auto name() const -> std::string_view;
+    [[nodiscard]] auto name() const -> char const *;
     [[nodiscard]] auto arity() const -> size_t;
     [[nodiscard]] auto args() const -> py::list;
     [[nodiscard]] auto str() const -> std::string;
     [[nodiscard]] auto repr() const -> std::string;
     [[nodiscard]] auto sign() const -> bool;
-    [[nodiscard]] auto match_function(std::string_view name, size_t arity, bool sign) const -> bool;
+    [[nodiscard]] auto match_function(char const *name, size_t arity, bool sign) const -> bool;
     [[nodiscard]] auto match_tuple(size_t arity) const -> bool;
     [[nodiscard]] auto hash() const -> size_t;
-    [[nodiscard]] auto signature() const -> std::optional<std::tuple<std::string_view, size_t, bool>>;
+    [[nodiscard]] auto signature() const -> std::optional<std::tuple<char const *, size_t, bool>>;
 
     friend auto Infimum() -> Symbol;
     friend auto Supremum() -> Symbol;

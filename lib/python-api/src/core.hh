@@ -6,6 +6,8 @@
 
 #include <pybind11/pybind11.h>
 
+#include <span>
+
 // NOLINTBEGIN(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
 
 #define CLINGO_TRY try
@@ -139,5 +141,9 @@ class Location {
 };
 
 void register_core(pybind11::module &m);
+
+using Lit_t = clingo_literal_t;
+using LitVec = std::vector<Lit_t>;
+using LitSpan = std::span<Lit_t const>;
 
 } // namespace Clingo::Python

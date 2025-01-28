@@ -58,7 +58,7 @@ auto Symbol::string() const -> py::str {
     return name;
 }
 
-auto Symbol::name() const -> std::string_view {
+auto Symbol::name() const -> char const * {
     auto t = type();
     if (t != clingo_symbol_type_function) {
         throw std::invalid_argument("symbol is not a function");
@@ -147,14 +147,14 @@ auto Symbol::sign() const -> bool {
     return sign;
 }
 
-auto Symbol::match_function(std::string_view name, size_t arity, bool sign) const -> bool {
+auto Symbol::match_function(char const *name, size_t arity, bool sign) const -> bool {
     return type() == clingo_symbol_type_function && name == this->name() && arity == this->arity() &&
            sign == this->sign();
 }
 
-auto Symbol::signature() const -> std::optional<std::tuple<std::string_view, size_t, bool>> {
+auto Symbol::signature() const -> std::optional<std::tuple<char const *, size_t, bool>> {
     return type() == clingo_symbol_type_function
-               ? std::make_optional<std::tuple<std::string_view, size_t, bool>>(name(), arity(), sign())
+               ? std::make_optional<std::tuple<char const *, size_t, bool>>(name(), arity(), sign())
                : std::nullopt;
 }
 
@@ -237,23 +237,25 @@ Functions and classes for symbol manipulation.
 Examples
 --------
 
-    >>> from clingo.core import Library
-    >>> from clingo.symbol import Function, Number, parse_term
-    >>>
-    >>> lib = Library()
-    >>>
-    >>> num = Number(lib, 42)
-    >>> num.number
-    42
-    >>> fun = Function(lib, "f", [num])
-    >>> fun.name
-    'f'
-    >>> [ str(arg) for arg in fun.arguments ]
-    ['42']
-    >>> parse_term(lib, str(fun)) == fun
-    True
-    >>> parse_term(lib, 'p(1+2)')
-    p(3)
+```python
+>>> from clingo.core import Library
+>>> from clingo.symbol import Function, Number, parse_term
+>>>
+>>> lib = Library()
+>>>
+>>> num = Number(lib, 42)
+>>> num.number
+42
+>>> fun = Function(lib, "f", [num])
+>>> fun.name
+'f'
+>>> [ str(arg) for arg in fun.arguments ]
+['42']
+>>> parse_term(lib, str(fun)) == fun
+True
+>>> parse_term(lib, 'p(1+2)')
+p(3)
+```
 )"_d);
 
     py::enum_<clingo_symbol_type_e>(symbol, "SymbolType", R"(Enumeration of symbols types.)")

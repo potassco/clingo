@@ -14,6 +14,9 @@ class SolveResult {
 
     [[nodiscard]] auto satisfiable() const -> bool { return (res_ & clingo_solve_result_satisfiable) != 0; }
     [[nodiscard]] auto unsatisfiable() const -> bool { return (res_ & clingo_solve_result_unsatisfiable) != 0; }
+    [[nodiscard]] auto unknown() const -> bool {
+        return (res_ & (clingo_solve_result_unsatisfiable | clingo_solve_result_satisfiable)) != 0;
+    }
     [[nodiscard]] auto exhausted() const -> bool { return (res_ & clingo_solve_result_exhausted) != 0; }
     [[nodiscard]] auto interrupted() const -> bool { return (res_ & clingo_solve_result_interrupted) != 0; }
     [[nodiscard]] auto str() const -> char const * {
@@ -35,12 +38,13 @@ class Model {
     Model(clingo_model_t const *mdl) : mdl_{mdl} {}
 
     auto symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVec;
+    auto str() -> std::string;
 
   private:
     clingo_model_t const *mdl_;
 };
 
-using ModelCallback = std::function<bool(Model &)>;
+using ModelCallback = std::function<std::variant<bool, std::nullptr_t>(Model &)>;
 
 class SolveHandle {
   public:
@@ -57,7 +61,8 @@ class SolveHandle {
     auto model() -> std::optional<Model>;
     auto last() -> std::optional<Model>;
     auto core() -> std::vector<clingo_literal_t>;
-    auto wait(double timeout) -> bool;
+    auto wait(std::optional<double> timeout) -> bool;
+    auto next() -> Model;
     void close();
 
     auto handle() -> clingo_solve_handle_t *& { return hnd_; }

@@ -66,7 +66,15 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
     CLINGO_TRY {
         if (eh->mdl_ && type == clingo_solve_event_type_model) {
             auto mdl = Model{static_cast<clingo_model_t *>(event)};
-            *goon = (*eh->mdl_)(mdl);
+            *goon = std::visit(
+                []<typename T>(T const &ret) {
+                    if constexpr (std::is_same_v<bool, T>) {
+                        return ret;
+                    } else {
+                        return true;
+                    }
+                },
+                (*eh->mdl_)(mdl));
         }
     }
     CLINGO_CATCH(eh->ptr_);
@@ -78,11 +86,35 @@ auto Control::base() -> Base {
     return {base};
 }
 
-auto Control::solve(std::optional<ModelCallback> on_model) -> SSolveHandle {
+auto Control::solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model, bool yield, bool async)
+    -> SSolveHandle {
     auto res = std::make_shared<SolveHandle>(std::move(on_model));
-    handle_error(
-        clingo_control_solve(ctl_.get(), 0, nullptr, 0, &SolveHandle::c_event_handler, res.get(), &res->handle()),
-        res->exception_ptr());
+    auto mode = clingo_solve_mode_bitset_t{0};
+    if (yield) {
+        mode |= clingo_solve_mode_yield;
+    }
+    if (async) {
+        mode |= clingo_solve_mode_async;
+    }
+    auto b = base();
+    LitVec ass;
+    ass.reserve(assumptions.size());
+    std::ranges::transform(assumptions, std::back_inserter(ass), [&](auto const &x) {
+        return std::visit(
+            [&]<typename T>(T const &x) {
+                if constexpr (std::is_same_v<T, Lit_t>) {
+                    ass.emplace_back(x);
+                } else {
+                    auto const &[sym, sign] = x;
+                    ass.emplace_back(b.lookup(sym.signature().value()).lookup(sym).literal());
+                }
+                return 0;
+            },
+            x);
+    });
+    handle_error(clingo_control_solve(ctl_.get(), mode, ass.data(), assumptions.size(), &SolveHandle::c_event_handler,
+                                      res.get(), &res->handle()),
+                 res->exception_ptr());
     return res;
 }
 
@@ -139,8 +171,60 @@ Args:
   parts: A list of tuples of part names and their symbolic arguments.
   context: An optional object with functions to call during grounding.
 )"_d)
-        .def("solve", &Control::solve, py::arg("on_model") = std::nullopt, R"(
+        .def("solve", &Control::solve, py::arg("assumptions") = Control::AssumptionVec{},
+             py::arg("on_model") = std::nullopt, py::arg("yield_") = false, py::arg("async_") = false, R"(
 Solve the current ground program.
+
+Args:
+    assumptions:
+        List of `tuple[clingo.symbol.Symbol, bool]` or program literals (see
+        `clingo.base.Atom.literal`) that serve as assumptions for the solve
+        call, e.g., solving under assumptions
+        `[(clingo.symbol.Function(lib, "a"), True)]` only admits answer sets
+        that contain atom `a`.
+    on_model:
+        Optional callback for intercepting models. A `clingo.solving.Model`
+        object is passed to the callback. The search can be interruped from the
+        model callback by returning `False`.
+    on_unsat:
+        Optional callback to intercept lower bounds during optimization.
+    on_statistics:
+        Optional callback to update statistics.
+        The step and accumulated statistics are passed as arguments.
+    on_finish:
+        Optional callback called once search has finished. A
+        `clingo.solving.SolveResult` is passed to the callback.
+    on_core:
+        Optional callback called with the assumptions that made a problem
+        unsatisfiable.
+    yield_:
+        The resulting `clingo.solving.SolveHandle` is iterable yielding
+        `clingo.solving.Model` objects.
+    async_:
+        The solve call and the method `clingo.solving.SolveHandle.resume`
+        of the returned handle are non-blocking.
+
+Returns:
+    A solve handle to control the search.
+
+Note:
+    If clingo is not in solving mode, this function just returns a
+    `clingo.solving.SolveResult` where `clingo.solving.SolveResult.unknown` is
+    true.
+
+    If this function is used in embedded Python code, you might want to start
+    clingo using the `--outf=3` option to disable all output from clingo.
+
+    Asynchronous solving is only available if thread support was enabled.
+    Furthermore, the `on_model` and `on_finish` callbacks are called from
+    another thread. To ensure that the methods can be called, make sure to not
+    use any functions that block Python's GIL indefinitely.
+
+    This function as well as blocking functions on the
+    `clingo.solving.SolveHandle` release the GIL but are not thread-safe.
+
+See Also:
+    clingo.solving: For more examples how to use this method.
 )"_d)
         .def("main", &Control::main, R"(
 Ground and solver a logic program.
