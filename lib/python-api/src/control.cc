@@ -66,15 +66,8 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
     CLINGO_TRY {
         if (eh->mdl_ && type == clingo_solve_event_type_model) {
             auto mdl = Model{static_cast<clingo_model_t *>(event)};
-            *goon = std::visit(
-                []<typename T>(T const &ret) {
-                    if constexpr (std::is_same_v<bool, T>) {
-                        return ret;
-                    } else {
-                        return true;
-                    }
-                },
-                (*eh->mdl_)(mdl));
+            auto ret = (*eh->mdl_)(mdl);
+            *goon = ret ? *ret : true;
         }
     }
     CLINGO_CATCH(eh->ptr_);

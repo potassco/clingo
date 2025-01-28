@@ -44,7 +44,7 @@ class Model {
     clingo_model_t const *mdl_;
 };
 
-using ModelCallback = std::function<std::variant<bool, std::nullptr_t>(Model &)>;
+using ModelCallback = std::function<std::optional<bool>(Model &)>;
 
 class SolveHandle {
   public:
