@@ -148,7 +148,7 @@ auto Symbol::sign() const -> bool {
 }
 
 auto Symbol::match_function(char const *name, size_t arity, bool sign) const -> bool {
-    return type() == clingo_symbol_type_function && name == this->name() && arity == this->arity() &&
+    return type() == clingo_symbol_type_function && std::strcmp(name, this->name()) == 0 && arity == this->arity() &&
            sign == this->sign();
 }
 
