@@ -20,18 +20,19 @@ void Control::join(Program &prg) { handle_error(clingo_control_join(ctl_.get(), 
 
 void Control::parse_string(char const *str) { handle_error(clingo_control_parse_string(ctl_.get(), str)); }
 
-auto Control::ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name,
+auto Control::ctx_(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location, char const *name,
                    clingo_symbol_t const *arguments, size_t arguments_size, void *data,
                    clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t {
-    // TODO: handle location!!!
-    static_cast<void>(location);
     CLINGO_TRY {
-        auto *handle = static_cast<py::handle *>(data);
-        py::list args;
-        for (auto sym : std::span{arguments, arguments_size}) {
-            args.append(Symbol{sym, true});
-        }
-        auto syms = handle->attr(name)(*args).cast<std::variant<SymbolVec, Symbol>>();
+        auto syms = [&] {
+            auto *handle = static_cast<py::handle *>(data);
+            auto acquire = py::gil_scoped_acquire{};
+            py::list args;
+            for (auto sym : std::span{arguments, arguments_size}) {
+                args.append(Symbol{sym, true});
+            }
+            return handle->attr(name)(*args).cast<std::variant<SymbolVec, Symbol>>();
+        }();
         return std::visit(
             [&]<class T>(T const &res) {
                 if constexpr (std::is_same_v<T, Symbol>) {
@@ -50,6 +51,7 @@ auto Control::ctx_(clingo_lib_t *lib, clingo_location_t const *location, char co
 }
 
 void Control::ground(std::optional<std::vector<std::pair<std::string, SymbolVec>>> const &parts, py::handle ctx) {
+    auto release = py::gil_scoped_release{};
     static auto const base = std::vector{std::pair{std::string{"base"}, SymbolVec{}}};
     auto c_args = transform(parts ? *parts : base, [](auto const &part) {
         return clingo_part_t{part.first.c_str(),
@@ -201,10 +203,6 @@ Returns:
     A solve handle to control the search.
 
 Note:
-    If clingo is not in solving mode, this function just returns a
-    `clingo.solving.SolveResult` where `clingo.solving.SolveResult.unknown` is
-    true.
-
     If this function is used in embedded Python code, you might want to start
     clingo using the `--outf=3` option to disable all output from clingo.
 
