@@ -605,6 +605,7 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
             ground(Input::ProgramParamVec{}, nullptr);
         }
         state_ = State::solved;
+        clasp_.asp()->addAssumption(assumptions);
         clasp_.prepare();
 
         // convert solve mode
@@ -618,17 +619,10 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
             }
             return res;
         };
-        // convert assumptions
-        auto ca = [this](Output::LitSpan lits) {
-            Clasp::LitVec out;
-            clasp_.asp()->addAssumption(lits);
-            clasp_.asp()->getAssumptions(out);
-            return out;
-        };
         // adapt the handler for clasp
         auto eh = handler == nullptr ? std::unique_ptr<Clasp::EventHandler>{std::make_unique<EventHandlerTest>()}
                                      : std::make_unique<EventHandlerAdapter>(grd_.base(), clasp_, std::move(handler));
-        auto hnd = clasp_.solve(cm(mode), ca(assumptions), eh.get());
+        auto hnd = clasp_.solve(cm(mode), {}, eh.get());
         // adapt the handle which also manages the lifetime of the handler
         return std::make_unique<SolveHandleImpl>(std::move(eh), grd_.base(), clasp_, hnd);
     }
