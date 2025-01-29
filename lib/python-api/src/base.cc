@@ -47,6 +47,12 @@ auto AtomBase::lookup(key_type const &symbol) -> mapped_type {
     return index < size() ? Atom{base_, index} : throw py::key_error{"key not found"};
 }
 
+auto AtomBase::contains(key_type const &symbol) -> bool {
+    auto index = size_t{0};
+    handle_error(clingo_atom_base_find(&base_, *c_cast(&symbol), &index));
+    return index < size();
+}
+
 auto Term::symbol() -> Symbol {
     auto sym = clingo_symbol_t{0};
     handle_error(clingo_term_base_symbol(base_, index_, &sym));
@@ -74,6 +80,12 @@ auto TermBase::at(size_t index) -> value_type {
     return index < size() ? value_type{term.symbol(), term} : throw py::index_error{"index out of range"};
 }
 
+auto TermBase::contains(key_type const &symbol) -> bool {
+    auto index = size_t{0};
+    handle_error(clingo_term_base_find(base_, *c_cast(&symbol), &index));
+    return index < size();
+}
+
 auto TermBase::lookup(key_type const &symbol) -> mapped_type {
     auto index = size_t{0};
     handle_error(clingo_term_base_find(base_, *c_cast(&symbol), &index));
@@ -94,6 +106,17 @@ auto Base::at(size_t index) -> value_type {
         return std::pair{std::tuple{sig.name, sig.arity, sig.sign}, AtomBase{atoms}};
     }
     throw py::index_error{"index out of range"};
+}
+
+auto Base::contains_short(std::pair<char const *, size_t> const &sig) -> bool {
+    return contains({get<0>(sig), get<1>(sig), false});
+}
+
+auto Base::contains(key_type const &sig) -> bool {
+    auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
+    auto found = false;
+    handle_error(clingo_base_atoms_find(&base_, &csig, nullptr, &found));
+    return found;
 }
 
 auto Base::lookup_short(std::pair<char const *, size_t> const &sig) -> mapped_type {
@@ -158,6 +181,7 @@ False
     py::class_<AtomBase>(base, "AtomBase", R"(An atom base mapping symbols to atoms.)")
         .def("__len__", &AtomBase::size, "Get the number of atoms in the base.")
         .def("__getitem__", &AtomBase::lookup, R"( Get the atom with the given symbol.)")
+        .def("__contains__", &AtomBase::contains, R"( Check if the base contains an atom with the given symbol.)")
         .def(
             "__iter__", [](AtomBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
             "Get an iterable over the keys in the map.")
@@ -181,6 +205,7 @@ A term base mapping symbols to terms.
 The base is established by the show directives occurring in a program.)"_d)
         .def("__len__", &TermBase::size, "Get the number of terms in the base.")
         .def("__getitem__", &TermBase::lookup, R"(Get the term with the given symbol.)")
+        .def("__contains__", &TermBase::contains, R"( Check if the base contains a term with the given symbol.)")
         .def(
             "__iter__", [](TermBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
             "Get an iterator over the keys in the map.")
@@ -202,11 +227,14 @@ It implements a map from signatures to atom bases.
         .def("__len__", &Base::size, "Get the number of atom bases.")
         .def("__getitem__", &Base::lookup_short,
              R"(
-Get the element with the given signature.
+Get the element with the given (short) signature.
 
 This function provides a shortcut assuming the sign is false.
 )"_d)
-        .def("__getitem__", &Base::lookup, R"(Get the element with the given signature.)")
+        .def("__getitem__", &Base::lookup, R"(Get the atom base with the given signature.)")
+        .def("__contains__", &Base::contains, R"( Check if there is an atom base with the given signature.)")
+        .def("__contains__", &Base::contains_short,
+             R"( Check if there is an atom base with the given (short) signature.)")
         .def(
             "__iter__", [](Base &base) { return py::make_key_iterator(base.begin(), base.end()); },
             "Get an iterator over the keys in the map.")

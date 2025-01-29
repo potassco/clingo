@@ -35,6 +35,7 @@ class AtomBase {
 
     auto size() -> size_t;
     auto at(size_t index) -> value_type;
+    auto contains(key_type const &symbol) -> bool;
     auto lookup(key_type const &symbol) -> mapped_type;
     [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }
     [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
@@ -65,6 +66,7 @@ class TermBase {
 
     auto size() -> size_t;
     auto at(size_t index) -> value_type;
+    auto contains(key_type const &symbol) -> bool;
     auto lookup(key_type const &symbol) -> mapped_type;
     [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }
     [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
@@ -83,6 +85,8 @@ class Base {
 
     auto size() -> size_t;
     auto at(size_t index) -> value_type;
+    auto contains(key_type const &sig) -> bool;
+    auto contains_short(std::pair<char const *, size_t> const &sig) -> bool;
     auto lookup(key_type const &sig) -> mapped_type;
     auto lookup_short(std::pair<char const *, size_t> const &sig) -> mapped_type;
     auto terms() -> TermBase;

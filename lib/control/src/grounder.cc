@@ -208,13 +208,15 @@ struct Grounder::Impl : Clingo::SymbolOwner {
         for (auto it = bases.terms().begin(), ie = bases.terms().end(); it != ie; ++it) {
             auto sym = it.key();
             auto &[state, conds] = it.value();
-            auto fact = state.state == Ground::ShowTermState::fact;
-            if (fact || state.offset < conds.size()) {
-                assert(fact == (state.offset == conds.size()));
-                out->show_term(sym, state.offset, conds);
+            if (state.offset < conds.size()) {
+                bool fact = state.state == Ground::ShowTermState::fact;
                 if (fact) {
                     state.state = Ground::ShowTermState::done;
-                    conds.clear();
+                    conds.erase(conds.begin() + state.offset, conds.end() - 1);
+                }
+                out->show_term(sym, state.offset, conds);
+                if (fact) {
+                    conds.erase(conds.begin(), conds.end() - 1);
                 }
                 state.offset = conds.size();
             }

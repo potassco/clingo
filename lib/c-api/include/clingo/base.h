@@ -184,11 +184,10 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_size(clingo_term_base
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_symbol(clingo_term_base_t const *terms, size_t index,
                                                                   clingo_symbol_t *term);
 
-//! Get the condition of a show directive.
+//! Get the conditions of a show directive.
 //!
-//! Note that the literals is set to NULL if the term is shown unconditionally.
-//! Furthermore, the lifetime of the resulting array is valid until the next
-//! call to this method in the same thread.
+//! This returns the list of all conditions under which a term is shown. It is
+//! not a disjunction of literals.
 //!
 //! @param[in] terms the term base
 //! @param[in] index the index of the show diriective

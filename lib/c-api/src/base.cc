@@ -168,18 +168,12 @@ extern "C" auto clingo_term_base_condition(clingo_term_base_t const *terms, size
                                            size_t *size) -> clingo_result_t {
     CLINGO_TRY {
         auto const &[state, cond] = cpp_cast(terms)->nth(index).value();
-        if (state.state == Clingo::Ground::ShowTermState::done) {
-            *literals = nullptr;
-            *size = 0;
-        } else {
-            assert(!cond.empty());
-            // NOTE: this seems to be the (safe) easiest way to convert from 64bit to 32bit here
-            static thread_local auto result = std::vector<clingo_literal_t>{};
-            result.reserve(cond.size());
-            result.assign(cond.begin(), cond.end());
-            *literals = result.data();
-            *size = cond.size();
-        }
+        // NOTE: this seems to be the (safe) easiest way to convert from 64bit to 32bit here
+        static thread_local auto result = std::vector<clingo_literal_t>{};
+        result.reserve(cond.size());
+        result.assign(cond.begin(), cond.end());
+        *literals = result.data();
+        *size = cond.size();
     }
     CLINGO_CATCH;
 }

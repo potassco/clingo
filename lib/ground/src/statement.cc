@@ -828,7 +828,7 @@ auto StmShow::do_report(InstantiationContext const &ctx) -> bool {
     auto &out = ctx.out().body();
     bool fact = true;
     for (auto const &lit : body_) {
-        fact = lit->output(ctx, out) && fact;
+        fact = !lit->output(ctx, out) && fact;
     }
     auto &[state, conds] = base_->try_emplace(res_term_, ShowTermState{}, Util::small_vector<size_t>{}).first.value();
     if (state.state == ShowTermState::none) {
@@ -836,9 +836,8 @@ auto StmShow::do_report(InstantiationContext const &ctx) -> bool {
         if (fact) {
             state.state = ShowTermState::fact;
             conds.resize(state.offset);
-        } else {
-            conds.emplace_back(cond);
         }
+        conds.emplace_back(cond);
     }
     return true;
 }
