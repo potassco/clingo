@@ -619,12 +619,11 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
             return res;
         };
         // convert assumptions
-        auto ca = [this](auto const &lits) {
-            auto res = Clasp::LitVec{};
-            res.reserve(lits.size());
-            std::ranges::transform(lits, std::back_inserter(res),
-                                   [this](auto const &lit) { return Clasp::Asp::solverLiteral(*clasp_.asp(), lit); });
-            return res;
+        auto ca = [this](Output::LitSpan lits) {
+            Clasp::LitVec out;
+            clasp_.asp()->addAssumption(lits);
+            clasp_.asp()->getAssumptions(out);
+            return out;
         };
         // adapt the handler for clasp
         auto eh = handler == nullptr ? std::unique_ptr<Clasp::EventHandler>{std::make_unique<EventHandlerTest>()}
