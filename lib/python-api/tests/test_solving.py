@@ -7,6 +7,7 @@ from unittest import TestCase
 from clingo.control import Control
 from clingo.core import Library
 from clingo.solving import Model
+from clingo.symbol import Function, Symbol
 
 
 class MCB:
@@ -91,3 +92,21 @@ class TestSolving(TestCase):
             self.assertTrue(hnd.get().satisfiable)
         self.assertEqual(mcb.symbols, res)
         self.assertEqual(mcc.symbols, res)
+
+    def test_core(self):
+        """
+        Test solving.
+        """
+        ctl = Control(self.lib, ["0"])
+        ctl.parse_string("{a; b; c}. :- a, b.")
+        ctl.ground()
+
+        def lit(name: str) -> tuple[Symbol, bool] | int:
+            fun = Function(self.lib, name, [])
+            return ctl.base[(name, 0)][fun].literal
+
+        assumptions = [lit("a"), lit("b"), lit("c")]
+
+        with ctl.solve(assumptions=assumptions) as hnd:
+            self.assertTrue(hnd.get().unsatisfiable)
+            self.assertEqual(sorted(hnd.core()), sorted(assumptions[:2]))
