@@ -8,7 +8,27 @@ from unittest import TestCase
 from clingo.ast import Program, parse_statement
 from clingo.control import Control
 from clingo.core import Library
+from clingo.solving import Model, SolveResult
 from clingo.symbol import Number
+
+
+class MCB:
+    """
+    Helper to intercept symbols while solving.
+    """
+
+    def __init__(self) -> None:
+        self._syms = []
+
+    def __call__(self, mdl: Model):
+        self._syms.append(sorted(mdl.symbols(shown=True)))
+
+    @property
+    def symbols(self):
+        """
+        Get the collected symbols.
+        """
+        return [[str(sym) for sym in syms] for syms in sorted(self._syms)]
 
 
 class TestScript(TestCase):
@@ -30,9 +50,9 @@ class TestScript(TestCase):
         assert self._lib is not None
         return self._lib
 
-    def test_control(self):
+    def test_ground(self):
         """
-        Test the control class.
+        Test grounding.
         """
         ctl = Control(self.lib, ["--text-buffer", "--mode=ground"])
 
@@ -66,9 +86,9 @@ class TestScript(TestCase):
             ),
         )
 
-    def test_context(self):
+    def test_ground_context(self):
         """
-        Test the control class.
+        Test the grounding context.
         """
 
         class Context:
@@ -112,3 +132,48 @@ class TestScript(TestCase):
                 """
             ),
         )
+
+    def test_solve(self):
+        """
+        Test solving.
+        """
+        res = [["a"], ["b"]]
+        ctl = Control(self.lib, ["0"])
+        ctl.parse_string("1 { a; b } 1.")
+        ctl.ground()
+
+        # default
+        mcb = MCB()
+        with ctl.solve(on_model=mcb) as hnd:
+            self.assertTrue(hnd.get().satisfiable)
+        self.assertEqual(mcb.symbols, res)
+
+        # yield
+        mcb = MCB()
+        mcc = MCB()
+        with ctl.solve(on_model=mcb, yield_=True) as hnd:
+            for mdl in hnd:
+                mcc(mdl)
+            self.assertTrue(hnd.get().satisfiable)
+        self.assertEqual(mcb.symbols, res)
+        self.assertEqual(mcc.symbols, res)
+
+        # async
+        mcb = MCB()
+        with ctl.solve(on_model=mcb, async_=True) as hnd:
+            self.assertTrue(hnd.get().satisfiable)
+        self.assertEqual(mcc.symbols, res)
+
+        # yield+async
+        mcb = MCB()
+        mcc = MCB()
+        with ctl.solve(on_model=mcb, yield_=True, async_=True) as hnd:
+            while True:
+                hnd.resume()
+                mdl = hnd.model()
+                if mdl is None:
+                    break
+                mcc(mdl)
+            self.assertTrue(hnd.get().satisfiable)
+        self.assertEqual(mcb.symbols, res)
+        self.assertEqual(mcc.symbols, res)

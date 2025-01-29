@@ -217,7 +217,7 @@ class BuilderBase {
         }
         for (auto const &[clause, lit] : clauses_) {
             assert(lit > 0);
-            auto const &li = info(lit);
+            auto &li = info(lit);
             auto const &[lits, type] = clause;
             if (type == ClauseType::conjunctive) {
                 if (li.type != EQType::none) {
@@ -253,6 +253,13 @@ class BuilderBase {
                 }
             }
         }
+        // NOTE: an offset could be maintained
+        for (auto &info : infos_) {
+            info.clause = invalid_id;
+            info.type = EQType::none;
+            info.scc = 0;
+        }
+        clauses_.clear();
     }
 
     //! Get the underlying backend.
