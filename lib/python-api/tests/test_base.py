@@ -46,11 +46,11 @@ class TestScript(TestCase):
         self.ctl.parse_string(
             dedent(
                 """\
-            p(1).
-            { p(3) }.
-            #external p(1..3).
-            q(X) :- p(X).
-            """
+                p(1).
+                { p(3) }.
+                #external p(1..3).
+                q(X) :- p(X).
+                """
             )
         )
         self.ctl.ground()
@@ -87,11 +87,11 @@ class TestScript(TestCase):
         self.ctl.parse_string(
             dedent(
                 """\
-            p(1).
-            { x; p(3) }.
-            #show q(3) : x.
-            #show q(X) : p(X).
-            """
+                p(1).
+                { x; p(3) }.
+                #show q(3) : x.
+                #show q(X) : p(X).
+                """
             )
         )
         self.ctl.ground()

@@ -8,7 +8,7 @@ from unittest import TestCase
 from clingo.ast import Program, parse_statement
 from clingo.control import Control
 from clingo.core import Library
-from clingo.solving import Model, SolveResult
+from clingo.solving import Model
 from clingo.symbol import Number
 
 
