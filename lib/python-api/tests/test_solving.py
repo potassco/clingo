@@ -83,12 +83,9 @@ class TestSolving(TestCase):
         mcb = MCB()
         mcc = MCB()
         with ctl.solve(on_model=mcb, yield_=True, async_=True) as hnd:
-            while True:
-                hnd.resume()
-                mdl = hnd.model()
-                if mdl is None:
-                    break
+            while mdl := hnd.model():
                 mcc(mdl)
+                hnd.resume()
             self.assertTrue(hnd.get().satisfiable)
         self.assertEqual(mcb.symbols, res)
         self.assertEqual(mcc.symbols, res)
