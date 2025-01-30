@@ -152,6 +152,10 @@ Functions and classes related to solving.
 Examples
 --------
 
+The examples below show various ways to intercept models. The asynchronous
+variants leave room for additional computation before calling blocking functions
+`like SolveHandle.get` or `SolveHandle.model`.
+
 The following example shows how to intercept models with a callback:
 
     >>> from clingo.core import Library
@@ -196,7 +200,6 @@ The following example shows how to solve asynchronously:
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
     >>> with ctl.solve(on_model=print, async_=True) as hnd:
-    ...     # some computation here
     ...     print(hnd.get())
     ...
     a
@@ -213,14 +216,9 @@ This example shows how to solve both iteratively and asynchronously:
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
     >>> with ctl.solve(yield_=True, async_=True) as hnd:
-    ...     while True:
+    ...     while mdl := hnd.model():
     ...         hnd.resume()
-    ...         # some computation here
-    ...         m = hnd.model()
-    ...         if m is None:
-    ...             print(hnd.get())
-    ...             break
-    ...         print(m)
+    ...     print(hnd.get())
     ...
     b
     a
