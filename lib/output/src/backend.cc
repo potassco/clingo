@@ -995,6 +995,7 @@ class BuilderCondLit {
     //! @param elems the elements forming the conditional literal
     void add(BuilderBase &bld, lit_t lit, OutputStm::CondLitSpan elems) {
         assert(lit > 0);
+        elems_.clear();
         bool simple = true;
         for (auto const &elem : elems) {
             if (auto const &[id_conc, id_prem] = elem; id_conc && lit > 0 && *id_conc > 0) {
@@ -1016,7 +1017,6 @@ class BuilderCondLit {
     void tr(BuilderBase &bld) {
         for (auto const &[lit, elems] : delayed_) {
             tr_(bld, lit, elems);
-            bld.backend().rule(std::array{lit}, lits_, false);
         }
         delayed_.clear();
     }
@@ -1053,6 +1053,7 @@ class BuilderCondLit {
                     // K | F :- not not G.
                     bld.mark(f, EQType::equivalence);
                     bld.backend().rule(std::array{k, f}, std::array{bld.negate(bld.negate(*g))}, false);
+                } else {
                 }
                 lits_.emplace_back(k);
             } else {

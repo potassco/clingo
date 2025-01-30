@@ -37,28 +37,24 @@ class TestSolving(TestCase):
     Tests for the solving module.
     """
 
-    def solve(self, path: str) -> None:
+    def test_asp(self) -> None:
         """
         Solve the given program and return its answer sets.
         """
-        prg = files(__name__).joinpath("resources", path).read_text()
-        opt = json.loads(
-            "\n".join(line[1:] for line in prg.splitlines() if line.startswith("%"))
-        )
+        for path in files(__name__).joinpath("resources").iterdir():
+            prg = path.read_text()
+            opt = json.loads(
+                "\n".join(
+                    line[2:] for line in prg.splitlines() if line.startswith("%%")
+                )
+            )
 
-        lib = Library()
-        ctl = Control(lib, opt["options"])
+            lib = Library()
+            ctl = Control(lib, opt["options"])
 
-        mcb = MCB()
-        ctl.parse_string(prg)
-        ctl.ground()
-        ctl.solve(on_model=mcb)
-        self.assertEqual(mcb.symbols, opt["solutions"])
-        mcb, ctl, lib = None, None, None
-
-    def test_solve(self):
-        """
-        Test solving.
-        """
-        self.solve("aggregate-bug.lp")
-        self.solve("large-cond-bug.lp")
+            mcb = MCB()
+            ctl.parse_string(prg)
+            ctl.ground()
+            ctl.solve(on_model=mcb)
+            self.assertEqual(mcb.symbols, opt["solutions"])
+            mcb, ctl, lib = None, None, None

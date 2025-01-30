@@ -171,15 +171,15 @@ class BackendImpl : public Output::Backend {
 #ifdef DEBUG_BACKEND
     void print(Potassco::TheoryTerm const &term) {
         switch (term.type()) {
-            case Potassco::Theory_t::number: {
+            case Potassco::TheoryTermType::number: {
                 std::cerr << term.number();
                 return;
             }
-            case Potassco::Theory_t::symbol: {
+            case Potassco::TheoryTermType::symbol: {
                 std::cerr << term.symbol();
                 return;
             }
-            case Potassco::Theory_t::compound: {
+            case Potassco::TheoryTermType::compound: {
                 if (term.isFunction()) {
                     print(prg_->theoryData().getTerm(term.function()));
                     std::cerr << "(" << Util::p_range(term, [this]([[maybe_unused]] auto &out, auto &term) {
