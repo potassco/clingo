@@ -3,6 +3,7 @@
 #include <clingo/util/immutable_array.hh>
 #include <clingo/util/immutable_value.hh>
 
+#include <cstring>
 #include <memory>
 #include <numeric>
 #include <optional>
