@@ -1726,6 +1726,10 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_flush() override {}
 
+    void do_classical_negation(size_t atom_a, size_t atom_b) override {
+        bld_.backend().rule({}, std::array{uid_to_atom(atom_a), uid_to_atom(atom_b)}, false);
+    }
+
     void do_end_step() override {
         bld_.compute_sccs();
         minimize_.tr(bld_);

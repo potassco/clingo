@@ -298,6 +298,11 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
     //! Returns the index of the first atom not previously shown.
     [[nodiscard]] auto mark_shown() -> size_t { return std::exchange(show_offset_, size()); }
 
+    //! Mark derived atoms as shown.
+    //!
+    //! Returns the index of the first atom not previously shown.
+    [[nodiscard]] auto mark_negated() -> size_t { return std::exchange(negate_offset_, size()); }
+
     //! Mark derived atoms as projected.
     //!
     //! Returns the index of the first atom not previously projected.
@@ -312,6 +317,7 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
     Util::index_sequence<size_t> derived_;
     size_t mutable domain_offset_ = 0;
     size_t show_offset_ = 0;
+    size_t negate_offset_ = 0;
     size_t project_offset_ = 0;
 };
 

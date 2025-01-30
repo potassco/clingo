@@ -221,6 +221,35 @@ struct Grounder::Impl : Clingo::SymbolOwner {
                 state.offset = conds.size();
             }
         }
+        // handle classical negation
+        for (auto const &[neg_sig, neg_base] : bases.atoms()) {
+            if (get<2>(neg_sig)) {
+                auto old_neg = neg_base->mark_negated();
+                if (auto it = bases.atoms().find({get<0>(neg_sig), get<1>(neg_sig), false});
+                    it != bases.atoms().end()) {
+                    auto const &pos_base = it.value();
+                    auto old_pos = pos_base->mark_negated();
+                    // add constraints `:- -p, p.` for each fresh atom `-p`
+                    for (auto i = old_neg, e = neg_base->size(); i != e; ++i) {
+                        auto jt = neg_base->nth(i);
+                        // NOLINTNEXTLINE
+                        if (auto kt = pos_base->find(*jt->first.flip_classical_sign()); kt) {
+                            out->classical_negation(jt->second.id, kt->value().id);
+                        }
+                    }
+                    // add constraints `:- -p, p.` for each fresh atom `p` and old atom `-p`
+                    if (old_neg > 0) {
+                        for (auto i = old_pos, e = pos_base->size(); i != e; ++i) {
+                            auto jt = pos_base->nth(i);
+                            // NOLINTNEXTLINE
+                            if (auto j = neg_base->index(*jt->first.flip_classical_sign()); j < old_neg) {
+                                out->classical_negation(jt->second.id, neg_base->nth(j).value().id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     //! Cleanup step-local state accumulated during grounding.

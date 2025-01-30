@@ -54,6 +54,7 @@ class NullOutputStm : public OutputStm {
                       [[maybe_unused]] Number const *prio, [[maybe_unused]] HeuristicType type) override {}
     void do_edge([[maybe_unused]] Symbol src, [[maybe_unused]] Symbol dst) override {}
     void do_flush() override {}
+    void do_classical_negation([[maybe_unused]] size_t atom_a, [[maybe_unused]] size_t atom_b) override {}
     void do_end_step() override {}
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 

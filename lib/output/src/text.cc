@@ -431,6 +431,10 @@ class OutputText : public OutputStm, OutputTheory {
 
     void do_flush() override { body_.flush(*out_); }
 
+    void do_classical_negation([[maybe_unused]] size_t atom_a, [[maybe_unused]] size_t atom_b) override {
+        // nothing to do here
+    }
+
     void do_end_step() override {
         if (std::exchange(explicit_show_, false)) {
             *out_ << "#show.\n";
