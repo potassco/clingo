@@ -32,29 +32,38 @@ class MCB:
         return [[str(sym) for sym in syms] for syms in sorted(self._syms)]
 
 
-class TestSolving(TestCase):
+def make_test(path):
+    prg = path.read_text()
+
+    def method(self):
+        opt = json.loads(
+            "\n".join(line[2:] for line in prg.splitlines() if line.startswith("%%"))
+        )
+
+        lib = Library()
+        ctl = Control(lib, opt["options"])
+
+        mcb = MCB()
+        ctl.parse_string(prg)
+        ctl.ground()
+        ctl.solve(on_model=mcb)
+        self.assertEqual(mcb.symbols, opt["solutions"])
+        mcb, ctl, lib = None, None, None
+
+    return method
+
+
+def make_tests(cls):
+    for path in files(__name__).joinpath("resources").iterdir():
+        n = path.name.replace(".lp", "").replace("-", "_")
+        method = make_test(path)
+        method.__name__ = f"test_{n}"
+        setattr(cls, method.__name__, method)
+    return cls
+
+
+@make_tests
+class TestASP(TestCase):
     """
     Tests for the solving module.
     """
-
-    def test_asp(self) -> None:
-        """
-        Solve the given program and return its answer sets.
-        """
-        for path in files(__name__).joinpath("resources").iterdir():
-            prg = path.read_text()
-            opt = json.loads(
-                "\n".join(
-                    line[2:] for line in prg.splitlines() if line.startswith("%%")
-                )
-            )
-
-            lib = Library()
-            ctl = Control(lib, opt["options"])
-
-            mcb = MCB()
-            ctl.parse_string(prg)
-            ctl.ground()
-            ctl.solve(on_model=mcb)
-            self.assertEqual(mcb.symbols, opt["solutions"])
-            mcb, ctl, lib = None, None, None
