@@ -33,16 +33,17 @@ class MCB:
 
 
 def make_test(path):
+    """
+    Return a test function for the given logic program.
+    """
     prg = path.read_text()
 
     def method(self):
         opt = json.loads(
             "\n".join(line[2:] for line in prg.splitlines() if line.startswith("%%"))
         )
-
         lib = Library()
         ctl = Control(lib, opt["options"])
-
         mcb = MCB()
         ctl.parse_string(prg)
         ctl.ground()
@@ -54,6 +55,9 @@ def make_test(path):
 
 
 def make_tests(cls):
+    """
+    Register a test for each logic program in the resources subfolder.
+    """
     for path in files(__name__).joinpath("resources").iterdir():
         n = path.name.replace(".lp", "").replace("-", "_")
         method = make_test(path)
