@@ -1703,15 +1703,15 @@ class OutputBackend : public OutputStm, OutputTheory {
                     auto clit = uid_to_lit(cuid);
                     if (huid > 0) {
                         auto hlit = uid_to_lit(huid);
-                        bd_conds.back().emplace_back(bld_.clause(std::array{hlit, clit}, ClauseType::conjunctive));
+                        auto elit = bld_.clause(std::array{hlit, clit}, ClauseType::conjunctive);
+                        bd_conds.back().emplace_back(elit);
+                        bld_.mark(uid_to_lit(elit), EQType::implication);
                         bld_.mark(clit, EQType::implication);
                         rule_.add(bld_, std::array{hlit}, std::array{blit, clit}, true);
                     } else {
                         bd_conds.back().emplace_back(clit);
                     }
                 }
-                // Note: that we can create a span here even though the vector
-                // might be moved due to reallocation.
                 bd_elems.emplace_back(tuple, bd_conds.back());
             }
         }

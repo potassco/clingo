@@ -323,6 +323,7 @@ auto get_atom(AtomBase &base, OutputStm &out, Sign sign, size_t index, Symbol sy
 } // namespace
 
 auto LitSymbolic::do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool {
+    assert(offset_ != invalid_offset || Symbol::to_rep(symbol_) != 0);
     if (auto atom = get_atom(*base_, ctx.out(), sign_, index_, symbol_, offset_)) {
         out.lit(sign_, atom->key(), atom->value().id);
         return true;
@@ -387,17 +388,9 @@ auto LitSymbolic::do_score(std::vector<bool> const &bound) const -> double {
 
 auto LitSymbolic::do_hash() const -> size_t { return Util::value_hash_record<LitSymbolic>(sign_, atom_); }
 
-auto LitSymbolic::do_equal_to(Lit const &other) const -> bool {
-    auto const *x = dynamic_cast<LitSymbolic const *>(&other);
-    return x != nullptr && std::tie(sign_, *atom_) == std::tie(x->sign_, *x->atom_);
-}
+auto LitSymbolic::do_equal_to(Lit const &other) const -> bool { return this == &other; }
 
-auto LitSymbolic::do_compare_to(Lit const &other) const -> std::weak_ordering {
-    if (auto const *x = dynamic_cast<LitSymbolic const *>(&other); x != nullptr) {
-        return std::tie(sign_, *atom_) <=> std::tie(x->sign_, *x->atom_);
-    }
-    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
-}
+auto LitSymbolic::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
 
 // LitProject
 // TODO:
@@ -497,17 +490,9 @@ auto LitProject::do_score(std::vector<bool> const &bound) const -> double {
 
 auto LitProject::do_hash() const -> size_t { return Util::value_hash_record<LitProject>(sign_, atom_); }
 
-auto LitProject::do_equal_to(Lit const &other) const -> bool {
-    auto const *x = dynamic_cast<LitProject const *>(&other);
-    return x != nullptr && std::tie(sign_, *atom_) == std::tie(x->sign_, *x->atom_);
-}
+auto LitProject::do_equal_to(Lit const &other) const -> bool { return this == &other; }
 
-auto LitProject::do_compare_to(Lit const &other) const -> std::weak_ordering {
-    if (auto const *x = dynamic_cast<LitProject const *>(&other); x != nullptr) {
-        return std::tie(sign_, *atom_) <=> std::tie(x->sign_, *x->atom_);
-    }
-    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
-}
+auto LitProject::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
 
 // definition of LitTuple
 

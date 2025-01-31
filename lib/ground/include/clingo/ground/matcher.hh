@@ -140,9 +140,10 @@ template <IsBase Base> class FullIndex {
     }
     template <IsMatch Match>
     auto next(InstantiationContext const &ctx, Match const &m, VariableVec &free, MatcherType type, size_t &pos,
-              size_t &cur) -> bool {
+              size_t &cur, size_t &prev) -> bool {
         auto n = base_->end(type);
         // populate the index if it does not yet hold enough elements
+        // (this also adds elements from previus generations that cannot match)
         for (; imported_ <= cur; ++imported_) {
             // the current index can no longer provide a match
             if (cur >= n) {
@@ -151,6 +152,8 @@ template <IsBase Base> class FullIndex {
             for (auto const &var : free) {
                 ctx.ass()[var] = std::nullopt;
             }
+            // note that matches with `imported_ < cur` populate the index
+            // (but do not match because they are from a previous generation)
             if (m.match(ctx, base_->nth(imported_).key())) {
                 if (index_.empty() || index_.back().second != imported_) {
                     pos = index_.size();
@@ -160,7 +163,7 @@ template <IsBase Base> class FullIndex {
                 }
                 if (imported_ == cur) {
                     // the current index matches
-                    ++cur;
+                    prev = cur++;
                     ++imported_;
                     return true;
                 }
@@ -179,10 +182,11 @@ template <IsBase Base> class FullIndex {
             }
             // match the next atom in the interval
             if (cur < index_[pos].second) {
+                prev = cur++;
                 for (auto const &var : free) {
                     ctx.ass()[var] = std::nullopt;
                 }
-                return m.match(ctx, base_->nth(cur++).key());
+                return m.match(ctx, base_->nth(prev).key());
             }
         }
         return false;
@@ -428,8 +432,7 @@ template <IsBase Base, IsMatch Match> class FullMatcher : public Matcher {
         std::tie(pos_, cur_) = index_->match(type_);
     }
     auto do_next(InstantiationContext const &ctx) -> bool override {
-        *offset_ = cur_;
-        return index_->next(ctx, *match_, free_, type_, pos_, cur_);
+        return index_->next(ctx, *match_, free_, type_, pos_, cur_, *offset_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
     [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
