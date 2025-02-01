@@ -268,11 +268,11 @@ class TestAST:
         assert x.location == self.loc
         assert p.location == self.loc
         assert q.location == self.loc
-        assert a.operators, ["+" == "-"]
+        assert a.operators == ["+", "-"]
         assert b.operators == ["*"]
         assert a.term == p
         assert b.term == q
-        assert x.elements, [a == b]
+        assert x.elements == [a, b]
         assert str(a) == "+ - p(1,2)"
         assert str(b) == "* q"
         assert str(x) == "(+ - p(1,2) * q)"
@@ -314,7 +314,7 @@ class TestAST:
         assert p.location == self.loc
         assert p.sign == ast.Sign.Single
         assert p.left == a
-        assert p.right, [b == c]
+        assert p.right == [b, c]
         assert str(p) == "not X<Y<=Z"
 
     def test_head_simple_literal(self):
@@ -323,9 +323,10 @@ class TestAST:
         """
         s = "not p(X)"
         p = ast.HeadSimpleLiteral(self.lib, ast.parse_literal(self.lib, s))
+        q = ast.parse_literal(self.lib, s)
 
-        assert p.literal == ast.parse_literal(self.lib, s)
-        assert str(p) == "not p(X)"
+        assert p.literal == q
+        assert str(p) == s
 
     def test_head_disjunction(self):
         """
@@ -342,7 +343,7 @@ class TestAST:
         assert l3.condition == [l1]
 
         assert p.location == self.loc
-        assert p.elements, [l2 == l3]
+        assert p.elements == [l2, l3]
         assert str(p) == "r(X); r(X): not p(X)"
 
     def test_head_set_aggregate(self):
@@ -404,8 +405,8 @@ class TestAST:
         )
 
         assert e1.location == self.loc
-        assert e1.tuple, [t1 == t2]
-        assert e1.condition, [l1 == l2]
+        assert e1.tuple == [t1, t2]
+        assert e1.condition == [l1, l2]
 
         assert a1.location == self.loc
         assert a1.left is None
@@ -441,8 +442,8 @@ class TestAST:
         assert rg1.term == tt2
 
         assert e1.location == self.loc
-        assert e1.tuple, [tt1 == tt2]
-        assert e1.condition, [l1 == l2]
+        assert e1.tuple == [tt1, tt2]
+        assert e1.condition == [l1, l2]
 
         assert a1.location == self.loc
         assert a1.name == t1
@@ -461,9 +462,10 @@ class TestAST:
         """
         s = "not p(X)"
         p = ast.BodySimpleLiteral(self.lib, ast.parse_literal(self.lib, s))
+        q = ast.parse_literal(self.lib, s)
 
-        assert p.literal, ast.parse_literal(self.lib == s)
-        assert str(p) == "not p(X)"
+        assert p.literal == q
+        assert str(p) == s
 
     def test_body_conditional_literal(self):
         """
@@ -550,8 +552,8 @@ class TestAST:
         )
 
         assert e1.location == self.loc
-        assert e1.tuple, [t1 == t2]
-        assert e1.condition, [l1 == l2]
+        assert e1.tuple == [t1, t2]
+        assert e1.condition == [l1, l2]
 
         assert a1.location == self.loc
         assert a1.sign == ast.Sign.Single
@@ -589,8 +591,8 @@ class TestAST:
         assert rg1.term == tt2
 
         assert e1.location == self.loc
-        assert e1.tuple, [tt1 == tt2]
-        assert e1.condition, [l1 == l2]
+        assert e1.tuple == [tt1, tt2]
+        assert e1.condition == [l1, l2]
 
         assert a1.location == self.loc
         assert a1.sign == ast.Sign.Single
@@ -692,7 +694,7 @@ class TestAST:
         e1 = ast.OptimizeElement(self.lib, t1, [l1, l2])
         e2 = ast.OptimizeElement(self.lib, t2, [l1, l2])
         assert e1.tuple == t1
-        assert e1.condition, [l1 == l2]
+        assert e1.condition == [l1, l2]
         assert str(e1), "5,X,Y: p(X) == q(X)"
         assert str(e2), "5@2,X,Y: p(X) == q(X)"
 
@@ -723,7 +725,7 @@ class TestAST:
         s1 = ast.StatementShow(self.lib, self.loc, t1, [l1, l2])
         assert s1.location == self.loc
         assert s1.term == t1
-        assert s1.body, [l1 == l2]
+        assert s1.body == [l1, l2]
         assert str(s1) == "#show -p(X): q(X); p(X)."
 
         s2 = ast.StatementShowSignature(self.lib, self.loc, "p", 2)
@@ -749,7 +751,7 @@ class TestAST:
         s1 = ast.StatementProject(self.lib, self.loc, t1, [l1, l2])
         assert s1.location == self.loc
         assert s1.atom == t1
-        assert s1.body, [l1 == l2]
+        assert s1.body == [l1, l2]
         assert str(s1) == "#project -p(X): q(X); p(X)."
 
         s2 = ast.StatementProjectSignature(self.lib, self.loc, "p", 2)
@@ -788,7 +790,7 @@ class TestAST:
         s2 = ast.StatementExternal(self.lib, self.loc, t1, [l1, l2], t2)
         assert s1.location == self.loc
         assert s1.atom == t1
-        assert s1.body, [l1 == l2]
+        assert s1.body == [l1, l2]
         assert s1.external_type is None
         assert s2.external_type == t2
         assert str(s1) == "#external -p(X): q(X); p(X)."
@@ -815,8 +817,8 @@ class TestAST:
         l2 = ast.parse_body_literal(self.lib, "p(X)")
         s1 = ast.StatementEdge(self.lib, self.loc, [e1, e2], [l1, l2])
         assert s1.location == self.loc
-        assert s1.pool, [e1 == e2]
-        assert s1.body, [l1 == l2]
+        assert s1.pool == [e1, e2]
+        assert s1.body == [l1, l2]
         assert str(s1) == "#edge (u,v;x,y): q(X); p(X)."
 
     def test_statement_heuristic(self):

@@ -6571,7 +6571,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(Projection, TermOrProjection);
 
     py_term_variable
         .def(py::init(&TermVariable::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
@@ -6616,7 +6616,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TermVariable, Term);
 
     py_term_symbolic
         .def(py::init(&TermSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("symbol"),
@@ -6656,7 +6656,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TermSymbolic, Term);
 
     py_term_absolute
         .def(py::init(&TermAbsolute::construct), py::arg("lib"), py::arg("location"), py::arg("pool"),
@@ -6700,7 +6700,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TermAbsolute, Term);
 
     py_term_unary_operation
         .def(py::init(&TermUnaryOperation::construct), py::arg("lib"), py::arg("location"), py::arg("operator_type"),
@@ -6743,7 +6743,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TermUnaryOperation, Term);
 
     py_term_binary_operation
         .def(py::init(&TermBinaryOperation::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
@@ -6788,7 +6788,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TermBinaryOperation, Term);
 
     py_term_tuple
         .def(py::init(&TermTuple::construct), py::arg("lib"), py::arg("location"), py::arg("pool"),
@@ -6831,7 +6831,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TermTuple, Term);
 
     py_term_function
         .def(py::init(&TermFunction::construct), py::arg("lib"), py::arg("location"), py::arg("name"), py::arg("pool"),
@@ -6879,7 +6879,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TermFunction, Term);
 
     py_argument_tuple
         .def(py::init(&ArgumentTuple::construct), py::arg("lib"), py::arg("arguments") = TermOrProjectionArray{},
@@ -6917,7 +6917,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(ArgumentTuple, TermOrArgumentTuple);
 
     py_left_guard
         .def(py::init(&LeftGuard::construct), py::arg("lib"), py::arg("term"), py::arg("relation"),
@@ -7038,7 +7038,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(LiteralBoolean, Literal);
 
     py_literal_comparison
         .def(py::init(&LiteralComparison::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
@@ -7085,7 +7085,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(LiteralComparison, Literal);
 
     py_literal_symbolic
         .def(py::init(&LiteralSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
@@ -7127,7 +7127,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(LiteralSymbolic, Literal);
 
     py_unparsed_element
         .def(py::init(&UnparsedElement::construct), py::arg("lib"), py::arg("operators"), py::arg("term"),
@@ -7212,7 +7212,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TheoryTermVariable, TheoryTerm);
 
     py_theory_term_symbolic
         .def(py::init(&TheoryTermSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("symbol"),
@@ -7252,7 +7252,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TheoryTermSymbolic, TheoryTerm);
 
     py_theory_term_tuple
         .def(py::init(&TheoryTermTuple::construct), py::arg("lib"), py::arg("location"), py::arg("tuple_type"),
@@ -7294,7 +7294,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TheoryTermTuple, TheoryTerm);
 
     py_theory_term_function
         .def(py::init(&TheoryTermFunction::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
@@ -7336,7 +7336,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TheoryTermFunction, TheoryTerm);
 
     py_theory_term_unparsed
         .def(py::init(&TheoryTermUnparsed::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
@@ -7376,7 +7376,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(TheoryTermUnparsed, TheoryTerm);
 
     py_theory_right_guard
         .def(py::init(&TheoryRightGuard::construct), py::arg("lib"), py::arg("theory_operator"), py::arg("term"),
@@ -7581,7 +7581,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(BodySimpleLiteral, BodyLiteral);
 
     py_body_aggregate
         .def(py::init(&BodyAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("sign"), py::arg("left"),
@@ -7629,7 +7629,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(BodyAggregate, BodyLiteral);
 
     py_body_set_aggregate
         .def(py::init(&BodySetAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
@@ -7675,7 +7675,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(BodySetAggregate, BodyLiteral);
 
     py_body_theory_atom
         .def(py::init(&BodyTheoryAtom::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
@@ -7721,7 +7721,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(BodyTheoryAtom, BodyLiteral);
 
     py_body_conditional_literal
         .def(py::init(&BodyConditionalLiteral::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
@@ -7764,7 +7764,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(BodyConditionalLiteral, BodyLiteral);
 
     py_head_conditional_literal
         .def(py::init(&HeadConditionalLiteral::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
@@ -7807,7 +7807,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(HeadConditionalLiteral, DisjunctionElement);
 
     py_head_aggregate_element
         .def(py::init(&HeadAggregateElement::construct), py::arg("lib"), py::arg("location"), py::arg("tuple"),
@@ -7889,7 +7889,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(HeadSimpleLiteral, HeadLiteral);
 
     py_head_aggregate
         .def(py::init(&HeadAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
@@ -7935,7 +7935,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(HeadAggregate, HeadLiteral);
 
     py_head_set_aggregate
         .def(py::init(&HeadSetAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
@@ -7979,7 +7979,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(HeadSetAggregate, HeadLiteral);
 
     py_head_theory_atom
         .def(py::init(&HeadTheoryAtom::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
@@ -8023,7 +8023,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(HeadTheoryAtom, HeadLiteral);
 
     py_head_disjunction
         .def(py::init(&HeadDisjunction::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
@@ -8063,7 +8063,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(HeadDisjunction, HeadLiteral);
 
     py_theory_operator_definition
         .def(py::init(&TheoryOperatorDefinition::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
@@ -8406,7 +8406,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementRule, Statement);
 
     py_statement_theory
         .def(py::init(&StatementTheory::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
@@ -8450,7 +8450,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementTheory, Statement);
 
     py_statement_optimize
         .def(py::init(&StatementOptimize::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
@@ -8493,7 +8493,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementOptimize, Statement);
 
     py_statement_weak_constraint
         .def(py::init(&StatementWeakConstraint::construct), py::arg("lib"), py::arg("location"), py::arg("body"),
@@ -8536,7 +8536,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementWeakConstraint, Statement);
 
     py_statement_show
         .def(py::init(&StatementShow::construct), py::arg("lib"), py::arg("location"), py::arg("term"), py::arg("body"),
@@ -8578,7 +8578,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementShow, Statement);
 
     py_statement_show_nothing
         .def(py::init(&StatementShowNothing::construct), py::arg("lib"), py::arg("location"),
@@ -8616,7 +8616,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementShowNothing, Statement);
 
     py_statement_show_signature
         .def(py::init(&StatementShowSignature::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
@@ -8660,7 +8660,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementShowSignature, Statement);
 
     py_statement_project
         .def(py::init(&StatementProject::construct), py::arg("lib"), py::arg("location"), py::arg("atom"),
@@ -8702,7 +8702,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementProject, Statement);
 
     py_statement_project_signature
         .def(py::init(&StatementProjectSignature::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
@@ -8747,7 +8747,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementProjectSignature, Statement);
 
     py_statement_defined
         .def(py::init(&StatementDefined::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
@@ -8791,7 +8791,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementDefined, Statement);
 
     py_statement_external
         .def(py::init(&StatementExternal::construct), py::arg("lib"), py::arg("location"), py::arg("atom"),
@@ -8835,7 +8835,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementExternal, Statement);
 
     py_statement_edge
         .def(py::init(&StatementEdge::construct), py::arg("lib"), py::arg("location"), py::arg("pool"), py::arg("body"),
@@ -8877,7 +8877,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementEdge, Statement);
 
     py_statement_heuristic
         .def(py::init(&StatementHeuristic::construct), py::arg("lib"), py::arg("location"), py::arg("atom"),
@@ -8927,7 +8927,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementHeuristic, Statement);
 
     py_statement_script
         .def(py::init(&StatementScript::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
@@ -8969,7 +8969,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementScript, Statement);
 
     py_statement_include
         .def(py::init(&StatementInclude::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
@@ -9011,7 +9011,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementInclude, Statement);
 
     py_statement_program
         .def(py::init(&StatementProgram::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
@@ -9053,7 +9053,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementProgram, Statement);
 
     py_statement_const
         .def(py::init(&StatementConst::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
@@ -9097,7 +9097,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementConst, Statement);
 
     py_statement_comment
         .def(py::init(&StatementComment::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
@@ -9139,7 +9139,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        CLINGO_PY_TOTAL_ORDER_O(StatementComment, Statement);
 
     py::class_<Scanner>(ast, "Scanner", R"doc( Scanner to parse statements.)doc")
         .def(py::init<Library &, char const *>(), py::arg("lib"), py::arg("program"),

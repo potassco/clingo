@@ -17,6 +17,20 @@
         .def(py::self > py::self)                                                                                      \
         .def(py::self >= py::self)
 
+#define CLINGO_PY_TOTAL_ORDER_O(S, T)                                                                                  \
+    .def(py::self == py::self)                                                                                         \
+        .def(py::self != py::self)                                                                                     \
+        .def(py::self < py::self)                                                                                      \
+        .def(py::self <= py::self)                                                                                     \
+        .def(py::self > py::self)                                                                                      \
+        .def(py::self >= py::self)                                                                                     \
+        .def("__eq__", [](S const &a, T const &b) -> bool { return T{a} == b; })                                       \
+        .def("__ne__", [](S const &a, T const &b) -> bool { return T{a} != b; })                                       \
+        .def("__le__", [](S const &a, T const &b) -> bool { return T{a} <= b; })                                       \
+        .def("__ge__", [](S const &a, T const &b) -> bool { return T{a} >= b; })                                       \
+        .def("__lt__", [](S const &a, T const &b) -> bool { return T{a} < b; })                                        \
+        .def("__gt__", [](S const &a, T const &b) -> bool { return T{a} > b; })
+
 #define CLINGO_CPP_TOTAL_ORDER(type, T)                                                                                \
     [[maybe_unused]] type auto operator!=(T const &a, T const &b)->bool { return !(a == b); }                          \
     [[maybe_unused]] type auto operator<=(T const &a, T const &b)->bool { return !(b < a); }                           \
