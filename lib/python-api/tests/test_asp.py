@@ -6,11 +6,13 @@ This are mainly tests that were used in clingo 5 to detect bugs.
 
 import json
 from importlib.resources import files
-from unittest import TestCase
 
+import pytest
 from clingo.control import Control
 from clingo.core import Library
 from clingo.solving import Model
+
+FILES = [path.name for path in files(__name__).joinpath("resources").iterdir()]
 
 
 class MCB:
@@ -32,13 +34,15 @@ class MCB:
         return [[str(sym) for sym in syms] for syms in sorted(self._syms)]
 
 
-def make_test(path):
+class TestASP:
     """
-    Return a test function for the given logic program.
+    Tests for the solving module.
     """
-    prg = path.read_text()
 
-    def method(self):
+    def run_file(self, prg):
+        """
+        Run individual test program.
+        """
         opt = json.loads(
             "\n".join(line[2:] for line in prg.splitlines() if line.startswith("%%"))
         )
@@ -48,26 +52,16 @@ def make_test(path):
         ctl.parse_string(prg)
         ctl.ground()
         ctl.solve(on_model=mcb)
-        self.assertEqual(mcb.symbols, opt["solutions"])
+        assert mcb.symbols == opt["solutions"]
         mcb, ctl, lib = None, None, None
 
-    return method
-
-
-def make_tests(cls):
-    """
-    Register a test for each logic program in the resources subfolder.
-    """
-    for path in files(__name__).joinpath("resources").iterdir():
-        n = path.name.replace(".lp", "").replace("-", "_")
-        method = make_test(path)
-        method.__name__ = f"test_{n}"
-        setattr(cls, method.__name__, method)
-    return cls
-
-
-@make_tests
-class TestASP(TestCase):
-    """
-    Tests for the solving module.
-    """
+    @pytest.mark.parametrize("file", FILES)
+    def test_file(self, file):
+        """
+        Run all test programs found under resources.
+        """
+        for path in files(__name__).joinpath("resources").iterdir():
+            if path.name == file:
+                self.run_file(path.read_text())
+                return
+        assert False

@@ -2,8 +2,6 @@
 Unit tests for clingo.solving module.
 """
 
-from unittest import TestCase
-
 from clingo.control import Control
 from clingo.core import Library
 from clingo.solving import Model
@@ -29,15 +27,24 @@ class MCB:
         return [[str(sym) for sym in syms] for syms in sorted(self._syms)]
 
 
-class TestSolving(TestCase):
+class TestSolving:
     """
     Tests for the solving module.
     """
 
-    def setUp(self):
+    def __init__(self):
+        self._lib = None
+
+    def setup_method(self, _method):
+        """
+        Create lib.
+        """
         self._lib = Library()
 
-    def tearDown(self):
+    def teardown_method(self, _method):
+        """
+        Destroy lib.
+        """
         self._lib = None
 
     @property
@@ -60,8 +67,8 @@ class TestSolving(TestCase):
         # default
         mcb = MCB()
         with ctl.solve(on_model=mcb) as hnd:
-            self.assertTrue(hnd.get().satisfiable)
-        self.assertEqual(mcb.symbols, res)
+            assert hnd.get().satisfiable
+        assert mcb.symbols == res
 
         # yield
         mcb = MCB()
@@ -69,15 +76,15 @@ class TestSolving(TestCase):
         with ctl.solve(on_model=mcb, yield_=True) as hnd:
             for mdl in hnd:
                 mcc(mdl)
-            self.assertTrue(hnd.get().satisfiable)
-        self.assertEqual(mcb.symbols, res)
-        self.assertEqual(mcc.symbols, res)
+            assert hnd.get().satisfiable
+        assert mcb.symbols == res
+        assert mcc.symbols == res
 
         # async
         mcb = MCB()
         with ctl.solve(on_model=mcb, async_=True) as hnd:
-            self.assertTrue(hnd.get().satisfiable)
-        self.assertEqual(mcc.symbols, res)
+            assert hnd.get().satisfiable
+        assert mcc.symbols == res
 
         # yield+async
         mcb = MCB()
@@ -86,9 +93,9 @@ class TestSolving(TestCase):
             while mdl := hnd.model():
                 mcc(mdl)
                 hnd.resume()
-            self.assertTrue(hnd.get().satisfiable)
-        self.assertEqual(mcb.symbols, res)
-        self.assertEqual(mcc.symbols, res)
+            assert hnd.get().satisfiable
+        assert mcb.symbols == res
+        assert mcc.symbols == res
 
     def test_core(self):
         """
@@ -105,5 +112,5 @@ class TestSolving(TestCase):
         assumptions = [lit("a"), lit("b"), lit("c")]
 
         with ctl.solve(assumptions=assumptions) as hnd:
-            self.assertTrue(hnd.get().unsatisfiable)
-            self.assertEqual(sorted(hnd.core()), sorted(assumptions[:2]))
+            assert hnd.get().unsatisfiable
+            assert sorted(hnd.core()) == sorted(assumptions[:2])
