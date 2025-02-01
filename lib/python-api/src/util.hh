@@ -7,6 +7,10 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <compare>
+#include <type_traits>
+#include <variant>
+
 // NOLINTBEGIN(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
 
 #define CLINGO_PY_TOTAL_ORDER                                                                                          \
@@ -17,6 +21,27 @@
         .def(py::self > py::self)                                                                                      \
         .def(py::self >= py::self)
 
+namespace Detail {
+
+template <class T, class... Ts> constexpr bool is_variant_member_v = (std::is_same_v<T, Ts> || ...);
+
+template <class... Ts, class T>
+    requires is_variant_member_v<T, Ts...>
+auto equal(T const &t, std::variant<Ts...> const &v) -> bool {
+    return std::holds_alternative<T>(v) && t == std::get<T>(v);
+}
+
+template <class... Ts, class T>
+    requires is_variant_member_v<T, Ts...>
+auto compare(T const &t, std::variant<Ts...> const &v) {
+    if (std::holds_alternative<T>(v)) {
+        return t <=> std::get<T>(v);
+    }
+    return v.index() <=> std::variant<Ts...>(t).index();
+}
+
+} // namespace Detail
+
 #define CLINGO_PY_TOTAL_ORDER_O(S, T)                                                                                  \
     .def(py::self == py::self)                                                                                         \
         .def(py::self != py::self)                                                                                     \
@@ -24,12 +49,12 @@
         .def(py::self <= py::self)                                                                                     \
         .def(py::self > py::self)                                                                                      \
         .def(py::self >= py::self)                                                                                     \
-        .def("__eq__", [](S const &a, T const &b) -> bool { return T{a} == b; })                                       \
-        .def("__ne__", [](S const &a, T const &b) -> bool { return T{a} != b; })                                       \
-        .def("__le__", [](S const &a, T const &b) -> bool { return T{a} <= b; })                                       \
-        .def("__ge__", [](S const &a, T const &b) -> bool { return T{a} >= b; })                                       \
-        .def("__lt__", [](S const &a, T const &b) -> bool { return T{a} < b; })                                        \
-        .def("__gt__", [](S const &a, T const &b) -> bool { return T{a} > b; })
+        .def("__eq__", [](S const &a, T const &b) -> bool { return Detail::equal(a, b); })                             \
+        .def("__ne__", [](S const &a, T const &b) -> bool { return !Detail::equal(a, b); })                            \
+        .def("__le__", [](S const &a, T const &b) -> bool { return Detail::compare(a, b) <= 0; })                      \
+        .def("__ge__", [](S const &a, T const &b) -> bool { return Detail::compare(a, b) >= 0; })                      \
+        .def("__lt__", [](S const &a, T const &b) -> bool { return Detail::compare(a, b) < 0; })                       \
+        .def("__gt__", [](S const &a, T const &b) -> bool { return Detail::compare(a, b) > 0; })
 
 #define CLINGO_CPP_TOTAL_ORDER(type, T)                                                                                \
     [[maybe_unused]] type auto operator!=(T const &a, T const &b)->bool { return !(a == b); }                          \
