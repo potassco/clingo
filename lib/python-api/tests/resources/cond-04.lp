@@ -7,6 +7,7 @@ var(e,x2,3).
 var(a,y1,-2).
 var(a,y2,1).
 int(4).
-#show true/3.
+#show.
+#show true(X,Y) : true(e,X,Y).
 %% { "options": ["0"]
-%% , "solutions": [[],["true(e,x1,6)","true(e,x2,3)"]] }
+%% , "solutions": [[],["true(x1,6)","true(x2,3)"]] }

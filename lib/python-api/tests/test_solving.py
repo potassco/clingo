@@ -28,12 +28,10 @@ class MCB:
 
 
 class TestSolving:
+    # pylint: disable=attribute-defined-outside-init
     """
     Tests for the solving module.
     """
-
-    def __init__(self):
-        self._lib = None
 
     def setup_method(self, _method):
         """
