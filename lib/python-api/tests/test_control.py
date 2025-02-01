@@ -3,7 +3,6 @@ Unit tests for clingo.control module.
 """
 
 from textwrap import dedent
-from unittest import TestCase
 
 from clingo.ast import Program, parse_statement
 from clingo.control import Control
@@ -11,15 +10,24 @@ from clingo.core import Library
 from clingo.symbol import Number
 
 
-class TestControl(TestCase):
+class TestControl:
+    # pylint: disable=attribute-defined-outside-init
     """
     Tests for the control module.
     """
 
-    def setUp(self):
+    def setup_method(self, method):
+        """
+        Create lib.
+        """
+        assert method is not None
         self._lib = Library()
 
-    def tearDown(self):
+    def teardown_method(self, method):
+        """
+        Destroy lib.
+        """
+        assert method is not None
         self._lib = None
 
     @property
@@ -47,23 +55,20 @@ class TestControl(TestCase):
         ctl.join(prg)
         ctl.ground([("parse", [])])
 
-        self.assertEqual(
-            ctl.buffer,
-            dedent(
-                """\
-                a.
-                #show a/0.
-                #show.
-                b(0).
-                b(1).
-                b(2).
-                b(3).
-                b(4).
-                #show b/1.
-                c.
-                #show c/0.
-                """
-            ),
+        assert ctl.buffer == dedent(
+            """\
+            a.
+            #show a/0.
+            #show.
+            b(0).
+            b(1).
+            b(2).
+            b(3).
+            b(4).
+            #show b/1.
+            c.
+            #show c/0.
+            """
         )
 
     def test_ground_context(self):
@@ -101,14 +106,11 @@ class TestControl(TestCase):
         ctl.parse_string("#show.")
         ctl.ground([("base", [])], context=Context(self.lib))
 
-        self.assertEqual(
-            ctl.buffer,
-            dedent(
-                """\
-                p(1).
-                p(2).
-                q(3).
-                #show.
-                """
-            ),
+        assert ctl.buffer == dedent(
+            """\
+            p(1).
+            p(2).
+            q(3).
+            #show.
+            """
         )

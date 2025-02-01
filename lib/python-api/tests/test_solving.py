@@ -33,16 +33,18 @@ class TestSolving:
     Tests for the solving module.
     """
 
-    def setup_method(self, _method):
+    def setup_method(self, method):
         """
         Create lib.
         """
+        assert method is not None
         self._lib = Library()
 
-    def teardown_method(self, _method):
+    def teardown_method(self, method):
         """
         Destroy lib.
         """
+        assert method is not None
         self._lib = None
 
     @property

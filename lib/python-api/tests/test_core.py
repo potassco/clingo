@@ -2,12 +2,10 @@
 Unit tests for clingo.core module.
 """
 
-from unittest import TestCase
-
 from clingo.core import Library, version
 
 
-class TestCore(TestCase):
+class TestCore:
     """
     Unit tests for clingo.core module.
     """
@@ -16,11 +14,11 @@ class TestCore(TestCase):
         """
         Test the version function.
         """
-        self.assertGreaterEqual(version(), (6, 0, 0))
+        assert version() >= (6, 0, 0)
 
     def test_library(self):
         """
         Test library creation.
         """
         with Library() as lib:
-            self.assertIsNotNone(lib)
+            assert lib is not None
