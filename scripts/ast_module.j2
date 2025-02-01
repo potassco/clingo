@@ -632,7 +632,7 @@ Returns:
     The updated object.
 )doc")
         // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        {{ type_name | comp }};
 {%    endif %}
 {%- endfor %}
     py::class_<Scanner>(ast, "Scanner", R"doc( Scanner to parse statements.)doc")

@@ -188,10 +188,30 @@ def param_doc(text):
     )
 
 
+def make_comp(types):
+    """
+    Generate comparisions operators for a given type.
+    """
+    unions = {}
+    for name, data in types.items():
+        if data["type"] == "union":
+            for member in data["types"]:
+                unions[member] = name
+
+    def comp(text):
+        if text in unions:
+            return f"CLINGO_PY_TOTAL_ORDER_O({camel(text)}, {camel(unions[text])})"
+        return "CLINGO_PY_TOTAL_ORDER"
+
+    return comp
+
+
 def generate():
     """
     Generate the python ast module.
     """
+    types = yaml.safe_load(_type_info_yaml())
+
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath="scripts/"))
     env.filters["camel"] = camel
     env.filters["cref"] = cref
@@ -204,8 +224,7 @@ def generate():
     env.filters["forward"] = forward
     env.filters["transform_cond"] = transform_cond
     env.filters["transform_cons"] = transform_cons
-
-    types = yaml.safe_load(_type_info_yaml())
+    env.filters["comp"] = make_comp(types)
 
     return env.get_template("ast_module.j2").render(types=types)
 
