@@ -1115,6 +1115,8 @@ class BuilderDisjunction {
             }
         }
         elems_.clear();
+        bd_.clear();
+        hd_.clear();
         bd_.emplace_back(lit);
         for (auto const &[sym, auid, conds] : elems) {
             if (auid != 0) {
