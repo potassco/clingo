@@ -16,3 +16,8 @@ b(4).
 s(1).
 r(X) :- s(X).
 r(Y) :- r(X), e(X,Y), not b(X).
+
+#show r/1.
+
+%% { "options": ["0"]
+%% , "solutions": [["r(1)", "r(2)", "r(3)", "r(4)"]] }
