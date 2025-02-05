@@ -26,7 +26,7 @@ class Symbol {
     [[nodiscard]] auto name() const -> char const *;
     [[nodiscard]] auto arity() const -> size_t;
     [[nodiscard]] auto args() const -> py::list;
-    [[nodiscard]] auto str() const -> std::string;
+    [[nodiscard]] auto str() const -> char const *;
     [[nodiscard]] auto repr() const -> std::string;
     [[nodiscard]] auto sign() const -> bool;
     [[nodiscard]] auto match_function(char const *name, size_t arity, bool sign) const -> bool;

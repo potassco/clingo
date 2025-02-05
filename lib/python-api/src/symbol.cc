@@ -45,7 +45,7 @@ auto Symbol::number() const -> py::int_ {
     if (clingo_symbol_number(sym_, &num) == clingo_result_success) {
         return num;
     }
-    return py::reinterpret_steal<py::int_>(PyLong_FromString(str().c_str(), nullptr, decimal_base));
+    return py::reinterpret_steal<py::int_>(PyLong_FromString(str(), nullptr, decimal_base));
 }
 
 auto Symbol::string() const -> py::str {
@@ -95,16 +95,21 @@ auto Symbol::args() const -> py::list {
     return ret;
 }
 
-auto Symbol::str() const -> std::string {
-    size_t len = 0;
-    handle_error(clingo_symbol_to_string_size(sym_, &len));
-    std::string str;
-    str.resize(len);
-    handle_error(clingo_symbol_to_string(sym_, str.data(), len));
-    // NOTE: the c-api zero terminates strings.
-    while (!str.empty() && str.back() == '\0') {
-        str.pop_back();
+auto Symbol::str() const -> char const * {
+    struct free_builder {
+        void operator()(clingo_string_builder_t const *bld) { clingo_string_builder_free(bld); }
+    };
+    thread_local static std::unique_ptr<clingo_string_builder_t, free_builder> builder;
+    if (builder == nullptr) {
+        clingo_string_builder_t *bld = nullptr;
+        handle_error(clingo_string_builder_new(&bld));
+        builder.reset(bld);
+    } else {
+        clingo_string_builder_clear(builder.get());
     }
+    handle_error(clingo_symbol_to_string(sym_, builder.get()));
+    char const *str = nullptr;
+    handle_error(clingo_string_builder_string(builder.get(), &str, nullptr));
     return str;
 }
 

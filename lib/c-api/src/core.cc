@@ -1,3 +1,4 @@
+#include "core.hh"
 #include "lib.hh"
 
 #include <clingo/core/location.hh>
@@ -155,25 +156,10 @@ extern "C" void clingo_lib_free(clingo_lib_t *lib, bool fast) {
 
 // definition of position
 
-static auto c_cast(std::ostringstream *buf) -> clingo_string_builder_t * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<clingo_string_builder_t *>(buf);
-}
-
-static auto cpp_cast(clingo_string_builder_t *buf) -> std::ostringstream * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<std::ostringstream *>(buf);
-}
-
-static auto cpp_cast(clingo_string_builder_t const *buf) -> std::ostringstream const * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<std::ostringstream const *>(buf);
-}
-
 extern "C" auto clingo_string_builder_new(clingo_string_builder_t **bld) -> clingo_result_t {
     CLINGO_TRY {
         // NOLINTNEXTLINE
-        *bld = c_cast(new std::ostringstream{});
+        *bld = c_cast(new Clingo::Util::OutputBuffer{});
     }
     CLINGO_CATCH;
 }
@@ -181,7 +167,7 @@ extern "C" auto clingo_string_builder_new(clingo_string_builder_t **bld) -> clin
 extern "C" auto clingo_string_builder_copy(clingo_string_builder_t const *src, clingo_string_builder_t **dst)
     -> clingo_result_t {
     CLINGO_TRY {
-        auto oss = std::make_unique<std::ostringstream>();
+        auto oss = std::make_unique<Clingo::Util::OutputBuffer>();
         *oss << cpp_cast(src)->view();
         *dst = c_cast(oss.release());
     }
@@ -196,14 +182,18 @@ extern "C" void clingo_string_builder_free(clingo_string_builder_t const *bld) {
 extern "C" auto clingo_string_builder_string(clingo_string_builder_t const *bld, char const **str, size_t *size)
     -> clingo_result_t {
     CLINGO_TRY {
-        auto view = cpp_cast(bld)->view();
-        *str = view.data();
-        *size = view.size();
+        auto *cpp_bld = cpp_cast(const_cast<clingo_string_builder_t *>(bld)); // NOLINT
+        if (str != nullptr) {
+            *str = cpp_bld->c_str();
+        }
+        if (size != nullptr) {
+            *size = cpp_bld->size();
+        }
     }
     CLINGO_CATCH;
 }
 
-extern "C" void clingo_string_builder_clear(clingo_string_builder_t *bld) { cpp_cast(bld)->str({}); }
+extern "C" void clingo_string_builder_clear(clingo_string_builder_t *bld) { cpp_cast(bld)->reset(); }
 
 // definition of position
 

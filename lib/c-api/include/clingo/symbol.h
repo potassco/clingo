@@ -227,20 +227,13 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_arguments(clingo_symbol_
 //! @return the type of the symbol
 CLINGO_VISIBILITY_DEFAULT clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t symbol);
 
-//! Get the size of the string representation of a symbol (including the terminating 0).
-//!
-//! @param[in] symbol the target symbol
-//! @param[out] size the resulting size
-//! @return whether the size has been set
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *size);
-
 //! Get the string representation of a symbol.
 //!
 //! @param[in] symbol the target symbol
-//! @param[out] string the resulting string
-//! @param[in] size the size of the string
-//! @return whether the string has been set
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_to_string(clingo_symbol_t symbol, char *string, size_t size);
+//! @param[in] builder the string builder
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_to_string(clingo_symbol_t symbol,
+                                                                  clingo_string_builder_t *builder);
 
 //! @}
 

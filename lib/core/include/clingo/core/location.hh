@@ -29,7 +29,7 @@ class Position {
     friend auto operator<=>(Position const &a, Position const &b) = default;
 
     //! Output the position to the given stream.
-    friend auto operator<<(std::ostream &out, Position const &pos) -> std::ostream & {
+    template <class T> friend auto operator<<(T &out, Position const &pos) -> T & {
         out << pos.file() << ":" << pos.line() << ":" << pos.column();
         return out;
     }
@@ -95,7 +95,7 @@ class Location {
     friend auto operator<=>(Location const &a, Location const &b) = default;
 
     //! Output the location to the given stream.
-    friend auto operator<<(std::ostream &out, Location const &loc) -> std::ostream & {
+    template <class T> friend auto operator<<(T &out, Location const &loc) -> T & {
         out << loc.begin() << "-";
         if (loc.end().file() != loc.begin().file()) {
             out << loc.end();

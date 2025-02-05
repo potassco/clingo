@@ -1,3 +1,4 @@
+#include "core.hh"
 #include "lib.hh"
 #include "streams.hh"
 
@@ -156,24 +157,13 @@ extern "C" auto clingo_symbol_type(clingo_symbol_t symbol) -> clingo_symbol_type
     return static_cast<clingo_symbol_type_t>(sym.type());
 }
 
-extern "C" auto clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *size) -> clingo_result_t {
+extern "C" auto clingo_symbol_to_string(clingo_symbol_t symbol, clingo_string_builder_t *builder) -> clingo_result_t {
     CLINGO_TRY {
-        if (size == nullptr) {
+        if (builder == nullptr) {
             return clingo_result_invalid;
         }
         auto sym = Clingo::Symbol::from_rep(symbol);
-        *size = print_size(sym);
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" auto clingo_symbol_to_string(clingo_symbol_t symbol, char *string, size_t size) -> clingo_result_t {
-    CLINGO_TRY {
-        if (string == nullptr) {
-            return clingo_result_invalid;
-        }
-        auto sym = Clingo::Symbol::from_rep(symbol);
-        print(string, size, sym);
+        *cpp_cast(builder) << sym;
     }
     CLINGO_CATCH;
 }

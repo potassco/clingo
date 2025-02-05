@@ -17,22 +17,29 @@ void handle_error(clingo_result_t ret) {
 
 clingo_result_t print_symbols(clingo_symbol_t const *symbols, size_t size, void *data) {
     (void)data;
+    char const *str = NULL;
     clingo_result_t res = clingo_result_success;
+    clingo_string_builder_t *bld = NULL;
+    res = clingo_string_builder_new(&bld);
+    if (res != clingo_result_success) {
+        goto out;
+    }
     for (size_t i = 0; i != size; ++i) {
-        size_t str_size = 0;
-        res = clingo_symbol_to_string_size(symbols[i], &str_size);
+        clingo_string_builder_clear(bld);
+        res = clingo_symbol_to_string(symbols[i], bld);
         if (res != clingo_result_success) {
-            return res;
+            goto out;
         }
-
-        char str[str_size];
-        res = clingo_symbol_to_string(symbols[i], str, str_size);
+        res = clingo_string_builder_string(bld, &str, NULL);
         if (res != clingo_result_success) {
-            return res;
+            goto out;
         }
         printf(" %s", str);
     }
-    return clingo_result_success;
+
+out:
+    clingo_string_builder_free(bld);
+    return res;
 }
 
 clingo_result_t on_model(clingo_solve_event_type_t type, void *event, void *data, bool *goon) {
