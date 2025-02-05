@@ -4,10 +4,11 @@ Unit tests for clingo.control module.
 
 from textwrap import dedent
 
-from clingo.ast import Program, parse_statement
+from clingo import ast
 from clingo.control import Control
 from clingo.core import Library
 from clingo.symbol import Number
+from util import MCB
 
 
 class TestControl:
@@ -49,9 +50,9 @@ class TestControl:
         ctl.parse_string("#program acid(k). b(k).")
         ctl.ground([("acid", [Number(self.lib, i)]) for i in range(5)])
 
-        prg = Program(self.lib)
-        prg.add(parse_statement(self.lib, "#program parse."))
-        prg.add(parse_statement(self.lib, "c :- a."))
+        prg = ast.Program(self.lib)
+        prg.add(ast.parse_statement(self.lib, "#program parse."))
+        prg.add(ast.parse_statement(self.lib, "c :- a."))
         ctl.join(prg)
         ctl.ground([("parse", [])])
 
@@ -114,3 +115,21 @@ class TestControl:
             #show.
             """
         )
+
+    def test_join(self):
+        """
+        Test adding a single parsed statement to a program.
+        """
+        ctl = Control(self.lib, [])
+        ctl.parse_string("a.")
+
+        prg = ast.Program(self.lib)
+        prg.add(ast.parse_statement(self.lib, "b :- a."))
+        ctl.join(prg)
+
+        ctl.ground([("base", [])])
+
+        mcb = MCB()
+        with ctl.solve(on_model=mcb) as hnd:
+            assert hnd.get().satisfiable
+        assert mcb.symbols == [["a", "b"]]
