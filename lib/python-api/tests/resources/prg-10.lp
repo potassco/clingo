@@ -1,4 +1,4 @@
-#const n = 10000.
+#const n = 18.
 
 % initial prime
 prime(1,2).
@@ -29,3 +29,6 @@ prime(I+1,X) :- sieved_prefix(I,X-1), rec_nsieve(I,X).
 
 #show.
 #show prime(X) : prime(_,X).
+
+%% { "options": ["0"]
+%% , "solutions": [["prime(2)", "prime(3)", "prime(5)", "prime(7)", "prime(11)", "prime(13)", "prime(17)"]] }
