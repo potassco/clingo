@@ -95,15 +95,21 @@ public:
         return clingo_ast_hash(ast_);
     }
 
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
+    auto to_string() -> char const * {
+        struct free_builder {
+            void operator()(clingo_string_builder_t const *bld) { clingo_string_builder_free(bld); }
+        };
+        thread_local static std::unique_ptr<clingo_string_builder_t, free_builder> builder;
+        if (builder == nullptr) {
+            clingo_string_builder_t *bld = nullptr;
+            handle_error(clingo_string_builder_new(&bld));
+            builder.reset(bld);
+        } else {
+            clingo_string_builder_clear(builder.get());
         }
+        handle_error(clingo_ast_to_string(ast_, builder.get()));
+        char const *str = nullptr;
+        handle_error(clingo_string_builder_string(builder.get(), &str, nullptr));
         return str;
     }
 

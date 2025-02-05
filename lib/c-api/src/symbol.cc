@@ -1,6 +1,5 @@
 #include "core.hh"
 #include "lib.hh"
-#include "streams.hh"
 
 #include <clingo/input/parser.hh>
 

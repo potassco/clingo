@@ -1,6 +1,6 @@
 #include "ast.hh"
+#include "core.hh"
 #include "lib.hh"
-#include "streams.hh"
 
 #include <clingo/input/parser.hh>
 #include <clingo/input/print.hh>
@@ -36,7 +36,7 @@ struct clingo_ast {
     clingo_ast(std::shared_ptr<T> owner, clingo_ast_type_e type, void const *ptr)
         : type_{type}, ptr_{std::move(owner), ptr} {}
     [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t>;
-    void print(std::ostream &out) const;
+    template <class T> void print(T &out) const;
     [[nodiscard]] auto hash() const -> size_t;
     [[nodiscard]] auto equal(clingo_ast_t const &other) const -> bool;
     [[nodiscard]] auto compare(clingo_ast_t const &other) const -> std::strong_ordering;
@@ -51,8 +51,7 @@ struct clingo_ast {
 
     template <typename T> [[nodiscard]] auto cast() const -> T const & { return *static_cast<T const *>(ptr_.get()); }
     template <class V> auto visit(V &&visit) const -> std::invoke_result_t<V, Clingo::Input::Projection const &>;
-
-    friend auto operator<<(std::ostream &out, clingo_ast_t const &ast) -> std::ostream & {
+    template <class T> friend auto operator<<(T &out, clingo_ast_t const &ast) -> T & {
         ast.print(out);
         return out;
     }
@@ -1453,19 +1452,19 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
 
 auto clingo_ast::copy() const -> std::unique_ptr<clingo_ast_t> { return std::make_unique<clingo_ast>(*this); }
 
-void clingo_ast::print(std::ostream &out) const {
+template <class T> void clingo_ast::print(T &out) const {
     using namespace Clingo::Input;
-    visit([&out]<class T>(T const &x) {
-        if constexpr (Clingo::Util::matches<T, RGuard::value_type>) {
+    visit([&out]<class U>(U const &x) {
+        if constexpr (Clingo::Util::matches<U, RGuard::value_type>) {
             out << " " << x.first << " " << x.second;
-        } else if constexpr (Clingo::Util::matches<T, TheoryRGuard>) {
+        } else if constexpr (Clingo::Util::matches<U, TheoryRGuard>) {
             out << " " << x.op() << " " << x.term();
-        } else if constexpr (std::is_same_v<T, UnparsedElement>) {
+        } else if constexpr (std::is_same_v<U, UnparsedElement>) {
             for (auto const &op : x.ops()) {
                 out << op << " ";
             }
             out << x.term();
-        } else if constexpr (std::is_same_v<T, ArgumentTuple>) {
+        } else if constexpr (std::is_same_v<U, ArgumentTuple>) {
             bool comma = false;
             for (auto const &elem : x.elems()) {
                 if (comma) {
@@ -1475,7 +1474,7 @@ void clingo_ast::print(std::ostream &out) const {
                 }
                 std::visit([&out](auto &x) { out << x; }, elem);
             }
-        } else if constexpr (std::is_same_v<T, LGuard::value_type>) {
+        } else if constexpr (std::is_same_v<U, LGuard::value_type>) {
             out << x.first << " " << x.second << " ";
         } else {
             out << x;
@@ -2257,22 +2256,12 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
 }
 // NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
-extern "C" auto clingo_ast_to_string_size(clingo_ast_t *ast, size_t *size) -> clingo_result_t {
+extern "C" auto clingo_ast_to_string(clingo_ast_t *ast, clingo_string_builder_t *builder) -> clingo_result_t {
     CLINGO_TRY {
-        if (ast == nullptr || size == nullptr) {
+        if (ast == nullptr || builder == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
-        *size = print_size(*ast);
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" auto clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t size) -> clingo_result_t {
-    CLINGO_TRY {
-        if (ast == nullptr || string == nullptr) {
-            throw std::invalid_argument("invalid arguments");
-        }
-        print(string, size, *ast);
+        *cpp_cast(builder) << *ast;
     }
     CLINGO_CATCH;
 }

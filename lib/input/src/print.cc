@@ -71,7 +71,7 @@ auto priority(BinaryOperator op) -> unsigned int {
 
 auto priority([[maybe_unused]] UnaryOperator op) -> unsigned int { return priority(BinaryOperator::times) + 1; }
 
-auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream & {
+template <class T> auto operator<<(T &out, TheoryAtomType type) -> T & {
     switch (type) {
         case TheoryAtomType::head: {
             out << "head";
@@ -93,7 +93,7 @@ auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream & {
     return out;
 }
 
-auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
+template <class T> auto operator<<(T &out, OptimizeType type) -> T & {
     switch (type) {
         case OptimizeType::maximize: {
             out << "#maximize";
@@ -107,7 +107,7 @@ auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
     return out;
 }
 
-auto operator<<(std::ostream &out, ConstType type) -> std::ostream & {
+template <class T> auto operator<<(T &out, ConstType type) -> T & {
     switch (type) {
         case ConstType::default_: {
             out << "default";
@@ -151,10 +151,9 @@ auto right_bracket(TheoryTermTupleType type) -> char {
     return ']';
 }
 
-class Print {
+template <class O> class Print {
   public:
-    Print(std::ostream &out, OperatorPosition pos = OperatorPosition::none, unsigned int prio = 0,
-          bool no_leading_op = false)
+    Print(O &out, OperatorPosition pos = OperatorPosition::none, unsigned int prio = 0, bool no_leading_op = false)
         : out_{&out}, pos_{pos}, prio_{prio}, no_leading_op_{no_leading_op} {}
 
     // protect ourselves -> no unintended overloads
@@ -699,20 +698,15 @@ class Print {
     void operator()(StmComment const &stm) const { *out_ << stm.value(); }
 
   private:
-    std::ostream *out_;
+    O *out_;
     OperatorPosition pos_;
     unsigned int prio_;
     bool no_leading_op_;
 };
 
-} // namespace
+template <class T> void print_op(T &out, UnaryOperator op) { out << (op == UnaryOperator::minus ? "-" : "~"); }
 
-auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
-    out << (op == UnaryOperator::minus ? "-" : "~");
-    return out;
-}
-
-auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
+template <class T> void print_op(T &out, BinaryOperator op) {
     switch (op) {
         case BinaryOperator::dots: {
             out << "..";
@@ -755,6 +749,26 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
             break;
         }
     }
+}
+
+} // namespace
+
+auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
+    print_op(out, op);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, UnaryOperator op) -> Util::OutputBuffer & {
+    print_op(out, op);
+    return out;
+}
+
+auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
+    print_op(out, op);
+    return out;
+}
+auto operator<<(Util::OutputBuffer &out, BinaryOperator op) -> Util::OutputBuffer & {
+    print_op(out, op);
     return out;
 }
 
@@ -765,7 +779,17 @@ auto operator<<(std::ostream &out, [[maybe_unused]] Projection const &projection
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, [[maybe_unused]] Projection const &projection) -> Util::OutputBuffer & {
+    out << "*";
+    return out;
+}
+
 auto operator<<(std::ostream &out, TermVariable const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, TermVariable const &term) -> Util::OutputBuffer & {
     Print{out}(term);
     return out;
 }
@@ -775,7 +799,17 @@ auto operator<<(std::ostream &out, TermSymbol const &term) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, TermSymbol const &term) -> Util::OutputBuffer & {
+    Print{out}(term);
+    return out;
+}
+
 auto operator<<(std::ostream &out, TermAbs const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, TermAbs const &term) -> Util::OutputBuffer & {
     Print{out}(term);
     return out;
 }
@@ -785,7 +819,17 @@ auto operator<<(std::ostream &out, TermUnary const &term) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, TermUnary const &term) -> Util::OutputBuffer & {
+    Print{out}(term);
+    return out;
+}
+
 auto operator<<(std::ostream &out, TermBinary const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, TermBinary const &term) -> Util::OutputBuffer & {
     Print{out}(term);
     return out;
 }
@@ -795,12 +839,27 @@ auto operator<<(std::ostream &out, TermTuple const &term) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, TermTuple const &term) -> Util::OutputBuffer & {
+    Print{out}(term);
+    return out;
+}
+
 auto operator<<(std::ostream &out, TermFunction const &term) -> std::ostream & {
     Print{out}(term);
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, TermFunction const &term) -> Util::OutputBuffer & {
+    Print{out}(term);
+    return out;
+}
+
 auto operator<<(std::ostream &out, Term const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, Term const &term) -> Util::OutputBuffer & {
     Print{out}(term);
     return out;
 }
@@ -812,7 +871,17 @@ auto operator<<(std::ostream &out, TheoryTermVariable const &term) -> std::ostre
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, TheoryTermVariable const &term) -> Util::OutputBuffer & {
+    Print{out}(term);
+    return out;
+}
+
 auto operator<<(std::ostream &out, TheoryTermSymbol const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, TheoryTermSymbol const &term) -> Util::OutputBuffer & {
     Print{out}(term);
     return out;
 }
@@ -822,7 +891,17 @@ auto operator<<(std::ostream &out, TheoryTermTuple const &term) -> std::ostream 
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, TheoryTermTuple const &term) -> Util::OutputBuffer & {
+    Print{out}(term);
+    return out;
+}
+
 auto operator<<(std::ostream &out, TheoryTermFunction const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, TheoryTermFunction const &term) -> Util::OutputBuffer & {
     Print{out}(term);
     return out;
 }
@@ -832,7 +911,17 @@ auto operator<<(std::ostream &out, TheoryTermUnparsed const &term) -> std::ostre
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, TheoryTermUnparsed const &term) -> Util::OutputBuffer & {
+    Print{out}(term);
+    return out;
+}
+
 auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, TheoryTerm const &term) -> Util::OutputBuffer & {
     Print{out}(term);
     return out;
 }
@@ -844,7 +933,17 @@ auto operator<<(std::ostream &out, CondLit const &lit) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, CondLit const &lit) -> Util::OutputBuffer & {
+    Print{out}(lit);
+    return out;
+}
+
 auto operator<<(std::ostream &out, SetAggregateElement const &elem) -> std::ostream & {
+    Print{out}(elem);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, SetAggregateElement const &elem) -> Util::OutputBuffer & {
     Print{out}(elem);
     return out;
 }
@@ -854,12 +953,27 @@ auto operator<<(std::ostream &out, TheoryElement const &elem) -> std::ostream & 
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, TheoryElement const &elem) -> Util::OutputBuffer & {
+    Print{out}(elem);
+    return out;
+}
+
 auto operator<<(std::ostream &out, HdLitAggregateElement const &elem) -> std::ostream & {
     Print{out}(elem);
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, HdLitAggregateElement const &elem) -> Util::OutputBuffer & {
+    Print{out}(elem);
+    return out;
+}
+
 auto operator<<(std::ostream &out, BdLitAggregateElement const &elem) -> std::ostream & {
+    Print{out}(elem);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, BdLitAggregateElement const &elem) -> Util::OutputBuffer & {
     Print{out}(elem);
     return out;
 }
@@ -871,7 +985,22 @@ auto operator<<(std::ostream &out, LitBool const &lit) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, LitBool const &lit) -> Util::OutputBuffer & {
+    Print{out}(lit);
+    return out;
+}
+
 auto operator<<(std::ostream &out, LitComparison const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, LitComparison const &lit) -> Util::OutputBuffer & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, LitSymbolic const &lit) -> Util::OutputBuffer & {
     Print{out}(lit);
     return out;
 }
@@ -886,9 +1015,19 @@ auto operator<<(std::ostream &out, Lit const &lit) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, Lit const &lit) -> Util::OutputBuffer & {
+    Print{out}(lit);
+    return out;
+}
+
 // head literals
 
 auto operator<<(std::ostream &out, HdLitSimple const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, HdLitSimple const &lit) -> Util::OutputBuffer & {
     Print{out}(lit);
     return out;
 }
@@ -898,7 +1037,17 @@ auto operator<<(std::ostream &out, HdLitDisjunction const &lit) -> std::ostream 
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, HdLitDisjunction const &lit) -> Util::OutputBuffer & {
+    Print{out}(lit);
+    return out;
+}
+
 auto operator<<(std::ostream &out, HdLitSetAggregate const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, HdLitSetAggregate const &lit) -> Util::OutputBuffer & {
     Print{out}(lit);
     return out;
 }
@@ -908,12 +1057,27 @@ auto operator<<(std::ostream &out, HdLitAggregate const &lit) -> std::ostream & 
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, HdLitAggregate const &lit) -> Util::OutputBuffer & {
+    Print{out}(lit);
+    return out;
+}
+
 auto operator<<(std::ostream &out, HdLitTheoryAtom const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, HdLitTheoryAtom const &lit) -> Util::OutputBuffer & {
+    Print{out}(lit);
+    return out;
+}
+
 auto operator<<(std::ostream &out, HdLit const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, HdLit const &lit) -> Util::OutputBuffer & {
     Print{out}(lit);
     return out;
 }
@@ -925,7 +1089,17 @@ auto operator<<(std::ostream &out, BdLitSimple const &lit) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, BdLitSimple const &lit) -> Util::OutputBuffer & {
+    Print{out}(lit);
+    return out;
+}
+
 auto operator<<(std::ostream &out, BdLitConjunction const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, BdLitConjunction const &lit) -> Util::OutputBuffer & {
     Print{out}(lit);
     return out;
 }
@@ -935,7 +1109,17 @@ auto operator<<(std::ostream &out, BdLitSetAggregate const &lit) -> std::ostream
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, BdLitSetAggregate const &lit) -> Util::OutputBuffer & {
+    Print{out}(lit);
+    return out;
+}
+
 auto operator<<(std::ostream &out, BdLitAggregate const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, BdLitAggregate const &lit) -> Util::OutputBuffer & {
     Print{out}(lit);
     return out;
 }
@@ -945,7 +1129,17 @@ auto operator<<(std::ostream &out, BdLitTheoryAtom const &lit) -> std::ostream &
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, BdLitTheoryAtom const &lit) -> Util::OutputBuffer & {
+    Print{out}(lit);
+    return out;
+}
+
 auto operator<<(std::ostream &out, BdLit const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, BdLit const &lit) -> Util::OutputBuffer & {
     Print{out}(lit);
     return out;
 }
@@ -957,7 +1151,17 @@ auto operator<<(std::ostream &out, OptimizeTuple const &tuple) -> std::ostream &
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, OptimizeTuple const &tuple) -> Util::OutputBuffer & {
+    Print{out}(tuple);
+    return out;
+}
+
 auto operator<<(std::ostream &out, OptimizeElement const &elem) -> std::ostream & {
+    Print{out}(elem);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, OptimizeElement const &elem) -> Util::OutputBuffer & {
     Print{out}(elem);
     return out;
 }
@@ -967,7 +1171,17 @@ auto operator<<(std::ostream &out, TheoryOpDefinition const &def) -> std::ostrea
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, TheoryOpDefinition const &def) -> Util::OutputBuffer & {
+    Print{out}(def);
+    return out;
+}
+
 auto operator<<(std::ostream &out, TheoryTermDefinition const &def) -> std::ostream & {
+    Print{out}(def, "");
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, TheoryTermDefinition const &def) -> Util::OutputBuffer & {
     Print{out}(def, "");
     return out;
 }
@@ -977,12 +1191,27 @@ auto operator<<(std::ostream &out, TheoryRGuardDefinition const &def) -> std::os
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, TheoryRGuardDefinition const &def) -> Util::OutputBuffer & {
+    Print{out}(def);
+    return out;
+}
+
 auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream & {
     Print{out}(def, "");
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, TheoryAtomDefinition const &def) -> Util::OutputBuffer & {
+    Print{out}(def, "");
+    return out;
+}
+
 auto operator<<(std::ostream &out, Edge const &edge) -> std::ostream & {
+    Print{out}(edge);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, Edge const &edge) -> Util::OutputBuffer & {
     Print{out}(edge);
     return out;
 }
@@ -994,7 +1223,17 @@ auto operator<<(std::ostream &out, StmRule const &stm) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, StmRule const &stm) -> Util::OutputBuffer & {
+    Print{out}(stm);
+    return out;
+}
+
 auto operator<<(std::ostream &out, StmTheory const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, StmTheory const &stm) -> Util::OutputBuffer & {
     Print{out}(stm);
     return out;
 }
@@ -1004,7 +1243,17 @@ auto operator<<(std::ostream &out, StmOptimize const &stm) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, StmOptimize const &stm) -> Util::OutputBuffer & {
+    Print{out}(stm);
+    return out;
+}
+
 auto operator<<(std::ostream &out, StmWeakConstraint const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, StmWeakConstraint const &stm) -> Util::OutputBuffer & {
     Print{out}(stm);
     return out;
 }
@@ -1014,7 +1263,17 @@ auto operator<<(std::ostream &out, StmShow const &stm) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, StmShow const &stm) -> Util::OutputBuffer & {
+    Print{out}(stm);
+    return out;
+}
+
 auto operator<<(std::ostream &out, StmShowSig const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, StmShowSig const &stm) -> Util::OutputBuffer & {
     Print{out}(stm);
     return out;
 }
@@ -1024,7 +1283,17 @@ auto operator<<(std::ostream &out, StmProject const &stm) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, StmProject const &stm) -> Util::OutputBuffer & {
+    Print{out}(stm);
+    return out;
+}
+
 auto operator<<(std::ostream &out, StmProjectSig const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, StmProjectSig const &stm) -> Util::OutputBuffer & {
     Print{out}(stm);
     return out;
 }
@@ -1034,7 +1303,17 @@ auto operator<<(std::ostream &out, StmDefined const &stm) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, StmDefined const &stm) -> Util::OutputBuffer & {
+    Print{out}(stm);
+    return out;
+}
+
 auto operator<<(std::ostream &out, StmExternal const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, StmExternal const &stm) -> Util::OutputBuffer & {
     Print{out}(stm);
     return out;
 }
@@ -1044,7 +1323,17 @@ auto operator<<(std::ostream &out, StmEdge const &stm) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, StmEdge const &stm) -> Util::OutputBuffer & {
+    Print{out}(stm);
+    return out;
+}
+
 auto operator<<(std::ostream &out, StmHeuristic const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, StmHeuristic const &stm) -> Util::OutputBuffer & {
     Print{out}(stm);
     return out;
 }
@@ -1054,7 +1343,17 @@ auto operator<<(std::ostream &out, StmScript const &stm) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, StmScript const &stm) -> Util::OutputBuffer & {
+    Print{out}(stm);
+    return out;
+}
+
 auto operator<<(std::ostream &out, StmInclude const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, StmInclude const &stm) -> Util::OutputBuffer & {
     Print{out}(stm);
     return out;
 }
@@ -1064,7 +1363,17 @@ auto operator<<(std::ostream &out, StmProgram const &stm) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, StmProgram const &stm) -> Util::OutputBuffer & {
+    Print{out}(stm);
+    return out;
+}
+
 auto operator<<(std::ostream &out, StmConst const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, StmConst const &stm) -> Util::OutputBuffer & {
     Print{out}(stm);
     return out;
 }
@@ -1074,7 +1383,17 @@ auto operator<<(std::ostream &out, StmComment const &stm) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, StmComment const &stm) -> Util::OutputBuffer & {
+    Print{out}(stm);
+    return out;
+}
+
 auto operator<<(std::ostream &out, Stm const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, Stm const &stm) -> Util::OutputBuffer & {
     Print{out}(stm);
     return out;
 }
