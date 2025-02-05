@@ -6,3 +6,6 @@ b :- a.
 a :- #sum{ 1: b; -1: x } >= 0, d.
 x :- a.
 b :- a.
+
+%% { "options": ["0"]
+%% , "solutions": [["a", "b", "c", "x"]] }
