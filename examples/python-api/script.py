@@ -26,7 +26,7 @@ class PyScript(Script):
         """
         return [getattr(__main__, name)(lib, *arguments)]
 
-    def callable(self, name: str, args: int) -> bool:
+    def callable(self, name: str, arguments: int) -> bool:
         """
         Check if there is a function with the given name in the main scope.
         """
@@ -59,10 +59,13 @@ def main(lib: Library):
     ctl = Control(lib, [])
     ctl.parse_string("#program one(k). p(k).")
     ctl.ground([("one", [Number(lib, 1)])])
+    with ctl.solve(on_model=print) as hnd:
+        print(hnd.get())
 
     ctl.parse_string("#program ext(k). p(@fun(k)).")
     ctl.ground([("ext", [Number(lib, i)]) for i in range(1, 1000, 37)])
-    ctl.solve()
+    with ctl.solve(on_model=print) as hnd:
+        print(hnd.get())
 
 
 if __name__ == "__main__":

@@ -10,28 +10,9 @@ from importlib.resources import files
 import pytest
 from clingo.control import Control
 from clingo.core import Library
-from clingo.solving import Model
+from util import MCB
 
 FILES = [path.name for path in files(__name__).joinpath("resources").iterdir()]
-
-
-class MCB:
-    """
-    Helper to intercept symbols while solving.
-    """
-
-    def __init__(self) -> None:
-        self._syms = []
-
-    def __call__(self, mdl: Model):
-        self._syms.append(sorted(mdl.symbols(shown=True)))
-
-    @property
-    def symbols(self) -> list[list[str]]:
-        """
-        Get the collected symbols.
-        """
-        return [[str(sym) for sym in syms] for syms in sorted(self._syms)]
 
 
 class TestASP:

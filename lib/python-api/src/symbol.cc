@@ -101,7 +101,8 @@ auto Symbol::str() const -> std::string {
     std::string str;
     str.resize(len);
     handle_error(clingo_symbol_to_string(sym_, str.data(), len));
-    if (!str.empty() && str.back() == '\0') {
+    // NOTE: the c-api zero terminates strings.
+    while (!str.empty() && str.back() == '\0') {
         str.pop_back();
     }
     return str;

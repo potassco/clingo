@@ -4,27 +4,8 @@ Unit tests for clingo.solving module.
 
 from clingo.control import Control
 from clingo.core import Library
-from clingo.solving import Model
 from clingo.symbol import Function, Symbol
-
-
-class MCB:
-    """
-    Helper to intercept symbols while solving.
-    """
-
-    def __init__(self) -> None:
-        self._syms = []
-
-    def __call__(self, mdl: Model):
-        self._syms.append(sorted(mdl.symbols(shown=True)))
-
-    @property
-    def symbols(self):
-        """
-        Get the collected symbols.
-        """
-        return [[str(sym) for sym in syms] for syms in sorted(self._syms)]
+from util import MCB
 
 
 class TestSolving:

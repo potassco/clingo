@@ -7,7 +7,8 @@ from textwrap import dedent
 from clingo.control import Control
 from clingo.core import Library
 from clingo.script import Script, register
-from clingo.symbol import Symbol
+from clingo.symbol import Number, Symbol
+from util import MCB
 
 
 class MyScript(Script):
@@ -81,11 +82,7 @@ class TestScript:
         assert self._lib is not None
         return self._lib
 
-    def test_script(self):
-        """
-        The main function.
-        """
-        ctl = Control(self.lib, ["--text-buffer", "--mode=ground"])
+    def _add_script(self, ctl):
         ctl.parse_string(
             dedent(
                 """\
@@ -110,6 +107,13 @@ class TestScript:
                 """
             )
         )
+
+    def test_script_ground(self):
+        """
+        The main function.
+        """
+        ctl = Control(self.lib, ["--text-buffer", "--mode=ground"])
+        self._add_script(ctl)
         ctl.main()
 
         assert ctl.buffer == dedent(
@@ -123,3 +127,32 @@ class TestScript:
             p(187100300929966123416753821362722129228582117727257726549500930139139692996919140).
             """
         )
+
+    def test_script_solve(self):
+        """
+        Test incremental program with script.
+        """
+        ctl = Control(self.lib, [])
+        self._add_script(ctl)
+
+        ctl.parse_string("#program one(k). p(k).")
+        ctl.ground([("one", [Number(self.lib, 1)])])
+        mcb = MCB()
+        with ctl.solve(on_model=mcb) as hnd:
+            assert hnd.get().satisfiable
+        assert mcb.symbols == [["p(1)"]]
+
+        ctl.parse_string("#program ext(k). p(@fun(k)).")
+        ctl.ground([("ext", [Number(self.lib, i)]) for i in range(1, 1000, 257)])
+        mcb = MCB()
+        with ctl.solve(on_model=mcb) as hnd:
+            assert hnd.get().satisfiable
+        assert mcb.symbols == [
+            [
+                "p(1)",
+                "p(242357902759023475928437592438759234752049375294375293457902759247590275902745)",
+                "p(62528338911828056789536898849199882566028738825948825712138911885878291182908210)",
+                "p(124814319920897090103145360105961005897305428276603276130819921012508992089913675)",
+                "p(187100300929966123416753821362722129228582117727257726549500930139139692996919140)",
+            ]
+        ]

@@ -602,9 +602,13 @@ Number::~Number() noexcept {
     std::string ret;
     auto *z = repr_to_bigint(repr_);
     auto len = mp_int_string_len(&z->num, BASE);
-    ret.resize(len, '0');
+    ret.resize(len, '\0');
     handle_error(mp_int_to_string(&z->num, BASE, ret.data(), len));
-    ret.pop_back();
+    // NOTE: The mp_int library sometimes reports too large length for numbers,
+    // which requires the while loop below.
+    while (!ret.empty() && ret.back() == '\0') {
+        ret.pop_back();
+    }
     return ret;
 }
 
