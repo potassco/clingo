@@ -43,7 +43,7 @@ class TestControl:
         """
         Test grounding.
         """
-        ctl = Control(self.lib, ["--text-buffer", "--mode=ground"])
+        ctl = Control(self.lib, ["--mode=ground"])
 
         ctl.parse_string("a.")
         ctl.ground([("base", [])])
@@ -100,7 +100,7 @@ class TestControl:
                 """
                 return Number(self._lib, arg.number + 1)
 
-        ctl = Control(self.lib, ["--text-buffer", "--mode=ground"])
+        ctl = Control(self.lib, ["--mode=ground"])
 
         ctl.parse_string("p(@fun(1)).")
         ctl.parse_string("q(@gun(2)).")

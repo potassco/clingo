@@ -14,7 +14,7 @@ class CScript : public Clingo::Control::Script {
     void do_exec(std::string_view code) override { script_.execute(std::string(code).c_str(), data_); }
 
     void do_main(Clingo::Control::Solver &slv) override {
-        clingo_control_t ctl{lib_, &slv};
+        clingo_control_t ctl{lib_, nullptr, nullptr, &slv};
         handle_error(script_.main(lib_, &ctl, data_));
     }
 

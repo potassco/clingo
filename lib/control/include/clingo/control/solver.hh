@@ -176,9 +176,9 @@ CLINGO_ENABLE_BITSET_ENUM(SolveMode);
 //! Takes care of parsing, grounding, and solving.
 class Solver {
   public:
-    //! Create a grounder object.
-    Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, AppMode mode,
-           FILE *out = stdout);
+    //! Create a solver object.
+    Solver(Clasp::ClaspFacade &clasp, Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts,
+           AppMode mode, FILE *out = stdout);
 
     //! Parse, ground, and solve a program.
     void main(std::span<std::string_view const> const &files,
@@ -221,7 +221,7 @@ class Solver {
     //! Get a pointer to the underlying clasp program.
     //!
     //! Only non-null in solving mode.
-    [[nodiscard]] auto clasp_program() -> Clasp::Asp::LogicProgram const * { return clasp_.asp(); }
+    [[nodiscard]] auto clasp_program() -> Clasp::Asp::LogicProgram const * { return clasp_->asp(); }
 
   private:
     //! States for step transitions.
@@ -247,8 +247,7 @@ class Solver {
     //! @return the resulting output
     auto make_output_(SymbolStore &store, AppMode mode) -> UOutputStm;
 
-    Clasp::ClaspConfig cfg_;
-    Clasp::ClaspFacade clasp_;
+    Clasp::ClaspFacade *clasp_;
     Util::OutputBuffer buf_;
     Output::UBackend backend_;
     UOutputStm out_;

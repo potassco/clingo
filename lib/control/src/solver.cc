@@ -389,30 +389,6 @@ class ModelImpl : public Model, private SolveControl {
     std::vector<Clasp::Literal> lits_;
 };
 
-//! An event handler that prints models to stdout.
-//!
-//! @todo This handler only exsists for testing purposes.
-class EventHandlerTest : public Clasp::EventHandler {
-  public:
-    auto onModel(Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
-        buf_ << "Model:";
-        for (auto const &pred : slv.outputTable().fact_range()) {
-            buf_ << " " << pred.c_str();
-        }
-        for (auto const &pred : slv.outputTable().pred_range()) {
-            if (mdl.isTrue(pred.cond)) {
-                buf_ << " " << pred.name.c_str();
-            }
-        }
-        buf_ << "\n";
-        buf_.flush();
-        return true;
-    }
-
-  private:
-    Util::OutputBuffer buf_{stdout};
-};
-
 //! An event handler that adapts clingo's event handler to clasp's.
 class EventHandlerAdapter : public Clasp::EventHandler {
   public:
@@ -546,15 +522,15 @@ void Scripts::do_call(Location const &loc, std::string_view name, SymbolSpan arg
     }
 }
 
-Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
-    : buf_{out}, out_{make_output_(store, mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
+Solver::Solver(Clasp::ClaspFacade &clasp, Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts,
+               AppMode mode, FILE *out)
+    : clasp_{&clasp}, buf_{out}, out_{make_output_(store, mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts},
+      mode_{mode} {}
 
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
     switch (mode) {
         case AppMode::solve: {
-            // FIXME: find a better place to do this
-            cfg_.solve.numModels = 0;
-            backend_ = std::make_unique<BackendImpl>(clasp_.startAsp(cfg_, true));
+            backend_ = std::make_unique<BackendImpl>(*clasp_->asp());
             return Output::make_backend_output(store, *backend_);
         }
         default: {
@@ -605,8 +581,8 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
             ground(Input::ProgramParamVec{}, nullptr);
         }
         state_ = State::solved;
-        clasp_.asp()->addAssumption(assumptions);
-        clasp_.prepare();
+        clasp_->asp()->addAssumption(assumptions);
+        clasp_->prepare();
 
         // convert solve mode
         auto cm = [](SolveMode mode) {
@@ -620,11 +596,11 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
             return res;
         };
         // adapt the handler for clasp
-        auto eh = handler == nullptr ? std::unique_ptr<Clasp::EventHandler>{std::make_unique<EventHandlerTest>()}
-                                     : std::make_unique<EventHandlerAdapter>(grd_.base(), clasp_, std::move(handler));
-        auto hnd = clasp_.solve(cm(mode), {}, eh.get());
+        auto eh = handler != nullptr ? std::make_unique<EventHandlerAdapter>(grd_.base(), *clasp_, std::move(handler))
+                                     : nullptr;
+        auto hnd = clasp_->solve(cm(mode), {}, eh.get());
         // adapt the handle which also manages the lifetime of the handler
-        return std::make_unique<SolveHandleImpl>(std::move(eh), grd_.base(), clasp_, hnd);
+        return std::make_unique<SolveHandleImpl>(std::move(eh), grd_.base(), *clasp_, hnd);
     }
     return std::make_unique<SolveHandleFixed>();
 }
@@ -639,7 +615,7 @@ void Solver::add_const(String name, Symbol value) { grd_.add_const(name, value);
 
 void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) {
     if (mode_ == AppMode::solve && state_ != State::updated) {
-        clasp_.update(true);
+        clasp_->update(true);
     }
     state_ = State::grounded;
     std::ignore = grd_.ground(params, ctx != nullptr ? ctx : scripts_);

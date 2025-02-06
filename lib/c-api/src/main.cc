@@ -6,98 +6,142 @@
 
 #include <clingo/output/text.hh>
 
+#include <clasp/cli/clasp_app.h>
+
 #include <CLI/CLI.hpp>
 
 namespace {
 
 using namespace Clingo::Input;
 
-auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t {
-    try {
-        auto opts = RewriteOptions{};
-        auto mode = Clingo::Control::AppMode::solve;
-        std::vector<std::string> files;
-        std::vector<std::string> const_defs;
-        auto log_level = Clingo::LogLevel::info;
-        auto params_str = std::optional<std::string>{};
+class ClingoApp : public Clasp::Cli::ClaspAppBase {
+  public:
+    ClingoApp(clingo_lib_t &lib) : lib_{&lib} {}
 
-        CLI::App app{"ASP preprocessor that wants to become a grounder"};
+    [[nodiscard]] auto getName() const -> char const * override { return "clingo"; }
+    [[nodiscard]] auto getVersion() const -> char const * override { return CLINGO_VERSION; }
+    [[nodiscard]] auto getUsage() const -> char const * override { return "[number] [options] [files]"; }
 
-        app.add_option("files", files, "files to parse");
-        // later...
-        // ->check(CLI::ExistingFile);
-        app.add_option("--const,-c", const_defs, "constant definition")->take_all();
-        app.add_option("--params", params_str, "program parts to ground");
-        app.add_option("--log-level", "{error,warn,info,debug,trace}")->check([&log_level](std::string const &value) {
-            using P = std::pair<char const *, Clingo::LogLevel>;
-            auto levels = std::array{P{"trace", Clingo::LogLevel::trace}, P{"debug", Clingo::LogLevel::debug},
-                                     P{"info", Clingo::LogLevel::info}, P{"warn", Clingo::LogLevel::warn},
-                                     P{"error", Clingo::LogLevel::error}};
-            for (auto &[name, level] : levels) {
-                if (value == name) {
-                    log_level = level;
-                    return std::string{};
-                }
+  private:
+    using ClaspOutput = Clasp::Cli::Output;
+    using ProblemType = Clasp::ProblemType;
+    using BaseType = Clasp::Cli::ClaspAppBase;
+    using OptionParser = std::function<bool(char const *)>;
+    // enum class ConfigUpdate { KEEP, REPLACE };
+    using AppMode = Clingo::Control::AppMode;
+    enum class Mode : uint8_t {
+        parse = static_cast<uint8_t>(AppMode::parse),
+        rewrite = static_cast<uint8_t>(AppMode::rewrite),
+        ground = static_cast<uint8_t>(AppMode::ground),
+        solve = static_cast<uint8_t>(AppMode::solve),
+        clasp = static_cast<uint8_t>(AppMode::solve) + 1,
+    };
+
+    void initOptions(Potassco::ProgramOptions::OptionContext &root) override {
+        using namespace Potassco::ProgramOptions;
+        BaseType::initOptions(root);
+        auto group_grounder = OptionGroup{"Grounder Options"};
+        auto parse_const = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
+            // NOTE: this might use the logger.
+            parser_.init(value, *lib_->store->string("<const>"));
+            auto def = parser_.parse_const_def();
+            if (def) {
+                const_defs_.emplace_back(*def);
             }
-            return std::string{"unexpected value"};
-        });
-        app.add_option("--projection-mode", "{off,anonymous,pure}")->check([&opts](std::string const &value) {
-            using P = std::pair<char const *, Clingo::Input::ProjectionMode>;
-            auto levels = std::array{P{"off", Clingo::Input::ProjectionMode::disabled},
-                                     P{"anonymous", Clingo::Input::ProjectionMode::anonymous},
-                                     P{"pure", Clingo::Input::ProjectionMode::pure}};
-            for (auto &[name, mode] : levels) {
-                if (value == name) {
-                    opts.project_mode = mode;
-                    return std::string{};
-                }
+            return static_cast<bool>(def);
+        };
+        auto parse_parts = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
+            // NOTE: this might use the logger.
+            parser_.init(value, *lib_->store->string("<parts>"));
+            parts_ = parser_.parse_program_parts();
+            return static_cast<bool>(parts_);
+        };
+
+        group_grounder.addOptions() //
+            ("const,c", parse(parse_const)->arg("<id>=<term>")->composing(),
+             "Replace term occurrences of <id> with <term>")               //
+            ("parts", parse(parse_parts), "Parse program parts to ground") //
+            ("projection-mode,@2",
+             storeTo(rewrite_opts_.project_mode = Clingo::Input::ProjectionMode::pure,
+                     values<Clingo::Input::ProjectionMode>({
+                         {"none", ProjectionMode::disabled},
+                         {"anonymous", ProjectionMode::anonymous},
+                         {"pure", ProjectionMode::pure},
+                     })),
+             "Select which variables to project") //
+            ("project-anonymous,@2", flag(rewrite_opts_.project_anonymous = false), "Project anonymous variables");
+        // registerOptions(gringo, grOpts_, GringoOptions::AppType::Clingo);
+        root.add(group_grounder);
+        auto group_basic = OptionGroup{"Basic Options"};
+        group_basic.addOptions() //
+            ("mode",
+             storeTo(mode_ = Mode::solve, values<Mode>({
+                                              {"parse", Mode::parse},
+                                              {"rewrite", Mode::rewrite},
+                                              {"ground", Mode::ground},
+                                              {"solve", Mode::solve},
+                                              {"clasp", Mode::clasp},
+                                          })),
+             "Run in {parse|rewrite|ground|solve|clasp} mode") //
+            ("log-level,@2",
+             storeTo(log_level_ = Clingo::LogLevel::info, values<Clingo::LogLevel>({
+                                                              {"error", Clingo::LogLevel::error},
+                                                              {"warn", Clingo::LogLevel::warn},
+                                                              {"info", Clingo::LogLevel::info},
+                                                              {"debug", Clingo::LogLevel::debug},
+                                                              {"trace", Clingo::LogLevel::trace},
+                                                          })),
+             "Select log level {error|warn|info|debug|trace}");
+        root.add(group_basic);
+    }
+
+    void validateOptions(const Potassco::ProgramOptions::OptionContext &root,
+                         const Potassco::ProgramOptions::ParsedOptions &parsed,
+                         const Potassco::ProgramOptions::ParsedValues &vals) override {
+        BaseType::validateOptions(root, parsed, vals);
+        lib_->log.set_level(log_level_);
+    }
+
+    auto getProblemType() -> ProblemType override {
+        return mode_ != Mode::clasp ? Clasp::ProblemType::asp : Clasp::ClaspFacade::detectProblemType(getStream());
+    }
+
+    void run(Clasp::ClaspFacade &clasp) override {
+        if (mode_ != Mode::clasp) {
+            if (mode_ == Mode::solve) {
+                clasp.startAsp(claspConfig_, true);
             }
-            return std::string{"unexpected value"};
-        });
-        app.add_option("--mode", "{parse,rewrite,ground,solve}")->check([&mode](std::string const &value) {
-            using P = std::pair<char const *, Clingo::Control::AppMode>;
-            auto modes =
-                std::array{P{"parse", Clingo::Control::AppMode::parse}, P{"rewrite", Clingo::Control::AppMode::rewrite},
-                           P{"ground", Clingo::Control::AppMode::ground}, P{"solve", Clingo::Control::AppMode::solve}};
-            for (auto &[name, m] : modes) {
-                if (name == value) {
-                    mode = m;
-                    return std::string{};
-                }
+            auto slv = Clingo::Control::Solver{*clasp_,       lib_->log,     *lib_->store,
+                                               lib_->scripts, rewrite_opts_, static_cast<AppMode>(mode_)};
+            for (auto const &[name, value] : const_defs_) {
+                slv.add_const(*name, *value);
             }
-            return std::string{"unexpected value"};
-        });
-        app.add_flag("--project-anonymous", opts.project_anonymous, "project anoymous variables in negated literals");
-        try {
-            app.parse(std::move(args));
-        } catch (CLI::ParseError const &e) {
-            return app.exit(e) != 0 ? clingo_result_runtime : clingo_result_success;
+            slv.main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()}, parts_);
+        } else {
+            ClaspAppBase::run(clasp);
         }
+    }
 
-        // TODO: maybe this should not happen here
-        lib->log.set_level(log_level);
-        auto slv = Clingo::Control::Solver{lib->log, *lib->store, lib->scripts, opts, mode};
-        auto prs = Clingo::Input::Parser{lib->log, *lib->store};
+    RewriteOptions rewrite_opts_;
+    Clingo::LogLevel log_level_ = Clingo::LogLevel::info;
+    std::optional<std::vector<Clingo::Input::ProgramParamVec>> parts_;
+    std::vector<std::pair<Clingo::SharedString, Clingo::SharedSymbol>> const_defs_;
+    Mode mode_ = Mode::solve;
+    clingo_lib_t *lib_;
+    Parser parser_{lib_->log, *lib_->store};
+};
 
-        [&]() {
-            auto params = std::optional<std::vector<Clingo::Input::ProgramParamVec>>();
-            if (params_str) {
-                prs.init(*params_str, *lib->store->string("<string>"));
-                params = prs.parse_program_parts();
-                if (!params) {
-                    throw Clingo::parse_error();
-                }
-            }
-            for (auto const &str : const_defs) {
-                prs.init(str, *lib->store->string("<string>"));
-                auto def = prs.parse_const_def();
-                if (!def) {
-                    throw Clingo::parse_error();
-                }
-                slv.add_const(*def->first, *def->second);
-            }
-            slv.main(std::vector<std::string_view>{files.begin(), files.end()}, params);
-        }();
+auto run(clingo_lib_t *lib, std::span<char const *const> args) -> clingo_result_t {
+    try {
+        auto app = ClingoApp{*lib};
+        auto c_args = std::vector<char *>{};
+        c_args.reserve(args.size() + 2);
+        c_args.emplace_back(const_cast<char *>(app.getName())); // NOLINT
+        for (auto const &arg : args) {
+            c_args.emplace_back(const_cast<char *>(arg)); // NOLINT
+        }
+        c_args.emplace_back(nullptr);
+        app.main(static_cast<int>(args.size()), c_args.data());
     } catch (std::exception const &e) {
         GRINGO_REPORT(lib->log, error) << e.what();
         return handle_error();
@@ -109,7 +153,7 @@ auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t 
 
 extern "C" auto clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size) -> clingo_result_t {
     try {
-        return run(lib, Clingo::Util::transform_n(arguments, size, [](auto const *str) { return std::string(str); }));
+        return run(lib, std::span{arguments, size});
     } catch (std::exception const &e) {
         fprintf(stderr, "panic: %s\n", e.what());
         fflush(stderr);

@@ -3,6 +3,11 @@
 #include <clingo/control.h>
 #include <clingo/script.h>
 
+#include <clasp/cli/clasp_options.h>
+
+#include <potassco/program_opts/program_options.h>
+#include <potassco/program_opts/typed_value.h>
+
 #include "ast.hh" // IWYU pragma: keep
 #include "control.hh"
 #include "lib.hh"
@@ -10,28 +15,51 @@
 extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *arguments, size_t arguments_size,
                                    clingo_control_t **control) -> clingo_result_t {
     CLINGO_TRY {
-        // for now could use the main stuff
-        auto *out = stdout;
+        using namespace Potassco::ProgramOptions;
+
         auto mode = Clingo::Control::AppMode::solve;
-        for (auto const *arg : std::span(arguments, arguments_size)) {
-            if (std::strcmp(arg, "--text-buffer") == 0) {
-                out = nullptr;
-            } else if (std::strcmp(arg, "--mode=ground") == 0) {
-                mode = Clingo::Control::AppMode::ground;
-            } else if (std::strcmp(arg, "--mode=solve") == 0) {
-                out = nullptr;
-                mode = Clingo::Control::AppMode::solve;
-            } else if (std::strcmp(arg, "--mode=parse") == 0) {
-                mode = Clingo::Control::AppMode::parse;
-            } else if (std::strcmp(arg, "--mode=rewrite") == 0) {
-                mode = Clingo::Control::AppMode::rewrite;
+        auto grd_cfg = Clingo::Input::RewriteOptions{};
+        auto slv_cfg = std::make_unique<Clasp::Cli::ClaspCliConfig>();
+        auto clasp = std::make_unique<Clasp::ClaspFacade>();
+
+        // parse options
+        auto ctx = OptionContext{"<libclingo>"};
+        auto group_basic = OptionGroup{"Basic Options"};
+        group_basic.addOptions() //
+            ("mode",
+             storeTo(mode = Clingo::Control::AppMode::solve, values<Clingo::Control::AppMode>({
+                                                                 {"parse", Clingo::Control::AppMode::parse},
+                                                                 {"rewrite", Clingo::Control::AppMode::rewrite},
+                                                                 {"ground", Clingo::Control::AppMode::ground},
+                                                                 {"solve", Clingo::Control::AppMode::solve},
+                                                             })),
+             "Run in {parse|rewrite|ground|solve} mode");
+        ctx.add(group_basic);
+        slv_cfg->addOptions(ctx);
+        auto pos_parser = [](const std::string &str, std::string &out) {
+            int value = 0;
+            auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), value);
+            if (ec == std::errc()) {
+                out = "number";
+                return true;
             }
+            return false;
+        };
+        auto values = parseCommandArray(arguments, static_cast<int>(arguments_size), ctx, false, pos_parser);
+        auto parsed = ParsedOptions{};
+        parsed.assign(values);
+        ctx.assignDefaults(parsed);
+        slv_cfg->finalize(parsed, Clasp::ProblemType::asp, true);
+
+        // setup control
+        if (mode == Clingo::Control::AppMode::solve) {
+            clasp->startAsp(*slv_cfg, true);
         }
-        static_cast<void>(arguments);
-        static_cast<void>(arguments_size);
-        auto opts = Clingo::Input::RewriteOptions{};
-        auto slv = std::make_unique<Clingo::Control::Solver>(lib->log, *lib->store, lib->scripts, opts, mode, out);
-        *control = new clingo_control{lib, nullptr};
+        auto slv = std::make_unique<Clingo::Control::Solver>(*clasp, lib->log, *lib->store, lib->scripts, grd_cfg, mode,
+                                                             nullptr);
+        *control = new clingo_control{lib, nullptr, nullptr, nullptr};
+        (*control)->cfg = slv_cfg.release();
+        (*control)->clasp = clasp.release();
         (*control)->slv = slv.release();
     }
     CLINGO_CATCH;
@@ -39,6 +67,8 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
 
 extern "C" void clingo_control_free(clingo_control_t *control) {
     delete control->slv;
+    delete control->clasp;
+    delete control->cfg;
     delete control;
 }
 

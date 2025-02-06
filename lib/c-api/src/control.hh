@@ -6,5 +6,7 @@
 
 struct clingo_control {
     clingo_lib_t *lib;
+    Clasp::ClaspConfig *cfg;
+    Clasp::ClaspFacade *clasp;
     Clingo::Control::Solver *slv;
 };

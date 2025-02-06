@@ -112,7 +112,7 @@ class TestScript:
         """
         The main function.
         """
-        ctl = Control(self.lib, ["--text-buffer", "--mode=ground"])
+        ctl = Control(self.lib, ["--mode=ground"])
         self._add_script(ctl)
         ctl.main()
 
