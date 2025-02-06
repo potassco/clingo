@@ -61,7 +61,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             ("const,c", parse(parse_const)->arg("<id>=<term>")->composing(),
              "Replace term occurrences of <id> with <term>")               //
             ("parts", parse(parse_parts), "Parse program parts to ground") //
-            ("projection-mode,@2",
+            ("projection-mode,@1",
              storeTo(rewrite_opts_.project_mode = Clingo::Input::ProjectionMode::pure,
                      values<Clingo::Input::ProjectionMode>({
                          {"none", ProjectionMode::disabled},
@@ -69,7 +69,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                          {"pure", ProjectionMode::pure},
                      })),
              "Select which variables to project") //
-            ("project-anonymous,@2", flag(rewrite_opts_.project_anonymous = false), "Project anonymous variables");
+            ("project-anonymous,@1", flag(rewrite_opts_.project_anonymous = false), "Project anonymous variables");
         // registerOptions(gringo, grOpts_, GringoOptions::AppType::Clingo);
         root.add(group_grounder);
         auto group_basic = OptionGroup{"Basic Options"};
@@ -118,8 +118,12 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             }
             slv.main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()}, parts_);
         } else {
-            ClaspAppBase::run(clasp);
+            BaseType::run(clasp);
         }
+    }
+
+    auto createTextOutput(const ClaspAppBase::TextOptions &options) -> ClaspOutput * override {
+        return mode_ == Mode::solve || mode_ == Mode::clasp ? BaseType::createTextOutput(options) : nullptr;
     }
 
     RewriteOptions rewrite_opts_;

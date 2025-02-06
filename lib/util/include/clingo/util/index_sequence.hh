@@ -29,10 +29,11 @@ template <class T> class index_sequence {
     }
     //! Get the i-th integer in the sequence.
     [[nodiscard]] auto operator[](T i) const -> T {
-        assert(i < size());
+        assert(i < size() && last_ < values_.size());
         auto const &[l, r, y] = values_[last_];
-        auto ib = l < i ? values_.begin() + last_ : values_.begin();
-        auto ie = i < r ? ib + last_ + 1 : values_.end();
+        assert(l < r);
+        auto ib = i < l ? values_.begin() : values_.begin() + last_;
+        auto ie = i < r ? values_.begin() + last_ + 1 : values_.end();
         auto it = std::upper_bound(ib, ie, i, [](auto const &a, auto const &b) { return a < std::get<1>(b); });
         last_ = static_cast<size_t>(std::distance(values_.begin(), it));
         return i + std::get<2>(*it);
