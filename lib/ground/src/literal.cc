@@ -392,11 +392,6 @@ auto LitSymbolic::do_equal_to(Lit const &other) const -> bool { return this == &
 
 auto LitSymbolic::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
 
-// LitProject
-// TODO:
-// - quite a bit of c&p
-// - composition...
-
 void LitProject::do_print(std::ostream &out) const {
     out << sign_ << *atom_;
     if (index_ != stratified_index) {

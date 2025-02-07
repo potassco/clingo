@@ -7,7 +7,7 @@ manually complied clang.
 Bring some cups of coffee to wait out the build process and note that this
 won't work on MacOS!
 
-```
+```bash
 # create conda environment
 conda create -n clang -c conda-forge cxx-compiler cmake ninja 'python>=3.12' pynvim libxml2 swig git doxygen
 conda activate clang
@@ -31,4 +31,12 @@ cat > "${CONDA_PREFIX}/bin/clang.cfg" <<EOF
 -L"${CONDA_PREFIX}/lib"
 EOF
 cp -fs "${CONDA_PREFIX}/bin/clang.cfg" "${CONDA_PREFIX}/bin/clang++.cfg"
+```
+
+## Installing Neovide Using Libraries From Conda Environments
+
+```bash
+export LIBRARY_PATH="${CONDA_PREFIX}/lib"
+export RUSTFLAGS="-C link-args=-Wl,-rpath,${LIBRARY_PATH}"
+cargo install --git https://github.com/neovide/neovide.git
 ```

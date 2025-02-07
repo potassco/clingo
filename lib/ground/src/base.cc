@@ -4,19 +4,31 @@ namespace Clingo::Ground {
 
 void ProjectState::init(InitContext const &ctx, size_t gen) {
     base_->update(gen);
-    for (size_t n = base_->end(MatcherType::all_atoms); imported_ != n; ++imported_) {
-        auto atom = base_->nth(imported_);
-        for (auto &sym : ass_) {
-            sym = std::nullopt;
-        }
-        auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ass_};
-        if (p_body_->match(eval_ctx, atom->first)) {
-            if (auto sym = p_head_->eval(eval_ctx); sym) {
-                p_base_.add(*sym, atom->second.state, [id = atom->second.id]() { return id; });
+    if (gen == 0) {
+        // reset at generation zero
+        p_base_.update(0);
+    }
+    if (size_t n = base_->end(MatcherType::all_atoms); imported_ != n) {
+        // auto old = imported_;
+        for (size_t m = base_->end(MatcherType::old_atoms); imported_ != n; ++imported_) {
+            if (imported_ == m && gen > 0) {
+                // import as new from here onward
+                // (noting that gen > 0 can only )
+                p_base_.update(gen - 1);
+            }
+            auto atom = base_->nth(imported_);
+            for (auto &sym : ass_) {
+                sym = std::nullopt;
+            }
+            auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ass_};
+            if (p_body_->match(eval_ctx, atom->first)) {
+                // FIXME: This is obviously not correct there need to be rules!!
+                if (auto sym = p_head_->eval(eval_ctx); sym) {
+                    p_base_.add(*sym, atom->second.state, [id = atom->second.id]() { return id; });
+                }
             }
         }
     }
-    p_base_.update(gen);
 }
 
 //! Add an atom base.
