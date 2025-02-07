@@ -1555,7 +1555,11 @@ class OutputBackend : public OutputStm, OutputTheory {
     OutputBackend(SymbolStore &store, Backend &backend) : bld_{store, backend} {};
 
   private:
-    [[nodiscard]] auto do_body() -> OutputLit & override {
+    void do_project_atom(size_t p_atom, size_t atom) override {
+        rule_.add(bld_, std::array{uid_to_atom(p_atom)}, std::array{uid_to_lit(atom)}, false);
+    }
+
+    auto do_body() -> OutputLit & override {
         body_.start();
         return body_;
     }

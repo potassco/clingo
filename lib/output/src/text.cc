@@ -190,12 +190,16 @@ class OutputText : public OutputStm, OutputTheory {
         }
     }
 
+    void do_project_atom([[maybe_unused]] size_t p_atom, [[maybe_unused]] size_t atom) override {
+        // nothing
+    }
+
     void do_fact(Symbol sym, [[maybe_unused]] size_t uid) override {
         *out_ << sym << ".\n";
         out_->endl();
     }
 
-    [[nodiscard]] auto do_body() -> OutputLit & override {
+    auto do_body() -> OutputLit & override {
         body_.start();
         return body_;
     }

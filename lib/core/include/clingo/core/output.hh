@@ -122,6 +122,9 @@ class OutputStm {
     //! Output the given fact.
     void fact(Symbol sym, size_t uid) { do_fact(sym, uid); }
 
+    //! Adds a projection rule for the given atom.
+    void project_atom(size_t p_atom, size_t atom) { do_project_atom(p_atom, atom); }
+
     //! Get an output for body literals.
     auto body() -> OutputLit & { return do_body(); }
     //! Output the given rule.
@@ -216,6 +219,8 @@ class OutputStm {
     virtual auto do_uid() -> size_t = 0;
 
     virtual void do_fact(Symbol sym, size_t uid) = 0;
+
+    virtual void do_project_atom(size_t p_atom, size_t atom) = 0;
 
     virtual auto do_body() -> OutputLit & = 0;
     virtual void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) = 0;

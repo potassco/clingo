@@ -2,6 +2,8 @@
 
 namespace Clingo::Ground {
 
+// #define DEBUG_PROJECTION
+
 void ProjectState::init(InstantiationContext const &ctx, size_t gen) {
     base_->update(gen);
     if (gen == 0) {
@@ -9,11 +11,9 @@ void ProjectState::init(InstantiationContext const &ctx, size_t gen) {
         p_base_.update(0);
     }
     if (size_t n = base_->end(MatcherType::all_atoms); imported_ != n) {
-        // auto old = imported_;
         for (size_t m = base_->end(MatcherType::old_atoms); imported_ != n; ++imported_) {
             if (imported_ == m && gen > 0) {
                 // import as new from here onward
-                // (noting that gen > 0 can only )
                 p_base_.update(gen - 1);
             }
             auto atom = base_->nth(imported_);
@@ -23,15 +23,45 @@ void ProjectState::init(InstantiationContext const &ctx, size_t gen) {
             auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ctx.out(), ass_};
             if (p_body_->match(eval_ctx, atom->first)) {
                 if (auto sym = p_head_->eval(eval_ctx); sym) {
-                    // FIXME: This is obviously not correct, there need to be rules!!
-                    // - we need the output here
-                    // - introduce a fresh literal
-                    // - derive the literal from the atom (via informing the output)
-                    p_base_.add(*sym, atom->second.state, [id = atom->second.id]() { return id; });
+                    auto [it, res] = p_base_.add(*sym, atom->second.state, [&]() {
+                        // if the atom is a fact we can simply use its uid here
+                        return atom.value().state == StateAtom::fact ? atom.value().id : ctx.out().uid();
+                    });
+                    // add projection rules (if not previously derived as a fact)
+                    if (res == AtomUpdate::changed || it.value().state != StateAtom::fact) {
+                        ctx.out().project_atom(it.value().id, atom.value().id);
+                    }
                 }
             }
         }
     }
+#ifdef DEBUG_PROJECTION
+    p_base_.update(gen);
+    Util::unordered_set<size_t> old;
+    for (size_t i = 0, n = base_->end(MatcherType::all_atoms); i != n; ++i) {
+        auto atom = base_->nth(i);
+        for (auto &sym : ass_) {
+            sym = std::nullopt;
+        }
+        auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ctx.out(), ass_};
+        if (p_body_->match(eval_ctx, atom->first)) {
+            if (auto sym = p_head_->eval(eval_ctx); sym) {
+                auto j = p_base_.index(*sym);
+                if (j == p_base_.end(MatcherType::all_atoms)) {
+                    printf("atom not found\n");
+                } else if (i < base_->end(MatcherType::old_atoms)) {
+                    if (j < p_base_.end(MatcherType::old_atoms)) {
+                        old.emplace(j);
+                    } else {
+                        printf("unexpected new atom\n");
+                    }
+                } else if (j < p_base_.end(MatcherType::old_atoms) && !old.contains(j)) {
+                    printf("unexpected old atom\n");
+                }
+            }
+        }
+    }
+#endif
 }
 
 //! Add an atom base.
