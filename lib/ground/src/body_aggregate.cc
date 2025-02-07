@@ -385,7 +385,7 @@ auto StateBdAggr::insert_atom(Symbol const *tuple) -> AtomMap::iterator {
     return it;
 }
 
-void StateBdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmBdAggrElem &elem) {
+void StateBdAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmBdAggrElem &elem) {
     if (ElementKey::construct(*mbr_, ctx, fun_, atom_index_(it), elem)) {
         auto [jt, jns] = tuples_.try_emplace(elem.elem_key_);
         if (jns) {
@@ -553,7 +553,7 @@ auto LitBdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const 
 
 void LitBdAggr::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitBdAggr::do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool {
+auto LitBdAggr::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool {
     if (domain()) {
         return false;
     }
@@ -624,7 +624,7 @@ auto StmBdAggrElem::do_is_important(size_t index) const -> bool {
 
 void StmBdAggrElem::do_init(size_t gen) { state_->base().ensure(gen); }
 
-auto StmBdAggrElem::get_cond_(InstantiationContext const &ctx) -> std::pair<size_t, bool> {
+auto StmBdAggrElem::get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool> {
     bool fact = true;
     auto &out = ctx.out().cond();
     for (auto const &lit : body_) {
@@ -635,7 +635,7 @@ auto StmBdAggrElem::get_cond_(InstantiationContext const &ctx) -> std::pair<size
     return {ctx.out().cond_id(), fact};
 }
 
-auto StmBdAggrElem::do_report(InstantiationContext const &ctx) -> bool {
+auto StmBdAggrElem::do_report(EvalContext const &ctx) -> bool {
     if (auto it = state_->insert_atom(ctx)) {
         state_->insert_elem(ctx, it->first, *this);
     }
@@ -679,12 +679,12 @@ class MatcherBdAggrStrat : public OnceMatcher {
         : state_{&state}, insts_{std::move(insts)}, offset_{&offset}, positive_{positive} {}
 
   private:
-    void do_init(InitContext const &ctx, [[maybe_unused]] size_t gen) override {
+    void do_init(InstantiationContext const &ctx, [[maybe_unused]] size_t gen) override {
         for (auto &inst : insts_) {
             inst.init(ctx, 0);
         }
     }
-    auto do_once(InstantiationContext const &ctx) -> bool override {
+    auto do_once(EvalContext const &ctx) -> bool override {
         if (auto it = state_->insert_atom(ctx)) {
             *offset_ = it->first - state_->base().atoms().begin();
             if (it->second) {
@@ -759,7 +759,7 @@ auto LitBdAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) c
 
 void LitBdAggrStrat::do_print(std::ostream &out) const { state_->print(out, true); }
 
-auto LitBdAggrStrat::do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool {
+auto LitBdAggrStrat::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool {
     if (domain()) {
         return false;
     }

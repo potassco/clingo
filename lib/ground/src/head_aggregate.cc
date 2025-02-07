@@ -158,7 +158,7 @@ class StateHdAggr::AtomKey {
 
   public:
     //! Private constructor.
-    AtomKey([[maybe_unused]] priv_tag tag, InstantiationContext const &ctx, VariableVec const &global, GuardVec &guards,
+    AtomKey([[maybe_unused]] priv_tag tag, EvalContext const &ctx, VariableVec const &global, GuardVec &guards,
             bool &res) {
         auto *it = syms_;
         for (auto const &var : global) {
@@ -177,7 +177,7 @@ class StateHdAggr::AtomKey {
     //! Construct an atom key from the global variables and guards.
     //!
     //! Returns false if evaluating the guards fails.
-    static auto construct(auto &mbr, InstantiationContext const &ctx, VariableVec const &global, GuardVec &guards,
+    static auto construct(auto &mbr, EvalContext const &ctx, VariableVec const &global, GuardVec &guards,
                           AtomKey *&target) -> bool {
         if (target == nullptr) {
             auto n = (global.size() + guards.size()) * sizeof(Symbol);
@@ -199,8 +199,8 @@ class StateHdAggr::AtomKey {
     GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
 };
 
-StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, InstantiationContext const &ctx,
-                                    AggregateFunction fun, size_t atom_idx, StmHdAggrElem &elem, bool &res)
+StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, EvalContext const &ctx, AggregateFunction fun,
+                                    size_t atom_idx, StmHdAggrElem &elem, bool &res)
     : n_{elem.tuple_.size() << 1}, atom_idx_{atom_idx} {
     assert(fun != AggregateFunction::count);
     auto *it = syms_;
@@ -231,8 +231,8 @@ StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, Instantiation
     res = true;
 }
 
-auto StateHdAggr::ElementKey::construct(auto &mbr, InstantiationContext const &ctx, AggregateFunction fun,
-                                        size_t atom_idx, StmHdAggrElem &elem) -> bool {
+auto StateHdAggr::ElementKey::construct(auto &mbr, EvalContext const &ctx, AggregateFunction fun, size_t atom_idx,
+                                        StmHdAggrElem &elem) -> bool {
     if (elem.elem_key_ == nullptr) {
         auto n = sizeof(ElementKey) + elem.tuple_.size() * sizeof(Symbol);
         elem.elem_key_ = static_cast<ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
@@ -352,7 +352,7 @@ void StateHdAggr::enqueue_(AtomMap::iterator it) {
     }
 }
 
-auto StateHdAggr::insert_atom(InstantiationContext const &ctx) -> std::optional<std::pair<AtomMap::iterator, bool>> {
+auto StateHdAggr::insert_atom(EvalContext const &ctx) -> std::optional<std::pair<AtomMap::iterator, bool>> {
     if (AtomKey::construct(*mbr_, ctx, global_, guards_, atom_key_)) {
         auto [it, ins] = base_.add(atom_key_->syms(), fun_);
         if (ins) {
@@ -364,7 +364,7 @@ auto StateHdAggr::insert_atom(InstantiationContext const &ctx) -> std::optional<
     return std::nullopt;
 }
 
-void StateHdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmHdAggrElem &elem) {
+void StateHdAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmHdAggrElem &elem) {
     auto sym = SymbolStore::sup();
     if (elem.head_ != nullptr) {
         if (auto opt = elem.head_->eval(ctx)) {
@@ -453,7 +453,7 @@ auto StmHdAggr::do_important() const -> VariableSet {
 
 void StmHdAggr::do_init(size_t gen) { state_->base().ensure(gen); }
 
-auto StmHdAggr::do_report(InstantiationContext const &ctx) -> bool {
+auto StmHdAggr::do_report(EvalContext const &ctx) -> bool {
     if (auto res = state_->insert_atom(ctx)) {
         auto &aggr = res->first.value();
         auto &out = ctx.out().body();
@@ -504,7 +504,7 @@ void StmHdAggrElem::do_init(size_t gen) {
     }
 }
 
-auto StmHdAggrElem::get_cond_(InstantiationContext const &ctx) -> std::pair<size_t, bool> {
+auto StmHdAggrElem::get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool> {
     bool fact = true;
     auto &out = ctx.out().cond();
     for (auto const &lit : body_) {
@@ -515,7 +515,7 @@ auto StmHdAggrElem::get_cond_(InstantiationContext const &ctx) -> std::pair<size
     return {ctx.out().cond_id(), fact};
 }
 
-auto StmHdAggrElem::do_report(InstantiationContext const &ctx) -> bool {
+auto StmHdAggrElem::do_report(EvalContext const &ctx) -> bool {
     if (auto it = state_->insert_atom(ctx)) {
         state_->insert_elem(ctx, it->first, *this);
     }
@@ -632,8 +632,7 @@ auto LitHdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const 
 
 void LitHdAggr::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitHdAggr::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
-    -> bool {
+auto LitHdAggr::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 

@@ -72,11 +72,11 @@ class OnceMatcher : public Matcher {
     //! Return true if the matcher matches.
     //!
     //! Only called once.
-    virtual auto do_once([[maybe_unused]] InstantiationContext const &ctx) -> bool { return true; }
+    virtual auto do_once([[maybe_unused]] EvalContext const &ctx) -> bool { return true; }
 
-    void do_init([[maybe_unused]] InitContext const &ctx, [[maybe_unused]] size_t gen) override {}
-    void do_match([[maybe_unused]] InstantiationContext const &ctx) override { match_ = true; }
-    auto do_next(InstantiationContext const &ctx) -> bool override {
+    void do_init([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] size_t gen) override {}
+    void do_match([[maybe_unused]] EvalContext const &ctx) override { match_ = true; }
+    auto do_next(EvalContext const &ctx) -> bool override {
         if (match_) {
             match_ = false;
             return do_once(ctx);
@@ -139,8 +139,8 @@ template <IsBase Base> class FullIndex {
                 cur};
     }
     template <IsMatch Match>
-    auto next(InstantiationContext const &ctx, Match const &m, VariableVec &free, MatcherType type, size_t &pos,
-              size_t &cur, size_t &prev) -> bool {
+    auto next(EvalContext const &ctx, Match const &m, VariableVec &free, MatcherType type, size_t &pos, size_t &cur,
+              size_t &prev) -> bool {
         auto n = base_->end(type);
         // populate the index if it does not yet hold enough elements
         // (this also adds elements from previus generations that cannot match)
@@ -245,8 +245,8 @@ template <IsBase Base> class SingleIndex {
     void init(size_t gen) { base_->update(gen); }
 
     template <IsMatch Match>
-    void match(InstantiationContext const &ctx, size_t bound_var, VariableVec &bind_vars, Match const &m,
-               MatcherType type, KeyIterator &it, ValIterator &jt) {
+    void match(EvalContext const &ctx, size_t bound_var, VariableVec &bind_vars, Match const &m, MatcherType type,
+               KeyIterator &it, ValIterator &jt) {
         auto &ass = ctx.ass();
         // store the bound values
         auto bound_val = *ass[bound_var];
@@ -272,8 +272,8 @@ template <IsBase Base> class SingleIndex {
         }
     }
 
-    auto next(InstantiationContext const &ctx, VariableVec &bind_vars, MatcherType type, KeyIterator it,
-              ValIterator &jt, size_t &offset) -> bool {
+    auto next(EvalContext const &ctx, VariableVec &bind_vars, MatcherType type, KeyIterator it, ValIterator &jt,
+              size_t &offset) -> bool {
         return it != index_.end() && it.value().next(ctx.ass(), bind_vars, base_->end(type), jt, offset);
     }
 
@@ -329,7 +329,7 @@ template <IsBase Base> class HashIndex {
     void init(size_t gen) { base_->update(gen); }
 
     template <IsMatch Match>
-    void match(InstantiationContext const &ctx, VariableVec &bound_vars, VariableVec &bind_vars, Match const &m,
+    void match(EvalContext const &ctx, VariableVec &bound_vars, VariableVec &bind_vars, Match const &m,
                MatcherType type, KeyIterator &it, ValIterator &jt) {
         auto &ass = ctx.ass();
         // store the bound values
@@ -380,8 +380,8 @@ template <IsBase Base> class HashIndex {
         }
     }
 
-    auto next(InstantiationContext const &ctx, VariableVec &bind_vars, MatcherType type, KeyIterator it,
-              ValIterator &jt, size_t &offset) -> bool {
+    auto next(EvalContext const &ctx, VariableVec &bind_vars, MatcherType type, KeyIterator it, ValIterator &jt,
+              size_t &offset) -> bool {
         return it != index_.end() && it.value().next(ctx.ass(), bind_vars, base_->end(type), jt, offset);
     }
 
@@ -400,8 +400,8 @@ template <IsBase Base, IsMatch Match> class LookupMatcher : public OnceMatcher {
         : base_{&base}, match_{&m}, type_{type}, offset_{&offset} {}
 
   private:
-    void do_init([[maybe_unused]] InitContext const &ctx, size_t gen) override { base_->update(gen); }
-    auto do_once(InstantiationContext const &ctx) -> bool override {
+    void do_init([[maybe_unused]] InstantiationContext const &ctx, size_t gen) override { base_->update(gen); }
+    auto do_once(EvalContext const &ctx) -> bool override {
         if (auto sym = match_->eval(ctx); sym) {
             if (auto idx = base_->contains(*sym, type_); idx) {
                 *offset_ = *idx;
@@ -427,11 +427,9 @@ template <IsBase Base, IsMatch Match> class FullMatcher : public Matcher {
         : index_{&index}, offset_{&offset}, match_{&m}, free_{std::move(free)}, type_{type} {}
 
   private:
-    void do_init([[maybe_unused]] InitContext const &ctx, size_t gen) override { index_->init(gen); }
-    void do_match([[maybe_unused]] InstantiationContext const &ctx) override {
-        std::tie(pos_, cur_) = index_->match(type_);
-    }
-    auto do_next(InstantiationContext const &ctx) -> bool override {
+    void do_init([[maybe_unused]] InstantiationContext const &ctx, size_t gen) override { index_->init(gen); }
+    void do_match([[maybe_unused]] EvalContext const &ctx) override { std::tie(pos_, cur_) = index_->match(type_); }
+    auto do_next(EvalContext const &ctx) -> bool override {
         return index_->next(ctx, *match_, free_, type_, pos_, cur_, *offset_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
@@ -456,11 +454,11 @@ template <IsBase Base, IsMatch Match> class SingleMatcher : public Matcher {
         : index_{&index}, match_{&m}, offset_{&offset}, bound_{bound}, bind_{std::move(bind)}, type_{type} {}
 
   private:
-    void do_init([[maybe_unused]] InitContext const &ctx, size_t gen) override { index_->init(gen); }
-    void do_match([[maybe_unused]] InstantiationContext const &ctx) override {
+    void do_init([[maybe_unused]] InstantiationContext const &ctx, size_t gen) override { index_->init(gen); }
+    void do_match([[maybe_unused]] EvalContext const &ctx) override {
         return index_->match(ctx, bound_, bind_, *match_, type_, pos_, cur_);
     }
-    auto do_next(InstantiationContext const &ctx) -> bool override {
+    auto do_next(EvalContext const &ctx) -> bool override {
         return index_->next(ctx, bind_, type_, pos_, cur_, *offset_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
@@ -486,11 +484,11 @@ template <IsBase Base, IsMatch Match> class HashMatcher : public Matcher {
         : index_{&index}, match_{&m}, offset_{&offset}, bound_{std::move(bound)}, bind_{std::move(bind)}, type_{type} {}
 
   private:
-    void do_init([[maybe_unused]] InitContext const &ctx, size_t gen) override { index_->init(gen); }
-    void do_match([[maybe_unused]] InstantiationContext const &ctx) override {
+    void do_init([[maybe_unused]] InstantiationContext const &ctx, size_t gen) override { index_->init(gen); }
+    void do_match([[maybe_unused]] EvalContext const &ctx) override {
         return index_->match(ctx, bound_, bind_, *match_, type_, pos_, cur_);
     }
-    auto do_next(InstantiationContext const &ctx) -> bool override {
+    auto do_next(EvalContext const &ctx) -> bool override {
         return index_->next(ctx, bind_, type_, pos_, cur_, *offset_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
@@ -545,8 +543,8 @@ template <IsBase Base, IsMatch Match> class NonFactMatcher : public OnceMatcher 
         : base_{&base}, match_{&match}, target_{&target} {}
 
   private:
-    void do_init([[maybe_unused]] InitContext const &ctx, size_t gen) override { base_->update(gen); }
-    auto do_once(InstantiationContext const &ctx) -> bool override {
+    void do_init([[maybe_unused]] InstantiationContext const &ctx, size_t gen) override { base_->update(gen); }
+    auto do_once(EvalContext const &ctx) -> bool override {
         if (auto sym = match_->eval(ctx)) {
             *target_ = *sym;
             return !base_->is_fact(*sym);
@@ -568,7 +566,7 @@ template <IsMatch Match> class EvalMatcher : public OnceMatcher {
 
   private:
     //! Evaluate the matcher in the current context.
-    auto do_once(InstantiationContext const &ctx) -> bool override {
+    auto do_once(EvalContext const &ctx) -> bool override {
         if (auto sym = match_->eval(ctx)) {
             *target_ = *sym;
             return true;

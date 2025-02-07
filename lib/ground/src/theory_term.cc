@@ -52,7 +52,7 @@ auto output_symbol(SymbolStore &store, OutputTheory &out, Symbol sym) -> size_t 
 
 } // namespace
 
-auto TheoryTermSymbol::do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t {
+auto TheoryTermSymbol::do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t {
     return output_symbol(ctx.store(), out, sym_);
 }
 
@@ -79,7 +79,7 @@ void TheoryTermVariable::do_vars([[maybe_unused]] VariableSet &vars) const { var
 
 void TheoryTermVariable::do_print(std::ostream &out) const { out << "X_" << var_; }
 
-auto TheoryTermVariable::do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t {
+auto TheoryTermVariable::do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t {
     assert(ctx.ass()[var_]);
     // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     return output_symbol(ctx.store(), out, *ctx.ass()[var_]);
@@ -114,7 +114,7 @@ void TheoryTermTuple::do_print(std::ostream &out) const {
     out << "(" << Util::p_range(args_, [](auto &out, auto const &x) { out << *x; }) << (args_.size() == 1 ? ",)" : ")");
 }
 
-auto TheoryTermTuple::do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t {
+auto TheoryTermTuple::do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t {
     auto args = std::vector<size_t>{};
     args.reserve(args_.size());
     for (auto const &arg : args_) {
@@ -161,7 +161,7 @@ void TheoryTermFunction::do_print(std::ostream &out) const {
     }
 }
 
-auto TheoryTermFunction::do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t {
+auto TheoryTermFunction::do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t {
     auto args = std::vector<size_t>{};
     args.reserve(args_.size());
     for (auto const &arg : args_) {

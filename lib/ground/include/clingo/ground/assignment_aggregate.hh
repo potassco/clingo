@@ -198,7 +198,7 @@ class StateAssignAggr : public State {
     auto insert_atom(EvalContext const &ctx) -> std::pair<AtomMap::iterator, bool>;
 
     //! Insert an aggregate element.
-    void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmAssignAggrElem &elem);
+    void insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmAssignAggrElem &elem);
 
     //! Get the index of an aggregate atom.
     auto atom_index(AtomMap::iterator it) -> size_t;
@@ -283,7 +283,7 @@ class LitAssignAggr : public Lit, private MatchAssignAggr {
 
     void do_print(std::ostream &out) const override;
 
-    auto do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool override;
+    auto do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -333,13 +333,13 @@ class StmAssignAggrElem : public Stm {
     [[nodiscard]] auto do_important() const -> VariableSet override;
     [[nodiscard]] auto do_is_important(size_t index) const -> bool override;
     void do_init([[maybe_unused]] size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
+    [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
 
-    auto get_cond_(InstantiationContext const &ctx) -> std::pair<size_t, bool>;
+    auto get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool>;
 
     StateAssignAggr *state_;
     StateAssignAggr::ElementKey *key_ = nullptr;
@@ -377,7 +377,7 @@ class LitAssignAggrStrat : public Lit, private MatchAssignAggr {
 
     void do_print(std::ostream &out) const override;
 
-    auto do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool override;
+    auto do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 

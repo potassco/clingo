@@ -280,7 +280,7 @@ class StateCondLit : public State {
     //! Add a new cond lit element with the given premise.
     //!
     //! If the function returns false the corresponding conditional literal is false.
-    auto add_premise(InstantiationContext const &ctx, ULitVec const &premise) -> bool;
+    auto add_premise(EvalContext const &ctx, ULitVec const &premise) -> bool;
 
     //! Add a conclusion to an element.
     void add_conclusion(Assignment const &ass, MapAtomCondLit::iterator it, size_t conclusion, bool fact);
@@ -410,7 +410,7 @@ class LitCondLit : public Lit, private MatchCondLit {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    [[nodiscard]] auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
+    [[nodiscard]] auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
@@ -436,7 +436,7 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    [[nodiscard]] auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
+    [[nodiscard]] auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
@@ -444,7 +444,7 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
 
     // cb interface
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
+    [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
@@ -478,7 +478,7 @@ class StmCondLit : public Stm {
     // solution callback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
+    [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
 

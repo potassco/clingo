@@ -34,7 +34,7 @@ class TheoryTerm {
     }
 
     //! Output the term.
-    auto output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t { return do_output(ctx, out); }
+    auto output(EvalContext const &ctx, OutputTheory &out) const -> size_t { return do_output(ctx, out); }
 
     //! Compare two terms.
     friend auto operator==(TheoryTerm const &a, TheoryTerm const &b) -> bool { return a.do_equal_to(b); }
@@ -51,7 +51,7 @@ class TheoryTerm {
   private:
     virtual void do_vars(VariableSet &vars) const = 0;
     virtual void do_print(std::ostream &out) const = 0;
-    virtual auto do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t = 0;
+    virtual auto do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t = 0;
     [[nodiscard]] virtual auto do_copy() const -> UTheoryTerm = 0;
     [[nodiscard]] virtual auto do_hash() const -> size_t = 0;
     [[nodiscard]] virtual auto do_equal_to(TheoryTerm const &other) const -> bool = 0;
@@ -67,7 +67,7 @@ class TheoryTermSymbol : public TheoryTerm {
   private:
     void do_vars(VariableSet &vars) const override;
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t override;
+    auto do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t override;
     [[nodiscard]] auto do_copy() const -> UTheoryTerm override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(TheoryTerm const &other) const -> bool override;
@@ -85,7 +85,7 @@ class TheoryTermVariable : public TheoryTerm {
   private:
     void do_vars(VariableSet &vars) const override;
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t override;
+    auto do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t override;
     [[nodiscard]] auto do_copy() const -> UTheoryTerm override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(TheoryTerm const &other) const -> bool override;
@@ -103,7 +103,7 @@ class TheoryTermTuple : public TheoryTerm {
   private:
     void do_vars(VariableSet &vars) const override;
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t override;
+    auto do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t override;
     [[nodiscard]] auto do_copy() const -> UTheoryTerm override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(TheoryTerm const &other) const -> bool override;
@@ -122,7 +122,7 @@ class TheoryTermFunction : public TheoryTerm {
   private:
     void do_vars(VariableSet &vars) const override;
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t override;
+    auto do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t override;
     [[nodiscard]] auto do_copy() const -> UTheoryTerm override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(TheoryTerm const &other) const -> bool override;

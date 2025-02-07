@@ -185,7 +185,7 @@ class StmDisjunction : public Stm {
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
+    [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
 
@@ -205,7 +205,7 @@ class StmDisjunctionElem : public Stm {
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
+    [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
@@ -271,7 +271,7 @@ class LitDisjunction : public Lit, private MatchDisjunction {
 
     void do_print(std::ostream &out) const override;
 
-    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
+    auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 

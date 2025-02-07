@@ -141,13 +141,13 @@ class StateHdAggr : public State {
 
       public:
         //! Private constructor.
-        ElementKey(priv_tag tag, InstantiationContext const &ctx, AggregateFunction fun, size_t atom_idx,
-                   StmHdAggrElem &elem, bool &res);
+        ElementKey(priv_tag tag, EvalContext const &ctx, AggregateFunction fun, size_t atom_idx, StmHdAggrElem &elem,
+                   bool &res);
         //! Prevent copying and moving.
         ElementKey(ElementKey const &other) = delete;
         //! Construct an element key evaluating the given tuple.
-        [[nodiscard]] static auto construct(auto &mbr, InstantiationContext const &ctx, AggregateFunction fun,
-                                            size_t atom_idx, StmHdAggrElem &elem) -> bool;
+        [[nodiscard]] static auto construct(auto &mbr, EvalContext const &ctx, AggregateFunction fun, size_t atom_idx,
+                                            StmHdAggrElem &elem) -> bool;
 
         //! Mark as fact.
         void mark_fact() const;
@@ -213,10 +213,10 @@ class StateHdAggr : public State {
     void propagate(OutputStm &out, Queue &queue);
 
     //! Insert an aggregate atom.
-    auto insert_atom(InstantiationContext const &ctx) -> std::optional<std::pair<AtomMap::iterator, bool>>;
+    auto insert_atom(EvalContext const &ctx) -> std::optional<std::pair<AtomMap::iterator, bool>>;
 
     //! Insert an aggregate element.
-    void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmHdAggrElem &elem);
+    void insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmHdAggrElem &elem);
 
     //! Print a non-ground representation of the aggregate.
     void print(std::ostream &out, bool print_index);
@@ -267,7 +267,7 @@ class StmHdAggr : public Stm {
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
+    [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
 
@@ -292,13 +292,13 @@ class StmHdAggrElem : public Stm {
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
+    [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
 
-    auto get_cond_(InstantiationContext const &ctx) -> std::pair<size_t, bool>;
+    auto get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool>;
 
     Location loc_weight_;
     StateHdAggr *state_;
@@ -366,7 +366,7 @@ class LitHdAggr : public Lit, private MatchHdAggr {
 
     void do_print(std::ostream &out) const override;
 
-    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
+    auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 

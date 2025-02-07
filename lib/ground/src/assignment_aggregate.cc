@@ -327,7 +327,7 @@ auto StateAssignAggr::insert_atom(EvalContext const &ctx) -> std::pair<AtomMap::
     return {it, ins};
 }
 
-void StateAssignAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmAssignAggrElem &elem) {
+void StateAssignAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmAssignAggrElem &elem) {
     if (ElementKey::construct(*mbr_, ctx, fun_, atom_index(it), elem)) {
         auto [jt, jns] = tuples_.try_emplace(elem.key_);
         if (jns) {
@@ -469,7 +469,7 @@ auto LitAssignAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) co
 
 void LitAssignAggr::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitAssignAggr::do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool {
+auto LitAssignAggr::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool {
     if (domain()) {
         return false;
     }
@@ -518,7 +518,7 @@ auto StmAssignAggrElem::do_is_important(size_t index) const -> bool {
 
 void StmAssignAggrElem::do_init(size_t gen) { state_->base().ensure(gen); }
 
-auto StmAssignAggrElem::get_cond_(InstantiationContext const &ctx) -> std::pair<size_t, bool> {
+auto StmAssignAggrElem::get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool> {
     bool fact = true;
     auto &out = ctx.out().cond();
     for (auto const &lit : body_) {
@@ -529,7 +529,7 @@ auto StmAssignAggrElem::get_cond_(InstantiationContext const &ctx) -> std::pair<
     return {ctx.out().cond_id(), fact};
 }
 
-auto StmAssignAggrElem::do_report(InstantiationContext const &ctx) -> bool {
+auto StmAssignAggrElem::do_report(EvalContext const &ctx) -> bool {
     auto it = state_->insert_atom(ctx).first;
     state_->insert_elem(ctx, it, *this);
     return true;
@@ -572,13 +572,13 @@ class MatcherAssignAggrStrat : public Matcher {
         : state_{&state}, insts_{std::move(insts)}, matcher_{std::move(matcher)} {}
 
   private:
-    void do_init(InitContext const &ctx, [[maybe_unused]] size_t gen) override {
+    void do_init(InstantiationContext const &ctx, [[maybe_unused]] size_t gen) override {
         for (auto &inst : insts_) {
             inst.init(ctx, 0);
         }
         matcher_->init(ctx, 0);
     }
-    void do_match(InstantiationContext const &ctx) override {
+    void do_match(EvalContext const &ctx) override {
         auto [it, ins] = state_->insert_atom(ctx);
         if (ins) {
             // bind global variables
@@ -600,7 +600,7 @@ class MatcherAssignAggrStrat : public Matcher {
         }
         matcher_->match(ctx);
     }
-    [[nodiscard]] auto do_next(InstantiationContext const &ctx) -> bool override { return matcher_->next(ctx); }
+    [[nodiscard]] auto do_next(EvalContext const &ctx) -> bool override { return matcher_->next(ctx); }
     void do_print(std::ostream &out) const override { matcher_->print(out); }
     [[nodiscard]] auto do_type() const -> MatcherType override { return matcher_->type(); }
 
@@ -654,7 +654,7 @@ auto LitAssignAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &boun
 
 void LitAssignAggrStrat::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitAssignAggrStrat::do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool {
+auto LitAssignAggrStrat::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool {
     assert(state().single_pass_elems());
     if (domain()) {
         return false;

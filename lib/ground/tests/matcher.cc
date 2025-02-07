@@ -68,7 +68,7 @@ TEST_CASE("ground_matcher") {
     auto store = make_symbol_store(true, true);
     auto ass = Assignment{};
     auto out = NullOutputStm{};
-    auto ctx = InstantiationContext{log, out, *store, ass};
+    auto ctx = EvalContext{log, *store, out, ass};
     auto mbr = std::pmr::monotonic_buffer_resource{};
     auto gen = []() { return 1; };
 

@@ -14,43 +14,34 @@ namespace Clingo::Ground {
 //! @{
 
 //! Context object to capture state used during instantiation.
-class InitContext {
+class InstantiationContext {
   public:
     //! Construct an instantiation state.
-    InitContext(Logger &log, SymbolStore &store) : log_{&log}, store_{&store} {}
+    InstantiationContext(Logger &log, SymbolStore &store, OutputStm &out) : log_{&log}, store_{&store}, out_{&out} {}
     //! Get the logger.
     [[nodiscard]] auto log() const -> Logger & { return *log_; }
     //! Get the store.
     [[nodiscard]] auto store() const -> SymbolStore & { return *store_; }
+    //! Get the output.
+    [[nodiscard]] auto out() const -> OutputStm & { return *out_; }
 
   private:
     Logger *log_;
     SymbolStore *store_;
+    OutputStm *out_;
 };
 
 //! Context object to capture state used during instantiation.
-class EvalContext : public InitContext {
+class EvalContext : public InstantiationContext {
   public:
     //! Construct an instantiation state.
-    EvalContext(Logger &log, SymbolStore &store, Assignment &ass) : InitContext{log, store}, ass_{&ass} {}
+    EvalContext(Logger &log, SymbolStore &store, OutputStm &out, Assignment &ass)
+        : InstantiationContext{log, store, out}, ass_{&ass} {}
     //! Get the assignment.
     [[nodiscard]] auto ass() const -> Assignment & { return *ass_; }
 
   private:
     Assignment *ass_;
-};
-
-//! Context object to capture state used during instantiation.
-class InstantiationContext : public EvalContext {
-  public:
-    //! Construct an instantiation state.
-    InstantiationContext(Logger &log, OutputStm &out, SymbolStore &store, Assignment &ass)
-        : EvalContext{log, store, ass}, out_{&out} {}
-    //! Get the output.
-    [[nodiscard]] auto out() const -> OutputStm & { return *out_; }
-
-  private:
-    OutputStm *out_;
 };
 
 //! Enumeration of matcher types.
@@ -85,23 +76,23 @@ class Matcher {
     //! Destroy the matcher.
     virtual ~Matcher() = default;
     //! Notify that instantiation starts.
-    void init(InitContext const &ctx, size_t gen) { do_init(ctx, gen); }
+    void init(InstantiationContext const &ctx, size_t gen) { do_init(ctx, gen); }
     //! Initialize matching.
-    void match(InstantiationContext const &ctx) { do_match(ctx); }
+    void match(EvalContext const &ctx) { do_match(ctx); }
     //! Obtain the next match.
     //!
     //! Has to be called to obtain the first match.
     //! Returns true if there is a match.
-    [[nodiscard]] auto next(InstantiationContext const &ctx) -> bool { return do_next(ctx); }
+    [[nodiscard]] auto next(EvalContext const &ctx) -> bool { return do_next(ctx); }
     //! Print the matcher to the given stream.
     void print(std::ostream &out) const { do_print(out); }
     //! Get the type of the matcher.
     [[nodiscard]] auto type() const -> MatcherType { return do_type(); }
 
   private:
-    virtual void do_init(InitContext const &ctx, size_t gen) = 0;
-    virtual void do_match(InstantiationContext const &ctx) = 0;
-    [[nodiscard]] virtual auto do_next(InstantiationContext const &ctx) -> bool = 0;
+    virtual void do_init(InstantiationContext const &ctx, size_t gen) = 0;
+    virtual void do_match(EvalContext const &ctx) = 0;
+    [[nodiscard]] virtual auto do_next(EvalContext const &ctx) -> bool = 0;
     virtual void do_print(std::ostream &out) const = 0;
     [[nodiscard]] virtual auto do_type() const -> MatcherType { return MatcherType::all_atoms; }
 };
@@ -120,7 +111,7 @@ class InstanceCallback {
     //! Notify a statement that instantiation starts.
     void init(size_t gen) { do_init(gen); }
     //! Report an assignment giving rise to an instance for a statement.
-    [[nodiscard]] auto report(InstantiationContext const &ctx) -> bool { return do_report(ctx); }
+    [[nodiscard]] auto report(EvalContext const &ctx) -> bool { return do_report(ctx); }
     //! Notify a statement that instantiation has finished.
     void propagate(SymbolStore &store, OutputStm &out, Queue &queue) { do_propagate(store, out, queue); }
     //! The priority of the callback.
@@ -132,7 +123,7 @@ class InstanceCallback {
 
   private:
     virtual void do_init(size_t gen) = 0;
-    [[nodiscard]] virtual auto do_report(InstantiationContext const &ctx) -> bool = 0;
+    [[nodiscard]] virtual auto do_report(EvalContext const &ctx) -> bool = 0;
     virtual void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) = 0;
     [[nodiscard]] virtual auto do_priority() const -> size_t = 0;
     virtual void do_print_head(std::ostream &out) const = 0;
@@ -149,7 +140,7 @@ class Instantiator {
     //! Prepare the instantiator for the first grounding step (with generation 0).
     //!
     //! This resets all involved domains.
-    void init(InitContext const &ctx, size_t gen);
+    void init(InstantiationContext const &ctx, size_t gen);
     //! Finalize the instantiator.
     //!
     //! The depend vector must point to matchers that bind relevant variables for the matcher.
@@ -188,10 +179,10 @@ class Instantiator {
       public:
         BackjumpMatcher(UMatcher matcher, DependVec depend)
             : matcher_{std::move(matcher)}, depend_{std::move(depend)} {}
-        void init(InitContext const &ctx, size_t gen);
-        void match(InstantiationContext const &ctx);
-        auto next(InstantiationContext const &ctx) -> bool;
-        auto first(InstantiationContext const &ctx) -> bool;
+        void init(InstantiationContext const &ctx, size_t gen);
+        void match(EvalContext const &ctx);
+        auto next(EvalContext const &ctx) -> bool;
+        auto first(EvalContext const &ctx) -> bool;
         void print(std::ostream &out, size_t index) const;
         [[nodiscard]] auto depend() const -> DependVec const &;
         [[nodiscard]] auto backjumpable() const -> bool;

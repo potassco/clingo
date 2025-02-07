@@ -119,13 +119,13 @@ class StateTheory : public Ground::State {
 
       public:
         //! Constructor.
-        ElementKey(priv_tag tag, InstantiationContext const &ctx, OutputTheory &out, size_t atom_idx,
+        ElementKey(priv_tag tag, EvalContext const &ctx, OutputTheory &out, size_t atom_idx,
                    UTheoryTermVec const &terms);
         //! Prevent copying and moving.
         ElementKey(ElementKey const &other) = delete;
         //! Construct an element key evaluating the given tuple.
-        static void construct(std::pmr::monotonic_buffer_resource &mbr, InstantiationContext const &ctx,
-                              OutputTheory &out, size_t atom_idx, UTheoryTermVec const &terms, ElementKey *&target);
+        static void construct(std::pmr::monotonic_buffer_resource &mbr, EvalContext const &ctx, OutputTheory &out,
+                              size_t atom_idx, UTheoryTermVec const &terms, ElementKey *&target);
 
         //! Get the terms.
         [[nodiscard]] auto terms() const -> UTheoryTermVec const &;
@@ -170,8 +170,8 @@ class StateTheory : public Ground::State {
     //! Insert a theory atom element.
     //!
     //! Assumes that the assignment binds the global/local variables of the element.
-    void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, UTheoryTermVec const &tuple,
-                     ElementKey *&elem_key, auto const &get_cond);
+    void insert_elem(EvalContext const &ctx, AtomMap::iterator it, UTheoryTermVec const &tuple, ElementKey *&elem_key,
+                     auto const &get_cond);
     //! Print a debug representation of the theory atom.
     void print(std::ostream &out);
     //! Output all previously output theory atoms.
@@ -246,7 +246,7 @@ class LitMatchTheory : public Lit, private MatchTheory {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
+    auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
@@ -266,7 +266,7 @@ class StmTheoryElement : public Stm {
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init([[maybe_unused]] size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
+    [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
@@ -293,7 +293,7 @@ class LitBdTheory : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
+    auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
@@ -314,7 +314,7 @@ class StmHdTheory : public Stm {
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init([[maybe_unused]] size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
+    [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;

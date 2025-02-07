@@ -9,7 +9,7 @@ class CmpMatcher : public OnceMatcher {
     CmpMatcher(Term const &lhs, Relation cmp, Term const &rhs) : lhs_{&lhs}, rhs_{&rhs}, cmp_{cmp} {}
 
   private:
-    auto do_once(InstantiationContext const &ctx) -> bool override {
+    auto do_once(EvalContext const &ctx) -> bool override {
         // std::cerr << "doing a cmp match: " << *lhs_ << " " << cmp_ << " " << *rhs_ << "\n";
         auto lhs = lhs_->eval(ctx);
         if (!lhs) {
@@ -54,7 +54,7 @@ class AssignMatcher : public OnceMatcher {
         : lhs_{&lhs}, rhs_{&rhs}, free_{std::move(free)} {}
 
   private:
-    auto do_once(InstantiationContext const &ctx) -> bool override {
+    auto do_once(EvalContext const &ctx) -> bool override {
         // unbind variables
         for (auto const &var : free_) {
             ctx.ass()[var] = std::nullopt;
@@ -78,8 +78,8 @@ class IntervalMatcher : public Matcher {
         : lhs_{&lhs}, lower_{&lower}, upper_{&upper}, free_{std::move(free)} {}
 
   private:
-    void do_init([[maybe_unused]] InitContext const &ctx, [[maybe_unused]] size_t gen) override {}
-    void do_match(InstantiationContext const &ctx) override {
+    void do_init([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] size_t gen) override {}
+    void do_match(EvalContext const &ctx) override {
         val_current_ = 1;
         val_upper_ = 0;
         if (auto lower = lower_->eval(ctx), upper = upper_->eval(ctx);
@@ -97,7 +97,7 @@ class IntervalMatcher : public Matcher {
             }
         }
     }
-    auto do_next(InstantiationContext const &ctx) -> bool override {
+    auto do_next(EvalContext const &ctx) -> bool override {
         while (val_current_ <= val_upper_) {
             for (auto const &var : free_) {
                 ctx.ass()[var] = std::nullopt;

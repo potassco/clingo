@@ -236,7 +236,7 @@ auto StmDisjunction::do_important() const -> VariableSet {
 
 void StmDisjunction::do_init([[maybe_unused]] size_t gen) { state_->base().ensure(gen); }
 
-auto StmDisjunction::do_report(InstantiationContext const &ctx) -> bool {
+auto StmDisjunction::do_report(EvalContext const &ctx) -> bool {
     auto &lit = state_->insert_atom(ctx.ass()).first.value();
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
@@ -280,7 +280,7 @@ void StmDisjunctionElem::do_init(size_t gen) {
     }
 }
 
-auto StmDisjunctionElem::do_report(InstantiationContext const &ctx) -> bool {
+auto StmDisjunctionElem::do_report(EvalContext const &ctx) -> bool {
     auto &ass = ctx.ass();
     // insert aggregate atom
     if (auto it = state_->insert_atom(ass).first; !it.value().is_fact()) {
@@ -406,8 +406,7 @@ auto LitDisjunction::do_score([[maybe_unused]] std::vector<bool> const &bound) c
 
 void LitDisjunction::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitDisjunction::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
-    -> bool {
+auto LitDisjunction::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 

@@ -12,8 +12,7 @@ static constexpr double score_maybe_fast = -0.1;
 
 void LitInterval::do_print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << *upper_; }
 
-auto LitInterval::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
-    -> bool {
+auto LitInterval::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
@@ -101,8 +100,7 @@ auto LitInterval::do_compare_to(Lit const &other) const -> std::weak_ordering {
 
 void LitComparison::do_print(std::ostream &out) const { out << *lhs_ << cmp_ << *rhs_; }
 
-auto LitComparison::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
-    -> bool {
+auto LitComparison::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
@@ -189,8 +187,7 @@ void LitExternal::do_print(std::ostream &out) const {
     }
 }
 
-auto LitExternal::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
-    -> bool {
+auto LitExternal::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
@@ -234,8 +231,8 @@ auto LitExternal::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resourc
         }
 
       private:
-        void do_init([[maybe_unused]] InitContext const &ctx, [[maybe_unused]] size_t gen) override {}
-        void do_match(InstantiationContext const &ctx) override {
+        void do_init([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] size_t gen) override {}
+        void do_match(EvalContext const &ctx) override {
             syms_.clear();
             matches_.clear();
             for (auto const &arg : lit_->args_) {
@@ -248,7 +245,7 @@ auto LitExternal::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resourc
             lit_->ctx_->call(lit_->loc_, lit_->name_.view(), syms_, matches_);
             cur_ = matches_.begin();
         }
-        auto do_next(InstantiationContext const &ctx) -> bool override {
+        auto do_next(EvalContext const &ctx) -> bool override {
             auto &ass = ctx.ass();
             for (auto const &var : free_) {
                 ass[var] = std::nullopt;
@@ -322,7 +319,7 @@ auto get_atom(AtomBase &base, OutputStm &out, Sign sign, size_t index, Symbol sy
 
 } // namespace
 
-auto LitSymbolic::do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool {
+auto LitSymbolic::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool {
     assert(offset_ != invalid_offset || Symbol::to_rep(symbol_) != 0);
     if (auto atom = get_atom(*base_, ctx.out(), sign_, index_, symbol_, offset_)) {
         out.lit(sign_, atom->key(), atom->value().id);
@@ -399,7 +396,7 @@ void LitProject::do_print(std::ostream &out) const {
     }
 }
 
-auto LitProject::do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool {
+auto LitProject::do_output(EvalContext const &ctx, OutputLit &out) const -> bool {
     if (auto atom = get_atom(state_->p_base(), ctx.out(), Sign::none, index_, symbol_, offset_)) {
         // evaluation cannot fail by construction
         auto sym = atom_->eval(ctx);
@@ -448,12 +445,12 @@ auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
         MatcherProject(ProjectState &state, UMatcher matcher) : state_{&state}, matcher_{std::move(matcher)} {}
 
       private:
-        void do_init(InitContext const &ctx, size_t gen) override {
+        void do_init(InstantiationContext const &ctx, size_t gen) override {
             state_->init(ctx, gen);
             matcher_->init(ctx, gen);
         }
-        void do_match(InstantiationContext const &ctx) override { matcher_->match(ctx); }
-        auto do_next(InstantiationContext const &ctx) -> bool override { return matcher_->next(ctx); }
+        void do_match(EvalContext const &ctx) override { matcher_->match(ctx); }
+        auto do_next(EvalContext const &ctx) -> bool override { return matcher_->next(ctx); }
         void do_print(std::ostream &out) const override { matcher_->print(out); }
 
         ProjectState *state_;
@@ -499,7 +496,7 @@ class MatcherLitTuple : public OnceMatcher {
         : bind_{std::move(bind)}, vars_{&vars}, syms_{&syms} {}
 
   private:
-    auto do_once(InstantiationContext const &ctx) -> bool override {
+    auto do_once(EvalContext const &ctx) -> bool override {
         auto &ass = ctx.ass();
         for (auto const &var : bind_) {
             ass[var] = std::nullopt;
@@ -555,8 +552,7 @@ void LitTuple::do_print(std::ostream &out) const {
     out << "#once(" << Util::p_range(vars_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
 }
 
-auto LitTuple::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
-    -> bool {
+auto LitTuple::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
@@ -585,8 +581,7 @@ auto LitCheck::do_single_pass() const -> bool { return true; }
 
 auto LitCheck::do_domain() const -> bool { return true; }
 
-auto LitCheck::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
-    -> bool {
+auto LitCheck::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
@@ -598,7 +593,7 @@ auto LitCheck::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &
         CheckMatcher(LitCheck &lit) : lit_{&lit} {}
 
       private:
-        auto do_once(InstantiationContext const &ctx) -> bool override { return lit_->do_check(ctx); }
+        auto do_once(EvalContext const &ctx) -> bool override { return lit_->do_check(ctx); }
         void do_print(std::ostream &out) const override { out << *lit_; }
 
         LitCheck *lit_;
@@ -626,11 +621,11 @@ auto LitBool::do_copy() const -> ULit { return std::make_unique<LitBool>(value_)
 
 void LitBool::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {}
 
-auto LitBool::do_check([[maybe_unused]] InstantiationContext const &ctx) -> bool { return value_; }
+auto LitBool::do_check([[maybe_unused]] EvalContext const &ctx) -> bool { return value_; }
 
 // LitFactCheck
 
-auto LitFactCheck::do_check(InstantiationContext const &ctx) -> bool {
+auto LitFactCheck::do_check(EvalContext const &ctx) -> bool {
     if (auto sym = atom_->eval(ctx)) {
         *target_ = *sym;
         return !base_->is_fact(*sym);
@@ -650,7 +645,7 @@ auto LitFactCheck::do_copy() const -> ULit { return std::make_unique<LitFactChec
 
 // LitFailCheck
 
-auto LitFailCheck::do_check(InstantiationContext const &ctx) -> bool {
+auto LitFailCheck::do_check(EvalContext const &ctx) -> bool {
     for (auto const &term : terms_) {
         if (!term->eval(ctx)) {
             return false;
@@ -688,8 +683,7 @@ void LitSimpleAggr::do_print(std::ostream &out) const {
         << (tuples_.empty() ? "}" : " }");
 }
 
-auto LitSimpleAggr::do_output([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] OutputLit &out) const
-    -> bool {
+auto LitSimpleAggr::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
@@ -746,7 +740,7 @@ auto LitSimpleAggr::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resou
         }
 
       private:
-        auto do_once(InstantiationContext const &ctx) -> bool override {
+        auto do_once(EvalContext const &ctx) -> bool override {
             for (auto const &var : free_) {
                 ctx.ass()[var] = std::nullopt;
             }

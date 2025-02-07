@@ -341,7 +341,7 @@ class ProjectState {
     //! Initialize the projected base.
     //!
     //! This populates the projected base.
-    void init(InitContext const &ctx, size_t gen);
+    void init(InstantiationContext const &ctx, size_t gen);
 
   private:
     SharedString name_;

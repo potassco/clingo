@@ -231,7 +231,7 @@ class StateBdAggr : public State {
     auto insert_atom(Symbol const *tuple) -> AtomMap::iterator;
 
     //! Insert an aggregate element.
-    void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmBdAggrElem &elem);
+    void insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmBdAggrElem &elem);
 
     //! Print a non-ground representation of the aggregate.
     void print(std::ostream &out, bool print_index);
@@ -331,7 +331,7 @@ class LitBdAggr : public Lit, private MatchBdAggr {
 
     void do_print(std::ostream &out) const override;
 
-    auto do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool override;
+    auto do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -383,13 +383,13 @@ class StmBdAggrElem : public Stm {
     [[nodiscard]] auto do_important() const -> VariableSet override;
     [[nodiscard]] auto do_is_important(size_t index) const -> bool override;
     void do_init([[maybe_unused]] size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
+    [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
 
-    auto get_cond_(InstantiationContext const &ctx) -> std::pair<size_t, bool>;
+    auto get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool>;
 
     StateBdAggr *state_;
     StateBdAggr::ElementKey *elem_key_ = nullptr;
@@ -429,7 +429,7 @@ class LitBdAggrStrat : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    auto do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool override;
+    auto do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;

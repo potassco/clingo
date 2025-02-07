@@ -2,7 +2,7 @@
 
 namespace Clingo::Ground {
 
-void ProjectState::init(InitContext const &ctx, size_t gen) {
+void ProjectState::init(InstantiationContext const &ctx, size_t gen) {
     base_->update(gen);
     if (gen == 0) {
         // reset at generation zero
@@ -20,10 +20,13 @@ void ProjectState::init(InitContext const &ctx, size_t gen) {
             for (auto &sym : ass_) {
                 sym = std::nullopt;
             }
-            auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ass_};
+            auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ctx.out(), ass_};
             if (p_body_->match(eval_ctx, atom->first)) {
-                // FIXME: This is obviously not correct there need to be rules!!
                 if (auto sym = p_head_->eval(eval_ctx); sym) {
+                    // FIXME: This is obviously not correct, there need to be rules!!
+                    // - we need the output here
+                    // - introduce a fresh literal
+                    // - derive the literal from the atom (via informing the output)
                     p_base_.add(*sym, atom->second.state, [id = atom->second.id]() { return id; });
                 }
             }

@@ -311,7 +311,7 @@ void StmRule::do_init(size_t gen) {
     }
 }
 
-auto StmRule::do_report(InstantiationContext const &ctx) -> bool {
+auto StmRule::do_report(EvalContext const &ctx) -> bool {
     bool fact = type_ == RuleType::normal;
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
@@ -346,7 +346,7 @@ void StmExternal::init_() {
         LitExternalCheck(StmExternal &stm) : stm_{&stm} {}
 
       private:
-        [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override {
+        [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override {
             if (auto atom = stm_->atom_->eval(ctx); atom && !stm_->base_->is_fact(*atom)) {
                 stm_->res_atom_ = *atom;
             } else {
@@ -422,7 +422,7 @@ auto StmExternal::do_important() const -> VariableSet {
 
 void StmExternal::do_init(size_t gen) { base_->update(gen); }
 
-auto StmExternal::do_report(InstantiationContext const &ctx) -> bool {
+auto StmExternal::do_report(EvalContext const &ctx) -> bool {
     auto it = base_->add(res_atom_, StateAtom::derived, [&ctx]() { return ctx.out().uid(); }).first;
     ctx.out().external(res_atom_, it.value().id, res_type_);
     return true;
@@ -445,7 +445,7 @@ void StmWeakConstraint::init_() {
         LitTupleCheck(StmWeakConstraint &stm) : stm_{&stm} {}
 
       private:
-        [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override {
+        [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override {
             if (auto weight = stm_->weight_->eval(ctx);
                 weight && (weight->type() == SymbolType::number ||
                            expect(ctx, stm_->loc_weight_, logged_, "number expected (", *weight, ")"))) {
@@ -537,7 +537,7 @@ void StmWeakConstraint::do_print_head(std::ostream &out) const {
 
 void StmWeakConstraint::do_init([[maybe_unused]] size_t gen) {}
 
-auto StmWeakConstraint::do_report(InstantiationContext const &ctx) -> bool {
+auto StmWeakConstraint::do_report(EvalContext const &ctx) -> bool {
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
         std::ignore = lit->output(ctx, out);
@@ -557,7 +557,7 @@ void StmHeuristic::init_() {
         LitHeuristicCheck(StmHeuristic &stm) : stm_{&stm} {}
 
       private:
-        [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override {
+        [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override {
             if (auto weight = stm_->weight_->eval(ctx);
                 weight && (weight->type() == SymbolType::number ||
                            expect(ctx, stm_->loc_weight_, logged_, "number expected (got ", *weight, ")"))) {
@@ -625,8 +625,8 @@ void StmHeuristic::init_() {
       private:
         void do_print(std::ostream &out) const override { out << *stm_->atom_; }
 
-        [[nodiscard]] auto do_output([[maybe_unused]] InstantiationContext const &ctx,
-                                     [[maybe_unused]] OutputLit &out) const -> bool override {
+        [[nodiscard]] auto do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const
+            -> bool override {
             return false;
         }
 
@@ -695,7 +695,7 @@ void StmHeuristic::do_print_head(std::ostream &out) const {
 
 void StmHeuristic::do_init([[maybe_unused]] size_t gen) {}
 
-auto StmHeuristic::do_report(InstantiationContext const &ctx) -> bool {
+auto StmHeuristic::do_report(EvalContext const &ctx) -> bool {
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
         std::ignore = lit->output(ctx, out);
@@ -716,7 +716,7 @@ void StmEdge::init_() {
         LitEdgeCheck(StmEdge &stm) : stm_{&stm} {}
 
       private:
-        [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override {
+        [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override {
             if (auto src = stm_->src_->eval(ctx)) {
                 stm_->res_src_ = *src;
             } else {
@@ -765,7 +765,7 @@ void StmEdge::do_print_head(std::ostream &out) const { out << "#edge (" << *src_
 
 void StmEdge::do_init([[maybe_unused]] size_t gen) {}
 
-auto StmEdge::do_report(InstantiationContext const &ctx) -> bool {
+auto StmEdge::do_report(EvalContext const &ctx) -> bool {
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
         std::ignore = lit->output(ctx, out);
@@ -785,7 +785,7 @@ void StmShow::init_() {
         LitShowCheck(StmShow &stm) : stm_{&stm} {}
 
       private:
-        [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override {
+        [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override {
             if (auto term = stm_->term_->eval(ctx)) {
                 stm_->res_term_ = *term;
             } else {
@@ -824,7 +824,7 @@ void StmShow::do_print_head(std::ostream &out) const { out << "#show " << *term_
 
 void StmShow::do_init([[maybe_unused]] size_t gen) {}
 
-auto StmShow::do_report(InstantiationContext const &ctx) -> bool {
+auto StmShow::do_report(EvalContext const &ctx) -> bool {
     auto &out = ctx.out().body();
     bool fact = true;
     for (auto const &lit : body_) {
@@ -855,8 +855,8 @@ void StmProject::init_() {
       private:
         void do_print(std::ostream &out) const override { out << *stm_->atom_; }
 
-        [[nodiscard]] auto do_output([[maybe_unused]] InstantiationContext const &ctx,
-                                     [[maybe_unused]] OutputLit &out) const -> bool override {
+        [[nodiscard]] auto do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const
+            -> bool override {
             return false;
         }
 
@@ -913,7 +913,7 @@ void StmProject::do_print_head(std::ostream &out) const { out << "#project " << 
 
 void StmProject::do_init([[maybe_unused]] size_t gen) {}
 
-auto StmProject::do_report(InstantiationContext const &ctx) -> bool {
+auto StmProject::do_report(EvalContext const &ctx) -> bool {
     auto atom = base_->nth(offset_);
     ctx.out().project(atom.key(), atom.value().id);
     return true;

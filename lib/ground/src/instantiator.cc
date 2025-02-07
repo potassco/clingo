@@ -6,11 +6,11 @@
 
 namespace Clingo::Ground {
 
-void Instantiator::BackjumpMatcher::init(InitContext const &ctx, size_t gen) { matcher_->init(ctx, gen); }
+void Instantiator::BackjumpMatcher::init(InstantiationContext const &ctx, size_t gen) { matcher_->init(ctx, gen); }
 
-void Instantiator::BackjumpMatcher::match(InstantiationContext const &ctx) { matcher_->match(ctx); }
+void Instantiator::BackjumpMatcher::match(EvalContext const &ctx) { matcher_->match(ctx); }
 
-auto Instantiator::BackjumpMatcher::next(InstantiationContext const &ctx) -> bool {
+auto Instantiator::BackjumpMatcher::next(EvalContext const &ctx) -> bool {
     if (matcher_->next(ctx)) {
         backjumpable_ = true;
         return true;
@@ -18,7 +18,7 @@ auto Instantiator::BackjumpMatcher::next(InstantiationContext const &ctx) -> boo
     return false;
 }
 
-auto Instantiator::BackjumpMatcher::first(InstantiationContext const &ctx) -> bool {
+auto Instantiator::BackjumpMatcher::first(EvalContext const &ctx) -> bool {
     matcher_->match(ctx);
     return next(ctx);
 }
@@ -42,7 +42,7 @@ void Instantiator::add(UMatcher matcher, DependVec depend) {
     matchers_.emplace_back(std::move(matcher), std::move(depend));
 }
 
-void Instantiator::init(InitContext const &ctx, size_t gen) {
+void Instantiator::init(InstantiationContext const &ctx, size_t gen) {
     icb_->init(gen);
     for (auto &matcher : matchers_) {
         matcher.init(ctx, gen);
@@ -52,9 +52,9 @@ void Instantiator::init(InitContext const &ctx, size_t gen) {
 void Instantiator::finalize(DependVec depend) {
     class SolutionMatcher : public Matcher {
       public:
-        void do_init([[maybe_unused]] InitContext const &ctx, [[maybe_unused]] size_t gen) override {};
-        void do_match([[maybe_unused]] InstantiationContext const &ctx) override {}
-        auto do_next([[maybe_unused]] InstantiationContext const &ctx) -> bool override { return false; }
+        void do_init([[maybe_unused]] InstantiationContext const &ctx, [[maybe_unused]] size_t gen) override {};
+        void do_match([[maybe_unused]] EvalContext const &ctx) override {}
+        auto do_next([[maybe_unused]] EvalContext const &ctx) -> bool override { return false; }
         void do_print(std::ostream &out) const override { out << "#solution"; }
     };
     matchers_.emplace_back(std::make_unique<SolutionMatcher>(), std::move(depend));
@@ -80,7 +80,7 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
     auto ie = matchers_.rend();
     auto it = ie - 1;
     auto ib = matchers_.rbegin();
-    auto ctx = InstantiationContext{log, out, store, ass_};
+    auto ctx = EvalContext{log, store, out, ass_};
     it->match(ctx);
     GRINGO_REPORT(log, trace) << "  instantiate: " << *this;
     do {
@@ -161,7 +161,7 @@ auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
             current.swap(queue);
             size_ -= current.size();
             for (auto *inst : current) {
-                inst->init(InitContext{log, store}, gen);
+                inst->init(InstantiationContext{log, store, out}, gen);
             }
             for (auto *inst : current) {
                 if (!inst->instantiate(log, store, out)) {
