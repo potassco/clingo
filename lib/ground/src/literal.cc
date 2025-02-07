@@ -397,7 +397,7 @@ void LitProject::do_print(std::ostream &out) const {
 }
 
 auto LitProject::do_output(EvalContext const &ctx, OutputLit &out) const -> bool {
-    if (auto atom = get_atom(state_->p_base(), ctx.out(), Sign::none, index_, symbol_, offset_)) {
+    if (auto atom = get_atom(state_->p_base(), ctx.out(), sign_, index_, symbol_, offset_)) {
         // evaluation cannot fail by construction
         auto sym = atom_->eval(ctx);
         assert(sym);

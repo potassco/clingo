@@ -252,6 +252,13 @@ struct Grounder::Impl : Clingo::SymbolOwner {
         }
     }
 
+    //! Ensure that rules for all projected atoms have been added.
+    void project() const {
+        for (auto const &[term, base] : bases.projected()) {
+            base->init(Ground::InstantiationContext{*log, *store, *out}, 0);
+        }
+    }
+
     //! Cleanup step-local state accumulated during grounding.
     //!
     //! Clears indices associated with domains.
@@ -359,6 +366,7 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
                            impl_->bases, context,     *impl_->out};
         impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
         impl_->meta();
+        impl_->project();
         impl_->clear();
     }
     impl_->out->end_step();
