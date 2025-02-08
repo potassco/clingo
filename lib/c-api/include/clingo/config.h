@@ -163,7 +163,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_value_is_assigned(clingo
 //! @param[out] size the size of the char array
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_value_get(clingo_config_t const *config, clingo_id_t key,
-                                                                  char const **value, size_t *size);
+                                                                  char const **value);
 //! Set the value of an entry.
 //!
 //! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_value.
