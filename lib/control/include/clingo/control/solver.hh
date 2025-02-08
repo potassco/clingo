@@ -5,6 +5,7 @@
 #include <clingo/output/backend.hh>
 
 #include <clasp/clasp_facade.h>
+#include <clasp/cli/clasp_options.h>
 
 namespace Clingo::Control {
 
@@ -177,8 +178,8 @@ CLINGO_ENABLE_BITSET_ENUM(SolveMode);
 class Solver {
   public:
     //! Create a solver object.
-    Solver(Clasp::ClaspFacade &clasp, Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts,
-           AppMode mode, FILE *out = stdout);
+    Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &config, Logger &log, SymbolStore &store,
+           Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out = stdout);
 
     //! Parse, ground, and solve a program.
     void main(std::span<std::string_view const> const &files,
@@ -222,6 +223,12 @@ class Solver {
     //!
     //! Only non-null in solving mode.
     [[nodiscard]] auto clasp_program() -> Clasp::Asp::LogicProgram const * { return clasp_->asp(); }
+    //! Get a pointer to the underlying clasp facade.
+    [[nodiscard]] auto clasp_facade() -> Clasp::ClaspFacade & { return *clasp_; }
+    //! Get a pointer to the underlying clasp facade.
+    [[nodiscard]] auto clasp_facade() const -> Clasp::ClaspFacade const & { return *clasp_; }
+    //! Only non-null in solving mode.
+    [[nodiscard]] auto clasp_config() -> Clasp::Cli::ClaspCliConfig & { return *clasp_config_; }
 
   private:
     //! States for step transitions.
@@ -248,6 +255,7 @@ class Solver {
     auto make_output_(SymbolStore &store, AppMode mode) -> UOutputStm;
 
     Clasp::ClaspFacade *clasp_;
+    Clasp::Cli::ClaspCliConfig *clasp_config_;
     Util::OutputBuffer buf_;
     Output::UBackend backend_;
     UOutputStm out_;

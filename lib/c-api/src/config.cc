@@ -2,19 +2,26 @@
 
 #include <clasp/cli/clasp_options.h>
 
+#include "clingo/control.h"
+#include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
-auto cpp_cast(clingo_config_t const *config) -> Clasp::Cli::ClaspCliConfig const * {
+inline auto cpp_cast(clingo_config_t const *config) -> Clasp::Cli::ClaspCliConfig const * {
     // NOLINTNEXTLINE
     return reinterpret_cast<Clasp::Cli::ClaspCliConfig const *>(config);
 }
 
-auto cpp_cast(clingo_config_t *config) -> Clasp::Cli::ClaspCliConfig * {
+inline auto cpp_cast(clingo_config_t *config) -> Clasp::Cli::ClaspCliConfig * {
     // NOLINTNEXTLINE
     return reinterpret_cast<Clasp::Cli::ClaspCliConfig *>(config);
 }
 
-auto clingo_config_root(clingo_config_t const *config, clingo_id_t *key) -> clingo_result_t {
+inline auto c_cast(Clasp::Cli::ClaspCliConfig *config) -> clingo_config_t * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_config_t *>(config);
+}
+
+extern "C" auto clingo_config_root(clingo_config_t const *config, clingo_id_t *key) -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || key == nullptr) {
             return clingo_result_invalid;
@@ -24,7 +31,7 @@ auto clingo_config_root(clingo_config_t const *config, clingo_id_t *key) -> clin
     CLINGO_CATCH;
 }
 
-auto clingo_config_type(clingo_config_t const *config, clingo_id_t key, clingo_config_type_bitset_t *type)
+extern "C" auto clingo_config_type(clingo_config_t const *config, clingo_id_t key, clingo_config_type_bitset_t *type)
     -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || type == nullptr) {
@@ -48,7 +55,7 @@ auto clingo_config_type(clingo_config_t const *config, clingo_id_t key, clingo_c
     CLINGO_CATCH;
 }
 
-auto clingo_config_description(clingo_config_t const *config, clingo_id_t key, char const **description)
+extern "C" auto clingo_config_description(clingo_config_t const *config, clingo_id_t key, char const **description)
     -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || description == nullptr) {
@@ -62,7 +69,8 @@ auto clingo_config_description(clingo_config_t const *config, clingo_id_t key, c
     CLINGO_CATCH;
 }
 
-auto clingo_config_array_size(clingo_config_t const *config, clingo_id_t key, size_t *size) -> clingo_result_t {
+extern "C" auto clingo_config_array_size(clingo_config_t const *config, clingo_id_t key, size_t *size)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || size == nullptr) {
             return clingo_result_invalid;
@@ -77,8 +85,8 @@ auto clingo_config_array_size(clingo_config_t const *config, clingo_id_t key, si
     CLINGO_CATCH;
 }
 
-auto clingo_config_array_at(clingo_config_t const *config, clingo_id_t key, size_t offset, clingo_id_t *subkey)
-    -> clingo_result_t {
+extern "C" auto clingo_config_array_at(clingo_config_t const *config, clingo_id_t key, size_t offset,
+                                       clingo_id_t *subkey) -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || subkey == nullptr) {
             return clingo_result_invalid;
@@ -91,7 +99,8 @@ auto clingo_config_array_at(clingo_config_t const *config, clingo_id_t key, size
     CLINGO_CATCH;
 }
 
-auto clingo_config_map_size(clingo_config_t const *config, clingo_id_t key, size_t *size) -> clingo_result_t {
+extern "C" auto clingo_config_map_size(clingo_config_t const *config, clingo_id_t key, size_t *size)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || size == nullptr) {
             return clingo_result_invalid;
@@ -106,8 +115,8 @@ auto clingo_config_map_size(clingo_config_t const *config, clingo_id_t key, size
     CLINGO_CATCH;
 }
 
-auto clingo_config_map_has_subkey(clingo_config_t const *config, clingo_id_t key, char const *name, bool *result)
-    -> clingo_result_t {
+extern "C" auto clingo_config_map_has_subkey(clingo_config_t const *config, clingo_id_t key, char const *name,
+                                             bool *result) -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || name == nullptr || result == nullptr) {
             return clingo_result_invalid;
@@ -117,8 +126,8 @@ auto clingo_config_map_has_subkey(clingo_config_t const *config, clingo_id_t key
     CLINGO_CATCH;
 }
 
-auto clingo_config_map_subkey_name(clingo_config_t const *config, clingo_id_t key, size_t offset, char const **name)
-    -> clingo_result_t {
+extern "C" auto clingo_config_map_subkey_name(clingo_config_t const *config, clingo_id_t key, size_t offset,
+                                              char const **name) -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || name == nullptr) {
             return clingo_result_invalid;
@@ -131,8 +140,8 @@ auto clingo_config_map_subkey_name(clingo_config_t const *config, clingo_id_t ke
     CLINGO_CATCH;
 }
 
-auto clingo_config_map_at(clingo_config_t const *config, clingo_id_t key, char const *name, clingo_id_t *subkey)
-    -> clingo_result_t {
+extern "C" auto clingo_config_map_at(clingo_config_t const *config, clingo_id_t key, char const *name,
+                                     clingo_id_t *subkey) -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || name == nullptr || subkey == nullptr) {
             return clingo_result_invalid;
@@ -145,7 +154,7 @@ auto clingo_config_map_at(clingo_config_t const *config, clingo_id_t key, char c
     CLINGO_CATCH;
 }
 
-auto clingo_config_value_is_assigned(clingo_config_t const *config, clingo_id_t key, bool *assigned)
+extern "C" auto clingo_config_value_is_assigned(clingo_config_t const *config, clingo_id_t key, bool *assigned)
     -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || assigned == nullptr) {
@@ -161,7 +170,8 @@ auto clingo_config_value_is_assigned(clingo_config_t const *config, clingo_id_t 
     CLINGO_CATCH;
 }
 
-auto clingo_config_value_get(clingo_config_t const *config, clingo_id_t key, char const **value) -> clingo_result_t {
+extern "C" auto clingo_config_value_get(clingo_config_t const *config, clingo_id_t key, char const **value)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || value == nullptr) {
             return clingo_result_invalid;
@@ -175,11 +185,22 @@ auto clingo_config_value_get(clingo_config_t const *config, clingo_id_t key, cha
     CLINGO_CATCH;
 }
 
-auto clingo_config_value_set(clingo_config_t *config, clingo_id_t key, char const *value) -> clingo_result_t {
+extern "C" auto clingo_config_value_set(clingo_config_t *config, clingo_id_t key, char const *value)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (config == nullptr || value == nullptr || cpp_cast(config)->setValue(key, value) <= 0) {
             return clingo_result_invalid;
         }
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_control_config(clingo_control_t *control, clingo_config_t **config) -> clingo_result_t {
+    CLINGO_TRY {
+        if (control == nullptr || config == nullptr) {
+            return clingo_result_invalid;
+        }
+        *config = c_cast(&control->slv->clasp_config());
     }
     CLINGO_CATCH;
 }

@@ -522,10 +522,10 @@ void Scripts::do_call(Location const &loc, std::string_view name, SymbolSpan arg
     }
 }
 
-Solver::Solver(Clasp::ClaspFacade &clasp, Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts,
-               AppMode mode, FILE *out)
-    : clasp_{&clasp}, buf_{out}, out_{make_output_(store, mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts},
-      mode_{mode} {}
+Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
+               Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
+    : clasp_{&clasp}, clasp_config_{&clasp_config}, buf_{out}, out_{make_output_(store, mode)},
+      grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
 
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
     switch (mode) {

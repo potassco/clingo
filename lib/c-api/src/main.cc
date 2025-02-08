@@ -27,7 +27,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     using ProblemType = Clasp::ProblemType;
     using BaseType = Clasp::Cli::ClaspAppBase;
     using OptionParser = std::function<bool(char const *)>;
-    // enum class ConfigUpdate { KEEP, REPLACE };
     using AppMode = Clingo::Control::AppMode;
     enum class Mode : uint8_t {
         parse = static_cast<uint8_t>(AppMode::parse),
@@ -111,8 +110,13 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             if (mode_ == Mode::solve) {
                 clasp.startAsp(claspConfig_, true);
             }
-            auto slv = Clingo::Control::Solver{*clasp_,       lib_->log,     *lib_->store,
-                                               lib_->scripts, rewrite_opts_, static_cast<AppMode>(mode_)};
+            auto slv = Clingo::Control::Solver{clasp,
+                                               claspConfig_,
+                                               lib_->log,
+                                               *lib_->store,
+                                               lib_->scripts,
+                                               rewrite_opts_,
+                                               static_cast<AppMode>(mode_)};
             for (auto const &[name, value] : const_defs_) {
                 slv.add_const(*name, *value);
             }

@@ -55,8 +55,8 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
         if (mode == Clingo::Control::AppMode::solve) {
             clasp->startAsp(*slv_cfg, true);
         }
-        auto slv = std::make_unique<Clingo::Control::Solver>(*clasp, lib->log, *lib->store, lib->scripts, grd_cfg, mode,
-                                                             nullptr);
+        auto slv = std::make_unique<Clingo::Control::Solver>(*clasp, *slv_cfg, lib->log, *lib->store, lib->scripts,
+                                                             grd_cfg, mode, nullptr);
         *control = new clingo_control{lib, nullptr, nullptr, nullptr};
         (*control)->cfg = slv_cfg.release();
         (*control)->clasp = clasp.release();
