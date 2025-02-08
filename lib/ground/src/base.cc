@@ -6,31 +6,27 @@ namespace Clingo::Ground {
 
 void ProjectState::init(InstantiationContext const &ctx, size_t gen) {
     base_->update(gen);
-    if (gen == 0) {
-        // reset at generation zero
-        p_base_.update(0);
-    }
-    if (size_t n = base_->end(MatcherType::all_atoms); imported_ != n) {
-        for (size_t m = base_->end(MatcherType::old_atoms); imported_ != n; ++imported_) {
-            if (imported_ == m && gen > 0) {
-                // import as new from here onward
-                p_base_.update(gen - 1);
-            }
-            auto atom = base_->nth(imported_);
-            for (auto &sym : ass_) {
-                sym = std::nullopt;
-            }
-            auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ctx.out(), ass_};
-            if (p_body_->match(eval_ctx, atom->first)) {
-                if (auto sym = p_head_->eval(eval_ctx); sym) {
-                    auto [it, res] = p_base_.add(*sym, atom->second.state, [&]() {
-                        // if the atom is a fact we can simply use its uid here
-                        return atom.value().state == StateAtom::fact ? atom.value().id : ctx.out().uid();
-                    });
-                    // add projection rules (if not previously derived as a fact)
-                    if (res == AtomUpdate::changed || it.value().state != StateAtom::fact) {
-                        ctx.out().project_atom(it.value().id, atom.value().id);
-                    }
+    for (size_t n = base_->end(MatcherType::all_atoms), m = base_->end(MatcherType::old_atoms); imported_ != n;
+         ++imported_) {
+        if (imported_ == m && gen > 0) {
+            // import as new from here onward
+            // (generation 0 can be ignored because there will be a reset later)
+            p_base_.update(gen - 1);
+        }
+        auto atom = base_->nth(imported_);
+        for (auto &sym : ass_) {
+            sym = std::nullopt;
+        }
+        auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ctx.out(), ass_};
+        if (p_body_->match(eval_ctx, atom->first)) {
+            if (auto sym = p_head_->eval(eval_ctx); sym) {
+                auto [it, res] = p_base_.add(*sym, atom->second.state, [&]() {
+                    // if the atom is a fact we can simply use its uid here
+                    return atom.value().state == StateAtom::fact ? atom.value().id : ctx.out().uid();
+                });
+                // add projection rules (if not previously derived as a fact)
+                if (res == AtomUpdate::changed || it.value().state != StateAtom::fact) {
+                    ctx.out().project_atom(it.value().id, atom.value().id);
                 }
             }
         }
