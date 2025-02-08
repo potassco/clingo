@@ -2,6 +2,7 @@ add_library(clingo
     "src/ast.cc"
     "src/ast_yaml.cc"
     "src/base.cc"
+    "src/config.cc"
     "src/control.cc"
     "src/core.cc"
     "src/main.cc"
