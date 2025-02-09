@@ -3,6 +3,7 @@ add_library(clingo_python
     src/ast.cc
     src/base.cc
     src/clingo.cc
+    src/config.cc
     src/control.cc
     src/core.cc
     src/script.cc
