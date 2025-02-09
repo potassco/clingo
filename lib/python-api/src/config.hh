@@ -12,14 +12,13 @@ class Config {
 
     // value interface
     auto is_value() -> bool;
-    auto has_value() -> bool;
-    auto get_value() -> char const *;
+    auto get_value() -> std::optional<char const *>;
     void set_value(pybind11::handle value);
 
-    // array interface
-    auto is_array() -> bool;
-    auto array_at(size_t index) -> Config;
-    auto len_array() -> size_t;
+    // sequence interface
+    auto is_sequence() -> bool;
+    auto at_sequence(size_t index) -> Config;
+    auto len_sequence() -> size_t;
 
     // attribute access
     auto get(char const *name) -> Config;
@@ -34,6 +33,7 @@ class Config {
     auto type_() -> clingo_config_type_bitset_t;
     auto is_map_() -> bool;
     auto has_subkey_(char const *name) -> bool;
+    auto has_value_() -> bool;
     void str_(std::ostringstream &out, size_t first_indent, size_t indent);
 
     clingo_config_t *config_;

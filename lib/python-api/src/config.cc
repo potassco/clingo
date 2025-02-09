@@ -12,7 +12,7 @@ auto Config::type_() -> clingo_config_type_bitset_t {
     return type;
 }
 
-auto Config::is_array() -> bool {
+auto Config::is_sequence() -> bool {
     return (type_() & clingo_config_type_array) != 0;
 }
 
@@ -33,7 +33,7 @@ auto Config::has_subkey_(char const *name) -> bool {
     throw py::attribute_error{"invalid attribute"};
 }
 
-auto Config::has_value() -> bool {
+auto Config::has_value_() -> bool {
     if (is_value()) {
         bool assigned = false;
         handle_error(clingo_config_value_is_assigned(config_, key_, &assigned));
@@ -42,8 +42,8 @@ auto Config::has_value() -> bool {
     throw py::attribute_error{"invalid attribute"};
 }
 
-auto Config::array_at(size_t index) -> Config {
-    if (index < len_array()) {
+auto Config::at_sequence(size_t index) -> Config {
+    if (index < len_sequence()) {
         clingo_id_t subkey = 0;
         handle_error(clingo_config_array_at(config_, key_, index, &subkey));
         return {config_, subkey};
@@ -72,8 +72,8 @@ void Config::set(char const *name, pybind11::handle value) {
     get(name).set_value(value);
 }
 
-auto Config::len_array() -> size_t {
-    if (is_array()) {
+auto Config::len_sequence() -> size_t {
+    if (is_sequence()) {
         size_t size = 0;
         handle_error(clingo_config_array_size(config_, key_, &size));
         return size;
@@ -81,22 +81,13 @@ auto Config::len_array() -> size_t {
     throw py::attribute_error{"invalid attribute"};
 }
 
-auto Config::get_value() -> char const * {
-    if (is_value()) {
+auto Config::get_value() -> std::optional<char const *> {
+    if (has_value_()) {
         char const *value = nullptr;
         handle_error(clingo_config_value_get(config_, key_, &value));
         return value;
     }
-    // NOTE: could be written much nicer using std::format
-    auto buf = std::array<char, 3 + (2 * sizeof(void *))>{};
-    snprintf(buf.data(), buf.size(), "%p", static_cast<void *>(config_));
-    static thread_local auto rep = std::string{};
-    rep = "<object Config at ";
-    rep += buf.data();
-    rep += " with key ";
-    rep += std::to_string(key_);
-    rep += ">";
-    return rep.c_str();
+    return std::nullopt;
 }
 
 auto Config::attrs() -> std::vector<char const *> {
@@ -139,13 +130,13 @@ class fill {
 void Config::str_(std::ostringstream &out, size_t first_indent, size_t indent) {
     auto fi = [&, first = true]() mutable { return fill(std::exchange(first, false) ? first_indent : indent); };
     if (is_value()) {
-        if (has_value()) {
-            out << fi() << std::quoted(get_value()) << "\n";
+        if (auto val = get_value()) {
+            out << fi() << std::quoted(*val) << "\n";
         } else {
             out << fi() << "null\n";
         }
     }
-    if (is_map_() && (!is_array() || len_array() == 0)) {
+    if (is_map_() && (!is_sequence() || len_sequence() == 0)) {
         for (auto const *attr : attrs()) {
             out << fi() << attr << ":";
             auto cfg = get(attr);
@@ -158,11 +149,11 @@ void Config::str_(std::ostringstream &out, size_t first_indent, size_t indent) {
             }
         }
     }
-    if (is_array()) {
-        if (size_t e = len_array(); e > 0) {
-            for (size_t i = 0, e = len_array(); i != e; ++i) {
+    if (is_sequence()) {
+        if (size_t e = len_sequence(); e > 0) {
+            for (size_t i = 0, e = len_sequence(); i != e; ++i) {
                 out << fi() << "- ";
-                array_at(i).str_(out, 0, indent + 2);
+                at_sequence(i).str_(out, 0, indent + 2);
             }
 
         } else {
@@ -183,23 +174,38 @@ Functions and classes related to configuration.
 
 Examples
 --------
-The following example shows how to modify the configuration to enumerate all
-models:
+The following example shows how inpsect the configuration and modify it to
+enumerate all models:
 
 ```python
+>>> from clingo.core import Library
 >>> from clingo.control import Control
 >>>
->>> ctl = Control()
+>>> lib = Library()
+>>> ctl = Control(lib)
 >>> ctl.config.attributes
 ['tester', 'solve', 'asp', 'solver', 'configuration', 'share',
  'learn_explicit', 'sat_prepro', 'stats', 'parse_ext', 'parse_maxsat']
 >>> ctl.config.solve.attributes
 ['solve_limit', 'parallel_mode', 'global_restarts', 'distribute',
- 'integrate', 'enum_mode', 'project', 'models', 'opt_mode']
+ 'integrate', 'enum_mode', 'project', 'models', 'opt_mode', 'opt_stop']
 >>> str(ctl.config.solve)
-'TODO'
+"""\
+solve_limit: "umax,umax"
+parallel_mode: "1,compete"
+global_restarts: "no"
+distribute: "no,conflict,global,4,4194303"
+integrate: "gp,1024,all"
+enum_mode: "auto"
+project: "no"
+models: "-1"
+opt_mode: "-1,opt"
+opt_stop: "-1,opt,no"
+"""
 >>> ctl.config.solve.models.description
-'Compute at most %A models (0 for all)\\n'
+"""\
+Compute at most %A models (0 for all)
+"""
 >>> ctl.config.solve.models = 0
 >>> ctl.parse_string("1 {a; b}.")
 >>> ctl.ground()
@@ -211,133 +217,55 @@ a b
 SAT
 ```
 )"_d);
-    py::class_<Config>(config, "SolveResult", R"(
+    py::class_<Config>(config, "Config", R"(
 Allows for changing the configuration of the underlying solver.
 
-Options are organized hierarchically. To change and inspect an option use:
+Options are organized hierarchically. To get or change the value of an option
+(identified by `is_value`) use:
 
 ```python
-config.group.subgroup.option = "value"
+config.group.subgroup.option = "value"        # variant 1 (short)
+config.group.subgroup.option.value = "value"  # variant 2
 value = config.group.subgroup.option.value
 ```
 
-There are also arrays of option groups that can be accessed using integer
-indices:
+There are also sequences of option groups (identified by the `is_sequence`
+member):
 
 ```python
 config.group.subgroup[0].option = "value1"
 config.group.subgroup[1].option = "value2"
 ```
 
-To list the subgroups of an option group, use the `Configuration.attributes`
-member. Array option groups, like solver, can be iterated. Furthermore, there
-are meta options having key `configuration`. Assigning a meta option sets a
-number of related options. To get further information about an option or
-option group, use `Configuration.description`.
+To list the subgroups of an option group, use the `attributes` member.
+Furthermore, there are meta options having key `configuration`. Assigning a
+meta option sets a number of related options. To get further information about
+an option or option group, use `description`.
 
-Note that the first element of array at index zero can be accessed directly.
-Furthermore, config objects have a YAML-like string representation to inspect
-the current configuration. To provide full information and avoid duplication in
-the string representation of arrays, attributes are only printed if the array
-is currently emtpy.
+Note that the first element of a sequence can be accessed directly without
+going through index 0. Furthermore, config objects have a YAML-like string
+representation to inspect the current configuration. To provide full
+information and avoid duplication in the string representation of sequences,
+attributes are only printed if the sequence is currently emtpy.
 
 Notes
 -----
 The value of an option is always a string and any value assigned to an option
 is automatically converted into a string.
 )"_d)
-        .def("__str__", &Config::str, R"(A readable representation to inspect the configuration)");
-    /*
-    py::class_<SolveResult>(solving, "SolveResult", R"(A solve result captures information about a solve call.)")
-        .def("__str__", &SolveResult::str, R"(Get a string representation of the solve result.)")
-        .def_property_readonly("satisfiable", &SolveResult::satisfiable, R"(Whether there was at least one model.)")
-        .def_property_readonly("unsatisfiable", &SolveResult::unsatisfiable, R"(Whether there was no model.)")
-        .def_property_readonly("unknown", &SolveResult::unknown, R"(Whether the satisfiablity could be determined.)")
-        .def_property_readonly("exhausted", &SolveResult::exhausted, R"(Whether all models have been enumerated.)")
-        .def_property_readonly("interrupted", &SolveResult::interrupted, R"(Whether the search was interrupted.)");
-
-    py::class_<Model>(solving, "Model", R"(A view on the solver's current solution.)")
-        .def("symbols", &Model::symbols, py::arg("shown") = false, py::arg("atoms") = false, py::arg("terms") = false,
-             py::arg("theory") = false, R"(
-Get the symbols in the model.
-
-Args:
-  shown: Include shown atoms and terms.
-  atoms: Include all true atoms including hidden ones.
-  terms: Include shown terms.
-  theory: Include terms added by external theories.
-)"_d)
-        .def("__str__", &Model::str, "Get a string representation of the model.");
-
-    py::class_<SolveHandle, SSolveHandle>(solving, "SolveHandle", R"(
-An object to interact with a running search.
-
-It can be used to control solving, like, retrieving models or cancelling a
-search.
-
-A SolveHandle is a context manager and must be used with Python's with
-statement.
-
-Blocking functions in this object release the GIL. They are not thread-safe
-though.
-
-See also: `clingo.control.Control.solve`
-)"_d)
-        .def("get", &SolveHandle::get, R"(
-Get the solve result.
-
-This is always the last function that should be called on a handle to ensure
-that the search is properly terminated. It might be preceded by a call to
-cancel to stop a running search.
-)"_d)
-        .def("core", &SolveHandle::core, R"(Get the subset of assumptions that made the problem unsatisfiable.)")
-        .def("model", &SolveHandle::model, R"(Get the current model if there is any.)")
-        .def("last", &SolveHandle::last, R"(
-Get the last computed model if there is any.
-
-If the search is not completed yet or the problem is unsatisfiable, the
-function returns `None`.
-)"_d)
-        .def("resume", &SolveHandle::resume, R"(
-Discards the last model and starts searching for the next one.
-
-If the search has been started asynchronously, this function starts the search
-in the background.
-)"_d)
-        .def("wait", &SolveHandle::wait, py::arg("timeout") = std::nullopt, R"(
-Wait for solve call to finish or the next result with an optional timeout.
-
-If a timeout is given, the behavior of the function changes depending on the
-sign of the timeout. If a postive timeout is given, the function blocks for the
-given amount time or until a result is ready. If the timeout is negative, the
-function will block until a result is ready, which also corresponds to the
-behavior of the function if no timeout is given. A timeout of zero can be used
-to poll if a result is ready.
-
-Args:
-  timeout:
-    If a timeout is given, the function blocks for at most timeout seconds.
-
-Returns:
-  Indicates whether the solve call has finished or the next result is ready.
-)"_d)
-        .def("cancel", &SolveHandle::cancel, R"(
-Cancel the running search.
-
-See also: `clingo.control.Control.interrupt`
-)"_d)
-        .def(
-            "__enter__", [&](SSolveHandle hnd) -> SSolveHandle { return hnd; }, "Start the search.")
-        .def(
-            "__exit__",
-            [&](SSolveHandle const &hnd, [[maybe_unused]] const std::optional<pybind11::type> &type,
-                [[maybe_unused]] const std::optional<pybind11::object> &value,
-                [[maybe_unused]] const std::optional<pybind11::object> &traceback) { hnd->close(); },
-            "Stop the search closing the handle.")
-        .def(
-            "__iter__",
-            [&](SSolveHandle const &hnd) { return pybind11::make_iterator(ModelIterator{hnd}, ModelIterator{}); },
-            "Get an iterator over the models.");
-    */
+        .def("__str__", &Config::str, R"(A readable representation to inspect the configuration.)")
+        .def_property_readonly("description", &Config::desc, R"(Get the description of a configuration entry.)")
+        // value interface
+        .def_property_readonly("is_value", &Config::is_value, R"(Whether the configuration entry is a value.)")
+        .def_property("value", &Config::get_value, &Config::set_value,
+                      R"(Get/set the string value of the configuration entry.)")
+        // sequence interface
+        .def_property_readonly("is_sequence", &Config::is_sequence, R"(Whether the configuration is a sequence.)")
+        .def("__getitem__", &Config::at_sequence, py::arg("index"), R"(Get the index-th element of a sequence.)")
+        // attribute access
+        .def("__getattr__", &Config::get, py::arg("name"), R"(Get the configuration entry with the given name.)")
+        .def("__setattr__", &Config::set, py::arg("name"), py::arg("value"), R"(Set the value with the given name.)")
+        .def_property_readonly("attributes", &Config::attrs, R"(Get the attribute names of nested configurations.)");
 }
+
 } // namespace Clingo::Python
