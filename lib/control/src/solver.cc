@@ -579,7 +579,7 @@ void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> con
 
 auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode mode) -> USolveHandle {
     if (mode_ == AppMode::solve) {
-        if (state_ == State::solved || state_ == State::updated) {
+        if (state_ == State::solved || state_ == State::initial) {
             // we inject an emtpy ground
             ground(Input::ProgramParamVec{}, nullptr);
         }
@@ -625,7 +625,10 @@ void Solver::add_const(String name, Symbol value) {
 }
 
 void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) {
-    if (mode_ == AppMode::solve && state_ != State::updated) {
+    if (mode_ == AppMode::solve && state_ != State::initial) {
+        // NOTE: previously, this was only called if a value has been called on
+        // the configuration. I would prefer not to do this because it would
+        // require wrapping clasp's cli configuration.
         clasp_->update(true);
     }
     state_ = State::grounded;

@@ -233,13 +233,13 @@ class Solver {
   private:
     //! States for step transitions.
     //!
-    //! The updated state is special and is only entered intially. The prepared
+    //! The initial state is special and is only entered intially. The prepared
     //! state is entered after some API functions. For example, when
     //! information about literals is requested that needs help of the solver.
     //! The grounded and solved states are entederd after grounding and
-    //! solving.
+    //! solving, respectively.
     enum class State : uint8_t {
-        updated,  //< intial step
+        initial,  //< intial step
         grounded, //< step has been grounded
         prepared, //< step is prepared for solving
         solved,   //< step has been solved
@@ -248,7 +248,7 @@ class Solver {
     //! Create output according to mode.
     //!
     //! This function additionally initizalizes required members, for example,
-    //! the backend for clasp output.
+    //! the backend for the clasp output.
     //!
     //! @param mode the configured output mode
     //! @return the resulting output
@@ -261,7 +261,7 @@ class Solver {
     UOutputStm out_;
     Grounder grd_;
     Scripts *scripts_;
-    State state_ = State::updated;
+    State state_ = State::initial;
     AppMode mode_;
 };
 

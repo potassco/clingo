@@ -62,14 +62,20 @@ auto Config::get(char const *name) -> Config {
 
 void Config::set_value(pybind11::handle value) {
     if (is_value()) {
-        auto val = value.cast<std::string>();
+        auto val = py::cast<std::string>(py::str(value));
         handle_error(clingo_config_value_set(config_, key_, val.c_str()));
+    } else {
+        throw py::attribute_error{"invalid attribute"};
     }
-    throw py::attribute_error{"invalid attribute"};
 }
 
 void Config::set(char const *name, pybind11::handle value) {
-    get(name).set_value(value);
+    auto self = py::cast(this);
+    if (auto attr = py::getattr(self.get_type(), name, py::none{}); !attr.is_none()) {
+        py::getattr(attr, "__set__", py::none{})(self, value);
+    } else {
+        get(name).set_value(value);
+    }
 }
 
 auto Config::len_sequence() -> size_t {
@@ -165,7 +171,11 @@ void Config::str_(std::ostringstream &out, size_t first_indent, size_t indent) {
 auto Config::str() -> std::string {
     auto out = std::ostringstream{};
     str_(out, 0, 0);
-    return std::move(out).str();
+    auto res = std::move(out).str();
+    if (res.back() == '\n') {
+        res.pop_back();
+    }
+    return res;
 }
 
 void register_config(pybind11::module &m) {
