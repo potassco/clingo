@@ -557,6 +557,8 @@ class OutputText : public OutputStm, OutputTheory {
 
 } // namespace
 
-auto make_text_output(Util::OutputBuffer &out) -> UOutputStm { return std::make_unique<OutputText>(out); }
+auto make_text_output(Util::OutputBuffer &out) -> UOutputStm {
+    return std::make_unique<OutputText>(out);
+}
 
 } // namespace Clingo::Output

@@ -4,9 +4,13 @@ namespace Clingo::Ground {
 
 // definition of AtomTheory
 
-void AtomTheory::add_elem(size_t idx) { elems_.emplace_back(idx); }
+void AtomTheory::add_elem(size_t idx) {
+    elems_.emplace_back(idx);
+}
 
-auto AtomTheory::elems() const -> std::span<size_t const> { return elems_; }
+auto AtomTheory::elems() const -> std::span<size_t const> {
+    return elems_;
+}
 
 auto AtomTheory::uid() const -> std::optional<size_t> {
     return uid_ != invalid_offset ? std::make_optional(uid_) : std::nullopt;
@@ -23,15 +27,25 @@ auto BaseTheory::add(Symbol const *sym, Symbol name, std::optional<size_t> rhs) 
     return atoms_.try_emplace(sym, name, rhs);
 }
 
-auto BaseTheory::size() const -> size_t { return atoms_.size(); }
+auto BaseTheory::size() const -> size_t {
+    return atoms_.size();
+}
 
-auto BaseTheory::index(Symbol const *sym) const -> size_t { return atoms_.find(sym) - atoms_.begin(); }
+auto BaseTheory::index(Symbol const *sym) const -> size_t {
+    return atoms_.find(sym) - atoms_.begin();
+}
 
-auto BaseTheory::nth(size_t i) const -> AtomMap::const_iterator { return atoms_.nth(i); }
+auto BaseTheory::nth(size_t i) const -> AtomMap::const_iterator {
+    return atoms_.nth(i);
+}
 
-auto BaseTheory::nth(size_t i) -> AtomMap::iterator { return atoms_.nth(i); }
+auto BaseTheory::nth(size_t i) -> AtomMap::iterator {
+    return atoms_.nth(i);
+}
 
-auto BaseTheory::atoms() -> AtomMap & { return atoms_; }
+auto BaseTheory::atoms() -> AtomMap & {
+    return atoms_;
+}
 
 // definition of StateBdTheory
 
@@ -58,7 +72,9 @@ void StateTheory::ElementKey::construct(std::pmr::monotonic_buffer_resource &mbr
     std::construct_at(target, priv_tag{}, ctx, out, atom_idx, terms);
 }
 
-auto StateTheory::ElementKey::size() const -> size_t { return n_; }
+auto StateTheory::ElementKey::size() const -> size_t {
+    return n_;
+}
 
 auto StateTheory::ElementKey::span() const -> std::span<size_t const> {
     // NOLINTBEGIN
@@ -85,15 +101,25 @@ void StateTheory::print(std::ostream &out) {
     }
 }
 
-auto StateTheory::global() const -> VariableVec const & { return global_; }
+auto StateTheory::global() const -> VariableVec const & {
+    return global_;
+}
 
-auto StateTheory::name() const -> UTerm const & { return name_; }
+auto StateTheory::name() const -> UTerm const & {
+    return name_;
+}
 
-auto StateTheory::guard() const -> TheoryRGuard const & { return guard_; }
+auto StateTheory::guard() const -> TheoryRGuard const & {
+    return guard_;
+}
 
-auto StateTheory::base() -> BaseTheory & { return base_; }
+auto StateTheory::base() -> BaseTheory & {
+    return base_;
+}
 
-void StateTheory::elems(UStmVec elems) { elems_ = std::move(elems); }
+void StateTheory::elems(UStmVec elems) {
+    elems_ = std::move(elems);
+}
 
 auto StateTheory::find_atom(Assignment &ass) -> AtomMap::iterator {
     auto n = global_.size() * sizeof(Symbol);
@@ -183,7 +209,9 @@ void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
 
 // definition of MatchTheory
 
-auto MatchTheory::vars() const -> VariableSet { return VariableSet{state_->global().begin(), state_->global().end()}; }
+auto MatchTheory::vars() const -> VariableSet {
+    return VariableSet{state_->global().begin(), state_->global().end()};
+}
 
 auto MatchTheory::signature(VariableSet const &bound, [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
     static_cast<void>(this);
@@ -218,7 +246,9 @@ auto operator<<(std::ostream &out, MatchTheory const &m) -> std::ostream & {
     return out;
 }
 
-auto MatchTheory::state() const -> StateTheory & { return *state_; }
+auto MatchTheory::state() const -> StateTheory & {
+    return *state_;
+}
 
 // definition of LitMatchTheory
 
@@ -233,7 +263,9 @@ auto LitMatchTheory::do_domain() const -> bool {
     return true;
 }
 
-auto LitMatchTheory::do_single_pass() const -> bool { return true; }
+auto LitMatchTheory::do_single_pass() const -> bool {
+    return true;
+}
 
 auto LitMatchTheory::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                 std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
@@ -249,26 +281,36 @@ auto LitMatchTheory::do_score([[maybe_unused]] std::vector<bool> const &bound) c
     return 0;
 }
 
-void LitMatchTheory::do_print(std::ostream &out) const { state().print(out); }
+void LitMatchTheory::do_print(std::ostream &out) const {
+    state().print(out);
+}
 
 auto LitMatchTheory::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
-auto LitMatchTheory::do_copy() const -> ULit { return std::make_unique<LitMatchTheory>(state()); }
+auto LitMatchTheory::do_copy() const -> ULit {
+    return std::make_unique<LitMatchTheory>(state());
+}
 
 auto LitMatchTheory::do_hash() const -> size_t {
     // NOLINTNEXTLINE
     return Util::value_hash_record<LitMatchTheory>(reinterpret_cast<uintptr_t>(this));
 }
 
-auto LitMatchTheory::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitMatchTheory::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitMatchTheory::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitMatchTheory::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 // definition of StmTheoryElement
 
-auto StmTheoryElement::do_body() const -> ULitVec const & { return body_; }
+auto StmTheoryElement::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmTheoryElement::do_important() const -> VariableSet {
     auto res = VariableSet{};
@@ -279,7 +321,9 @@ auto StmTheoryElement::do_important() const -> VariableSet {
     return res;
 }
 
-void StmTheoryElement::do_init(size_t gen) { state_->base().update(gen); }
+void StmTheoryElement::do_init(size_t gen) {
+    state_->base().update(gen);
+}
 
 auto StmTheoryElement::do_report(EvalContext const &ctx) -> bool {
     auto &ass = ctx.ass();
@@ -297,9 +341,12 @@ auto StmTheoryElement::do_report(EvalContext const &ctx) -> bool {
 }
 
 void StmTheoryElement::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
-                                    [[maybe_unused]] Queue &queue) {}
+                                    [[maybe_unused]] Queue &queue) {
+}
 
-auto StmTheoryElement::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }
+auto StmTheoryElement::do_priority() const -> size_t {
+    return std::numeric_limits<size_t>::max();
+}
 
 void StmTheoryElement::do_print_head(std::ostream &out) const {
     auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
@@ -321,9 +368,13 @@ void LitBdTheory::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitBdTheory::do_domain() const -> bool { return false; }
+auto LitBdTheory::do_domain() const -> bool {
+    return false;
+}
 
-auto LitBdTheory::do_single_pass() const -> bool { return true; }
+auto LitBdTheory::do_single_pass() const -> bool {
+    return true;
+}
 
 auto LitBdTheory::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
                              [[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
@@ -331,7 +382,9 @@ auto LitBdTheory::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resourc
     return {make_once_matcher(*state_->name(), name_), std::nullopt};
 }
 
-auto LitBdTheory::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 0; }
+auto LitBdTheory::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    return 0;
+}
 
 void LitBdTheory::do_print(std::ostream &out) const {
     out << sign_;
@@ -349,26 +402,36 @@ auto LitBdTheory::do_output(EvalContext const &ctx, OutputLit &out) const -> boo
     return true;
 }
 
-auto LitBdTheory::do_copy() const -> ULit { return std::make_unique<LitBdTheory>(*state_, sign_); }
+auto LitBdTheory::do_copy() const -> ULit {
+    return std::make_unique<LitBdTheory>(*state_, sign_);
+}
 
 auto LitBdTheory::do_hash() const -> size_t {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return Util::value_hash_record<LitBdTheory>(reinterpret_cast<uintptr_t>(state_));
 }
 
-auto LitBdTheory::do_equal_to(Lit const &other) const -> bool { return &other == this; }
+auto LitBdTheory::do_equal_to(Lit const &other) const -> bool {
+    return &other == this;
+}
 
-auto LitBdTheory::do_compare_to(Lit const &other) const -> std::weak_ordering { return &other <=> this; }
+auto LitBdTheory::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return &other <=> this;
+}
 
 // definition of StmHdTheory
 
-auto StmHdTheory::do_body() const -> ULitVec const & { return body_; }
+auto StmHdTheory::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmHdTheory::do_important() const -> VariableSet {
     return VariableSet{state_->global().begin(), state_->global().end()};
 }
 
-void StmHdTheory::do_init([[maybe_unused]] size_t gen) { state_->base().update(gen); }
+void StmHdTheory::do_init([[maybe_unused]] size_t gen) {
+    state_->base().update(gen);
+}
 
 auto StmHdTheory::do_report(EvalContext const &ctx) -> bool {
     if (auto name = state_->name()->eval(ctx)) {
@@ -388,11 +451,16 @@ auto StmHdTheory::do_report(EvalContext const &ctx) -> bool {
 }
 
 void StmHdTheory::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
-                               [[maybe_unused]] Queue &queue) {}
+                               [[maybe_unused]] Queue &queue) {
+}
 
-auto StmHdTheory::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }
+auto StmHdTheory::do_priority() const -> size_t {
+    return std::numeric_limits<size_t>::max();
+}
 
-void StmHdTheory::do_print_head(std::ostream &out) const { state_->print(out); }
+void StmHdTheory::do_print_head(std::ostream &out) const {
+    state_->print(out);
+}
 
 void StmHdTheory::do_print(std::ostream &out) const {
     out << "max: ";

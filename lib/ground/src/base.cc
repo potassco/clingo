@@ -95,6 +95,8 @@ auto Bases::get_base(std::tuple<String, size_t, bool> sig) const -> Ground::Atom
     return it != dom.end() ? it.value().get() : nullptr;
 }
 
-void Bases::clear_aux() { aux_.clear(); }
+void Bases::clear_aux() {
+    aux_.clear();
+}
 
 } // namespace Clingo::Ground

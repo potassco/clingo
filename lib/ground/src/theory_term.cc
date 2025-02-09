@@ -6,9 +6,12 @@ namespace Clingo::Ground {
 
 // definition of TheoryTermSymbol
 
-void TheoryTermSymbol::do_vars([[maybe_unused]] VariableSet &vars) const {}
+void TheoryTermSymbol::do_vars([[maybe_unused]] VariableSet &vars) const {
+}
 
-void TheoryTermSymbol::do_print(std::ostream &out) const { out << sym_; }
+void TheoryTermSymbol::do_print(std::ostream &out) const {
+    out << sym_;
+}
 
 namespace {
 
@@ -56,9 +59,13 @@ auto TheoryTermSymbol::do_output(EvalContext const &ctx, OutputTheory &out) cons
     return output_symbol(ctx.store(), out, sym_);
 }
 
-auto TheoryTermSymbol::do_copy() const -> UTheoryTerm { return std::make_unique<TheoryTermSymbol>(sym_); }
+auto TheoryTermSymbol::do_copy() const -> UTheoryTerm {
+    return std::make_unique<TheoryTermSymbol>(sym_);
+}
 
-auto TheoryTermSymbol::do_hash() const -> size_t { return Util::value_hash_record<TheoryTermSymbol>(sym_); }
+auto TheoryTermSymbol::do_hash() const -> size_t {
+    return Util::value_hash_record<TheoryTermSymbol>(sym_);
+}
 
 auto TheoryTermSymbol::do_equal_to(TheoryTerm const &other) const -> bool {
     auto const *x = dynamic_cast<TheoryTermSymbol const *>(&other);
@@ -75,9 +82,13 @@ auto TheoryTermSymbol::do_compare_to(TheoryTerm const &other) const -> std::stro
 
 // definition of TheoryTermVariable
 
-void TheoryTermVariable::do_vars([[maybe_unused]] VariableSet &vars) const { vars.emplace(var_); }
+void TheoryTermVariable::do_vars([[maybe_unused]] VariableSet &vars) const {
+    vars.emplace(var_);
+}
 
-void TheoryTermVariable::do_print(std::ostream &out) const { out << "X_" << var_; }
+void TheoryTermVariable::do_print(std::ostream &out) const {
+    out << "X_" << var_;
+}
 
 auto TheoryTermVariable::do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t {
     assert(ctx.ass()[var_]);
@@ -85,9 +96,13 @@ auto TheoryTermVariable::do_output(EvalContext const &ctx, OutputTheory &out) co
     return output_symbol(ctx.store(), out, *ctx.ass()[var_]);
 }
 
-auto TheoryTermVariable::do_copy() const -> UTheoryTerm { return std::make_unique<TheoryTermVariable>(var_); }
+auto TheoryTermVariable::do_copy() const -> UTheoryTerm {
+    return std::make_unique<TheoryTermVariable>(var_);
+}
 
-auto TheoryTermVariable::do_hash() const -> size_t { return Util::value_hash_record<TheoryTermVariable>(var_); }
+auto TheoryTermVariable::do_hash() const -> size_t {
+    return Util::value_hash_record<TheoryTermVariable>(var_);
+}
 
 auto TheoryTermVariable::do_equal_to(TheoryTerm const &other) const -> bool {
     auto const *x = dynamic_cast<TheoryTermVariable const *>(&other);
@@ -127,7 +142,9 @@ auto TheoryTermTuple::do_copy() const -> UTheoryTerm {
     return std::make_unique<TheoryTermTuple>(type_, copy_uvec(args_));
 }
 
-auto TheoryTermTuple::do_hash() const -> size_t { return Util::value_hash_record<TheoryTermTuple>(args_); }
+auto TheoryTermTuple::do_hash() const -> size_t {
+    return Util::value_hash_record<TheoryTermTuple>(args_);
+}
 
 auto TheoryTermTuple::do_equal_to(TheoryTerm const &other) const -> bool {
     auto const *x = dynamic_cast<TheoryTermTuple const *>(&other);
@@ -174,7 +191,9 @@ auto TheoryTermFunction::do_copy() const -> UTheoryTerm {
     return std::make_unique<TheoryTermFunction>(name_, copy_uvec(args_));
 }
 
-auto TheoryTermFunction::do_hash() const -> size_t { return Util::value_hash_record<TheoryTermFunction>(args_); }
+auto TheoryTermFunction::do_hash() const -> size_t {
+    return Util::value_hash_record<TheoryTermFunction>(args_);
+}
 
 auto TheoryTermFunction::do_equal_to(TheoryTerm const &other) const -> bool {
     auto const *x = dynamic_cast<TheoryTermFunction const *>(&other);

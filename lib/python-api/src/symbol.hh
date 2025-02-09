@@ -55,14 +55,22 @@ using SymbolVec = std::vector<Symbol>;
 
 void register_symbol(pybind11::module &m);
 
-// NOLINTNEXTLINE
-inline auto cpp_cast(clingo_symbol_t const *sym) { return reinterpret_cast<Symbol const *>(sym); }
-// NOLINTNEXTLINE
-inline auto cpp_cast(clingo_symbol_t *sym) { return reinterpret_cast<Symbol *>(sym); }
+inline auto cpp_cast(clingo_symbol_t const *sym) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Symbol const *>(sym);
+}
+inline auto cpp_cast(clingo_symbol_t *sym) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Symbol *>(sym);
+}
 
-// NOLINTNEXTLINE
-inline auto c_cast(Symbol const *sym) { return reinterpret_cast<clingo_symbol_t const *>(sym); }
-// NOLINTNEXTLINE
-inline auto c_cast(Symbol *sym) { return reinterpret_cast<clingo_symbol_t *>(sym); }
+inline auto c_cast(Symbol const *sym) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_symbol_t const *>(sym);
+}
+inline auto c_cast(Symbol *sym) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_symbol_t *>(sym);
+}
 
 } // namespace Clingo::Python

@@ -85,31 +85,49 @@ class VisitVariables : public Visitor<VisitVariables> {
 
 } // namespace
 
-void visit_variables(Term const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(term); }
+void visit_variables(Term const &term, VarVisitFun fun) {
+    VisitVariables{std::move(fun)}.visit(term);
+}
 
-void visit_variables(TheoryTerm const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(term); }
+void visit_variables(TheoryTerm const &term, VarVisitFun fun) {
+    VisitVariables{std::move(fun)}.visit(term);
+}
 
-void visit_variables(TheoryElement const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(term); }
+void visit_variables(TheoryElement const &term, VarVisitFun fun) {
+    VisitVariables{std::move(fun)}.visit(term);
+}
 
-void visit_variables(Lit const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(lit); }
+void visit_variables(Lit const &lit, VarVisitFun fun) {
+    VisitVariables{std::move(fun)}.visit(lit);
+}
 
-void visit_variables(CondLit const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(lit); }
+void visit_variables(CondLit const &lit, VarVisitFun fun) {
+    VisitVariables{std::move(fun)}.visit(lit);
+}
 
-void visit_variables(SetAggregateElement const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(elem); }
+void visit_variables(SetAggregateElement const &elem, VarVisitFun fun) {
+    VisitVariables{std::move(fun)}.visit(elem);
+}
 
-void visit_variables(HdLitAggregateElement const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(elem); }
+void visit_variables(HdLitAggregateElement const &elem, VarVisitFun fun) {
+    VisitVariables{std::move(fun)}.visit(elem);
+}
 
 void visit_variables(HdLit const &lit, VarVisitFun fun, VariableContext ctx) {
     VisitVariables{std::move(fun), ctx}.visit(lit);
 }
 
-void visit_variables(BdLitAggregateElement const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(elem); }
+void visit_variables(BdLitAggregateElement const &elem, VarVisitFun fun) {
+    VisitVariables{std::move(fun)}.visit(elem);
+}
 
 void visit_variables(BdLit const &lit, VarVisitFun fun, VariableContext ctx) {
     VisitVariables{std::move(fun), ctx}.visit(lit);
 }
 
-void visit_variables(OptimizeElement const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(elem); }
+void visit_variables(OptimizeElement const &elem, VarVisitFun fun) {
+    VisitVariables{std::move(fun)}.visit(elem);
+}
 
 void visit_variables(Stm const &stm, VarVisitFun fun, VariableContext ctx) {
     VisitVariables{std::move(fun), ctx}.visit(stm);

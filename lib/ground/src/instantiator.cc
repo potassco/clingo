@@ -6,9 +6,13 @@
 
 namespace Clingo::Ground {
 
-void Instantiator::BackjumpMatcher::init(InstantiationContext const &ctx, size_t gen) { matcher_->init(ctx, gen); }
+void Instantiator::BackjumpMatcher::init(InstantiationContext const &ctx, size_t gen) {
+    matcher_->init(ctx, gen);
+}
 
-void Instantiator::BackjumpMatcher::match(EvalContext const &ctx) { matcher_->match(ctx); }
+void Instantiator::BackjumpMatcher::match(EvalContext const &ctx) {
+    matcher_->match(ctx);
+}
 
 auto Instantiator::BackjumpMatcher::next(EvalContext const &ctx) -> bool {
     if (matcher_->next(ctx)) {
@@ -32,11 +36,17 @@ void Instantiator::BackjumpMatcher::print(std::ostream &out, size_t index) const
     out << "]";
 }
 
-auto Instantiator::BackjumpMatcher::depend() const -> DependVec const & { return depend_; }
+auto Instantiator::BackjumpMatcher::depend() const -> DependVec const & {
+    return depend_;
+}
 
-auto Instantiator::BackjumpMatcher::backjumpable() const -> bool { return backjumpable_; }
+auto Instantiator::BackjumpMatcher::backjumpable() const -> bool {
+    return backjumpable_;
+}
 
-void Instantiator::BackjumpMatcher::block() { backjumpable_ = false; }
+void Instantiator::BackjumpMatcher::block() {
+    backjumpable_ = false;
+}
 
 void Instantiator::add(UMatcher matcher, DependVec depend) {
     matchers_.emplace_back(std::move(matcher), std::move(depend));
@@ -107,7 +117,9 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
     return true;
 }
 
-void Instantiator::propagate(SymbolStore &store, OutputStm &out, Queue &queue) { icb_->propagate(store, out, queue); }
+void Instantiator::propagate(SymbolStore &store, OutputStm &out, Queue &queue) {
+    icb_->propagate(store, out, queue);
+}
 
 void Queue::insert(Instantiator inst, std::optional<size_t> index) {
     if (index) {

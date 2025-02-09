@@ -93,7 +93,9 @@ void AtomBdAggr::derived_idx(size_t idx) {
     derived_idx_ = idx;
 }
 
-[[nodiscard]] auto AtomBdAggr::state() const -> AtomBdAggrState { return state_; }
+[[nodiscard]] auto AtomBdAggr::state() const -> AtomBdAggrState {
+    return state_;
+}
 
 void AtomBdAggr::state(AtomBdAggrState state) {
     assert(state_ == AtomBdAggrState::unknown);
@@ -114,9 +116,13 @@ void AtomBdAggr::dequeue() {
     enqueued_ = false;
 }
 
-void AtomBdAggr::add_elem(size_t idx) { elems_.emplace_back(idx); }
+void AtomBdAggr::add_elem(size_t idx) {
+    elems_.emplace_back(idx);
+}
 
-auto AtomBdAggr::elems() const -> std::span<size_t const> { return std::span{elems_.begin(), elems_.end()}; }
+auto AtomBdAggr::elems() const -> std::span<size_t const> {
+    return std::span{elems_.begin(), elems_.end()};
+}
 
 auto AtomBdAggr::todo() -> std::span<size_t const> {
     return std::span{elems_.begin() + static_cast<ssize_t>(propagated_), elems_.end()};
@@ -156,7 +162,9 @@ void BaseBdAggr::add(AtomMap::iterator it) {
     derived_.add(static_cast<size_t>(std::distance(atoms_.begin(), it)));
 }
 
-auto BaseBdAggr::size() const -> size_t { return derived_.size(); }
+auto BaseBdAggr::size() const -> size_t {
+    return derived_.size();
+}
 
 auto BaseBdAggr::index(Symbol const *sym) const -> size_t {
     if (auto it = atoms_.find(sym); it != atoms_.end() && it->second.state() != AtomBdAggrState::unknown) {
@@ -165,11 +173,17 @@ auto BaseBdAggr::index(Symbol const *sym) const -> size_t {
     return size();
 }
 
-auto BaseBdAggr::nth(size_t i) const -> AtomMap::const_iterator { return atoms_.nth(derived_[i]); }
+auto BaseBdAggr::nth(size_t i) const -> AtomMap::const_iterator {
+    return atoms_.nth(derived_[i]);
+}
 
-auto BaseBdAggr::nth(size_t i) -> AtomMap::iterator { return atoms_.nth(derived_[i]); }
+auto BaseBdAggr::nth(size_t i) -> AtomMap::iterator {
+    return atoms_.nth(derived_[i]);
+}
 
-auto BaseBdAggr::atoms() -> AtomMap & { return atoms_; }
+auto BaseBdAggr::atoms() -> AtomMap & {
+    return atoms_;
+}
 
 // definition of StateAggr
 
@@ -285,7 +299,9 @@ auto StateBdAggr::ElementKey::construct(auto &mbr, EvalContext const &ctx, Aggre
     return res;
 }
 
-auto StateBdAggr::ElementKey::span() const -> SymbolSpan { return SymbolSpan{syms_, n_}; }
+auto StateBdAggr::ElementKey::span() const -> SymbolSpan {
+    return SymbolSpan{syms_, n_};
+}
 
 auto StateBdAggr::ElementKey::hash() const -> size_t {
     return Util::value_hash_record<ElementKey>(n_, atom_idx_, span());
@@ -297,24 +313,38 @@ auto operator==(StateBdAggr::ElementKey const &a, StateBdAggr::ElementKey const 
 
 // NOLINTEND
 
-auto StateBdAggr::global() const -> VariableVec const & { return global_; }
+auto StateBdAggr::global() const -> VariableVec const & {
+    return global_;
+}
 
 auto StateBdAggr::symbols() -> SymbolVec & {
     symbols_.resize(global_.size());
     return symbols_;
 }
 
-auto StateBdAggr::guards() const -> GuardVec const & { return guards_; }
+auto StateBdAggr::guards() const -> GuardVec const & {
+    return guards_;
+}
 
-auto StateBdAggr::fun() const -> AggregateFunction { return fun_; }
+auto StateBdAggr::fun() const -> AggregateFunction {
+    return fun_;
+}
 
-auto StateBdAggr::domain() const -> bool { return domain_; }
+auto StateBdAggr::domain() const -> bool {
+    return domain_;
+}
 
-auto StateBdAggr::monotone() const -> bool { return monotone_; }
+auto StateBdAggr::monotone() const -> bool {
+    return monotone_;
+}
 
-auto StateBdAggr::single_pass_elems() const -> bool { return single_pass_elems_; }
+auto StateBdAggr::single_pass_elems() const -> bool {
+    return single_pass_elems_;
+}
 
-auto StateBdAggr::index() const -> size_t { return index_; }
+auto StateBdAggr::index() const -> size_t {
+    return index_;
+}
 
 auto StateBdAggr::propagate() -> bool {
     bool res = false;
@@ -407,7 +437,9 @@ void StateBdAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmB
     }
 }
 
-auto StateBdAggr::atom_index_(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
+auto StateBdAggr::atom_index_(AtomMap::iterator it) -> size_t {
+    return it - base_.atoms().begin();
+}
 
 void StateBdAggr::print(std::ostream &out, bool print_index) {
     auto it = guards_.begin();
@@ -424,7 +456,9 @@ void StateBdAggr::print(std::ostream &out, bool print_index) {
     }
 }
 
-auto StateBdAggr::base() -> BaseBdAggr & { return base_; }
+auto StateBdAggr::base() -> BaseBdAggr & {
+    return base_;
+}
 
 void StateBdAggr::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolStore &store, OutputStm &out) {
     std::vector<std::pair<SymbolSpan, std::span<size_t const>>> elems;
@@ -449,7 +483,9 @@ void StateBdAggr::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolSt
 
 // definition of MatchAggr
 
-auto MatchBdAggr::vars() const -> VariableSet { return VariableSet{state_->global().begin(), state_->global().end()}; }
+auto MatchBdAggr::vars() const -> VariableSet {
+    return VariableSet{state_->global().begin(), state_->global().end()};
+}
 
 auto MatchBdAggr::signature(VariableSet const &bound, [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
     static_cast<void>(this);
@@ -486,7 +522,9 @@ auto MatchBdAggr::eval(EvalContext const &ctx) const -> std::optional<Symbol con
     return eval_.data();
 }
 
-auto MatchBdAggr::state() const -> StateBdAggr & { return *state_; }
+auto MatchBdAggr::state() const -> StateBdAggr & {
+    return *state_;
+}
 
 auto operator<<(std::ostream &out, MatchBdAggr const &m) -> std::ostream & {
     m.state_->print(out, false);
@@ -551,7 +589,9 @@ auto LitBdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const 
     return 0;
 }
 
-void LitBdAggr::do_print(std::ostream &out) const { state().print(out, true); }
+void LitBdAggr::do_print(std::ostream &out) const {
+    state().print(out, true);
+}
 
 auto LitBdAggr::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool {
     if (domain()) {
@@ -591,20 +631,28 @@ auto LitBdAggr::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &ou
     return true;
 }
 
-auto LitBdAggr::do_copy() const -> ULit { return std::make_unique<LitBdAggr>(state(), sign_); }
+auto LitBdAggr::do_copy() const -> ULit {
+    return std::make_unique<LitBdAggr>(state(), sign_);
+}
 
 auto LitBdAggr::do_hash() const -> size_t {
     // NOLINTNEXTLINE
     return Util::value_hash_record<LitBdAggr>(reinterpret_cast<uintptr_t>(this));
 }
 
-auto LitBdAggr::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitBdAggr::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitBdAggr::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitBdAggr::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 // definition of StmAggrElem
 
-auto StmBdAggrElem::do_body() const -> ULitVec const & { return body_; }
+auto StmBdAggrElem::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmBdAggrElem::do_important() const -> VariableSet {
     auto res = VariableSet{};
@@ -622,7 +670,9 @@ auto StmBdAggrElem::do_is_important(size_t index) const -> bool {
     return index < num_cond_;
 }
 
-void StmBdAggrElem::do_init(size_t gen) { state_->base().ensure(gen); }
+void StmBdAggrElem::do_init(size_t gen) {
+    state_->base().ensure(gen);
+}
 
 auto StmBdAggrElem::get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool> {
     bool fact = true;
@@ -652,7 +702,9 @@ void StmBdAggrElem::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_un
     }
 }
 
-auto StmBdAggrElem::do_priority() const -> size_t { return priority_; }
+auto StmBdAggrElem::do_priority() const -> size_t {
+    return priority_;
+}
 
 void StmBdAggrElem::do_print_head(std::ostream &out) const {
     auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
@@ -757,7 +809,9 @@ auto LitBdAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) c
     return 100;
 }
 
-void LitBdAggrStrat::do_print(std::ostream &out) const { state_->print(out, true); }
+void LitBdAggrStrat::do_print(std::ostream &out) const {
+    state_->print(out, true);
+}
 
 auto LitBdAggrStrat::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool {
     if (domain()) {
@@ -774,15 +828,21 @@ auto LitBdAggrStrat::do_output([[maybe_unused]] EvalContext const &ctx, OutputLi
     return true;
 }
 
-auto LitBdAggrStrat::do_copy() const -> ULit { return std::make_unique<LitBdAggrStrat>(*state_, elems_, sign_); }
+auto LitBdAggrStrat::do_copy() const -> ULit {
+    return std::make_unique<LitBdAggrStrat>(*state_, elems_, sign_);
+}
 
 auto LitBdAggrStrat::do_hash() const -> size_t {
     // NOLINTNEXTLINE
     return Util::value_hash_record<LitBdAggrStrat>(reinterpret_cast<uintptr_t>(this));
 }
 
-auto LitBdAggrStrat::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitBdAggrStrat::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitBdAggrStrat::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitBdAggrStrat::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 } // namespace Clingo::Ground

@@ -13,9 +13,13 @@ Symbol::Symbol(clingo_symbol_t sym, bool acquire) noexcept : sym_{sym} {
     }
 }
 
-Symbol::Symbol(Symbol const &other) noexcept : sym_{other.sym_} { clingo_symbol_acquire(sym_); }
+Symbol::Symbol(Symbol const &other) noexcept : sym_{other.sym_} {
+    clingo_symbol_acquire(sym_);
+}
 
-Symbol::Symbol(Symbol &&other) noexcept : sym_{other.sym_} { clingo_symbol_acquire(sym_); }
+Symbol::Symbol(Symbol &&other) noexcept : sym_{other.sym_} {
+    clingo_symbol_acquire(sym_);
+}
 
 auto Symbol::operator=(Symbol const &other) noexcept -> Symbol & {
     clingo_symbol_acquire(other.sym_);
@@ -31,7 +35,9 @@ auto Symbol::operator=(Symbol &&other) noexcept -> Symbol & {
     return *this;
 }
 
-Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
+Symbol::~Symbol() noexcept {
+    clingo_symbol_release(sym_);
+}
 
 auto Symbol::type() const -> clingo_symbol_type_e {
     return static_cast<clingo_symbol_type_e>(clingo_symbol_type(sym_));
@@ -168,19 +174,29 @@ auto Symbol::match_tuple(size_t arity) const -> bool {
     return type() == clingo_symbol_type_tuple && arity == this->arity();
 }
 
-auto Symbol::hash() const -> size_t { return clingo_symbol_hash(sym_); }
+auto Symbol::hash() const -> size_t {
+    return clingo_symbol_hash(sym_);
+}
 
-auto Symbol::handle() const -> clingo_symbol_t { return sym_; }
+auto Symbol::handle() const -> clingo_symbol_t {
+    return sym_;
+}
 
-auto operator==(Symbol const &a, Symbol const &b) -> bool { return clingo_symbol_equal(a.sym_, b.sym_); }
+auto operator==(Symbol const &a, Symbol const &b) -> bool {
+    return clingo_symbol_equal(a.sym_, b.sym_);
+}
 
 auto operator<=>(Symbol const &a, Symbol const &b) -> std::strong_ordering {
     return clingo_symbol_compare(a.sym_, b.sym_) <=> 0;
 }
 
-auto Infimum() -> Symbol { return Symbol{clingo_symbol_create_infimum(), false}; }
+auto Infimum() -> Symbol {
+    return Symbol{clingo_symbol_create_infimum(), false};
+}
 
-auto Supremum() -> Symbol { return Symbol{clingo_symbol_create_supremum(), false}; }
+auto Supremum() -> Symbol {
+    return Symbol{clingo_symbol_create_supremum(), false};
+}
 
 auto Number(Library &lib, py::int_ num) -> Symbol {
     int overflow = 0;

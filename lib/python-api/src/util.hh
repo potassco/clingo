@@ -57,10 +57,18 @@ auto compare(T const &t, std::variant<Ts...> const &v) {
         .def("__gt__", [](S const &a, T const &b) -> bool { return Detail::compare(a, b) > 0; })
 
 #define CLINGO_CPP_TOTAL_ORDER(type, T)                                                                                \
-    [[maybe_unused]] type auto operator!=(T const &a, T const &b)->bool { return !(a == b); }                          \
-    [[maybe_unused]] type auto operator<=(T const &a, T const &b)->bool { return !(b < a); }                           \
-    [[maybe_unused]] type auto operator>(T const &a, T const &b)->bool { return b < a; }                               \
-    [[maybe_unused]] type auto operator>=(T const &a, T const &b)->bool { return !(a < b); }
+    [[maybe_unused]] type auto operator!=(T const &a, T const &b)->bool {                                              \
+        return !(a == b);                                                                                              \
+    }                                                                                                                  \
+    [[maybe_unused]] type auto operator<=(T const &a, T const &b)->bool {                                              \
+        return !(b < a);                                                                                               \
+    }                                                                                                                  \
+    [[maybe_unused]] type auto operator>(T const &a, T const &b)->bool {                                               \
+        return b < a;                                                                                                  \
+    }                                                                                                                  \
+    [[maybe_unused]] type auto operator>=(T const &a, T const &b)->bool {                                              \
+        return !(a < b);                                                                                               \
+    }
 
 // NOLINTEND(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
 

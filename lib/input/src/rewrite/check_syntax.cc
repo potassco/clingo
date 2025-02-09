@@ -277,16 +277,24 @@ struct CheckSyntax {
 
 } // namespace
 
-auto check_term(Logger &log, Term const &term) -> bool { return CheckSyntax{log}(term); }
+auto check_term(Logger &log, Term const &term) -> bool {
+    return CheckSyntax{log}(term);
+}
 
 auto check_literal(Logger &log, Lit const &lit) -> bool {
     return CheckSyntax{log}(lit, SyntaxCheck::project | SyntaxCheck::project_tuple);
 }
 
-auto check_head_literal(Logger &log, HdLit const &lit) -> bool { return CheckSyntax{log}(lit); }
+auto check_head_literal(Logger &log, HdLit const &lit) -> bool {
+    return CheckSyntax{log}(lit);
+}
 
-auto check_body_literal(Logger &log, BdLit const &lit) -> bool { return CheckSyntax{log}(lit); }
+auto check_body_literal(Logger &log, BdLit const &lit) -> bool {
+    return CheckSyntax{log}(lit);
+}
 
-auto check_statement(Logger &log, Stm const &stm) -> bool { return CheckSyntax{log}(stm); }
+auto check_statement(Logger &log, Stm const &stm) -> bool {
+    return CheckSyntax{log}(stm);
+}
 
 } // namespace Clingo::Input

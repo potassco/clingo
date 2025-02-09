@@ -10,7 +10,9 @@ namespace Clingo::Ground {
 static constexpr double score_fast = -1.0;
 static constexpr double score_maybe_fast = -0.1;
 
-void LitInterval::do_print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << *upper_; }
+void LitInterval::do_print(std::ostream &out) const {
+    out << *lhs_ << "=" << *lower_ << ".." << *upper_;
+}
 
 auto LitInterval::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
@@ -20,9 +22,13 @@ auto LitInterval::do_copy() const -> ULit {
     return std::make_unique<LitInterval>(lhs_->copy(), lower_->copy(), upper_->copy());
 }
 
-auto LitInterval::do_domain() const -> bool { return true; }
+auto LitInterval::do_domain() const -> bool {
+    return true;
+}
 
-auto LitInterval::do_single_pass() const -> bool { return true; }
+auto LitInterval::do_single_pass() const -> bool {
+    return true;
+}
 
 void LitInterval::do_vars(VariableSet &vars, VarSelectMode mode) const {
     switch (mode) {
@@ -78,7 +84,9 @@ auto LitInterval::do_score(std::vector<bool> const &bound) const -> double {
     return 100;
 }
 
-auto LitInterval::do_hash() const -> size_t { return Util::value_hash_record<LitInterval>(lhs_, lower_, upper_); }
+auto LitInterval::do_hash() const -> size_t {
+    return Util::value_hash_record<LitInterval>(lhs_, lower_, upper_);
+}
 
 auto LitInterval::do_equal_to(Lit const &other) const -> bool {
     auto const *x = dynamic_cast<LitInterval const *>(&other);
@@ -98,7 +106,9 @@ auto LitInterval::do_compare_to(Lit const &other) const -> std::weak_ordering {
 
 // LitComparison
 
-void LitComparison::do_print(std::ostream &out) const { out << *lhs_ << cmp_ << *rhs_; }
+void LitComparison::do_print(std::ostream &out) const {
+    out << *lhs_ << cmp_ << *rhs_;
+}
 
 auto LitComparison::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
@@ -108,9 +118,13 @@ auto LitComparison::do_copy() const -> ULit {
     return std::make_unique<LitComparison>(lhs_->copy(), cmp_, rhs_->copy());
 }
 
-auto LitComparison::do_domain() const -> bool { return true; }
+auto LitComparison::do_domain() const -> bool {
+    return true;
+}
 
-auto LitComparison::do_single_pass() const -> bool { return true; }
+auto LitComparison::do_single_pass() const -> bool {
+    return true;
+}
 
 void LitComparison::do_vars(VariableSet &vars, VarSelectMode mode) const {
     if (cmp_ != Relation::equal) {
@@ -146,7 +160,9 @@ auto LitComparison::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resou
     return {make_comp_matcher(bound, *lhs_, cmp_, *rhs_), std::nullopt};
 }
 
-auto LitComparison::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return score_fast; }
+auto LitComparison::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    return score_fast;
+}
 
 auto LitComparison::do_hash() const -> size_t {
     if (cmp_ == Relation::equal && *rhs_ < *lhs_) {
@@ -195,9 +211,13 @@ auto LitExternal::do_copy() const -> ULit {
     return std::make_unique<LitExternal>(*ctx_, loc_, name_, lhs_->copy(), copy_uvec(args_));
 }
 
-auto LitExternal::do_domain() const -> bool { return true; }
+auto LitExternal::do_domain() const -> bool {
+    return true;
+}
 
-auto LitExternal::do_single_pass() const -> bool { return true; }
+auto LitExternal::do_single_pass() const -> bool {
+    return true;
+}
 
 void LitExternal::do_vars(VariableSet &vars, VarSelectMode mode) const {
     if (mode == VarSelectMode::all) {
@@ -277,13 +297,21 @@ auto LitExternal::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resourc
     return {std::make_unique<ExternalMatcher>(*this, vars.release()), std::nullopt};
 }
 
-auto LitExternal::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return score_maybe_fast; }
+auto LitExternal::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    return score_maybe_fast;
+}
 
-auto LitExternal::do_hash() const -> size_t { return Util::value_hash(std::hash<LitExternal const *>{}(this)); }
+auto LitExternal::do_hash() const -> size_t {
+    return Util::value_hash(std::hash<LitExternal const *>{}(this));
+}
 
-auto LitExternal::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitExternal::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitExternal::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitExternal::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 // LitSymbolic
 
@@ -332,9 +360,13 @@ auto LitSymbolic::do_copy() const -> ULit {
     return std::make_unique<LitSymbolic>(*base_, sign_, atom_->copy(), index_, domain_);
 }
 
-auto LitSymbolic::do_domain() const -> bool { return domain_ || (index_ == stratified_index && base_->domain()); }
+auto LitSymbolic::do_domain() const -> bool {
+    return domain_ || (index_ == stratified_index && base_->domain());
+}
 
-auto LitSymbolic::do_single_pass() const -> bool { return sign_ != Sign::none || index_ == stratified_index; }
+auto LitSymbolic::do_single_pass() const -> bool {
+    return sign_ != Sign::none || index_ == stratified_index;
+}
 
 void LitSymbolic::do_vars(VariableSet &vars, VarSelectMode mode) const {
     switch (mode) {
@@ -383,11 +415,17 @@ auto LitSymbolic::do_score(std::vector<bool> const &bound) const -> double {
     return 0;
 }
 
-auto LitSymbolic::do_hash() const -> size_t { return Util::value_hash_record<LitSymbolic>(sign_, atom_); }
+auto LitSymbolic::do_hash() const -> size_t {
+    return Util::value_hash_record<LitSymbolic>(sign_, atom_);
+}
 
-auto LitSymbolic::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitSymbolic::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitSymbolic::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitSymbolic::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 void LitProject::do_print(std::ostream &out) const {
     out << sign_ << *atom_;
@@ -415,7 +453,9 @@ auto LitProject::do_domain() const -> bool {
     return domain_ || (index_ == stratified_index && state_->base().domain());
 }
 
-auto LitProject::do_single_pass() const -> bool { return sign_ != Sign::none || index_ == stratified_index; }
+auto LitProject::do_single_pass() const -> bool {
+    return sign_ != Sign::none || index_ == stratified_index;
+}
 
 void LitProject::do_vars(VariableSet &vars, VarSelectMode mode) const {
     switch (mode) {
@@ -480,11 +520,17 @@ auto LitProject::do_score(std::vector<bool> const &bound) const -> double {
     return 0;
 }
 
-auto LitProject::do_hash() const -> size_t { return Util::value_hash_record<LitProject>(sign_, atom_); }
+auto LitProject::do_hash() const -> size_t {
+    return Util::value_hash_record<LitProject>(sign_, atom_);
+}
 
-auto LitProject::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitProject::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitProject::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitProject::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 // definition of LitTuple
 
@@ -531,9 +577,13 @@ void LitTuple::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitTuple::do_domain() const -> bool { return true; }
+auto LitTuple::do_domain() const -> bool {
+    return true;
+}
 
-auto LitTuple::do_single_pass() const -> bool { return true; }
+auto LitTuple::do_single_pass() const -> bool {
+    return true;
+}
 
 auto LitTuple::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr, [[maybe_unused]] MatcherType type,
                           std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
@@ -546,7 +596,9 @@ auto LitTuple::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &
     return {std::make_unique<MatcherLitTuple>(std::move(bind), vars_, *syms_), std::nullopt};
 }
 
-auto LitTuple::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 0; }
+auto LitTuple::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    return 0;
+}
 
 void LitTuple::do_print(std::ostream &out) const {
     out << "#once(" << Util::p_range(vars_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
@@ -556,7 +608,9 @@ auto LitTuple::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused
     return false;
 }
 
-auto LitTuple::do_copy() const -> ULit { return std::make_unique<LitTuple>(vars_, *syms_); }
+auto LitTuple::do_copy() const -> ULit {
+    return std::make_unique<LitTuple>(vars_, *syms_);
+}
 
 auto LitTuple::do_hash() const -> size_t {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -577,9 +631,13 @@ auto LitTuple::do_compare_to(Lit const &other) const -> std::weak_ordering {
 
 // LitCheck
 
-auto LitCheck::do_single_pass() const -> bool { return true; }
+auto LitCheck::do_single_pass() const -> bool {
+    return true;
+}
 
-auto LitCheck::do_domain() const -> bool { return true; }
+auto LitCheck::do_domain() const -> bool {
+    return true;
+}
 
 auto LitCheck::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
@@ -607,21 +665,34 @@ auto LitCheck::do_score([[maybe_unused]] std::vector<bool> const &bound) const -
     return std::numeric_limits<double>::max();
 }
 
-auto LitCheck::do_hash() const -> size_t { return typeid(this).hash_code(); }
+auto LitCheck::do_hash() const -> size_t {
+    return typeid(this).hash_code();
+}
 
-auto LitCheck::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitCheck::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitCheck::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitCheck::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 // definition of LitBool
 
-void LitBool::do_print(std::ostream &out) const { out << (value_ ? "#true" : "#false"); }
+void LitBool::do_print(std::ostream &out) const {
+    out << (value_ ? "#true" : "#false");
+}
 
-auto LitBool::do_copy() const -> ULit { return std::make_unique<LitBool>(value_); }
+auto LitBool::do_copy() const -> ULit {
+    return std::make_unique<LitBool>(value_);
+}
 
-void LitBool::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {}
+void LitBool::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {
+}
 
-auto LitBool::do_check([[maybe_unused]] EvalContext const &ctx) -> bool { return value_; }
+auto LitBool::do_check([[maybe_unused]] EvalContext const &ctx) -> bool {
+    return value_;
+}
 
 // LitFactCheck
 
@@ -639,9 +710,13 @@ void LitFactCheck::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-void LitFactCheck::do_print(std::ostream &out) const { out << "#not_fact " << *atom_; }
+void LitFactCheck::do_print(std::ostream &out) const {
+    out << "#not_fact " << *atom_;
+}
 
-auto LitFactCheck::do_copy() const -> ULit { return std::make_unique<LitFactCheck>(*base_, *atom_, *target_); }
+auto LitFactCheck::do_copy() const -> ULit {
+    return std::make_unique<LitFactCheck>(*base_, *atom_, *target_);
+}
 
 // LitFailCheck
 
@@ -658,7 +733,9 @@ void LitFailCheck::do_print(std::ostream &out) const {
     out << "#check(" << Util::p_range(terms_, [](std::ostream &out, auto const &x) { out << *x; }) << ")";
 }
 
-auto LitFailCheck::do_copy() const -> ULit { return std::make_unique<LitFailCheck>(copy_uvec(terms_)); }
+auto LitFailCheck::do_copy() const -> ULit {
+    return std::make_unique<LitFailCheck>(copy_uvec(terms_));
+}
 
 void LitFailCheck::do_vars(VariableSet &vars, VarSelectMode mode) const {
     if (mode != VarSelectMode::provide) {
@@ -691,9 +768,13 @@ auto LitSimpleAggr::do_copy() const -> ULit {
     return std::make_unique<LitSimpleAggr>(lhs_->copy(), cmp_, fun_, copy_uvec(tuples_));
 }
 
-auto LitSimpleAggr::do_domain() const -> bool { return true; }
+auto LitSimpleAggr::do_domain() const -> bool {
+    return true;
+}
 
-auto LitSimpleAggr::do_single_pass() const -> bool { return true; }
+auto LitSimpleAggr::do_single_pass() const -> bool {
+    return true;
+}
 
 void LitSimpleAggr::do_vars(VariableSet &vars, VarSelectMode mode) const {
     if (cmp_ != Relation::equal) {
@@ -821,12 +902,20 @@ auto LitSimpleAggr::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resou
     return {std::make_unique<AggrMatcher>(*this, std::move(free)), std::nullopt};
 }
 
-auto LitSimpleAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return score_fast; }
+auto LitSimpleAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    return score_fast;
+}
 
-auto LitSimpleAggr::do_hash() const -> size_t { return Util::value_hash(std::hash<LitSimpleAggr const *>{}(this)); }
+auto LitSimpleAggr::do_hash() const -> size_t {
+    return Util::value_hash(std::hash<LitSimpleAggr const *>{}(this));
+}
 
-auto LitSimpleAggr::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitSimpleAggr::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitSimpleAggr::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitSimpleAggr::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 } // namespace Clingo::Ground

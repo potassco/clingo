@@ -1,11 +1,13 @@
-#ifndef CLINGO_SOLVE_H
-#define CLINGO_SOLVE_H
+#ifndef CLINGO_CONFIG_H
+#define CLINGO_CONFIG_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <clingo/core.h>
+
+typedef struct clingo_control clingo_control_t;
 
 //! @example config.c
 //! The example shows how to configure the solver.
@@ -174,6 +176,13 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_value_get(clingo_config_
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_value_set(clingo_config_t *config, clingo_id_t key,
                                                                   char const *value);
 //! @}
+
+//! Get the configuration object.
+//!
+//! @param[in] control the target
+//! @param[out] config the configuration
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_config(clingo_control_t *control, clingo_config_t **config);
 
 //! @}
 

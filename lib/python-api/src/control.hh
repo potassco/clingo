@@ -2,6 +2,7 @@
 
 #include "ast.hh"
 #include "base.hh"
+#include "config.hh"
 #include "solving.hh"
 #include "symbol.hh"
 
@@ -22,6 +23,7 @@ class Control {
     auto solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model, bool yield, bool async)
         -> SSolveHandle;
     auto base() -> Base;
+    auto config() -> Config;
     void main();
     auto buffer() -> char const *;
 

@@ -291,9 +291,12 @@ using BdLitTheoryAtom = TheoryAtom<true>;
 // TheoryTermTuple
 
 inline TheoryTermTuple::TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermArray elems)
-    : loc_{std::move(loc)}, type_(type), elems_{std::move(elems)} {}
+    : loc_{std::move(loc)}, type_(type), elems_{std::move(elems)} {
+}
 
-inline auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool { return a.equal(b); }
+inline auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool {
+    return a.equal(b);
+}
 
 inline auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> std::strong_ordering {
     return a.compare(b);
@@ -302,12 +305,16 @@ inline auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> s
 // TheoryTermFunction
 
 inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryTermArray args)
-    : loc_{std::move(loc)}, name_(name), args_{std::move(args)} {}
+    : loc_{std::move(loc)}, name_(name), args_{std::move(args)} {
+}
 
 inline TheoryTermFunction::TheoryTermFunction(Location loc, String name)
-    : TheoryTermFunction{std::move(loc), name, {}} {}
+    : TheoryTermFunction{std::move(loc), name, {}} {
+}
 
-inline auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool { return a.equal(b); }
+inline auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool {
+    return a.equal(b);
+}
 
 inline auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b) -> std::strong_ordering {
     return a.compare(b);
@@ -316,9 +323,12 @@ inline auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b
 // TheoryTermUnparsed
 
 inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, UnparsedElementArray elems)
-    : loc_{std::move(loc)}, elems_{std::move(elems)} {}
+    : loc_{std::move(loc)}, elems_{std::move(elems)} {
+}
 
-inline auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool { return a.equal(b); }
+inline auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool {
+    return a.equal(b);
+}
 
 inline auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> std::strong_ordering {
     return a.compare(b);

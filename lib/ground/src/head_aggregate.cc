@@ -101,9 +101,13 @@ void AtomHdAggr::dequeue() {
     enqueued_ = false;
 }
 
-void AtomHdAggr::add_elem(size_t idx) { elems_.emplace_back(idx); }
+void AtomHdAggr::add_elem(size_t idx) {
+    elems_.emplace_back(idx);
+}
 
-auto AtomHdAggr::elems() const -> std::span<size_t const> { return std::span{elems_.begin(), elems_.end()}; }
+auto AtomHdAggr::elems() const -> std::span<size_t const> {
+    return std::span{elems_.begin(), elems_.end()};
+}
 
 auto AtomHdAggr::todo() -> std::span<size_t const> {
     return std::span{elems_.begin() + static_cast<ssize_t>(propagated_), elems_.end()};
@@ -134,15 +138,25 @@ auto BaseHdAggr::add(Symbol const *sym, AggregateFunction fun) -> std::pair<Atom
     return atoms_.try_emplace(sym, fun);
 }
 
-auto BaseHdAggr::size() const -> size_t { return atoms_.size(); }
+auto BaseHdAggr::size() const -> size_t {
+    return atoms_.size();
+}
 
-auto BaseHdAggr::index(Symbol const *sym) const -> size_t { return atoms_.find(sym) - atoms_.begin(); }
+auto BaseHdAggr::index(Symbol const *sym) const -> size_t {
+    return atoms_.find(sym) - atoms_.begin();
+}
 
-auto BaseHdAggr::nth(size_t i) const -> AtomMap::const_iterator { return atoms_.nth(i); }
+auto BaseHdAggr::nth(size_t i) const -> AtomMap::const_iterator {
+    return atoms_.nth(i);
+}
 
-auto BaseHdAggr::nth(size_t i) -> AtomMap::iterator { return atoms_.nth(i); }
+auto BaseHdAggr::nth(size_t i) -> AtomMap::iterator {
+    return atoms_.nth(i);
+}
 
-auto BaseHdAggr::atoms() -> AtomMap & { return atoms_; }
+auto BaseHdAggr::atoms() -> AtomMap & {
+    return atoms_;
+}
 
 // definition of StateAggr
 
@@ -244,13 +258,21 @@ auto StateHdAggr::ElementKey::construct(auto &mbr, EvalContext const &ctx, Aggre
     return res;
 }
 
-void StateHdAggr::ElementKey::mark_fact() const { n_ |= 1; }
+void StateHdAggr::ElementKey::mark_fact() const {
+    n_ |= 1;
+}
 
-auto StateHdAggr::ElementKey::fact() const -> bool { return n_ & 1; }
+auto StateHdAggr::ElementKey::fact() const -> bool {
+    return n_ & 1;
+}
 
-auto StateHdAggr::ElementKey::size() const -> size_t { return n_ >> 1; }
+auto StateHdAggr::ElementKey::size() const -> size_t {
+    return n_ >> 1;
+}
 
-auto StateHdAggr::ElementKey::span() const -> SymbolSpan { return SymbolSpan{syms_, size()}; }
+auto StateHdAggr::ElementKey::span() const -> SymbolSpan {
+    return SymbolSpan{syms_, size()};
+}
 
 auto StateHdAggr::ElementKey::hash() const -> size_t {
     return Util::value_hash_record<ElementKey>(size(), atom_idx_, span());
@@ -263,20 +285,30 @@ auto operator==(StateHdAggr::ElementKey const &a, StateHdAggr::ElementKey const 
 
 // NOLINTEND
 
-auto StateHdAggr::global() const -> VariableVec const & { return global_; }
+auto StateHdAggr::global() const -> VariableVec const & {
+    return global_;
+}
 
 auto StateHdAggr::symbols() -> SymbolVec & {
     symbols_.resize(global_.size());
     return symbols_;
 }
 
-auto StateHdAggr::guards() const -> GuardVec const & { return guards_; }
+auto StateHdAggr::guards() const -> GuardVec const & {
+    return guards_;
+}
 
-auto StateHdAggr::fun() const -> AggregateFunction { return fun_; }
+auto StateHdAggr::fun() const -> AggregateFunction {
+    return fun_;
+}
 
-auto StateHdAggr::single_pass_body() const -> bool { return single_pass_body_; }
+auto StateHdAggr::single_pass_body() const -> bool {
+    return single_pass_body_;
+}
 
-auto StateHdAggr::index() const -> size_t { return index_; }
+auto StateHdAggr::index() const -> size_t {
+    return index_;
+}
 
 auto StateHdAggr::indices() const -> std::vector<size_t> {
     std::vector<size_t> res;
@@ -288,7 +320,9 @@ auto StateHdAggr::indices() const -> std::vector<size_t> {
     return res;
 }
 
-auto StateHdAggr::base() -> BaseHdAggr & { return base_; }
+auto StateHdAggr::base() -> BaseHdAggr & {
+    return base_;
+}
 
 void StateHdAggr::enqueue(Queue &queue) {
     if (index_ != stratified_index && base_.has_update()) {
@@ -403,7 +437,9 @@ void StateHdAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmH
     }
 }
 
-auto StateHdAggr::atom_index_(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
+auto StateHdAggr::atom_index_(AtomMap::iterator it) -> size_t {
+    return it - base_.atoms().begin();
+}
 
 void StateHdAggr::print(std::ostream &out, bool print_index) {
     auto it = guards_.begin();
@@ -443,7 +479,9 @@ void StateHdAggr::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolSt
 
 // definition of StmHdAggr
 
-auto StmHdAggr::do_body() const -> ULitVec const & { return body_; }
+auto StmHdAggr::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmHdAggr::do_important() const -> VariableSet {
     auto res = VariableSet{};
@@ -451,7 +489,9 @@ auto StmHdAggr::do_important() const -> VariableSet {
     return res;
 }
 
-void StmHdAggr::do_init(size_t gen) { state_->base().ensure(gen); }
+void StmHdAggr::do_init(size_t gen) {
+    state_->base().ensure(gen);
+}
 
 auto StmHdAggr::do_report(EvalContext const &ctx) -> bool {
     if (auto res = state_->insert_atom(ctx)) {
@@ -472,9 +512,13 @@ void StmHdAggr::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused
     state_->enqueue(queue);
 }
 
-auto StmHdAggr::do_priority() const -> size_t { return priority_; }
+auto StmHdAggr::do_priority() const -> size_t {
+    return priority_;
+}
 
-void StmHdAggr::do_print_head(std::ostream &out) const { state_->print(out, false); }
+void StmHdAggr::do_print_head(std::ostream &out) const {
+    state_->print(out, false);
+}
 
 void StmHdAggr::do_print(std::ostream &out) const {
     out << priority_ << ": ";
@@ -484,7 +528,9 @@ void StmHdAggr::do_print(std::ostream &out) const {
 
 // definition of StmHdAggrElem
 
-auto StmHdAggrElem::do_body() const -> ULitVec const & { return body_; }
+auto StmHdAggrElem::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmHdAggrElem::do_important() const -> VariableSet {
     auto res = VariableSet{};
@@ -529,7 +575,9 @@ void StmHdAggrElem::do_propagate([[maybe_unused]] SymbolStore &store, OutputStm 
     state_->propagate(out, queue);
 }
 
-auto StmHdAggrElem::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }
+auto StmHdAggrElem::do_priority() const -> size_t {
+    return std::numeric_limits<size_t>::max();
+}
 
 void StmHdAggrElem::do_print_head(std::ostream &out) const {
     auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
@@ -554,7 +602,9 @@ void StmHdAggrElem::do_print(std::ostream &out) const {
 
 // definition of MatchHdAggr
 
-auto MatchHdAggr::vars() const -> VariableSet { return VariableSet{state_->global().begin(), state_->global().end()}; }
+auto MatchHdAggr::vars() const -> VariableSet {
+    return VariableSet{state_->global().begin(), state_->global().end()};
+}
 
 auto MatchHdAggr::signature(VariableSet const &bound, [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
     static_cast<void>(this);
@@ -591,7 +641,9 @@ auto MatchHdAggr::eval(EvalContext const &ctx) const -> std::optional<Symbol con
     return eval_.data();
 }
 
-auto MatchHdAggr::state() const -> StateHdAggr & { return *state_; }
+auto MatchHdAggr::state() const -> StateHdAggr & {
+    return *state_;
+}
 
 auto operator<<(std::ostream &out, MatchHdAggr const &m) -> std::ostream & {
     m.state_->print(out, false);
@@ -611,7 +663,9 @@ auto LitHdAggr::do_domain() const -> bool {
     return true;
 }
 
-auto LitHdAggr::do_single_pass() const -> bool { return state().single_pass_body(); }
+auto LitHdAggr::do_single_pass() const -> bool {
+    return state().single_pass_body();
+}
 
 auto LitHdAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type, std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
@@ -630,21 +684,29 @@ auto LitHdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const 
     return 0;
 }
 
-void LitHdAggr::do_print(std::ostream &out) const { state().print(out, true); }
+void LitHdAggr::do_print(std::ostream &out) const {
+    state().print(out, true);
+}
 
 auto LitHdAggr::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
-auto LitHdAggr::do_copy() const -> ULit { return std::make_unique<LitHdAggr>(state()); }
+auto LitHdAggr::do_copy() const -> ULit {
+    return std::make_unique<LitHdAggr>(state());
+}
 
 auto LitHdAggr::do_hash() const -> size_t {
     // NOLINTNEXTLINE
     return Util::value_hash_record<LitHdAggr>(reinterpret_cast<uintptr_t>(this));
 }
 
-auto LitHdAggr::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitHdAggr::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitHdAggr::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitHdAggr::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 } // namespace Clingo::Ground

@@ -16,9 +16,13 @@ Control::Control(Library &lib, std::vector<std::string> const &args) {
     ctl_.reset(ctl);
 }
 
-void Control::join(Program &prg) { handle_error(clingo_control_join(ctl_.get(), prg)); }
+void Control::join(Program &prg) {
+    handle_error(clingo_control_join(ctl_.get(), prg));
+}
 
-void Control::parse_string(char const *str) { handle_error(clingo_control_parse_string(ctl_.get(), str)); }
+void Control::parse_string(char const *str) {
+    handle_error(clingo_control_parse_string(ctl_.get(), str));
+}
 
 auto Control::ctx_(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location, char const *name,
                    clingo_symbol_t const *arguments, size_t arguments_size, void *data,
@@ -81,6 +85,14 @@ auto Control::base() -> Base {
     return {base};
 }
 
+auto Control::config() -> Config {
+    clingo_config_t *config = nullptr;
+    handle_error(clingo_control_config(ctl_.get(), &config));
+    clingo_id_t key = 0;
+    handle_error(clingo_config_root(config, &key));
+    return Config{config, key};
+}
+
 auto Control::solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model, bool yield, bool async)
     -> SSolveHandle {
     auto res = std::make_shared<SolveHandle>(std::move(on_model));
@@ -113,7 +125,9 @@ auto Control::solve(AssumptionVec const &assumptions, std::optional<ModelCallbac
     return res;
 }
 
-void Control::main() { handle_error(clingo_control_main(ctl_.get())); }
+void Control::main() {
+    handle_error(clingo_control_main(ctl_.get()));
+}
 
 auto Control::buffer() -> char const * {
     char const *ret = nullptr;
@@ -224,7 +238,8 @@ This function proceeds as clingo calling the main function from a script if
 there is any.
 )"_d)
         .def_property_readonly("buffer", &Control::buffer, R"(The content of the output bufer.)")
-        .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)");
+        .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)")
+        .def_property_readonly("config", &Control::config, R"(Get the solver configuration.)");
 }
 
 } // namespace Clingo::Python

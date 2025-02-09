@@ -33,7 +33,9 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
 }
 
 //! Return a Boolean literal with the given location and truth value.
-[[nodiscard]] auto make_constant(Location loc, bool truth) -> Lit { return LitBool{std::move(loc), Sign::none, truth}; }
+[[nodiscard]] auto make_constant(Location loc, bool truth) -> Lit {
+    return LitBool{std::move(loc), Sign::none, truth};
+}
 
 //! Ensure that the term only matches numbers.
 [[nodiscard]] auto as_linear_term(Term term) -> Term {
@@ -69,7 +71,9 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
     return {true, std::move(res_terms).as_optional()};
 }
 
-[[nodiscard]] auto all_symbol(TermArray const &terms) -> bool { return std::ranges::all_of(terms, is_symbol); }
+[[nodiscard]] auto all_symbol(TermArray const &terms) -> bool {
+    return std::ranges::all_of(terms, is_symbol);
+}
 
 //! The detected type of a term.
 enum class TermType : uint8_t {

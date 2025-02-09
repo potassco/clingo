@@ -202,7 +202,9 @@ template <class Lit> using NodeVec = std::vector<Node<Lit>>;
     return LitComparison{rel.loc(), rel.sign(), rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs()})};
 }
 
-[[nodiscard]] auto flip(BdLit const &lit) -> BdLit { return flip(std::get<BdLitSimple>(lit).lit()); }
+[[nodiscard]] auto flip(BdLit const &lit) -> BdLit {
+    return flip(std::get<BdLitSimple>(lit).lit());
+}
 
 [[nodiscard]] auto is_provided(VariableSet const &provided, auto const &vars) {
     return std::ranges::all_of(vars,
@@ -262,7 +264,9 @@ template <class Span>
     return res;
 }
 
-void vv_(auto const &x, VarVisitFun fun) { visit_variables(x, std::move(fun)); }
+void vv_(auto const &x, VarVisitFun fun) {
+    visit_variables(x, std::move(fun));
+}
 
 template <class T> void vv_(Util::immutable_array<T> const &vec, VarVisitFun const &fun) {
     for (auto const &term : vec) {

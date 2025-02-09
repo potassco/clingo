@@ -5,7 +5,9 @@
 
 #include <clingo/input/rewrite/evaluate.hh>
 
-extern "C" void clingo_symbol_acquire(clingo_symbol_t symbol) { Clingo::Symbol::from_rep(symbol).acquire(); }
+extern "C" void clingo_symbol_acquire(clingo_symbol_t symbol) {
+    Clingo::Symbol::from_rep(symbol).acquire();
+}
 
 extern "C" void clingo_symbol_release(clingo_symbol_t symbol) {
     if (symbol != 0) {
@@ -179,7 +181,9 @@ extern "C" auto clingo_symbol_compare(clingo_symbol_t a, clingo_symbol_t b) -> i
     return c_cast(sym_a <=> sym_b);
 }
 
-extern "C" auto clingo_symbol_hash(clingo_symbol_t symbol) -> size_t { return Clingo::Symbol::from_rep(symbol).hash(); }
+extern "C" auto clingo_symbol_hash(clingo_symbol_t symbol) -> size_t {
+    return Clingo::Symbol::from_rep(symbol).hash();
+}
 
 extern "C" auto clingo_parse_term(clingo_lib_t *lib, char const *string, clingo_symbol_t *symbol) -> clingo_result_t {
     CLINGO_TRY {

@@ -166,6 +166,8 @@ class BuilderStm {
 
 } // namespace
 
-void build_stm(BuildContext &ctx, Input::Stm const &stm) { std::visit(BuilderStm{ctx}, stm); }
+void build_stm(BuildContext &ctx, Input::Stm const &stm) {
+    std::visit(BuilderStm{ctx}, stm);
+}
 
 } // namespace Clingo::Control

@@ -39,7 +39,9 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
     return ret;
 }
 
-template <class T> auto c_cast(Iterable<T> const &it) { return c_cast(it.vector()); }
+template <class T> auto c_cast(Iterable<T> const &it) {
+    return c_cast(it.vector());
+}
 
 template <class Cons>
 void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args,
@@ -118,7 +120,9 @@ class ASTBase {
     clingo_ast_t *ast_ = nullptr;
 };
 
-auto c_cast(ASTBase const &x) -> clingo_ast_t * { return x.ast_; }
+auto c_cast(ASTBase const &x) -> clingo_ast_t * {
+    return x.ast_;
+}
 
 struct CString {
     CString(char const *str) : str_{str} {}
@@ -2310,7 +2314,8 @@ auto Projection::construct(Library &lib, Location const &location) -> Projection
 }
 
 void Projection::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                       [[maybe_unused]] py::kwargs const &kwargs) {}
+                       [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto Projection::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                            [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -2476,7 +2481,8 @@ auto TermVariable::construct(Library &lib, Location const &location, char const 
 }
 
 void TermVariable::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                         [[maybe_unused]] py::kwargs const &kwargs) {}
+                         [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto TermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -2510,7 +2516,8 @@ auto TermSymbolic::construct(Library &lib, Location const &location, Symbol cons
 }
 
 void TermSymbolic::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                         [[maybe_unused]] py::kwargs const &kwargs) {}
+                         [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto TermSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -2948,7 +2955,8 @@ auto LiteralBoolean::construct(Library &lib, Location const &location, Sign cons
 }
 
 void LiteralBoolean::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                           [[maybe_unused]] py::kwargs const &kwargs) {}
+                           [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto LiteralBoolean::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -3204,7 +3212,8 @@ auto TheoryTermVariable::construct(Library &lib, Location const &location, char 
 }
 
 void TheoryTermVariable::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                               [[maybe_unused]] py::kwargs const &kwargs) {}
+                               [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto TheoryTermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                    [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -3239,7 +3248,8 @@ auto TheoryTermSymbolic::construct(Library &lib, Location const &location, Symbo
 }
 
 void TheoryTermSymbolic::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                               [[maybe_unused]] py::kwargs const &kwargs) {}
+                               [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto TheoryTermSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                    [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -4572,7 +4582,8 @@ auto TheoryOperatorDefinition::construct(Library &lib, Location const &location,
 }
 
 void TheoryOperatorDefinition::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                                     [[maybe_unused]] py::kwargs const &kwargs) {}
+                                     [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto TheoryOperatorDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                          [[maybe_unused]] py::args const &args,
@@ -4697,7 +4708,8 @@ auto TheoryGuardDefinition::construct(Library &lib, StringIterable const &operat
 }
 
 void TheoryGuardDefinition::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                                  [[maybe_unused]] py::kwargs const &kwargs) {}
+                                  [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto TheoryGuardDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                       [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -5329,7 +5341,8 @@ auto StatementShowNothing::construct(Library &lib, Location const &location) -> 
 }
 
 void StatementShowNothing::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                                 [[maybe_unused]] py::kwargs const &kwargs) {}
+                                 [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto StatementShowNothing::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                      [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -5376,7 +5389,8 @@ auto StatementShowSignature::construct(Library &lib, Location const &location, c
 }
 
 void StatementShowSignature::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                                   [[maybe_unused]] py::kwargs const &kwargs) {}
+                                   [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto StatementShowSignature::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                        [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -5478,7 +5492,8 @@ auto StatementProjectSignature::construct(Library &lib, Location const &location
 }
 
 void StatementProjectSignature::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                                      [[maybe_unused]] py::kwargs const &kwargs) {}
+                                      [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto StatementProjectSignature::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                           [[maybe_unused]] py::args const &args,
@@ -5529,7 +5544,8 @@ auto StatementDefined::construct(Library &lib, Location const &location, char co
 }
 
 void StatementDefined::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                             [[maybe_unused]] py::kwargs const &kwargs) {}
+                             [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto StatementDefined::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -5779,7 +5795,8 @@ auto StatementScript::construct(Library &lib, Location const &location, char con
 }
 
 void StatementScript::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                            [[maybe_unused]] py::kwargs const &kwargs) {}
+                            [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto StatementScript::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -5822,7 +5839,8 @@ auto StatementInclude::construct(Library &lib, Location const &location, char co
 }
 
 void StatementInclude::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                             [[maybe_unused]] py::kwargs const &kwargs) {}
+                             [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto StatementInclude::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -5868,7 +5886,8 @@ auto StatementProgram::construct(Library &lib, Location const &location, char co
 }
 
 void StatementProgram::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                             [[maybe_unused]] py::kwargs const &kwargs) {}
+                             [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto StatementProgram::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -5966,7 +5985,8 @@ auto StatementComment::construct(Library &lib, Location const &location, char co
 }
 
 void StatementComment::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
-                             [[maybe_unused]] py::kwargs const &kwargs) {}
+                             [[maybe_unused]] py::kwargs const &kwargs) {
+}
 
 auto StatementComment::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
@@ -6258,9 +6278,13 @@ Program::Program(Library &lib) {
     prg_.reset(prg);
 }
 
-void Program::free(clingo_program_t *prg) noexcept { clingo_program_free(prg); }
+void Program::free(clingo_program_t *prg) noexcept {
+    clingo_program_free(prg);
+}
 
-void add(Program &prg, Statement &stm) { handle_error(clingo_program_add(prg, c_cast(stm))); }
+void add(Program &prg, Statement &stm) {
+    handle_error(clingo_program_add(prg, c_cast(stm)));
+}
 
 void register_ast(pybind11::module &m) {
     auto ast = m.def_submodule(

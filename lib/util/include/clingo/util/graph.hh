@@ -58,7 +58,9 @@ class Graph {
     size_t phase_ = 0;
 };
 
-inline auto Graph::prev_phase_() const -> size_t { return phase_ == 0 ? 1 : 0; }
+inline auto Graph::prev_phase_() const -> size_t {
+    return phase_ == 0 ? 1 : 0;
+}
 
 inline void Graph::ensure_size(size_t n) {
     if (nodes_.size() < n) {

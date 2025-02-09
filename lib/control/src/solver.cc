@@ -480,7 +480,9 @@ class SolveHandleImpl : public SolveHandle {
 
 } // namespace
 
-void Scripts::register_script(std::string_view name, UScript script) { scripts_.emplace_back(name, std::move(script)); }
+void Scripts::register_script(std::string_view name, UScript script) {
+    scripts_.emplace_back(name, std::move(script));
+}
 
 void Scripts::do_exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) {
     bool found = false;
@@ -525,7 +527,8 @@ void Scripts::do_call(Location const &loc, std::string_view name, SymbolSpan arg
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
                Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
     : clasp_{&clasp}, clasp_config_{&clasp_config}, buf_{out}, out_{make_output_(store, mode)},
-      grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
+      grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {
+}
 
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
     switch (mode) {
@@ -605,13 +608,21 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
     return std::make_unique<SolveHandleFixed>();
 }
 
-void Solver::join(Input::UnprocessedProgram const &prg) { grd_.join(prg); }
+void Solver::join(Input::UnprocessedProgram const &prg) {
+    grd_.join(prg);
+}
 
-void Solver::parse(std::string_view str) { grd_.parse(str, scripts_); }
+void Solver::parse(std::string_view str) {
+    grd_.parse(str, scripts_);
+}
 
-void Solver::parse(std::span<std::string_view const> const &files) { grd_.parse(files, scripts_); }
+void Solver::parse(std::span<std::string_view const> const &files) {
+    grd_.parse(files, scripts_);
+}
 
-void Solver::add_const(String name, Symbol value) { grd_.add_const(name, value); }
+void Solver::add_const(String name, Symbol value) {
+    grd_.add_const(name, value);
+}
 
 void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) {
     if (mode_ == AppMode::solve && state_ != State::updated) {
@@ -621,8 +632,12 @@ void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback
     std::ignore = grd_.ground(params, ctx != nullptr ? ctx : scripts_);
 }
 
-void Solver::output_unprocessed_program(std::ostream &out) { grd_.output_unprocessed_program(out); }
+void Solver::output_unprocessed_program(std::ostream &out) {
+    grd_.output_unprocessed_program(out);
+}
 
-void Solver::output_program(std::ostream &out) { grd_.output_program(out); }
+void Solver::output_program(std::ostream &out) {
+    grd_.output_program(out);
+}
 
 } // namespace Clingo::Control

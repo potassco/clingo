@@ -250,15 +250,21 @@ auto ProjectionMap::projectable(String const &var, bool anonymous) const -> bool
     return it != counts_->end() && it->second == 1;
 }
 
-auto ProjectionMap::counts() const -> Util::unordered_map<String, size_t> const & { return *counts_; }
+auto ProjectionMap::counts() const -> Util::unordered_map<String, size_t> const & {
+    return *counts_;
+}
 
-auto ProjectionMap::mode() const -> ProjectionMode { return mode_; }
+auto ProjectionMap::mode() const -> ProjectionMode {
+    return mode_;
+}
 
 auto project(Term const &term, ProjectionMap project) -> std::optional<Term> {
     return Project{project}.transform(term);
 }
 
-auto project(Lit const &lit, ProjectionMap project) -> std::optional<Lit> { return Project{project}.transform(lit); }
+auto project(Lit const &lit, ProjectionMap project) -> std::optional<Lit> {
+    return Project{project}.transform(lit);
+}
 
 auto project(HdLit const &lit, ProjectionMap project) -> std::optional<HdLit> {
     return Project{project}.transform(lit);

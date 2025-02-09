@@ -436,11 +436,17 @@ auto check_linear(Term const &term) -> std::optional<LinearTerm> {
     return fun != nullptr && fun->external();
 }
 
-[[nodiscard]] auto is_interval(TermBinary const &term) -> bool { return term.op() == BinaryOperator::dots; }
+[[nodiscard]] auto is_interval(TermBinary const &term) -> bool {
+    return term.op() == BinaryOperator::dots;
+}
 
-[[nodiscard]] auto always_numeric(Term const &term) -> bool { return AlwaysNumeric{}(term); }
+[[nodiscard]] auto always_numeric(Term const &term) -> bool {
+    return AlwaysNumeric{}(term);
+}
 
-[[nodiscard]] auto never_numeric(Term const &term) -> bool { return NeverNumeric{}(term); }
+[[nodiscard]] auto never_numeric(Term const &term) -> bool {
+    return NeverNumeric{}(term);
+}
 
 auto is_atom(Term const &term) -> bool {
     return std::visit(
@@ -463,17 +469,29 @@ auto is_atom(Term const &term) -> bool {
         term);
 }
 
-auto is_atom(Lit const &lit) -> bool { return IsAtom{}(lit); }
+auto is_atom(Lit const &lit) -> bool {
+    return IsAtom{}(lit);
+}
 
-auto is_atom(HdLit const &lit) -> bool { return IsAtom{}(lit); }
+auto is_atom(HdLit const &lit) -> bool {
+    return IsAtom{}(lit);
+}
 
-auto is_atom(BdLit const &lit) -> bool { return IsAtom{}(lit); }
+auto is_atom(BdLit const &lit) -> bool {
+    return IsAtom{}(lit);
+}
 
-auto is_test(Lit const &lit) -> bool { return IsTest{}(lit); }
+auto is_test(Lit const &lit) -> bool {
+    return IsTest{}(lit);
+}
 
-auto is_test(BdLit const &lit) -> bool { return IsTest{}(lit); }
+auto is_test(BdLit const &lit) -> bool {
+    return IsTest{}(lit);
+}
 
-auto is_classical(HdLit const &lit) -> bool { return IsClassical{}(lit); }
+auto is_classical(HdLit const &lit) -> bool {
+    return IsClassical{}(lit);
+}
 
 auto is_fact(SymbolStore &store, StmRule const &rule) -> std::optional<Symbol> {
     if (auto const *head = std::get_if<HdLitSimple>(&rule.head()); head != nullptr && rule.body().empty()) {
@@ -514,12 +532,16 @@ auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> boo
     return true;
 }
 
-auto is_matchable(Term const &term) -> bool { return std::visit(IsMatchable{}, term); }
+auto is_matchable(Term const &term) -> bool {
+    return std::visit(IsMatchable{}, term);
+}
 
 auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, bool>> {
     return std::visit(GetSignature{}, term);
 }
 
-void extract_can_fail(Term const &term, std::vector<Term> &result) { ExtractCanFail{result}.visit(term); }
+void extract_can_fail(Term const &term, std::vector<Term> &result) {
+    ExtractCanFail{result}.visit(term);
+}
 
 } // namespace Clingo::Input

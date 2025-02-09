@@ -94,7 +94,9 @@ class MainScript {
         // Note: that python cannot check the number of arguments
         static_cast<void>(arguments);
         auto *self = cast(data);
-        CLINGO_TRY { *result = self->py_ && self->py_->callable(name); }
+        CLINGO_TRY {
+            *result = self->py_ && self->py_->callable(name);
+        }
         CLINGO_CATCH(self->lib_);
     }
 
@@ -139,4 +141,6 @@ extern "C" auto clingo_register_python(clingo_lib_t *lib) -> clingo_result_t {
     return clingo_script_register(lib, &c_script, std::make_unique<Script>(lib).release());
 }
 
-PYBIND11_EMBEDDED_MODULE(clingo, m) { Clingo::Python::register_clingo(m); }
+PYBIND11_EMBEDDED_MODULE(clingo, m) {
+    Clingo::Python::register_clingo(m);
+}

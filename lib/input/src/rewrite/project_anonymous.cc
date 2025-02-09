@@ -112,14 +112,24 @@ class ProjectAnonymous : public Transformer<ProjectAnonymous> {
 
 } // namespace
 
-auto project_anonymous(Term const &term) -> std::optional<Term> { return ProjectAnonymous{}.transform(term); }
+auto project_anonymous(Term const &term) -> std::optional<Term> {
+    return ProjectAnonymous{}.transform(term);
+}
 
-auto project_anonymous(Lit const &lit) -> std::optional<Lit> { return ProjectAnonymous{}.transform(lit); }
+auto project_anonymous(Lit const &lit) -> std::optional<Lit> {
+    return ProjectAnonymous{}.transform(lit);
+}
 
-auto project_anonymous(HdLit const &lit) -> std::optional<HdLit> { return ProjectAnonymous{}.transform(lit); }
+auto project_anonymous(HdLit const &lit) -> std::optional<HdLit> {
+    return ProjectAnonymous{}.transform(lit);
+}
 
-auto project_anonymous(BdLit const &lit) -> std::optional<BdLit> { return ProjectAnonymous{}.transform(lit); }
+auto project_anonymous(BdLit const &lit) -> std::optional<BdLit> {
+    return ProjectAnonymous{}.transform(lit);
+}
 
-auto project_anonymous(Stm const &stm) -> std::optional<Stm> { return ProjectAnonymous{}.transform(stm); }
+auto project_anonymous(Stm const &stm) -> std::optional<Stm> {
+    return ProjectAnonymous{}.transform(stm);
+}
 
 } // namespace Clingo::Input

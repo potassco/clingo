@@ -159,11 +159,17 @@ inline auto Logger::enabled(MessageCode code) const -> bool {
     return code < MessageCode::info || cur_limit_ > 0;
 }
 
-inline void Logger::enable(MessageCode code, bool enabled) { disabled_[static_cast<int>(code)] = !enabled; }
+inline void Logger::enable(MessageCode code, bool enabled) {
+    disabled_[static_cast<int>(code)] = !enabled;
+}
 
-inline void Logger::set_level(LogLevel level) { level_ = level; }
+inline void Logger::set_level(LogLevel level) {
+    level_ = level;
+}
 
-inline void Logger::set_limit(size_t limit) { cur_limit_ = limit; }
+inline void Logger::set_limit(size_t limit) {
+    cur_limit_ = limit;
+}
 
 inline void Logger::print(MessageCode code, char const *msg) {
     if (p_ != nullptr) {
@@ -175,9 +181,13 @@ inline void Logger::print(MessageCode code, char const *msg) {
     }
 }
 
-inline void Logger::reset() { cur_limit_ = limit_; }
+inline void Logger::reset() {
+    cur_limit_ = limit_;
+}
 
-inline void Logger::print(MessageCode code, std::string const &str) { print(code, str.c_str()); }
+inline void Logger::print(MessageCode code, std::string const &str) {
+    print(code, str.c_str());
+}
 
 inline auto Logger::message_prefix(MessageCode code) const -> char const * {
     auto const *prefix = color_ ? "\033[31m"

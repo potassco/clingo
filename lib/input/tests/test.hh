@@ -167,6 +167,8 @@ struct Print {
     char const *sep = ", ";
 };
 
-template <class T> auto to_str(T const &value, char const *sep = ", ") -> std::string { return Print{sep}(value); }
+template <class T> auto to_str(T const &value, char const *sep = ", ") -> std::string {
+    return Print{sep}(value);
+}
 
 } // namespace Clingo::Input::Test

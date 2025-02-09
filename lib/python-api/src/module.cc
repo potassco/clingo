@@ -1,3 +1,5 @@
 #include "clingo.hh"
 
-PYBIND11_MODULE(clingo, m) { Clingo::Python::register_clingo(m); }
+PYBIND11_MODULE(clingo, m) {
+    Clingo::Python::register_clingo(m);
+}

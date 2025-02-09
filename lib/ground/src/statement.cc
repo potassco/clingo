@@ -101,7 +101,9 @@ class AssignmentAnalyzer {
 
 } // namespace
 
-void Linearizer::start(Queue &queue) { iqueue_ = &queue; }
+void Linearizer::start(Queue &queue) {
+    iqueue_ = &queue;
+}
 
 void Linearizer::prepare(InstanceCallback &cb, ULitVec const &body, VariableSet important) {
     rec_.clear();
@@ -295,7 +297,9 @@ void StmRule::do_print(std::ostream &out) const {
     out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
-auto StmRule::do_body() const -> ULitVec const & { return body_; }
+auto StmRule::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmRule::do_important() const -> VariableSet {
     VariableSet important;
@@ -395,7 +399,9 @@ void StmExternal::init_() {
     body_.emplace_back(std::make_unique<LitExternalCheck>(*this));
 }
 
-void StmExternal::do_print_head(std::ostream &out) const { out << "#external " << *atom_; }
+void StmExternal::do_print_head(std::ostream &out) const {
+    out << "#external " << *atom_;
+}
 
 void StmExternal::do_print(std::ostream &out) const {
     out << "max: ";
@@ -409,7 +415,9 @@ void StmExternal::do_print(std::ostream &out) const {
     }
 }
 
-auto StmExternal::do_body() const -> ULitVec const & { return body_; }
+auto StmExternal::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmExternal::do_important() const -> VariableSet {
     VariableSet important;
@@ -420,7 +428,9 @@ auto StmExternal::do_important() const -> VariableSet {
     return important;
 }
 
-void StmExternal::do_init(size_t gen) { base_->update(gen); }
+void StmExternal::do_init(size_t gen) {
+    base_->update(gen);
+}
 
 auto StmExternal::do_report(EvalContext const &ctx) -> bool {
     auto it = base_->add(res_atom_, StateAtom::derived, [&ctx]() { return ctx.out().uid(); }).first;
@@ -510,7 +520,9 @@ void StmWeakConstraint::do_print(std::ostream &out) const {
     print_head(out);
 }
 
-auto StmWeakConstraint::do_body() const -> ULitVec const & { return body_; }
+auto StmWeakConstraint::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmWeakConstraint::do_important() const -> VariableSet {
     VariableSet vars;
@@ -535,7 +547,8 @@ void StmWeakConstraint::do_print_head(std::ostream &out) const {
     out << "]";
 }
 
-void StmWeakConstraint::do_init([[maybe_unused]] size_t gen) {}
+void StmWeakConstraint::do_init([[maybe_unused]] size_t gen) {
+}
 
 auto StmWeakConstraint::do_report(EvalContext const &ctx) -> bool {
     auto &out = ctx.out().body();
@@ -547,7 +560,8 @@ auto StmWeakConstraint::do_report(EvalContext const &ctx) -> bool {
 }
 
 void StmWeakConstraint::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
-                                     [[maybe_unused]] Queue &queue) {}
+                                     [[maybe_unused]] Queue &queue) {
+}
 
 // definitition of StmHeuristic
 
@@ -672,7 +686,9 @@ void StmHeuristic::do_print(std::ostream &out) const {
     out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
-auto StmHeuristic::do_body() const -> ULitVec const & { return body_; }
+auto StmHeuristic::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmHeuristic::do_important() const -> VariableSet {
     VariableSet vars;
@@ -693,7 +709,8 @@ void StmHeuristic::do_print_head(std::ostream &out) const {
     out << "," << *type_ << "]";
 }
 
-void StmHeuristic::do_init([[maybe_unused]] size_t gen) {}
+void StmHeuristic::do_init([[maybe_unused]] size_t gen) {
+}
 
 auto StmHeuristic::do_report(EvalContext const &ctx) -> bool {
     auto &out = ctx.out().body();
@@ -706,7 +723,8 @@ auto StmHeuristic::do_report(EvalContext const &ctx) -> bool {
 }
 
 void StmHeuristic::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
-                                [[maybe_unused]] Queue &queue) {}
+                                [[maybe_unused]] Queue &queue) {
+}
 
 // definitition of StmEdge
 
@@ -752,7 +770,9 @@ void StmEdge::do_print(std::ostream &out) const {
     out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
-auto StmEdge::do_body() const -> ULitVec const & { return body_; }
+auto StmEdge::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmEdge::do_important() const -> VariableSet {
     VariableSet vars;
@@ -761,9 +781,12 @@ auto StmEdge::do_important() const -> VariableSet {
     return vars;
 }
 
-void StmEdge::do_print_head(std::ostream &out) const { out << "#edge (" << *src_ << "," << *dst_ << ")"; }
+void StmEdge::do_print_head(std::ostream &out) const {
+    out << "#edge (" << *src_ << "," << *dst_ << ")";
+}
 
-void StmEdge::do_init([[maybe_unused]] size_t gen) {}
+void StmEdge::do_init([[maybe_unused]] size_t gen) {
+}
 
 auto StmEdge::do_report(EvalContext const &ctx) -> bool {
     auto &out = ctx.out().body();
@@ -775,7 +798,8 @@ auto StmEdge::do_report(EvalContext const &ctx) -> bool {
 }
 
 void StmEdge::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
-                           [[maybe_unused]] Queue &queue) {}
+                           [[maybe_unused]] Queue &queue) {
+}
 
 // definitition of StmShow
 
@@ -812,7 +836,9 @@ void StmShow::do_print(std::ostream &out) const {
     out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
-auto StmShow::do_body() const -> ULitVec const & { return body_; }
+auto StmShow::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmShow::do_important() const -> VariableSet {
     VariableSet vars;
@@ -820,9 +846,12 @@ auto StmShow::do_important() const -> VariableSet {
     return vars;
 }
 
-void StmShow::do_print_head(std::ostream &out) const { out << "#show " << *term_; }
+void StmShow::do_print_head(std::ostream &out) const {
+    out << "#show " << *term_;
+}
 
-void StmShow::do_init([[maybe_unused]] size_t gen) {}
+void StmShow::do_init([[maybe_unused]] size_t gen) {
+}
 
 auto StmShow::do_report(EvalContext const &ctx) -> bool {
     auto &out = ctx.out().body();
@@ -843,7 +872,8 @@ auto StmShow::do_report(EvalContext const &ctx) -> bool {
 }
 
 void StmShow::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
-                           [[maybe_unused]] Queue &queue) {}
+                           [[maybe_unused]] Queue &queue) {
+}
 
 // definitition of StmProject
 
@@ -901,7 +931,9 @@ void StmProject::do_print(std::ostream &out) const {
     out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
-auto StmProject::do_body() const -> ULitVec const & { return body_; }
+auto StmProject::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmProject::do_important() const -> VariableSet {
     VariableSet vars;
@@ -909,9 +941,12 @@ auto StmProject::do_important() const -> VariableSet {
     return vars;
 }
 
-void StmProject::do_print_head(std::ostream &out) const { out << "#project " << *atom_; }
+void StmProject::do_print_head(std::ostream &out) const {
+    out << "#project " << *atom_;
+}
 
-void StmProject::do_init([[maybe_unused]] size_t gen) {}
+void StmProject::do_init([[maybe_unused]] size_t gen) {
+}
 
 auto StmProject::do_report(EvalContext const &ctx) -> bool {
     auto atom = base_->nth(offset_);
@@ -920,6 +955,7 @@ auto StmProject::do_report(EvalContext const &ctx) -> bool {
 }
 
 void StmProject::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
-                              [[maybe_unused]] Queue &queue) {}
+                              [[maybe_unused]] Queue &queue) {
+}
 
 } // namespace Clingo::Ground

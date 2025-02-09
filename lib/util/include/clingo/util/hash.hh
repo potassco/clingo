@@ -178,9 +178,13 @@ struct array_equal_to {
 
 namespace Detail {
 
-inline auto hash_combine() -> size_t { return 0; }
+inline auto hash_combine() -> size_t {
+    return 0;
+}
 
-inline auto hash_combine(size_t a) -> size_t { return a; }
+inline auto hash_combine(size_t a) -> size_t {
+    return a;
+}
 
 inline auto hash_combine(size_t seed, size_t h) -> size_t {
     // NOLINTBEGIN(readability-magic-numbers)
@@ -228,7 +232,9 @@ inline auto hash_mix(size_t h) -> size_t {
     // NOLINTEND(readability-magic-numbers)
 }
 
-template <class... T> inline auto hash_combine(T... a) -> size_t { return Detail::hash_combine(a...); }
+template <class... T> inline auto hash_combine(T... a) -> size_t {
+    return Detail::hash_combine(a...);
+}
 
 template <class T> auto value_hash_range(T const &x) -> size_t {
     // NOLINTBEGIN(readability-magic-numbers)
@@ -264,7 +270,9 @@ template <class T> auto value_hash_range(T const &x) -> size_t {
     // NOLINTEND(readability-magic-numbers)
 }
 
-inline auto value_hash(std::type_info const &x) -> size_t { return hash_mix(x.hash_code()); }
+inline auto value_hash(std::type_info const &x) -> size_t {
+    return hash_mix(x.hash_code());
+}
 
 template <class T> auto value_hash(T const &x) -> size_t {
     if constexpr (requires { x.hash(); }) {
@@ -290,7 +298,9 @@ template <class T> auto value_hash(std::optional<T> const &x) -> size_t {
     return 0;
 }
 
-template <class T> auto value_hash(std::reference_wrapper<T> const &x) -> size_t { return value_hash(x.get()); }
+template <class T> auto value_hash(std::reference_wrapper<T> const &x) -> size_t {
+    return value_hash(x.get());
+}
 
 template <class T, class D> auto value_hash(std::unique_ptr<T, D> const &x) -> size_t {
     if (x) {
@@ -320,17 +330,29 @@ template <class... T> auto value_hash(std::variant<T...> const &x) -> size_t {
     return std::visit([](auto &&arg) { return hash_combine(value_hash(typeid(arg)), value_hash(arg)); }, x);
 }
 
-template <class T, size_t E> auto value_hash(std::span<T, E> const &x) -> size_t { return value_hash_range(x); }
+template <class T, size_t E> auto value_hash(std::span<T, E> const &x) -> size_t {
+    return value_hash_range(x);
+}
 
-template <class T, class A> auto value_hash(std::vector<T, A> const &x) -> size_t { return value_hash_range(x); }
+template <class T, class A> auto value_hash(std::vector<T, A> const &x) -> size_t {
+    return value_hash_range(x);
+}
 
-template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t { return value_hash_range(x); }
+template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t {
+    return value_hash_range(x);
+}
 
-inline auto value_hash(char const *x) -> size_t { return std::hash<std::string_view>{}(x); }
+inline auto value_hash(char const *x) -> size_t {
+    return std::hash<std::string_view>{}(x);
+}
 
-inline auto value_hash(std::string_view const &x) -> size_t { return std::hash<std::string_view>{}(x); }
+inline auto value_hash(std::string_view const &x) -> size_t {
+    return std::hash<std::string_view>{}(x);
+}
 
-inline auto value_hash(std::string const &x) -> size_t { return std::hash<std::string_view>{}(x); }
+inline auto value_hash(std::string const &x) -> size_t {
+    return std::hash<std::string_view>{}(x);
+}
 
 template <class T, class... Args> auto value_hash_record(Args const &...x) -> size_t {
     return hash_combine(value_hash(x)...);

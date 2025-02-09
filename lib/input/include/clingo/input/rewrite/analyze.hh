@@ -95,10 +95,14 @@ auto check_linear(Term const &term) -> std::optional<LinearTerm>;
 [[nodiscard]] auto never_numeric(Term const &term) -> bool;
 
 //! Check if the term is a symbol.
-[[nodiscard]] inline auto is_symbol(Term const &term) -> bool { return std::holds_alternative<TermSymbol>(term); }
+[[nodiscard]] inline auto is_symbol(Term const &term) -> bool {
+    return std::holds_alternative<TermSymbol>(term);
+}
 
 //! Check if the term is a variable.
-[[nodiscard]] inline auto is_variable(Term const &term) -> bool { return std::holds_alternative<TermVariable>(term); }
+[[nodiscard]] inline auto is_variable(Term const &term) -> bool {
+    return std::holds_alternative<TermVariable>(term);
+}
 
 //! Get the truth value of a literal, in case it is a Boolean constant.
 [[nodiscard]] inline auto is_fixed(Lit const &lit) -> std::optional<bool> {

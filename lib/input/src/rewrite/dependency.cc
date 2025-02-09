@@ -675,7 +675,9 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
     return comps;
 }
 
-auto unify(SymbolStore &store, Term const &a, Term const &b) -> bool { return Unifier{store}.unify(a, b); }
+auto unify(SymbolStore &store, Term const &a, Term const &b) -> bool {
+    return Unifier{store}.unify(a, b);
+}
 
 void visualize(Components const &comps, std::ostream &out) {
     out << "digraph {\n";

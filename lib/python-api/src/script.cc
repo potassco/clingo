@@ -13,7 +13,9 @@ class Script {
 
     static auto c_execute(char const *code, void *data) -> clingo_result_t {
         auto *self = static_cast<py::object *>(data)->cast<Script *>();
-        CLINGO_TRY { self->execute(code); }
+        CLINGO_TRY {
+            self->execute(code);
+        }
         CLINGO_CATCH(self->lib_);
     }
 

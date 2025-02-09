@@ -152,7 +152,9 @@ template <typename T> class immutable_array {
 template <class It> immutable_array(It, It) -> immutable_array<typename std::iterator_traits<It>::value_type>;
 
 //! Swap two immutable arrays.
-template <class T> void swap(immutable_array<T> &lhs, immutable_array<T> &rhs) noexcept { lhs.swap(rhs); }
+template <class T> void swap(immutable_array<T> &lhs, immutable_array<T> &rhs) noexcept {
+    lhs.swap(rhs);
+}
 
 //! Construct an immutable array from the given elements.
 //!

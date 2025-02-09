@@ -884,7 +884,9 @@ template <class T> auto convert(clingo_ast_t const **ast, size_t size) -> std::v
     return res;
 }
 
-auto convert(clingo_location_t const *loc) -> Clingo::Location const & { return *cpp_cast(loc); }
+auto convert(clingo_location_t const *loc) -> Clingo::Location const & {
+    return *cpp_cast(loc);
+}
 
 auto convert(clingo_lib_t *lib, char const **array, size_t size) -> Clingo::SharedStringArray {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -1093,7 +1095,9 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Clingo::Input
     throw std::invalid_argument("invalid ast type");
 }
 
-auto clingo_ast::get_type() const -> clingo_ast_type_e { return type_; }
+auto clingo_ast::get_type() const -> clingo_ast_type_e {
+    return type_;
+}
 
 auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t const *> {
     using namespace Clingo::Input;
@@ -1450,7 +1454,9 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
 #undef TYPE
 #undef SWITCH
 
-auto clingo_ast::copy() const -> std::unique_ptr<clingo_ast_t> { return std::make_unique<clingo_ast>(*this); }
+auto clingo_ast::copy() const -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(*this);
+}
 
 template <class T> void clingo_ast::print(T &out) const {
     using namespace Clingo::Input;
@@ -2266,11 +2272,17 @@ extern "C" auto clingo_ast_to_string(clingo_ast_t *ast, clingo_string_builder_t 
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_ast_compare(clingo_ast_t *a, clingo_ast_t *b) -> int { return c_cast(a->compare(*b)); }
+extern "C" auto clingo_ast_compare(clingo_ast_t *a, clingo_ast_t *b) -> int {
+    return c_cast(a->compare(*b));
+}
 
-extern "C" auto clingo_ast_equal(clingo_ast_t *a, clingo_ast_t *b) -> bool { return a->equal(*b); }
+extern "C" auto clingo_ast_equal(clingo_ast_t *a, clingo_ast_t *b) -> bool {
+    return a->equal(*b);
+}
 
-extern "C" auto clingo_ast_hash(clingo_ast_t *ast) -> size_t { return ast->hash(); }
+extern "C" auto clingo_ast_hash(clingo_ast_t *ast) -> size_t {
+    return ast->hash();
+}
 
 extern "C" auto clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy) -> clingo_result_t {
     CLINGO_TRY {
@@ -2680,14 +2692,22 @@ extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo
     CLINGO_CATCH;
 }
 
-clingo_program::clingo_program(clingo_lib_t *lib) : lib{lib} { lib->store->gc_add_owner(*this); }
+clingo_program::clingo_program(clingo_lib_t *lib) : lib{lib} {
+    lib->store->gc_add_owner(*this);
+}
 
-clingo_program::~clingo_program() noexcept { lib->store->gc_del_owner(*this); }
+clingo_program::~clingo_program() noexcept {
+    lib->store->gc_del_owner(*this);
+}
 
-void clingo_program::mark(Clingo::SymbolCollector &gc) const { program.mark(gc); }
+void clingo_program::mark(Clingo::SymbolCollector &gc) const {
+    program.mark(gc);
+}
 
 extern "C" auto clingo_program_new(clingo_lib_t *lib, clingo_program_t **program) -> clingo_result_t {
-    CLINGO_TRY { *program = std::make_unique<clingo_program>(lib).release(); }
+    CLINGO_TRY {
+        *program = std::make_unique<clingo_program>(lib).release();
+    }
     CLINGO_CATCH;
 }
 
@@ -2697,7 +2717,9 @@ extern "C" void clingo_program_free(clingo_program_t *program) {
 }
 
 extern "C" auto clingo_program_add(clingo_program_t *program, clingo_ast_t *statement) -> clingo_result_t {
-    CLINGO_TRY { program->program.add(*program->lib->store, convert<Clingo::Input::Stm>(statement)); }
+    CLINGO_TRY {
+        program->program.add(*program->lib->store, convert<Clingo::Input::Stm>(statement));
+    }
     CLINGO_CATCH;
 }
 

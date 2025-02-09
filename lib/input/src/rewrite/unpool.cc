@@ -562,13 +562,21 @@ class Unpool {
 
 } // namespace
 
-auto unpool(RewriteContext &ctx, Term const &term) -> std::optional<std::vector<Term>> { return Unpool{ctx}(term); }
+auto unpool(RewriteContext &ctx, Term const &term) -> std::optional<std::vector<Term>> {
+    return Unpool{ctx}(term);
+}
 
-auto unpool(RewriteContext &ctx, Lit const &lit) -> std::optional<std::vector<Lit>> { return Unpool{ctx}(lit); }
+auto unpool(RewriteContext &ctx, Lit const &lit) -> std::optional<std::vector<Lit>> {
+    return Unpool{ctx}(lit);
+}
 
-auto unpool(RewriteContext &ctx, HdLit const &lit) -> std::optional<std::vector<HdLit>> { return Unpool{ctx}(lit); }
+auto unpool(RewriteContext &ctx, HdLit const &lit) -> std::optional<std::vector<HdLit>> {
+    return Unpool{ctx}(lit);
+}
 
-auto unpool(RewriteContext &ctx, BdLit const &lit) -> std::optional<std::vector<BdLit>> { return Unpool{ctx}(lit); }
+auto unpool(RewriteContext &ctx, BdLit const &lit) -> std::optional<std::vector<BdLit>> {
+    return Unpool{ctx}(lit);
+}
 
 template <class F> struct print {
   public:

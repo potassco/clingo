@@ -20,7 +20,9 @@ auto cpp_cast(clingo_solve_handle_t *hnd, bool not_null = true) -> Clingo::Contr
 
 extern "C" auto clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result)
     -> clingo_result_t {
-    CLINGO_TRY { *result = static_cast<clingo_solve_result_bitset_t>(cpp_cast(handle)->get()); }
+    CLINGO_TRY {
+        *result = static_cast<clingo_solve_result_bitset_t>(cpp_cast(handle)->get());
+    }
     CLINGO_CATCH;
 }
 
@@ -32,7 +34,9 @@ extern "C" void clingo_solve_handle_wait(clingo_solve_handle_t *handle, double t
 
 extern "C" auto clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model)
     -> clingo_result_t {
-    CLINGO_TRY { *model = c_cast(cpp_cast(handle)->model()); }
+    CLINGO_TRY {
+        *model = c_cast(cpp_cast(handle)->model());
+    }
     CLINGO_CATCH;
 }
 
@@ -48,22 +52,30 @@ extern "C" auto clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_l
 
 extern "C" auto clingo_solve_handle_last(clingo_solve_handle_t *handle, clingo_model_t const **model)
     -> clingo_result_t {
-    CLINGO_TRY { *model = c_cast(cpp_cast(handle)->model()); }
+    CLINGO_TRY {
+        *model = c_cast(cpp_cast(handle)->model());
+    }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_solve_handle_resume(clingo_solve_handle_t *handle) -> clingo_result_t {
-    CLINGO_TRY { cpp_cast(handle)->resume(); }
+    CLINGO_TRY {
+        cpp_cast(handle)->resume();
+    }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_solve_handle_cancel(clingo_solve_handle_t *handle) -> clingo_result_t {
-    CLINGO_TRY { cpp_cast(handle)->cancel(); }
+    CLINGO_TRY {
+        cpp_cast(handle)->cancel();
+    }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_solve_handle_close(clingo_solve_handle_t *handle) -> clingo_result_t {
-    CLINGO_TRY { delete cpp_cast(handle, false); }
+    CLINGO_TRY {
+        delete cpp_cast(handle, false);
+    }
     CLINGO_CATCH;
 }
 

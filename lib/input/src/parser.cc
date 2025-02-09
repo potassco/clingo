@@ -29,7 +29,8 @@ auto parse_expr(Parse::ParserState &state, Parse::Condition cond, P parse, C che
 
 } // namespace
 
-Parser::Parser(Logger &log, SymbolStore &store) : impl_{std::make_unique<Parse::ParserState>(log, store)} {}
+Parser::Parser(Logger &log, SymbolStore &store) : impl_{std::make_unique<Parse::ParserState>(log, store)} {
+}
 
 Parser::Parser(Parser &&other) noexcept = default;
 
@@ -37,9 +38,13 @@ auto Parser::operator=(Parser &&other) noexcept -> Parser & = default;
 
 Parser::~Parser() noexcept = default;
 
-void Parser::init(std::istream &in, String file) { impl_->init(in, file); }
+void Parser::init(std::istream &in, String file) {
+    impl_->init(in, file);
+}
 
-void Parser::init(std::string_view in, String file) { impl_->init(in, file); }
+void Parser::init(std::string_view in, String file) {
+    impl_->init(in, file);
+}
 
 auto Parser::parse_symbol() -> std::optional<SharedSymbol> {
     return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_symbol, check_true<SharedSymbol>);

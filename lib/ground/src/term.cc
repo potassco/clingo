@@ -80,13 +80,20 @@ auto TermProjection::do_rename([[maybe_unused]] Util::unordered_map<size_t, size
     return std::make_unique<TermProjection>();
 }
 
-void TermProjection::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] bool provide) const {}
+void TermProjection::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] bool provide) const {
+}
 
-void TermProjection::do_print(std::ostream &out) const { out << "*"; }
+void TermProjection::do_print(std::ostream &out) const {
+    out << "*";
+}
 
-auto TermProjection::do_copy() const -> UTerm { return std::make_unique<TermProjection>(); }
+auto TermProjection::do_copy() const -> UTerm {
+    return std::make_unique<TermProjection>();
+}
 
-auto TermProjection::do_hash() const -> size_t { return Util::value_hash_record<TermProjection>(); }
+auto TermProjection::do_hash() const -> size_t {
+    return Util::value_hash_record<TermProjection>();
+}
 
 auto TermProjection::do_equal_to([[maybe_unused]] Term const &other) const -> bool {
     return dynamic_cast<TermProjection const *>(&other) != nullptr;
@@ -101,14 +108,18 @@ auto TermProjection::do_compare_to([[maybe_unused]] Term const &other) const -> 
 
 // TermSymbol
 
-auto TermSymbol::do_match([[maybe_unused]] EvalContext const &ctx, Symbol sym) const -> bool { return sym == *sym_; }
+auto TermSymbol::do_match([[maybe_unused]] EvalContext const &ctx, Symbol sym) const -> bool {
+    return sym == *sym_;
+}
 
 auto TermSymbol::do_score([[maybe_unused]] double size, [[maybe_unused]] std::vector<bool> const &bound) const
     -> double {
     return 0;
 }
 
-auto TermSymbol::do_eval([[maybe_unused]] EvalContext const &ctx) const -> std::optional<Symbol> { return *sym_; }
+auto TermSymbol::do_eval([[maybe_unused]] EvalContext const &ctx) const -> std::optional<Symbol> {
+    return *sym_;
+}
 
 auto TermSymbol::do_rename([[maybe_unused]] SymbolStore &store, [[maybe_unused]] RenameMode mode, String const *name,
                            [[maybe_unused]] size_t *vars) const -> UTerm {
@@ -125,13 +136,20 @@ auto TermSymbol::do_rename([[maybe_unused]] Util::unordered_map<size_t, size_t> 
     return std::make_unique<TermSymbol>(*sym_);
 }
 
-void TermSymbol::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] bool provide) const {}
+void TermSymbol::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] bool provide) const {
+}
 
-void TermSymbol::do_print(std::ostream &out) const { out << *sym_; }
+void TermSymbol::do_print(std::ostream &out) const {
+    out << *sym_;
+}
 
-auto TermSymbol::do_copy() const -> UTerm { return std::make_unique<TermSymbol>(*sym_); }
+auto TermSymbol::do_copy() const -> UTerm {
+    return std::make_unique<TermSymbol>(*sym_);
+}
 
-auto TermSymbol::do_hash() const -> size_t { return Util::value_hash_record<TermSymbol>(*sym_); }
+auto TermSymbol::do_hash() const -> size_t {
+    return Util::value_hash_record<TermSymbol>(*sym_);
+}
 
 auto TermSymbol::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermSymbol const *>(&other);
@@ -173,13 +191,21 @@ auto TermVariable::do_rename(Util::unordered_map<size_t, size_t> &vars) const ->
     return std::make_unique<TermVariable>(vars.try_emplace(var_, vars.size()).first.value());
 }
 
-void TermVariable::do_vars(VariableSet &vars, [[maybe_unused]] bool provide) const { vars.emplace(var_); }
+void TermVariable::do_vars(VariableSet &vars, [[maybe_unused]] bool provide) const {
+    vars.emplace(var_);
+}
 
-void TermVariable::do_print(std::ostream &out) const { out << "X_" << var_; }
+void TermVariable::do_print(std::ostream &out) const {
+    out << "X_" << var_;
+}
 
-auto TermVariable::do_copy() const -> UTerm { return std::make_unique<TermVariable>(var_); }
+auto TermVariable::do_copy() const -> UTerm {
+    return std::make_unique<TermVariable>(var_);
+}
 
-auto TermVariable::do_hash() const -> size_t { return Util::value_hash_record<TermSymbol>(var_); }
+auto TermVariable::do_hash() const -> size_t {
+    return Util::value_hash_record<TermSymbol>(var_);
+}
 
 auto TermVariable::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermVariable const *>(&other);
@@ -240,13 +266,21 @@ auto TermLinear::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> U
     return std::make_unique<TermLinear>(loc_, m_, vars.try_emplace(var_, vars.size()).first.value(), n_);
 }
 
-void TermLinear::do_vars(VariableSet &vars, [[maybe_unused]] bool provide) const { vars.emplace(var_); }
+void TermLinear::do_vars(VariableSet &vars, [[maybe_unused]] bool provide) const {
+    vars.emplace(var_);
+}
 
-void TermLinear::do_print(std::ostream &out) const { out << "(" << m_ << "*X_" << var_ << "+" << n_ << ")"; }
+void TermLinear::do_print(std::ostream &out) const {
+    out << "(" << m_ << "*X_" << var_ << "+" << n_ << ")";
+}
 
-auto TermLinear::do_copy() const -> UTerm { return std::make_unique<TermLinear>(loc_, m_, var_, n_); }
+auto TermLinear::do_copy() const -> UTerm {
+    return std::make_unique<TermLinear>(loc_, m_, var_, n_);
+}
 
-auto TermLinear::do_hash() const -> size_t { return Util::value_hash_record<TermSymbol>(var_, m_, n_); }
+auto TermLinear::do_hash() const -> size_t {
+    return Util::value_hash_record<TermSymbol>(var_, m_, n_);
+}
 
 auto TermLinear::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermLinear const *>(&other);
@@ -354,9 +388,13 @@ void TermUnary::do_print(std::ostream &out) const {
     out << ")";
 }
 
-auto TermUnary::do_copy() const -> UTerm { return std::make_unique<TermUnary>(op_, loc_rhs_, rhs_->copy()); }
+auto TermUnary::do_copy() const -> UTerm {
+    return std::make_unique<TermUnary>(op_, loc_rhs_, rhs_->copy());
+}
 
-auto TermUnary::do_hash() const -> size_t { return Util::value_hash_record<TermUnary>(op_, *rhs_); }
+auto TermUnary::do_hash() const -> size_t {
+    return Util::value_hash_record<TermUnary>(op_, *rhs_);
+}
 
 auto TermUnary::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermUnary const *>(&other);
@@ -506,7 +544,9 @@ auto TermBinary::do_copy() const -> UTerm {
     return std::make_unique<TermBinary>(loc_lhs_, lhs_->copy(), op_, loc_rhs_, rhs_->copy());
 }
 
-auto TermBinary::do_hash() const -> size_t { return Util::value_hash_record<TermBinary>(*lhs_, op_, *rhs_); }
+auto TermBinary::do_hash() const -> size_t {
+    return Util::value_hash_record<TermBinary>(*lhs_, op_, *rhs_);
+}
 
 auto TermBinary::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermBinary const *>(&other);
@@ -592,7 +632,9 @@ auto TermTuple::do_copy() const -> UTerm {
     return std::make_unique<TermTuple>(std::move(args));
 }
 
-auto TermTuple::do_hash() const -> size_t { return Util::value_hash_record<TermTuple>(args_); }
+auto TermTuple::do_hash() const -> size_t {
+    return Util::value_hash_record<TermTuple>(args_);
+}
 
 auto TermTuple::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermTuple const *>(&other);
@@ -677,7 +719,9 @@ auto TermFunction::do_copy() const -> UTerm {
     return std::make_unique<TermFunction>(*name_, std::move(args));
 }
 
-auto TermFunction::do_hash() const -> size_t { return Util::value_hash_record<TermFunction>(name_, args_); }
+auto TermFunction::do_hash() const -> size_t {
+    return Util::value_hash_record<TermFunction>(name_, args_);
+}
 
 auto TermFunction::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermFunction const *>(&other);

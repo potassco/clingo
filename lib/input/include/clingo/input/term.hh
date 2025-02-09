@@ -303,54 +303,84 @@ class TermBinary : public RecursiveExpression<TermBinary> {
 
 // ArgumentTuple
 
-inline ArgumentTuple::ArgumentTuple(ArgumentArray elems) : elems_{std::move(elems)} {}
+inline ArgumentTuple::ArgumentTuple(ArgumentArray elems) : elems_{std::move(elems)} {
+}
 
-inline auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool { return a.equal(b); }
+inline auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool {
+    return a.equal(b);
+}
 
-inline auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering { return a.compare(b); }
+inline auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering {
+    return a.compare(b);
+}
 
 // TermTuple
 
-inline TermTuple::TermTuple(Location loc, TupleElementArray pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
+inline TermTuple::TermTuple(Location loc, TupleElementArray pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {
+}
 
-inline auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return a.equal(b); }
+inline auto operator==(TermTuple const &a, TermTuple const &b) -> bool {
+    return a.equal(b);
+}
 
-inline auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering { return a.compare(b); }
+inline auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering {
+    return a.compare(b);
+}
 
 // TermFunction
 
 inline TermFunction::TermFunction(Location loc, String name, PoolArray pool, bool external)
-    : loc_{std::move(loc)}, name_(name), pool_{std::move(pool)}, external_{external} {}
+    : loc_{std::move(loc)}, name_(name), pool_{std::move(pool)}, external_{external} {
+}
 
-inline auto operator==(TermFunction const &a, TermFunction const &b) -> bool { return a.equal(b); }
+inline auto operator==(TermFunction const &a, TermFunction const &b) -> bool {
+    return a.equal(b);
+}
 
-inline auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering { return a.compare(b); }
+inline auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering {
+    return a.compare(b);
+}
 
 // TermAbs
 
-inline TermAbs::TermAbs(Location loc, TermArray pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
+inline TermAbs::TermAbs(Location loc, TermArray pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {
+}
 
-inline auto operator==(TermAbs const &a, TermAbs const &b) -> bool { return a.equal(b); }
+inline auto operator==(TermAbs const &a, TermAbs const &b) -> bool {
+    return a.equal(b);
+}
 
-inline auto operator<=>(TermAbs const &a, TermAbs const &b) -> std::strong_ordering { return a.compare(b); }
+inline auto operator<=>(TermAbs const &a, TermAbs const &b) -> std::strong_ordering {
+    return a.compare(b);
+}
 
 // TermUnary
 
 inline TermUnary::TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs)
-    : loc_{std::move(loc)}, op_{op}, rhs_{std::move(rhs)} {}
+    : loc_{std::move(loc)}, op_{op}, rhs_{std::move(rhs)} {
+}
 
-inline auto operator==(TermUnary const &a, TermUnary const &b) -> bool { return a.equal(b); }
+inline auto operator==(TermUnary const &a, TermUnary const &b) -> bool {
+    return a.equal(b);
+}
 
-inline auto operator<=>(TermUnary const &a, TermUnary const &b) -> std::strong_ordering { return a.compare(b); }
+inline auto operator<=>(TermUnary const &a, TermUnary const &b) -> std::strong_ordering {
+    return a.compare(b);
+}
 
 // TermBinary
 
 inline TermBinary::TermBinary(Location loc, Util::immutable_value<Term> lhs, BinaryOperator op,
                               Util::immutable_value<Term> rhs)
-    : loc_{std::move(loc)}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {}
+    : loc_{std::move(loc)}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {
+}
 
-inline auto operator==(TermBinary const &a, TermBinary const &b) -> bool { return a.equal(b); }
+inline auto operator==(TermBinary const &a, TermBinary const &b) -> bool {
+    return a.equal(b);
+}
 
-inline auto operator<=>(TermBinary const &a, TermBinary const &b) -> std::strong_ordering { return a.compare(b); }
+inline auto operator<=>(TermBinary const &a, TermBinary const &b) -> std::strong_ordering {
+    return a.compare(b);
+}
 
 } // namespace Clingo::Input

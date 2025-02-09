@@ -107,9 +107,13 @@ auto AtomAssignAggr::todo_values() -> std::variant<NumberSpan, SymbolSpan> {
         values_);
 }
 
-void AtomAssignAggr::add_elem(size_t idx) { elems_.emplace_back(idx); }
+void AtomAssignAggr::add_elem(size_t idx) {
+    elems_.emplace_back(idx);
+}
 
-auto AtomAssignAggr::elems() const -> std::span<size_t const> { return std::span{elems_.begin(), elems_.end()}; }
+auto AtomAssignAggr::elems() const -> std::span<size_t const> {
+    return std::span{elems_.begin(), elems_.end()};
+}
 
 auto AtomAssignAggr::num_values_() const -> size_t {
     return std::visit([](auto const &x) { return x.size(); }, values_);
@@ -145,21 +149,37 @@ auto BaseAssignAggr::add(size_t idx, Symbol val) -> bool {
     return derived_.emplace(Key{idx, val}, invalid_offset).second;
 }
 
-auto BaseAssignAggr::size() const -> size_t { return derived_.size(); }
+auto BaseAssignAggr::size() const -> size_t {
+    return derived_.size();
+}
 
-auto BaseAssignAggr::index(Key sym) const -> size_t { return derived_.find(sym) - derived_.begin(); }
+auto BaseAssignAggr::index(Key sym) const -> size_t {
+    return derived_.find(sym) - derived_.begin();
+}
 
-auto BaseAssignAggr::nth(size_t i) const -> AtomSet::const_iterator { return derived_.nth(i); }
+auto BaseAssignAggr::nth(size_t i) const -> AtomSet::const_iterator {
+    return derived_.nth(i);
+}
 
-auto BaseAssignAggr::nth(size_t i) -> AtomSet::iterator { return derived_.nth(i); }
+auto BaseAssignAggr::nth(size_t i) -> AtomSet::iterator {
+    return derived_.nth(i);
+}
 
-auto BaseAssignAggr::atoms() -> AtomMap & { return atoms_; }
+auto BaseAssignAggr::atoms() -> AtomMap & {
+    return atoms_;
+}
 
-auto BaseAssignAggr::derived() -> AtomSet & { return derived_; }
+auto BaseAssignAggr::derived() -> AtomSet & {
+    return derived_;
+}
 
-auto BaseAssignAggr::domain_elems() const -> bool { return domain_elems_; }
+auto BaseAssignAggr::domain_elems() const -> bool {
+    return domain_elems_;
+}
 
-auto BaseAssignAggr::single_pass_elems() const -> bool { return single_pass_elems_; }
+auto BaseAssignAggr::single_pass_elems() const -> bool {
+    return single_pass_elems_;
+}
 
 // definition of StateAssignAggr
 
@@ -239,7 +259,9 @@ auto StateAssignAggr::ElementKey::construct(auto &mbr, EvalContext const &ctx, A
     return res;
 }
 
-auto StateAssignAggr::ElementKey::span() const -> SymbolSpan { return SymbolSpan{syms_, n_}; }
+auto StateAssignAggr::ElementKey::span() const -> SymbolSpan {
+    return SymbolSpan{syms_, n_};
+}
 
 auto StateAssignAggr::ElementKey::hash() const -> size_t {
     return Util::value_hash_record<ElementKey>(n_, atom_idx_, span());
@@ -251,22 +273,34 @@ auto operator==(StateAssignAggr::ElementKey const &a, StateAssignAggr::ElementKe
 
 // NOLINTEND
 
-auto StateAssignAggr::global() const -> VariableVec const & { return global_; }
+auto StateAssignAggr::global() const -> VariableVec const & {
+    return global_;
+}
 
 auto StateAssignAggr::symbols() -> SymbolVec & {
     symbols_.resize(global_.size());
     return symbols_;
 }
 
-auto StateAssignAggr::term() const -> Term const & { return *term_; }
+auto StateAssignAggr::term() const -> Term const & {
+    return *term_;
+}
 
-auto StateAssignAggr::fun() const -> AggregateFunction { return fun_; }
+auto StateAssignAggr::fun() const -> AggregateFunction {
+    return fun_;
+}
 
-auto StateAssignAggr::domain_elems() const -> bool { return base_.domain_elems(); }
+auto StateAssignAggr::domain_elems() const -> bool {
+    return base_.domain_elems();
+}
 
-auto StateAssignAggr::single_pass_elems() const -> bool { return base_.single_pass_elems(); }
+auto StateAssignAggr::single_pass_elems() const -> bool {
+    return base_.single_pass_elems();
+}
 
-auto StateAssignAggr::index() const -> size_t { return index_; }
+auto StateAssignAggr::index() const -> size_t {
+    return index_;
+}
 
 auto StateAssignAggr::propagate(SymbolStore &store) -> bool {
     bool res = false;
@@ -346,7 +380,9 @@ void StateAssignAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, 
     }
 }
 
-auto StateAssignAggr::atom_index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
+auto StateAssignAggr::atom_index(AtomMap::iterator it) -> size_t {
+    return it - base_.atoms().begin();
+}
 
 void StateAssignAggr::print(std::ostream &out, bool print_index) {
     out << fun_ << "(" << Util::p_range(global_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
@@ -356,7 +392,9 @@ void StateAssignAggr::print(std::ostream &out, bool print_index) {
     out << " = " << *term_;
 }
 
-auto StateAssignAggr::base() -> BaseAssignAggr & { return base_; }
+auto StateAssignAggr::base() -> BaseAssignAggr & {
+    return base_;
+}
 
 void StateAssignAggr::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolStore &store, OutputStm &out) {
     std::vector<std::pair<SymbolSpan, std::span<size_t const>>> elems;
@@ -432,7 +470,9 @@ auto operator<<(std::ostream &out, MatchAssignAggr const &m) -> std::ostream & {
     return out;
 }
 
-auto MatchAssignAggr::state() const -> StateAssignAggr & { return *state_; }
+auto MatchAssignAggr::state() const -> StateAssignAggr & {
+    return *state_;
+}
 
 // definition of LitAssignAggr
 
@@ -443,7 +483,9 @@ void LitAssignAggr::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitAssignAggr::do_domain() const -> bool { return state().domain_elems() && state().single_pass_elems(); }
+auto LitAssignAggr::do_domain() const -> bool {
+    return state().domain_elems() && state().single_pass_elems();
+}
 
 auto LitAssignAggr::do_single_pass() const -> bool {
     return state().index() == stratified_index || state().single_pass_elems();
@@ -467,7 +509,9 @@ auto LitAssignAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) co
     return 0;
 }
 
-void LitAssignAggr::do_print(std::ostream &out) const { state().print(out, true); }
+void LitAssignAggr::do_print(std::ostream &out) const {
+    state().print(out, true);
+}
 
 auto LitAssignAggr::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool {
     if (domain()) {
@@ -485,20 +529,28 @@ auto LitAssignAggr::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit
     return true;
 }
 
-auto LitAssignAggr::do_copy() const -> ULit { return std::make_unique<LitAssignAggr>(state()); }
+auto LitAssignAggr::do_copy() const -> ULit {
+    return std::make_unique<LitAssignAggr>(state());
+}
 
 auto LitAssignAggr::do_hash() const -> size_t {
     // NOLINTNEXTLINE
     return Util::value_hash_record<LitAssignAggr>(reinterpret_cast<uintptr_t>(this));
 }
 
-auto LitAssignAggr::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitAssignAggr::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitAssignAggr::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitAssignAggr::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 // definition of LitAssignAggr
 
-auto StmAssignAggrElem::do_body() const -> ULitVec const & { return body_; }
+auto StmAssignAggrElem::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmAssignAggrElem::do_important() const -> VariableSet {
     auto res = VariableSet{};
@@ -516,7 +568,9 @@ auto StmAssignAggrElem::do_is_important(size_t index) const -> bool {
     return index < num_cond_;
 }
 
-void StmAssignAggrElem::do_init(size_t gen) { state_->base().ensure(gen); }
+void StmAssignAggrElem::do_init(size_t gen) {
+    state_->base().ensure(gen);
+}
 
 auto StmAssignAggrElem::get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool> {
     bool fact = true;
@@ -545,7 +599,9 @@ void StmAssignAggrElem::do_propagate(SymbolStore &store, [[maybe_unused]] Output
     }
 }
 
-auto StmAssignAggrElem::do_priority() const -> size_t { return priority_; }
+auto StmAssignAggrElem::do_priority() const -> size_t {
+    return priority_;
+}
 
 void StmAssignAggrElem::do_print_head(std::ostream &out) const {
     auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
@@ -652,7 +708,9 @@ auto LitAssignAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &boun
     return domain() ? 0 : std::numeric_limits<double>::max();
 }
 
-void LitAssignAggrStrat::do_print(std::ostream &out) const { state().print(out, true); }
+void LitAssignAggrStrat::do_print(std::ostream &out) const {
+    state().print(out, true);
+}
 
 auto LitAssignAggrStrat::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool {
     assert(state().single_pass_elems());
@@ -671,15 +729,21 @@ auto LitAssignAggrStrat::do_output([[maybe_unused]] EvalContext const &ctx, Outp
     return true;
 }
 
-auto LitAssignAggrStrat::do_copy() const -> ULit { return std::make_unique<LitAssignAggrStrat>(state(), elems_); }
+auto LitAssignAggrStrat::do_copy() const -> ULit {
+    return std::make_unique<LitAssignAggrStrat>(state(), elems_);
+}
 
 auto LitAssignAggrStrat::do_hash() const -> size_t {
     // NOLINTNEXTLINE
     return Util::value_hash_record<LitAssignAggrStrat>(reinterpret_cast<uintptr_t>(this));
 }
 
-auto LitAssignAggrStrat::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitAssignAggrStrat::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitAssignAggrStrat::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitAssignAggrStrat::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 } // namespace Clingo::Ground

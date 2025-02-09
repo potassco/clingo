@@ -537,7 +537,9 @@ void collect_ids(Symbol const &sym, StringSet &ids) {
     }
 }
 
-void collect_ids(Stm const &stm, StringSet &ids) { Collect{ids}(stm); }
+void collect_ids(Stm const &stm, StringSet &ids) {
+    Collect{ids}(stm);
+}
 
 auto substitute(RewriteContext &ctx, Stm const &stm) -> Util::ResultState<Stm, TruthValue> {
     auto res = substitute_one(ctx, stm);

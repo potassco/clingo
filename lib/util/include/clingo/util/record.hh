@@ -64,7 +64,9 @@ constexpr auto is_valid_argument([[maybe_unused]] std::tuple<Attrs...> attrs) ->
 }
 
 //! Check if an argument is unique.
-template <class Arg, class... Args> constexpr auto is_unique_argument() { return ((Arg::tag != Args::tag) && ...); }
+template <class Arg, class... Args> constexpr auto is_unique_argument() {
+    return ((Arg::tag != Args::tag) && ...);
+}
 
 //! Check if all arguments are unique.
 template <class Arg, class... Args> constexpr auto check_unique_arguments() {

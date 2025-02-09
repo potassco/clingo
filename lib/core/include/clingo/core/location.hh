@@ -113,7 +113,9 @@ class Location {
 };
 
 //! Create a location from the given two positions.
-inline auto operator+(Position a, Position b) -> Location { return {std::move(a), std::move(b)}; }
+inline auto operator+(Position a, Position b) -> Location {
+    return {std::move(a), std::move(b)};
+}
 
 //! Get the location of an expression.
 template <class T>

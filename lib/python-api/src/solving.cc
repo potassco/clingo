@@ -107,7 +107,9 @@ void SolveHandle::cancel() {
     handle_error(clingo_solve_handle_cancel(hnd_));
 }
 
-void SolveHandle::resume() { handle_error(clingo_solve_handle_resume(hnd_)); }
+void SolveHandle::resume() {
+    handle_error(clingo_solve_handle_resume(hnd_));
+}
 
 auto SolveHandle::model() -> std::optional<Model> {
     auto release = py::gil_scoped_release{};

@@ -57,11 +57,17 @@ auto StateCondLit::vars(bool all) const -> VariableSet {
     return res;
 }
 
-auto StateCondLit::vars_global() const -> VariableVec const & { return global_; }
+auto StateCondLit::vars_global() const -> VariableVec const & {
+    return global_;
+}
 
-auto StateCondLit::vars_local() const -> VariableVec const & { return local_; }
+auto StateCondLit::vars_local() const -> VariableVec const & {
+    return local_;
+}
 
-auto StateCondLit::index() const -> size_t { return index_; }
+auto StateCondLit::index() const -> size_t {
+    return index_;
+}
 
 auto StateCondLit::add_empty(Assignment const &ass) -> std::pair<MapAtomCondLit::iterator, bool> {
     if (syms_atom_ == nullptr) {
@@ -145,13 +151,21 @@ auto StateCondLit::propagate() -> bool {
     return res;
 }
 
-auto StateCondLit::domain() const -> bool { return domain_; }
+auto StateCondLit::domain() const -> bool {
+    return domain_;
+}
 
-auto StateCondLit::base_empty() -> BaseCondLitEmpty & { return base_empty_; }
+auto StateCondLit::base_empty() -> BaseCondLitEmpty & {
+    return base_empty_;
+}
 
-auto StateCondLit::base_premise() -> BaseCondLitPremise & { return base_premise_; }
+auto StateCondLit::base_premise() -> BaseCondLitPremise & {
+    return base_premise_;
+}
 
-auto StateCondLit::base_lit() -> BaseCondLit & { return base_lit_; }
+auto StateCondLit::base_lit() -> BaseCondLit & {
+    return base_lit_;
+}
 
 auto StateCondLit::atom_is_fact(MapAtomCondLit::iterator it) -> bool {
     if (!sp_premise_) {
@@ -168,7 +182,9 @@ auto StateCondLit::atom_index(Assignment const &ass) -> std::optional<size_t> {
     return std::nullopt;
 }
 
-auto StateCondLit::atom_nth(size_t index) -> MapAtomCondLit::iterator { return atoms_.nth(index); }
+auto StateCondLit::atom_nth(size_t index) -> MapAtomCondLit::iterator {
+    return atoms_.nth(index);
+}
 
 auto StateCondLit::atom_index(MapAtomCondLit::const_iterator it) const -> size_t {
     return std::distance(atoms_.begin(), it);
@@ -215,7 +231,9 @@ void StateCondLit::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolS
 
 // MatchCondLit
 
-auto MatchCondLit::vars() const -> VariableSet { return state_->vars(type_ == LitCondLitType::premise); }
+auto MatchCondLit::vars() const -> VariableSet {
+    return state_->vars(type_ == LitCondLitType::premise);
+}
 
 auto MatchCondLit::signature(VariableSet const &bound, [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
     static_cast<void>(this);
@@ -262,9 +280,13 @@ auto operator<<(std::ostream &out, MatchCondLit const &m) -> std::ostream & {
     return out;
 }
 
-auto MatchCondLit::state() const -> StateCondLit & { return *state_; }
+auto MatchCondLit::state() const -> StateCondLit & {
+    return *state_;
+}
 
-auto MatchCondLit::type() const -> LitCondLitType { return type_; }
+auto MatchCondLit::type() const -> LitCondLitType {
+    return type_;
+}
 
 auto MatchCondLit::match_(Assignment &ass, Symbol const *sym, VariableVec const &vars) -> bool {
     for (auto var : vars) {
@@ -306,9 +328,13 @@ void LitCondLit::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitCondLit::do_domain() const -> bool { return type() != LitCondLitType::lit || state().domain(); }
+auto LitCondLit::do_domain() const -> bool {
+    return type() != LitCondLitType::lit || state().domain();
+}
 
-auto LitCondLit::do_single_pass() const -> bool { return index_ == stratified_index; }
+auto LitCondLit::do_single_pass() const -> bool {
+    return index_ == stratified_index;
+}
 
 auto LitCondLit::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type, std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
@@ -326,7 +352,9 @@ auto LitCondLit::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
     return {make_atom_matcher(mbr, bound, state().base_lit(), match, type, offset_), index};
 }
 
-auto LitCondLit::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }
+auto LitCondLit::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    return 1;
+}
 
 void LitCondLit::do_print(std::ostream &out) const {
     out << "#cond_lit(" << type();
@@ -358,7 +386,9 @@ auto LitCondLit::do_output(EvalContext const &ctx, OutputLit &out) const -> bool
     return false;
 }
 
-auto LitCondLit::do_copy() const -> ULit { return std::make_unique<LitCondLit>(type(), state(), index_); }
+auto LitCondLit::do_copy() const -> ULit {
+    return std::make_unique<LitCondLit>(type(), state(), index_);
+}
 
 auto LitCondLit::do_hash() const -> size_t {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -419,7 +449,8 @@ class MatcherCondLitStrat : public OnceMatcher {
 
 } // namespace
 
-void LitCondLitStrat::do_init([[maybe_unused]] size_t gen) {}
+void LitCondLitStrat::do_init([[maybe_unused]] size_t gen) {
+}
 
 auto LitCondLitStrat::do_report(EvalContext const &ctx) -> bool {
     // In the stratified case, the conclusion is always false. Furthermore,
@@ -429,9 +460,12 @@ auto LitCondLitStrat::do_report(EvalContext const &ctx) -> bool {
 }
 
 void LitCondLitStrat::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
-                                   [[maybe_unused]] Queue &queue) {}
+                                   [[maybe_unused]] Queue &queue) {
+}
 
-auto LitCondLitStrat::do_priority() const -> size_t { return 0; }
+auto LitCondLitStrat::do_priority() const -> size_t {
+    return 0;
+}
 
 void LitCondLitStrat::do_print_head(std::ostream &out) const {
     out << "#cond_lit(premise";
@@ -452,9 +486,13 @@ void LitCondLitStrat::do_vars(VariableSet &vars, [[maybe_unused]] VarSelectMode 
     }
 }
 
-auto LitCondLitStrat::do_domain() const -> bool { return state_->domain(); }
+auto LitCondLitStrat::do_domain() const -> bool {
+    return state_->domain();
+}
 
-auto LitCondLitStrat::do_single_pass() const -> bool { return true; }
+auto LitCondLitStrat::do_single_pass() const -> bool {
+    return true;
+}
 
 auto LitCondLitStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, [[maybe_unused]] MatcherType type,
                                  [[maybe_unused]] std::vector<bool> const &bound)
@@ -468,7 +506,9 @@ auto LitCondLitStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, [[may
     return {std::make_unique<MatcherCondLitStrat>(*state_, std::move(insts.front())), std::nullopt};
 }
 
-auto LitCondLitStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }
+auto LitCondLitStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    return 1;
+}
 
 void LitCondLitStrat::do_print(std::ostream &out) const {
     out << "#cond_lit(lit";
@@ -556,9 +596,13 @@ void StmCondLit::do_print(std::ostream &out) const {
     out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
-auto StmCondLit::do_body() const -> ULitVec const & { return body_; }
+auto StmCondLit::do_body() const -> ULitVec const & {
+    return body_;
+}
 
-auto StmCondLit::do_important() const -> VariableSet { return state_->vars(type_ != StmCondLitType::empty); }
+auto StmCondLit::do_important() const -> VariableSet {
+    return state_->vars(type_ != StmCondLitType::empty);
+}
 
 void StmCondLit::do_init(size_t gen) {
     switch (type_) {
@@ -649,6 +693,8 @@ void StmCondLit::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unuse
     }
 }
 
-auto StmCondLit::do_priority() const -> size_t { return prio_; }
+auto StmCondLit::do_priority() const -> size_t {
+    return prio_;
+}
 
 } // namespace Clingo::Ground

@@ -70,7 +70,9 @@ auto priority(Prod prod) -> int {
 };
 
 //! Check if the given binary operation is left associative.
-auto left_assoc_(Prod prod) -> bool { return prod != Prod::exp; }
+auto left_assoc_(Prod prod) -> bool {
+    return prod != Prod::exp;
+}
 
 //! Map the given token to a production of a binary operation if possible.
 auto map_binop(TokenType token) -> std::optional<Prod> {

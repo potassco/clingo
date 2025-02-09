@@ -2,7 +2,7 @@
 
 #include <clingo/config.h>
 
-#include <pybind11/pytypes.h>
+#include <pybind11/pybind11.h>
 
 namespace Clingo::Python {
 
@@ -19,7 +19,7 @@ class Config {
     // array interface
     auto is_array() -> bool;
     auto array_at(size_t index) -> Config;
-    auto array_len() -> size_t;
+    auto len_array() -> size_t;
 
     // attribute access
     auto get(char const *name) -> Config;
@@ -39,5 +39,7 @@ class Config {
     clingo_config_t *config_;
     clingo_id_t key_;
 };
+
+void register_config(pybind11::module &m);
 
 } // namespace Clingo::Python

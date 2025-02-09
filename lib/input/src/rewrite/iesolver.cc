@@ -23,7 +23,9 @@ template <class It, class Merge> auto merge_adjancent(It first, It last, Merge m
 
 } // namespace
 
-void add_term(IETermVec &terms, IETerm term) { terms.emplace_back(std::move(term)); }
+void add_term(IETermVec &terms, IETerm term) {
+    terms.emplace_back(std::move(term));
+}
 
 auto simplify(IETermVec &terms) -> Number {
     auto bound = Number{0};
@@ -62,7 +64,9 @@ auto operator<<(std::ostream &out, IETerm const &term) -> std::ostream & {
     return out;
 }
 
-auto IEInterval::has_value(Type type) const -> bool { return type == Lower ? lower_.has_value() : upper_.has_value(); }
+auto IEInterval::has_value(Type type) const -> bool {
+    return type == Lower ? lower_.has_value() : upper_.has_value();
+}
 
 auto IEInterval::value(Type type) const -> Number const & {
     // NOLINTNEXTLINE(bugprone-unchecked-optional-access)

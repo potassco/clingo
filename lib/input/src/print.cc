@@ -69,7 +69,9 @@ auto priority(BinaryOperator op) -> unsigned int {
     return 8; // NOLINT
 }
 
-auto priority([[maybe_unused]] UnaryOperator op) -> unsigned int { return priority(BinaryOperator::times) + 1; }
+auto priority([[maybe_unused]] UnaryOperator op) -> unsigned int {
+    return priority(BinaryOperator::times) + 1;
+}
 
 template <class T> auto operator<<(T &out, TheoryAtomType type) -> T & {
     switch (type) {
@@ -704,7 +706,9 @@ template <class O> class Print {
     bool no_leading_op_;
 };
 
-template <class T> void print_op(T &out, UnaryOperator op) { out << (op == UnaryOperator::minus ? "-" : "~"); }
+template <class T> void print_op(T &out, UnaryOperator op) {
+    out << (op == UnaryOperator::minus ? "-" : "~");
+}
 
 template <class T> void print_op(T &out, BinaryOperator op) {
     switch (op) {

@@ -367,7 +367,9 @@ struct UnpoolStatement {
 
 } // namespace
 
-[[nodiscard]] auto negate(Lit const &lit) -> Lit { return NegateLiteral{}(lit); }
+[[nodiscard]] auto negate(Lit const &lit) -> Lit {
+    return NegateLiteral{}(lit);
+}
 
 [[nodiscard]] auto unpool_relations(Lit const &lit, bool conjunctive) -> std::optional<LitArray> {
     auto const *rel = std::get_if<LitComparison>(&lit);

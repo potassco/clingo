@@ -193,7 +193,9 @@ extern "C" auto clingo_string_builder_string(clingo_string_builder_t const *bld,
     CLINGO_CATCH;
 }
 
-extern "C" void clingo_string_builder_clear(clingo_string_builder_t *bld) { cpp_cast(bld)->reset(); }
+extern "C" void clingo_string_builder_clear(clingo_string_builder_t *bld) {
+    cpp_cast(bld)->reset();
+}
 
 // definition of position
 
@@ -233,9 +235,13 @@ extern "C" auto clingo_position_file(clingo_position_t const *pos) -> char const
     return cpp_cast(pos)->file().c_str();
 }
 
-extern "C" auto clingo_position_line(clingo_position_t const *pos) -> size_t { return cpp_cast(pos)->line(); }
+extern "C" auto clingo_position_line(clingo_position_t const *pos) -> size_t {
+    return cpp_cast(pos)->line();
+}
 
-extern "C" auto clingo_position_column(clingo_position_t const *pos) -> size_t { return cpp_cast(pos)->column(); }
+extern "C" auto clingo_position_column(clingo_position_t const *pos) -> size_t {
+    return cpp_cast(pos)->column();
+}
 
 extern "C" auto clingo_position_hash(clingo_position_t const *pos) -> size_t {
     const auto *p = cpp_cast(pos);
@@ -252,7 +258,9 @@ extern "C" auto clingo_position_compare(clingo_position_t const *a, clingo_posit
 
 extern "C" auto clingo_position_to_string(clingo_position_t const *pos, clingo_string_builder_t *str)
     -> clingo_result_t {
-    CLINGO_TRY { *cpp_cast(str) << *cpp_cast(pos); }
+    CLINGO_TRY {
+        *cpp_cast(str) << *cpp_cast(pos);
+    }
     CLINGO_CATCH;
 }
 
@@ -304,6 +312,8 @@ extern "C" auto clingo_location_compare(clingo_location_t const *a, clingo_locat
 
 extern "C" auto clingo_location_to_string(clingo_location_t const *loc, clingo_string_builder_t *str)
     -> clingo_result_t {
-    CLINGO_TRY { *cpp_cast(str) << *cpp_cast(loc); }
+    CLINGO_TRY {
+        *cpp_cast(str) << *cpp_cast(loc);
+    }
     CLINGO_CATCH;
 }

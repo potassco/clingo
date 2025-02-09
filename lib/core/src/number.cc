@@ -23,17 +23,25 @@ struct mpz_ref_t {
 };
 using mp_int_ref = mpz_ref_t *;
 
-auto repr_is_int(uint64_t repr) -> bool { return (repr & BIGINT_MASK) == 0; }
+auto repr_is_int(uint64_t repr) -> bool {
+    return (repr & BIGINT_MASK) == 0;
+}
 
-auto repr_is_bigint(uint64_t repr) -> bool { return (repr & BIGINT_MASK) == BIGINT_MASK; }
+auto repr_is_bigint(uint64_t repr) -> bool {
+    return (repr & BIGINT_MASK) == BIGINT_MASK;
+}
 
-auto repr_to_int(uint64_t repr) -> int32_t { return static_cast<int>(repr >> 32); }
+auto repr_to_int(uint64_t repr) -> int32_t {
+    return static_cast<int>(repr >> 32);
+}
 
 auto repr_to_bigint(uint64_t repr) -> mp_int_ref {
     return reinterpret_cast<mp_int_ref>(static_cast<uintptr_t>(repr & ~BIGINT_MASK));
 }
 
-auto int_to_repr(int num) -> uint64_t { return static_cast<uint64_t>(num) << 32; }
+auto int_to_repr(int num) -> uint64_t {
+    return static_cast<uint64_t>(num) << 32;
+}
 
 auto mp_int_ref_alloc() -> mp_int_ref {
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory,cppcoreguidelines-no-malloc)
@@ -535,9 +543,11 @@ class Number::Impl {
     }
 };
 
-Number::Number(uint64_t repr) : repr_{repr} {}
+Number::Number(uint64_t repr) : repr_{repr} {
+}
 
-Number::Number(int32_t value) noexcept : repr_{int_to_repr(value)} {}
+Number::Number(int32_t value) noexcept : repr_{int_to_repr(value)} {
+}
 
 Number::Number(char const *str, Base base) : repr_{0} {
     mp_int_ptr z;
@@ -548,9 +558,13 @@ Number::Number(char const *str, Base base) : repr_{0} {
     repr_ = z.release_repr();
 }
 
-Number::Number(Number const &other) : repr_{0} { *this = other; }
+Number::Number(Number const &other) : repr_{0} {
+    *this = other;
+}
 
-Number::Number(Number &&other) noexcept : repr_{0} { *this = std::move(other); }
+Number::Number(Number &&other) noexcept : repr_{0} {
+    *this = std::move(other);
+}
 
 auto Number::operator=(Number const &other) -> Number & {
     // noop
@@ -612,13 +626,21 @@ Number::~Number() noexcept {
     return ret;
 }
 
-void Number::swap(Number &other) noexcept { std::swap(repr_, other.repr_); }
+void Number::swap(Number &other) noexcept {
+    std::swap(repr_, other.repr_);
+}
 
-auto compare(Number const &a, Number const &b) -> int { return Number::Impl::cmp(a, b); }
+auto compare(Number const &a, Number const &b) -> int {
+    return Number::Impl::cmp(a, b);
+}
 
-auto compare(int32_t a, Number const &b) -> int { return Number::Impl::cmp(a, b); }
+auto compare(int32_t a, Number const &b) -> int {
+    return Number::Impl::cmp(a, b);
+}
 
-auto compare(Number const &a, int32_t b) -> int { return Number::Impl::cmp(a, b); }
+auto compare(Number const &a, int32_t b) -> int {
+    return Number::Impl::cmp(a, b);
+}
 
 // addition
 
@@ -1021,7 +1043,9 @@ auto operator<<(Util::OutputBuffer &out, Number const &num) -> Util::OutputBuffe
     return out;
 }
 
-auto bigint_refcount(uint64_t repr) -> std::atomic_size_t & { return repr_to_bigint(repr)->ref_count; }
+auto bigint_refcount(uint64_t repr) -> std::atomic_size_t & {
+    return repr_to_bigint(repr)->ref_count;
+}
 
 // NOLINTEND(readability-magic-numbers,cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr,cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic)
 

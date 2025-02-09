@@ -294,7 +294,8 @@ struct Grounder::Impl : Clingo::SymbolOwner {
 };
 
 Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
-    : impl_{std::make_unique<Impl>(log, store, opts, out)} {}
+    : impl_{std::make_unique<Impl>(log, store, opts, out)} {
+}
 
 Grounder::~Grounder() noexcept = default;
 
@@ -309,7 +310,9 @@ void Grounder::add_const(String name, Symbol value) {
     }
 }
 
-void Grounder::join(Input::UnprocessedProgram const &prg) { impl_->prg.join(*impl_->log, *impl_->store, prg); }
+void Grounder::join(Input::UnprocessedProgram const &prg) {
+    impl_->prg.join(*impl_->log, *impl_->store, prg);
+}
 
 void Grounder::parse(std::string_view str, Ground::ScriptExec *code) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
@@ -396,10 +399,16 @@ void Grounder::output_program(std::ostream &out) {
     out.flush();
 }
 
-auto Grounder::base() const -> Ground::Bases const & { return impl_->bases; }
+auto Grounder::base() const -> Ground::Bases const & {
+    return impl_->bases;
+}
 
-auto Grounder::store() const -> SymbolStore & { return *impl_->store; }
+auto Grounder::store() const -> SymbolStore & {
+    return *impl_->store;
+}
 
-auto Grounder::log() const -> Logger & { return *impl_->log; }
+auto Grounder::log() const -> Logger & {
+    return *impl_->log;
+}
 
 } // namespace Clingo::Control

@@ -25,11 +25,15 @@ auto c_cast(Clingo::Control::SolveControl *control) -> clingo_solve_control_t * 
 }
 
 extern "C" auto clingo_model_type(clingo_model_t const *model, clingo_model_type_t *type) -> clingo_result_t {
-    CLINGO_TRY { *type = static_cast<clingo_model_type_t>(cpp_cast(model)->type()); }
+    CLINGO_TRY {
+        *type = static_cast<clingo_model_type_t>(cpp_cast(model)->type());
+    }
     CLINGO_CATCH;
 }
 extern "C" auto clingo_model_number(clingo_model_t const *model, uint64_t *number) -> clingo_result_t {
-    CLINGO_TRY { *number = cpp_cast(model)->number(); }
+    CLINGO_TRY {
+        *number = cpp_cast(model)->number();
+    }
     CLINGO_CATCH;
 }
 extern "C" auto clingo_model_symbols(clingo_model_t const *model, clingo_show_type_bitset_t show,
@@ -46,19 +50,25 @@ extern "C" auto clingo_model_symbols(clingo_model_t const *model, clingo_show_ty
 
 extern "C" auto clingo_model_contains(clingo_model_t const *model, clingo_symbol_t atom, bool *contained)
     -> clingo_result_t {
-    CLINGO_TRY { *contained = cpp_cast(model)->contains(cpp_cast(atom)); }
+    CLINGO_TRY {
+        *contained = cpp_cast(model)->contains(cpp_cast(atom));
+    }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_model_is_true(clingo_model_t const *model, clingo_literal_t literal, bool *result)
     -> clingo_result_t {
-    CLINGO_TRY { *result = cpp_cast(model)->is_true(literal); }
+    CLINGO_TRY {
+        *result = cpp_cast(model)->is_true(literal);
+    }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_model_is_consequence(clingo_model_t const *model, clingo_literal_t literal,
                                             clingo_consequence_t *result) -> clingo_result_t {
-    CLINGO_TRY { *result = static_cast<clingo_consequence_t>(cpp_cast(model)->is_consequence(literal)); }
+    CLINGO_TRY {
+        *result = static_cast<clingo_consequence_t>(cpp_cast(model)->is_consequence(literal));
+    }
     CLINGO_CATCH;
 }
 
@@ -82,12 +92,16 @@ extern "C" auto clingo_model_priority(clingo_model_t const *model, clingo_weight
 }
 
 extern "C" auto clingo_model_optimality_proven(clingo_model_t const *model, bool *proven) -> clingo_result_t {
-    CLINGO_TRY { *proven = cpp_cast(model)->optimality_proven(); }
+    CLINGO_TRY {
+        *proven = cpp_cast(model)->optimality_proven();
+    }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_model_thread_id(clingo_model_t const *model, clingo_id_t *id) -> clingo_result_t {
-    CLINGO_TRY { *id = cpp_cast(model)->thread_id(); }
+    CLINGO_TRY {
+        *id = cpp_cast(model)->thread_id();
+    }
     CLINGO_CATCH;
 }
 
@@ -103,7 +117,9 @@ extern "C" auto clingo_model_extend(clingo_model_t *model, clingo_symbol_t const
 }
 
 extern "C" auto clingo_model_context(clingo_model_t *model, clingo_solve_control_t **control) -> clingo_result_t {
-    CLINGO_TRY { *control = c_cast(&cpp_cast(model)->context()); }
+    CLINGO_TRY {
+        *control = c_cast(&cpp_cast(model)->context());
+    }
     CLINGO_CATCH;
 }
 
@@ -119,6 +135,8 @@ extern "C" auto clingo_solve_control_base(clingo_solve_control_t const *control,
 
 extern "C" auto clingo_solve_control_add_clause(clingo_solve_control_t *control, clingo_literal_t const *clause,
                                                 size_t size) -> clingo_result_t {
-    CLINGO_TRY { std::ignore = cpp_cast(control)->add_clause({clause, size}); }
+    CLINGO_TRY {
+        std::ignore = cpp_cast(control)->add_clause({clause, size});
+    }
     CLINGO_CATCH;
 }

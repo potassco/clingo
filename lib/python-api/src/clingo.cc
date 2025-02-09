@@ -1,6 +1,7 @@
 #include "clingo.hh"
 #include "ast.hh"
 #include "base.hh"
+#include "config.hh"
 #include "control.hh"
 #include "core.hh"
 #include "script.hh"
@@ -121,6 +122,7 @@ q(@seq(1,2)).
     Clingo::Python::register_ast(m);
     Clingo::Python::register_base(m);
     Clingo::Python::register_solving(m);
+    Clingo::Python::register_config(m);
     Clingo::Python::register_control(m);
     Clingo::Python::register_script(m);
 }

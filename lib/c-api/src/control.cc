@@ -74,17 +74,23 @@ extern "C" void clingo_control_free(clingo_control_t *control) {
 
 extern "C" auto clingo_control_parse_files(clingo_control_t *control, char const **files, size_t files_size)
     -> clingo_result_t {
-    CLINGO_TRY { control->slv->parse(std::vector<std::string_view>{files, files + files_size}); }
+    CLINGO_TRY {
+        control->slv->parse(std::vector<std::string_view>{files, files + files_size});
+    }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_control_parse_string(clingo_control_t *control, char const *program) -> clingo_result_t {
-    CLINGO_TRY { control->slv->parse(program); }
+    CLINGO_TRY {
+        control->slv->parse(program);
+    }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_control_join(clingo_control_t *control, clingo_program_t const *program) -> clingo_result_t {
-    CLINGO_TRY { control->slv->join(program->program); }
+    CLINGO_TRY {
+        control->slv->join(program->program);
+    }
     CLINGO_CATCH;
 }
 
@@ -141,11 +147,15 @@ extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t c
 }
 
 extern "C" auto clingo_control_main(clingo_control_t *control) -> clingo_result_t {
-    CLINGO_TRY { control->slv->main(std::nullopt); }
+    CLINGO_TRY {
+        control->slv->main(std::nullopt);
+    }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_control_buffer(clingo_control_t *control, char const **buffer) -> clingo_result_t {
-    CLINGO_TRY { *buffer = control->slv->buf().c_str(); }
+    CLINGO_TRY {
+        *buffer = control->slv->buf().c_str();
+    }
     CLINGO_CATCH;
 }

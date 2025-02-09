@@ -12,9 +12,13 @@ namespace Clingo::Ground {
 
 // definition of AtomAggr
 
-auto AtomDisjunction::is_fact() const -> bool { return fact_ == 1; }
+auto AtomDisjunction::is_fact() const -> bool {
+    return fact_ == 1;
+}
 
-void AtomDisjunction::mark_fact() { fact_ = 1; }
+void AtomDisjunction::mark_fact() {
+    fact_ = 1;
+}
 
 auto AtomDisjunction::enqueue() -> bool {
     if (enqueued_ == 0 && propagated_ < elems_.size()) {
@@ -30,9 +34,13 @@ void AtomDisjunction::dequeue() {
     enqueued_ = 0;
 }
 
-void AtomDisjunction::add_elem(size_t idx) { elems_.emplace_back(idx); }
+void AtomDisjunction::add_elem(size_t idx) {
+    elems_.emplace_back(idx);
+}
 
-auto AtomDisjunction::elems() const -> std::span<size_t const> { return std::span{elems_.begin(), elems_.end()}; }
+auto AtomDisjunction::elems() const -> std::span<size_t const> {
+    return std::span{elems_.begin(), elems_.end()};
+}
 
 auto AtomDisjunction::todo() -> std::span<size_t const> {
     return std::span{std::next(elems_.begin(), static_cast<ssize_t>(propagated_)), elems_.end()};
@@ -49,30 +57,48 @@ void AtomDisjunction::uid(size_t uid) {
 
 // definition of BaseDisjunction
 
-auto BaseDisjunction::add(Symbol const *sym) -> std::pair<AtomMap::iterator, bool> { return atoms_.try_emplace(sym); }
+auto BaseDisjunction::add(Symbol const *sym) -> std::pair<AtomMap::iterator, bool> {
+    return atoms_.try_emplace(sym);
+}
 
-auto BaseDisjunction::size() const -> size_t { return atoms_.size(); }
+auto BaseDisjunction::size() const -> size_t {
+    return atoms_.size();
+}
 
-auto BaseDisjunction::index(Symbol const *sym) const -> size_t { return atoms_.find(sym) - atoms_.begin(); }
+auto BaseDisjunction::index(Symbol const *sym) const -> size_t {
+    return atoms_.find(sym) - atoms_.begin();
+}
 
-auto BaseDisjunction::nth(size_t i) const -> AtomMap::const_iterator { return atoms_.nth(i); }
+auto BaseDisjunction::nth(size_t i) const -> AtomMap::const_iterator {
+    return atoms_.nth(i);
+}
 
-auto BaseDisjunction::nth(size_t i) -> AtomMap::iterator { return atoms_.nth(i); }
+auto BaseDisjunction::nth(size_t i) -> AtomMap::iterator {
+    return atoms_.nth(i);
+}
 
-auto BaseDisjunction::atoms() -> AtomMap & { return atoms_; }
+auto BaseDisjunction::atoms() -> AtomMap & {
+    return atoms_;
+}
 
 // definition of StateAggr
 
-auto StateDisjunction::global() const -> VariableVec const & { return global_; }
+auto StateDisjunction::global() const -> VariableVec const & {
+    return global_;
+}
 
 auto StateDisjunction::symbols() -> SymbolVec & {
     symbols_.resize(global_.size());
     return symbols_;
 }
 
-auto StateDisjunction::single_pass_body() const -> bool { return single_pass_body_; }
+auto StateDisjunction::single_pass_body() const -> bool {
+    return single_pass_body_;
+}
 
-auto StateDisjunction::index() const -> size_t { return index_; }
+auto StateDisjunction::index() const -> size_t {
+    return index_;
+}
 
 auto StateDisjunction::indices() const -> std::vector<size_t> {
     std::vector<size_t> res;
@@ -84,7 +110,9 @@ auto StateDisjunction::indices() const -> std::vector<size_t> {
     return res;
 }
 
-auto StateDisjunction::base() -> BaseDisjunction & { return base_; }
+auto StateDisjunction::base() -> BaseDisjunction & {
+    return base_;
+}
 
 void StateDisjunction::enqueue(Queue &queue) {
     if (index_ != stratified_index && base_.has_update()) {
@@ -196,7 +224,9 @@ void StateDisjunction::insert_elem(EvalContext const &ctx, AtomMap::iterator it,
     }
 }
 
-auto StateDisjunction::atom_index_(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
+auto StateDisjunction::atom_index_(AtomMap::iterator it) -> size_t {
+    return it - base_.atoms().begin();
+}
 
 void StateDisjunction::print(std::ostream &out, bool print_index) {
     out << "#disjunction(" << Util::p_range(global_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
@@ -226,7 +256,9 @@ void StateDisjunction::output([[maybe_unused]] Logger &log, [[maybe_unused]] Sym
 
 // definition of StmDisjunction
 
-auto StmDisjunction::do_body() const -> ULitVec const & { return body_; }
+auto StmDisjunction::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmDisjunction::do_important() const -> VariableSet {
     auto res = VariableSet{};
@@ -234,7 +266,9 @@ auto StmDisjunction::do_important() const -> VariableSet {
     return res;
 }
 
-void StmDisjunction::do_init([[maybe_unused]] size_t gen) { state_->base().ensure(gen); }
+void StmDisjunction::do_init([[maybe_unused]] size_t gen) {
+    state_->base().ensure(gen);
+}
 
 auto StmDisjunction::do_report(EvalContext const &ctx) -> bool {
     auto &lit = state_->insert_atom(ctx.ass()).first.value();
@@ -253,9 +287,13 @@ void StmDisjunction::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_u
     state_->enqueue(queue);
 }
 
-auto StmDisjunction::do_priority() const -> size_t { return priority_; }
+auto StmDisjunction::do_priority() const -> size_t {
+    return priority_;
+}
 
-void StmDisjunction::do_print_head(std::ostream &out) const { state_->print(out, false); }
+void StmDisjunction::do_print_head(std::ostream &out) const {
+    state_->print(out, false);
+}
 
 void StmDisjunction::do_print(std::ostream &out) const {
     out << priority_ << ": ";
@@ -265,7 +303,9 @@ void StmDisjunction::do_print(std::ostream &out) const {
 
 // definition of StmDisjunctionElem
 
-auto StmDisjunctionElem::do_body() const -> ULitVec const & { return body_; }
+auto StmDisjunctionElem::do_body() const -> ULitVec const & {
+    return body_;
+}
 
 auto StmDisjunctionElem::do_important() const -> VariableSet {
     auto res = VariableSet{};
@@ -308,7 +348,9 @@ void StmDisjunctionElem::do_propagate([[maybe_unused]] SymbolStore &store, Outpu
     state_->propagate(out, queue);
 }
 
-auto StmDisjunctionElem::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }
+auto StmDisjunctionElem::do_priority() const -> size_t {
+    return std::numeric_limits<size_t>::max();
+}
 
 void StmDisjunctionElem::do_print_head(std::ostream &out) const {
     auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
@@ -365,7 +407,9 @@ auto MatchDisjunction::eval(EvalContext const &ctx) const -> std::optional<Symbo
     return eval_.data();
 }
 
-auto MatchDisjunction::state() const -> StateDisjunction & { return *state_; }
+auto MatchDisjunction::state() const -> StateDisjunction & {
+    return *state_;
+}
 
 auto operator<<(std::ostream &out, MatchDisjunction const &m) -> std::ostream & {
     m.state_->print(out, false);
@@ -385,7 +429,9 @@ auto LitDisjunction::do_domain() const -> bool {
     return true;
 }
 
-auto LitDisjunction::do_single_pass() const -> bool { return state().single_pass_body(); }
+auto LitDisjunction::do_single_pass() const -> bool {
+    return state().single_pass_body();
+}
 
 auto LitDisjunction::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                 std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
@@ -404,21 +450,29 @@ auto LitDisjunction::do_score([[maybe_unused]] std::vector<bool> const &bound) c
     return 0;
 }
 
-void LitDisjunction::do_print(std::ostream &out) const { state().print(out, true); }
+void LitDisjunction::do_print(std::ostream &out) const {
+    state().print(out, true);
+}
 
 auto LitDisjunction::do_output([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
-auto LitDisjunction::do_copy() const -> ULit { return std::make_unique<LitDisjunction>(state()); }
+auto LitDisjunction::do_copy() const -> ULit {
+    return std::make_unique<LitDisjunction>(state());
+}
 
 auto LitDisjunction::do_hash() const -> size_t {
     // NOLINTNEXTLINE
     return Util::value_hash_record<LitDisjunction>(reinterpret_cast<uintptr_t>(this));
 }
 
-auto LitDisjunction::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitDisjunction::do_equal_to(Lit const &other) const -> bool {
+    return this == &other;
+}
 
-auto LitDisjunction::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+auto LitDisjunction::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    return this <=> &other;
+}
 
 } // namespace Clingo::Ground

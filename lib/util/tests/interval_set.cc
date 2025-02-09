@@ -17,8 +17,12 @@ namespace {
 
 // NOLINTBEGIN(modernize-use-designated-initializers,readability-magic-numbers)
 
-auto lb(int x, bool y) -> LB { return {x, y}; }
-auto rb(int x, bool y) -> RB { return {x, y}; }
+auto lb(int x, bool y) -> LB {
+    return {x, y};
+}
+auto rb(int x, bool y) -> RB {
+    return {x, y};
+}
 
 auto to_str(IS const &x) -> std::string {
     auto f = [](std::ostream &out, IV const &x) {

@@ -11,9 +11,13 @@ namespace Clingo {
 
 // Note: to enable ADL for catch
 using SL = std::initializer_list<Symbol>;
-auto operator==(SymbolSpan a, SL b) -> bool { return std::ranges::equal(a, b); }
+auto operator==(SymbolSpan a, SL b) -> bool {
+    return std::ranges::equal(a, b);
+}
 
-constexpr auto operator"" _uz(unsigned long long n) -> std::size_t { return n; }
+constexpr auto operator"" _uz(unsigned long long n) -> std::size_t {
+    return n;
+}
 
 namespace Test {
 

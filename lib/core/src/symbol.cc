@@ -51,7 +51,9 @@ struct Sized {
     uint64_t tag : 1;
 };
 
-auto alloc_size(void const *mem) -> size_t { return (reinterpret_cast<Sized const *>(mem) - 1)->size; }
+auto alloc_size(void const *mem) -> size_t {
+    return (reinterpret_cast<Sized const *>(mem) - 1)->size;
+}
 
 //! Simple thread-safe allocator prefixing pointers with a size.
 //!
@@ -195,7 +197,9 @@ class SlottedAlloc {
 constexpr auto dec_bit = static_cast<size_t>(1) << (8 * sizeof(size_t) - 1);
 constexpr auto mark_bit = static_cast<size_t>(1) << (8 * sizeof(size_t) - 2);
 
-void inc_ref(std::atomic_size_t &ref) noexcept { ref.fetch_add(1, std::memory_order::relaxed); }
+void inc_ref(std::atomic_size_t &ref) noexcept {
+    ref.fetch_add(1, std::memory_order::relaxed);
+}
 void dec_ref(std::atomic_size_t &ref) noexcept {
     assert((ref.load(std::memory_order::relaxed) & ~(dec_bit | mark_bit)) > 0);
     ref.fetch_or(dec_bit, std::memory_order::relaxed);
@@ -599,19 +603,29 @@ auto default_symbol_store_() -> USymbolStore & {
 
 // StringRef
 
-auto String::c_str() const -> const char * { return rep_ != 0 ? CharArray::from_repr(rep_).data() : ""; }
+auto String::c_str() const -> const char * {
+    return rep_ != 0 ? CharArray::from_repr(rep_).data() : "";
+}
 
 auto String::view() const -> std::string_view {
     return rep_ != 0 ? CharArray::from_repr(rep_).view() : std::string_view{};
 }
 
-auto String::empty() const -> bool { return *c_str() == '\0'; }
+auto String::empty() const -> bool {
+    return *c_str() == '\0';
+}
 
-auto String::size() const -> size_t { return rep_ != 0 ? CharArray::from_repr(rep_).size() : 0; }
+auto String::size() const -> size_t {
+    return rep_ != 0 ? CharArray::from_repr(rep_).size() : 0;
+}
 
-auto String::starts_with(std::string_view prefix) const -> bool { return view().starts_with(prefix); }
+auto String::starts_with(std::string_view prefix) const -> bool {
+    return view().starts_with(prefix);
+}
 
-auto String::hash() const -> size_t { return rep_ != 0 ? CharArray::from_repr(rep_).hash() : 0; }
+auto String::hash() const -> size_t {
+    return rep_ != 0 ? CharArray::from_repr(rep_).hash() : 0;
+}
 
 auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
     out << str.view();
@@ -954,11 +968,17 @@ auto SymbolStore::string(std::string_view str) -> SharedString {
     return SharedString{do_string(str, true), false};
 }
 
-auto SymbolStore::sup() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_SUP); }
+auto SymbolStore::sup() noexcept -> Symbol {
+    return Symbol::from_rep(EXT_REP_SUP);
+}
 
-auto SymbolStore::inf() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_INF); }
+auto SymbolStore::inf() noexcept -> Symbol {
+    return Symbol::from_rep(EXT_REP_INF);
+}
 
-auto SymbolStore::str(String str) noexcept -> SharedSymbol { return SymbolStore::str(SharedString{str}); }
+auto SymbolStore::str(String str) noexcept -> SharedSymbol {
+    return SymbolStore::str(SharedString{str});
+}
 
 auto SymbolStore::str(SharedString str) noexcept -> SharedSymbol {
     return SharedSymbol::from_rep(SharedString::to_rep(std::move(str)) | REP_STR);
@@ -1001,7 +1021,9 @@ auto SymbolStore::fun(String name, SymbolSpan args, bool sign) -> SharedSymbol {
     return SharedSymbol{do_fun(name, args, sign, true), false};
 }
 
-auto SymbolStore::str_ref(String str) noexcept -> Symbol { return Symbol::from_rep(String::to_rep(str) | REP_STR); }
+auto SymbolStore::str_ref(String str) noexcept -> Symbol {
+    return Symbol::from_rep(String::to_rep(str) | REP_STR);
+}
 
 auto SymbolStore::num_ref(Number num) noexcept -> Symbol {
     if (auto res = num.as_int(); res) {
@@ -1010,7 +1032,9 @@ auto SymbolStore::num_ref(Number num) noexcept -> Symbol {
     return do_num(std::move(num));
 }
 
-auto SymbolStore::num_ref(int32_t num) noexcept -> Symbol { return Symbol::from_rep(Number::to_repr(Number(num))); }
+auto SymbolStore::num_ref(int32_t num) noexcept -> Symbol {
+    return Symbol::from_rep(Number::to_repr(Number(num)));
+}
 
 auto SymbolStore::tup_ref(SymbolSpan args) -> Symbol {
     if (args.empty()) {
@@ -1073,9 +1097,13 @@ auto NameGen::new_name() -> String {
     }
 }
 
-auto compare(Number const &a, Symbol const &b) -> int { return compare(reinterpret_cast<Symbol const &>(a), b); }
+auto compare(Number const &a, Symbol const &b) -> int {
+    return compare(reinterpret_cast<Symbol const &>(a), b);
+}
 
-auto compare(Symbol const &a, Number const &b) -> int { return compare(a, reinterpret_cast<Symbol const &>(b)); }
+auto compare(Symbol const &a, Number const &b) -> int {
+    return compare(a, reinterpret_cast<Symbol const &>(b));
+}
 
 auto compare(Symbol const &a, Symbol const &b) -> int {
     if (a == b) {
