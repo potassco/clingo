@@ -177,6 +177,7 @@ extern "C" auto clingo_config_value_get(clingo_config_t const *config, clingo_id
             return clingo_result_invalid;
         }
         static thread_local auto val = std::string{};
+        val.clear();
         if (cpp_cast(config)->getValue(key, val) < 0) {
             return clingo_result_invalid;
         }
