@@ -139,6 +139,11 @@ void register_control(pybind11::module &m) {
     auto control = m.def_submodule("control", R"(
 Module containing the Control class responsible for grounding and solving.
 
+# Examples
+
+The first example shows the most straightforward way to ground and solve a
+small test program:
+
 ```python
 >>> from clingo.core import Library
 >>> from clingo.control import Control
@@ -150,6 +155,34 @@ Module containing the Control class responsible for grounding and solving.
 >>> with ctl.solve(on_model=print) as hnd:
 ...     hnd.get()
 a
+```
+
+The second example shows how to call functions from within a program:
+
+```python
+>>> from clingo.core import Library
+>>> from clingo.symbol import Number
+>>> from clingo.control import Control
+>>>
+>>> class Context:
+...     def __init__(self, lib):
+...       self.lib = lib
+...     def inc(self, x):
+...         return Number(self.lib, x.number + 1)
+...     def seq(self, x, y):
+...         return [x, y]
+...
+>>> lib = Library()
+>>> ctl = Control(lib)
+>>> ctl.parse_string("""
+... p(@inc(10)).
+... q(@seq(1,2)).
+... """)
+>>> ctl.ground(context=Context(lib))
+>>> with ctl.solve(on_model=print) as hnd:
+...     print(hnd.get())
+p(11) q(1) q(2)
+SAT
 ```
 )"_d);
     py::class_<Control>(control, "Control", R"(A control object for grounding and solving.)")

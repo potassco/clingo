@@ -6,6 +6,7 @@
 #include "core.hh"
 #include "script.hh"
 #include "solving.hh"
+#include "statistics.hh"
 #include "symbol.hh"
 
 #include <pybind11/pybind11.h>
@@ -70,26 +71,16 @@ The first example shows how to use the clingo module from Python.
 
 ```python
 >>> from clingo.core import Library
->>> from clingo.symbol import Number
 >>> from clingo.control import Control
 >>>
->>> class Context:
-...     def __init__(self, lib):
-...       self.lib = lib
-...     def inc(self, x):
-...         return Number(self.lib, x.number + 1)
-...     def seq(self, x, y):
-...         return [x, y]
-...
->>> lib = Library()
->>> ctl = Control(lib)
->>> ctl.parse_string("""
-... p(@inc(10)).
-... q(@seq(1,2)).
-... """)
->>> ctl.ground(context=Context(lib))
->>> print(ctl.solve(on_model=print))
-p(11) q(1) q(2)
+>>> with Library() as lib:
+...     ctl = Control(lib, ["0"])
+...     ctl.parse_string("1 {a; b} 1.")
+...     ctl.ground()
+...     with ctl.solve(on_model=print) as hnd:
+...         print(hnd.get())
+a
+b
 SAT
 ```
 
@@ -97,24 +88,17 @@ The second example shows how to use Python code from clingo.
 ```python
 #script (python)
 
-from clingo.symbol import Number
+from clingo.core import Library
+from clingo.control import Control
 
-class Context:
-    def __init__(self, lib):
-      self.lib = lib
-    def inc(self, x):
-        return Number(self.lib, x.number + 1)
-    def seq(self, x, y):
-        return [x, y]
-
-def main(lib, ctl):
+def main(lib: Library, ctl: Control):
     ctl.ground(context=Context(lib))
-    ctl.solve()
+    with ctl.solve() as hnd:
+        hnd.get()
 
 #end.
 
-p(@inc(10)).
-q(@seq(1,2)).
+1 {a; b} 1.
 ```
 )doc";
     Clingo::Python::register_core(m);
@@ -123,6 +107,7 @@ q(@seq(1,2)).
     Clingo::Python::register_base(m);
     Clingo::Python::register_solving(m);
     Clingo::Python::register_config(m);
+    Clingo::Python::register_statistics(m);
     Clingo::Python::register_control(m);
     Clingo::Python::register_script(m);
 }
