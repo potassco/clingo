@@ -43,11 +43,10 @@ format are called *program literals*. They are non-zero integers associated
 with symbolic atoms, theory atoms, and also without any association if they are
 used to translate complex language constructs not directly representable in
 aspif format. The sign of a program literal is used to represent default
-negation. Symbolic atoms can be mapped to program literals using the
-`clingo.symbolic_atoms` module and theory atoms using the `clingo.theory_atoms`
-module. Note that symbolic and theory atoms can share the same program
-literals. Finally, the `clingo.backend` module can also be used to introduce
-fresh symbolic atoms and program literals.
+negation. Symbolic and theory atoms can be mapped to program literals using the
+`clingo.base` module. Note that symbolic and theory atoms can share the same
+program literals. Finally, the `clingo.backend` module can also be used to
+introduce fresh symbolic atoms and program literals.
 
 Solver Literals
 ---------------

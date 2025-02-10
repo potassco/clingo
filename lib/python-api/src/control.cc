@@ -1,5 +1,6 @@
 #include "control.hh"
 #include "core.hh"
+#include "statistics.hh"
 #include "util.hh"
 
 #include <clingo/solve.h>
@@ -91,6 +92,15 @@ auto Control::config() -> Config {
     clingo_id_t key = 0;
     handle_error(clingo_config_root(config, &key));
     return Config{config, key};
+}
+
+auto Control::statistics() -> py::dict {
+    clingo_statistics_t const *stats = nullptr;
+    handle_error(clingo_control_statistics(ctl_.get(), &stats));
+    uint64_t key = 0;
+    handle_error(clingo_statistics_root(stats, &key));
+    // NOLINTNEXTLINE
+    return Statistics{const_cast<clingo_statistics_t *>(stats), key}.as_dict();
 }
 
 auto Control::solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model, bool yield, bool async)
@@ -272,7 +282,8 @@ there is any.
 )"_d)
         .def_property_readonly("buffer", &Control::buffer, R"(The content of the output bufer.)")
         .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)")
-        .def_property_readonly("config", &Control::config, R"(Get the solver configuration.)");
+        .def_property_readonly("config", &Control::config, R"(Get the solver configuration.)")
+        .def_property_readonly("statistics", &Control::statistics, R"(Get the solver statistics.)");
 }
 
 } // namespace Clingo::Python

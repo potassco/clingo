@@ -24,6 +24,7 @@ class Control {
         -> SSolveHandle;
     auto base() -> Base;
     auto config() -> Config;
+    auto statistics() -> py::dict;
     void main();
     auto buffer() -> char const *;
 

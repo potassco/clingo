@@ -6300,7 +6300,7 @@ The following example shows how to parse individual statements and add them to a
 >>> from clingo import ast
 >>>
 >>> lib = Library()
->>> ctl = Control(lib, ["--mode=ground", "--text-buffer"])
+>>> ctl = Control(lib, ["--mode=ground"])
 >>> ctl.parse_string("a(1).")
 >>> prg = ast.Program(lib)
 >>> prg.add(ast.parse_statement(lib, "b(X+1) :- a(X)."))
@@ -6308,7 +6308,15 @@ The following example shows how to parse individual statements and add them to a
 >>> ctl.join(prg)
 >>> ctl.ground()
 >>> ctl.buffer
-'a(1).\nb(2).\nc(3).\n#show a(1): a(1).\n#show b(2): b(2).\n#show c(3): c(3).\n#show.\n'
+"""
+a(1).
+b(2).
+c(3).
+#show.
+#show a/1.
+#show b/1.
+#show c/1.
+"""
 ```
 )doc");
 
