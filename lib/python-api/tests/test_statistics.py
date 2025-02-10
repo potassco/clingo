@@ -40,7 +40,7 @@ class TestStatistics:
         Test the solver statistics.
         """
         res = [["a"], ["b"], ["c"], ["d"]]
-        ctl = Control(self.lib)
+        ctl = Control(self.lib, ["0"])
         ctl.parse_string("1 { a; b; c; d } 1.")
         ctl.ground()
         mcb = MCB()
@@ -54,7 +54,7 @@ class TestStatistics:
         Test the user statistics.
         """
         res = [["a"], ["b"], ["c"], ["d"]]
-        ctl = Control(self.lib)
+        ctl = Control(self.lib, ["0"])
         ctl.parse_string("1 { a; b; c; d } 1.")
         ctl.ground()
         mcb = MCB()

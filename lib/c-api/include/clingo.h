@@ -58,6 +58,8 @@ extern "C" {
 
 //! @defgroup c_config Solver Configuration
 
+//! @defgroup c_stats Statistics
+
 //! @}
 
 //! @defgroup c_script Scripting Support for Grounding

@@ -9,6 +9,7 @@ add_library(clingo
     "src/model.cc"
     "src/script.cc"
     "src/solve.cc"
+    "src/statistics.cc"
     "src/symbol.cc"
     )
 target_link_libraries(clingo PRIVATE clingo::control CLI11)
