@@ -192,6 +192,14 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_statistics_value_set(clingo_sta
                                                                       double value);
 //! @}
 
+//! Get the solver statistics.
+//!
+//! @param[in] control the target control object
+//! @param[out] statistics the resulting statistics object
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_statistics(clingo_control_t *control,
+                                                                    clingo_statistics_t const **statistics);
+
 //! @}
 
 #ifdef __cplusplus

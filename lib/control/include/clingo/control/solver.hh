@@ -228,7 +228,11 @@ class Solver {
     //! Get a pointer to the underlying clasp facade.
     [[nodiscard]] auto clasp_facade() const -> Clasp::ClaspFacade const & { return *clasp_; }
     //! Only non-null in solving mode.
-    [[nodiscard]] auto clasp_config() -> Clasp::Cli::ClaspCliConfig & { return *clasp_config_; }
+    [[nodiscard]] auto clasp_config() -> Clasp::Cli::ClaspCliConfig & {
+        return clasp_config_ != nullptr ? *clasp_config_ : throw std::runtime_error("not in solving mode");
+    }
+    //! Get the statsistics.
+    [[nodiscard]] auto clasp_statistics() -> Potassco::AbstractStatistics const & { return *clasp_->getStats(); }
 
   private:
     //! States for step transitions.
