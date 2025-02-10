@@ -179,7 +179,7 @@ auto Config::str() -> std::string {
 }
 
 void register_config(pybind11::module &m) {
-    auto config = m.def_submodule("config", R"(
+    auto config = m.def_submodule("config", R"d(
 Functions and classes related to configuration.
 
 Examples
@@ -210,12 +210,10 @@ enum_mode: "auto"
 project: "no"
 models: "-1"
 opt_mode: "-1,opt"
-opt_stop: "-1,opt,no"
+opt_stop: "-1,opt,no"\
 """
 >>> ctl.config.solve.models.description
-"""\
-Compute at most %A models (0 for all)
-"""
+"Compute at most %A models (0 for all)"
 >>> ctl.config.solve.models = 0
 >>> ctl.parse_string("1 {a; b}.")
 >>> ctl.ground()
@@ -226,7 +224,7 @@ a
 a b
 SAT
 ```
-)"_d);
+)d"_d);
     py::class_<Config>(config, "Config", R"(
 Allows for changing the configuration of the underlying solver.
 
@@ -239,8 +237,7 @@ config.group.subgroup.option.value = "value"  # variant 2
 value = config.group.subgroup.option.value
 ```
 
-There are also sequences of option groups (identified by the `is_sequence`
-member):
+There are also sequences of option groups (identified by `is_sequence`):
 
 ```python
 config.group.subgroup[0].option = "value1"
@@ -256,7 +253,7 @@ Note that the first element of a sequence can be accessed directly without
 going through index 0. Furthermore, config objects have a YAML-like string
 representation to inspect the current configuration. To provide full
 information and avoid duplication in the string representation of sequences,
-attributes are only printed if the sequence is currently emtpy.
+attributes are only added if the sequence is currently emtpy.
 
 Notes
 -----
@@ -271,6 +268,7 @@ is automatically converted into a string.
                       R"(Get/set the string value of the configuration entry.)")
         // sequence interface
         .def_property_readonly("is_sequence", &Config::is_sequence, R"(Whether the configuration is a sequence.)")
+        .def("__len__", &Config::len_sequence, R"(Get the length of an array config.)")
         .def("__getitem__", &Config::at_sequence, py::arg("index"), R"(Get the index-th element of a sequence.)")
         // attribute access
         .def("__getattr__", &Config::get, py::arg("name"), R"(Get the configuration entry with the given name.)")
