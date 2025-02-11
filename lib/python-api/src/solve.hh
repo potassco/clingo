@@ -1,8 +1,9 @@
 #pragma once
 
+#include "stats.hh"
 #include "symbol.hh"
 
-#include <clingo/solve.h>
+#include "clingo/solve.h"
 
 #include <pybind11/pybind11.h>
 
@@ -44,11 +45,13 @@ class Model {
     clingo_model_t const *mdl_;
 };
 
+using StatsCallback = std::function<void(Stats, Stats)>;
 using ModelCallback = std::function<std::optional<bool>(Model &)>;
 
 class SolveHandle {
   public:
-    SolveHandle(std::optional<ModelCallback> mdl) : mdl_{std::move(mdl)} {}
+    SolveHandle(std::optional<ModelCallback> mdl, std::optional<StatsCallback> stats)
+        : mdl_{std::move(mdl)}, stats_{std::move(stats)} {}
     SolveHandle(SolveHandle const &other) = delete;
     SolveHandle(SolveHandle &&other) noexcept = delete;
     auto operator=(SolveHandle const &other) -> SolveHandle & = delete;
@@ -72,6 +75,7 @@ class SolveHandle {
   private:
     clingo_solve_handle_t *hnd_ = nullptr;
     std::optional<ModelCallback> mdl_;
+    std::optional<StatsCallback> stats_;
     std::exception_ptr ptr_;
 };
 using SSolveHandle = std::shared_ptr<SolveHandle>;

@@ -1,9 +1,6 @@
-#include <clingo/control/solver.hh>
+#include "clingo/control/solver.hh"
 
-#include <clingo/output/text.hh>
-
-#include <clingo/util/checked_math.hh>
-#include <clingo/util/enum.hh>
+#include "clingo/output/text.hh"
 
 #include <clasp/solver.h>
 
@@ -398,6 +395,14 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         mdl_.set_model(&mdl);
         return eh_->on_model(mdl_);
+    }
+    void onEvent(Clasp::Event const &event) override {
+        using namespace Clasp;
+        if (auto const *res = event_cast<ClaspFacade::StepReady>(event); res != nullptr) {
+            if (auto *stats = mdl_.clasp().getStats(); stats != nullptr) {
+                eh_->on_stats(*stats);
+            }
+        }
     }
 
   private:

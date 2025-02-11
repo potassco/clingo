@@ -20,8 +20,8 @@ class Control {
     void parse_string(char const *str);
     void join(Program &prg);
     void ground(std::optional<std::vector<std::pair<std::string, SymbolVec>>> const &parts, py::handle ctx);
-    auto solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model, bool yield, bool async)
-        -> SSolveHandle;
+    auto solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model,
+               std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle;
     auto base() -> Base;
     auto config() -> Config;
     auto stats() -> py::dict;

@@ -1,4 +1,5 @@
-#include <clingo/solve.h>
+#include "clingo/solve.h"
+#include "clingo/stats.h"
 
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
@@ -85,10 +86,15 @@ class SolveEventHandler : public Clingo::Control::EventHandler {
   public:
     SolveEventHandler(clingo_solve_event_callback_t notify, void *data) : notify_{notify}, data_{data} {}
 
-    auto do_on_model([[maybe_unused]] Clingo::Control::Model &m) -> bool override {
+    auto do_on_model(Clingo::Control::Model &m) -> bool override {
         bool goon = true;
         handle_error(notify_(clingo_solve_event_type_model, &m, data_, &goon));
         return goon;
+    }
+
+    void do_on_stats(Potassco::AbstractStatistics &stats) override {
+        bool goon = true;
+        handle_error(notify_(clingo_solve_event_type_stats, &stats, data_, &goon));
     }
 
   private:

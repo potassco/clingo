@@ -76,6 +76,16 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
             auto ret = (*eh->mdl_)(mdl);
             *goon = ret ? *ret : true;
         }
+        if (eh->stats_ && type == clingo_solve_event_type_stats) {
+            auto *c_stats = static_cast<clingo_stats_t *>(event);
+            uint64_t root = 0;
+            handle_error(clingo_stats_root(c_stats, &root));
+            uint64_t step = 0;
+            handle_error(clingo_stats_map_add_subkey(c_stats, root, "user_step", clingo_stats_type_map, &step));
+            uint64_t accu = 0;
+            handle_error(clingo_stats_map_add_subkey(c_stats, root, "user_accu", clingo_stats_type_map, &accu));
+            (*eh->stats_)(Stats{c_stats, step}, Stats{c_stats, accu});
+        }
     }
     CLINGO_CATCH(eh->ptr_);
 }
@@ -100,12 +110,12 @@ auto Control::stats() -> py::dict {
     uint64_t key = 0;
     handle_error(clingo_stats_root(stats, &key));
     // NOLINTNEXTLINE
-    return Stats{const_cast<clingo_stats_t *>(stats), key}.to_py();
+    return Stats{const_cast<clingo_stats_t *>(stats), key}.nestify();
 }
 
-auto Control::solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model, bool yield, bool async)
-    -> SSolveHandle {
-    auto res = std::make_shared<SolveHandle>(std::move(on_model));
+auto Control::solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model,
+                    std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
+    auto res = std::make_shared<SolveHandle>(std::move(on_model), std::move(on_stats));
     auto mode = clingo_solve_mode_bitset_t{0};
     if (yield) {
         mode |= clingo_solve_mode_yield;
@@ -224,7 +234,8 @@ Args:
   context: An optional object with functions to call during grounding.
 )"_d)
         .def("solve", &Control::solve, py::arg("assumptions") = Control::AssumptionVec{},
-             py::arg("on_model") = std::nullopt, py::arg("yield_") = false, py::arg("async_") = false, R"(
+             py::arg("on_model") = std::nullopt, py::arg("on_stats") = std::nullopt, py::arg("yield_") = false,
+             py::arg("async_") = false, R"(
 Solve the current ground program.
 
 Args:

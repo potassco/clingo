@@ -35,6 +35,7 @@ class StatsMap {
     auto get(char const *name) -> Stats;
     void set(char const *name, py::handle value);
     auto len() -> size_t;
+    auto contains(char const *name) -> bool;
 
   private:
     clingo_stats_t *stats_;
@@ -50,8 +51,9 @@ class Stats {
     auto map() -> StatsMap;
     auto get_value() -> double;
     void set_value(double value);
-    auto to_py() -> py::object;
-    void update(py::handle value);
+    auto nestify() -> py::object;
+    void update(py::handle value) { update_(value, false); }
+    void update_(py::handle value, bool init);
 
   private:
     clingo_stats_t *stats_;

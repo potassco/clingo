@@ -9,7 +9,8 @@ auto get_type(py::handle value) {
     if (py::isinstance<py::sequence>(value)) {
         return py::hasattr(value, "items") ? StatsType::map : StatsType::array;
     }
-    if (py::isinstance<py::float_>(value)) {
+    if (PyCallable_Check(value.ptr()) == 1 || py::isinstance<py::float_>(value) || py::isinstance<py::int_>(value) ||
+        py::hasattr(value, "__float__")) {
         return StatsType::value;
     }
     throw py::type_error{"expected sequence, mapping, or float"};
@@ -31,15 +32,16 @@ auto StatsArray::len() -> size_t {
 
 void StatsArray::set(size_t index, py::handle value) {
     if (index < len()) {
-        get(index).update(value);
+        get(index).update_(value, false);
+    } else {
+        throw py::index_error{"array index out of bounds"};
     }
-    throw py::index_error{"array index out of bounds"};
 }
 
 void StatsArray::append(py::handle value) {
     uint64_t subkey = 0;
     handle_error(clingo_stats_array_push(stats_, key_, static_cast<clingo_stats_type_t>(get_type(value)), &subkey));
-    Stats{stats_, subkey}.update(value);
+    Stats{stats_, subkey}.update_(value, true);
 }
 
 auto StatsMap::len() -> size_t {
@@ -49,16 +51,26 @@ auto StatsMap::len() -> size_t {
 }
 
 auto StatsMap::get(char const *name) -> Stats {
-    uint64_t subkey = 0;
-    handle_error(clingo_stats_map_at(stats_, key_, name, &subkey));
-    return {stats_, subkey};
+    if (contains(name)) {
+        uint64_t subkey = 0;
+        handle_error(clingo_stats_map_at(stats_, key_, name, &subkey));
+        return {stats_, subkey};
+    }
+    throw py::index_error{"invalid key"};
+}
+
+auto StatsMap::contains(char const *name) -> bool {
+    auto res = false;
+    handle_error(clingo_stats_map_has_subkey(stats_, key_, name, &res));
+    return res;
 }
 
 void StatsMap::set(char const *name, py::handle value) {
+    auto has_key = contains(name);
     uint64_t subkey = 0;
     handle_error(
         clingo_stats_map_add_subkey(stats_, key_, name, static_cast<clingo_stats_type_t>(get_type(value)), &subkey));
-    Stats{stats_, subkey}.update(value);
+    Stats{stats_, subkey}.update_(value, !has_key);
 }
 
 auto Stats::type() -> StatsType {
@@ -96,11 +108,12 @@ auto Stats::get_value() -> double {
 void Stats::set_value(double value) {
     if (type() == StatsType::value) {
         handle_error(clingo_stats_value_set(stats_, key_, value));
+    } else {
+        throw py::type_error{"not a value"};
     }
-    throw py::type_error{"not a value"};
 }
 
-auto Stats::to_py() -> py::object {
+auto Stats::nestify() -> py::object {
     switch (type()) {
         case StatsType::value: {
             return py::float_{get_value()};
@@ -110,7 +123,7 @@ auto Stats::to_py() -> py::object {
             auto n = x.len();
             auto res = py::list{n};
             for (size_t i = 0; i < n; ++i) {
-                res[i] = x.get(i).to_py();
+                res[i] = x.get(i).nestify();
             }
             return res;
         }
@@ -121,7 +134,7 @@ auto Stats::to_py() -> py::object {
             for (size_t i = 0; i < n; ++i) {
                 char const *name = "";
                 handle_error(clingo_stats_map_subkey_name(stats_, key_, i, &name));
-                res[name] = x.get(name).to_py();
+                res[name] = x.get(name).nestify();
             }
             return res;
         }
@@ -129,11 +142,42 @@ auto Stats::to_py() -> py::object {
     unreachable();
 }
 
-void Stats::update(py::handle value) {
-    static_cast<void>(value);
-    static_cast<void>(this);
-    throw std::logic_error{"implement me!!!"};
+void Stats::update_(py::handle value, bool init) {
+    switch (type()) {
+        case StatsType::value: {
+            if (PyCallable_Check(value.ptr()) == 1) {
+                set_value(cast<double>(value(init ? static_cast<py::object>(py::none{}) : py::float_{get_value()})));
+            } else {
+                set_value(cast<double>(value));
+            }
+            break;
+        }
+        case StatsType::array: {
+            auto x = array();
+            size_t i = 0;
+            size_t j = x.len();
+            for (auto elem : value) {
+                if (i < j) {
+                    x.set(i, elem);
+                    ++i;
+                } else {
+                    x.append(elem);
+                }
+            }
+            break;
+        }
+        case StatsType::map: {
+            auto x = map();
+            for (auto elem : py::getattr(value, "items")()) {
+                auto key = elem[py::int_{0}];
+                auto val = elem[py::int_{1}];
+                x.set(py::cast<std::string>(key).c_str(), val);
+            }
+            break;
+        }
+    }
 }
+
 void register_stats(pybind11::module &m) {
     auto module = m.def_submodule("stats", R"(
 Functions and classes related to solver stats.
@@ -147,7 +191,7 @@ The following example shows how to add custom stats and access the stats:
 >>> from clingo.control import Control
 >>>
 >>> def on_stats(step, accu):
-...     accu["example"] = 42
+...     accu.update({"example": [lambda x: (x or 0) + 21]}
 ...
 >>> lib = Library()
 >>> ctl = Control(lib, ['--stats'])
@@ -156,8 +200,11 @@ The following example shows how to add custom stats and access the stats:
 >>> with ctl.solve(on_stats=on_stats) as hnd:
 ...     print(hnd.get())
 SAT
+>>> with ctl.solve(on_stats=on_stats) as hnd:
+...     print(hnd.get())
+SAT
 >>> ctl.stats['user_accu']
-{ "example": 42.0 }
+{ "example": [42.0] }
 >>> ctl.stats['summary']['times']
 { "cpu": 0.000785999999999995,
   "sat": 7.867813110351562e-06,
@@ -181,7 +228,11 @@ option only basic stats are reported.
 Class representing an array of stats.
 
 This class partially implements the mutable sequence protocol - elements of
-arrays can be modified but they cannot be deleted.
+arrays can be modified but they cannot be deleted. Modifications are
+implemented via `Stats.update`.
+
+Most use cases should be implementable just using the update function of the
+top-level statistics object.
 )"_d)
         .def("__len__", &StatsArray::len, "Get the length of the array.")
         .def("__setitem__", &StatsArray::set, "Set the element at the given index to the given value.")
@@ -197,18 +248,33 @@ Args:
 Class representing a map of stats.
 
 This class partially implements the mutable mapping protocol - value of keys
-can be modified but they cannot be deleted.
+can be modified but they cannot be deleted. Modifications are implemented via
+`Stats.update`.
+
+Most use cases should be implementable just using the update function of the
+top-level statistics object.
 )"_d)
         .def("__len__", &StatsMap::len, "Get the length of the map.")
         .def("__setitem__", &StatsMap::set, py::arg("key"), py::arg("value"), "Set the value at the given key.")
         .def("__getitem__", &StatsMap::get, py::arg("key"), "Lookup the value with the given key.");
 
     stats
+        .def("nestify", &Stats::nestify, R"(
+Convert the statistics object into a nested structure consisting of sequencens,
+mappings with string keys, and floats.
+)"_d)
         .def("update", &Stats::update, py::arg("values"), R"(
-Update the statistics with the given values
+Update the statistics with the given values.
+
+Note that values can be inserted and changed but they cannot be deleted nor can
+their type be changed.
 
 Args:
-	values: A nested structure consisting of sequencens, mappings with string keys, and floats.
+    values: A nested structure consisting of sequencens, mappings with string
+        keys, floats, and functions. The latter can be used to update
+        existing values. They receive the previous values as argument and must
+        return an update value. If there is no previous value, `None` is passed
+        as argument.
 )"_d)
         .def_property_readonly("type", &Stats::type, R"(Get the type of the stats object.)")
         .def_property_readonly("array", &Stats::array, R"(Get an array of stats objects.)")

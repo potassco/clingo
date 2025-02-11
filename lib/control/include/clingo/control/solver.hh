@@ -159,9 +159,11 @@ class EventHandler {
     virtual ~EventHandler() = default;
 
     auto on_model(Model &m) -> bool { return do_on_model(m); }
+    void on_stats(Potassco::AbstractStatistics &stats) { do_on_stats(stats); }
 
   private:
     virtual auto do_on_model([[maybe_unused]] Model &m) -> bool { return true; }
+    virtual void do_on_stats([[maybe_unused]] Potassco::AbstractStatistics &stats) {}
 };
 using UEventHandler = std::unique_ptr<EventHandler>;
 
