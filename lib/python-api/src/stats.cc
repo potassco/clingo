@@ -191,7 +191,8 @@ The following example shows how to add custom stats and access the stats:
 >>> from clingo.control import Control
 >>>
 >>> def on_stats(step, accu):
-...     accu.update({"example": [lambda x: (x or 0) + 21]}
+...     accu.update({"example": [21]})
+...     accu.update({"example": [lambda x: (x or 0) + 21]})
 ...
 >>> lib = Library()
 >>> ctl = Control(lib, ['--stats'])
@@ -203,6 +204,8 @@ SAT
 >>> with ctl.solve(on_stats=on_stats) as hnd:
 ...     print(hnd.get())
 SAT
+>>> ctl.stats['user_step']
+{ "example": [21.0] }
 >>> ctl.stats['user_accu']
 { "example": [42.0] }
 >>> ctl.stats['summary']['times']
@@ -273,8 +276,8 @@ Args:
     values: A nested structure consisting of sequencens, mappings with string
         keys, floats, and functions. The latter can be used to update
         existing values. They receive the previous values as argument and must
-        return an update value. If there is no previous value, `None` is passed
-        as argument.
+        return an updated value. If there is no previous value, `None` is
+        passed as argument.
 )"_d)
         .def_property_readonly("type", &Stats::type, R"(Get the type of the stats object.)")
         .def_property_readonly("array", &Stats::array, R"(Get an array of stats objects.)")
