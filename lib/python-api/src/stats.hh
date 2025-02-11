@@ -12,7 +12,6 @@ enum class StatsType : uint8_t {
     value = clingo_stats_type_value,
     array = clingo_stats_type_array,
     map = clingo_stats_type_map,
-    empty = clingo_stats_type_empty,
 };
 
 class Stats;
@@ -20,6 +19,9 @@ class Stats;
 class StatsArray {
   public:
     StatsArray(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
+    void set(size_t index, py::handle value);
+    auto get(size_t index) -> Stats;
+    void append(py::handle value);
     auto len() -> size_t;
 
   private:
@@ -30,6 +32,8 @@ class StatsArray {
 class StatsMap {
   public:
     StatsMap(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
+    auto get(char const *name) -> Stats;
+    void set(char const *name, py::handle value);
     auto len() -> size_t;
 
   private:
@@ -46,7 +50,8 @@ class Stats {
     auto map() -> StatsMap;
     auto get_value() -> double;
     void set_value(double value);
-    auto as_dict() -> py::dict;
+    auto to_py() -> py::object;
+    void update(py::handle value);
 
   private:
     clingo_stats_t *stats_;

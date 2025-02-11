@@ -100,7 +100,7 @@ auto Control::stats() -> py::dict {
     uint64_t key = 0;
     handle_error(clingo_stats_root(stats, &key));
     // NOLINTNEXTLINE
-    return Stats{const_cast<clingo_stats_t *>(stats), key}.as_dict();
+    return Stats{const_cast<clingo_stats_t *>(stats), key}.to_py();
 }
 
 auto Control::solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model, bool yield, bool async)
@@ -159,7 +159,7 @@ small test program:
 >>> from clingo.control import Control
 >>>
 >>> lib = Library()
->>> ctl = Control(lib, [])
+>>> ctl = Control(lib)
 >>> ctl.parse_string("1 { a; b }.")
 >>> ctl.ground()
 >>> with ctl.solve(on_model=print) as hnd:
