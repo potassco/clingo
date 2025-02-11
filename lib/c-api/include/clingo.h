@@ -54,7 +54,7 @@ extern "C" {
 
 //! @defgroup c_model Model Inspection
 
-//! @defgroup c_solving Solving
+//! @defgroup c_solve Solving
 
 //! @defgroup c_config Solver Configuration
 

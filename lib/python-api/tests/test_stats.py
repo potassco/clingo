@@ -1,5 +1,5 @@
 """
-Unit tests for the clingo.statistics module.
+Unit tests for the clingo.stats module.
 """
 
 from clingo.control import Control
@@ -7,10 +7,10 @@ from clingo.core import Library
 from util import MCB
 
 
-class TestStatistics:
+class TestStats:
     # pylint: disable=attribute-defined-outside-init
     """
-    Tests for the solving module.
+    Tests for the stats module.
     """
 
     def setup_method(self, method):
@@ -37,7 +37,7 @@ class TestStatistics:
 
     def test_solve(self):
         """
-        Test the solver statistics.
+        Test the solver stats.
         """
         res = [["a"], ["b"], ["c"], ["d"]]
         ctl = Control(self.lib, ["0"])
@@ -51,7 +51,7 @@ class TestStatistics:
 
     def test_user(self):
         """
-        Test the user statistics.
+        Test the user stats.
         """
         res = [["a"], ["b"], ["c"], ["d"]]
         ctl = Control(self.lib, ["0"])

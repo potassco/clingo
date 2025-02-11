@@ -31,7 +31,7 @@ typedef struct clingo_control clingo_control_t;
 //!
 //! ## Code ##
 
-//! @addtogroup c_solving Solving
+//! @addtogroup c_solve Solving
 //! Interact with a running search.
 //!
 //! A ::clingo_solve_handle_t objects can be used for both synchronous and asynchronous search,
@@ -68,10 +68,10 @@ typedef unsigned clingo_solve_mode_bitset_t;
 
 //! Enumeration of solve events.
 enum clingo_solve_event_type_e {
-    clingo_solve_event_type_model = 0,      //!< Issued if a model is found.
-    clingo_solve_event_type_unsat = 1,      //!< Issued if an optimization problem is found unsatisfiable.
-    clingo_solve_event_type_statistics = 2, //!< Issued when the statistics can be updated.
-    clingo_solve_event_type_finish = 3,     //!< Issued if the search has completed.
+    clingo_solve_event_type_model = 0,  //!< Issued if a model is found.
+    clingo_solve_event_type_unsat = 1,  //!< Issued if an optimization problem is found unsatisfiable.
+    clingo_solve_event_type_stats = 2,  //!< Issued when the stats can be updated.
+    clingo_solve_event_type_finish = 3, //!< Issued if the search has completed.
 };
 //! Corresponding type to ::clingo_solve_event_type_e.
 typedef unsigned clingo_solve_event_type_t;
@@ -82,8 +82,8 @@ typedef unsigned clingo_solve_event_type_t;
 //! In case of errors not related to clingo, set error code ::clingo_error_unknown and return false to stop solving with
 //! an error.
 //!
-//! The event is either a pointer to a model, a pointer to an int64_t* and a size_t, a pointer to two statistics objects
-//! (per step and accumulated statistics), or a solve result.
+//! The event is either a pointer to a model, a pointer to an int64_t* and a size_t, a pointer to two stats objects
+//! (per step and accumulated stats), or a solve result.
 //!
 //! @attention If the search is finished, the model is NULL.
 //!

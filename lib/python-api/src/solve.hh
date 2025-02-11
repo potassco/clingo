@@ -76,6 +76,6 @@ class SolveHandle {
 };
 using SSolveHandle = std::shared_ptr<SolveHandle>;
 
-void register_solving(pybind11::module &m);
+void register_solve(pybind11::module &m);
 
 } // namespace Clingo::Python

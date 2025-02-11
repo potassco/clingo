@@ -7,8 +7,8 @@ add_library(clingo_python
     src/control.cc
     src/core.cc
     src/script.cc
-    src/solving.cc
-    src/statistics.cc
+    src/solve.cc
+    src/stats.cc
     src/symbol.cc
     )
 target_link_libraries(clingo_python PRIVATE pybind11::pybind11 clingo)

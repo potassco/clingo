@@ -3,7 +3,7 @@
 #include "ast.hh"
 #include "base.hh"
 #include "config.hh"
-#include "solving.hh"
+#include "solve.hh"
 #include "symbol.hh"
 
 #include <clingo/control.h>
@@ -24,7 +24,7 @@ class Control {
         -> SSolveHandle;
     auto base() -> Base;
     auto config() -> Config;
-    auto statistics() -> py::dict;
+    auto stats() -> py::dict;
     void main();
     auto buffer() -> char const *;
 

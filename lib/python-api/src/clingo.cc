@@ -5,8 +5,8 @@
 #include "control.hh"
 #include "core.hh"
 #include "script.hh"
-#include "solving.hh"
-#include "statistics.hh"
+#include "solve.hh"
+#include "stats.hh"
 #include "symbol.hh"
 
 #include <pybind11/pybind11.h>
@@ -104,9 +104,9 @@ def main(lib: Library, ctl: Control):
     Clingo::Python::register_symbol(m);
     Clingo::Python::register_ast(m);
     Clingo::Python::register_base(m);
-    Clingo::Python::register_solving(m);
+    Clingo::Python::register_solve(m);
     Clingo::Python::register_config(m);
-    Clingo::Python::register_statistics(m);
+    Clingo::Python::register_stats(m);
     Clingo::Python::register_control(m);
     Clingo::Python::register_script(m);
 }

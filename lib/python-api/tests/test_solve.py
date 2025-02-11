@@ -1,5 +1,5 @@
 """
-Unit tests for clingo.solving module.
+Unit tests for clingo.solve module.
 """
 
 from clingo.control import Control
@@ -8,10 +8,10 @@ from clingo.symbol import Function, Symbol
 from util import MCB
 
 
-class TestSolving:
+class TestSolve:
     # pylint: disable=attribute-defined-outside-init
     """
-    Tests for the solving module.
+    Tests for the solve module.
     """
 
     def setup_method(self, method):

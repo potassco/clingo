@@ -1,6 +1,6 @@
 #include "control.hh"
 #include "core.hh"
-#include "statistics.hh"
+#include "stats.hh"
 #include "util.hh"
 
 #include <clingo/solve.h>
@@ -94,13 +94,13 @@ auto Control::config() -> Config {
     return Config{config, key};
 }
 
-auto Control::statistics() -> py::dict {
-    clingo_statistics_t const *stats = nullptr;
-    handle_error(clingo_control_statistics(ctl_.get(), &stats));
+auto Control::stats() -> py::dict {
+    clingo_stats_t const *stats = nullptr;
+    handle_error(clingo_control_stats(ctl_.get(), &stats));
     uint64_t key = 0;
-    handle_error(clingo_statistics_root(stats, &key));
+    handle_error(clingo_stats_root(stats, &key));
     // NOLINTNEXTLINE
-    return Statistics{const_cast<clingo_statistics_t *>(stats), key}.as_dict();
+    return Stats{const_cast<clingo_stats_t *>(stats), key}.as_dict();
 }
 
 auto Control::solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model, bool yield, bool async)
@@ -235,25 +235,25 @@ Args:
         `[(clingo.symbol.Function(lib, "a"), True)]` only admits answer sets
         that contain atom `a`.
     on_model:
-        Optional callback for intercepting models. A `clingo.solving.Model`
+        Optional callback for intercepting models. A `clingo.solve.Model`
         object is passed to the callback. The search can be interruped from the
         model callback by returning `False`.
     on_unsat:
         Optional callback to intercept lower bounds during optimization.
-    on_statistics:
-        Optional callback to update statistics.
-        The step and accumulated statistics are passed as arguments.
+    on_stats:
+        Optional callback to update stats.
+        The step and accumulated stats are passed as arguments.
     on_finish:
         Optional callback called once search has finished. A
-        `clingo.solving.SolveResult` is passed to the callback.
+        `clingo.solve.SolveResult` is passed to the callback.
     on_core:
         Optional callback called with the assumptions that made a problem
         unsatisfiable.
     yield_:
-        The resulting `clingo.solving.SolveHandle` is iterable yielding
-        `clingo.solving.Model` objects.
+        The resulting `clingo.solve.SolveHandle` is iterable yielding
+        `clingo.solve.Model` objects.
     async_:
-        The solve call and the method `clingo.solving.SolveHandle.resume`
+        The solve call and the method `clingo.solve.SolveHandle.resume`
         of the returned handle are non-blocking.
 
 Returns:
@@ -269,10 +269,10 @@ Note:
     use any functions that block Python's GIL indefinitely.
 
     This function as well as blocking functions on the
-    `clingo.solving.SolveHandle` release the GIL but are not thread-safe.
+    `clingo.solve.SolveHandle` release the GIL but are not thread-safe.
 
 See Also:
-    clingo.solving: For more examples how to use this method.
+    clingo.solve: For more examples how to use this method.
 )"_d)
         .def("main", &Control::main, R"(
 Ground and solver a logic program.
@@ -282,8 +282,8 @@ there is any.
 )"_d)
         .def_property_readonly("buffer", &Control::buffer, R"(The content of the output bufer.)")
         .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)")
-        .def_property_readonly("config", &Control::config, R"(Get the solver configuration.)")
-        .def_property_readonly("statistics", &Control::statistics, R"(Get the solver statistics.)");
+        .def_property_readonly("config", &Control::config, R"(Get the solver config.)")
+        .def_property_readonly("stats", &Control::stats, R"(Get the solver stats.)");
 }
 
 } // namespace Clingo::Python

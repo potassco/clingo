@@ -2,7 +2,7 @@
 Utilities for testing.
 """
 
-from clingo.solving import Model
+from clingo.solve import Model
 
 
 class MCB:

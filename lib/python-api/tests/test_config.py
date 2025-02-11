@@ -9,10 +9,10 @@ from clingo.core import Library
 from util import MCB
 
 
-class TestSolving:
+class TestConfig:
     # pylint: disable=attribute-defined-outside-init
     """
-    Tests for the solving module.
+    Tests for the config module.
     """
 
     def setup_method(self, method):

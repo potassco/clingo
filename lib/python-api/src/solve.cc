@@ -1,4 +1,4 @@
-#include "solving.hh"
+#include "solve.hh"
 #include "core.hh"
 #include "util.hh"
 
@@ -147,8 +147,8 @@ void SolveHandle::close() {
     }
 }
 
-void register_solving(pybind11::module &m) {
-    auto solving = m.def_submodule("solving", R"(
+void register_solve(pybind11::module &m) {
+    auto solve = m.def_submodule("solve", R"(
 Functions and classes related to solving.
 
 Examples
@@ -226,7 +226,7 @@ This example shows how to solve both iteratively and asynchronously:
     a
     SAT
 )"_d);
-    py::class_<SolveResult>(solving, "SolveResult", R"(A solve result captures information about a solve call.)")
+    py::class_<SolveResult>(solve, "SolveResult", R"(A solve result captures information about a solve call.)")
         .def("__str__", &SolveResult::str, R"(Get a string representation of the solve result.)")
         .def_property_readonly("satisfiable", &SolveResult::satisfiable, R"(Whether there was at least one model.)")
         .def_property_readonly("unsatisfiable", &SolveResult::unsatisfiable, R"(Whether there was no model.)")
@@ -234,7 +234,7 @@ This example shows how to solve both iteratively and asynchronously:
         .def_property_readonly("exhausted", &SolveResult::exhausted, R"(Whether all models have been enumerated.)")
         .def_property_readonly("interrupted", &SolveResult::interrupted, R"(Whether the search was interrupted.)");
 
-    py::class_<Model>(solving, "Model", R"(A view on the solver's current solution.)")
+    py::class_<Model>(solve, "Model", R"(A view on the solver's current solution.)")
         .def("symbols", &Model::symbols, py::arg("shown") = false, py::arg("atoms") = false, py::arg("terms") = false,
              py::arg("theory") = false, R"(
 Get the symbols in the model.
@@ -247,7 +247,7 @@ Args:
 )"_d)
         .def("__str__", &Model::str, "Get a string representation of the model.");
 
-    py::class_<SolveHandle, SSolveHandle>(solving, "SolveHandle", R"(
+    py::class_<SolveHandle, SSolveHandle>(solve, "SolveHandle", R"(
 An object to interact with a running search.
 
 It can be used to control solving, like, retrieving models or cancelling a
