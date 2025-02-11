@@ -426,6 +426,7 @@ class SolveHandleImpl : public SolveHandle {
     SolveHandleImpl(std::unique_ptr<Clasp::EventHandler> eh, Ground::Bases const &bases, Clasp::ClaspFacade &clasp,
                     Clasp::ClaspFacade::SolveHandle const &hnd)
         : mdl_{bases, clasp}, hnd_{hnd}, eh_{std::move(eh)} {}
+    ~SolveHandleImpl() override { hnd_.cancel(); }
 
   private:
     auto do_get() -> SolveResult override {

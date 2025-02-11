@@ -2,6 +2,7 @@
 Unit tests for the clingo.stats module.
 """
 
+import pytest
 from clingo.control import Control
 from clingo.core import Library
 from util import MCB
@@ -44,10 +45,15 @@ class TestStats:
         ctl.parse_string("1 { a; b; c; d } 1.")
         ctl.ground()
         mcb = MCB()
-        with ctl.solve(on_model=mcb) as hnd:
+        with ctl.solve(on_model=mcb, async_=True) as hnd:
+            with pytest.raises(ValueError):
+                _ = ctl.stats
             assert hnd.get().satisfiable
         assert mcb.symbols == res
-        # TODO: add tests
+        stats = ctl.stats
+        assert isinstance(stats, dict)
+        cpu = stats["summary"]["times"]["cpu"]
+        assert isinstance(cpu, float) and cpu > 0.0
 
     def test_user(self):
         """

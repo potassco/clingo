@@ -19,13 +19,13 @@ auto get_type(py::handle value) {
 
 auto StatsArray::get(size_t index) -> Stats {
     uint64_t subkey = 0;
-    clingo_stats_array_at(stats_, key_, index, &subkey);
+    handle_error(clingo_stats_array_at(stats_, key_, index, &subkey));
     return {stats_, subkey};
 }
 
 auto StatsArray::len() -> size_t {
     size_t size = 0;
-    clingo_stats_array_size(stats_, key_, &size);
+    handle_error(clingo_stats_array_size(stats_, key_, &size));
     return size;
 }
 
@@ -44,7 +44,7 @@ void StatsArray::append(py::handle value) {
 
 auto StatsMap::len() -> size_t {
     size_t size = 0;
-    clingo_stats_map_size(stats_, key_, &size);
+    handle_error(clingo_stats_map_size(stats_, key_, &size));
     return size;
 }
 
@@ -63,7 +63,7 @@ void StatsMap::set(char const *name, py::handle value) {
 
 auto Stats::type() -> StatsType {
     clingo_stats_type_t type = 0;
-    clingo_stats_type(stats_, key_, &type);
+    handle_error(clingo_stats_type(stats_, key_, &type));
     if (type == clingo_stats_type_empty) {
         throw std::logic_error{"invalid stats object"};
     }

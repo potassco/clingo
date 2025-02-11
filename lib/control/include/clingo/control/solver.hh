@@ -232,7 +232,10 @@ class Solver {
         return clasp_config_ != nullptr ? *clasp_config_ : throw std::runtime_error("not in solving mode");
     }
     //! Get the statsistics.
-    [[nodiscard]] auto clasp_stats() -> Potassco::AbstractStatistics const & { return *clasp_->getStats(); }
+    [[nodiscard]] auto clasp_stats() -> Potassco::AbstractStatistics const & {
+        auto const *stats = clasp_->getStats();
+        return stats != nullptr ? *stats : throw std::runtime_error("not in solving mode");
+    }
 
   private:
     //! States for step transitions.
