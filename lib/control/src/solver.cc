@@ -390,7 +390,7 @@ class ModelImpl : public Model, private SolveControl {
 class EventHandlerAdapter : public Clasp::EventHandler {
   public:
     EventHandlerAdapter(Ground::Bases const &bases, Clasp::ClaspFacade &clasp, Control::UEventHandler eh)
-        : mdl_{bases, clasp}, eh_{std::move(eh)} {}
+        : mdl_{bases, clasp}, eh_{std::move(eh)}, stats_{clasp.getStats()} {}
 
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         mdl_.set_model(&mdl);
@@ -398,16 +398,16 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     }
     void onEvent(Clasp::Event const &event) override {
         using namespace Clasp;
-        if (auto const *res = event_cast<ClaspFacade::StepReady>(event); res != nullptr) {
-            if (auto *stats = mdl_.clasp().getStats(); stats != nullptr) {
-                eh_->on_stats(*stats);
-            }
+        if (auto const *res = event_cast<ClaspFacade::StepReady>(event); res != nullptr && stats_ != nullptr) {
+            eh_->on_stats(*stats_);
         }
     }
 
   private:
     ModelImpl mdl_;
     Control::UEventHandler eh_;
+    // FIXME: there should be no need to have this member
+    Potassco::AbstractStatistics *stats_;
 };
 
 //! A solve handle that does nothing.
