@@ -355,12 +355,14 @@ void StateHdAggr::propagate(OutputStm &out, Queue &queue) {
         if (state.propagate(guards_, it.key() + global_.size())) {
             for (auto elem_idx : state.todo()) {
                 for (auto &[sym, head, cond] : tuples_.nth(elem_idx).value()) {
-                    auto sig = std::make_tuple(sym.name(), sym.args().size(), sym.has_classical_sign());
-                    auto it = std::ranges::lower_bound(bases_, sig, std::less<>{},
-                                                       [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
-                    assert(it != bases_.end());
-                    auto *base = std::get<1>(*it);
-                    head = base->add(sym, StateAtom::derived, [&out]() { return out.uid(); }).first.value().id;
+                    if (auto sig = sym.signature()) {
+                        auto it =
+                            std::ranges::lower_bound(bases_, *sig, std::less<>{},
+                                                     [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
+                        assert(it != bases_.end());
+                        auto *base = std::get<1>(*it);
+                        head = base->add(sym, StateAtom::derived, [&out]() { return out.uid(); }).first.value().id;
+                    }
                 }
             }
 #ifdef DEBUG_AGGR

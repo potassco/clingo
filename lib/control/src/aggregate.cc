@@ -114,10 +114,13 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
                          elem.tuple().front());
         // head
         auto head = TermBase{};
-        ctx.with_simple_lit(elem.lit(), [&](auto sig, auto term, auto &base, auto provides) {
-            bases.emplace_back(sig, &base, std::move(provides));
-            head.emplace(std::make_pair(std::move(term), &base));
-        });
+        ctx.with_simple_lit(
+            elem.lit(),
+            [&](auto sig, auto term, auto &base, auto provides) {
+                bases.emplace_back(sig, &base, std::move(provides));
+                head.emplace(std::make_pair(std::move(term), &base));
+            },
+            true);
         // condition
         auto cond = Ground::ULitVec{};
         cond.reserve(elem.cond().size() + 1);

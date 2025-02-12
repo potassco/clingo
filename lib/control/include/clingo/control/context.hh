@@ -155,7 +155,7 @@ class BuildContext {
     }
 
     //! Translate the given simple input literal with a callback.
-    template <class F> void with_simple_lit(Input::Lit const &lit, F &&fun) {
+    template <class F> void with_simple_lit(Input::Lit const &lit, F &&fun, bool expect_truth = false) {
         std::visit(
             [&]<class T>(T const &lit) {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
@@ -163,7 +163,7 @@ class BuildContext {
                     with_simple_lit(lit.term(), std::forward<F>(fun));
                     return;
                 } else if constexpr (Util::matches<T, Input::LitBool>) {
-                    if (!lit.value()) {
+                    if (lit.value() == expect_truth) {
                         return;
                     }
                 }
