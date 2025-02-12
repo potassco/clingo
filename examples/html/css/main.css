@@ -465,6 +465,7 @@ pre {
   display: block;
 }
 .hlist li {
+  white-space: nowrap;
   display: inline;
   padding-right: .7em;
   padding-left: .7em;
