@@ -8,8 +8,6 @@
 
 #include <clasp/cli/clasp_app.h>
 
-#include <CLI/CLI.hpp>
-
 namespace {
 
 using namespace Clingo::Input;

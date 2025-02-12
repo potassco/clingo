@@ -12,6 +12,6 @@ add_library(clingo
     "src/stats.cc"
     "src/symbol.cc"
     )
-target_link_libraries(clingo PRIVATE clingo::control CLI11)
+target_link_libraries(clingo PRIVATE clingo::control)
 target_include_directories(clingo PUBLIC "include")
 set_property(TARGET clingo PROPERTY POSITION_INDEPENDENT_CODE ON)

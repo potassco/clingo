@@ -21,8 +21,6 @@ if (NOT PARSER_BUILD_WEB)
     add_subdirectory(pybind11)
 endif()
 
-add_subdirectory(CLI11)
-
 add_subdirectory(clasp)
 set_property(TARGET libclasp PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET libpotassco PROPERTY POSITION_INDEPENDENT_CODE ON)

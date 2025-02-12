@@ -25,6 +25,7 @@ add_library(clingo::python ALIAS clingo_python_embed)
 target_include_directories(clingo_python_embed PUBLIC "include")
 target_link_libraries(clingo_python_embed PRIVATE pybind11::embed clingo clingo_python)
 target_compile_definitions(clingo_python_embed PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}")
+target_compile_definitions(clingo_python_embed PUBLIC CLINGO_PYTHON_ENABLED)
 
 if (PYTEST_EXECUTABLE)
     pytest_discover_tests(
