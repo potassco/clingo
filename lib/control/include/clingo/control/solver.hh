@@ -160,10 +160,16 @@ class EventHandler {
 
     auto on_model(Model &m) -> bool { return do_on_model(m); }
     void on_stats(Potassco::AbstractStatistics &stats) { do_on_stats(stats); }
+    void on_unsat(Clasp::SumView bound) { do_on_unsat(bound); }
+    void on_core(Potassco::LitSpan core) { do_on_core(core); }
+    void on_finish(SolveResult result) { do_on_finish(result); }
 
   private:
     virtual auto do_on_model([[maybe_unused]] Model &m) -> bool { return true; }
     virtual void do_on_stats([[maybe_unused]] Potassco::AbstractStatistics &stats) {}
+    virtual void do_on_unsat([[maybe_unused]] Clasp::SumView bound) {}
+    virtual void do_on_core([[maybe_unused]] Potassco::LitSpan core) {}
+    virtual void do_on_finish([[maybe_unused]] SolveResult result) {}
 };
 using UEventHandler = std::unique_ptr<EventHandler>;
 

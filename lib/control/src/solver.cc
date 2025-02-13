@@ -247,7 +247,7 @@ class ModelImpl : public Model, private SolveControl {
     }
 
     //! Get the underlying clasp facade.
-    auto clasp() -> Clasp::ClaspFacade const & { return *clasp_; }
+    auto clasp() -> Clasp::ClaspFacade & { return *clasp_; }
 
   private:
     void do_symbols(SymbolSelectFlags type, SymbolVec &res) const override {
@@ -386,25 +386,82 @@ class ModelImpl : public Model, private SolveControl {
     std::vector<Clasp::Literal> lits_;
 };
 
+auto convert(Clasp::SolveResult cres) -> SolveResult {
+    static constexpr uint8_t i1 = 9;
+    static constexpr uint8_t i2 = 65;
+    if (cres.interrupted() && cres.signal != 0 && cres.signal != i1 && cres.signal != i2) {
+        throw std::runtime_error("solving stopped by signal");
+    }
+    auto res = SolveResult::empty;
+    if (cres.interrupted()) {
+        res |= SolveResult::interrupted;
+    }
+    if (cres.sat()) {
+        res |= SolveResult::satisfiable;
+    }
+    if (cres.unsat()) {
+        res |= SolveResult::unsatisfiable;
+    }
+    if (cres.exhausted()) {
+        res |= SolveResult::exhausted;
+    }
+    return res;
+}
+
 //! An event handler that adapts clingo's event handler to clasp's.
 class EventHandlerAdapter : public Clasp::EventHandler {
   public:
-    EventHandlerAdapter(Ground::Bases const &bases, Clasp::ClaspFacade &clasp, Control::UEventHandler eh)
-        : mdl_{bases, clasp}, eh_{std::move(eh)}, stats_{clasp.getStats()} {}
+    // FIXME:
+    // - locking
+    // - exceptions in step ready should probably be caught
+    EventHandlerAdapter(Logger &logger, Ground::Bases const &bases, Clasp::ClaspFacade &clasp,
+                        Control::UEventHandler eh)
+        : logger_{&logger}, mdl_{bases, clasp}, eh_{std::move(eh)}, stats_{clasp.getStats()} {}
 
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
-        mdl_.set_model(&mdl);
-        return eh_->on_model(mdl_);
+        if (eh_) {
+            mdl_.set_model(&mdl);
+            return eh_->on_model(mdl_);
+        }
+        return true;
     }
     void onEvent(Clasp::Event const &event) override {
         using namespace Clasp;
-        if (auto const *res = event_cast<ClaspFacade::StepReady>(event); res != nullptr && stats_ != nullptr) {
-            eh_->on_stats(*stats_);
+        if (eh_) {
+            if (auto const *res = event_cast<ClaspFacade::StepReady>(event); res != nullptr && stats_ != nullptr) {
+                eh_->on_stats(*stats_);
+                eh_->on_finish(convert(res->summary->result));
+            }
+        }
+        if (auto const *log = event_cast<LogEvent>(event); log != nullptr && log->isWarning()) {
+            logger_->print(MessageCode::warn, log->msg);
         }
     }
 
+    auto onUnsat([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
+        if (auto const *ctx = mdl.ctx; eh_ && ctx != nullptr && ctx->optimize() && ctx->lowerBound().active()) {
+            auto lower = ctx->lowerBound();
+            assert(lower.level <= mdl.costs.size());
+            bound_.reserve(ctx->minimizer()->numRules());
+            bound_.assign(mdl.costs.begin(), mdl.costs.begin() + lower.level);
+            bound_.push_back(lower.bound);
+            eh_->on_unsat(bound_);
+        }
+        return true;
+    }
+
+    void onCore(Potassco::LitSpan core) {
+        if (eh_) {
+            eh_->on_core(core);
+        }
+    }
+
+    [[nodiscard]] auto model() -> ModelImpl & { return mdl_; }
+
   private:
+    Logger *logger_;
     ModelImpl mdl_;
+    Clasp::SumVec bound_;
     Control::UEventHandler eh_;
     // FIXME: there should be no need to have this member
     Potassco::AbstractStatistics *stats_;
@@ -425,43 +482,40 @@ class SolveHandleFixed : public SolveHandle {
     auto do_wait([[maybe_unused]] double timeout) -> bool override { return true; }
 };
 
+auto convert(SolveMode mode) -> Clasp::SolveMode {
+    auto res = Clasp::SolveMode::def;
+    if (intersects(mode, SolveMode::yield)) {
+        res |= Clasp::SolveMode::yield;
+    }
+    if (intersects(mode, SolveMode::async)) {
+        res |= Clasp::SolveMode::async;
+    }
+    return res;
+}
+
 //! The solve handle implementation.
 class SolveHandleImpl : public SolveHandle {
   public:
-    SolveHandleImpl(std::unique_ptr<Clasp::EventHandler> eh, Ground::Bases const &bases, Clasp::ClaspFacade &clasp,
-                    Clasp::ClaspFacade::SolveHandle const &hnd)
-        : mdl_{bases, clasp}, hnd_{hnd}, eh_{std::move(eh)} {}
+    SolveHandleImpl(Logger &log, Ground::Bases const &bases, Clasp::ClaspFacade &clasp, SolveMode mode,
+                    UEventHandler eh)
+        : eh_{log, bases, clasp, std::move(eh)}, hnd_{clasp.solve(convert(mode), {}, &eh_)} {}
+
     ~SolveHandleImpl() override { hnd_.cancel(); }
 
   private:
     auto do_get() -> SolveResult override {
-        static constexpr uint8_t i1 = 9;
-        static constexpr uint8_t i2 = 65;
-        auto cres = hnd_.get();
-        if (cres.interrupted() && cres.signal != 0 && cres.signal != i1 && cres.signal != i2) {
-            throw std::runtime_error("solving stopped by signal");
-        }
-        auto res = SolveResult::empty;
-        if (cres.interrupted()) {
-            res |= SolveResult::interrupted;
-        }
-        if (cres.sat()) {
-            res |= SolveResult::satisfiable;
-        }
-        if (cres.unsat()) {
-            res |= SolveResult::unsatisfiable;
-        }
-        if (cres.exhausted()) {
-            res |= SolveResult::exhausted;
+        auto res = convert(hnd_.get());
+        if (intersects(res, SolveResult::unsatisfiable)) {
+            eh_.onCore(do_core());
         }
         return res;
     }
     void do_cancel() override { hnd_.cancel(); }
     void do_resume() override { hnd_.resume(); }
-    auto do_model() -> Model const * override { return mdl_.set_model(hnd_.model()) ? &mdl_ : nullptr; }
-    auto do_last() -> Model const * override { return mdl_.set_last() ? &mdl_ : nullptr; }
+    auto do_model() -> Model const * override { return eh_.model().set_model(hnd_.model()) ? &eh_.model() : nullptr; }
+    auto do_last() -> Model const * override { return eh_.model().set_last() ? &eh_.model() : nullptr; }
     auto do_core() -> Output::LitSpan override {
-        auto const &clasp = mdl_.clasp();
+        auto const &clasp = eh_.model().clasp();
         core_.clear();
         if (auto core = clasp.summary().unsatCore(); !core.empty()) {
             clasp.asp()->translateCore(core, core_);
@@ -478,9 +532,8 @@ class SolveHandleImpl : public SolveHandle {
         return hnd_.waitFor(timeout);
     }
 
-    ModelImpl mdl_;
+    EventHandlerAdapter eh_;
     Clasp::ClaspFacade::SolveHandle hnd_;
-    std::unique_ptr<Clasp::EventHandler> eh_;
     Potassco::LitVec mutable core_;
 };
 
@@ -592,24 +645,7 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         state_ = State::solved;
         clasp_->asp()->addAssumption(assumptions);
         clasp_->prepare();
-
-        // convert solve mode
-        auto cm = [](SolveMode mode) {
-            auto res = Clasp::SolveMode::def;
-            if (intersects(mode, SolveMode::yield)) {
-                res |= Clasp::SolveMode::yield;
-            }
-            if (intersects(mode, SolveMode::async)) {
-                res |= Clasp::SolveMode::async;
-            }
-            return res;
-        };
-        // adapt the handler for clasp
-        auto eh = handler != nullptr ? std::make_unique<EventHandlerAdapter>(grd_.base(), *clasp_, std::move(handler))
-                                     : nullptr;
-        auto hnd = clasp_->solve(cm(mode), {}, eh.get());
-        // adapt the handle which also manages the lifetime of the handler
-        return std::make_unique<SolveHandleImpl>(std::move(eh), grd_.base(), *clasp_, hnd);
+        return std::make_unique<SolveHandleImpl>(grd_.log(), grd_.base(), *clasp_, mode, std::move(handler));
     }
     return std::make_unique<SolveHandleFixed>();
 }
