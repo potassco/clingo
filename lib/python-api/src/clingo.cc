@@ -66,38 +66,53 @@ function is provided.
 
 ## Examples
 
-The first example shows how to use the clingo module from Python.
-
-```python
->>> from clingo.core import Library
->>> from clingo.control import Control
->>>
->>> with Library() as lib:
-...     ctl = Control(lib, ["0"])
-...     ctl.parse_string("1 {a; b} 1.")
-...     ctl.ground()
-...     with ctl.solve(on_model=print) as hnd:
-...         print(hnd.get())
-a
-b
-SAT
-```
-
-The second example shows how to use Python code from clingo.
+The first example shows how to use Python code from clingo.
 ```python
 #script (python)
 
 from clingo.core import Library
 from clingo.control import Control
+from clingo.symbol import Number
+
+def f(x):
+    return Number(x.number)
 
 def main(lib: Library, ctl: Control):
-    ctl.ground(context=Context(lib))
+    ctl.ground()
     with ctl.solve() as hnd:
         hnd.get()
 
 #end.
 
-1 {a; b} 1.
+1 {p(1..2)} 1.
+q(@f(X)) :- p(X).
+```
+
+The second example shows how to use the `clingo` module from Python. Note the
+use of a context object here. In fact, it is not possible (by default) to call
+functions from the main scope. See the `clingo.script` module for more
+information.
+
+```python
+>>> from clingo.core import Library
+>>> from clingo.control import Control
+>>> from clingo.symbol import Number
+>>>
+>>> class Context:
+...     def__init__(self, lib):
+...         self.lib = lib
+...     def f(self, x):
+...         return Number(x.number + 1)
+...
+>>> with Library() as lib:
+...     ctl = Control(lib, ["0"])
+...     ctl.parse_string("1 {p(1..2)} 1. q(@f(X)) :- p(X).")
+...     ctl.ground()
+...     with ctl.solve(on_model=print) as hnd:
+...         print(hnd.get())
+p(1).
+q(2).
+SAT
 ```
 )doc";
     Clingo::Python::register_core(m);

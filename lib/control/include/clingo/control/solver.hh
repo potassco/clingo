@@ -6,6 +6,7 @@
 
 #include <clasp/clasp_facade.h>
 #include <clasp/cli/clasp_options.h>
+#include <clasp/clingo.h>
 
 namespace Clingo::Control {
 
@@ -180,6 +181,38 @@ enum class SolveMode : uint8_t {
 };
 CLINGO_ENABLE_BITSET_ENUM(SolveMode);
 
+class PropagatorLock : public Clasp::ClingoPropagatorLock {
+  public:
+    void lock() override {
+        if (mut_) {
+            mut_->lock();
+        }
+    }
+    void unlock() override {
+        if (mut_) {
+            mut_->unlock();
+        }
+    }
+    auto add(bool seq) -> PropagatorLock * {
+        if (seq) {
+            ++seq_;
+            return this;
+        }
+        return nullptr;
+    }
+    void init(size_t threads) {
+        if (threads < 2 || seq_ == 0) {
+            mut_.reset();
+        } else if (!mut_) {
+            mut_.emplace();
+        }
+    }
+
+  private:
+    std::optional<std::mutex> mut_;
+    size_t seq_ = 0;
+};
+
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
@@ -269,6 +302,7 @@ class Solver {
     //! @return the resulting output
     auto make_output_(SymbolStore &store, AppMode mode) -> UOutputStm;
 
+    PropagatorLock lock_;
     Clasp::ClaspFacade *clasp_;
     Clasp::Cli::ClaspCliConfig *clasp_config_;
     Util::OutputBuffer buf_;

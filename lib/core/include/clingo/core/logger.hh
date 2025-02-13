@@ -173,7 +173,12 @@ inline void Logger::set_limit(size_t limit) {
 
 inline void Logger::print(MessageCode code, char const *msg) {
     if (p_ != nullptr) {
-        p_(code, msg);
+        try {
+            p_(code, msg);
+        } catch (std::exception const &e) {
+            fprintf(stderr, "logging failed: %s\n", e.what());
+            fflush(stderr);
+        }
     } else {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
         fprintf(stderr, "%s\n", msg);

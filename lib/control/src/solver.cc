@@ -364,6 +364,7 @@ class ModelImpl : public Model, private SolveControl {
         return mdl_->ctx->commitClause(lits_);
     }
 
+    // Check if the given program literal is part of a projection statement.
     [[nodiscard]] auto is_projected_(Output::lit_t literal) const -> bool {
         if (slv().sharedContext()->output.projectMode() == Clasp::ProjectMode::project) {
             return prg().isProjected(literal);
@@ -386,6 +387,7 @@ class ModelImpl : public Model, private SolveControl {
     std::vector<Clasp::Literal> lits_;
 };
 
+//! Convert clasp's solve result into clingo's simplified version.
 auto convert(Clasp::SolveResult cres) -> SolveResult {
     static constexpr uint8_t i1 = 9;
     static constexpr uint8_t i2 = 65;
@@ -411,13 +413,15 @@ auto convert(Clasp::SolveResult cres) -> SolveResult {
 //! An event handler that adapts clingo's event handler to clasp's.
 class EventHandlerAdapter : public Clasp::EventHandler {
   public:
-    // FIXME:
-    // - locking
-    // - exceptions in step ready should probably be caught
-    EventHandlerAdapter(Logger &logger, Ground::Bases const &bases, Clasp::ClaspFacade &clasp,
+    //! Construct a solve event handler adapter.
+    //!
+    //! This initializes the underlying solve handle, which in turn starts
+    //! solving.
+    EventHandlerAdapter(PropagatorLock &lock, Logger &logger, Ground::Bases const &bases, Clasp::ClaspFacade &clasp,
                         Control::UEventHandler eh)
-        : logger_{&logger}, mdl_{bases, clasp}, eh_{std::move(eh)}, stats_{clasp.getStats()} {}
+        : lock_{&lock}, logger_{&logger}, mdl_{bases, clasp}, eh_{std::move(eh)}, stats_{clasp.getStats()} {}
 
+    //! Intercept and report models.
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         if (eh_) {
             mdl_.set_model(&mdl);
@@ -425,12 +429,20 @@ class EventHandlerAdapter : public Clasp::EventHandler {
         }
         return true;
     }
+    //! Intercept log and finish events.
+    //!
+    //! Finish events are passed on as on_stats and on_finish events.
     void onEvent(Clasp::Event const &event) override {
         using namespace Clasp;
         if (eh_) {
             if (auto const *res = event_cast<ClaspFacade::StepReady>(event); res != nullptr && stats_ != nullptr) {
-                eh_->on_stats(*stats_);
-                eh_->on_finish(convert(res->summary->result));
+                try {
+                    eh_->on_stats(*stats_);
+                    eh_->on_finish(convert(res->summary->result));
+                } catch (...) {
+                    // NOTE: ensure that exceptions don't escape finish events as this can interfere with solver cleanup
+                    ptr_ = std::current_exception();
+                }
             }
         }
         if (auto const *log = event_cast<LogEvent>(event); log != nullptr && log->isWarning()) {
@@ -438,6 +450,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
         }
     }
 
+    //! Report lower bounds.
     auto onUnsat([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         if (auto const *ctx = mdl.ctx; eh_ && ctx != nullptr && ctx->optimize() && ctx->lowerBound().active()) {
             auto lower = ctx->lowerBound();
@@ -445,26 +458,42 @@ class EventHandlerAdapter : public Clasp::EventHandler {
             bound_.reserve(ctx->minimizer()->numRules());
             bound_.assign(mdl.costs.begin(), mdl.costs.begin() + lower.level);
             bound_.push_back(lower.bound);
+            auto guard = std::lock_guard<PropagatorLock>{*lock_};
             eh_->on_unsat(bound_);
         }
         return true;
     }
 
+    //! Report unsatisfiable cores.
     void onCore(Potassco::LitSpan core) {
         if (eh_) {
             eh_->on_core(core);
         }
     }
 
+    //! Called once solving is finished.
+    //!
+    //! This is used for exception propagation. Unlike on_finish, this is not
+    //! called in the solver thread but during SolveHandle::get.
+    void onFinalize() {
+        if (ptr_) {
+            std::rethrow_exception(ptr_);
+            ptr_ = nullptr;
+        }
+    }
+
+    //! Get the underlying ModelImple.
     [[nodiscard]] auto model() -> ModelImpl & { return mdl_; }
 
   private:
+    PropagatorLock *lock_;
     Logger *logger_;
     ModelImpl mdl_;
     Clasp::SumVec bound_;
     Control::UEventHandler eh_;
     // FIXME: there should be no need to have this member
     Potassco::AbstractStatistics *stats_;
+    std::exception_ptr ptr_;
 };
 
 //! A solve handle that does nothing.
@@ -496,9 +525,9 @@ auto convert(SolveMode mode) -> Clasp::SolveMode {
 //! The solve handle implementation.
 class SolveHandleImpl : public SolveHandle {
   public:
-    SolveHandleImpl(Logger &log, Ground::Bases const &bases, Clasp::ClaspFacade &clasp, SolveMode mode,
-                    UEventHandler eh)
-        : eh_{log, bases, clasp, std::move(eh)}, hnd_{clasp.solve(convert(mode), {}, &eh_)} {}
+    SolveHandleImpl(PropagatorLock &lock, Logger &log, Ground::Bases const &bases, Clasp::ClaspFacade &clasp,
+                    SolveMode mode, UEventHandler eh)
+        : eh_{lock, log, bases, clasp, std::move(eh)}, hnd_{clasp.solve(convert(mode), {}, &eh_)} {}
 
     ~SolveHandleImpl() override { hnd_.cancel(); }
 
@@ -508,6 +537,7 @@ class SolveHandleImpl : public SolveHandle {
         if (intersects(res, SolveResult::unsatisfiable)) {
             eh_.onCore(do_core());
         }
+        eh_.onFinalize();
         return res;
     }
     void do_cancel() override { hnd_.cancel(); }
@@ -645,7 +675,7 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         state_ = State::solved;
         clasp_->asp()->addAssumption(assumptions);
         clasp_->prepare();
-        return std::make_unique<SolveHandleImpl>(grd_.log(), grd_.base(), *clasp_, mode, std::move(handler));
+        return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), grd_.base(), *clasp_, mode, std::move(handler));
     }
     return std::make_unique<SolveHandleFixed>();
 }
@@ -668,8 +698,8 @@ void Solver::add_const(String name, Symbol value) {
 
 void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) {
     if (mode_ == AppMode::solve && state_ != State::initial) {
-        // NOTE: previously, this was only called if a value has been called on
-        // the configuration. I would prefer not to do this because it would
+        // NOTE: previously, this was only called if set value has been called
+        // on the configuration. I would prefer not to do this because it would
         // require wrapping clasp's cli configuration.
         clasp_->update(true);
     }

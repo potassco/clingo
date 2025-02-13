@@ -125,11 +125,13 @@ void reg_script(Library const &lib, Script &script) {
 
 void register_script(pybind11::module &m) {
     auto script = m.def_submodule("script", R"(
-Module containing functions to add custom scripts, which can be embedded into logic programs.
+Module containing functions to add custom scripts, which can be embedded into
+logic programs.
 
 # Examples
 
-The following example shows how to register a script that executes functions from the main context.
+The following example shows how to register a custom python script that executes functions
+from the main context (just like the embedded one in the standalone clingo).
 
 ```python
 >>> import __main__
@@ -137,7 +139,7 @@ The following example shows how to register a script that executes functions fro
 >>> from clingo.core import Library
 >>> from clingo.script import Script, register
 >>> from clingo.symbol import Number, Symbol
->>>
+...
 >>> class PyScript(Script):
 ...     def execute(self, code: str) -> None:
 ...         exec(code, __main__.__dict__, __main__.__dict__)
@@ -147,17 +149,36 @@ The following example shows how to register a script that executes functions fro
 ...         return name in __main__.__dict__ and callable(__main__.__dict__[name])
 ...     def main(self, lib: Library, control: Control) -> None:
 ...         __main__.main(lib, control)
+...     def name(self):
+...         return "python"
 ...
->>> def fun(lib: Library, num: Symbol) -> Symbol:
-...     return Number(lib, num.number * 3)
+>>> def f(lib: Library, x: Symbol) -> Symbol:
+...     return Number(lib, x.number * 3)
 ...
 >>> lib = Library()
 >>> register(lib, PyScript())
->>> ctl = Control(lib, ["--mode=ground", "--text-buffer"])
->>> ctl.parse_string("p(@fun(3)).")
+>>> ctl = Control(lib, ["--mode=ground"])
+>>> ctl.parse_string("""\
+... #script (python)
+...
+... from clingo.symbol import Number, Symbol
+...
+... def g(lib: Library, x: Symbol) -> Symbol:
+...     return Number(lib, x.number * 4)
+...
+... #end.
+... p(@f(1)).
+... q(@g(2)).
+... """)
 >>> ctl.ground()
 >>> ctl.buffer
-'p(9).\n#show p(9): p(9).\n#show.\n'
+"""\
+p(3).
+q(8).
+#show p/1.
+#show q/1.
+#show.
+"""
 ```
 )");
     py::class_<Script>(script, "Script", R"(ABC for custom scripts.)")
