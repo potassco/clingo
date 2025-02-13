@@ -81,10 +81,15 @@ enum class ConsequenceType : uint8_t {
     unknown = 2 //!< The literal might or might not be a consequence.
 };
 
+//! Simple control class to add clauses while enumerating models.
 class SolveControl {
   public:
+    //! Default virtual destructor.
     virtual ~SolveControl() = default;
 
+    //! Add a clause over the given literal.
+    //!
+    //! @return TODO
     [[nodiscard]] auto add_clause(Output::LitSpan lits) -> bool { return do_add_clause(lits); }
 
   private:
@@ -96,16 +101,53 @@ class Model {
   public:
     virtual ~Model() = default;
 
+    //! Get the selected symbols in the model.
+    //!
+    //! @param type which symbols to select
+    //! @param res a vector to store the symbols
     void symbols(SymbolSelectFlags type, SymbolVec &res) const { do_symbols(type, res); }
+    //! Get the running number of the model.
+    //!
+    //! @return the number
     [[nodiscard]] auto number() const -> uint64_t { return do_number(); }
+    //! Get the type of the model.
+    //!
+    //! @return the type
     [[nodiscard]] auto type() const -> ModelType { return do_type(); }
+    //! Check if the model contains a (symbolic) atom.
+    //!
+    //! @param sym The symbol representing the atom.
+    //! @return whether the atom is contained
     [[nodiscard]] auto contains(Symbol sym) const -> bool { return do_contains(sym); }
+    //! Check if a program literal is true in a model.
+    //!
+    //! @param lit the program literal
+    //! @return whether the literal is true
     [[nodiscard]] auto is_true(Output::lit_t lit) const -> bool { return do_is_true(lit); }
+    //! Check whether the given literal is a consequence.
+    //!
+    //! @param lit the literal to check
+    //! @return whether the literal is a consequence
     [[nodiscard]] auto is_consequence(Output::lit_t lit) const -> ConsequenceType { return do_is_consequence(lit); }
+    //! Get the costs associated with a model.
+    //!
+    //! @return the costs
     [[nodiscard]] auto costs() const -> std::span<Output::sum_t const> { return do_costs(); }
+    //! get the priorites of the costs.
+    //!
+    //! @return the priorities
     [[nodiscard]] auto priorities() const -> std::span<Output::weight_t const> { return do_priorities(); }
+    //! Check if the model coresponds to an optimal solution.
+    //!
+    //! @return whether the model is optimal
     [[nodiscard]] auto optimality_proven() const -> bool { return do_optimality_proven(); }
+    //! Get the solver/thread id the model was found in.
+    //!
+    //! @return the thread id
     [[nodiscard]] auto thread_id() const -> Output::id_t { return do_thread_id(); }
+    //! Get the context object to control the search.
+    //!
+    //! @return the context object
     [[nodiscard]] auto context() -> SolveControl & { return do_control(); }
 
   private:
@@ -122,25 +164,73 @@ class Model {
     [[nodiscard]] virtual auto do_control() -> SolveControl & = 0;
 };
 
+//! The solve result.
+//!
+//! This is a bitset. For example, a model can be both satisfiable and
+//! interrupted.
 enum class SolveResult : uint8_t {
-    empty = 0,
-    satisfiable = 1,
-    unsatisfiable = 2,
-    exhausted = 4,
-    interrupted = 8,
+    empty = 0,         //!< No flags set.
+    satisfiable = 1,   //!< The search produced at least one model.
+    unsatisfiable = 2, //!< The search finished and no model was produced.
+    exhausted = 4,     //!< The search has been exhausted.
+    interrupted = 8,   //!< The search has been interrupted.
 };
 CLINGO_ENABLE_BITSET_ENUM(SolveResult);
 
+//! A handle to control a running search.
 class SolveHandle {
   public:
+    //! The default destructor.
     virtual ~SolveHandle() = default;
 
+    //! Get the result of a search.
+    //!
+    //! This call blocks until search has completed.
+    //!
+    //! @return the solve result
     auto get() -> SolveResult { return do_get(); }
+    //! Cancel the current search.
+    //!
+    //! This call blocks until search has stopped.
     void cancel() { do_cancel(); }
+    //! Resume search after a model has been found to start search for the next
+    //! one.
+    //!
+    //! To ease writing while loops, this function can also be called
+    //! initially.
     void resume() { do_resume(); }
+    //! Get the current model or a nullptr if there is none.
+    //!
+    //! The function blocks until a model is ready or the search space has been
+    //! exhausted.
+    //!
+    //! The function returns null if the search space has been exhausted or the
+    //! search was not started in yield mode.
+    //!
+    //! @return the model or null
     auto model() -> Model const * { return do_model(); }
+    //! Get the last model after the search has finished.
+    //!
+    //! Returns null if the problem is unsatisfiable.
+    //!
+    //! @return the model or null
     auto last() -> Model const * { return do_last(); }
+    //! Get a subset of the assumptions that made the problem unsatisfiable.
+    //!
+    //! The subset is called an unsatisfiable core and is not necessarily
+    //! subset minimal.
+    //!
+    //! @return the core
     auto core() -> Output::LitSpan { return do_core(); }
+    //! Wait for the given amount of time or until the next result is ready.
+    //!
+    //! The next result is either a model (if yielding was enabled) or a solve
+    //! result.
+    //!
+    //! The function blocks for at most the given amount of time and returns
+    //! whether the next result is ready. If the timeout is zero, it can be
+    //! used for polling for a result. If the timeout is negative, it blocks
+    //! until the next result is ready.
     auto wait(double timeout) -> bool { return do_wait(timeout); }
 
   private:
@@ -159,14 +249,43 @@ class EventHandler {
   public:
     virtual ~EventHandler() = default;
 
-    auto on_model(Model &m) -> bool { return do_on_model(m); }
+    //! Callback to intercept models.
+    //!
+    //! The function can return false to stop search.
+    //!
+    //! @param mdl the model
+    //! @return whether to continue or stop search
+    auto on_model(Model &mdl) -> bool { return do_on_model(mdl); }
+    //! Callback to update statistics.
+    //!
+    //! Applications can add user defined statistics here. Statistics should be
+    //! added under keys "user_step" and "user_accu" to appear in the text
+    //! output.
+    //!
+    //! @param stats a handle to the statistics
     void on_stats(Potassco::AbstractStatistics &stats) { do_on_stats(stats); }
+    //! Callback to intercept lower bounds.
+    //!
+    //! Whenever a (sub)problem is unsatisfiable during optimization, the
+    //! current bound is reported as a lower bound.
+    //!
+    //! @param bound the lower bound
     void on_unsat(Clasp::SumView bound) { do_on_unsat(bound); }
+    //! The unsatisfiable core of the current problem.
+    //!
+    //! @param core the core
+    //! @see SolveHandle::core()
     void on_core(Potassco::LitSpan core) { do_on_core(core); }
+    //! Callback to inform that the search has finished.
+    //!
+    //! Note that this function is not called from the main thread when solving
+    //! asynchronously to allow for thread synchonization.
+    //!
+    //! @param result the solve result
     void on_finish(SolveResult result) { do_on_finish(result); }
 
   private:
-    virtual auto do_on_model([[maybe_unused]] Model &m) -> bool { return true; }
+    virtual auto do_on_model([[maybe_unused]] Model &mdl) -> bool { return true; }
     virtual void do_on_stats([[maybe_unused]] Potassco::AbstractStatistics &stats) {}
     virtual void do_on_unsat([[maybe_unused]] Clasp::SumView bound) {}
     virtual void do_on_core([[maybe_unused]] Potassco::LitSpan core) {}
@@ -174,13 +293,24 @@ class EventHandler {
 };
 using UEventHandler = std::unique_ptr<EventHandler>;
 
+//! The available solve modes.
+//!
+//! This is a bitset.
 enum class SolveMode : uint8_t {
-    none = 0,
-    async = 1,
-    yield = 2,
+    none = 0,  //!< Default synchronous callback-based solving.
+    async = 1, //!< Solve asynchronously in background threads.
+    yield = 2, //!< Yield models while solving via `SolveHandle::model()`.
 };
 CLINGO_ENABLE_BITSET_ENUM(SolveMode);
 
+//! This lock ensures that callbacks during solving are called in lock-step.
+//!
+//! To avoid locking, the lock only engages if there are propagators that
+//! require locking and search proceeds with more than one thread.
+//!
+//! This lock is required for scripting languages that do not support
+//! mulit-threading - like for example, the Lua language.
+//! @todo: Check if the current implementation covers all use cases.
 class PropagatorLock : public Clasp::ClingoPropagatorLock {
   public:
     void lock() override {
@@ -193,6 +323,10 @@ class PropagatorLock : public Clasp::ClingoPropagatorLock {
             mut_->unlock();
         }
     }
+    //! Add a propagator with the required lockning.
+    //!
+    //! @param seq whether the propagator requires lockning
+    //! @return a reference to self
     auto add(bool seq) -> PropagatorLock * {
         if (seq) {
             ++seq_;
@@ -200,6 +334,9 @@ class PropagatorLock : public Clasp::ClingoPropagatorLock {
         }
         return nullptr;
     }
+    //! Initialize the internal lock for the given number of threads.
+    //!
+    //! @param threads the number of threads
     void init(size_t threads) {
         if (threads < 2 || seq_ == 0) {
             mut_.reset();
