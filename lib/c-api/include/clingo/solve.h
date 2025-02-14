@@ -10,13 +10,13 @@ extern "C" {
 
 typedef struct clingo_control clingo_control_t;
 
-//! @example solve-async.c
+//! @example solve.c
 //! The example shows how to solve in the background.
 //!
 //! ## Output (approximately) ##
 //!
 //! ~~~~~~~~~~~~
-//! ./solve-async 0
+//! ./solve 0
 //! pi = 3.
 //! 1415926535 8979323846 2643383279 5028841971 6939937510 5820974944
 //! 5923078164 0628620899 8628034825 3421170679 8214808651 3282306647
@@ -37,7 +37,7 @@ typedef struct clingo_control clingo_control_t;
 //! A ::clingo_solve_handle_t objects can be used for both synchronous and asynchronous search,
 //! as well as iteratively receiving models and solve results.
 //!
-//! For an example showing how to solve asynchronously, see @ref solve-async.c.
+//! For an example showing how to solve asynchronously, see @ref solve.c.
 //!
 //! @{
 
@@ -95,8 +95,6 @@ typedef unsigned clingo_solve_event_type_t;
 //! @see clingo_control_solve()
 typedef clingo_result_t (*clingo_solve_event_callback_t)(clingo_solve_event_type_t type, void *event, void *data,
                                                          bool *goon);
-
-typedef clingo_result_t (*clingo_literal_callback_t)(clingo_literal_t *literals, size_t size, void *data);
 
 //! Search handle to a solve call.
 //!
@@ -175,7 +173,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_close(clingo_solve
 
 //! Solve the currently grounded logic program enumerating its models.
 //!
-//! See the @ref SolveHandle module for more information.
+//! See the @ref c_solve module for more information.
 //!
 //! @param[in] control the target
 //! @param[in] mode configures the search mode

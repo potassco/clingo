@@ -82,8 +82,8 @@ typedef uint32_t clingo_id_t;
 typedef int32_t clingo_weight_t;
 //! A Literal with an associated weight.
 typedef struct clingo_weighted_literal {
-    clingo_literal_t literal;
-    clingo_weight_t weight;
+    clingo_literal_t literal; //!< the literal
+    clingo_weight_t weight;   //!< the weight
 } clingo_weighted_literal_t;
 
 //! Obtain the clingo version.

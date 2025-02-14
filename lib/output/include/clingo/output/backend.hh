@@ -96,6 +96,7 @@ class Backend {
     //! @param weight the weight of the modification
     //! @param prio the priority of the modification
     //! @param type the type of the modification
+    //! @param body the body of the directive.
     void heuristic(lit_t atom, int32_t weight, int32_t prio, HeuristicType type, Output::LitSpan body) {
         assert(atom > 0);
         do_heuristic(atom, weight, prio, type, body);
@@ -119,7 +120,7 @@ class Backend {
 
     //! Project the given atom.
     //!
-    //! @param atom the literal to minimize
+    //! @param lit the literal to minimize
     //! @param weight the weight of the literal
     //! @param priority the priority of the literal
     void minimize(lit_t lit, weight_t weight, weight_t priority) { do_minimize(lit, weight, priority); }
@@ -195,6 +196,7 @@ class Backend {
     virtual void do_theory_atom(lit_t atom_or_zero, id_t name, Output::IdSpan elems,
                                 std::optional<std::pair<id_t, id_t>> guard) = 0;
 };
+//! A unique pointer for a backend.
 using UBackend = std::unique_ptr<Backend>;
 
 //! Create an output that forwards ground statements to a backend.

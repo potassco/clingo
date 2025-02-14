@@ -172,6 +172,7 @@ class BuildContext {
             lit);
     }
 
+    //! Check whether the given signature corresponds to a directive.
     [[nodiscard]] auto is_theory_directive(TheorySig sig) const -> bool {
         return std::ranges::binary_search(*theory_directives_, sig);
     }

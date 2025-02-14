@@ -24,12 +24,19 @@ template <class T, size_t N = 2>
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
 class small_vector {
   public:
+    //! The value type.
     using value_type = T;
+    //! The iterator type.
     using iterator = T *;
+    //! The const iterator type.
     using const_iterator = T const *;
+    //! The reference type.
     using reference = T &;
+    //! The const reference type.
     using const_reference = T const &;
+    //! The pointer type.
     using pointer = T *;
+    //! The const pointer type.
     using const_pointer = T const *;
 
     //! Construct an empty vector.

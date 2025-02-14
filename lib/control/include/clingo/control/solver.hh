@@ -59,6 +59,7 @@ enum class AppMode : uint8_t {
     solve    //!< Stop processing after solving.
 };
 
+//! A bit set of symbol selection flags.
 enum class SymbolSelectFlags : uint8_t {
     none = 0,   //!< Select nothing.
     shown = 1,  //!< Select shown atoms and terms.
@@ -67,14 +68,17 @@ enum class SymbolSelectFlags : uint8_t {
     theory = 8, //!< Select symbols added by theory.
     all = 15,   //!< Select everything.
 };
+//! Enable bit set operations.
 CLINGO_ENABLE_BITSET_ENUM(SymbolSelectFlags);
 
+//! Enumeration of available model flags.
 enum class ModelType : uint8_t {
     model = 0,                //!< The model represents a stable model.
     brave_consequences = 1,   //!< The model represents a set of brave consequences.
     cautious_consequences = 2 //!< The model represents a set of cautious consequences.
 };
 
+//! Enumeration of availale consequence types.
 enum class ConsequenceType : uint8_t {
     false_ = 0, //!< The literal is not a consequence.
     true_ = 1,  //!< The literal is a consequence.
@@ -180,6 +184,7 @@ enum class SolveResult : uint8_t {
     exhausted = 4,     //!< The search has been exhausted.
     interrupted = 8,   //!< The search has been interrupted.
 };
+//! Enable bit set operations.
 CLINGO_ENABLE_BITSET_ENUM(SolveResult);
 
 //! A handle to control a running search.
@@ -247,6 +252,7 @@ class SolveHandle {
     virtual auto do_core() -> Output::LitSpan = 0;
     virtual auto do_wait(double timeout) -> bool = 0;
 };
+//! A unique pointer for a solve handle.
 using USolveHandle = std::unique_ptr<SolveHandle>;
 
 //! The event handler interface.
@@ -296,6 +302,7 @@ class EventHandler {
     virtual void do_on_core([[maybe_unused]] Potassco::LitSpan core) {}
     virtual void do_on_finish([[maybe_unused]] SolveResult result) {}
 };
+//! A unique pointer for an event handler.
 using UEventHandler = std::unique_ptr<EventHandler>;
 
 //! The available solve modes.
@@ -306,6 +313,7 @@ enum class SolveMode : uint8_t {
     async = 1, //!< Solve asynchronously in background threads.
     yield = 2, //!< Yield models while solving via `SolveHandle::model()`.
 };
+//! Enable bit set operations.
 CLINGO_ENABLE_BITSET_ENUM(SolveMode);
 
 //! This lock ensures that callbacks during solving are called in lock-step.
@@ -318,11 +326,13 @@ CLINGO_ENABLE_BITSET_ENUM(SolveMode);
 //! @todo: Check if the current implementation covers all use cases.
 class PropagatorLock : public Clasp::ClingoPropagatorLock {
   public:
+    //! Acquire the lock.
     void lock() override {
         if (mut_) {
             mut_->lock();
         }
     }
+    //! Release the lock.
     void unlock() override {
         if (mut_) {
             mut_->unlock();

@@ -60,6 +60,8 @@ extern "C" {
 
 //! @defgroup c_stats Statistics
 
+//! @defgroup c_propagate Propagators
+
 //! @}
 
 //! @defgroup c_script Scripting Support for Grounding

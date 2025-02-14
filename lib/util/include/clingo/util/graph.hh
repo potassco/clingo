@@ -28,7 +28,7 @@ class Graph {
     void add_edge(size_t u, size_t v);
     //! Check if the given vertex has a loop.
     //!
-    //! @param the vertex to check
+    //! @param u the vertex to check
     //! @return whether the vertex has a loop
     [[nodiscard]] auto has_loop(size_t u) const -> bool;
     //! Clear the graph.

@@ -68,9 +68,8 @@ enum clingo_consequence_e {
     clingo_consequence_true = 1,    //!< The literal is a consequence.
     clingo_consequence_unknown = 2, //!< The literal might or might not be a consequence.
 };
-typedef int clingo_consequence_t;
-
 //! Corresponding type to ::clingo_model_type_e.
+typedef int clingo_consequence_t;
 
 //! @name Functions for Inspecting Models
 //! @{
@@ -198,7 +197,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_control_base(clingo_solve
 //! Add a clause that applies to the current solving step during model
 //! enumeration.
 //!
-//! @note The @ref Propagator module provides a more sophisticated
+//! @note The @ref c_propagate module provides a more sophisticated
 //! interface to add clauses - even on partial assignments.
 //!
 //! @param[in] control the target

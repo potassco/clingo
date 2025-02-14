@@ -48,6 +48,7 @@ namespace Clingo {
     }                                                                                                                  \
     static_assert(std::is_enum_v<E>)
 
+//! Internal helper.
 #define CLINGO_ENUM_OP(op, arg, ...) [[maybe_unused]] inline __VA_ARGS__ constexpr auto operator op arg noexcept
 
 // NOLINTEND

@@ -18,10 +18,11 @@ using IndexVec = std::vector<size_t>;
 //! Interface to output literals.
 class OutputTheory {
   public:
+    //! The type of a theory atom.
     enum class AtomType : uint8_t {
-        head,
-        body,
-        directive,
+        head,      //!< The atom occurs in the head.
+        body,      //!< The atom occurs in the body.
+        directive, //!< The atom is a body.
     };
 
     //! An optional guard of string and term indices.
@@ -207,7 +208,7 @@ class OutputStm {
     //!
     //! Should be called after grounding a component.
     void flush() { do_flush(); }
-    // Handle classical negation of two atoms.
+    //! Handle classical negation of two atoms.
     void classical_negation(size_t atom_a, size_t atom_b) { do_classical_negation(atom_a, atom_b); }
     //! End the current (incremental) grounding step.
     void end_step() { do_end_step(); }

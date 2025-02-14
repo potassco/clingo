@@ -10,13 +10,13 @@ extern "C" {
 
 typedef struct clingo_control clingo_control_t;
 
-//! @example symbolic-atoms.c
+//! @example base.c
 //! The example shows how to iterate over symbolic atoms.
 //!
 //! ## Output ##
 //!
 //! ~~~~~~~~~~~~
-//! ./symbolic-atoms 0
+//! ./base 0
 //! Symbolic atoms:
 //!   b
 //!   c, external
@@ -28,7 +28,7 @@ typedef struct clingo_control clingo_control_t;
 //! @addtogroup c_base
 //! Inspection of atoms occurring in ground logic programs.
 //!
-//! For an example, see @ref symbolic-atoms.c.
+//! For an example, see @ref base.c.
 //! @{
 
 //! Represents a predicate signature.
@@ -36,9 +36,9 @@ typedef struct clingo_control clingo_control_t;
 //! Signatures have a name and an arity, and can be positive or negative (to
 //! represent classical negation).
 typedef struct clingo_signature {
-    char const *name; //! the name
-    size_t arity;     //! the arity
-    bool sign;        //! the (classical) sign
+    char const *name; //!< the name
+    size_t arity;     //!< the arity
+    bool sign;        //!< the (classical) sign
 } clingo_signature_t;
 
 //! Object to inspect symbolic atoms in a program---the relevant Herbrand base
@@ -47,16 +47,16 @@ typedef struct clingo_signature {
 //!
 //! @see clingo_control_base()
 typedef struct clingo_base {
-    uintptr_t a; //! internal data
-    uintptr_t b; //! internal data
+    uintptr_t a; //!< internal data
+    uintptr_t b; //!< internal data
 } clingo_base_t;
 
 //! Object to inspect the symbolic atoms in a program.
 //!
 //! Atom bases capture atoms over the same signature.
 typedef struct clingo_atom_base {
-    uintptr_t a; //! internal data
-    uintptr_t b; //! internal data
+    uintptr_t a; //!< internal data
+    uintptr_t b; //!< internal data
 } clingo_atom_base_t;
 
 //! Object to inspect the shown terms in a program.
@@ -66,7 +66,7 @@ typedef struct clingo_term_base clingo_term_base_t;
 //!
 //! Each atom base is associated with a signature.
 //!
-//! @param[in] atoms the target
+//! @param[in] base the target
 //! @param[out] size the number of atoms
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_size(clingo_base_t const *base, size_t *size);
@@ -134,7 +134,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_is_fact(clingo_atom_b
 //!
 //! @param[in] atoms the target
 //! @param[in] index the index of the atom
-//! @param[out] external whether the atom is an external
+//! @param[out] is_external whether the atom is an external
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_is_external(clingo_atom_base_t const *atoms, size_t index,
                                                                        bool *is_external);
@@ -150,7 +150,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_symbol(clingo_atom_ba
 
 //! Returns the (numeric) program literal corresponding to the given symbolic atom.
 //!
-//! Such a literal can be mapped to a solver literal (see the @ref c_propagator
+//! Such a literal can be mapped to a solver literal (see the @ref c_propagate
 //! module) or be used in rules in aspif format (see the @ref c_ast module).
 //!
 //! @param[in] atoms the atom base
@@ -162,7 +162,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_literal(clingo_atom_b
 
 //! Get the term base capturing show term directives.
 //!
-//! @param bases the base
+//! @param base the base
 //! @param terms the term base
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_terms(clingo_base_t const *base,
