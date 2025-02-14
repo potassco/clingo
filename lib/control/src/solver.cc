@@ -354,15 +354,19 @@ class ModelImpl : public Model, private SolveControl {
 
     [[nodiscard]] auto do_control() -> SolveControl & override { return *this; }
 
-    [[nodiscard]] auto do_add_clause(Output::LitSpan lits) -> bool override {
+    void do_add_clause(Output::LitSpan lits) override {
         assert(mdl_ != nullptr);
         lits_.clear();
         lits_.reserve(lits.size());
         for (auto const &lit : lits) {
             lits_.emplace_back(solver_literal(lit));
         }
-        return mdl_->ctx->commitClause(lits_);
+        std::ignore = mdl_->ctx->commitClause(lits_);
     }
+
+    [[nodiscard]] auto do_bases() const -> Ground::Bases const & override { return *bases_; }
+
+    [[nodiscard]] auto do_clasp() const -> Clasp::ClaspFacade const & override { return *clasp_; }
 
     // Check if the given program literal is part of a projection statement.
     [[nodiscard]] auto is_projected_(Output::lit_t literal) const -> bool {

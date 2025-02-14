@@ -1,5 +1,6 @@
 #pragma once
 
+#include "base.hh"
 #include "stats.hh"
 #include "symbol.hh"
 
@@ -34,11 +35,33 @@ class SolveResult {
     clingo_solve_result_bitset_t res_;
 };
 
+class SolveControl {
+  public:
+    SolveControl(clingo_solve_control_t *ctl) : ctl_{ctl} {}
+
+    auto base() -> Base;
+    auto add_clause(MixedLitlVec const &lits);
+
+  private:
+    clingo_solve_control_t *ctl_;
+};
+
 class Model {
   public:
     Model(clingo_model_t const *mdl) : mdl_{mdl} {}
 
     auto symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVec;
+    auto contains(Symbol atom) -> bool;
+    auto control() -> SolveControl;
+    auto type() -> clingo_model_type_e;
+    auto number() -> uint64_t;
+    auto is_true(clingo_literal_t lit) -> bool;
+    auto is_consequence(clingo_literal_t lit) -> std::optional<bool>;
+    auto cost() -> std::span<int64_t const>;
+    auto priorities() -> std::span<clingo_weight_t const>;
+    auto optimality_proven() -> bool;
+    auto thread_id() -> clingo_id_t;
+    auto extend(SymbolVec const &symbols);
     auto str() -> std::string;
 
   private:
@@ -63,7 +86,7 @@ class SolveHandle {
     void resume();
     auto model() -> std::optional<Model>;
     auto last() -> std::optional<Model>;
-    auto core() -> std::vector<clingo_literal_t>;
+    auto core() -> std::span<clingo_literal_t const>;
     auto wait(std::optional<double> timeout) -> bool;
     auto next() -> Model;
     void close();

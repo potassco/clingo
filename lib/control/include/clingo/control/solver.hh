@@ -88,12 +88,17 @@ class SolveControl {
     virtual ~SolveControl() = default;
 
     //! Add a clause over the given literal.
-    //!
-    //! @return TODO
-    [[nodiscard]] auto add_clause(Output::LitSpan lits) -> bool { return do_add_clause(lits); }
+    void add_clause(Output::LitSpan lits) { do_add_clause(lits); }
+
+    //! Get a reference to the underlying atom/term bases.
+    [[nodiscard]] auto bases() const -> Ground::Bases const & { return do_bases(); }
+    //! Get a reference to the underlying facade.
+    [[nodiscard]] auto clasp() const -> Clasp::ClaspFacade const & { return do_clasp(); }
 
   private:
-    [[nodiscard]] virtual auto do_add_clause(Output::LitSpan lits) -> bool = 0;
+    virtual void do_add_clause(Output::LitSpan lits) = 0;
+    [[nodiscard]] virtual auto do_bases() const -> Ground::Bases const & = 0;
+    [[nodiscard]] virtual auto do_clasp() const -> Clasp::ClaspFacade const & = 0;
 };
 
 //! The model class.

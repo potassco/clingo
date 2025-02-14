@@ -1,5 +1,6 @@
 #include "solve.hh"
 #include "core.hh"
+#include "iterable.hh" // IWYU pragma: keep
 #include "util.hh"
 
 #include <clingo/solve.h>
@@ -65,6 +66,17 @@ class ModelIterator {
 
 } // namespace
 
+auto SolveControl::base() -> Base {
+    clingo_base_t base;
+    handle_error(clingo_solve_control_base(ctl_, &base));
+    return {base};
+}
+
+auto SolveControl::add_clause(MixedLitlVec const &lits) {
+    auto x = convert(base(), lits);
+    handle_error(clingo_solve_control_add_clause(ctl_, x.data(), x.size()));
+}
+
 auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVec {
     auto res = SymbolVec{};
     clingo_show_type_bitset_t show = 0;
@@ -84,6 +96,19 @@ auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVe
     return res;
 }
 
+auto Model::contains(Symbol atom) -> bool {
+    bool res = false;
+    handle_error(clingo_model_contains(mdl_, *c_cast(&atom), &res));
+    return res;
+}
+
+auto Model::control() -> SolveControl {
+    clingo_solve_control_t *ctl = nullptr;
+    auto *mdl = const_cast<clingo_model_t *>(mdl_); // NOLINT
+    handle_error(clingo_model_control(mdl, &ctl));
+    return ctl;
+}
+
 auto Model::str() -> std::string {
     auto res = std::string{};
     auto comma = false;
@@ -94,6 +119,64 @@ auto Model::str() -> std::string {
     }
     return res;
 };
+
+auto Model::type() -> clingo_model_type_e {
+    clingo_model_type_t type = 0;
+    handle_error(clingo_model_type(mdl_, &type));
+    return static_cast<clingo_model_type_e>(type);
+}
+
+auto Model::number() -> uint64_t {
+    uint64_t num = 0;
+    handle_error(clingo_model_number(mdl_, &num));
+    return num;
+}
+
+auto Model::is_true(clingo_literal_t lit) -> bool {
+    auto res = false;
+    handle_error(clingo_model_is_true(mdl_, lit, &res));
+    return res;
+}
+
+auto Model::is_consequence(clingo_literal_t lit) -> std::optional<bool> {
+    clingo_consequence_t res = 0;
+    handle_error(clingo_model_is_consequence(mdl_, lit, &res));
+    if (res != clingo_consequence_unknown) {
+        return res == clingo_consequence_true;
+    }
+    return std::nullopt;
+}
+
+auto Model::cost() -> std::span<int64_t const> {
+    int64_t const *costs = nullptr;
+    size_t size = 0;
+    handle_error(clingo_model_cost(mdl_, &costs, &size));
+    return {costs, size};
+}
+
+auto Model::priorities() -> std::span<clingo_weight_t const> {
+    clingo_weight_t const *prios = nullptr;
+    size_t size = 0;
+    handle_error(clingo_model_priority(mdl_, &prios, &size));
+    return {prios, size};
+}
+
+auto Model::optimality_proven() -> bool {
+    bool res = false;
+    handle_error(clingo_model_optimality_proven(mdl_, &res));
+    return res;
+}
+
+auto Model::thread_id() -> clingo_id_t {
+    clingo_id_t id = 0;
+    handle_error(clingo_model_thread_id(mdl_, &id));
+    return id;
+}
+
+auto Model::extend(SymbolVec const &symbols) {
+    auto *mdl = const_cast<clingo_model_t *>(mdl_); // NOLINT
+    handle_error(clingo_model_extend(mdl, c_cast(symbols.data()), symbols.size()));
+}
 
 auto SolveHandle::get() -> SolveResult {
     auto release = py::gil_scoped_release{};
@@ -124,13 +207,12 @@ auto SolveHandle::last() -> std::optional<Model> {
     return mdl != nullptr ? std::make_optional<Model>(mdl) : std::nullopt;
 }
 
-auto SolveHandle::core() -> std::vector<clingo_literal_t> {
+auto SolveHandle::core() -> std::span<clingo_literal_t const> {
     auto release = py::gil_scoped_release{};
     auto const *lits = static_cast<clingo_literal_t *>(nullptr);
     auto size = size_t{0};
     handle_error(clingo_solve_handle_core(hnd_, &lits, &size));
-    // NOLINTNEXTLINE
-    return {lits, lits + size};
+    return {lits, size};
 }
 
 auto SolveHandle::wait(std::optional<double> timeout) -> bool {
@@ -226,13 +308,22 @@ This example shows how to solve both iteratively and asynchronously:
     a
     SAT
 )"_d);
-    py::class_<SolveResult>(solve, "SolveResult", R"(A solve result captures information about a solve call.)")
-        .def("__str__", &SolveResult::str, R"(Get a string representation of the solve result.)")
-        .def_property_readonly("satisfiable", &SolveResult::satisfiable, R"(Whether there was at least one model.)")
-        .def_property_readonly("unsatisfiable", &SolveResult::unsatisfiable, R"(Whether there was no model.)")
-        .def_property_readonly("unknown", &SolveResult::unknown, R"(Whether the satisfiablity could be determined.)")
-        .def_property_readonly("exhausted", &SolveResult::exhausted, R"(Whether all models have been enumerated.)")
-        .def_property_readonly("interrupted", &SolveResult::interrupted, R"(Whether the search was interrupted.)");
+
+    py::class_<SolveControl>(solve, "SolveControl", R"(A control object to add clauses while solving.)")
+        .def("add_clause", &SolveControl::add_clause, py::arg("clause"), R"(
+Add a clause that applies to the current solving step during the search.
+
+Args:
+  literals: The literals of the clause.
+)"_d)
+        .def_property_readonly("base", &SolveControl::base, R"(Get the atom/term bases of the program.)");
+
+    py::enum_<clingo_model_type_e>(solve, "ModelType", R"(Enumeration of model types.)")
+        .value("StableModel", clingo_model_type_stable_model, R"(The model captures a stable model.)")
+        .value("CautiousConsequences", clingo_model_type_cautious_consequences,
+               R"(The model stores the set of cautious consequences.)")
+        .value("BraveConsequences", clingo_model_type_brave_consequences,
+               R"(The model stores the set of brave consequences.)");
 
     py::class_<Model>(solve, "Model", R"(A view on the solver's current solution.)")
         .def("symbols", &Model::symbols, py::arg("shown") = false, py::arg("atoms") = false, py::arg("terms") = false,
@@ -245,7 +336,68 @@ Args:
   terms: Include shown terms.
   theory: Include terms added by external theories.
 )"_d)
-        .def("__str__", &Model::str, "Get a string representation of the model.");
+        .def("contains", &Model::contains, py::arg("atom"), R"(
+Check if the model contains the given atom.
+
+Args:
+    atom: The atom to look up.
+Returns:
+    Whether the atom is contained.
+)"_d)
+        .def("is_true", &Model::is_true, py::arg("literal"), R"(
+Check if the given program literal is true.
+
+Args:
+    literal: The given program literal.
+
+Returns:
+    Whether the given program literal is true.
+)"_d)
+        .def("is_consequence", &Model::is_consequence, py::arg("literal"), R"(
+Check if the given program literal is a consequence.
+
+The function returns `True`, `False`, or `None` if the literal is a
+consequence, not a consequence, or it is not yet known whether it is a
+consequence, respectively.
+
+While enumerating cautious or brave consequences, there is partial information
+about which literals are consequences. The current state of a literal can be
+requested using this function. If this function is used during normal model
+enumeration, the function just returns whether a literal is true of false in
+the current model.
+
+Args:
+	literal: The given program literal.
+
+Returns:
+	Whether the given program literal is a consequence.
+)"_d)
+        .def("extend", &Model::extend, py::arg("symbols"), R"(
+Extend a model with the given symbols.
+
+This only has an effect if there is an underlying clingo application, which
+will print the added symbols.
+
+Args:
+	symbols: The symbols to add to the model.
+)")
+        .def("__str__", &Model::str, "Get a string representation of the model.")
+        .def_property_readonly("control", &Model::control, "Get the associated solve control object.")
+        .def_property_readonly("type", &Model::type, "Get the type of a model.")
+        .def_property_readonly("number", &Model::number, "Get the running number of a model.")
+        .def_property_readonly("cost", &Model::number, "Return a sequence of integer cost values of the model.")
+        .def_property_readonly("priorities", &Model::number, "Get the associated priorities of the cost values.")
+        .def_property_readonly("optimality_proven", &Model::optimality_proven,
+                               "Whether the optimality of the model has been proven.")
+        .def_property_readonly("thread_id", &Model::thread_id, "Get the thread/solver id the model was found in.");
+
+    py::class_<SolveResult>(solve, "SolveResult", R"(A solve result captures information about a solve call.)")
+        .def("__str__", &SolveResult::str, R"(Get a string representation of the solve result.)")
+        .def_property_readonly("satisfiable", &SolveResult::satisfiable, R"(Whether there was at least one model.)")
+        .def_property_readonly("unsatisfiable", &SolveResult::unsatisfiable, R"(Whether there was no model.)")
+        .def_property_readonly("unknown", &SolveResult::unknown, R"(Whether the satisfiablity could be determined.)")
+        .def_property_readonly("exhausted", &SolveResult::exhausted, R"(Whether all models have been enumerated.)")
+        .def_property_readonly("interrupted", &SolveResult::interrupted, R"(Whether the search was interrupted.)");
 
     py::class_<SolveHandle, SSolveHandle>(solve, "SolveHandle", R"(
 An object to interact with a running search.

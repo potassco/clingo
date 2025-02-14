@@ -113,7 +113,7 @@ auto Control::stats() -> py::dict {
     return Stats{const_cast<clingo_stats_t *>(stats), key}.nestify();
 }
 
-auto Control::solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model,
+auto Control::solve(MixedLitlVec const &assumptions, std::optional<ModelCallback> on_model,
                     std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
     auto res = std::make_shared<SolveHandle>(std::move(on_model), std::move(on_stats));
     auto mode = clingo_solve_mode_bitset_t{0};
@@ -123,22 +123,7 @@ auto Control::solve(AssumptionVec const &assumptions, std::optional<ModelCallbac
     if (async) {
         mode |= clingo_solve_mode_async;
     }
-    auto b = base();
-    LitVec ass;
-    ass.reserve(assumptions.size());
-    std::ranges::transform(assumptions, std::back_inserter(ass), [&](auto const &x) {
-        return std::visit(
-            [&]<typename T>(T const &x) {
-                if constexpr (std::is_same_v<T, Lit_t>) {
-                    ass.emplace_back(x);
-                } else {
-                    auto const &[sym, sign] = x;
-                    ass.emplace_back(b.lookup(sym.signature().value()).lookup(sym).literal());
-                }
-                return 0;
-            },
-            x);
-    });
+    auto ass = convert(base(), assumptions);
     handle_error(clingo_control_solve(ctl_.get(), mode, ass.data(), assumptions.size(), &SolveHandle::c_event_handler,
                                       res.get(), &res->handle()),
                  res->exception_ptr());

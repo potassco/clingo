@@ -137,6 +137,25 @@ auto Base::terms() -> TermBase {
     return TermBase{*terms};
 }
 
+auto convert(Base base, MixedLitlVec const &lits) -> LitVec {
+    LitVec res;
+    res.reserve(lits.size());
+    std::ranges::transform(lits, std::back_inserter(res), [&](auto const &x) {
+        return std::visit(
+            [&]<typename T>(T const &x) {
+                if constexpr (std::is_same_v<T, Lit_t>) {
+                    res.emplace_back(x);
+                } else {
+                    auto const &[sym, sign] = x;
+                    res.emplace_back(base.lookup(sym.signature().value()).lookup(sym).literal());
+                }
+                return 0;
+            },
+            x);
+    });
+    return res;
+}
+
 void register_base(pybind11::module &m) {
     using namespace Clingo::Python;
 

@@ -97,6 +97,10 @@ class Base {
     clingo_base_t base_;
 };
 
+using MixedLitlVec = std::vector<std::variant<std::pair<Symbol, bool>, Lit_t>>;
+
+auto convert(Base base, MixedLitlVec const &lits) -> LitVec;
+
 void register_base(pybind11::module &m);
 
 } // namespace Clingo::Python

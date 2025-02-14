@@ -8,6 +8,8 @@
 
 namespace Clingo::Python {
 
+namespace py = pybind11;
+
 template <class T, class A = std::allocator<T>> class Iterable {
   public:
     using Vector = std::vector<T, A>;
@@ -91,13 +93,28 @@ template <typename T, typename A> class type_caster<Clingo::Python::Iterable<T, 
     }
 };
 
-template <typename T, size_t E> struct type_caster<std::span<T, E>> {
+template <typename T> struct type_caster<std::span<T>> {
     using value_type = std::remove_cv_t<T>;
     using value_conv = make_caster<value_type>;
     using type = std::span<T>;
 
     PYBIND11_TYPE_CASTER(type, _("Sequence[") + make_caster<T>::name + _("]"));
 
+    auto load(handle src, bool convert) -> bool {
+        if (!isinstance<sequence>(src)) {
+            return false;
+        }
+        storage_.clear();
+        for (auto const &val : src) {
+            auto conv = value_conv{};
+            if (!conv.load(val, convert)) {
+                return false;
+            }
+            storage_.emplace_back(std::move(conv.value));
+        }
+        value = type{storage_.data(), storage_.size()};
+        return true;
+    }
     static auto cast(std::span<T> const &src, [[maybe_unused]] return_value_policy policy, handle parent) -> handle {
         list result{src.size()};
         size_t index = 0;
@@ -110,6 +127,9 @@ template <typename T, size_t E> struct type_caster<std::span<T, E>> {
         }
         return result.release();
     }
+
+  private:
+    std::vector<value_type> storage_;
 };
 
 } // namespace pybind11::detail

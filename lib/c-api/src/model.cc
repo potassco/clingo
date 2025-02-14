@@ -19,6 +19,11 @@ auto cpp_cast(clingo_solve_control_t *control) -> Clingo::Control::SolveControl 
     return reinterpret_cast<Clingo::Control::SolveControl *>(control);
 }
 
+auto cpp_cast(clingo_solve_control_t const *control) -> Clingo::Control::SolveControl const * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Clingo::Control::SolveControl const *>(control);
+}
+
 auto c_cast(Clingo::Control::SolveControl *control) -> clingo_solve_control_t * {
     // NOLINTNEXTLINE
     return reinterpret_cast<clingo_solve_control_t *>(control);
@@ -116,19 +121,23 @@ extern "C" auto clingo_model_extend(clingo_model_t *model, clingo_symbol_t const
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_model_context(clingo_model_t *model, clingo_solve_control_t **control) -> clingo_result_t {
+extern "C" auto clingo_model_control(clingo_model_t *model, clingo_solve_control_t **control) -> clingo_result_t {
     CLINGO_TRY {
         *control = c_cast(&cpp_cast(model)->context());
     }
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_solve_control_base(clingo_solve_control_t const *control, clingo_base_t const **atoms)
+extern "C" auto clingo_solve_control_base(clingo_solve_control_t const *control, clingo_base_t *base)
     -> clingo_result_t {
     CLINGO_TRY {
-        static_cast<void>(control);
-        *atoms = nullptr;
-        throw std::runtime_error("implement me!!!");
+        if (control == nullptr || base == nullptr) {
+            return clingo_result_invalid;
+        }
+        // NOLINTBEGIN
+        base->a = reinterpret_cast<uintptr_t>(&cpp_cast(control)->bases());
+        base->b = reinterpret_cast<uintptr_t>(&cpp_cast(control)->clasp());
+        // NOLINTEND
     }
     CLINGO_CATCH;
 }
@@ -136,7 +145,7 @@ extern "C" auto clingo_solve_control_base(clingo_solve_control_t const *control,
 extern "C" auto clingo_solve_control_add_clause(clingo_solve_control_t *control, clingo_literal_t const *clause,
                                                 size_t size) -> clingo_result_t {
     CLINGO_TRY {
-        std::ignore = cpp_cast(control)->add_clause({clause, size});
+        cpp_cast(control)->add_clause({clause, size});
     }
     CLINGO_CATCH;
 }
