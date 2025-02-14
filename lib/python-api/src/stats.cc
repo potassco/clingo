@@ -76,9 +76,6 @@ void StatsMap::set(char const *name, py::handle value) {
 auto Stats::type() -> StatsType {
     clingo_stats_type_t type = 0;
     handle_error(clingo_stats_type(stats_, key_, &type));
-    if (type == clingo_stats_type_empty) {
-        throw std::logic_error{"invalid stats object"};
-    }
     return static_cast<StatsType>(type);
 }
 

@@ -419,7 +419,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     //! solving.
     EventHandlerAdapter(PropagatorLock &lock, Logger &logger, Ground::Bases const &bases, Clasp::ClaspFacade &clasp,
                         Control::UEventHandler eh)
-        : lock_{&lock}, logger_{&logger}, mdl_{bases, clasp}, eh_{std::move(eh)}, stats_{clasp.getStats()} {}
+        : lock_{&lock}, logger_{&logger}, mdl_{bases, clasp}, eh_{std::move(eh)} {}
 
     //! Intercept and report models.
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
@@ -435,9 +435,11 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     void onEvent(Clasp::Event const &event) override {
         using namespace Clasp;
         if (eh_) {
-            if (auto const *res = event_cast<ClaspFacade::StepReady>(event); res != nullptr && stats_ != nullptr) {
+            if (auto const *res = event_cast<ClaspFacade::StepReady>(event); res != nullptr) {
                 try {
-                    eh_->on_stats(*stats_);
+                    if (auto *stats = mdl_.clasp().getStats(); stats != nullptr) {
+                        eh_->on_stats(*stats);
+                    }
                     eh_->on_finish(convert(res->summary->result));
                 } catch (...) {
                     // NOTE: ensure that exceptions don't escape finish events as this can interfere with solver cleanup
@@ -491,8 +493,6 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     ModelImpl mdl_;
     Clasp::SumVec bound_;
     Control::UEventHandler eh_;
-    // FIXME: there should be no need to have this member
-    Potassco::AbstractStatistics *stats_;
     std::exception_ptr ptr_;
 };
 

@@ -48,10 +48,9 @@ typedef struct clingo_control clingo_control_t;
 
 //! Enumeration for entries of the stats.
 enum clingo_stats_type_e {
-    clingo_stats_type_empty = 0, //!< the entry is invalid (has neither of the types below)
-    clingo_stats_type_value = 1, //!< the entry is a (double) value
-    clingo_stats_type_array = 2, //!< the entry is an array
-    clingo_stats_type_map = 3    //!< the entry is a map
+    clingo_stats_type_value = 0, //!< the entry is a (double) value
+    clingo_stats_type_array = 1, //!< the entry is an array
+    clingo_stats_type_map = 2    //!< the entry is a map
 };
 //! Corresponding type to ::clingo_stats_type.
 typedef int clingo_stats_type_t;

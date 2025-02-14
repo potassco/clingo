@@ -25,9 +25,6 @@ inline auto c_cast(Potassco::AbstractStatistics const *config) -> clingo_stats_t
 
 inline auto cpp_cast(clingo_stats_type_e type) -> Potassco::StatisticsType {
     switch (type) {
-        case clingo_stats_type_empty: {
-            return Potassco::StatisticsType::empty;
-        }
         case clingo_stats_type_value: {
             return Potassco::StatisticsType::value;
         }
@@ -43,9 +40,6 @@ inline auto cpp_cast(clingo_stats_type_e type) -> Potassco::StatisticsType {
 
 inline auto c_cast(Potassco::StatisticsType type) -> clingo_stats_type_e {
     switch (type) {
-        case Potassco::StatisticsType::empty: {
-            return clingo_stats_type_empty;
-        }
         case Potassco::StatisticsType::value: {
             return clingo_stats_type_value;
         }
@@ -55,8 +49,10 @@ inline auto c_cast(Potassco::StatisticsType type) -> clingo_stats_type_e {
         case Potassco::StatisticsType::array: {
             return clingo_stats_type_array;
         }
+        default: {
+            throw std::invalid_argument("unexpected enum value");
+        }
     }
-    throw std::invalid_argument("unexpected enum value");
 }
 
 extern "C" auto clingo_stats_root(clingo_stats_t const *stats, uint64_t *key) -> clingo_result_t {
@@ -75,24 +71,7 @@ extern "C" auto clingo_stats_type(clingo_stats_t const *stats, uint64_t key, cli
         if (stats == nullptr || type == nullptr) {
             return clingo_result_invalid;
         }
-        switch (cpp_cast(stats)->type(key)) {
-            case Potassco::StatisticsType::empty: {
-                *type = clingo_stats_type_empty;
-                break;
-            }
-            case Potassco::StatisticsType::value: {
-                *type = clingo_stats_type_value;
-                break;
-            }
-            case Potassco::StatisticsType::map: {
-                *type = clingo_stats_type_map;
-                break;
-            }
-            case Potassco::StatisticsType::array: {
-                *type = clingo_stats_type_array;
-                break;
-            }
-        }
+        *type = c_cast(cpp_cast(stats)->type(key));
     }
     CLINGO_CATCH;
 }
