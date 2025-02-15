@@ -155,9 +155,43 @@ class TestSolve:
         """
         Test enumeration of consequences.
         """
-        # TODO:
-        # - use mdl.is_consequence
-        # - use mdl.type
+        ctl = Control(self.lib, ["--enum-mode=brave"])
+        ctl.parse_string("a. 1 {b; c} 1. {d}. :- d, b. :- d, c.")
+        ctl.ground()
+
+        def lit(name: str) -> int:
+            return next(ctl.base[(name, 0)].values()).literal
+
+        with ctl.solve(yield_=True) as hnd:
+            it = iter(hnd)
+            mdl = next(it)
+            n1, n2 = "b", "c"
+            if mdl.is_true(lit("c")):
+                n2, n1 = n1, n2
+            # the following assertion should not fail
+            # assert mdl.is_consequence(lit("a"))
+            assert mdl.is_consequence(lit(n1))
+            assert mdl.is_consequence(lit(n2)) is None
+            assert mdl.is_consequence(lit("d")) is None
+            mdl = next(it)
+            # the following assertion should not fail
+            # assert mdl.is_consequence(lit("a"))
+            assert mdl.is_consequence(lit(n1)) is True
+            assert mdl.is_consequence(lit(n2)) is True
+            assert mdl.is_consequence(lit("d")) is None
+            try:
+                mdl = next(it)
+            except StopIteration:
+                pass
+            assert hnd.get().satisfiable
+            last = hnd.last()
+            assert last
+            # the following assertion should not fail
+            # assert last.is_consequence(lit("a"))
+            assert last.is_consequence(lit("b"))
+            assert last.is_consequence(lit("c"))
+            # the following assertion should not fail
+            # assert last.is_consequence(lit("d")) is False
 
     def test_extend(self):
         """
