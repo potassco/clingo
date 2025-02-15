@@ -144,12 +144,12 @@ auto convert(Base base, MixedLitlVec const &lits) -> LitVec {
         return std::visit(
             [&]<typename T>(T const &x) {
                 if constexpr (std::is_same_v<T, Lit_t>) {
-                    res.emplace_back(x);
+                    return x;
                 } else {
-                    auto const &[sym, sign] = x;
-                    res.emplace_back(base.lookup(sym.signature().value()).lookup(sym).literal());
+                    auto const &[sym, positive] = x;
+                    auto lit = base.lookup(sym.signature().value()).lookup(sym).literal();
+                    return positive ? lit : -lit;
                 }
-                return 0;
             },
             x);
     });

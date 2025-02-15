@@ -95,3 +95,38 @@ class TestSolve:
         with ctl.solve(assumptions=assumptions) as hnd:
             assert hnd.get().unsatisfiable
             assert sorted(hnd.core()) == sorted(assumptions[:2])
+
+    def test_control(self):
+        """
+        Test control.
+        """
+        ctl = Control(self.lib, ["0"])
+        ctl.parse_string("a. 1 {b; c; d} 1.")
+        ctl.ground()
+
+        def lit(name: str) -> Symbol:
+            return Function(self.lib, name, [])
+
+        atoms = [lit("b"), lit("c"), lit("d")]
+
+        with ctl.solve(yield_=True) as hnd:
+            for mdl in hnd:
+                assert mdl.contains(lit("a"))
+                if len(atoms) == 3:
+                    syms = [
+                        atom.symbol
+                        for base in mdl.control.base.values()
+                        for atom in base.values()
+                    ]
+                    assert sorted(syms) == sorted(atoms + [lit("a")])
+                    atoms = [atom for atom in atoms if not mdl.contains(atom)]
+                    mdl.control.add_clause([(atoms.pop(), False)])
+                else:
+                    assert len(atoms) == 1
+                    assert mdl.contains(atoms[0])
+            assert hnd.get().satisfiable
+
+    def test_optimize(self):
+        """
+        Test optimization.
+        """
