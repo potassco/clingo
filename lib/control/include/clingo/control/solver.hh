@@ -159,11 +159,15 @@ class Model {
     //! @return the context object
     [[nodiscard]] auto context() -> SolveControl & { return do_control(); }
 
+    //! Extend the model with the given symbols.
+    virtual void extend(SymbolSpan symbols) { do_extend(symbols); }
+
   private:
     virtual void do_symbols(SymbolSelectFlags type, SymbolVec &res) const = 0;
     [[nodiscard]] virtual auto do_number() const -> uint64_t = 0;
     [[nodiscard]] virtual auto do_type() const -> ModelType = 0;
     [[nodiscard]] virtual auto do_contains(Symbol sym) const -> bool = 0;
+    virtual void do_extend(SymbolSpan symbols) = 0;
     [[nodiscard]] virtual auto do_is_true(Output::lit_t lit) const -> bool = 0;
     [[nodiscard]] virtual auto do_is_consequence(Output::lit_t lit) const -> ConsequenceType = 0;
     [[nodiscard]] virtual auto do_costs() const -> std::span<Output::sum_t const> = 0;

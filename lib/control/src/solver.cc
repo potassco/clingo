@@ -231,13 +231,44 @@ class BackendImpl : public Output::Backend {
     Clasp::Asp::LogicProgram *prg_;
 };
 
+class ModelExtend : public Clasp::OutputTable::Theory {
+  public:
+    auto first([[maybe_unused]] const Clasp::Model &m) -> char const * override {
+        index_ = 0;
+        return next();
+    }
+    auto next() -> char const * override {
+        if (index_ < syms_.size()) {
+            buf_.reset();
+            buf_ << syms_[index_++];
+            return buf_.c_str();
+        }
+        return nullptr;
+    }
+    void clear() { syms_.clear(); }
+    void add(SymbolSpan symbols) { syms_.insert(syms_.end(), symbols.begin(), symbols.end()); }
+    [[nodiscard]] auto symbols() const -> SymbolSpan { return syms_; }
+
+  private:
+    Util::OutputBuffer buf_;
+    SymbolVec syms_;
+    size_t index_ = 0;
+};
+
 //! Implementation of the model interface.
 class ModelImpl : public Model, private SolveControl {
   public:
-    ModelImpl(Ground::Bases const &bases, Clasp::ClaspFacade &clasp) : bases_{&bases}, clasp_{&clasp} {}
+    ModelImpl(Ground::Bases const &bases, Clasp::ClaspFacade &clasp) : bases_{&bases}, clasp_{&clasp} {
+        clasp_->ctx.output.theory = &extend_;
+    }
+    ~ModelImpl() override { clasp_->ctx.output.theory = nullptr; }
 
-    //! Sets the given model returing true if it is not null.
-    auto set_model(Clasp::Model const *mdl) -> bool { return (mdl_ = mdl) != nullptr; }
+    //! Sets the given model returning true if it is not null.
+    auto set_model(Clasp::Model const *mdl) -> bool {
+        // NOTE: Extended symbols carry over to the last model.
+        extend_.clear();
+        return (mdl_ = mdl) != nullptr;
+    }
 
     //! Sets the last model returning true if it is not null.
     auto set_last() -> bool {
@@ -252,10 +283,6 @@ class ModelImpl : public Model, private SolveControl {
   private:
     void do_symbols(SymbolSelectFlags type, SymbolVec &res) const override {
         assert(mdl_ != nullptr);
-        // TODO: implement theory (should also be in included with SymbolSelectFlags::shown)
-        if (intersects(type, SymbolSelectFlags::theory)) {
-            throw std::logic_error("implement me: theory and complement selection modes");
-        }
         if (auto show_a = intersects(type, SymbolSelectFlags::atoms),
             show_s = intersects(type, SymbolSelectFlags::shown);
             show_a || show_s) {
@@ -276,6 +303,10 @@ class ModelImpl : public Model, private SolveControl {
                     res.emplace_back(term);
                 }
             }
+        }
+        if (intersects(type, SymbolSelectFlags::theory | SymbolSelectFlags::shown)) {
+            auto syms = extend_.symbols();
+            res.insert(res.end(), syms.begin(), syms.end());
         }
     }
 
@@ -310,6 +341,8 @@ class ModelImpl : public Model, private SolveControl {
         }
         return mdl_->isTrue(solver_literal(it->value().id));
     }
+
+    void do_extend(SymbolSpan symbols) override { extend_.add(symbols); }
 
     [[nodiscard]] auto do_is_true(Output::lit_t lit) const -> bool override {
         assert(mdl_ != nullptr);
@@ -389,6 +422,7 @@ class ModelImpl : public Model, private SolveControl {
     Clasp::ClaspFacade *clasp_;
     Clasp::Model const *mdl_ = nullptr;
     std::vector<Clasp::Literal> lits_;
+    ModelExtend extend_;
 };
 
 //! Convert clasp's solve result into clingo's simplified version.

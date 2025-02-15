@@ -113,10 +113,7 @@ extern "C" auto clingo_model_thread_id(clingo_model_t const *model, clingo_id_t 
 extern "C" auto clingo_model_extend(clingo_model_t *model, clingo_symbol_t const *symbols, size_t size)
     -> clingo_result_t {
     CLINGO_TRY {
-        static_cast<void>(model);
-        static_cast<void>(symbols);
-        static_cast<void>(size);
-        throw std::runtime_error("implement me!!!");
+        cpp_cast(model)->extend({cpp_cast(symbols), size});
     }
     CLINGO_CATCH;
 }

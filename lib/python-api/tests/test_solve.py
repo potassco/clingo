@@ -4,6 +4,7 @@ Unit tests for clingo.solve module.
 
 from clingo.control import Control
 from clingo.core import Library
+from clingo.solve import Model, ModelType
 from clingo.symbol import Function, Symbol
 from util import MCB
 
@@ -114,6 +115,7 @@ class TestSolve:
         with ctl.solve(yield_=True) as hnd:
             for mdl in hnd:
                 i += 1
+                assert mdl.type == ModelType.StableModel
                 assert mdl.number == i
                 assert mdl.thread_id == 0
                 assert mdl.contains(lit("a"))
@@ -168,12 +170,14 @@ class TestSolve:
             n1, n2 = "b", "c"
             if mdl.is_true(lit("c")):
                 n2, n1 = n1, n2
+            assert mdl.type == ModelType.BraveConsequences
             # the following assertion should not fail
             # assert mdl.is_consequence(lit("a"))
             assert mdl.is_consequence(lit(n1))
             assert mdl.is_consequence(lit(n2)) is None
             assert mdl.is_consequence(lit("d")) is None
             mdl = next(it)
+            assert mdl.type == ModelType.BraveConsequences
             # the following assertion should not fail
             # assert mdl.is_consequence(lit("a"))
             assert mdl.is_consequence(lit(n1)) is True
@@ -186,6 +190,7 @@ class TestSolve:
             assert hnd.get().satisfiable
             last = hnd.last()
             assert last
+            assert last.type == ModelType.BraveConsequences
             # the following assertion should not fail
             # assert last.is_consequence(lit("a"))
             assert last.is_consequence(lit("b"))
@@ -197,4 +202,21 @@ class TestSolve:
         """
         Test extending models.
         """
-        # TODO
+
+        ctl = Control(self.lib, [])
+        ctl.ground()
+        ctl.parse_string("a.")
+        ctl.ground()
+
+        def sym(name: str) -> Symbol:
+            return Function(self.lib, name, [])
+
+        def extend(mdl: Model):
+            mdl.extend([sym("b"), sym("c")])
+
+        with ctl.solve(on_model=extend) as hnd:
+            assert hnd.get().satisfiable
+            last = hnd.last()
+            assert last
+            assert last.symbols(theory=True) == [sym("b"), sym("c")]
+            assert last.symbols(shown=True) == [sym("a"), sym("b"), sym("c")]
