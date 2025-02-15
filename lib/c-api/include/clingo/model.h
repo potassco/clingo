@@ -147,7 +147,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_cost(clingo_model_t const
 //! @param[out] priorities the resulting priorities
 //! @param[out] size the size of the priorities array
 //! @return the result code
-//! @see clingo_model_cost_size()
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_priority(clingo_model_t const *model,
                                                                 clingo_weight_t const **priorities, size_t *size);
 //! Whether the optimality of a model has been proven.

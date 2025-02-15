@@ -495,7 +495,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_ast_rewrite_context_get_lib(cling
 
 //! Rewrite the given statement.
 //!
-//! @note The returned statementsn have to be freed using clingo_ast_array_free().
+//! @note The returned statements have to be freed using clingo_ast_array_free().
 //!
 //! @param[in] context the context object
 //! @param[in] statement the statement object
