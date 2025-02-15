@@ -108,10 +108,16 @@ class TestSolve:
             return Function(self.lib, name, [])
 
         atoms = [lit("b"), lit("c"), lit("d")]
+        a = next(ctl.base[("a", 0)].values()).literal
+        i = 0
 
         with ctl.solve(yield_=True) as hnd:
             for mdl in hnd:
+                i += 1
+                assert mdl.number == i
+                assert mdl.thread_id == 0
                 assert mdl.contains(lit("a"))
+                assert mdl.is_true(a)
                 if len(atoms) == 3:
                     syms = [
                         atom.symbol
@@ -130,3 +136,31 @@ class TestSolve:
         """
         Test optimization.
         """
+        ctl = Control(self.lib, [])
+        ctl.parse_string("1 {a; b} 1. #minimize { 1:a; 2: b }.")
+        ctl.ground()
+
+        with ctl.solve(yield_=True) as hnd:
+            for mdl in hnd:
+                assert mdl.priorities == [0]
+                assert not mdl.optimality_proven
+            assert hnd.get().satisfiable
+            last = hnd.last()
+            assert last
+            assert last.optimality_proven
+            assert last.cost == [1]
+            assert last.priorities == [0]
+
+    def test_consequence(self):
+        """
+        Test enumeration of consequences.
+        """
+        # TODO:
+        # - use mdl.is_consequence
+        # - use mdl.type
+
+    def test_extend(self):
+        """
+        Test extending models.
+        """
+        # TODO

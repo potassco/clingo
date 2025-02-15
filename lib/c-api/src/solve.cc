@@ -54,7 +54,7 @@ extern "C" auto clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_l
 extern "C" auto clingo_solve_handle_last(clingo_solve_handle_t *handle, clingo_model_t const **model)
     -> clingo_result_t {
     CLINGO_TRY {
-        *model = c_cast(cpp_cast(handle)->model());
+        *model = c_cast(cpp_cast(handle)->last());
     }
     CLINGO_CATCH;
 }

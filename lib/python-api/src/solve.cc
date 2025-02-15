@@ -385,8 +385,8 @@ Args:
         .def_property_readonly("control", &Model::control, "Get the associated solve control object.")
         .def_property_readonly("type", &Model::type, "Get the type of a model.")
         .def_property_readonly("number", &Model::number, "Get the running number of a model.")
-        .def_property_readonly("cost", &Model::number, "Return a sequence of integer cost values of the model.")
-        .def_property_readonly("priorities", &Model::number, "Get the associated priorities of the cost values.")
+        .def_property_readonly("cost", &Model::cost, "Return a sequence of integer cost values of the model.")
+        .def_property_readonly("priorities", &Model::priorities, "Get the associated priorities of the cost values.")
         .def_property_readonly("optimality_proven", &Model::optimality_proven,
                                "Whether the optimality of the model has been proven.")
         .def_property_readonly("thread_id", &Model::thread_id, "Get the thread/solver id the model was found in.");
