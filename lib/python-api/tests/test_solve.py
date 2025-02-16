@@ -192,8 +192,7 @@ class TestSolve:
             assert last.is_consequence(lit("a"))
             assert last.is_consequence(lit("b"))
             assert last.is_consequence(lit("c"))
-            # the following assertion should not fail
-            # assert last.is_consequence(lit("d")) is False
+            assert last.is_consequence(lit("d")) is False
 
     def test_extend(self):
         """

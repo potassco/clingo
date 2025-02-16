@@ -366,7 +366,7 @@ class ModelImpl : public Model, private SolveControl {
         auto res = ConsequenceType::false_;
         if (mdl_->isDef(slit)) {
             res = ConsequenceType::true_;
-        } else if (mdl_->isEst(slit)) {
+        } else if (!mdl_->def && mdl_->isEst(slit)) {
             res = ConsequenceType::unknown;
         }
         if (res != ConsequenceType::false_ && !is_projected_(lit)) {
