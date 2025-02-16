@@ -83,6 +83,12 @@ class Backend {
     //! @param body the condition when to show the symbol
     void show(Symbol sym, LitSpan body) { do_show(sym, body); }
 
+    //! Show the atom with the given symbol and program literal.
+    //!
+    //! @param sym the symbol to show
+    //! @param body the condition when to show the symbol
+    void show_atom(Symbol sym, lit_t lit) { do_show_atom(sym, lit); }
+
     //! Add an edge for acyclicity checking.
     //!
     //! @param u the source vertex
@@ -183,6 +189,7 @@ class Backend {
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
     virtual void do_bd_aggr(lit_t head, WeightedLitSpan body, int32_t bound) = 0;
     virtual void do_show(Symbol sym, LitSpan body) = 0;
+    virtual void do_show_atom(Symbol sym, lit_t lit) = 0;
     virtual void do_edge(Output::id_t u, Output::id_t v, Output::LitSpan body) = 0;
     virtual void do_heuristic(lit_t atom, weight_t weight, weight_t prio, HeuristicType type, Output::LitSpan body) = 0;
     virtual void do_external(lit_t atom, ExternalType type) = 0;

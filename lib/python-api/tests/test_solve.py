@@ -171,15 +171,13 @@ class TestSolve:
             if mdl.is_true(lit("c")):
                 n2, n1 = n1, n2
             assert mdl.type == ModelType.BraveConsequences
-            # the following assertion should not fail
-            # assert mdl.is_consequence(lit("a"))
+            assert mdl.is_consequence(lit("a"))
             assert mdl.is_consequence(lit(n1))
             assert mdl.is_consequence(lit(n2)) is None
             assert mdl.is_consequence(lit("d")) is None
             mdl = next(it)
             assert mdl.type == ModelType.BraveConsequences
-            # the following assertion should not fail
-            # assert mdl.is_consequence(lit("a"))
+            assert mdl.is_consequence(lit("a"))
             assert mdl.is_consequence(lit(n1)) is True
             assert mdl.is_consequence(lit(n2)) is True
             assert mdl.is_consequence(lit("d")) is None
@@ -191,8 +189,7 @@ class TestSolve:
             last = hnd.last()
             assert last
             assert last.type == ModelType.BraveConsequences
-            # the following assertion should not fail
-            # assert last.is_consequence(lit("a"))
+            assert last.is_consequence(lit("a"))
             assert last.is_consequence(lit("b"))
             assert last.is_consequence(lit("c"))
             # the following assertion should not fail

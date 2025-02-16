@@ -1578,9 +1578,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         }
     }
 
-    void do_show_atom([[maybe_unused]] Symbol atom, [[maybe_unused]] size_t uid) override {
-        bld_.backend().show(atom, std::array{uid_to_lit(uid)});
-    }
+    void do_show_atom(Symbol atom, size_t uid) override { bld_.backend().show_atom(atom, uid_to_atom(uid)); }
     auto do_show_term([[maybe_unused]] Symbol term) -> size_t override { return bld_.cond(body_.literals()); }
     void do_show_term(Symbol term, size_t done, IndexSpan conds) override {
         auto body = LitVec{};

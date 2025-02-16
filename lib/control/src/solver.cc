@@ -132,6 +132,17 @@ class BackendImpl : public Output::Backend {
 #endif
     }
 
+    void do_show_atom(Symbol sym, Output::lit_t lit) override {
+        assert(lit > 0);
+        buf_.reset();
+        buf_ << sym;
+        prg_->addOutput(buf_.c_str(), prg_->newCondition(std::array{lit}));
+        prg_->addOutputState(lit, Clasp::Asp::LogicProgram::OutputState::out_shown);
+#ifdef DEBUG_BACKEND
+        std::cerr << "#show " << sym << " : " << lit << ".\n";
+#endif
+    }
+
     void do_theory_num(Output::id_t id, int32_t num) override { prg_->theoryData().addTerm(id, num); }
 
     void do_theory_str(Output::id_t id, char const *str) override { prg_->theoryData().addTerm(id, str); }
