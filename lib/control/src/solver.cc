@@ -126,7 +126,7 @@ class BackendImpl : public Output::Backend {
     void do_show(Symbol sym, Output::LitSpan body) override {
         buf_.reset();
         buf_ << sym;
-        prg_->addOutput(buf_.c_str(), prg_->newCondition(body));
+        prg_->addOutput(buf_.c_str(), body);
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << Util::p_range(body, ", ") << ".\n";
 #endif
@@ -136,8 +136,7 @@ class BackendImpl : public Output::Backend {
         assert(lit > 0);
         buf_.reset();
         buf_ << sym;
-        prg_->addOutput(buf_.c_str(), prg_->newCondition(std::array{lit}));
-        prg_->addOutputState(lit, Clasp::Asp::LogicProgram::OutputState::out_shown);
+        prg_->addOutput(buf_.c_str(), lit);
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << lit << ".\n";
 #endif
@@ -362,17 +361,17 @@ class ModelImpl : public Model, private SolveControl {
 
     [[nodiscard]] auto do_is_consequence(Output::lit_t lit) const -> ConsequenceType override {
         assert(mdl_ != nullptr);
-        auto slit = solver_literal(lit);
-        auto res = ConsequenceType::false_;
-        if (mdl_->isDef(slit)) {
-            res = ConsequenceType::true_;
-        } else if (!mdl_->def && mdl_->isEst(slit)) {
-            res = ConsequenceType::unknown;
+        switch (Clasp::Asp::isConsequence(prg(), lit, *mdl_)) {
+            case Clasp::value_true: {
+                return ConsequenceType::true_;
+            }
+            case Clasp::value_false: {
+                return ConsequenceType::false_;
+            }
+            default: {
+                return ConsequenceType::unknown;
+            }
         }
-        if (res != ConsequenceType::false_ && !is_projected_(lit)) {
-            res = ConsequenceType::false_;
-        }
-        return res;
     }
 
     [[nodiscard]] auto do_costs() const -> std::span<Output::sum_t const> override {
@@ -412,18 +411,8 @@ class ModelImpl : public Model, private SolveControl {
 
     [[nodiscard]] auto do_clasp() const -> Clasp::ClaspFacade const & override { return *clasp_; }
 
-    // Check if the given program literal is part of a projection statement.
-    [[nodiscard]] auto is_projected_(Output::lit_t literal) const -> bool {
-        if (slv().sharedContext()->output.projectMode() == Clasp::ProjectMode::project) {
-            return prg().isProjected(literal);
-        }
-        return prg().isShown(literal);
-    }
-
     //! Get the underlying logic program.
     [[nodiscard]] auto prg() const -> Clasp::Asp::LogicProgram const & { return *clasp_->asp(); }
-    //! Get the underlying solver (which found the model).
-    [[nodiscard]] auto slv() const -> Clasp::Solver const & { return *clasp_->ctx.solver(mdl_->sId); }
     //! Map the given program literal to its solver literal.
     [[nodiscard]] auto solver_literal(std::integral auto lit) const -> Clasp::Literal {
         return Clasp::Asp::solverLiteral(prg(), static_cast<Output::lit_t>(lit));
