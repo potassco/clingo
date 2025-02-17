@@ -1,6 +1,6 @@
 importScripts('clingo.js');
 
-let inputElement = '';
+let input = '';
 let position = 0;
 
 const messageSchemas = {
@@ -38,8 +38,8 @@ Module({
         postMessage({ type: "stderr", value: text });
     },
     stdin: () => {
-        if (position < inputElement.length) {
-            return inputElement.charCodeAt(position++);
+        if (position < input.length) {
+            return input.charCodeAt(position++);
         }
         return null;
     },
@@ -58,7 +58,7 @@ Module({
             for (const arg of msg.args) {
                 vec.push_back(arg);
             }
-            inputElement = msg.input;
+            input = msg.input;
             position = 0;
             Clingo.run(vec);
         }
