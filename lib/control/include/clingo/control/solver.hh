@@ -419,7 +419,7 @@ class Solver {
     //! Get a pointer to the underlying clasp program.
     //!
     //! Only non-null in solving mode.
-    [[nodiscard]] auto clasp_program() -> Clasp::Asp::LogicProgram const * { return clasp_->asp(); }
+    [[nodiscard]] auto clasp_program() const -> Clasp::Asp::LogicProgram const * { return clasp_->asp(); }
     //! Get a pointer to the underlying clasp facade.
     [[nodiscard]] auto clasp_facade() -> Clasp::ClaspFacade & { return *clasp_; }
     //! Get a pointer to the underlying clasp facade.
@@ -427,6 +427,11 @@ class Solver {
     //! Only non-null in solving mode.
     [[nodiscard]] auto clasp_config() -> Clasp::Cli::ClaspCliConfig & {
         return clasp_config_ != nullptr ? *clasp_config_ : throw std::runtime_error("not in solving mode");
+    }
+    //! Get a pointer to the theory data.
+    [[nodiscard]] auto clasp_theory() const -> Potassco::TheoryData const & {
+        auto *prg = clasp_->asp();
+        return prg != nullptr ? prg->theoryData() : throw std::runtime_error("not in solving mode");
     }
     //! Get the statsistics.
     [[nodiscard]] auto clasp_stats() -> Potassco::AbstractStatistics const & {

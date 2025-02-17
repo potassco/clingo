@@ -8,21 +8,18 @@ all: debug
 doc:
 	cd doc && doxygen
 
-test_doc: doc
-	python3 -m http.server --directory=doc/html
-
 test: debug
 	$(MAKE) CTEST_OUTPUT_ON_FAILURE=1 CTEST_PARALLEL_LEVEL=$(CPU_COUNT) -C build/debug $@
 
-compdb: all
-	compdb -p "build/debug" list -1 > compile_commands.json
-	python3 "scripts/compdb-cpp-headers.py"
-
 .venv:
 	python3 -m venv .venv
-	source .venv/bin/activate && pip install pynvim pyyaml jinja2 mypy pybind11-stubgen jedi
+	source .venv/bin/activate && pip install pynvim pyyaml jinja2 mypy pybind11-stubgen pdoc compdb
 
 venv: .venv
+
+compdb: .venv all
+	source .venv/bin/activate && compdb -p "build/debug" list -1 > compile_commands.json
+	source .venv/bin/activate && python "scripts/compdb-cpp-headers.py"
 
 build/debug/CMakeCache.txt: .venv
 	mkdir -p build/debug
@@ -43,7 +40,7 @@ debug: build/debug/CMakeCache.txt
 
 release:
 	mkdir -p build/$@
-	cmake -S. -Bbuild/$@ \
+	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
 		-DPARSER_BUILD_TESTS=On \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
@@ -53,7 +50,7 @@ release:
 
 release_lto:
 	mkdir -p build/$@
-	cmake -S. -Bbuild/$@ \
+	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
 		-DPARSER_BUILD_TESTS=On \
 		-DCMAKE_CXX_FLAGS="-flto=auto -fuse-linker-plugin -Wall -Wextra -pedantic" \
@@ -63,7 +60,7 @@ release_lto:
 
 release_clang:
 	mkdir -p build/$@
-	cmake -S. -Bbuild/$@ \
+	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
 		-DPARSER_BUILD_TESTS=On \
 		-DCMAKE_CXX_COMPILER="$(CLANG_CXX)" \
@@ -78,7 +75,7 @@ release_clang:
 
 release_clang_lto:
 	mkdir -p build/$@
-	cmake -S. -Bbuild/$@ \
+	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
 		-DPARSER_BUILD_TESTS=On \
 		-DCMAKE_CXX_COMPILER="$(CLANG_CXX)" \
@@ -93,7 +90,7 @@ release_clang_lto:
 
 profile:
 	mkdir -p build/$@
-	cmake -S. -Bbuild/$@ \
+	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
 		-DPARSER_BUILD_TESTS=On \
 		-DPARSER_PROFILE=ON \
@@ -115,21 +112,17 @@ web:
 	$(MAKE) -C build/$@ test
 
 gen:
-	PYTHONPATH=build/debug/lib/python-api python scripts/generate.py > lib/python-api/src/ast.cc
+	source .venv/bin/activate && PYTHONPATH=build/debug/bin/python python scripts/generate.py > lib/python-api/src/ast.cc
 
 format_yaml:
-	PYTHONPATH=build/debug/lib/python-api python scripts/format_yaml.py
+	source .venv/bin/activate && PYTHONPATH=build/debug/bin/python python scripts/format_yaml.py
 
 stubs: debug
-	source .venv/bin/activate && python3 scripts/stubs.py
+	source .venv/bin/activate && python scripts/stubs.py
 
 pdoc: stubs
 	source .venv/bin/activate && pybind11-stubgen -o pdoc --stub-extension py clingo
-	python3 scripts/rewrite.py pdoc/clingo/ast.py
-	python3 scripts/rewrite.py pdoc/clingo/control.py
-	python3 scripts/rewrite.py pdoc/clingo/core.py
-	python3 scripts/rewrite.py pdoc/clingo/script.py
-	python3 scripts/rewrite.py pdoc/clingo/symbol.py
-	cd pdoc && python3 -m venv .venv && source .venv/bin/activate && pip install pdoc && rm -rf html && pdoc -o html --no-show-source -d google ./clingo
+	source .venv/bin/activate && python scripts/rewrite.py pdoc/clingo/*.py
+	source .venv/bin/activate && cd pdoc && rm -rf html && pdoc -o html --no-show-source -d google ./clingo
 
 .PHONY: all doc test compdb stubs pdoc venv debug gen format_yaml debug release release_lto release_clang release_clang_lto web

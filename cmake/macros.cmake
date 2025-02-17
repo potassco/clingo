@@ -26,3 +26,60 @@ function(re2c_target_or_gen GRAMMAR)
         message(FATAL_ERROR "re2c lexer generator required but not found")
     endif()
 endfunction()
+
+#[=======================================================================[.rst:
+.. command:: clingo_target_properties
+
+Set output properties for a target, including output directories and FOLDER property.
+
+.. code-block:: cmake
+
+   clingo_target_properties(target folder [binary_subdir])
+
+``target``
+  The name of the target to set properties for.
+
+``folder``
+  The folder name for organizing targets in IDEs.
+
+``binary_subdir``
+  Optional. Subdirectory within "bin" for placing binaries. If not provided, binaries are placed directly in "bin".
+
+This function sets the following properties:
+- RUNTIME_OUTPUT_DIRECTORY
+- LIBRARY_OUTPUT_DIRECTORY
+- ARCHIVE_OUTPUT_DIRECTORY
+- PDB_OUTPUT_DIRECTORY
+- FOLDER
+- POSITION_INDEPENDENT_CODE
+
+It handles both single-config and multi-config generators, using the GENERATOR_IS_MULTI_CONFIG property to determine the appropriate output structure.
+
+Example usage:
+.. code-block:: cmake
+
+   add_executable(myapp main.cpp)
+   clingo_target_properties(myapp "MyApps")
+
+   add_library(mylib SHARED lib.cpp)
+   clingo_target_properties(mylib "MyLibraries" "plugins")
+#]=======================================================================]
+function(clingo_target_properties target folder)
+    set(binary_subdir "bin")
+    if(${ARGC} GREATER 2)
+        set(binary_subdir "bin/${ARGV2}")
+    endif()
+    get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+    set(base_dir "${CMAKE_BINARY_DIR}")
+    if (is_multi_config)
+        set(base_dir "${base_dir}/$<CONFIG>")
+    endif()
+    set_target_properties(${target} PROPERTIES
+        FOLDER "${folder}"
+        POSITION_INDEPENDENT_CODE ON
+        RUNTIME_OUTPUT_DIRECTORY "${base_dir}/${binary_subdir}"
+        LIBRARY_OUTPUT_DIRECTORY "${base_dir}/${binary_subdir}"
+        ARCHIVE_OUTPUT_DIRECTORY "${base_dir}/lib"
+        PDB_OUTPUT_DIRECTORY "${base_dir}/bin"
+    )
+endfunction()

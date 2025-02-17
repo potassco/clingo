@@ -35,14 +35,9 @@ if (PARSER_PROFILE)
 endif()
 
 add_subdirectory(third_party)
-add_subdirectory(lib)
+add_subdirectory(lib libclingo)
 if (NOT PARSER_BUILD_WEB)
     add_subdirectory(examples/c-api)
-endif()
-
-if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/experiment.cc")
-    add_executable(experiment experiment.cc)
-    target_link_libraries(experiment parsertest hopscotch_map foonathan::lexy::core foonathan::lexy::file imath::imath)
 endif()
 
 add_subdirectory(app)

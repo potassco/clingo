@@ -33,12 +33,11 @@ add_library(clingo_input
     "src/program.cc"
     )
 add_library(clingo::input ALIAS clingo_input)
-
-target_link_libraries(clingo_input PUBLIC clingo::core)
+clingo_target_properties(clingo_input lib/input)
 target_include_directories(clingo_input PUBLIC "include"
     PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
-set_property(TARGET clingo_input PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(clingo_input PUBLIC clingo::core)
 
 if (PARSER_BUILD_TESTS)
     add_executable(test_input
@@ -57,8 +56,8 @@ if (PARSER_BUILD_TESTS)
         "tests/unpool.cc"
         "tests/unpool_relations.cc"
         "tests/variables.cc")
-    target_link_libraries(test_input PRIVATE clingo::input Catch2::Catch2WithMain)
+    clingo_target_properties(test_input test/input tests)
     target_include_directories(test_input PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
-    set_target_properties(test_input PROPERTIES FOLDER test_input)
+    target_link_libraries(test_input PRIVATE clingo::input Catch2::Catch2WithMain)
     catch_discover_tests(test_input)
 endif()

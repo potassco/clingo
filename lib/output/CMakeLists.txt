@@ -3,7 +3,6 @@ add_library(clingo_output
     "src/backend.cc"
     )
 add_library(clingo::output ALIAS clingo_output)
-
-target_link_libraries(clingo_output PUBLIC clingo::core)
+clingo_target_properties(clingo_output lib/output)
 target_include_directories(clingo_output PUBLIC "include")
-set_property(TARGET clingo_output PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(clingo_output PUBLIC clingo::core)

@@ -15,7 +15,7 @@ auto operator==(SymbolSpan a, SL b) -> bool {
     return std::ranges::equal(a, b);
 }
 
-constexpr auto operator"" _uz(unsigned long long n) -> std::size_t {
+constexpr auto operator""_uz(unsigned long long n) -> std::size_t {
     return n;
 }
 

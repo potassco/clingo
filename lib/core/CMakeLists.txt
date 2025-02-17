@@ -4,17 +4,16 @@ add_library(clingo_core
     "src/core.cc"
     )
 add_library(clingo::core ALIAS clingo_core)
-
-target_link_libraries(clingo_core PUBLIC clingo::util tsl::hopscotch_map tsl::ordered_map PRIVATE imath::imath)
+clingo_target_properties(clingo_core lib/core)
 target_include_directories(clingo_core PUBLIC "include")
-set_property(TARGET clingo_core PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(clingo_core PUBLIC clingo::util tsl::hopscotch_map tsl::ordered_map PRIVATE imath::imath)
 
 if (PARSER_BUILD_TESTS)
     add_executable(test_core
         "tests/number.cc"
         "tests/symbol.cc")
-    target_link_libraries(test_core PRIVATE clingo::core Catch2::Catch2WithMain)
+    clingo_target_properties(clingo_core test/core)
     target_include_directories(test_core PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
-    set_target_properties(test_core PROPERTIES FOLDER test_core)
+    target_link_libraries(test_core PRIVATE clingo::core Catch2::Catch2WithMain)
     catch_discover_tests(test_core)
 endif()

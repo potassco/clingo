@@ -7,13 +7,14 @@ target_include_directories(ordered_map INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRE
 add_library(tsl::ordered_map ALIAS ordered_map)
 
 add_library(imath INTERFACE)
+add_library(imath::imath ALIAS imath)
 target_sources(imath INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/imath/imath.c
     ${CMAKE_CURRENT_SOURCE_DIR}/imath/imrat.c
     ${CMAKE_CURRENT_SOURCE_DIR}/imath/gmp_compat.c)
 target_include_directories(imath INTERFACE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/imath>")
-add_library(imath::imath ALIAS imath)
+
 
 if (NOT PARSER_BUILD_WEB)
     list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/pytest-cmake/cmake")

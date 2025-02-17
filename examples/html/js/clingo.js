@@ -1,1 +1,1 @@
-../../../build/web/web/clingo.js
+../../../build/web/bin/web/clingo.js

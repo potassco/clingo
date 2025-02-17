@@ -10,7 +10,7 @@ extern "C" {
 
 typedef struct clingo_control clingo_control_t;
 
-//! @example base.c
+//! @example base-atoms.c
 //! The example shows how to iterate over symbolic atoms.
 //!
 //! ## Output ##
@@ -21,6 +21,26 @@ typedef struct clingo_control clingo_control_t;
 //!   b
 //!   c, external
 //!   a, fact
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
+//! @example base-theory.c
+//! The example shows how to inspect and use theory atoms.
+//!
+//! This is a very simple example that uses the @link ProgramBuilder c_backend@endlink to let theory atoms affect answer
+//! sets. In general, the backend can be used to implement a custom theory by translating it to a logic program. On the
+//! other hand, a @link Propagator c_prop@endlink can be used to implement a custom theory without adding any
+//! constraints in advance. Or both approaches can be combined.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! ./theory-atoms 0
+//! number of grounded theory atoms: 2
+//! theory atom b/1 has a guard: true
+//! Model: y
+//! Model: x y
 //! ~~~~~~~~~~~~
 //!
 //! ## Code ##
@@ -61,6 +81,21 @@ typedef struct clingo_atom_base {
 
 //! Object to inspect the shown terms in a program.
 typedef struct clingo_term_base clingo_term_base_t;
+
+//! Enumeration of theory term types.
+enum clingo_theory_term_type_e {
+    clingo_theory_term_type_tuple = 0,    //!< a tuple term, e.g., `(1,2,3)`
+    clingo_theory_term_type_list = 1,     //!< a list term, e.g., `[1,2,3]`
+    clingo_theory_term_type_set = 2,      //!< a set term, e.g., `{1,2,3}`
+    clingo_theory_term_type_function = 3, //!< a function term, e.g., `f(1,2,3)`
+    clingo_theory_term_type_number = 4,   //!< a number term, e.g., `42`
+    clingo_theory_term_type_symbol = 5    //!< a symbol term, e.g., `c`
+};
+//! Corresponding type to ::clingo_theory_term_type_e.
+typedef int clingo_theory_term_type_t;
+
+//! Object to inspect theory atoms.
+typedef struct clingo_theory_base clingo_theory_base_t;
 
 //! Get the number of atom bases in the program.
 //!
@@ -168,6 +203,35 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_literal(clingo_atom_b
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_terms(clingo_base_t const *base,
                                                             clingo_term_base_t const **terms);
 
+//! Get the theory base capturing theory terms, elements, and atoms.
+//!
+//! During grounding, theory atoms get consecutive numbers starting with zero.
+//! The total number of theory atoms can be obtained using clingo_theory_base_size().
+//!
+//! @attention
+//! All structural information about theory atoms, elements, and terms is reset after @link clingo_control_solve()
+//! solving@endlink. If afterward fresh theory atoms are @link clingo_control_ground() grounded@endlink, previously used
+//! ids are reused.
+//!
+//! For an example, see @ref base-theory.c.
+//!
+//! @param base the base
+//! @param terms the term base
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_theory(clingo_base_t const *base,
+                                                             clingo_theory_base_t const **theory);
+
+//! During grounding, theory atoms get consecutive numbers starting with zero.
+//! The total number of theory atoms can be obtained using clingo_theory_base_size().
+//!
+//! @attention
+//! All structural information about theory atoms, elements, and terms is reset after @link clingo_control_solve()
+//! solving@endlink. If afterward fresh theory atoms are @link clingo_control_ground() grounded@endlink, previously used
+//! ids are reused.
+//!
+//! For an example, see @ref theory-atoms.c.
+//!
+
 //! Get the number of shown terms in a program.
 //!
 //! @param[in] terms the term base
@@ -208,6 +272,187 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_condition(clingo_term
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_find(clingo_term_base_t const *terms, clingo_symbol_t symbol,
                                                                 size_t *index);
 
+//! @name Theory Term Inspection
+//! @{
+
+//! Get the type of the given theory term.
+//!
+//! @param[in] atoms container where the term is stored
+//! @param[in] term id of the term
+//! @param[out] type the resulting type
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_type(clingo_theory_base_t const *atoms,
+                                                                       clingo_id_t term,
+                                                                       clingo_theory_term_type_t *type);
+
+//! Get the number of the given numeric theory term.
+//!
+//! @pre The term must be of type ::clingo_theory_term_type_number.
+//! @param[in] atoms container where the term is stored
+//! @param[in] term id of the term
+//! @param[out] number the resulting number
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_number(clingo_theory_base_t const *atoms,
+                                                                         clingo_id_t term, int *number);
+//! Get the name of the given constant or function theory term.
+//!
+//! @pre The term must be of type ::clingo_theory_term_type_function or ::clingo_theory_term_type_symbol.
+//! @param[in] atoms container where the term is stored
+//! @param[in] term id of the term
+//! @param[out] name the resulting name
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_name(clingo_theory_base_t const *atoms,
+                                                                       clingo_id_t term, char const **name);
+//! Get the arguments of the given function theory term.
+//!
+//! @pre The term must be of type ::clingo_theory_term_type_function.
+//! @param[in] atoms container where the term is stored
+//! @param[in] term id of the term
+//! @param[out] arguments the resulting arguments in form of an array of term ids
+//! @param[out] size the number of arguments
+//! @return the result code
+
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_arguments(clingo_theory_base_t const *atoms,
+                                                                            clingo_id_t term,
+                                                                            clingo_id_t const **arguments,
+                                                                            size_t *size);
+
+//! Get the string representation of the given theory term.
+//!
+//! @param[in] atoms container where the term is stored
+//! @param[in] term id of the term
+//! @param[in] builder the string builder
+//! @return the result code
+//! @see clingo_theory_base_term_to_string_size()
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_to_string(clingo_theory_base_t const *atoms,
+                                                                            clingo_id_t term,
+                                                                            clingo_string_builder_t *builder);
+
+//! @}
+
+//! @name Theory Element Inspection
+//! @{
+
+//! Get the tuple (array of theory terms) of the given theory element.
+//!
+//! @param[in] atoms container where the element is stored
+//! @param[in] element id of the element
+//! @param[out] tuple the resulting array of term ids
+//! @param[out] size the number of term ids
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_tuple(clingo_theory_base_t const *atoms,
+                                                                           clingo_id_t element,
+                                                                           clingo_id_t const **tuple, size_t *size);
+
+//! Get the condition (array of aspif literals) of the given theory element.
+//!
+//! @param[in] atoms container where the element is stored
+//! @param[in] element id of the element
+//! @param[out] condition the resulting array of aspif literals
+//! @param[out] size the number of term literals
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_condition(clingo_theory_base_t const *atoms,
+                                                                               clingo_id_t element,
+                                                                               clingo_literal_t const **condition,
+                                                                               size_t *size);
+
+//! Get the id of the condition of the given theory element.
+//!
+//! @note
+//! This id can be mapped to a solver literal using clingo_propagate_init_solver_literal().
+//! This id is not (necessarily) an aspif literal;
+//! to get aspif literals use clingo_theory_base_element_condition().
+//!
+//! @param[in] atoms container where the element is stored
+//! @param[in] element id of the element
+//! @param[out] condition the resulting condition id
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_condition_id(clingo_theory_base_t const *atoms,
+                                                                                  clingo_id_t element,
+                                                                                  clingo_literal_t *condition);
+
+//! Get the string representation of the given theory element.
+//!
+//! @param[in] atoms container where the element is stored
+//! @param[in] element id of the element
+//! @param[in] builder the builder
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_to_string(clingo_theory_base_t const *atoms,
+                                                                               clingo_id_t element,
+                                                                               clingo_string_builder_t *builder);
+
+//! @}
+
+//! @name Theory Atom Inspection
+//! @{
+
+//! Get the total number of theory atoms.
+//!
+//! @param[in] atoms the target
+//! @param[out] size the resulting number
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_size(clingo_theory_base_t const *atoms, size_t *size);
+
+//! Get the theory term associated with the theory atom.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the atom
+//! @param[out] term the resulting term id
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_term(clingo_theory_base_t const *atoms,
+                                                                       clingo_id_t atom, clingo_id_t *term);
+
+//! Get the theory elements associated with the theory atom.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the atom
+//! @param[out] elements the resulting array of elements
+//! @param[out] size the number of elements
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_elements(clingo_theory_base_t const *atoms,
+                                                                           clingo_id_t atom,
+                                                                           clingo_id_t const **elements, size_t *size);
+
+//! Whether the theory atom has a guard.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the atom
+//! @param[out] has_guard whether the theory atom has a guard
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_has_guard(clingo_theory_base_t const *atoms,
+                                                                            clingo_id_t atom, bool *has_guard);
+
+//! Get the guard consisting of a theory operator and a theory term of the given theory atom.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the atom
+//! @param[out] connective the resulting theory operator
+//! @param[out] term the resulting term
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_guard(clingo_theory_base_t const *atoms,
+                                                                        clingo_id_t atom, char const **connective,
+                                                                        clingo_id_t *term);
+
+//! Get the aspif literal associated with the given theory atom.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the atom
+//! @param[out] literal the resulting literal
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_literal(clingo_theory_base_t const *atoms,
+                                                                          clingo_id_t atom, clingo_literal_t *literal);
+
+//! Get the string representation of the given theory atom.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the element
+//! @param[in] builder the builder
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_to_string(clingo_theory_base_t const *atoms,
+                                                                            clingo_id_t atom,
+                                                                            clingo_string_builder_t *builder);
+//! @}
+
 //! Get the base associated with the control object.
 //!
 //! The base can be used to query the atoms and terms occurring in a program.
@@ -218,6 +463,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_find(clingo_term_base
 //! @param[in] base the base to obtain
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_base(clingo_control_t const *control, clingo_base_t *base);
+
 //! @}
 
 #ifdef __cplusplus

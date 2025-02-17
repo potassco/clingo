@@ -13,7 +13,7 @@ libpath = sysconfig.get_path("purelib")
 clingo_stubs = os.path.join(libpath, "clingo-stubs")
 
 env = os.environ.copy()
-env["PYTHONPATH"] = "./build/debug/lib/python-api"
+env["PYTHONPATH"] = "./build/debug/bin/python"
 subprocess.check_call(
     [
         "pybind11-stubgen",
@@ -26,7 +26,7 @@ subprocess.check_call(
 )
 
 try:
-    for lib in glob("./build/debug/lib/python-api/clingo*.so"):
+    for lib in glob("./build/debug/bin/python/clingo*.so"):
         name = os.path.basename(lib)
         src = os.path.relpath(lib, libpath)
         dst = os.path.relpath(os.path.join(libpath, name), ".")
