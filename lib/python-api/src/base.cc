@@ -178,16 +178,18 @@ Functions and classes to work with atom and term bases.
 ... q(X) :- p(X).
 ... """)
 >>> ctl.ground()
->>> len(ctl.base)
+>>> bse = ctl.base
+>>> len(bse)
 2
->>> p = ctl.base[("p", 1)]
+>>> p = bse[("p", 1)]
 >>> Function(lib, "p", [Number(lib, 2)]) in p
 True
 >>> Function(lib, "p", [Number(lib, 4)]) in p
 False
->>> [sig for sig in ctl.base]
+>>> [sig for sig in bse]
 [('p', 1, False), ('q', 1, False)]
->>> [(str(x.symbol), ctl.base.is_fact(x.literal), ctl.base.is_external(x.literal)) for x in p.values()]
+>>> [(str(x.symbol), bse.is_fact(x.literal), bse.is_external(x.literal))
+...  for x in p.values()]
 [('p(1)', True, False), ('p(3)', False, False), ('p(2)', False, True)]
 ```)"_d);
 
@@ -280,7 +282,7 @@ Args:
 Returns:
     Whether the literal is a fact.
 )"_d)
-        .def_property_readonly("terms", &Base::terms, "the term base (from shown directives).");
+        .def_property_readonly("terms", &Base::terms, "The term base (given by show directives).");
 }
 
 } // namespace Clingo::Python
