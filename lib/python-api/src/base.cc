@@ -81,6 +81,22 @@ auto TermBase::lookup(key_type const &symbol) -> mapped_type {
     return index < size() ? Term{*base_, index} : throw py::key_error("key does not exist");
 }
 
+auto TheoryTerm::name() -> char const * {
+    char const *name = nullptr;
+    handle_error(clingo_theory_base_term_name(base_, index_, &name));
+    return name;
+}
+
+auto TheoryAtom::name() -> TheoryTerm {
+    clingo_id_t id = 0;
+    handle_error(clingo_theory_base_atom_term(base_, index_, &id));
+    return TheoryTerm{*base_, id};
+}
+
+auto TheoryBase::at(size_t index) -> value_type {
+    return index < size() ? TheoryAtom{*base_, index} : throw std::range_error{"atom index out of range"};
+}
+
 auto TheoryBase::size() -> size_t {
     auto size = size_t{0};
     handle_error(clingo_theory_base_size(base_, &size));
@@ -250,9 +266,19 @@ The base is established by the show directives occurring in a program.)"_d)
             "keys", [](TermBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
             R"(Get get an iterator over the keys in the map.)");
 
+    py::class_<TheoryTerm>(base, "TheoryTerm", R"(A view to inspect a theory term.)")
+        .def_property_readonly("name", &TheoryTerm::name, R"(Get the name of a theory function.)");
+
+    py::class_<TheoryAtom>(base, "TheoryAtom", R"(A view to inspect a theory atom.)")
+        .def_property_readonly("name", &TheoryAtom::name, R"(Get the name of a theory atom.)");
+
     py::class_<TheoryBase>(base, "TheoryBase", R"(
 A base to inspect theory atoms.)"_d)
-        .def("__len__", &TheoryBase::size, "Get the number of theory atoms in the base.");
+        .def("__len__", &TheoryBase::size, "Get the number of theory atoms in the base.")
+        .def("__getitem__", &TheoryBase::at, R"(Get the atom with the given index.)")
+        .def(
+            "__iter__", [](TheoryBase &base) { return py::make_iterator(base.begin(), base.end()); },
+            "Get an iterable over the keys in the map.");
 
     py::class_<Base>(base, "Base", R"(
 The base provides information about atoms and show term directives occuring in a program.

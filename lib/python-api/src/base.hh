@@ -73,10 +73,35 @@ class TermBase {
     clingo_term_base_t const *base_;
 };
 
+class TheoryTerm {
+  public:
+    TheoryTerm(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
+    auto name() -> char const *;
+
+  private:
+    clingo_theory_base_t const *base_;
+    size_t index_;
+};
+
+class TheoryAtom {
+  public:
+    TheoryAtom(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
+    auto name() -> TheoryTerm;
+
+  private:
+    clingo_theory_base_t const *base_;
+    size_t index_;
+};
+
 class TheoryBase {
   public:
+    using value_type = TheoryAtom;
+
     TheoryBase(clingo_theory_base_t const &base) : base_{&base} {}
     auto size() -> size_t;
+    auto at(size_t index) -> value_type;
+    [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }
+    [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_theory_base_t const *base_;
