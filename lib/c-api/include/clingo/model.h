@@ -192,7 +192,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_model_control(clingo_model_t *m
 //! @param[out] base the resulting object
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_control_base(clingo_solve_control_t const *control,
-                                                                    clingo_base_t *base);
+                                                                    clingo_base_t const **base);
 //! Add a clause that applies to the current solving step during model
 //! enumeration.
 //!

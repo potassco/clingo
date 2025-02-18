@@ -67,7 +67,7 @@ class ModelIterator {
 } // namespace
 
 auto SolveControl::base() -> Base {
-    clingo_base_t base;
+    clingo_base_t const *base = nullptr;
     handle_error(clingo_solve_control_base(ctl_, &base));
     return {base};
 }

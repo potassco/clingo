@@ -9,30 +9,19 @@ namespace Clingo::Python {
 
 auto Atom::literal() -> clingo_literal_t {
     auto lit = clingo_literal_t{0};
-    handle_error(clingo_atom_base_literal(&base_, index_, &lit));
+    handle_error(clingo_atom_base_literal(base_, index_, &lit));
     return lit;
 }
 
 auto Atom::symbol() -> Symbol {
     auto sym = clingo_symbol_t{0};
-    handle_error(clingo_atom_base_symbol(&base_, index_, &sym));
+    handle_error(clingo_atom_base_symbol(base_, index_, &sym));
     return *cpp_cast(&sym);
-}
-
-auto Atom::external() -> bool {
-    auto ext = false;
-    handle_error(clingo_atom_base_is_external(&base_, index_, &ext));
-    return ext;
-}
-auto Atom::fact() -> bool {
-    auto fact = false;
-    handle_error(clingo_atom_base_is_fact(&base_, index_, &fact));
-    return fact;
 }
 
 auto AtomBase::size() -> size_t {
     size_t size = 0;
-    handle_error(clingo_atom_base_size(&base_, &size));
+    handle_error(clingo_atom_base_size(base_, &size));
     return size;
 }
 
@@ -43,13 +32,13 @@ auto AtomBase::at(size_t index) -> value_type {
 
 auto AtomBase::lookup(key_type const &symbol) -> mapped_type {
     auto index = size_t{0};
-    handle_error(clingo_atom_base_find(&base_, *c_cast(&symbol), &index));
+    handle_error(clingo_atom_base_find(base_, *c_cast(&symbol), &index));
     return index < size() ? Atom{base_, index} : throw py::key_error{"key not found"};
 }
 
 auto AtomBase::contains(key_type const &symbol) -> bool {
     auto index = size_t{0};
-    handle_error(clingo_atom_base_find(&base_, *c_cast(&symbol), &index));
+    handle_error(clingo_atom_base_find(base_, *c_cast(&symbol), &index));
     return index < size();
 }
 
@@ -92,17 +81,28 @@ auto TermBase::lookup(key_type const &symbol) -> mapped_type {
     return index < size() ? Term{*base_, index} : throw py::key_error("key does not exist");
 }
 
+auto Base::is_external(clingo_literal_t literal) -> bool {
+    auto ext = false;
+    handle_error(clingo_base_is_external(base_, literal, &ext));
+    return ext;
+}
+auto Base::is_fact(clingo_literal_t literal) -> bool {
+    auto fact = false;
+    handle_error(clingo_base_is_fact(base_, literal, &fact));
+    return fact;
+}
+
 auto Base::size() -> size_t {
     size_t size = 0;
-    handle_error(clingo_base_atoms_size(&base_, &size));
+    handle_error(clingo_base_atoms_size(base_, &size));
     return size;
 }
 
 auto Base::at(size_t index) -> value_type {
     auto sig = clingo_signature_t{};
-    auto atoms = clingo_atom_base_t{};
+    clingo_atom_base_t const *atoms = nullptr;
     if (index < size()) {
-        handle_error(clingo_base_atoms_at(&base_, index, &sig, &atoms));
+        handle_error(clingo_base_atoms_at(base_, index, &sig, &atoms));
         return std::pair{std::tuple{sig.name, sig.arity, sig.sign}, AtomBase{atoms}};
     }
     throw py::index_error{"index out of range"};
@@ -115,7 +115,7 @@ auto Base::contains_short(std::pair<char const *, size_t> const &sig) -> bool {
 auto Base::contains(key_type const &sig) -> bool {
     auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
     auto found = false;
-    handle_error(clingo_base_atoms_find(&base_, &csig, nullptr, &found));
+    handle_error(clingo_base_atoms_find(base_, &csig, nullptr, &found));
     return found;
 }
 
@@ -125,15 +125,15 @@ auto Base::lookup_short(std::pair<char const *, size_t> const &sig) -> mapped_ty
 
 auto Base::lookup(key_type const &sig) -> mapped_type {
     auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
-    auto atoms = clingo_atom_base_t{};
+    clingo_atom_base_t const *atoms = nullptr;
     auto found = false;
-    handle_error(clingo_base_atoms_find(&base_, &csig, &atoms, &found));
+    handle_error(clingo_base_atoms_find(base_, &csig, &atoms, &found));
     return found ? AtomBase{atoms} : throw py::key_error("key does not exist");
 }
 
 auto Base::terms() -> TermBase {
     auto const *terms = static_cast<clingo_term_base_t const *>(nullptr);
-    handle_error(clingo_base_terms(&base_, &terms));
+    handle_error(clingo_base_terms(base_, &terms));
     return TermBase{*terms};
 }
 
@@ -187,15 +187,13 @@ True
 False
 >>> [sig for sig in ctl.base]
 [('p', 1, False), ('q', 1, False)]
->>> [(str(x.symbol), x.fact, x.external) for x in p.values()]
+>>> [(str(x.symbol), ctl.base.is_fact(x.literal), ctl.base.is_external(x.literal)) for x in p.values()]
 [('p(1)', True, False), ('p(3)', False, False), ('p(2)', False, True)]
 ```)"_d);
 
     py::class_<Atom>(base, "Atom", R"(A class providing information about symbolic atoms.)")
         .def_property_readonly("literal", &Atom::literal, "Get the program literal of the atom.")
-        .def_property_readonly("symbol", &Atom::symbol, "Get the symbol of the atom.")
-        .def_property_readonly("external", &Atom::external, "Whether the atom is external.")
-        .def_property_readonly("fact", &Atom::fact, "Whether the atom is a fact.");
+        .def_property_readonly("symbol", &Atom::symbol, "Get the symbol of the atom.");
 
     py::class_<AtomBase>(base, "AtomBase", R"(An atom base mapping symbols to atoms.)")
         .def("__len__", &AtomBase::size, "Get the number of atoms in the base.")
@@ -266,6 +264,22 @@ This function provides a shortcut assuming the sign is false.
         .def(
             "keys", [](Base &base) { return py::make_key_iterator(base.begin(), base.end()); },
             R"(Get get an iterator over the keys in the map.)")
+        .def("is_external", &Base::is_external, py::arg("literal"), R"(
+Check whether the given program literal corresponds to an external.
+
+Args:
+    literal: The literal to check.
+Returns:
+    Whether the literal is external.
+)"_d)
+        .def("is_fact", &Base::is_fact, py::arg("literal"), R"(
+Check whether the literal is a fact.
+
+Args:
+    literal: The literal to check.
+Returns:
+    Whether the literal is a fact.
+)"_d)
         .def_property_readonly("terms", &Base::terms, "the term base (from shown directives).");
 }
 

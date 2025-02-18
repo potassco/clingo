@@ -361,7 +361,7 @@ class ModelImpl : public Model, private SolveControl {
 
     [[nodiscard]] auto do_is_consequence(Output::lit_t lit) const -> ConsequenceType override {
         assert(mdl_ != nullptr);
-        switch (Clasp::Asp::isConsequence(prg(), lit, *mdl_)) {
+        switch (Clasp::Asp::isConsequence(clasp_program(), lit, *mdl_)) {
             case Clasp::value_true: {
                 return ConsequenceType::true_;
             }
@@ -409,13 +409,17 @@ class ModelImpl : public Model, private SolveControl {
 
     [[nodiscard]] auto do_bases() const -> Ground::Bases const & override { return *bases_; }
 
-    [[nodiscard]] auto do_clasp() const -> Clasp::ClaspFacade const & override { return *clasp_; }
+    [[nodiscard]] auto do_clasp_program() const -> Clasp::Asp::LogicProgram const & override {
+        return clasp_->asp() != nullptr ? *clasp_->asp() : throw std::runtime_error("not in solving mode");
+    }
 
-    //! Get the underlying logic program.
-    [[nodiscard]] auto prg() const -> Clasp::Asp::LogicProgram const & { return *clasp_->asp(); }
+    [[nodiscard]] auto do_clasp_theory() const -> Potassco::TheoryData const & override {
+        return clasp_->asp() != nullptr ? clasp_->asp()->theoryData() : throw std::runtime_error("not in solving mode");
+    }
+
     //! Map the given program literal to its solver literal.
     [[nodiscard]] auto solver_literal(std::integral auto lit) const -> Clasp::Literal {
-        return Clasp::Asp::solverLiteral(prg(), static_cast<Output::lit_t>(lit));
+        return Clasp::Asp::solverLiteral(clasp_program(), static_cast<Output::lit_t>(lit));
     }
 
     Ground::Bases const *bases_;

@@ -13,15 +13,13 @@ namespace Clingo::Python {
 
 class Atom {
   public:
-    Atom(clingo_atom_base_t base, size_t index) : base_{base}, index_{index} {}
+    Atom(clingo_atom_base_t const *base, size_t index) : base_{base}, index_{index} {}
 
     auto literal() -> clingo_literal_t;
     auto symbol() -> Symbol;
-    auto external() -> bool;
-    auto fact() -> bool;
 
   private:
-    clingo_atom_base_t base_;
+    clingo_atom_base_t const *base_;
     size_t index_;
 };
 
@@ -31,7 +29,7 @@ class AtomBase {
     using mapped_type = Atom;
     using value_type = std::pair<key_type, mapped_type>;
 
-    AtomBase(clingo_atom_base_t base) : base_{base} {}
+    AtomBase(clingo_atom_base_t const *base) : base_{base} {}
 
     auto size() -> size_t;
     auto at(size_t index) -> value_type;
@@ -41,7 +39,7 @@ class AtomBase {
     [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
 
   private:
-    clingo_atom_base_t base_;
+    clingo_atom_base_t const *base_;
 };
 
 class Term {
@@ -81,8 +79,10 @@ class Base {
     using mapped_type = AtomBase;
     using value_type = std::pair<key_type, mapped_type>;
 
-    Base(clingo_base_t base) : base_{base} {}
+    Base(clingo_base_t const *base) : base_{base} {}
 
+    auto is_external(clingo_literal_t lit) -> bool;
+    auto is_fact(clingo_literal_t lit) -> bool;
     auto size() -> size_t;
     auto at(size_t index) -> value_type;
     auto contains(key_type const &sig) -> bool;
@@ -94,7 +94,7 @@ class Base {
     [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
 
   private:
-    clingo_base_t base_;
+    clingo_base_t const *base_;
 };
 
 using MixedLitlVec = std::vector<std::variant<std::pair<Symbol, bool>, Lit_t>>;

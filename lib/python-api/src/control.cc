@@ -91,7 +91,7 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
 }
 
 auto Control::base() -> Base {
-    auto base = clingo_base_t{};
+    clingo_base_t const *base = nullptr;
     clingo_control_base(ctl_.get(), &base);
     return {base};
 }

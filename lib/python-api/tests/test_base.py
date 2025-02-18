@@ -9,7 +9,7 @@ from clingo.core import Library
 from clingo.symbol import Function, Number
 
 
-class TestScript:
+class TestBase:
     # pylint: disable=attribute-defined-outside-init
     """
     Tests for the control module.
@@ -82,7 +82,10 @@ class TestScript:
 
         assert sorted(base) == [("p", 1, False), ("q", 1, False)]
         assert sorted(
-            [(str(x.symbol), x.fact, x.external) for x in base_p.values()]
+            [
+                (str(x.symbol), base.is_fact(x.literal), base.is_external(x.literal))
+                for x in base_p.values()
+            ]
         ) == [("p(1)", True, False), ("p(2)", False, True), ("p(3)", False, False)]
 
         assert base_p[fun_p].literal > 0

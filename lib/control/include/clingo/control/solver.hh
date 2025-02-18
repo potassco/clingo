@@ -85,24 +85,32 @@ enum class ConsequenceType : uint8_t {
     unknown = 2 //!< The literal might or might not be a consequence.
 };
 
-//! Simple control class to add clauses while enumerating models.
-class SolveControl {
+//! Interface providing the necessary data to inspect atom, term, and theory bases.
+class BaseControl {
   public:
-    //! Default virtual destructor.
-    virtual ~SolveControl() = default;
-
-    //! Add a clause over the given literal.
-    void add_clause(Output::LitSpan lits) { do_add_clause(lits); }
-
+    //! The default destructor.
+    virtual ~BaseControl() = default;
     //! Get a reference to the underlying atom/term bases.
     [[nodiscard]] auto bases() const -> Ground::Bases const & { return do_bases(); }
     //! Get a reference to the underlying facade.
-    [[nodiscard]] auto clasp() const -> Clasp::ClaspFacade const & { return do_clasp(); }
+    [[nodiscard]] auto clasp_program() const -> Clasp::Asp::LogicProgram const & { return do_clasp_program(); }
+    //! Get a reference to the underlying facade.
+    [[nodiscard]] auto clasp_theory() const -> Potassco::TheoryData const & { return do_clasp_theory(); }
+
+  private:
+    [[nodiscard]] virtual auto do_bases() const -> Ground::Bases const & = 0;
+    [[nodiscard]] virtual auto do_clasp_theory() const -> Potassco::TheoryData const & = 0;
+    [[nodiscard]] virtual auto do_clasp_program() const -> Clasp::Asp::LogicProgram const & = 0;
+};
+
+//! Simple control class to add clauses while enumerating models.
+class SolveControl : public BaseControl {
+  public:
+    //! Add a clause over the given literal.
+    void add_clause(Output::LitSpan lits) { do_add_clause(lits); }
 
   private:
     virtual void do_add_clause(Output::LitSpan lits) = 0;
-    [[nodiscard]] virtual auto do_bases() const -> Ground::Bases const & = 0;
-    [[nodiscard]] virtual auto do_clasp() const -> Clasp::ClaspFacade const & = 0;
 };
 
 //! The model class.
@@ -372,7 +380,7 @@ class PropagatorLock : public Clasp::ClingoPropagatorLock {
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
-class Solver {
+class Solver : public BaseControl {
   public:
     //! Create a solver object.
     Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &config, Logger &log, SymbolStore &store,
@@ -405,6 +413,7 @@ class Solver {
 
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);
+
     //! Output the current program.
     void output_program(std::ostream &out);
 
@@ -414,25 +423,17 @@ class Solver {
     //! this buffer contains the output of the textoutput.
     [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_; };
 
-    //! Get a reference to the underlying atom/term bases.
-    [[nodiscard]] auto bases() -> Ground::Bases const & { return grd_.base(); }
-    //! Get a pointer to the underlying clasp program.
-    //!
-    //! Only non-null in solving mode.
-    [[nodiscard]] auto clasp_program() const -> Clasp::Asp::LogicProgram const * { return clasp_->asp(); }
     //! Get a pointer to the underlying clasp facade.
     [[nodiscard]] auto clasp_facade() -> Clasp::ClaspFacade & { return *clasp_; }
+
     //! Get a pointer to the underlying clasp facade.
     [[nodiscard]] auto clasp_facade() const -> Clasp::ClaspFacade const & { return *clasp_; }
+
     //! Only non-null in solving mode.
     [[nodiscard]] auto clasp_config() -> Clasp::Cli::ClaspCliConfig & {
         return clasp_config_ != nullptr ? *clasp_config_ : throw std::runtime_error("not in solving mode");
     }
-    //! Get a pointer to the theory data.
-    [[nodiscard]] auto clasp_theory() const -> Potassco::TheoryData const & {
-        auto *prg = clasp_->asp();
-        return prg != nullptr ? prg->theoryData() : throw std::runtime_error("not in solving mode");
-    }
+
     //! Get the statsistics.
     [[nodiscard]] auto clasp_stats() -> Potassco::AbstractStatistics const & {
         auto const *stats = clasp_->getStats();
@@ -462,6 +463,17 @@ class Solver {
     //! @param mode the configured output mode
     //! @return the resulting output
     auto make_output_(SymbolStore &store, AppMode mode) -> UOutputStm;
+
+    [[nodiscard]] auto do_bases() const -> Ground::Bases const & override { return grd_.base(); }
+
+    [[nodiscard]] auto do_clasp_program() const -> Clasp::Asp::LogicProgram const & override {
+        return clasp_->asp() != nullptr ? *clasp_->asp() : throw std::runtime_error("not in solving mode");
+    }
+
+    [[nodiscard]] auto do_clasp_theory() const -> Potassco::TheoryData const & override {
+        auto *prg = clasp_->asp();
+        return prg != nullptr ? prg->theoryData() : throw std::runtime_error("not in solving mode");
+    }
 
     PropagatorLock lock_;
     Clasp::ClaspFacade *clasp_;

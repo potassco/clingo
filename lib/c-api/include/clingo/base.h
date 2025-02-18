@@ -66,18 +66,12 @@ typedef struct clingo_signature {
 //! of `#show` statements.
 //!
 //! @see clingo_control_base()
-typedef struct clingo_base {
-    uintptr_t a; //!< internal data
-    uintptr_t b; //!< internal data
-} clingo_base_t;
+typedef struct clingo_base clingo_base_t;
 
 //! Object to inspect the symbolic atoms in a program.
 //!
 //! Atom bases capture atoms over the same signature.
-typedef struct clingo_atom_base {
-    uintptr_t a; //!< internal data
-    uintptr_t b; //!< internal data
-} clingo_atom_base_t;
+typedef struct clingo_atom_base clingo_atom_base_t;
 
 //! Object to inspect the shown terms in a program.
 typedef struct clingo_term_base clingo_term_base_t;
@@ -96,6 +90,31 @@ typedef int clingo_theory_term_type_t;
 
 //! Object to inspect theory atoms.
 typedef struct clingo_theory_base clingo_theory_base_t;
+
+//! Check whether the given literal is a fact.
+//!
+//! @note This does not determine if an atom is a cautious consequence. The
+//! grounding or solving component's simplifications can only detect this in
+//! some cases.
+//!
+//! @param[in] atoms the atom base
+//! @param[in] literal the index of the atom
+//! @param[out] is_fact whether the atom is a fact
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_fact(clingo_base_t const *atoms, clingo_literal_t literal,
+                                                              bool *is_fact);
+
+//! Check whether an atom is external.
+//!
+//! An atom is external if it has been defined using an external directive and
+//! has not been released or defined by a rule.
+//!
+//! @param[in] atoms the target
+//! @param[in] literal the index of the atom
+//! @param[out] is_external whether the atom is an external
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_external(clingo_base_t const *atoms, clingo_literal_t literal,
+                                                                  bool *is_external);
 
 //! Get the number of atom bases in the program.
 //!
@@ -118,7 +137,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_size(clingo_base_t c
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_at(clingo_base_t const *base, size_t index,
                                                                clingo_signature_t *signature,
-                                                               clingo_atom_base_t *atoms);
+                                                               clingo_atom_base_t const **atoms);
 
 //! Find the atom base wit the given signature.
 //!
@@ -129,7 +148,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_at(clingo_base_t con
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_find(clingo_base_t const *base,
                                                                  clingo_signature_t const *signature,
-                                                                 clingo_atom_base_t *atoms, bool *found);
+                                                                 clingo_atom_base_t const **atoms, bool *found);
 
 //! Get the size of the given atom base.
 //!
@@ -148,31 +167,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_size(clingo_atom_base
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_find(clingo_atom_base_t const *atoms, clingo_symbol_t symbol,
                                                                 size_t *index);
-
-//! Check whether an atom is a fact.
-//!
-//! @note This does not determine if an atom is a cautious consequence. The
-//! grounding or solving component's simplifications can only detect this in
-//! some cases.
-//!
-//! @param[in] atoms the atom base
-//! @param[in] index the index of the atom
-//! @param[out] fact whether the atom is a fact
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_is_fact(clingo_atom_base_t const *atoms, size_t index,
-                                                                   bool *fact);
-
-//! Check whether an atom is external.
-//!
-//! An atom is external if it has been defined using an external directive and
-//! has not been released or defined by a rule.
-//!
-//! @param[in] atoms the target
-//! @param[in] index the index of the atom
-//! @param[out] is_external whether the atom is an external
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_is_external(clingo_atom_base_t const *atoms, size_t index,
-                                                                       bool *is_external);
 
 //! Get the symbolic representation of an atom.
 //!
@@ -462,7 +456,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_to_string(clin
 //! @param[in] control the target
 //! @param[in] base the base to obtain
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_base(clingo_control_t const *control, clingo_base_t *base);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_base(clingo_control_t const *control,
+                                                              clingo_base_t const **base);
 
 //! @}
 

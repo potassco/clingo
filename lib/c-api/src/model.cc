@@ -125,15 +125,14 @@ extern "C" auto clingo_model_control(clingo_model_t *model, clingo_solve_control
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_solve_control_base(clingo_solve_control_t const *control, clingo_base_t *base)
+extern "C" auto clingo_solve_control_base(clingo_solve_control_t const *control, clingo_base_t const **base)
     -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || base == nullptr) {
             return clingo_result_invalid;
         }
         // NOLINTBEGIN
-        base->a = reinterpret_cast<uintptr_t>(&cpp_cast(control)->bases());
-        base->b = reinterpret_cast<uintptr_t>(&cpp_cast(control)->clasp());
+        *base = reinterpret_cast<clingo_base_t const *>(cpp_cast(control));
         // NOLINTEND
     }
     CLINGO_CATCH;
