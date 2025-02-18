@@ -81,6 +81,12 @@ auto TermBase::lookup(key_type const &symbol) -> mapped_type {
     return index < size() ? Term{*base_, index} : throw py::key_error("key does not exist");
 }
 
+auto TheoryBase::size() -> size_t {
+    auto size = size_t{0};
+    handle_error(clingo_theory_base_size(base_, &size));
+    return size;
+}
+
 auto Base::is_external(clingo_literal_t literal) -> bool {
     auto ext = false;
     handle_error(clingo_base_is_external(base_, literal, &ext));
@@ -135,6 +141,12 @@ auto Base::terms() -> TermBase {
     auto const *terms = static_cast<clingo_term_base_t const *>(nullptr);
     handle_error(clingo_base_terms(base_, &terms));
     return TermBase{*terms};
+}
+
+auto Base::theory() -> TheoryBase {
+    auto const *base = static_cast<clingo_theory_base_t const *>(nullptr);
+    handle_error(clingo_base_theory(base_, &base));
+    return TheoryBase{*base};
 }
 
 auto convert(Base base, MixedLitlVec const &lits) -> LitVec {
@@ -219,7 +231,7 @@ False
         .def_property_readonly("condition", &Term::condition, "Get the condition of the term.");
 
     py::class_<TermBase>(base, "TermBase", R"(
-A term base mapping symbols to terms.
+A base to inspect show term directives in a program.
 
 The base is established by the show directives occurring in a program.)"_d)
         .def("__len__", &TermBase::size, "Get the number of terms in the base.")
@@ -238,14 +250,17 @@ The base is established by the show directives occurring in a program.)"_d)
             "keys", [](TermBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
             R"(Get get an iterator over the keys in the map.)");
 
+    py::class_<TheoryBase>(base, "TheoryBase", R"(
+A base to inspect theory atoms.)"_d)
+        .def("__len__", &TheoryBase::size, "Get the number of theory atoms in the base.");
+
     py::class_<Base>(base, "Base", R"(
-The base provides information about atoms and terms occuring in a program.
+The base provides information about atoms and show term directives occuring in a program.
 
 It implements a map from signatures to atom bases.
 )")
         .def("__len__", &Base::size, "Get the number of atom bases.")
-        .def("__getitem__", &Base::lookup_short,
-             R"(
+        .def("__getitem__", &Base::lookup_short, R"(
 Get the element with the given (short) signature.
 
 This function provides a shortcut assuming the sign is false.
@@ -282,7 +297,8 @@ Args:
 Returns:
     Whether the literal is a fact.
 )"_d)
-        .def_property_readonly("terms", &Base::terms, "The term base (given by show directives).");
+        .def_property_readonly("terms", &Base::terms, "The term base (given by show directives).")
+        .def_property_readonly("theory", &Base::theory, "The theory base.");
 }
 
 } // namespace Clingo::Python

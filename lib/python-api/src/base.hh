@@ -73,6 +73,15 @@ class TermBase {
     clingo_term_base_t const *base_;
 };
 
+class TheoryBase {
+  public:
+    TheoryBase(clingo_theory_base_t const &base) : base_{&base} {}
+    auto size() -> size_t;
+
+  private:
+    clingo_theory_base_t const *base_;
+};
+
 class Base {
   public:
     using key_type = std::tuple<char const *, size_t, bool>;
@@ -90,6 +99,7 @@ class Base {
     auto lookup(key_type const &sig) -> mapped_type;
     auto lookup_short(std::pair<char const *, size_t> const &sig) -> mapped_type;
     auto terms() -> TermBase;
+    auto theory() -> TheoryBase;
     [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }
     [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
 
