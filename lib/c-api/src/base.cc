@@ -2,9 +2,11 @@
 
 #include <clingo/ground/base.hh>
 
+#include <potassco/theory_data.h>
+
 #include "control.hh" // IWYU pragma: keep
+#include "core.hh"
 #include "lib.hh"
-#include "potassco/theory_data.h"
 
 auto cpp_cast(clingo_base_t const *bases) {
     // NOLINTNEXTLINE
@@ -294,6 +296,104 @@ extern "C" auto clingo_theory_base_term_type(clingo_theory_base_t const *theory,
                 break;
             }
         }
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_theory_base_term_number(clingo_theory_base_t const *theory, clingo_id_t term, int *number)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (theory == nullptr || number == nullptr) {
+            return clingo_result_invalid;
+        }
+        *number = cpp_cast(theory)->getTerm(term).number();
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_theory_base_term_name(clingo_theory_base_t const *theory, clingo_id_t term, char const **name)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (theory == nullptr || name == nullptr) {
+            return clingo_result_invalid;
+        }
+        auto const *t = cpp_cast(theory);
+        auto x = t->getTerm(term);
+        *name = x.isFunction() ? t->getTerm(x.function()).symbol() : x.symbol();
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_theory_base_term_arguments(clingo_theory_base_t const *theory, clingo_id_t term,
+                                                  clingo_id_t const **arguments, size_t *size) -> clingo_result_t {
+    CLINGO_TRY {
+        if (theory == nullptr || arguments == nullptr || size == nullptr) {
+            return clingo_result_invalid;
+        }
+        auto args = cpp_cast(theory)->getTerm(term).terms();
+        *arguments = args.data();
+        *size = args.size();
+    }
+    CLINGO_CATCH;
+}
+
+namespace {
+
+class Printer {
+  public:
+    Printer(clingo_theory_base_t const *theory, clingo_string_builder_t *builder)
+        : data_{cpp_cast(theory)}, out_{cpp_cast(builder)} {}
+
+    void operator()(clingo_id_t term) const {
+        auto x = data_->getTerm(term);
+        switch (x.type()) {
+            case Potassco::TheoryTermType::number: {
+                *out_ << x.number();
+                break;
+            }
+            case Potassco::TheoryTermType::symbol: {
+                *out_ << x.symbol();
+                break;
+            }
+            case Potassco::TheoryTermType::compound: {
+                auto args = x.terms();
+                if (x.isFunction()) {
+                    auto const *name = data_->getTerm(x.function()).symbol();
+                    if (args.size() == 2 && Clingo::Input::is_theory_operator(name)) {
+                        *out_ << "(";
+                        operator()(args.front());
+                        *out_ << name;
+                        operator()(args.back());
+                        *out_ << ")";
+                        break;
+                    }
+                    *out_ << name;
+                }
+                auto p = Potassco::parens(x.isFunction() ? Potassco::TupleType::paren
+                                                         : static_cast<Potassco::TupleType>(x.compound()));
+                *out_ << p[0];
+                Clingo::Util::p_range(args, [this]([[maybe_unused]] auto const &out, auto const &y) { operator()(y); });
+
+                *out_ << p[1];
+                break;
+            }
+        }
+    }
+
+  private:
+    Potassco::TheoryData const *data_;
+    Clingo::Util::OutputBuffer *out_;
+};
+
+} // namespace
+
+extern "C" auto clingo_theory_base_term_to_string(clingo_theory_base_t const *theory, clingo_id_t term,
+                                                  clingo_string_builder_t *builder) -> clingo_result_t {
+    CLINGO_TRY {
+        if (theory == nullptr || builder == nullptr) {
+            return clingo_result_invalid;
+        }
+        Printer{theory, builder}(term);
     }
     CLINGO_CATCH;
 }
