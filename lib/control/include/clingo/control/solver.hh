@@ -86,10 +86,10 @@ enum class ConsequenceType : uint8_t {
 };
 
 //! Interface providing the necessary data to inspect atom, term, and theory bases.
-class BaseControl {
+class BaseView {
   public:
     //! The default destructor.
-    virtual ~BaseControl() = default;
+    virtual ~BaseView() = default;
     //! Get a reference to the underlying atom/term bases.
     [[nodiscard]] auto bases() const -> Ground::Bases const & { return do_bases(); }
     //! Get a reference to the underlying facade.
@@ -104,7 +104,7 @@ class BaseControl {
 };
 
 //! Simple control class to add clauses while enumerating models.
-class SolveControl : public BaseControl {
+class SolveControl : public BaseView {
   public:
     //! Add a clause over the given literal.
     void add_clause(Output::LitSpan lits) { do_add_clause(lits); }
@@ -350,7 +350,7 @@ class PropagatorLock : public Clasp::ClingoPropagatorLock {
             mut_->unlock();
         }
     }
-    //! Add a propagator with the required lockning.
+    //! Add a propagator with the required locking.
     //!
     //! @param seq whether the propagator requires lockning
     //! @return a reference to self
@@ -380,7 +380,7 @@ class PropagatorLock : public Clasp::ClingoPropagatorLock {
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
-class Solver : public BaseControl {
+class Solver : public BaseView {
   public:
     //! Create a solver object.
     Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &config, Logger &log, SymbolStore &store,

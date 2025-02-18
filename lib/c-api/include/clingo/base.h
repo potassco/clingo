@@ -385,7 +385,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_to_string(c
 //! @param[in] theory the target
 //! @param[out] size the resulting number
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_size(clingo_theory_base_t const *atoms, size_t *size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_size(clingo_theory_base_t const *theory, size_t *size);
 
 //! Get the theory term associated with the theory atom.
 //!

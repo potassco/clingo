@@ -10,12 +10,12 @@
 
 auto get_base(clingo_base_t const *base) -> Clingo::Ground::Bases const & {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseControl const *>(base)->bases();
+    return reinterpret_cast<Clingo::Control::BaseView const *>(base)->bases();
 }
 
 auto get_program(clingo_base_t const *base) -> Clasp::Asp::LogicProgram const & {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseControl const *>(base)->clasp_program();
+    return reinterpret_cast<Clingo::Control::BaseView const *>(base)->clasp_program();
 }
 
 auto cpp_cast(clingo_atom_base_t const *atoms) {
@@ -30,12 +30,12 @@ auto cpp_cast(clingo_term_base_t const *terms) {
 
 auto get_theory(clingo_theory_base_t const *theory) -> Potassco::TheoryData const & {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseControl const *>(theory)->clasp_theory();
+    return reinterpret_cast<Clingo::Control::BaseView const *>(theory)->clasp_theory();
 }
 
 auto get_program(clingo_theory_base_t const *theory) -> Clasp::Asp::LogicProgram const & {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseControl const *>(theory)->clasp_program();
+    return reinterpret_cast<Clingo::Control::BaseView const *>(theory)->clasp_program();
 }
 
 extern "C" auto clingo_base_atoms_size(clingo_base_t const *base, size_t *size) -> clingo_result_t {
@@ -326,6 +326,13 @@ extern "C" auto clingo_theory_base_term_arguments(clingo_theory_base_t const *th
 
 namespace {
 
+auto element_condition(clingo_theory_base_t const *theory, clingo_id_t element) -> std::span<clingo_literal_t const> {
+    static thread_local auto cond = Potassco::LitVec{};
+    cond.clear();
+    get_program(theory).extractCondition(get_theory(theory).getElement(element).condition(), cond);
+    return cond;
+}
+
 class TheoryPrinter {
   public:
     TheoryPrinter(clingo_theory_base_t const *theory, clingo_string_builder_t *builder)
@@ -367,10 +374,18 @@ class TheoryPrinter {
         }
     }
     void elem(clingo_id_t id) const {
+        // NOTE: the previous clingo version made more effort here
         auto const &x = data_->getElement(id);
         Clingo::Util::p_range(x.terms(), [this]([[maybe_unused]] auto const &out, auto const &y) { term(y); });
-        *out_ << ": ";
-        *out_ << "<cond>";
+        // TODO: maybe drop if empty
+        *out_ << ": <condition: " << x.condition() << ">";
+    }
+
+    void atom(clingo_id_t id) const {
+        // TODO: implement me!!!
+        static_cast<void>(id);
+        static_cast<void>(this);
+        throw std::runtime_error("implement me!!!");
     }
 
   private:
@@ -415,14 +430,12 @@ extern "C" auto clingo_theory_base_element_condition(clingo_theory_base_t const 
         if (theory == nullptr) {
             return clingo_result_invalid;
         }
-        auto cond = get_theory(theory).getElement(element).condition();
-        // FIXME: condition getter
-        static_cast<void>(cond);
+        auto cond = element_condition(theory, element);
         if (condition != nullptr) {
-            *condition = nullptr;
+            *condition = cond.data();
         }
         if (size != nullptr) {
-            *size = 0;
+            *size = cond.size();
         }
     }
     CLINGO_CATCH;
@@ -446,6 +459,103 @@ extern "C" auto clingo_theory_base_element_to_string(clingo_theory_base_t const 
             return clingo_result_invalid;
         }
         TheoryPrinter{theory, builder}.elem(element);
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_theory_base_size(clingo_theory_base_t const *theory, size_t *size) -> clingo_result_t {
+    CLINGO_TRY {
+        if (theory == nullptr || size == nullptr) {
+            return clingo_result_invalid;
+        }
+        // TODO: implement me
+        *size = 0;
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_theory_base_atom_term(clingo_theory_base_t const *theory, clingo_id_t atom, clingo_id_t *term)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (theory == nullptr || term == nullptr) {
+            return clingo_result_invalid;
+        }
+        // TODO: implement me
+        static_cast<void>(atom);
+        *term = 0;
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_theory_base_atom_elements(clingo_theory_base_t const *theory, clingo_id_t atom,
+                                                 clingo_id_t const **elements, size_t *size) -> clingo_result_t {
+    CLINGO_TRY {
+        if (theory == nullptr) {
+            return clingo_result_invalid;
+        }
+        // TODO: implement me
+        static_cast<void>(atom);
+        if (elements != nullptr) {
+            *elements = nullptr;
+        }
+        if (size != nullptr) {
+            *size = 0;
+        }
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_theory_base_atom_has_guard(clingo_theory_base_t const *theory, clingo_id_t atom, bool *has_guard)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (theory == nullptr || has_guard == nullptr) {
+            return clingo_result_invalid;
+        }
+        // TODO: implement me
+        static_cast<void>(atom);
+        *has_guard = false;
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_theory_base_atom_guard(clingo_theory_base_t const *theory, clingo_id_t atom,
+                                              char const **connective, clingo_id_t *term) -> clingo_result_t {
+    CLINGO_TRY {
+        if (theory == nullptr) {
+            return clingo_result_invalid;
+        }
+        // TODO: implement me
+        static_cast<void>(atom);
+        if (connective != nullptr) {
+            *connective = nullptr;
+        }
+        if (term != nullptr) {
+            *term = 0;
+        }
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_theory_base_atom_literal(clingo_theory_base_t const *theory, clingo_id_t atom,
+                                                clingo_literal_t *literal) -> clingo_result_t {
+    CLINGO_TRY {
+        if (theory == nullptr || literal == nullptr) {
+            return clingo_result_invalid;
+        }
+        // TODO: implement me
+        static_cast<void>(atom);
+        *literal = 0;
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_theory_base_atom_to_string(clingo_theory_base_t const *theory, clingo_id_t atom,
+                                                  clingo_string_builder_t *builder) -> clingo_result_t {
+    CLINGO_TRY {
+        if (theory == nullptr || builder == nullptr) {
+            return clingo_result_invalid;
+        }
+        TheoryPrinter{theory, builder}.term(atom);
     }
     CLINGO_CATCH;
 }
