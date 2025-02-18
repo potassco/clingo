@@ -413,10 +413,6 @@ class ModelImpl : public Model, private SolveControl {
         return clasp_->asp() != nullptr ? *clasp_->asp() : throw std::runtime_error("not in solving mode");
     }
 
-    [[nodiscard]] auto do_clasp_theory() const -> Potassco::TheoryData const & override {
-        return clasp_->asp() != nullptr ? clasp_->asp()->theoryData() : throw std::runtime_error("not in solving mode");
-    }
-
     //! Map the given program literal to its solver literal.
     [[nodiscard]] auto solver_literal(std::integral auto lit) const -> Clasp::Literal {
         return Clasp::Asp::solverLiteral(clasp_program(), static_cast<Output::lit_t>(lit));

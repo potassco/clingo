@@ -95,11 +95,10 @@ class BaseView {
     //! Get a reference to the underlying facade.
     [[nodiscard]] auto clasp_program() const -> Clasp::Asp::LogicProgram const & { return do_clasp_program(); }
     //! Get a reference to the underlying facade.
-    [[nodiscard]] auto clasp_theory() const -> Potassco::TheoryData const & { return do_clasp_theory(); }
+    [[nodiscard]] auto clasp_theory() const -> Potassco::TheoryData const & { return clasp_program().theoryData(); }
 
   private:
     [[nodiscard]] virtual auto do_bases() const -> Ground::Bases const & = 0;
-    [[nodiscard]] virtual auto do_clasp_theory() const -> Potassco::TheoryData const & = 0;
     [[nodiscard]] virtual auto do_clasp_program() const -> Clasp::Asp::LogicProgram const & = 0;
 };
 
@@ -468,11 +467,6 @@ class Solver : public BaseView {
 
     [[nodiscard]] auto do_clasp_program() const -> Clasp::Asp::LogicProgram const & override {
         return clasp_->asp() != nullptr ? *clasp_->asp() : throw std::runtime_error("not in solving mode");
-    }
-
-    [[nodiscard]] auto do_clasp_theory() const -> Potassco::TheoryData const & override {
-        auto *prg = clasp_->asp();
-        return prg != nullptr ? prg->theoryData() : throw std::runtime_error("not in solving mode");
     }
 
     PropagatorLock lock_;
