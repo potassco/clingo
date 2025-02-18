@@ -336,10 +336,10 @@ auto element_condition(clingo_theory_base_t const *theory, clingo_id_t element) 
 class TheoryPrinter {
   public:
     TheoryPrinter(clingo_theory_base_t const *theory, clingo_string_builder_t *builder)
-        : data_{&get_theory(theory)}, out_{cpp_cast(builder)} {}
+        : theory_{theory}, out_{cpp_cast(builder)} {}
 
     void term(clingo_id_t id) const {
-        auto x = data_->getTerm(id);
+        auto x = data_().getTerm(id);
         switch (x.type()) {
             case Potassco::TheoryTermType::number: {
                 *out_ << x.number();
@@ -352,7 +352,7 @@ class TheoryPrinter {
             case Potassco::TheoryTermType::compound: {
                 auto args = x.terms();
                 if (x.isFunction()) {
-                    auto const *name = data_->getTerm(x.function()).symbol();
+                    auto const *name = data_().getTerm(x.function()).symbol();
                     if (args.size() == 2 && Clingo::Input::is_theory_operator(name)) {
                         *out_ << "(";
                         term(args.front());
@@ -374,11 +374,17 @@ class TheoryPrinter {
         }
     }
     void elem(clingo_id_t id) const {
-        // NOTE: the previous clingo version made more effort here
-        auto const &x = data_->getElement(id);
-        Clingo::Util::p_range(x.terms(), [this]([[maybe_unused]] auto const &out, auto const &y) { term(y); });
-        // TODO: maybe drop if empty
-        *out_ << ": <condition: " << x.condition() << ">";
+        using Clingo::Util::p_range;
+        auto const &x = data_().getElement(id);
+        p_range(x.terms(), [this]([[maybe_unused]] auto const &out, auto const &y) { term(y); });
+        auto cond = element_condition(theory_, id);
+        if (!cond.empty()) {
+            *out_ << ": ";
+            p_range(x.terms(), [](auto const &out, auto const &y) {
+                // NOTE: the previous clingo version made more effort here
+                out << "<literal: " << y << ">";
+            });
+        }
     }
 
     void atom(clingo_id_t id) const {
@@ -388,8 +394,10 @@ class TheoryPrinter {
         throw std::runtime_error("implement me!!!");
     }
 
+    [[nodiscard]] auto data_() const -> Potassco::TheoryData const & { return get_theory(theory_); }
+
   private:
-    Potassco::TheoryData const *data_;
+    clingo_theory_base_t const *theory_;
     Clingo::Util::OutputBuffer *out_;
 };
 
