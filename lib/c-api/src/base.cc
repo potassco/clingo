@@ -360,11 +360,16 @@ class TheoryPrinter {
                 auto args = x.terms();
                 if (x.isFunction()) {
                     auto const *name = data_().getTerm(x.function()).symbol();
-                    if (args.size() == 2 && Clingo::Input::is_theory_operator(name)) {
+                    if (Clingo::Input::is_theory_operator(name)) {
+                        assert(!args.empty() && args.size() <= 2);
                         *out_ << "(";
-                        term(args.front());
+                        if (args.size() >= 2) {
+                            term(args.front());
+                        }
                         *out_ << name;
-                        term(args.back());
+                        if (!args.empty()) {
+                            term(args.back());
+                        }
                         *out_ << ")";
                         break;
                     }

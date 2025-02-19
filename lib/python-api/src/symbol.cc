@@ -102,20 +102,10 @@ auto Symbol::args() const -> py::list {
 }
 
 auto Symbol::str() const -> char const * {
-    struct free_builder {
-        void operator()(clingo_string_builder_t const *bld) { clingo_string_builder_free(bld); }
-    };
-    thread_local static std::unique_ptr<clingo_string_builder_t, free_builder> builder;
-    if (builder == nullptr) {
-        clingo_string_builder_t *bld = nullptr;
-        handle_error(clingo_string_builder_new(&bld));
-        builder.reset(bld);
-    } else {
-        clingo_string_builder_clear(builder.get());
-    }
-    handle_error(clingo_symbol_to_string(sym_, builder.get()));
+    auto *bld = string_builder();
+    handle_error(clingo_symbol_to_string(sym_, bld));
     char const *str = nullptr;
-    handle_error(clingo_string_builder_string(builder.get(), &str, nullptr));
+    handle_error(clingo_string_builder_string(bld, &str, nullptr));
     return str;
 }
 

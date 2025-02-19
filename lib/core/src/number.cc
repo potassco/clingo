@@ -1038,7 +1038,7 @@ auto operator<<(Util::OutputBuffer &out, Number const &num) -> Util::OutputBuffe
         auto len = mp_int_string_len(&z->num, BASE);
         auto target = out.reserve(len);
         handle_error(mp_int_to_string(&z->num, BASE, target.data(), len));
-        out.trim_zero();
+        out.trim_zero(len);
     }
     return out;
 }

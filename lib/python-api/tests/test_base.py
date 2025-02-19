@@ -4,6 +4,7 @@ Unit tests for clingo.base module.
 
 from textwrap import dedent
 
+from clingo.base import TheoryTermType
 from clingo.control import Control
 from clingo.core import Library
 from clingo.symbol import Function, Number
@@ -145,10 +146,54 @@ class TestBase:
             )
         )
         self.ctl.ground()
-        assert len(self.ctl.base.theory) == 1
-        atom = self.ctl.base.theory[0]
-        assert str(atom) == '&p { (+(f(1,"x",[1,2],(2,3),{4,5}))-y) }'
-        # TODO: more
-        # - test atom
-        # - test element
-        # - test term
+
+        base = self.ctl.base.theory
+        assert len(base) == 1
+        atom = base[0]
+        assert str(atom) == '&p { ((+f(1,"x",[1,2],(2,3),{4,5}))-y) }'
+        assert atom.name.type == TheoryTermType.Symbol
+        assert atom.name.name == "p"
+        assert str(atom.name) == "p"
+        assert atom.guard is None
+        assert len(atom.elements) == 1
+        elem = atom.elements[0]
+        assert str(elem) == '((+f(1,"x",[1,2],(2,3),{4,5}))-y)'
+        assert len(elem.tuple) == 1
+        assert len(elem.condition) == 0
+        assert elem.condition_id >= 0
+        term = elem.tuple[0]
+        assert str(term) == '((+f(1,"x",[1,2],(2,3),{4,5}))-y)'
+        assert term.type == TheoryTermType.Function
+        assert term.name == "-"
+        term = term.arguments[0].arguments[0]
+        assert term.name == "f"
+        n, s, l, t, b = term.arguments
+        assert n.type == TheoryTermType.Number
+        assert n.number == 1
+        assert str(n) == "1"
+        assert s.type == TheoryTermType.Symbol
+        assert s.name == '"x"'
+        assert str(s) == '"x"'
+        assert l.type == TheoryTermType.List
+        assert len(l.arguments) == 2
+        assert str(l) == "[1,2]"
+        assert t.type == TheoryTermType.Tuple
+        assert len(t.arguments) == 2
+        assert str(t) == "(2,3)"
+        assert b.type == TheoryTermType.Set
+        assert len(b.arguments) == 2
+        assert str(b) == "{4,5}"
+
+        self.ctl.solve()
+        self.ctl.parse_string("#program x. &p {} < q(x).")
+        self.ctl.ground([("x", [])])
+
+        base = self.ctl.base.theory
+        assert len(base) == 1
+        atom = base[0]
+        # FIXME: this currently fails because clasp's theory data is reset but clingo's is not
+        assert str(atom) == "&p { } < q(x)."
+        guard = atom.guard
+        assert guard is not None
+        assert str(guard[0]) == "<"
+        assert str(guard[1]) == "q(x)"

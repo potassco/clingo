@@ -122,11 +122,14 @@ class OutputBuffer {
     }
 
     //! Trim trailing zeros.
-    void trim_zero() {
+    //!
+    //! @note Workaround for mp_int_string_len providing too high length values.
+    void trim_zero(ssize_t len) {
         auto sp = std::span{buf_.data(), static_cast<size_t>(size_)};
-        for (auto it = sp.rbegin(); it != sp.rend() && *it == '\0'; ++it) {
-            --size_;
-        }
+        auto ie = sp.end();
+        auto ib = sp.begin() + (size_ - len);
+        auto it = std::find(ib, ie, '\0');
+        size_ -= ie - it;
     }
 
     //! Append the given integral to the buffer.

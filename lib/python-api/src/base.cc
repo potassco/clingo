@@ -99,7 +99,7 @@ auto TheoryTerm::type() -> clingo_theory_term_type_e {
 
 auto TheoryTerm::number() -> int {
     int num = 0;
-    handle_error(clingo_theory_base_term_type(base_, index_, &num));
+    handle_error(clingo_theory_base_term_number(base_, index_, &num));
     return num;
 }
 

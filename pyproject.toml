@@ -5,3 +5,5 @@ addopts = [
     "--ignore=.git",
 ]
 testpaths = ["lib"]
+[tool.ruff]
+ignore = ["E741"]
