@@ -73,16 +73,21 @@ class TermBase {
     clingo_term_base_t const *base_;
 };
 
+class TheoryTerm;
+using TheoryTermVec = std::vector<TheoryTerm>;
+
 class TheoryTerm {
   public:
     TheoryTerm(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
+    auto type() -> clingo_theory_term_type_e;
+    auto number() -> int;
     auto name() -> char const *;
+    auto arguments() -> TheoryTermVec;
 
   private:
     clingo_theory_base_t const *base_;
     size_t index_;
 };
-using TheoryTermVec = std::vector<TheoryTerm>;
 
 class TheoryElement {
   public:
@@ -102,6 +107,8 @@ class TheoryAtom {
     TheoryAtom(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
     auto name() -> TheoryTerm;
     auto elements() -> TheoryElementVec;
+    auto literal() -> clingo_literal_t;
+    auto guard() -> std::optional<std::pair<char const *, TheoryTerm>>;
 
   private:
     clingo_theory_base_t const *base_;

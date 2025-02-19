@@ -91,10 +91,29 @@ auto TermBase::lookup(key_type const &symbol) -> mapped_type {
 
 // TheoryTerm
 
+auto TheoryTerm::type() -> clingo_theory_term_type_e {
+    clingo_theory_term_type_t type = 0;
+    handle_error(clingo_theory_base_term_type(base_, index_, &type));
+    return static_cast<clingo_theory_term_type_e>(type);
+}
+
+auto TheoryTerm::number() -> int {
+    int num = 0;
+    handle_error(clingo_theory_base_term_type(base_, index_, &num));
+    return num;
+}
+
 auto TheoryTerm::name() -> char const * {
     char const *name = nullptr;
     handle_error(clingo_theory_base_term_name(base_, index_, &name));
     return name;
+}
+
+auto TheoryTerm::arguments() -> TheoryTermVec {
+    size_t size = 0;
+    clingo_id_t const *args = nullptr;
+    handle_error(clingo_theory_base_term_arguments(base_, index_, &args, &size));
+    return transform_vec(std::span{args, size}, [this](clingo_id_t id) { return TheoryTerm{*base_, id}; });
 }
 
 // TheoryElement
@@ -103,11 +122,7 @@ auto TheoryElement::tuple() -> TheoryTermVec {
     size_t size = 0;
     clingo_id_t const *tuple = nullptr;
     handle_error(clingo_theory_base_element_tuple(base_, index_, &tuple, &size));
-    auto res = TheoryTermVec{};
-    res.reserve(size);
-    std::ranges::transform(std::span{tuple, size}, std::back_inserter(res),
-                           [this](clingo_id_t id) { return TheoryTerm{*base_, id}; });
-    return res;
+    return transform_vec(std::span{tuple, size}, [this](clingo_id_t id) { return TheoryTerm{*base_, id}; });
 }
 
 auto TheoryElement::condition() -> LitSpan {
@@ -135,11 +150,25 @@ auto TheoryAtom::elements() -> TheoryElementVec {
     size_t size = 0;
     clingo_id_t const *elems = nullptr;
     handle_error(clingo_theory_base_atom_elements(base_, index_, &elems, &size));
-    auto res = TheoryElementVec{};
-    res.reserve(size);
-    std::ranges::transform(std::span{elems, size}, std::back_inserter(res),
-                           [this](clingo_id_t id) { return TheoryElement{*base_, id}; });
-    return res;
+    return transform_vec(std::span{elems, size}, [this](clingo_id_t id) { return TheoryElement{*base_, id}; });
+}
+
+auto TheoryAtom::literal() -> clingo_literal_t {
+    clingo_literal_t lit = 0;
+    handle_error(clingo_theory_base_atom_literal(base_, index_, &lit));
+    return lit;
+}
+
+auto TheoryAtom::guard() -> std::optional<std::pair<char const *, TheoryTerm>> {
+    auto has_guard = false;
+    handle_error(clingo_theory_base_atom_has_guard(base_, index_, &has_guard));
+    if (has_guard) {
+        char const *op = nullptr;
+        clingo_id_t term = 0;
+        handle_error(clingo_theory_base_atom_guard(base_, index_, &op, &term));
+        return std::pair{op, TheoryTerm{*base_, term}};
+    }
+    return std::nullopt;
 }
 
 // TheoryBase
@@ -219,9 +248,7 @@ auto Base::theory() -> TheoryBase {
 }
 
 auto convert(Base base, MixedLitlVec const &lits) -> LitVec {
-    LitVec res;
-    res.reserve(lits.size());
-    std::ranges::transform(lits, std::back_inserter(res), [&](auto const &x) {
+    return transform_vec(lits, [&](auto const &x) {
         return std::visit(
             [&]<typename T>(T const &x) {
                 if constexpr (std::is_same_v<T, Lit_t>) {
@@ -234,7 +261,6 @@ auto convert(Base base, MixedLitlVec const &lits) -> LitVec {
             },
             x);
     });
-    return res;
 }
 
 void register_base(pybind11::module &m) {
@@ -302,7 +328,10 @@ False
     py::class_<TermBase>(base, "TermBase", R"(
 A base to inspect show term directives in a program.
 
-The base is established by the show directives occurring in a program.)"_d)
+The base is established by the show directives occurring in a program.
+
+Implements a map form symbols to terms.
+)"_d)
         .def("__len__", &TermBase::size, "Get the number of terms in the base.")
         .def("__getitem__", &TermBase::lookup, R"(Get the term with the given symbol.)")
         .def("__contains__", &TermBase::contains, R"( Check if the base contains a term with the given symbol.)")
@@ -319,8 +348,20 @@ The base is established by the show directives occurring in a program.)"_d)
             "keys", [](TermBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
             R"(Get get an iterator over the keys in the map.)");
 
+    py::enum_<clingo_theory_term_type_e>(base, "TheoryTermType", "Enumeration of theory term types.")
+        .value("Number", clingo_theory_term_type_number, R"(For numeric theory terms.)")
+        .value("Symbol", clingo_theory_term_type_symbol, R"(For symbolic theory terms (simple strings).)")
+        .value("Tuple", clingo_theory_term_type_tuple, R"(For tuple theory terms.)")
+        .value("List", clingo_theory_term_type_list, R"(For list theory term.)")
+        .value("Set", clingo_theory_term_type_set, R"(For set theory terms.)")
+        .value("Function", clingo_theory_term_type_function, R"(For function theory terms.)");
+
     py::class_<TheoryTerm>(base, "TheoryTerm", R"(A view to inspect a theory term.)")
-        .def_property_readonly("name", &TheoryTerm::name, R"(Get the name of a theory function.)");
+        .def_property_readonly("type", &TheoryTerm::type, R"(Get the type of the theory term.)")
+        .def_property_readonly("number", &TheoryTerm::number, R"(Get the value of a numeric theory term.)")
+        .def_property_readonly("name", &TheoryTerm::name, R"(Get the name of a theory symbol or function.)")
+        .def_property_readonly("arguments", &TheoryTerm::arguments,
+                               R"(Get the arguments of a function, tuple, list, or set theory term.)");
 
     py::class_<TheoryElement>(base, "TheoryElement", R"(A view to inspect a theory element.)")
         .def_property_readonly("tuple", &TheoryElement::tuple, R"(Get the term tuple of a theory element.)")
@@ -330,10 +371,16 @@ The base is established by the show directives occurring in a program.)"_d)
 
     py::class_<TheoryAtom>(base, "TheoryAtom", R"(A view to inspect a theory atom.)")
         .def_property_readonly("name", &TheoryAtom::name, R"(Get the name of a theory atom.)")
-        .def_property_readonly("elements", &TheoryAtom::elements, R"(Get the elements of a theory atom.)");
+        .def_property_readonly("elements", &TheoryAtom::elements, R"(Get the elements of a theory atom.)")
+        .def_property_readonly("literal", &TheoryAtom::literal,
+                               R"(Get the literal of the theory atom (zero for directives).)")
+        .def_property_readonly("guard", &TheoryAtom::guard, R"(Get optional guard of a theory atom.)");
 
     py::class_<TheoryBase>(base, "TheoryBase", R"(
-A base to inspect theory atoms.)"_d)
+A base to inspect theory atoms.
+
+Implements a sequences over theory atoms.
+)"_d)
         .def("__len__", &TheoryBase::size, "Get the number of theory atoms in the base.")
         .def("__getitem__", &TheoryBase::at, R"(Get the atom with the given index.)")
         .def(

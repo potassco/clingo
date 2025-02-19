@@ -8,6 +8,7 @@
 #include <pybind11/stl.h>
 
 #include <compare> // IWYU pragma: keep
+#include <ranges>
 #include <type_traits>
 #include <variant>
 
@@ -194,12 +195,28 @@ template <class T, void (*deleter)(T *) noexcept> class owner_ptr {
     T *ptr_;
     bool own_;
 };
+
 [[noreturn]] inline void unreachable() {
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
     __assume(false);
 #else // GCC, Clang
     __builtin_unreachable();
 #endif
+}
+
+template <std::ranges::range R, class F> auto transform_vec(R &&rng, F &&fun) {
+    // NOTE:
+    // - can be written better in C++23 as
+    //   return std::vector{std::from_range, std::ranges::views::transform(std::forward<R>(rng), std::forward<F>(fun))};
+    // - the iterator based vector constructor should not be used in C++20 because
+    //   it relies on C++17 iterator_traits, which do not play nicely with ranges
+    // - see https://stackoverflow.com/questions/67606563/
+    auto result = std::vector<std::decay_t<std::invoke_result_t<F, std::ranges::range_value_t<R>>>>{};
+    if constexpr (std::ranges::sized_range<R>) {
+        result.reserve(std::ranges::size(rng));
+    }
+    std::ranges::transform(std::forward<R>(rng), std::back_inserter(result), std::forward<F>(fun));
+    return result;
 }
 
 } // namespace Clingo::Python
