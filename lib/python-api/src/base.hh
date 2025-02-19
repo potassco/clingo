@@ -82,11 +82,26 @@ class TheoryTerm {
     clingo_theory_base_t const *base_;
     size_t index_;
 };
+using TheoryTermVec = std::vector<TheoryTerm>;
+
+class TheoryElement {
+  public:
+    TheoryElement(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
+    auto tuple() -> TheoryTermVec;
+    auto condition() -> LitSpan;
+    auto condition_id() -> clingo_literal_t;
+
+  private:
+    clingo_theory_base_t const *base_;
+    size_t index_;
+};
+using TheoryElementVec = std::vector<TheoryElement>;
 
 class TheoryAtom {
   public:
     TheoryAtom(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
     auto name() -> TheoryTerm;
+    auto elements() -> TheoryElementVec;
 
   private:
     clingo_theory_base_t const *base_;
