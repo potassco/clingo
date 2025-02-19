@@ -24,7 +24,10 @@ auto output_symbol(SymbolStore &store, OutputTheory &out, Symbol sym) -> size_t 
             return out.str(store.string_ref("#sup"));
         }
         case SymbolType::string: {
-            return out.str(sym.str());
+            static thread_local auto buf = Util::OutputBuffer{};
+            buf.reset();
+            buf << Util::p_quoted(sym.str().view());
+            return out.str(store.string_ref(buf.view()));
         }
         case SymbolType::function: {
             auto args = std::vector<size_t>{};
@@ -135,7 +138,7 @@ auto TheoryTermTuple::do_output(EvalContext const &ctx, OutputTheory &out) const
     for (auto const &arg : args_) {
         args.emplace_back(arg->output(ctx, out));
     }
-    return out.tup(TheoryTermTupleType::tuple, args);
+    return out.tup(type_, args);
 }
 
 auto TheoryTermTuple::do_copy() const -> UTheoryTerm {

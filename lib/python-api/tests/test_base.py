@@ -145,7 +145,10 @@ class TestBase:
             )
         )
         self.ctl.ground()
-        assert (
-            str(self.ctl.base.theory[0]) == '&p { (+(f(1,"x",[1,2],(2,3),{4,5}))-y) }'
-        )
+        assert len(self.ctl.base.theory) == 1
+        atom = self.ctl.base.theory[0]
+        assert str(atom) == '&p { (+(f(1,"x",[1,2],(2,3),{4,5}))-y) }'
         # TODO: more
+        # - test atom
+        # - test element
+        # - test term
