@@ -10,6 +10,7 @@ add_library(clingo_python
     src/solve.cc
     src/stats.cc
     src/symbol.cc
+    src/util.cc
     )
 clingo_target_properties(clingo_python "lib/pyclingo")
 target_link_libraries(clingo_python PRIVATE pybind11::pybind11 clingo)

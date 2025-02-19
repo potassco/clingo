@@ -116,6 +116,14 @@ auto TheoryTerm::arguments() -> TheoryTermVec {
     return transform_vec(std::span{args, size}, [this](clingo_id_t id) { return TheoryTerm{*base_, id}; });
 }
 
+auto TheoryTerm::str() -> char const * {
+    auto *bld = string_builder();
+    handle_error(clingo_theory_base_term_to_string(base_, index_, bld));
+    char const *str = nullptr;
+    handle_error(clingo_string_builder_string(bld, &str, nullptr));
+    return str;
+}
+
 // TheoryElement
 
 auto TheoryElement::tuple() -> TheoryTermVec {
@@ -136,6 +144,14 @@ auto TheoryElement::condition_id() -> clingo_literal_t {
     clingo_literal_t id = 0;
     handle_error(clingo_theory_base_element_condition_id(base_, index_, &id));
     return id;
+}
+
+auto TheoryElement::str() -> char const * {
+    auto *bld = string_builder();
+    handle_error(clingo_theory_base_element_to_string(base_, index_, bld));
+    char const *str = nullptr;
+    handle_error(clingo_string_builder_string(bld, &str, nullptr));
+    return str;
 }
 
 // TheoryAtom
@@ -169,6 +185,14 @@ auto TheoryAtom::guard() -> std::optional<std::pair<char const *, TheoryTerm>> {
         return std::pair{op, TheoryTerm{*base_, term}};
     }
     return std::nullopt;
+}
+
+auto TheoryAtom::str() -> char const * {
+    auto *bld = string_builder();
+    handle_error(clingo_theory_base_atom_to_string(base_, index_, bld));
+    char const *str = nullptr;
+    handle_error(clingo_string_builder_string(bld, &str, nullptr));
+    return str;
 }
 
 // TheoryBase
@@ -357,6 +381,7 @@ Implements a map form symbols to terms.
         .value("Function", clingo_theory_term_type_function, R"(For function theory terms.)");
 
     py::class_<TheoryTerm>(base, "TheoryTerm", R"(A view to inspect a theory term.)")
+        .def("__str__", &TheoryTerm::str, R"(Get a string representation of the term.)")
         .def_property_readonly("type", &TheoryTerm::type, R"(Get the type of the theory term.)")
         .def_property_readonly("number", &TheoryTerm::number, R"(Get the value of a numeric theory term.)")
         .def_property_readonly("name", &TheoryTerm::name, R"(Get the name of a theory symbol or function.)")
@@ -364,12 +389,14 @@ Implements a map form symbols to terms.
                                R"(Get the arguments of a function, tuple, list, or set theory term.)");
 
     py::class_<TheoryElement>(base, "TheoryElement", R"(A view to inspect a theory element.)")
+        .def("__str__", &TheoryElement::str, R"(Get a string representation of the element.)")
         .def_property_readonly("tuple", &TheoryElement::tuple, R"(Get the term tuple of a theory element.)")
         .def_property_readonly("condition", &TheoryElement::condition, R"(Get the condition of a theory element.)")
         .def_property_readonly("condition_id", &TheoryElement::condition_id,
                                R"(Get the condition id of a theory element.)");
 
     py::class_<TheoryAtom>(base, "TheoryAtom", R"(A view to inspect a theory atom.)")
+        .def("__str__", &TheoryAtom::str, R"(Get a string representation of the atom.)")
         .def_property_readonly("name", &TheoryAtom::name, R"(Get the name of a theory atom.)")
         .def_property_readonly("elements", &TheoryAtom::elements, R"(Get the elements of a theory atom.)")
         .def_property_readonly("literal", &TheoryAtom::literal,

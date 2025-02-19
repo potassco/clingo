@@ -118,3 +118,34 @@ class TestBase:
         assert term_q.symbol == fun_q
         assert len(term_q.condition or []) == 1
         assert len(term_r.condition or []) == 2
+
+    def test_theory_base(self):
+        """
+        Test term bases.
+        """
+        self.ctl.parse_string(
+            dedent(
+                """\
+                #theory x {
+                    a {
+                        - : 1, unary;
+                        + : 2, binary, left;
+                        - : 3, binary, right;
+                        + : 4, unary
+                    };
+                    b {
+                        * : 1, binary, left;
+                        / : 2, binary, right
+                    };
+                    &p/0: a, {<,>}, b, any
+
+                }.
+                &p { +f(1,"x",[1,2],(2,3),{4,5})-y }.
+                """
+            )
+        )
+        self.ctl.ground()
+        assert (
+            str(self.ctl.base.theory[0]) == '&p { (+(f(1,"x",[1,2],(2,3),{4,5}))-y) }'
+        )
+        # TODO: more

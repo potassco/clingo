@@ -356,6 +356,7 @@ class TheoryPrinter {
                 break;
             }
             case Potassco::TheoryTermType::compound: {
+                using Clingo::Util::p_range;
                 auto args = x.terms();
                 if (x.isFunction()) {
                     auto const *name = data_().getTerm(x.function()).symbol();
@@ -369,12 +370,8 @@ class TheoryPrinter {
                     }
                     *out_ << name;
                 }
-                auto p = Potassco::parens(x.isFunction() ? Potassco::TupleType::paren
-                                                         : static_cast<Potassco::TupleType>(x.compound()));
-                *out_ << p[0];
-                Clingo::Util::p_range(args, [this]([[maybe_unused]] auto const &out, auto const &y) { term(y); });
-
-                *out_ << p[1];
+                auto p = Potassco::parens(x.isFunction() ? Potassco::TupleType::paren : x.tuple());
+                *out_ << p[0] << p_range(args, [this]([[maybe_unused]] auto &out, auto const &y) { term(y); }) << p[1];
                 break;
             }
         }
@@ -382,11 +379,10 @@ class TheoryPrinter {
     void elem(clingo_id_t id) const {
         using Clingo::Util::p_range;
         auto const &x = data_().getElement(id);
-        p_range(x.terms(), [this]([[maybe_unused]] auto const &out, auto const &y) { term(y); });
+        *out_ << p_range(x.terms(), [this]([[maybe_unused]] auto &out, auto const &y) { term(y); });
         auto cond = element_condition(theory_, id);
         if (!cond.empty()) {
-            *out_ << ": ";
-            p_range(x.terms(), [](auto const &out, auto const &y) {
+            *out_ << ": " << p_range(x.terms(), [](auto &out, auto const &y) {
                 // NOTE: the previous clingo version made more effort here
                 // a straight-forward implementation would have to loop over the atom base
                 out << "<literal: " << y << ">";
@@ -585,7 +581,7 @@ extern "C" auto clingo_theory_base_atom_to_string(clingo_theory_base_t const *th
         if (theory == nullptr || builder == nullptr) {
             return clingo_result_invalid;
         }
-        TheoryPrinter{theory, builder}.term(atom);
+        TheoryPrinter{theory, builder}.atom(atom);
     }
     CLINGO_CATCH;
 }

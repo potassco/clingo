@@ -83,6 +83,7 @@ class TheoryTerm {
     auto number() -> int;
     auto name() -> char const *;
     auto arguments() -> TheoryTermVec;
+    auto str() -> char const *;
 
   private:
     clingo_theory_base_t const *base_;
@@ -95,6 +96,7 @@ class TheoryElement {
     auto tuple() -> TheoryTermVec;
     auto condition() -> LitSpan;
     auto condition_id() -> clingo_literal_t;
+    auto str() -> char const *;
 
   private:
     clingo_theory_base_t const *base_;
@@ -109,6 +111,7 @@ class TheoryAtom {
     auto elements() -> TheoryElementVec;
     auto literal() -> clingo_literal_t;
     auto guard() -> std::optional<std::pair<char const *, TheoryTerm>>;
+    auto str() -> char const *;
 
   private:
     clingo_theory_base_t const *base_;

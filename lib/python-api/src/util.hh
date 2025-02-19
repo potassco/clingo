@@ -219,4 +219,7 @@ template <std::ranges::range R, class F> auto transform_vec(R &&rng, F &&fun) {
     return result;
 }
 
+//! Get a thread locaol string builder.
+auto string_builder() -> clingo_string_builder_t *;
+
 } // namespace Clingo::Python

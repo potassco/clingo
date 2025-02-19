@@ -239,9 +239,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_string_builder_copy(clingo_stri
 //! @param[in] bld the builder
 CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_free(clingo_string_builder_t const *bld);
 
-//! Get the string in the builder.
-//!
-//! Note that the string is not zero terminated.
+//! Get the (zero-terminated) string in the builder.
 //!
 //! @param[in] bld the builder
 //! @param[out] str the resulting string

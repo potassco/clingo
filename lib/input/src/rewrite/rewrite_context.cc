@@ -29,7 +29,9 @@ class ParseTheoryTerm : public Transformer<ParseTheoryTerm> {
     }
 
     [[nodiscard]] auto accept(TheoryTermUnparsed const &term) const -> std::optional<TheoryTerm> {
-        return parser_->parse(*log_, term);
+        auto res = parser_->parse(*log_, term);
+        auto ret = transform(res);
+        return ret ? std::move(ret) : std::make_optional(std::move(res));
     }
 
   private:
