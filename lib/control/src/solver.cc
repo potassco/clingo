@@ -713,6 +713,7 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         state_ = State::solved;
         clasp_->asp()->addAssumption(assumptions);
         clasp_->prepare();
+        out_->theory().reset();
         return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), grd_.base(), *clasp_, mode, std::move(handler));
     }
     return std::make_unique<SolveHandleFixed>();

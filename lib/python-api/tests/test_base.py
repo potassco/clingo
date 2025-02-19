@@ -191,8 +191,7 @@ class TestBase:
         base = self.ctl.base.theory
         assert len(base) == 1
         atom = base[0]
-        # FIXME: this currently fails because clasp's theory data is reset but clingo's is not
-        assert str(atom) == "&p { } < q(x)."
+        assert str(atom) == "&p { } < q(x)"
         guard = atom.guard
         assert guard is not None
         assert str(guard[0]) == "<"

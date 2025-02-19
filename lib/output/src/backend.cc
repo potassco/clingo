@@ -1354,6 +1354,16 @@ class BuilderTheory {
         }
     }
 
+    void reset() {
+        strings_.clear();
+        nums_.clear();
+        funs_.clear();
+        tups_.clear();
+        elems_.clear();
+        atoms_.clear();
+        ids_ = 0;
+    }
+
   private:
     using StringMap = Util::unordered_map<SharedString, id_t>;
     using NumMap = Util::unordered_map<weight_t, id_t>;
@@ -1764,6 +1774,8 @@ class OutputBackend : public OutputStm, OutputTheory {
     void do_atm(OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
         theory_.atm(bld_, type, static_cast<int32_t>(atom_uid), name, elems, guard);
     }
+
+    void do_reset() override { theory_.reset(); }
 
     LitVec lits_;
     BuilderBase bld_;
