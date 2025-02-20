@@ -376,6 +376,34 @@ class PropagatorLock : public Clasp::ClingoPropagatorLock {
     size_t seq_ = 0;
 };
 
+//! Object to provide access to the backend.
+//!
+//! This backend is intended to be used in the C API to extend the ground
+//! program representation.
+//!
+//! Logically, adding a block of rules via the backend can be seen like a call
+//! to ground. In fact, ground is called with an empty part list when the
+//! handle is destroyed to run the required finalization logic (grounding
+//! currently does not involve dedicated initialization).
+//!
+//! Note that symbols added via the backend are not added to the domains of
+//! the grounder. This has to be done using add_atom().
+class BackendHandle {
+  public:
+    [[nodiscard]] auto backend() -> Output::Backend & { return do_backend(); }
+    [[nodiscard]] auto theory() -> OutputTheory & { return do_theory(); }
+    [[nodiscard]] auto add_atom(Symbol atom) -> Output::lit_t { return do_add_atom(atom); }
+    void close() { do_close(); }
+    virtual ~BackendHandle() = default;
+
+  private:
+    virtual auto do_backend() -> Output::Backend & = 0;
+    virtual auto do_theory() -> OutputTheory & = 0;
+    virtual auto do_add_atom(Symbol atom) -> Output::lit_t = 0;
+    virtual void do_close() = 0;
+};
+using UBackendHandle = std::unique_ptr<BackendHandle>;
+
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
@@ -422,6 +450,12 @@ class Solver : public BaseView {
     //! this buffer contains the output of the textoutput.
     [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_; };
 
+    //! Get a handle that provides access to the backend to add atoms and rules.
+    //!
+    //! While the handle is alive, the solver object should not be accessed.
+    //! It can be seen like an active ground ground call.
+    [[nodiscard]] auto backend() -> UBackendHandle;
+
     //! Get a pointer to the underlying clasp facade.
     [[nodiscard]] auto clasp_facade() -> Clasp::ClaspFacade & { return *clasp_; }
 
@@ -462,6 +496,9 @@ class Solver : public BaseView {
     //! @param mode the configured output mode
     //! @return the resulting output
     auto make_output_(SymbolStore &store, AppMode mode) -> UOutputStm;
+
+    //! Prepare the solver for grounding.
+    void prepare_();
 
     [[nodiscard]] auto do_bases() const -> Ground::Bases const & override { return grd_.base(); }
 

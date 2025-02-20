@@ -39,6 +39,8 @@ class Grounder {
     void output_program(std::ostream &out);
 
     //! Get the associated base.
+    [[nodiscard]] auto base() -> Ground::Bases &;
+    //! Get the associated base.
     [[nodiscard]] auto base() const -> Ground::Bases const &;
     //! Get the contained symbol store.
     [[nodiscard]] auto store() const -> SymbolStore &;

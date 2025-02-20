@@ -11,6 +11,7 @@ add_library(clingo
     "src/solve.cc"
     "src/stats.cc"
     "src/symbol.cc"
+    "src/backend.cc"
     )
 clingo_target_properties(clingo "lib/clingo")
 target_include_directories(clingo PUBLIC "include")

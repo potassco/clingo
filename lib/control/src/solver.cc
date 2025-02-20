@@ -736,13 +736,7 @@ void Solver::add_const(String name, Symbol value) {
 }
 
 void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) {
-    if (mode_ == AppMode::solve && state_ != State::initial) {
-        // NOTE: previously, this was only called if set value has been called
-        // on the configuration. I would prefer not to do this because it would
-        // require wrapping clasp's cli configuration.
-        clasp_->update(true);
-    }
-    state_ = State::grounded;
+    prepare_();
     std::ignore = grd_.ground(params, ctx != nullptr ? ctx : scripts_);
 }
 
@@ -752,6 +746,79 @@ void Solver::output_unprocessed_program(std::ostream &out) {
 
 void Solver::output_program(std::ostream &out) {
     grd_.output_program(out);
+}
+
+namespace {
+
+class BackendHandleImpl : public BackendHandle {
+  public:
+    BackendHandleImpl(Grounder &grounder, Output::Backend &backend, Clasp::Asp::LogicProgram &prg, OutputTheory &theory)
+        : grounder_{&grounder}, backend_{&backend}, prg_{&prg}, theory_{&theory} {}
+    ~BackendHandleImpl() override { close(); }
+
+  private:
+    auto do_backend() -> Output::Backend & override { return *backend_; }
+
+    auto do_theory() -> OutputTheory & override { return *theory_; }
+
+    auto do_add_atom(Symbol atom) -> Output::lit_t override {
+        if (auto sig = atom.signature(); sig && grounder_ != nullptr) {
+            auto &base = grounder_->base().add_base(*sig);
+            auto ret = base.add(atom, Ground::StateAtom::derived,
+                                [this]() { return static_cast<size_t>(backend_->next_lit()); })
+                           .first;
+            auto lit = static_cast<Output::lit_t>(ret.value().id);
+            if (ret.value().state != Ground::StateAtom::fact) {
+                added_.emplace_back(lit, ret.key());
+            }
+            return lit;
+        }
+        throw std::runtime_error("invalid atom");
+    }
+
+    void do_close() override {
+        for (auto const &[lit, sym] : added_) {
+            assert(lit > 0);
+            if (prg_->isFact(lit)) {
+                auto sig = sym.signature();
+                assert(sig.has_value());
+                auto *base = grounder_->base().get_base(*sig);
+                assert(base != nullptr);
+                auto it = base->find(sym);
+                assert(it.has_value() && it->value().state != Ground::StateAtom::unknown);
+                it->value().state = Ground::StateAtom::fact;
+            }
+        }
+        if (grounder_ != nullptr) {
+            std::ignore = std::exchange(grounder_, nullptr)->ground({});
+        }
+    }
+
+    Grounder *grounder_;
+    Output::Backend *backend_;
+    Clasp::Asp::LogicProgram *prg_;
+    OutputTheory *theory_;
+    std::vector<std::pair<Output::lit_t, Symbol>> added_;
+};
+
+} // namespace
+
+auto Solver::backend() -> UBackendHandle {
+    if (backend_ != nullptr && clasp_->asp() != nullptr) {
+        prepare_();
+        return std::make_unique<BackendHandleImpl>(grd_, *backend_, *clasp_->asp(), out_->theory());
+    }
+    throw std::runtime_error("not in solving mode");
+}
+
+void Solver::prepare_() {
+    if (mode_ == AppMode::solve && state_ != State::initial) {
+        // NOTE: previously, this was only called if set value has been called
+        // on the configuration. I would prefer not to do this because it would
+        // require wrapping clasp's cli configuration.
+        clasp_->update(true);
+    }
+    state_ = State::grounded;
 }
 
 } // namespace Clingo::Control

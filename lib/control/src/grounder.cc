@@ -399,6 +399,10 @@ void Grounder::output_program(std::ostream &out) {
     out.flush();
 }
 
+auto Grounder::base() -> Ground::Bases & {
+    return impl_->bases;
+}
+
 auto Grounder::base() const -> Ground::Bases const & {
     return impl_->bases;
 }
