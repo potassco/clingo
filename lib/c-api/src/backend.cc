@@ -278,6 +278,20 @@ extern "C" clingo_result_t clingo_backend_theory_element(clingo_backend_t *backe
                                                          size_t tuple_size, clingo_literal_t const *condition,
                                                          size_t condition_size, clingo_id_t *element_id) {
     CLINGO_TRY {
+        if (backend == nullptr || (tuple == nullptr && tuple_size > 0) ||
+            (condition == nullptr && condition_size > 0) || element_id == nullptr) {
+            return clingo_result_invalid;
+        }
+        // TODO: the condition handling of the output does not suite here
+        // extend OutputTheory with:
+        // - auto do_elem(IndexSpan tuple, IndexSpan cond)
+        //   - the span can hold the literals casted to size_t
+        //   - the text output can simply raise an exception because the function will never be called
+        //   - the backend output can interpret the literals as lit_t
+        //   - this works because the backend output uses literals as indices
+        //   - this is a hack because this should be an implementation detail
+        //   - a proper solution would require to move theory handling out of the output
+        // *element_id = get_theory(backend).elem(map(tuple, tuple_size), std::span{condition, condition_size});
     }
     CLINGO_CATCH;
 }
