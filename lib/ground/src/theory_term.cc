@@ -13,53 +13,8 @@ void TheoryTermSymbol::do_print(std::ostream &out) const {
     out << sym_;
 }
 
-namespace {
-
-auto output_symbol(SymbolStore &store, OutputTheory &out, Symbol sym) -> size_t {
-    switch (sym.type()) {
-        case SymbolType::inf: {
-            return out.str(store.string_ref("#inf"));
-        }
-        case SymbolType::sup: {
-            return out.str(store.string_ref("#sup"));
-        }
-        case SymbolType::string: {
-            static thread_local auto buf = Util::OutputBuffer{};
-            buf.reset();
-            buf << Util::p_quoted(sym.str().view());
-            return out.str(store.string_ref(buf.view()));
-        }
-        case SymbolType::function: {
-            auto args = std::vector<size_t>{};
-            args.reserve(sym.args().size());
-            for (auto const &arg : sym.args()) {
-                args.emplace_back(output_symbol(store, out, arg));
-            }
-            auto ret = out.fun(sym.name(), args);
-            if (sym.has_sign()) {
-                ret = out.fun(store.string_ref("-"), {&ret, 1});
-            }
-            return ret;
-        }
-        case SymbolType::tuple: {
-            auto args = std::vector<size_t>{};
-            args.reserve(sym.args().size());
-            for (auto const &arg : sym.args()) {
-                args.emplace_back(output_symbol(store, out, arg));
-            }
-            return out.tup(TheoryTermTupleType::tuple, args);
-        }
-        case SymbolType::number: {
-            return out.num(sym.num());
-        }
-    }
-    Util::unreachable();
-}
-
-} // namespace
-
 auto TheoryTermSymbol::do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t {
-    return output_symbol(ctx.store(), out, sym_);
+    return out.sym(ctx.store(), sym_);
 }
 
 auto TheoryTermSymbol::do_copy() const -> UTheoryTerm {
@@ -96,7 +51,7 @@ void TheoryTermVariable::do_print(std::ostream &out) const {
 auto TheoryTermVariable::do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t {
     assert(ctx.ass()[var_]);
     // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-    return output_symbol(ctx.store(), out, *ctx.ass()[var_]);
+    return out.sym(ctx.store(), *ctx.ass()[var_]);
 }
 
 auto TheoryTermVariable::do_copy() const -> UTheoryTerm {

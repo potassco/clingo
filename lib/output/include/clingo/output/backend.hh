@@ -37,8 +37,10 @@ using sum_t = int64_t;
 using LitSpan = std::span<lit_t const>;
 //! A vector of literals.
 using LitVec = std::vector<lit_t>;
-//! A vector of program literals.
+//! A span of program literals.
 using WeightedLitSpan = std::span<std::pair<lit_t, weight_t>>;
+//! A vector of program literals.
+using WeightedLitVec = std::vector<std::pair<lit_t, weight_t>>;
 
 //! The maximum literal.
 static constexpr auto lit_max = std::numeric_limits<lit_t>::max();

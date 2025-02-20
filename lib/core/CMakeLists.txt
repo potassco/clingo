@@ -1,7 +1,8 @@
 add_library(clingo_core
-    "src/number.cc"
-    "src/symbol.cc"
     "src/core.cc"
+    "src/number.cc"
+    "src/output.cc"
+    "src/symbol.cc"
     )
 add_library(clingo::core ALIAS clingo_core)
 clingo_target_properties(clingo_core lib/core)

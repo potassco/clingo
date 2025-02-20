@@ -390,15 +390,17 @@ class PropagatorLock : public Clasp::ClingoPropagatorLock {
 //! the grounder. This has to be done using add_atom().
 class BackendHandle {
   public:
-    [[nodiscard]] auto backend() -> Output::Backend & { return do_backend(); }
+    [[nodiscard]] auto program() -> Clasp::Asp::LogicProgram & { return do_program(); }
     [[nodiscard]] auto theory() -> OutputTheory & { return do_theory(); }
+    [[nodiscard]] auto store() -> SymbolStore & { return do_store(); }
     [[nodiscard]] auto add_atom(Symbol atom) -> Output::lit_t { return do_add_atom(atom); }
     void close() { do_close(); }
     virtual ~BackendHandle() = default;
 
   private:
-    virtual auto do_backend() -> Output::Backend & = 0;
+    virtual auto do_program() -> Clasp::Asp::LogicProgram & = 0;
     virtual auto do_theory() -> OutputTheory & = 0;
+    virtual auto do_store() -> SymbolStore & = 0;
     virtual auto do_add_atom(Symbol atom) -> Output::lit_t = 0;
     virtual void do_close() = 0;
 };

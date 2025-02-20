@@ -24,8 +24,8 @@ class BackendImpl : public Output::Backend {
 
   private:
     auto do_next_lit() -> Output::lit_t override {
-        if (lit_ < Output::lit_max) {
-            return ++lit_;
+        if (auto lit = prg_->newAtom(); std::cmp_less_equal(lit, Output::lit_max)) {
+            return static_cast<Output::lit_t>(lit);
         }
         throw std::range_error("literals number of literals exhausted");
     }
@@ -235,7 +235,6 @@ class BackendImpl : public Output::Backend {
 #endif
     }
 
-    Output::lit_t lit_ = 0;
     Util::OutputBuffer buf_;
     Potassco::RuleBuilder bld_;
     Clasp::Asp::LogicProgram *prg_;
@@ -757,9 +756,11 @@ class BackendHandleImpl : public BackendHandle {
     ~BackendHandleImpl() override { close(); }
 
   private:
-    auto do_backend() -> Output::Backend & override { return *backend_; }
+    auto do_program() -> Clasp::Asp::LogicProgram & override { return *prg_; }
 
     auto do_theory() -> OutputTheory & override { return *theory_; }
+
+    auto do_store() -> SymbolStore & override { return grounder_->store(); }
 
     auto do_add_atom(Symbol atom) -> Output::lit_t override {
         if (auto sig = atom.signature(); sig && grounder_ != nullptr) {

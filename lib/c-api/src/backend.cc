@@ -11,8 +11,64 @@ auto cpp_cast(clingo_backend_t *backend) {
     return reinterpret_cast<Clingo::Control::BackendHandle *>(backend);
 }
 
-auto get_backend(clingo_backend_t *backend) -> Clingo::Output::Backend & {
-    return cpp_cast(backend)->backend();
+auto get_program(clingo_backend_t *backend) -> Clasp::Asp::LogicProgram & {
+    return cpp_cast(backend)->program();
+}
+
+auto get_theory(clingo_backend_t *backend) -> Clingo::OutputTheory & {
+    return cpp_cast(backend)->theory();
+}
+
+auto get_store(clingo_backend_t *backend) -> Clingo::SymbolStore & {
+    return cpp_cast(backend)->store();
+}
+
+auto get_wlits() -> std::vector<Potassco::WeightLit> & {
+    static thread_local auto lits = std::vector<Potassco::WeightLit>{};
+    lits.clear();
+    return lits;
+}
+
+auto map(clingo_external_type_e type) -> Potassco::TruthValue {
+    switch (type) {
+        case clingo_external_type_false: {
+            return Potassco::TruthValue::false_;
+        }
+        case clingo_external_type_true: {
+            return Potassco::TruthValue::true_;
+        }
+        case clingo_external_type_free: {
+            return Potassco::TruthValue::free;
+        }
+        case clingo_external_type_release: {
+            return Potassco::TruthValue::release;
+        }
+    }
+    throw std::runtime_error("invalid type");
+}
+
+auto map(clingo_heuristic_type_e type) -> Potassco::DomModifier {
+    switch (type) {
+        case clingo_heuristic_type_factor: {
+            return Potassco::DomModifier::factor;
+        }
+        case clingo_heuristic_type_false: {
+            return Potassco::DomModifier::false_;
+        }
+        case clingo_heuristic_type_true: {
+            return Potassco::DomModifier::true_;
+        }
+        case clingo_heuristic_type_init: {
+            return Potassco::DomModifier::init;
+        }
+        case clingo_heuristic_type_level: {
+            return Potassco::DomModifier::level;
+        }
+        case clingo_heuristic_type_sign: {
+            return Potassco::DomModifier::sign;
+        }
+    }
+    throw std::runtime_error("invalid type");
 }
 
 } // namespace
@@ -33,89 +89,147 @@ extern "C" auto clingo_backend_rule(clingo_backend_t *backend, bool choice, clin
         if (backend == nullptr || (head == nullptr && head_size > 0) || (body == nullptr && body_size > 0)) {
             return clingo_result_invalid;
         }
-        static thread_local auto lits = Clingo::Output::LitVec{};
-        lits.clear();
-        for (auto const &atom : std::span{head, head_size}) {
-            lits.emplace_back(Clingo::Util::safe_cast<Clingo::Output::lit_t>(atom));
+        get_program(backend).addRule(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive,
+                                     Potassco::AtomSpan{head, head_size}, Potassco::LitSpan{body, body_size});
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_weight_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head,
+                                           size_t head_size, clingo_weight_t lower_bound,
+                                           clingo_weighted_literal_t const *body, size_t body_size) -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr || (head == nullptr && head_size > 0) || (body == nullptr && body_size > 0)) {
+            return clingo_result_invalid;
         }
-        get_backend(backend).rule(lits, std::span{body, body_size}, choice);
+        auto &lits = get_wlits();
+        for (auto const &lit : std::span{body, body_size}) {
+            lits.emplace_back(lit.literal, lit.weight);
+        }
+        get_program(backend).addRule(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive,
+                                     std::span{head, head_size}, lower_bound, lits);
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_minimize(clingo_backend_t *backend, clingo_weight_t priority,
+                                        clingo_weighted_literal_t const *literals, size_t size) -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr || (literals == nullptr && size > 0)) {
+            return clingo_result_invalid;
+        }
+        auto &lits = get_wlits();
+        for (auto const &lit : std::span{literals, size}) {
+            lits.emplace_back(lit.literal, lit.weight);
+        }
+        get_program(backend).addMinimize(priority, lits);
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_project(clingo_backend_t *backend, clingo_atom_t const *atoms, size_t size)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr || (atoms == nullptr && size > 0)) {
+            return clingo_result_invalid;
+        }
+        get_program(backend).addProject(std::span{atoms, size});
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_external(clingo_backend_t *backend, clingo_atom_t atom, clingo_external_type_t type)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr) {
+            return clingo_result_invalid;
+        }
+        get_program(backend).addExternal(atom, map(static_cast<clingo_external_type_e>(type)));
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_assume(clingo_backend_t *backend, clingo_literal_t const *literals, size_t size)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr || (literals == nullptr && size > 0)) {
+            return clingo_result_invalid;
+        }
+        get_program(backend).addAssumption(std::span{literals, size});
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom, clingo_heuristic_type_t type,
+                                         int bias, unsigned priority, clingo_literal_t const *condition, size_t size)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr || (condition == nullptr && size > 0)) {
+            return clingo_result_invalid;
+        }
+        get_program(backend).addDomHeuristic(atom, map(static_cast<clingo_heuristic_type_e>(type)), bias, priority,
+                                             std::span{condition, size});
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v,
+                                         clingo_literal_t const *condition, size_t size) -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr || (condition == nullptr && size > 0)) {
+            return clingo_result_invalid;
+        }
+        get_program(backend).addAcycEdge(node_u, node_v, std::span{condition, size});
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t *symbol, clingo_atom_t *atom)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr || atom == nullptr) {
+            return clingo_result_invalid;
+        }
+        *atom = symbol != nullptr ? cpp_cast(backend)->add_atom(*cpp_cast(symbol)) : get_program(backend).newAtom();
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_theory_term_number(clingo_backend_t *backend, int number, clingo_id_t *term_id)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr || term_id == nullptr) {
+            return clingo_result_invalid;
+        }
+        *term_id = get_theory(backend).num(number);
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_theory_term_string(clingo_backend_t *backend, char const *string, clingo_id_t *term_id)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr || string == nullptr || term_id == nullptr) {
+            return clingo_result_invalid;
+        }
+        *term_id = get_theory(backend).str(*get_store(backend).string(string));
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_theory_term_symbol(clingo_backend_t *backend, clingo_symbol_t symbol,
+                                                  clingo_id_t *term_id) -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr || term_id == nullptr) {
+            return clingo_result_invalid;
+        }
+        *term_id = get_theory(backend).sym(get_store(backend), *cpp_cast(&symbol));
     }
     CLINGO_CATCH;
 }
 
 // TODO: remove
 // NOLINTBEGIN
-
-extern "C" clingo_result_t clingo_backend_weight_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head,
-                                                      size_t head_size, clingo_weight_t lower_bound,
-                                                      clingo_weighted_literal_t const *body, size_t body_size) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" clingo_result_t clingo_backend_minimize(clingo_backend_t *backend, clingo_weight_t priority,
-                                                   clingo_weighted_literal_t const *literals, size_t size) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" clingo_result_t clingo_backend_project(clingo_backend_t *backend, clingo_atom_t const *atoms, size_t size) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" clingo_result_t clingo_backend_external(clingo_backend_t *backend, clingo_atom_t atom,
-                                                   clingo_external_type_t type) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" clingo_result_t clingo_backend_assume(clingo_backend_t *backend, clingo_literal_t const *literals,
-                                                 size_t size) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" clingo_result_t clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom,
-                                                    clingo_heuristic_type_t type, int bias, unsigned priority,
-                                                    clingo_literal_t const *condition, size_t size) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" clingo_result_t clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v,
-                                                    clingo_literal_t const *condition, size_t size) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" clingo_result_t clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t *symbol,
-                                                   clingo_atom_t *atom) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" clingo_result_t clingo_backend_theory_term_number(clingo_backend_t *backend, int number,
-                                                             clingo_id_t *term_id) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" clingo_result_t clingo_backend_theory_term_string(clingo_backend_t *backend, char const *string,
-                                                             clingo_id_t *term_id) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
 
 extern "C" clingo_result_t clingo_backend_theory_term_sequence(clingo_backend_t *backend,
                                                                clingo_theory_sequence_type_t type,
@@ -129,13 +243,6 @@ extern "C" clingo_result_t clingo_backend_theory_term_sequence(clingo_backend_t 
 extern "C" clingo_result_t clingo_backend_theory_term_function(clingo_backend_t *backend, char const *name,
                                                                clingo_id_t const *arguments, size_t size,
                                                                clingo_id_t *term_id) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" clingo_result_t clingo_backend_theory_term_symbol(clingo_backend_t *backend, clingo_symbol_t symbol,
-                                                             clingo_id_t *term_id) {
     CLINGO_TRY {
     }
     CLINGO_CATCH;

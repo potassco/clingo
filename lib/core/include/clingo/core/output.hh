@@ -43,6 +43,8 @@ class OutputTheory {
     void atm(AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard = std::nullopt) {
         do_atm(type, atom_uid, name, elems, guard);
     }
+    //! Convert the given symbol into a theory symbol.
+    auto sym(SymbolStore &store, Symbol sym) -> size_t;
     //! Reset the theory.
     void reset() { do_reset(); }
 
