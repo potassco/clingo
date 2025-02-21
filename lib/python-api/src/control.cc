@@ -96,6 +96,10 @@ auto Control::base() -> Base {
     return {base};
 }
 
+auto Control::backend() -> BackendManager {
+    return BackendManager{ctl_.get()};
+}
+
 auto Control::config() -> Config {
     clingo_config_t *config = nullptr;
     handle_error(clingo_control_config(ctl_.get(), &config));
@@ -278,6 +282,7 @@ there is any.
 )"_d)
         .def_property_readonly("buffer", &Control::buffer, R"(The content of the output bufer.)")
         .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)")
+        .def_property_readonly("backend", &Control::backend, R"(Get a backend manager to extend the ground program.)")
         .def_property_readonly("config", &Control::config, R"(Get the solver config.)")
         .def_property_readonly("stats", &Control::stats, R"(Get the solver stats.)");
 }

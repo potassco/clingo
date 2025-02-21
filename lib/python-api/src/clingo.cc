@@ -1,5 +1,6 @@
 #include "clingo.hh"
 #include "ast.hh"
+#include "backend.hh"
 #include "base.hh"
 #include "config.hh"
 #include "control.hh"
@@ -119,6 +120,7 @@ SAT
     Clingo::Python::register_symbol(m);
     Clingo::Python::register_ast(m);
     Clingo::Python::register_base(m);
+    Clingo::Python::register_backend(m);
     Clingo::Python::register_solve(m);
     Clingo::Python::register_config(m);
     Clingo::Python::register_stats(m);

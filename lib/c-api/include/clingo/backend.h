@@ -8,6 +8,8 @@ extern "C" {
 #include <clingo/core.h>
 #include <clingo/symbol.h>
 
+typedef struct clingo_control clingo_control_t;
+
 //! @example backend.c
 //! The example shows how to use the backend to extend a grounded program.
 //!
@@ -69,11 +71,21 @@ typedef int clingo_external_type_t;
 //! Handle to the backend to add directives in aspif format.
 typedef struct clingo_backend clingo_backend_t;
 
+//! Get a backend object to extend the ground program.
+//!
+//! The control object itself should not be used until the backend is closed.
+//!
+//! @param[in] backend the control object
+//! @param[out] backend the resulting backend
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend);
+
 //! Finalize the backend after using it.
 //!
 //! @param[in] backend the target backend
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_close(clingo_backend_t *backend);
+
 //! Add a rule to the program.
 //!
 //! @param[in] backend the target backend
@@ -231,38 +243,26 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_theory_element(clingo_b
                                                                         clingo_id_t const *tuple, size_t tuple_size,
                                                                         clingo_literal_t const *condition,
                                                                         size_t condition_size, clingo_id_t *element_id);
+
 //! Add a theory atom without a guard.
 //!
-//! If atom is set to zero, the theory atom is a directive,
-//! if atom is set to UINT32_MAX, the theory atom receives a fresh atom,
-//! and otherwise the theory atom receives the given atom id.
+//! If the theory atom does not exist yet, the atom receives a fresh program
+//! atom, if atom_id is NULL; or *atom_in, otherwise. Note that value zero can
+//! be used to mark program directives. The ouput paramater atom_out is set to
+//! the final value.
 //!
 //! @param[in] backend the target backend
-//! @param[in] atom an undefined value, program atom, or zero for theory directives
-//! @param[in] term_id the term id of the term associated with the theory atom
+//! @param[in] name the symbol representing the name
 //! @param[in] elements an array of element ids for the theory atom's elements
 //! @param[in] size the number of elements
-//! @param[out] atom_id the final program atom of the theory atom
+//! @param[in] operator_name the (optional) right-hand-side operator
+//! @param[in] right_hand_side_id the term id of the right-hand-side
+//! @param[in] atom_in the atom as described above
+//! @param[out] atom_out the final program atom of the theory atom
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_theory_atom(clingo_backend_t *backend, clingo_atom_t atom,
-                                                                     clingo_id_t term_id, clingo_id_t const *elements,
-                                                                     size_t size, clingo_atom_t *atom_id);
-//! Add a theory atom with a guard.
-//!
-//! See the note regarding atom at clingo_backend_theory_atom().
-//!
-//! @param[in] backend the target backend
-//! @param[in] atom an undefined value, program atom, or zero for theory directives
-//! @param[in] term_id the term id of the term associated with the theory atom
-//! @param[in] elements an array of element ids for the theory atom's elements
-//! @param[in] size the number of elements
-//! @param[in] operator_name the string representation of a theory operator
-//! @param[in] right_hand_side_id the term id of the right hand side term
-//! @param[out] atom_id the final program atom of the theory atom
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_theory_atom_with_guard(
-    clingo_backend_t *backend, clingo_atom_t atom, clingo_id_t term_id, clingo_id_t const *elements, size_t size,
-    char const *operator_name, clingo_id_t right_hand_side_id, clingo_atom_t *atom_id);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_theory_atom(
+    clingo_backend_t *backend, clingo_symbol_t name, clingo_id_t const *elements, size_t size,
+    char const *operator_name, clingo_id_t right_hand_side_id, clingo_atom_t const *atom_in, clingo_atom_t *atom_out);
 
 //! @}
 #ifdef __cplusplus

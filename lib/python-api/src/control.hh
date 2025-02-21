@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.hh"
+#include "backend.hh"
 #include "base.hh"
 #include "config.hh"
 #include "solve.hh"
@@ -23,6 +24,7 @@ class Control {
     auto solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model,
                std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle;
     auto base() -> Base;
+    auto backend() -> BackendManager;
     auto config() -> Config;
     auto stats() -> py::dict;
     void main();

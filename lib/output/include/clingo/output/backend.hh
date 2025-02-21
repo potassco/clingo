@@ -290,6 +290,12 @@ class TheoryData {
     auto atom(std::function<lit_t()> const &atom, Symbol name, IdVec elems,
               std::optional<std::pair<String, id_t>> guard) -> lit_t;
 
+    //! Overload for spans.
+    auto atom(std::function<lit_t()> const &atom, Symbol name, IdSpan elems,
+              std::optional<std::pair<String, id_t>> guard) -> lit_t {
+        return this->atom(atom, name, IdVec{elems.begin(), elems.end()}, guard);
+    }
+
     //! Clear the theory data.
     void reset() noexcept;
 

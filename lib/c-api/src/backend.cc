@@ -2,6 +2,7 @@
 
 #include <clingo/control/solver.hh>
 
+#include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
 namespace {
@@ -91,12 +92,20 @@ auto map(clingo_theory_sequence_type_e type) -> Clingo::TheoryTermTupleType {
 
 } // namespace
 
+extern "C" auto clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend) -> clingo_result_t {
+    CLINGO_TRY {
+        // NOLINTNEXTLINE
+        *backend = reinterpret_cast<clingo_backend_t *>(control->slv->backend().release());
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" auto clingo_backend_close(clingo_backend_t *backend) -> clingo_result_t {
     CLINGO_TRY {
         if (backend == nullptr) {
             return clingo_result_invalid;
         }
-        cpp_cast(backend)->close();
+        delete cpp_cast(backend);
     }
     CLINGO_CATCH;
 }
@@ -276,26 +285,22 @@ extern "C" auto clingo_backend_theory_element(clingo_backend_t *backend, clingo_
     CLINGO_CATCH;
 }
 
-// TODO: remove
-// NOLINTBEGIN
-
-extern "C" clingo_result_t clingo_backend_theory_atom(clingo_backend_t *backend, clingo_atom_t atom,
-                                                      clingo_id_t term_id, clingo_id_t const *elements, size_t size,
-                                                      clingo_atom_t *atom_id) {
+extern "C" auto clingo_backend_theory_atom(clingo_backend_t *backend, clingo_symbol_t name, clingo_id_t const *elements,
+                                           size_t size, char const *operator_name, clingo_id_t right_hand_side_id,
+                                           clingo_atom_t const *atom_in, clingo_atom_t *atom_out) -> clingo_result_t {
     CLINGO_TRY {
+        if (backend == nullptr || (elements == nullptr && size > 0)) {
+            return clingo_result_invalid;
+        }
+        auto op = Clingo::SharedString{};
+        auto guard = std::optional<std::pair<Clingo::String, id_t>>{};
+        if (operator_name != nullptr) {
+            op = get_store(backend).string(operator_name);
+            guard.emplace(*op, right_hand_side_id);
+        }
+        *atom_out =
+            get_theory(backend).atom([&]() { return atom_in != nullptr ? *atom_in : get_program(backend).newAtom(); },
+                                     *cpp_cast(&name), std::span{elements, size}, std::nullopt);
     }
     CLINGO_CATCH;
 }
-
-extern "C" clingo_result_t clingo_backend_theory_atom_with_guard(clingo_backend_t *backend, clingo_atom_t atom,
-                                                                 clingo_id_t term_id, clingo_id_t const *elements,
-                                                                 size_t size, char const *operator_name,
-                                                                 clingo_id_t right_hand_side_id,
-                                                                 clingo_atom_t *atom_id) {
-    CLINGO_TRY {
-    }
-    CLINGO_CATCH;
-}
-
-// TODO: remove
-// NOLINTEND
