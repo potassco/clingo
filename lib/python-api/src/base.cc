@@ -240,15 +240,20 @@ auto Base::contains_short(std::pair<char const *, size_t> const &sig) -> bool {
     return contains({get<0>(sig), get<1>(sig), false});
 }
 
+auto Base::contains_symbol(Symbol const &sym) -> bool {
+    auto sig = sym.signature();
+    if (sig && contains(*sig)) {
+        auto base = lookup(*sig);
+        return base.contains(sym);
+    }
+    return false;
+}
+
 auto Base::contains(key_type const &sig) -> bool {
     auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
     auto found = false;
     handle_error(clingo_base_atoms_find(base_, &csig, nullptr, &found));
     return found;
-}
-
-auto Base::lookup_short(std::pair<char const *, size_t> const &sig) -> mapped_type {
-    return lookup({get<0>(sig), get<1>(sig), false});
 }
 
 auto Base::lookup(key_type const &sig) -> mapped_type {
@@ -257,6 +262,17 @@ auto Base::lookup(key_type const &sig) -> mapped_type {
     auto found = false;
     handle_error(clingo_base_atoms_find(base_, &csig, &atoms, &found));
     return found ? AtomBase{atoms} : throw py::key_error("key does not exist");
+}
+
+auto Base::lookup_short(std::pair<char const *, size_t> const &sig) -> mapped_type {
+    return lookup({get<0>(sig), get<1>(sig), false});
+}
+
+auto Base::lookup_symbol(Symbol const &sym) -> Atom {
+    if (auto sig = sym.signature(); sig) {
+        return lookup(*sig).lookup(sym);
+    }
+    throw py::key_error("key does not exist");
 }
 
 auto Base::terms() -> TermBase {
@@ -420,15 +436,19 @@ The base provides information about atoms and show term directives occuring in a
 It implements a map from signatures to atom bases.
 )")
         .def("__len__", &Base::size, "Get the number of atom bases.")
-        .def("__getitem__", &Base::lookup_short, R"(
-Get the element with the given (short) signature.
+        .def("__getitem__", &Base::lookup_symbol, py::arg("symbol"), R"(Get the atom with the given symbol.)")
+        .def("__getitem__", &Base::lookup_short, py::arg("signature"), R"(
+Get the atom base with the given (short) signature.
 
 This function provides a shortcut assuming the sign is false.
 )"_d)
-        .def("__getitem__", &Base::lookup, R"(Get the atom base with the given signature.)")
-        .def("__contains__", &Base::contains, R"( Check if there is an atom base with the given signature.)")
-        .def("__contains__", &Base::contains_short,
+        .def("__getitem__", &Base::lookup, py::arg("signature"), R"(Get the atom base with the given signature.)")
+        .def("__contains__", &Base::contains, py::arg("signature"),
+             R"(Check if there is an atom base with the given signature.)")
+        .def("__contains__", &Base::contains_short, py::arg("signature"),
              R"( Check if there is an atom base with the given (short) signature.)")
+        .def("__contains__", &Base::contains_symbol, py::arg("symbol"),
+             R"(Check if there is an atom with the given symbol.)")
         .def(
             "__iter__", [](Base &base) { return py::make_key_iterator(base.begin(), base.end()); },
             "Get an iterator over the keys in the map.")

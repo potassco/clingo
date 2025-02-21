@@ -146,8 +146,10 @@ class Base {
     auto at(size_t index) -> value_type;
     auto contains(key_type const &sig) -> bool;
     auto contains_short(std::pair<char const *, size_t> const &sig) -> bool;
+    auto contains_symbol(Symbol const &sym) -> bool;
     auto lookup(key_type const &sig) -> mapped_type;
     auto lookup_short(std::pair<char const *, size_t> const &sig) -> mapped_type;
+    auto lookup_symbol(Symbol const &sym) -> Atom;
     auto terms() -> TermBase;
     auto theory() -> TheoryBase;
     [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }

@@ -73,6 +73,8 @@ class TestBase:
 
         assert sig_p in base
         assert (sig_p[0], sig_p[1]) in base
+        assert fun_p in base
+        assert base[fun_p].symbol == fun_p
 
         base_p = base[sig_p]
         base_ps = base[(sig_p[0], sig_p[1])]
@@ -80,6 +82,7 @@ class TestBase:
 
         assert fun_p in base_p
         assert Function(self.lib, "p", [Number(self.lib, 4)]) not in base_p
+        assert Function(self.lib, "p", [Number(self.lib, 4)]) not in base
 
         assert sorted(base) == [("p", 1, False), ("q", 1, False)]
         assert sorted(
