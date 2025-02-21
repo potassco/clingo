@@ -13,8 +13,8 @@ void TheoryTermSymbol::do_print(std::ostream &out) const {
     out << sym_;
 }
 
-auto TheoryTermSymbol::do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t {
-    return out.sym(ctx.store(), sym_);
+auto TheoryTermSymbol::do_output([[maybe_unused]] EvalContext const &ctx, OutputTheory &out) const -> size_t {
+    return out.sym(sym_);
 }
 
 auto TheoryTermSymbol::do_copy() const -> UTheoryTerm {
@@ -51,7 +51,7 @@ void TheoryTermVariable::do_print(std::ostream &out) const {
 auto TheoryTermVariable::do_output(EvalContext const &ctx, OutputTheory &out) const -> size_t {
     assert(ctx.ass()[var_]);
     // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-    return out.sym(ctx.store(), *ctx.ass()[var_]);
+    return out.sym(*ctx.ass()[var_]);
 }
 
 auto TheoryTermVariable::do_copy() const -> UTheoryTerm {

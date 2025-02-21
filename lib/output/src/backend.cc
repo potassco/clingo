@@ -1249,201 +1249,6 @@ class BuilderMinimize {
     LitVec lits_;
 };
 
-//! Builder for theory related expressions.
-class BuilderTheory {
-  public:
-    using IdVec = std::vector<id_t>;
-
-    //! Add a string term.
-    //!
-    //! @param bld the base builder
-    //! @param str the string
-    //! @return the term id
-    auto str(BuilderBase &bld, String str) -> id_t {
-        auto [it, ins] = insert_(strings_, str);
-        if (ins) {
-            bld.backend().theory_str(it.value(), it.key()->c_str());
-        }
-        return it.value();
-    }
-    //! Add a number term.
-    //!
-    //! @param bld the base builder
-    //! @param num the number
-    //! @return the term id
-    auto num(BuilderBase &bld, Number const &num) -> id_t {
-        auto [it, ins] = insert_(nums_, num_to_int(num));
-        if (ins) {
-            bld.backend().theory_num(it.value(), it.key());
-        }
-        return it.value();
-    }
-    //! Add a function term.
-    //!
-    //! @param bld the base builder
-    //! @param name the name of the function
-    //! @param args the arguments of the function
-    //! @return the term id
-    auto fun(BuilderBase &bld, String name, IdVec args) -> size_t {
-        if (args.empty()) {
-            return str(bld, name);
-        }
-        auto [it, ins] = insert_(funs_, std::pair{str(bld, name), std::move(args)});
-        if (ins) {
-            bld.backend().theory_fun(it.value(), it.key().first, it.key().second);
-        }
-        return it.value();
-    }
-    //! Add a tuple term.
-    //!
-    //! @param bld the base builder
-    //! @param type the type of the tuple
-    //! @param args the arguments of the tuple
-    //! @return the term id
-    auto tup(BuilderBase &bld, TheoryTermTupleType type, IdVec args) -> size_t {
-        auto [it, ins] = insert_(tups_, std::pair{type, std::move(args)});
-        if (ins) {
-            bld.backend().theory_tup(it.value(), it.key().first, it.key().second);
-        }
-        return it.value();
-    }
-
-    //! Add a theory element.
-    //!
-    //! @param bld the base builder
-    //! @param tuple the ids of terms forming the tuple
-    //! @param cond the Tseitin literal of the condition
-    //! @return the element id
-    auto elm(BuilderBase &bld, IndexSpan tuple, lit_t cond) -> size_t {
-        auto [it, ins] = insert_(elems_, std::pair{cond, IdVec{tuple.begin(), tuple.end()}});
-        if (ins) {
-            bld.backend().theory_elem(it.value(), it.key().second, bld.cond(cond));
-        }
-        return it.value();
-    }
-    //! Add a theory element.
-    //!
-    //! @param bld the base builder
-    //! @param type the type of the atom
-    //! @param lit the Tseitin literal of the atom
-    //! @param name the name of the atom
-    //! @param elems the element ids
-    //! @param guard the optional guard of the atom
-    //! @return the atom id
-    void atm(BuilderBase &bld, OutputTheory::AtomType type, lit_t lit, Symbol name, IndexSpan elems,
-             OutputTheory::OptGuard guard) {
-        assert(lit >= 0);
-        auto [it, ins] =
-            atoms_.emplace(std::tuple{sym_(bld, name), IdVec{elems.begin(), elems.end()},
-                                      Util::transform(guard,
-                                                      [](auto const &guard) {
-                                                          return std::pair{static_cast<id_t>(guard.first),
-                                                                           static_cast<id_t>(guard.second)};
-                                                      })},
-                           lit);
-        if (ins) {
-            bld.backend().theory_atom(type != OutputTheory::AtomType::directive ? it.value() : 0, get<0>(it.key()),
-                                      get<1>(it.key()), get<2>(it.key()));
-        } else if (lit != it.value()) {
-            assert(lit != 0 && it.value() != 0);
-            if (type == OutputTheory::AtomType::body) {
-                bld.backend().rule(std::array{it.value()}, std::array{lit}, false);
-            } else {
-                bld.backend().rule(std::array{lit}, std::array{it.value()}, false);
-            }
-        }
-    }
-
-    void reset() {
-        strings_.clear();
-        nums_.clear();
-        funs_.clear();
-        tups_.clear();
-        elems_.clear();
-        atoms_.clear();
-        ids_ = 0;
-    }
-
-  private:
-    using StringMap = Util::unordered_map<SharedString, id_t>;
-    using NumMap = Util::unordered_map<weight_t, id_t>;
-    using FunMap = Util::unordered_map<std::pair<id_t, IdVec>, id_t>;
-    using TupMap = Util::unordered_map<std::pair<TheoryTermTupleType, IdVec>, id_t>;
-    using ElemMap = Util::unordered_map<std::pair<lit_t, IdVec>, id_t>;
-    using AtomMap = Util::unordered_map<std::tuple<id_t, IdVec, std::optional<std::pair<id_t, id_t>>>, lit_t>;
-
-    //! Translate a symbol into a theory atom.
-    //!
-    //! @param bld the base builder
-    //! @param sym the symbol to translate
-    //! @return the term id
-    auto sym_(BuilderBase &bld, Symbol sym) -> id_t {
-        switch (sym.type()) {
-            case SymbolType::inf: {
-                return str(bld, bld.store().string_ref("#inf"));
-            }
-            case SymbolType::sup: {
-                return str(bld, bld.store().string_ref("#sup"));
-            }
-            case SymbolType::number: {
-                return num(bld, sym.num());
-            }
-            case SymbolType::string: {
-                buf_.reset();
-                buf_ << sym;
-                return str(bld, bld.store().string_ref(buf_.c_str()));
-            }
-            case SymbolType::function: {
-                if (sym.has_classical_sign()) {
-                    // NOLINTBEGIN(bugprone-unchecked-optional-access)
-                    return fun(bld, bld.store().string_ref("-"), std::vector{sym_(bld, *sym.flip_classical_sign())});
-                    // NOLINTEND(bugprone-unchecked-optional-access)
-                }
-                auto args = IdVec{};
-                args.reserve(sym.args().size());
-                for (auto const &arg : sym.args()) {
-                    args.emplace_back(sym_(bld, arg));
-                }
-                return fun(bld, sym.name(), args);
-            }
-            case SymbolType::tuple: {
-                auto args = IdVec{};
-                args.reserve(sym.args().size());
-                for (auto const &arg : sym.args()) {
-                    args.emplace_back(sym_(bld, arg));
-                }
-                return tup(bld, TheoryTermTupleType::tuple, args);
-            }
-        }
-        Util::unreachable();
-    }
-
-    //! Helper to insert elemens into the term maps.
-    //!
-    //! @param map the map to insert in
-    //! @param val the value to insert
-    //! @return same as map.insert
-    template <class M, class V> auto insert_(M &map, V &&val) -> std::pair<typename M::iterator, bool> {
-        auto [it, ins] = map.try_emplace(std::forward<V>(val), ids_);
-        if (ins) {
-            ++ids_;
-            if (ids_ == std::numeric_limits<id_t>::max()) {
-                throw std::range_error("theory ids exhausted");
-            }
-        }
-        return {it, ins};
-    }
-
-    Util::OutputBuffer buf_;
-    StringMap strings_;
-    NumMap nums_;
-    FunMap funs_;
-    TupMap tups_;
-    ElemMap elems_;
-    AtomMap atoms_;
-    id_t ids_ = 0;
-};
-
 //! Output handling conditions.
 //!
 //! Each literal is mapped to a program literal and appended to a vector of
@@ -1562,7 +1367,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     //!
     //! @param store the symbol store
     //! @param backend the backend
-    OutputBackend(SymbolStore &store, Backend &backend) : bld_{store, backend} {};
+    OutputBackend(SymbolStore &store, Backend &backend) : bld_{store, backend}, theory_{store, backend} {};
 
   private:
     void do_project_atom(size_t p_atom, size_t atom) override {
@@ -1757,22 +1562,41 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
-    auto do_str(String val) -> size_t override { return theory_.str(bld_, val); }
+    auto do_str(String val) -> size_t override { return theory_.str(val); }
 
-    auto do_num(Number const &val) -> size_t override { return theory_.num(bld_, val); }
+    auto do_num(Number const &val) -> size_t override { return theory_.num(num_to_int(val)); }
 
     auto do_fun(String name, IndexSpan args) -> size_t override {
-        return theory_.fun(bld_, name, {args.begin(), args.end()});
+        return theory_.fun(name, {args.begin(), args.end()});
     }
 
     auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override {
-        return theory_.tup(bld_, type, {args.begin(), args.end()});
+        return theory_.tup(type, {args.begin(), args.end()});
     }
 
-    auto do_elem(IndexSpan tuple, size_t cond) -> size_t override { return theory_.elm(bld_, tuple, uid_to_lit(cond)); }
+    auto do_sym(Symbol sym) -> size_t override { return theory_.sym(sym); }
 
-    void do_atm(OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
-        theory_.atm(bld_, type, static_cast<int32_t>(atom_uid), name, elems, guard);
+    auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
+        auto lits = bld_.cond(uid_to_lit(cond));
+        return theory_.elem({tuple.begin(), tuple.end()}, {lits.begin(), lits.end()});
+    }
+
+    void do_atom(OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
+        auto new_lit = type != OutputTheory::AtomType::directive ? static_cast<lit_t>(atom_uid) : 0;
+        auto old_lit = theory_.atom([atom_uid]() { return static_cast<lit_t>(atom_uid); }, name,
+                                    {elems.begin(), elems.end()}, Util::transform(guard, [](auto const &guard) {
+                                        return std::pair{guard.first, static_cast<id_t>(guard.second)};
+                                    }));
+        // handle directives
+        if (new_lit == 0 || old_lit == 0) {
+            bld_.backend().rule(std::array{uid_to_atom(atom_uid)}, {}, false);
+        } else if (new_lit != old_lit) {
+            if (type == OutputTheory::AtomType::body) {
+                bld_.backend().rule(std::array{new_lit}, std::array{old_lit}, false);
+            } else {
+                bld_.backend().rule(std::array{old_lit}, std::array{new_lit}, false);
+            }
+        }
     }
 
     void do_reset() override { theory_.reset(); }
@@ -1786,7 +1610,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     BuilderCondLit cond_lit_;
     BuilderDisjunction disjunction_;
     BuilderMinimize minimize_;
-    BuilderTheory theory_;
+    TheoryData theory_;
     OutputBody body_{bld_};
     OutputCond cond_{bld_};
 };
@@ -1891,6 +1715,16 @@ auto TheoryData::atom(std::function<lit_t()> const &atom, Symbol name, IdVec ele
         backend_->theory_atom(it.value(), get<0>(it.key()), get<1>(it.key()), get<2>(it.key()));
     }
     return it.value();
+}
+
+void TheoryData::reset() noexcept {
+    strings_.clear();
+    nums_.clear();
+    funs_.clear();
+    tups_.clear();
+    elems_.clear();
+    atoms_.clear();
+    ids_ = 0;
 }
 
 template <class M, class V> auto TheoryData::insert_(M &map, V &&val) -> std::pair<typename M::iterator, bool> {

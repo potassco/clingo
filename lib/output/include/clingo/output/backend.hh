@@ -280,6 +280,9 @@ class TheoryData {
     auto atom(std::function<lit_t()> const &atom, Symbol name, IdVec elems,
               std::optional<std::pair<String, id_t>> guard) -> lit_t;
 
+    //! Clear the theory data.
+    void reset() noexcept;
+
   private:
     using StringMap = Util::unordered_map<SharedString, id_t>;
     using NumMap = Util::unordered_map<weight_t, id_t>;

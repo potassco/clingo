@@ -522,6 +522,11 @@ class OutputText : public OutputStm, OutputTheory {
         return str_id_(tmp_.view());
     }
 
+    auto do_sym(Symbol sym) -> size_t override {
+        tmp_.reset() << sym;
+        return str_id_(tmp_.view());
+    }
+
     auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
         tmp_.reset() << Util::p_range(tuple, [this](auto &out, auto idx) { out << *strs_.nth(idx); });
         auto const &sc = *strs_.nth(cond);
@@ -532,15 +537,15 @@ class OutputText : public OutputStm, OutputTheory {
         return str_id_(tmp_.view());
     }
 
-    void do_atm([[maybe_unused]] OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems,
-                OptGuard guard) override {
+    void do_atom([[maybe_unused]] OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems,
+                 OptGuard guard) override {
         tmp_.reset() << "&" << name;
         if (!elems.empty()) {
             tmp_ << " { " << Util::p_range(elems, "; ", [this](auto &out, auto idx) { out << *strs_.nth(idx); })
                  << " }";
         }
         if (guard) {
-            tmp_ << " " << *strs_.nth(guard->first) << " " << *strs_.nth(guard->second);
+            tmp_ << " " << guard->first << " " << *strs_.nth(guard->second);
         }
         body_.define(atom_uid, tmp_.str());
     }

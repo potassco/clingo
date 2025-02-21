@@ -242,7 +242,7 @@ extern "C" auto clingo_backend_theory_term_symbol(clingo_backend_t *backend, cli
         if (backend == nullptr || term_id == nullptr) {
             return clingo_result_invalid;
         }
-        *term_id = get_theory(backend).sym(get_store(backend), *cpp_cast(&symbol));
+        *term_id = get_theory(backend).sym(*cpp_cast(&symbol));
     }
     CLINGO_CATCH;
 }

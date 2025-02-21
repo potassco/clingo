@@ -26,7 +26,7 @@ class OutputTheory {
     };
 
     //! An optional guard of string and term indices.
-    using OptGuard = std::optional<std::pair<size_t, size_t>>;
+    using OptGuard = std::optional<std::pair<String, size_t>>;
     //! Destroy the output.
     virtual ~OutputTheory() = default;
     //! Output the given symbolic literal.
@@ -40,11 +40,11 @@ class OutputTheory {
     //! Output the given element.
     auto elem(IndexSpan tuple, size_t cond) -> size_t { return do_elem(tuple, cond); }
     //! Output the given atom.
-    void atm(AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard = std::nullopt) {
-        do_atm(type, atom_uid, name, elems, guard);
+    void atom(AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard = std::nullopt) {
+        do_atom(type, atom_uid, name, elems, guard);
     }
-    //! Convert the given symbol into a theory symbol.
-    auto sym(SymbolStore &store, Symbol sym) -> size_t;
+    //! Output the given symbol.
+    auto sym(Symbol sym) -> size_t { return do_sym(sym); }
     //! Reset the theory.
     void reset() { do_reset(); }
 
@@ -53,8 +53,9 @@ class OutputTheory {
     virtual auto do_num(Number const &val) -> size_t = 0;
     virtual auto do_fun(String name, std::span<size_t const> args) -> size_t = 0;
     virtual auto do_tup(TheoryTermTupleType type, std::span<size_t const> args) -> size_t = 0;
+    virtual auto do_sym(Symbol sym) -> size_t = 0;
     virtual auto do_elem(IndexSpan tuple, size_t cond) -> size_t = 0;
-    virtual void do_atm(AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) = 0;
+    virtual void do_atom(AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) = 0;
     virtual void do_reset() = 0;
 };
 

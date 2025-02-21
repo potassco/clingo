@@ -188,7 +188,7 @@ void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
     std::vector<size_t> elems;
     auto guard = OutputTheory::OptGuard{};
     if (guard_) {
-        guard.emplace(thy.fun(guard_->first, IndexSpan{}), size_t{});
+        guard.emplace(guard_->first, size_t{});
     }
     for (auto const &atm : base_.atoms()) {
         elems.clear();
@@ -203,7 +203,7 @@ void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
             guard->second = *atm.second.rhs();
         }
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        thy.atm(type_, *atm.second.uid(), atm.second.name(), elems, guard);
+        thy.atom(type_, *atm.second.uid(), atm.second.name(), elems, guard);
     }
 }
 
