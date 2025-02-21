@@ -2,6 +2,7 @@
 
 #include <clingo/util/immutable_array.hh>
 #include <clingo/util/immutable_value.hh>
+#include <clingo/util/small_vector.hh>
 
 #include <cstring>
 #include <memory>
@@ -61,6 +62,9 @@ template <class T, class A> auto value_hash(std::vector<T, A> const &x) -> size_
 
 //! Compute the hash of an immutable array.
 template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t;
+
+//! Compute the hash of an immutable array.
+template <class T, size_t N> auto value_hash(Util::small_vector<T, N> const &x) -> size_t;
 
 //! Compute the hash of a string.
 auto value_hash(char const *x) -> size_t;
@@ -339,6 +343,10 @@ template <class T, class A> auto value_hash(std::vector<T, A> const &x) -> size_
 }
 
 template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t {
+    return value_hash_range(x);
+}
+
+template <class T, size_t N> auto value_hash(Util::small_vector<T, N> const &x) -> size_t {
     return value_hash_range(x);
 }
 

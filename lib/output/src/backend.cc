@@ -1793,6 +1793,117 @@ class OutputBackend : public OutputStm, OutputTheory {
 
 } // namespace
 
+auto TheoryData::num(weight_t num) -> id_t {
+    auto [it, ins] = insert_(nums_, num);
+    if (ins) {
+        backend_->theory_num(it.value(), it.key());
+    }
+    return it.value();
+}
+
+auto TheoryData::str(String str) -> id_t {
+    auto [it, ins] = insert_(strings_, str);
+    if (ins) {
+        backend_->theory_str(it.value(), it.key()->c_str());
+    }
+    return it.value();
+}
+
+auto TheoryData::fun(String name, IdVec args) -> id_t {
+    if (args.empty()) {
+        return str(name);
+    }
+    auto [it, ins] = insert_(funs_, std::pair{str(name), std::move(args)});
+    if (ins) {
+        backend_->theory_fun(it.value(), it.key().first, it.key().second);
+    }
+    return it.value();
+}
+
+auto TheoryData::tup(TheoryTermTupleType type, IdVec args) -> id_t {
+    auto [it, ins] = insert_(tups_, std::pair{type, std::move(args)});
+    if (ins) {
+        backend_->theory_tup(it.value(), it.key().first, it.key().second);
+    }
+    return it.value();
+}
+
+auto TheoryData::sym(Symbol sym) -> id_t {
+    switch (sym.type()) {
+        case SymbolType::inf: {
+            return str(*store_->string("#inf"));
+        }
+        case SymbolType::sup: {
+            return str(*store_->string("#sup"));
+        }
+        case SymbolType::string: {
+            static thread_local auto buf = Util::OutputBuffer{};
+            buf.reset();
+            buf << Util::p_quoted(sym.str().view());
+            return str(*store_->string(buf.view()));
+        }
+        case SymbolType::function: {
+            auto args = IdVec{};
+            args.reserve(sym.args().size());
+            for (auto const &arg : sym.args()) {
+                args.emplace_back(this->sym(arg));
+            }
+            auto ret = fun(sym.name(), args);
+            if (sym.has_sign()) {
+                ret = fun(*store_->string("-"), {&ret, 1});
+            }
+            return ret;
+        }
+        case SymbolType::tuple: {
+            auto args = IdVec{};
+            args.reserve(sym.args().size());
+            for (auto const &arg : sym.args()) {
+                args.emplace_back(this->sym(arg));
+            }
+            return tup(TheoryTermTupleType::tuple, args);
+        }
+        case SymbolType::number: {
+            return num(num_to_int(sym.num()));
+        }
+    }
+    Util::unreachable();
+}
+
+auto TheoryData::elem(IdVec tuple, LitVec cond) -> id_t {
+    auto [it, ins] = insert_(elems_, std::pair{std::move(tuple), std::move(cond)});
+    if (ins) {
+        backend_->theory_elem(it.value(), it.key().first, it.key().second);
+    }
+    return it.value();
+}
+
+auto TheoryData::atom(std::function<lit_t()> const &atom, Symbol name, IdVec elems,
+                      std::optional<std::pair<String, id_t>> guard) -> lit_t {
+    auto [it, ins] = atoms_.emplace(std::tuple{sym(name), std::move(elems),
+                                               Util::transform(guard,
+                                                               [this](auto const &guard) {
+                                                                   return std::pair{str(guard.first),
+                                                                                    static_cast<id_t>(guard.second)};
+                                                               })},
+                                    0);
+    if (ins) {
+        it.value() = atom();
+        backend_->theory_atom(it.value(), get<0>(it.key()), get<1>(it.key()), get<2>(it.key()));
+    }
+    return it.value();
+}
+
+template <class M, class V> auto TheoryData::insert_(M &map, V &&val) -> std::pair<typename M::iterator, bool> {
+    auto [it, ins] = map.try_emplace(std::forward<V>(val), ids_);
+    if (ins) {
+        ++ids_;
+        if (ids_ == std::numeric_limits<id_t>::max()) {
+            throw std::range_error("theory ids exhausted");
+        }
+    }
+    return {it, ins};
+}
+
 auto make_backend_output(SymbolStore &store, Backend &backend) -> UOutputStm {
     return std::make_unique<OutputBackend>(store, backend);
 }

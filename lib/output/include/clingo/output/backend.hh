@@ -61,7 +61,7 @@ class Backend {
     //! All literals should be created using this function.
     //!
     //! @return the fresh literal
-    auto next_lit() -> Output::lit_t { return do_next_lit(); }
+    auto next_lit() -> lit_t { return do_next_lit(); }
 
     //! Define a weight constraint.
     //!
@@ -96,7 +96,7 @@ class Backend {
     //! @param u the source vertex
     //! @param v the target vertex
     //! @param body the body of the statement
-    void edge(Output::id_t u, Output::id_t v, Output::LitSpan body) { do_edge(u, v, body); }
+    void edge(id_t u, id_t v, LitSpan body) { do_edge(u, v, body); }
 
     //! Add a heuristic directive.
     //!
@@ -105,7 +105,7 @@ class Backend {
     //! @param prio the priority of the modification
     //! @param type the type of the modification
     //! @param body the body of the directive.
-    void heuristic(lit_t atom, int32_t weight, int32_t prio, HeuristicType type, Output::LitSpan body) {
+    void heuristic(lit_t atom, int32_t weight, int32_t prio, HeuristicType type, LitSpan body) {
         assert(atom > 0);
         do_heuristic(atom, weight, prio, type, body);
     }
@@ -164,7 +164,7 @@ class Backend {
     //! @param id the unique term id
     //! @param type the type of the tuple
     //! @param args the term ids of the arguments
-    void theory_tup(id_t id, TheoryTermTupleType type, Output::IdSpan args) { do_theory_tup(id, type, args); }
+    void theory_tup(id_t id, TheoryTermTupleType type, IdSpan args) { do_theory_tup(id, type, args); }
 
     //! Add a theory element.
     //!
@@ -173,7 +173,7 @@ class Backend {
     //! @param id the unique element id
     //! @param terms the terms forming the tuple
     //! @param cond the condition of the element
-    void theory_elem(id_t id, Output::IdSpan terms, Output::LitSpan cond) { do_theory_elem(id, terms, cond); }
+    void theory_elem(id_t id, IdSpan terms, LitSpan cond) { do_theory_elem(id, terms, cond); }
 
     //! Add a theory atom.
     //!
@@ -181,7 +181,7 @@ class Backend {
     //! @param name the name of the atom (must be a function or symbol)
     //! @param elems the elements of the atom
     //! @param guard the optional guard of the atom
-    void theory_atom(lit_t atom_or_zero, id_t name, Output::IdSpan elems, std::optional<std::pair<id_t, id_t>> guard) {
+    void theory_atom(lit_t atom_or_zero, id_t name, IdSpan elems, std::optional<std::pair<id_t, id_t>> guard) {
         assert(atom_or_zero >= 0);
         do_theory_atom(atom_or_zero, name, elems, guard);
     }
@@ -192,21 +192,120 @@ class Backend {
     virtual void do_bd_aggr(lit_t head, WeightedLitSpan body, int32_t bound) = 0;
     virtual void do_show(Symbol sym, LitSpan body) = 0;
     virtual void do_show_atom(Symbol sym, lit_t lit) = 0;
-    virtual void do_edge(Output::id_t u, Output::id_t v, Output::LitSpan body) = 0;
-    virtual void do_heuristic(lit_t atom, weight_t weight, weight_t prio, HeuristicType type, Output::LitSpan body) = 0;
+    virtual void do_edge(id_t u, id_t v, LitSpan body) = 0;
+    virtual void do_heuristic(lit_t atom, weight_t weight, weight_t prio, HeuristicType type, LitSpan body) = 0;
     virtual void do_external(lit_t atom, ExternalType type) = 0;
     virtual void do_project(lit_t atom) = 0;
     virtual void do_minimize(lit_t lit, weight_t weight, weight_t priority) = 0;
     virtual void do_theory_num(id_t id, weight_t num) = 0;
     virtual void do_theory_str(id_t id, char const *str) = 0;
     virtual void do_theory_fun(id_t id, id_t name, IdSpan args) = 0;
-    virtual void do_theory_tup(id_t id, TheoryTermTupleType type, Output::IdSpan args) = 0;
-    virtual void do_theory_elem(id_t id, Output::IdSpan terms, Output::LitSpan cond) = 0;
-    virtual void do_theory_atom(lit_t atom_or_zero, id_t name, Output::IdSpan elems,
+    virtual void do_theory_tup(id_t id, TheoryTermTupleType type, IdSpan args) = 0;
+    virtual void do_theory_elem(id_t id, IdSpan terms, LitSpan cond) = 0;
+    virtual void do_theory_atom(lit_t atom_or_zero, id_t name, IdSpan elems,
                                 std::optional<std::pair<id_t, id_t>> guard) = 0;
 };
 //! A unique pointer for a backend.
 using UBackend = std::unique_ptr<Backend>;
+
+//! Class similar to Potassco::TheoryData but with automatic id generation.
+class TheoryData {
+  public:
+    using IdVec = Util::small_vector<id_t, 4>;
+    using LitVec = Util::small_vector<lit_t, 4>;
+
+    TheoryData(SymbolStore &store, Backend &backend) : store_{&store}, backend_{&backend} {}
+
+    //! Add a number term.
+    //!
+    //! @param num the number
+    //! @return the term id
+    auto num(weight_t num) -> id_t;
+
+    //! Add a string term.
+    //!
+    //! @param str the string
+    //! @return the term id
+    auto str(String str) -> id_t;
+
+    //! Add a function term.
+    //!
+    //! @param name the name of the function
+    //! @param args the arguments of the function
+    //! @return the term id
+    auto fun(String name, IdVec args) -> id_t;
+
+    //! Overload for spans.
+    auto fun(String name, IdSpan args) -> id_t { return fun(name, IdVec{args.begin(), args.end()}); }
+
+    //! Add a tuple term.
+    //!
+    //! @param type the type of the tuple
+    //! @param args the arguments of the tuple
+    //! @return the term id
+    auto tup(TheoryTermTupleType type, IdVec args) -> id_t;
+
+    //! Overload for spans.
+    auto tup(TheoryTermTupleType type, IdSpan args) -> id_t { return tup(type, IdVec{args.begin(), args.end()}); }
+
+    //! Convert a symbol into a theory term.
+    //!
+    //! @param sym the symbol to convert
+    //! @return the term id
+    auto sym(Symbol sym) -> id_t;
+
+    //! Add a theory element.
+    //!
+    //! @param tuple the ids of terms forming the tuple
+    //! @param cond the condition
+    //! @return the element id
+    auto elem(IdVec tuple, LitVec cond) -> id_t;
+
+    //! Overload for spans.
+    auto elem(IdSpan tuple, LitSpan cond) -> id_t {
+        return elem(IdVec{tuple.begin(), tuple.end()}, LitVec{cond.begin(), cond.end()});
+    }
+
+    //! Add a theory atom.
+    //!
+    //! The first argument is a function to set the literal of the atom. It is
+    //! only called if a fresh atom has been inserted. It must return a
+    //! non-negative literal. The literal can be zero for directives.
+    //!
+    //! @param atom function to set the literal
+    //! @param name the name of the atom
+    //! @param elems the element ids
+    //! @param guard the optional guard of the atom
+    //! @return the literal of the theory atom
+    auto atom(std::function<lit_t()> const &atom, Symbol name, IdVec elems,
+              std::optional<std::pair<String, id_t>> guard) -> lit_t;
+
+  private:
+    using StringMap = Util::unordered_map<SharedString, id_t>;
+    using NumMap = Util::unordered_map<weight_t, id_t>;
+    using FunMap = Util::unordered_map<std::pair<id_t, IdVec>, id_t>;
+    using TupMap = Util::unordered_map<std::pair<TheoryTermTupleType, IdVec>, id_t>;
+    using ElemMap = Util::unordered_map<std::pair<IdVec, LitVec>, id_t>;
+    using AtomMap = Util::unordered_map<std::tuple<id_t, IdVec, std::optional<std::pair<id_t, id_t>>>, lit_t>;
+
+    //! Helper to insert elemens into the term maps.
+    //!
+    //! @param map the map to insert in
+    //! @param val the value to insert
+    //! @return same as map.insert
+    template <class M, class V> auto insert_(M &map, V &&val) -> std::pair<typename M::iterator, bool>;
+
+    SymbolStore *store_;
+    Backend *backend_;
+    Util::OutputBuffer buf_;
+    StringMap strings_;
+    NumMap nums_;
+    FunMap funs_;
+    TupMap tups_;
+    ElemMap elems_;
+    AtomMap atoms_;
+    id_t ids_ = 0;
+};
 
 //! Create an output that forwards ground statements to a backend.
 //!

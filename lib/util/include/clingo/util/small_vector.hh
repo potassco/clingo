@@ -49,6 +49,30 @@ class small_vector {
     //! Move construct the vector.
     small_vector(small_vector &&other) noexcept : small_vector{} { *this = std::move(other); }
 
+    //! Initialize vector from an iterator range.
+    template <std::input_iterator It, std::sentinel_for<It> Is> small_vector(It begin, Is end) : small_vector{} {
+        assign(begin, end);
+    }
+
+    //! Assign the vector.
+    template <std::input_iterator It, std::sentinel_for<It> Is> void assign(It first, Is last) {
+        clear();
+        if constexpr (std::sized_sentinel_for<Is, It>) {
+            size_t n = std::ranges::distance(first, last);
+            reserve(n);
+            auto ib = begin();
+            auto ie = std::next(ib, n);
+            std::ranges::uninitialized_copy(first, last, ib, ie);
+            if (is_small_()) {
+                size_small_(n);
+            } else {
+                end_large_() = ie;
+            }
+        } else {
+            std::ranges::copy(first, last, std::back_inserter(*this));
+        }
+    }
+
     //! Copy assign the vector.
     auto operator=(small_vector const &other) -> small_vector & {
         if (this != &other) {
@@ -313,6 +337,13 @@ class small_vector {
             ::operator delete[](begin_large_());
         }
     }
+
+    friend auto operator<=>(small_vector const &lhs, small_vector const &rhs) {
+        // return std::ranges::lexicographical_compare_three_way(lhs, rhs);
+        return std::lexicographical_compare_three_way(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    }
+
+    friend auto operator==(small_vector const &lhs, small_vector const &rhs) { return std::ranges::equal(lhs, rhs); }
 
     GRINGO_IGNORE_UNION_B
     uintptr_t begin_ = 1;
