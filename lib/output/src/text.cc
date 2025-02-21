@@ -550,8 +550,6 @@ class OutputText : public OutputStm, OutputTheory {
         body_.define(atom_uid, tmp_.str());
     }
 
-    void do_reset() override {}
-
     Util::unordered_set<std::tuple<bool, SharedString, size_t>> seen_;
     Util::OutputBuffer *out_;
     Util::OutputBuffer tmp_;

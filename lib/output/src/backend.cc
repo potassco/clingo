@@ -117,7 +117,7 @@ class BuilderBase {
     //!
     //! @param store the symbol storage
     //! @param backend the backend
-    BuilderBase(SymbolStore &store, Backend &backend) : store_{&store}, backend_{&backend} {};
+    BuilderBase(SymbolStore &store, ProgramBackend &backend) : store_{&store}, backend_{&backend} {};
 
     //! Return a fresh literal.
     //!
@@ -265,7 +265,7 @@ class BuilderBase {
     //! Get the underlying backend.
     //!
     //! @return the backend
-    auto backend() -> Backend & { return *backend_; }
+    auto backend() -> ProgramBackend & { return *backend_; }
 
     //! Get the underlying symbol store.
     //!
@@ -372,7 +372,7 @@ class BuilderBase {
     using VertexMap = Util::unordered_map<SharedSymbol, Output::id_t>;
 
     SymbolStore *store_;
-    Backend *backend_;
+    ProgramBackend *backend_;
     Output::LitVec lits_;
     Util::Graph graph_;
     LitInfoVec infos_;
@@ -1367,7 +1367,8 @@ class OutputBackend : public OutputStm, OutputTheory {
     //!
     //! @param store the symbol store
     //! @param backend the backend
-    OutputBackend(SymbolStore &store, Backend &backend) : bld_{store, backend}, theory_{store, backend} {};
+    OutputBackend(SymbolStore &store, ProgramBackend &backend, TheoryData &theory)
+        : bld_{store, backend}, theory_{&theory} {};
 
   private:
     void do_project_atom(size_t p_atom, size_t atom) override {
@@ -1562,31 +1563,31 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
-    auto do_str(String val) -> size_t override { return theory_.str(val); }
+    auto do_str(String val) -> size_t override { return theory_->str(val); }
 
-    auto do_num(Number const &val) -> size_t override { return theory_.num(num_to_int(val)); }
+    auto do_num(Number const &val) -> size_t override { return theory_->num(num_to_int(val)); }
 
     auto do_fun(String name, IndexSpan args) -> size_t override {
-        return theory_.fun(name, {args.begin(), args.end()});
+        return theory_->fun(name, {args.begin(), args.end()});
     }
 
     auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override {
-        return theory_.tup(type, {args.begin(), args.end()});
+        return theory_->tup(type, {args.begin(), args.end()});
     }
 
-    auto do_sym(Symbol sym) -> size_t override { return theory_.sym(sym); }
+    auto do_sym(Symbol sym) -> size_t override { return theory_->sym(sym); }
 
     auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
         auto lits = bld_.cond(uid_to_lit(cond));
-        return theory_.elem({tuple.begin(), tuple.end()}, {lits.begin(), lits.end()});
+        return theory_->elem({tuple.begin(), tuple.end()}, {lits.begin(), lits.end()});
     }
 
     void do_atom(OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
         auto new_lit = type != OutputTheory::AtomType::directive ? static_cast<lit_t>(atom_uid) : 0;
-        auto old_lit = theory_.atom([atom_uid]() { return static_cast<lit_t>(atom_uid); }, name,
-                                    {elems.begin(), elems.end()}, Util::transform(guard, [](auto const &guard) {
-                                        return std::pair{guard.first, static_cast<id_t>(guard.second)};
-                                    }));
+        auto old_lit = theory_->atom([atom_uid]() { return static_cast<lit_t>(atom_uid); }, name,
+                                     {elems.begin(), elems.end()}, Util::transform(guard, [](auto const &guard) {
+                                         return std::pair{guard.first, static_cast<id_t>(guard.second)};
+                                     }));
         // handle directives
         if (new_lit == 0 || old_lit == 0) {
             bld_.backend().rule(std::array{uid_to_atom(atom_uid)}, {}, false);
@@ -1599,8 +1600,6 @@ class OutputBackend : public OutputStm, OutputTheory {
         }
     }
 
-    void do_reset() override { theory_.reset(); }
-
     LitVec lits_;
     BuilderBase bld_;
     BuilderRule rule_;
@@ -1610,7 +1609,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     BuilderCondLit cond_lit_;
     BuilderDisjunction disjunction_;
     BuilderMinimize minimize_;
-    TheoryData theory_;
+    TheoryData *theory_;
     OutputBody body_{bld_};
     OutputCond cond_{bld_};
 };
@@ -1620,7 +1619,7 @@ class OutputBackend : public OutputStm, OutputTheory {
 auto TheoryData::num(weight_t num) -> id_t {
     auto [it, ins] = insert_(nums_, num);
     if (ins) {
-        backend_->theory_num(it.value(), it.key());
+        backend_->num(it.value(), it.key());
     }
     return it.value();
 }
@@ -1628,7 +1627,7 @@ auto TheoryData::num(weight_t num) -> id_t {
 auto TheoryData::str(String str) -> id_t {
     auto [it, ins] = insert_(strings_, str);
     if (ins) {
-        backend_->theory_str(it.value(), it.key()->c_str());
+        backend_->str(it.value(), it.key()->c_str());
     }
     return it.value();
 }
@@ -1639,7 +1638,7 @@ auto TheoryData::fun(String name, IdVec args) -> id_t {
     }
     auto [it, ins] = insert_(funs_, std::pair{str(name), std::move(args)});
     if (ins) {
-        backend_->theory_fun(it.value(), it.key().first, it.key().second);
+        backend_->fun(it.value(), it.key().first, it.key().second);
     }
     return it.value();
 }
@@ -1647,7 +1646,7 @@ auto TheoryData::fun(String name, IdVec args) -> id_t {
 auto TheoryData::tup(TheoryTermTupleType type, IdVec args) -> id_t {
     auto [it, ins] = insert_(tups_, std::pair{type, std::move(args)});
     if (ins) {
-        backend_->theory_tup(it.value(), it.key().first, it.key().second);
+        backend_->tup(it.value(), it.key().first, it.key().second);
     }
     return it.value();
 }
@@ -1696,7 +1695,7 @@ auto TheoryData::sym(Symbol sym) -> id_t {
 auto TheoryData::elem(IdVec tuple, LitVec cond) -> id_t {
     auto [it, ins] = insert_(elems_, std::pair{std::move(tuple), std::move(cond)});
     if (ins) {
-        backend_->theory_elem(it.value(), it.key().first, it.key().second);
+        backend_->elem(it.value(), it.key().first, it.key().second);
     }
     return it.value();
 }
@@ -1712,7 +1711,7 @@ auto TheoryData::atom(std::function<lit_t()> const &atom, Symbol name, IdVec ele
                                     0);
     if (ins) {
         it.value() = atom();
-        backend_->theory_atom(it.value(), get<0>(it.key()), get<1>(it.key()), get<2>(it.key()));
+        backend_->atom(it.value(), get<0>(it.key()), get<1>(it.key()), get<2>(it.key()));
     }
     return it.value();
 }
@@ -1738,8 +1737,8 @@ template <class M, class V> auto TheoryData::insert_(M &map, V &&val) -> std::pa
     return {it, ins};
 }
 
-auto make_backend_output(SymbolStore &store, Backend &backend) -> UOutputStm {
-    return std::make_unique<OutputBackend>(store, backend);
+auto make_backend_output(SymbolStore &store, ProgramBackend &backend, TheoryData &theory) -> UOutputStm {
+    return std::make_unique<OutputBackend>(store, backend, theory);
 }
 
 } // namespace Clingo::Output

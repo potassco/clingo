@@ -51,10 +51,10 @@ static constexpr auto lit_min = -lit_max;
 //!
 //! The backend is repsonsible for passig grounded statements to the solver (or
 //! other forms of backends).
-class Backend {
+class ProgramBackend {
   public:
     //! Destroy the backend.
-    virtual ~Backend() = default;
+    virtual ~ProgramBackend() = default;
 
     //! Return a fresh literal.
     //!
@@ -133,59 +133,6 @@ class Backend {
     //! @param priority the priority of the literal
     void minimize(lit_t lit, weight_t weight, weight_t priority) { do_minimize(lit, weight, priority); }
 
-    //! Add a theory number.
-    //!
-    //! @note The caller is repsonsible to assign unique ids.
-    //!
-    //! @param id the unique term id
-    //! @param num the number
-    void theory_num(id_t id, weight_t num) { do_theory_num(id, num); }
-    //! Add a theory string.
-    //!
-    //! @note The caller is repsonsible to assign unique ids.
-    //!
-    //! @param id the unique term id
-    //! @param str the string
-    void theory_str(id_t id, char const *str) { do_theory_str(id, str); }
-    //! Add a theory function.
-    //!
-    //! @note The caller is repsonsible to assign unique ids.
-    //! @pre The name must be an id to a string.
-    //!
-    //! @param id the unique term id
-    //! @param name the term id of the function name
-    //! @param args the term ids of the arguments
-    void theory_fun(id_t id, id_t name, IdSpan args) { do_theory_fun(id, name, args); }
-
-    //! Add a theory tuple.
-    //!
-    //! @note The caller is repsonsible to assign unique ids.
-    //!
-    //! @param id the unique term id
-    //! @param type the type of the tuple
-    //! @param args the term ids of the arguments
-    void theory_tup(id_t id, TheoryTermTupleType type, IdSpan args) { do_theory_tup(id, type, args); }
-
-    //! Add a theory element.
-    //!
-    //! @note The caller is repsonsible to assign unique ids.
-    //!
-    //! @param id the unique element id
-    //! @param terms the terms forming the tuple
-    //! @param cond the condition of the element
-    void theory_elem(id_t id, IdSpan terms, LitSpan cond) { do_theory_elem(id, terms, cond); }
-
-    //! Add a theory atom.
-    //!
-    //! @param atom_or_zero the literal of the atom (zero for directives)
-    //! @param name the name of the atom (must be a function or symbol)
-    //! @param elems the elements of the atom
-    //! @param guard the optional guard of the atom
-    void theory_atom(lit_t atom_or_zero, id_t name, IdSpan elems, std::optional<std::pair<id_t, id_t>> guard) {
-        assert(atom_or_zero >= 0);
-        do_theory_atom(atom_or_zero, name, elems, guard);
-    }
-
   private:
     virtual auto do_next_lit() -> lit_t = 0;
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
@@ -197,16 +144,79 @@ class Backend {
     virtual void do_external(lit_t atom, ExternalType type) = 0;
     virtual void do_project(lit_t atom) = 0;
     virtual void do_minimize(lit_t lit, weight_t weight, weight_t priority) = 0;
-    virtual void do_theory_num(id_t id, weight_t num) = 0;
-    virtual void do_theory_str(id_t id, char const *str) = 0;
-    virtual void do_theory_fun(id_t id, id_t name, IdSpan args) = 0;
-    virtual void do_theory_tup(id_t id, TheoryTermTupleType type, IdSpan args) = 0;
-    virtual void do_theory_elem(id_t id, IdSpan terms, LitSpan cond) = 0;
-    virtual void do_theory_atom(lit_t atom_or_zero, id_t name, IdSpan elems,
-                                std::optional<std::pair<id_t, id_t>> guard) = 0;
 };
-//! A unique pointer for a backend.
-using UBackend = std::unique_ptr<Backend>;
+//! A unique pointer for a program backend.
+using UProgramBackend = std::unique_ptr<ProgramBackend>;
+
+//! Abstract class connecting grounder and theory data.
+class TheoryBackend {
+  public:
+    //! Destroy the backend.
+    virtual ~TheoryBackend() = default;
+
+    //! Add a theory number.
+    //!
+    //! @note The caller is repsonsible to assign unique ids.
+    //!
+    //! @param id the unique term id
+    //! @param num the number
+    void num(id_t id, weight_t num) { do_num(id, num); }
+    //! Add a theory string.
+    //!
+    //! @note The caller is repsonsible to assign unique ids.
+    //!
+    //! @param id the unique term id
+    //! @param str the string
+    void str(id_t id, char const *str) { do_str(id, str); }
+    //! Add a theory function.
+    //!
+    //! @note The caller is repsonsible to assign unique ids.
+    //! @pre The name must be an id to a string.
+    //!
+    //! @param id the unique term id
+    //! @param name the term id of the function name
+    //! @param args the term ids of the arguments
+    void fun(id_t id, id_t name, IdSpan args) { do_fun(id, name, args); }
+
+    //! Add a theory tuple.
+    //!
+    //! @note The caller is repsonsible to assign unique ids.
+    //!
+    //! @param id the unique term id
+    //! @param type the type of the tuple
+    //! @param args the term ids of the arguments
+    void tup(id_t id, TheoryTermTupleType type, IdSpan args) { do_tup(id, type, args); }
+
+    //! Add a theory element.
+    //!
+    //! @note The caller is repsonsible to assign unique ids.
+    //!
+    //! @param id the unique element id
+    //! @param terms the terms forming the tuple
+    //! @param cond the condition of the element
+    void elem(id_t id, IdSpan terms, LitSpan cond) { do_elem(id, terms, cond); }
+
+    //! Add a theory atom.
+    //!
+    //! @param atom_or_zero the literal of the atom (zero for directives)
+    //! @param name the name of the atom (must be a function or symbol)
+    //! @param elems the elements of the atom
+    //! @param guard the optional guard of the atom
+    void atom(lit_t atom_or_zero, id_t name, IdSpan elems, std::optional<std::pair<id_t, id_t>> guard) {
+        assert(atom_or_zero >= 0);
+        do_atom(atom_or_zero, name, elems, guard);
+    }
+
+  private:
+    virtual void do_num(id_t id, weight_t num) = 0;
+    virtual void do_str(id_t id, char const *str) = 0;
+    virtual void do_fun(id_t id, id_t name, IdSpan args) = 0;
+    virtual void do_tup(id_t id, TheoryTermTupleType type, IdSpan args) = 0;
+    virtual void do_elem(id_t id, IdSpan terms, LitSpan cond) = 0;
+    virtual void do_atom(lit_t atom_or_zero, id_t name, IdSpan elems, std::optional<std::pair<id_t, id_t>> guard) = 0;
+};
+//! A unique pointer for a theory backend.
+using UTheoryBackend = std::unique_ptr<TheoryBackend>;
 
 //! Class similar to Potassco::TheoryData but with automatic id generation.
 class TheoryData {
@@ -214,7 +224,7 @@ class TheoryData {
     using IdVec = Util::small_vector<id_t, 4>;
     using LitVec = Util::small_vector<lit_t, 4>;
 
-    TheoryData(SymbolStore &store, Backend &backend) : store_{&store}, backend_{&backend} {}
+    TheoryData(SymbolStore &store, UTheoryBackend backend) : store_{&store}, backend_{std::move(backend)} {}
 
     //! Add a number term.
     //!
@@ -299,7 +309,7 @@ class TheoryData {
     template <class M, class V> auto insert_(M &map, V &&val) -> std::pair<typename M::iterator, bool>;
 
     SymbolStore *store_;
-    Backend *backend_;
+    UTheoryBackend backend_;
     Util::OutputBuffer buf_;
     StringMap strings_;
     NumMap nums_;
@@ -318,7 +328,7 @@ class TheoryData {
 //!
 //! @param store the store holding symbols
 //! @param backend the target backend
-auto make_backend_output(SymbolStore &store, Backend &backend) -> UOutputStm;
+auto make_backend_output(SymbolStore &store, ProgramBackend &backend, TheoryData &theory) -> UOutputStm;
 
 //! @}
 

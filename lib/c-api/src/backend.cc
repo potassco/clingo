@@ -15,7 +15,7 @@ auto get_program(clingo_backend_t *backend) -> Clasp::Asp::LogicProgram & {
     return cpp_cast(backend)->program();
 }
 
-auto get_theory(clingo_backend_t *backend) -> Clingo::OutputTheory & {
+auto get_theory(clingo_backend_t *backend) -> Clingo::Output::TheoryData & {
     return cpp_cast(backend)->theory();
 }
 
@@ -28,15 +28,6 @@ auto map(clingo_weighted_literal_t const *lits, size_t size) -> std::vector<Pota
     ret.clear();
     for (auto const &lit : std::span{lits, size}) {
         ret.emplace_back(lit.literal, lit.weight);
-    }
-    return ret;
-}
-
-auto map(clingo_id_t const *ids, size_t size) -> Clingo::IndexSpan {
-    static thread_local auto ret = Clingo::IndexVec{};
-    ret.clear();
-    for (auto const &id : std::span{ids, size}) {
-        ret.emplace_back(id);
     }
     return ret;
 }
@@ -254,7 +245,8 @@ extern "C" auto clingo_backend_theory_term_sequence(clingo_backend_t *backend, c
         if (backend == nullptr || (arguments == nullptr && size == 0) || term_id == nullptr) {
             return clingo_result_invalid;
         }
-        *term_id = get_theory(backend).tup(map(static_cast<clingo_theory_sequence_type_e>(type)), map(arguments, size));
+        *term_id =
+            get_theory(backend).tup(map(static_cast<clingo_theory_sequence_type_e>(type)), std::span{arguments, size});
     }
     CLINGO_CATCH;
 }
@@ -266,35 +258,26 @@ extern "C" auto clingo_backend_theory_term_function(clingo_backend_t *backend, c
         if (backend == nullptr || name == nullptr || arguments == nullptr || size == 0 || term_id == nullptr) {
             return clingo_result_invalid;
         }
-        *term_id = get_theory(backend).fun(*get_store(backend).string(name), map(arguments, size));
+        *term_id = get_theory(backend).fun(*get_store(backend).string(name), std::span{arguments, size});
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_backend_theory_element(clingo_backend_t *backend, clingo_id_t const *tuple, size_t tuple_size,
+                                              clingo_literal_t const *condition, size_t condition_size,
+                                              clingo_id_t *element_id) -> clingo_result_t {
+    CLINGO_TRY {
+        if (backend == nullptr || (tuple == nullptr && tuple_size > 0) ||
+            (condition == nullptr && condition_size > 0) || element_id == nullptr) {
+            return clingo_result_invalid;
+        }
+        *element_id = get_theory(backend).elem(std::span{tuple, tuple_size}, std::span{condition, condition_size});
     }
     CLINGO_CATCH;
 }
 
 // TODO: remove
 // NOLINTBEGIN
-
-extern "C" clingo_result_t clingo_backend_theory_element(clingo_backend_t *backend, clingo_id_t const *tuple,
-                                                         size_t tuple_size, clingo_literal_t const *condition,
-                                                         size_t condition_size, clingo_id_t *element_id) {
-    CLINGO_TRY {
-        if (backend == nullptr || (tuple == nullptr && tuple_size > 0) ||
-            (condition == nullptr && condition_size > 0) || element_id == nullptr) {
-            return clingo_result_invalid;
-        }
-        // TODO: the condition handling of the output does not suite here
-        // extend OutputTheory with:
-        // - auto do_elem(IndexSpan tuple, IndexSpan cond)
-        //   - the span can hold the literals casted to size_t
-        //   - the text output can simply raise an exception because the function will never be called
-        //   - the backend output can interpret the literals as lit_t
-        //   - this works because the backend output uses literals as indices
-        //   - this is a hack because this should be an implementation detail
-        //   - a proper solution would require to move theory handling out of the output
-        // *element_id = get_theory(backend).elem(map(tuple, tuple_size), std::span{condition, condition_size});
-    }
-    CLINGO_CATCH;
-}
 
 extern "C" clingo_result_t clingo_backend_theory_atom(clingo_backend_t *backend, clingo_atom_t atom,
                                                       clingo_id_t term_id, clingo_id_t const *elements, size_t size,

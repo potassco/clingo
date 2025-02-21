@@ -45,8 +45,6 @@ class OutputTheory {
     }
     //! Output the given symbol.
     auto sym(Symbol sym) -> size_t { return do_sym(sym); }
-    //! Reset the theory.
-    void reset() { do_reset(); }
 
   private:
     virtual auto do_str(String val) -> size_t = 0;
@@ -56,7 +54,6 @@ class OutputTheory {
     virtual auto do_sym(Symbol sym) -> size_t = 0;
     virtual auto do_elem(IndexSpan tuple, size_t cond) -> size_t = 0;
     virtual void do_atom(AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) = 0;
-    virtual void do_reset() = 0;
 };
 
 //! Interface to output literals.

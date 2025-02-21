@@ -391,7 +391,7 @@ class PropagatorLock : public Clasp::ClingoPropagatorLock {
 class BackendHandle {
   public:
     [[nodiscard]] auto program() -> Clasp::Asp::LogicProgram & { return do_program(); }
-    [[nodiscard]] auto theory() -> OutputTheory & { return do_theory(); }
+    [[nodiscard]] auto theory() -> Output::TheoryData & { return do_theory(); }
     [[nodiscard]] auto store() -> SymbolStore & { return do_store(); }
     [[nodiscard]] auto add_atom(Symbol atom) -> Output::lit_t { return do_add_atom(atom); }
     void close() { do_close(); }
@@ -399,7 +399,7 @@ class BackendHandle {
 
   private:
     virtual auto do_program() -> Clasp::Asp::LogicProgram & = 0;
-    virtual auto do_theory() -> OutputTheory & = 0;
+    virtual auto do_theory() -> Output::TheoryData & = 0;
     virtual auto do_store() -> SymbolStore & = 0;
     virtual auto do_add_atom(Symbol atom) -> Output::lit_t = 0;
     virtual void do_close() = 0;
@@ -512,7 +512,8 @@ class Solver : public BaseView {
     Clasp::ClaspFacade *clasp_;
     Clasp::Cli::ClaspCliConfig *clasp_config_;
     Util::OutputBuffer buf_;
-    Output::UBackend backend_;
+    Output::UProgramBackend backend_;
+    std::unique_ptr<Output::TheoryData> theory_;
     UOutputStm out_;
     Grounder grd_;
     Scripts *scripts_;

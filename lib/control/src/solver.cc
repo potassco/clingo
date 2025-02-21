@@ -18,9 +18,9 @@ namespace Clingo::Control {
 namespace {
 
 //! Implementation of the backend interface.
-class BackendImpl : public Output::Backend {
+class ProgramBackendImpl : public Output::ProgramBackend {
   public:
-    BackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
+    ProgramBackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
 
   private:
     auto do_next_lit() -> Output::lit_t override {
@@ -142,16 +142,27 @@ class BackendImpl : public Output::Backend {
 #endif
     }
 
-    void do_theory_num(Output::id_t id, int32_t num) override { prg_->theoryData().addTerm(id, num); }
+    Util::OutputBuffer buf_;
+    Potassco::RuleBuilder bld_;
+    Clasp::Asp::LogicProgram *prg_;
+};
 
-    void do_theory_str(Output::id_t id, char const *str) override { prg_->theoryData().addTerm(id, str); }
+//! Implementation of the theory backend interface.
+class TheoryBackendImpl : public Output::TheoryBackend {
+  public:
+    TheoryBackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
 
-    void do_theory_fun(Output::id_t id, Output::id_t name, Output::IdSpan args) override {
+  private:
+    void do_num(Output::id_t id, int32_t num) override { prg_->theoryData().addTerm(id, num); }
+
+    void do_str(Output::id_t id, char const *str) override { prg_->theoryData().addTerm(id, str); }
+
+    void do_fun(Output::id_t id, Output::id_t name, Output::IdSpan args) override {
         assert(!args.empty());
         prg_->theoryData().addTerm(id, name, args);
     }
 
-    void do_theory_tup(Output::id_t id, TheoryTermTupleType type, Output::IdSpan args) override {
+    void do_tup(Output::id_t id, TheoryTermTupleType type, Output::IdSpan args) override {
         prg_->theoryData().addTerm(
             id,
             [type] {
@@ -171,7 +182,7 @@ class BackendImpl : public Output::Backend {
             args);
     }
 
-    void do_theory_elem(Output::id_t id, Output::IdSpan terms, Output::LitSpan cond) override {
+    void do_elem(Output::id_t id, Output::IdSpan terms, Output::LitSpan cond) override {
         prg_->theoryData().addElement(id, terms, prg_->newCondition(cond));
     }
 
@@ -221,8 +232,8 @@ class BackendImpl : public Output::Backend {
     }
 #endif
 
-    void do_theory_atom(Output::lit_t lit_or_zero, Output::id_t name, Output::IdSpan elems,
-                        std::optional<std::pair<Output::id_t, Output::id_t>> guard) override {
+    void do_atom(Output::lit_t lit_or_zero, Output::id_t name, Output::IdSpan elems,
+                 std::optional<std::pair<Output::id_t, Output::id_t>> guard) override {
         if (guard) {
             prg_->theoryData().addAtom(lit_or_zero, name, elems, guard->first, guard->second);
         } else {
@@ -235,8 +246,6 @@ class BackendImpl : public Output::Backend {
 #endif
     }
 
-    Util::OutputBuffer buf_;
-    Potassco::RuleBuilder bld_;
     Clasp::Asp::LogicProgram *prg_;
 };
 
@@ -659,8 +668,9 @@ Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_conf
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
     switch (mode) {
         case AppMode::solve: {
-            backend_ = std::make_unique<BackendImpl>(*clasp_->asp());
-            return Output::make_backend_output(store, *backend_);
+            backend_ = std::make_unique<ProgramBackendImpl>(*clasp_->asp());
+            theory_ = std::make_unique<Output::TheoryData>(store, std::make_unique<TheoryBackendImpl>(*clasp_->asp()));
+            return Output::make_backend_output(store, *backend_, *theory_);
         }
         default: {
             return Output::make_text_output(buf_);
@@ -712,7 +722,7 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         state_ = State::solved;
         clasp_->asp()->addAssumption(assumptions);
         clasp_->prepare();
-        out_->theory().reset();
+        theory_->reset();
         return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), grd_.base(), *clasp_, mode, std::move(handler));
     }
     return std::make_unique<SolveHandleFixed>();
@@ -751,14 +761,15 @@ namespace {
 
 class BackendHandleImpl : public BackendHandle {
   public:
-    BackendHandleImpl(Grounder &grounder, Output::Backend &backend, Clasp::Asp::LogicProgram &prg, OutputTheory &theory)
+    BackendHandleImpl(Grounder &grounder, Output::ProgramBackend &backend, Clasp::Asp::LogicProgram &prg,
+                      Output::TheoryData &theory)
         : grounder_{&grounder}, backend_{&backend}, prg_{&prg}, theory_{&theory} {}
     ~BackendHandleImpl() override { close(); }
 
   private:
     auto do_program() -> Clasp::Asp::LogicProgram & override { return *prg_; }
 
-    auto do_theory() -> OutputTheory & override { return *theory_; }
+    auto do_theory() -> Output::TheoryData & override { return *theory_; }
 
     auto do_store() -> SymbolStore & override { return grounder_->store(); }
 
@@ -796,18 +807,18 @@ class BackendHandleImpl : public BackendHandle {
     }
 
     Grounder *grounder_;
-    Output::Backend *backend_;
+    Output::ProgramBackend *backend_;
     Clasp::Asp::LogicProgram *prg_;
-    OutputTheory *theory_;
+    Output::TheoryData *theory_;
     std::vector<std::pair<Output::lit_t, Symbol>> added_;
 };
 
 } // namespace
 
 auto Solver::backend() -> UBackendHandle {
-    if (backend_ != nullptr && clasp_->asp() != nullptr) {
+    if (backend_ != nullptr && clasp_->asp() != nullptr && theory_ != nullptr) {
         prepare_();
-        return std::make_unique<BackendHandleImpl>(grd_, *backend_, *clasp_->asp(), out_->theory());
+        return std::make_unique<BackendHandleImpl>(grd_, *backend_, *clasp_->asp(), *theory_);
     }
     throw std::runtime_error("not in solving mode");
 }
