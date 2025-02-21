@@ -146,4 +146,12 @@ using Lit_t = clingo_literal_t;
 using LitVec = std::vector<Lit_t>;
 using LitSpan = std::span<Lit_t const>;
 
+using Atom_t = clingo_atom_t;
+using AtomVec = std::vector<Atom_t>;
+using AtomSpan = std::span<Atom_t const>;
+
+using WeightLit = std::pair<clingo_literal_t, clingo_weight_t>;
+using WeightLitVec = std::vector<WeightLit>;
+using WeightLitSpan = std::span<WeightLit const>;
+
 } // namespace Clingo::Python

@@ -110,7 +110,7 @@ template <typename T> struct type_caster<std::span<T>> {
             if (!conv.load(val, convert)) {
                 return false;
             }
-            storage_.emplace_back(std::move(conv.value));
+            storage_.emplace_back(cast_op<value_type &&>(std::move(conv)));
         }
         value = type{storage_.data(), storage_.size()};
         return true;

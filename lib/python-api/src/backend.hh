@@ -12,6 +12,8 @@ class Backend {
   public:
     Backend(clingo_backend_t *backend) : backend_{backend} {}
     auto atom(std::optional<Symbol> symbol) -> clingo_atom_t;
+    void rule(AtomSpan head, LitSpan body, bool choice);
+    void weight_rule(AtomSpan head, clingo_weight_t lower, WeightLitSpan body, bool choice);
 
   private:
     clingo_backend_t *backend_;
