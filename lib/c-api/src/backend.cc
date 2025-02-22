@@ -300,7 +300,7 @@ extern "C" auto clingo_backend_theory_atom(clingo_backend_t *backend, clingo_sym
         }
         *atom_out =
             get_theory(backend).atom([&]() { return atom_in != nullptr ? *atom_in : get_program(backend).newAtom(); },
-                                     *cpp_cast(&name), std::span{elements, size}, std::nullopt);
+                                     *cpp_cast(&name), std::span{elements, size}, std::move(guard));
     }
     CLINGO_CATCH;
 }

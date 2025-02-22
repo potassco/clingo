@@ -89,7 +89,7 @@ auto Backend::theory_atom(std::optional<clingo_atom_t> atom, Symbol name, IdSpan
                           std::optional<std::pair<std::string, clingo_id_t>> const &guard) -> clingo_atom_t {
     clingo_atom_t res = 0;
     handle_error(clingo_backend_theory_atom(backend_, *c_cast(&name), elements.data(), elements.size(),
-                                            guard ? &*guard->first.c_str() : nullptr, guard ? guard->second : 0,
+                                            guard ? guard->first.c_str() : nullptr, guard ? guard->second : 0,
                                             atom ? &*atom : nullptr, &res));
     return res;
 }
@@ -149,12 +149,12 @@ The next example shows how to add theory atoms to a program:
 >>> ctl = Control(lib)
 ...
 >>> with ctl.backend as bck:
-... n = Function(lib, "p")
-... a = bck.theory_string("a")
-... o = bck.theory_number(1)
-... f = bck.theory_function("f", [a, o])
-... e = bck.theory_element([f], [])
-... bck.theory_atom(0, n, [e])
+...     n = Function(lib, "p")
+...     a = bck.theory_string("a")
+...     o = bck.theory_number(1)
+...     f = bck.theory_function("f", [a, o])
+...     e = bck.theory_element([f], [])
+...     bck.theory_atom(0, n, [e])
 ...
 >>> print(ctl.base.theory[0])
 &p { f(a,1) }

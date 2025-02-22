@@ -13,7 +13,7 @@ from clingo.symbol import Function, Number
 class TestBase:
     # pylint: disable=attribute-defined-outside-init
     """
-    Tests for the control module.
+    Tests for the base module.
     """
 
     def setup_method(self, method):
