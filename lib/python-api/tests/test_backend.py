@@ -2,10 +2,11 @@
 Unit tests for clingo.backend module.
 """
 
-from clingo.backend import TheorySequenceType
+from clingo.backend import ExternalType, TheorySequenceType
 from clingo.control import Control
 from clingo.core import Library
 from clingo.symbol import Function, Number
+from util import MCB
 
 
 class TestBackend:
@@ -20,7 +21,7 @@ class TestBackend:
         """
         assert method is not None
         self._lib = Library()
-        self._ctl = Control(self._lib)
+        self._ctl = Control(self._lib, ["0"])
 
     def teardown_method(self, method):
         """
@@ -46,10 +47,115 @@ class TestBackend:
         assert self._ctl is not None
         return self._ctl
 
-    def test_backend(self):
+    def test_rule(self):
         """
-        Test add statetments.
+        Test add rule.
         """
+        with self.ctl.backend as bck:
+            p1 = Function(self.lib, "p", [Number(self.lib, 1)])
+            p2 = Function(self.lib, "p", [Number(self.lib, 2)])
+            p3 = Function(self.lib, "p", [Number(self.lib, 3)])
+            p4 = Function(self.lib, "p", [Number(self.lib, 4)])
+            a1 = bck.atom(p1)
+            a2 = bck.atom(p2)
+            a3 = bck.atom(p3)
+            a4 = bck.atom(p4)
+            bck.rule([a1])
+            bck.rule([a2], choice=True)
+            bck.rule([a3], [a2])
+            bck.weight_rule([a4], 4, [(a1, 2), (a2, 1), (a3, 1)])
+
+        mcb = MCB()
+        with self.ctl.solve(on_model=mcb) as hnd:
+            assert hnd.get().satisfiable
+        assert mcb.symbols == [["p(1)"], ["p(1)", "p(2)", "p(3)", "p(4)"]]
+
+    def test_edge(self):
+        """
+        Test add edge.
+        """
+        with self.ctl.backend as bck:
+            a = bck.atom(Function(self.lib, "a"))
+            b = bck.atom(Function(self.lib, "b"))
+            bck.rule([a, b], choice=True)
+            bck.edge(1, 2, [a])
+            bck.edge(2, 1, [b])
+
+        mcb = MCB()
+        with self.ctl.solve(on_model=mcb) as hnd:
+            assert hnd.get().satisfiable
+        assert mcb.symbols == [[], ["a"], ["b"]]
+
+    def test_external(self):
+        """
+        Test external.
+        """
+
+        def run(t):
+            with self.ctl.backend as bck:
+                a = bck.atom(Function(self.lib, "a"))
+                bck.external(a, t)
+            mcb = MCB()
+            with self.ctl.solve(on_model=mcb) as hnd:
+                assert hnd.get().satisfiable
+            return mcb.symbols
+
+        assert run(ExternalType.Free) == [[], ["a"]]
+        assert run(ExternalType.False_) == [[]]
+        assert run(ExternalType.True_) == [["a"]]
+        assert run(ExternalType.Release) == [[]]
+
+    def test_assume(self):
+        """
+        Test assume.
+        """
+
+        def run(t):
+            with self.ctl.backend as bck:
+                a = bck.atom(Function(self.lib, "a"))
+                bck.assume([a if t else -a])
+            mcb = MCB()
+            with self.ctl.solve(on_model=mcb) as hnd:
+                assert hnd.get().satisfiable
+            return mcb.symbols
+
+        with self.ctl.backend as bck:
+            a = bck.atom(Function(self.lib, "a"))
+            bck.rule([a], choice=True)
+
+        assert run(True) == [["a"]]
+        assert run(False) == [[]]
+
+    def test_project(self):
+        """
+        Test project.
+        """
+        # TODO: investigate
+        self._ctl = Control(self.lib, ["0", "--project"])
+        # self.ctl.config.solve.project = "auto"
+        with self.ctl.backend as bck:
+            a = bck.atom(Function(self.lib, "a"))
+            b = bck.atom(Function(self.lib, "b"))
+            c = bck.atom(Function(self.lib, "c"))
+            d = bck.atom(Function(self.lib, "d"))
+            bck.rule([a, b, c, d])
+            bck.project([a, b])
+        mcb = MCB()
+        with self.ctl.solve(on_model=mcb) as hnd:
+            assert hnd.get().satisfiable
+        assert len(mcb.symbols) == 3
+
+    def test_minimize(self):
+        """
+        Test minimize.
+        """
+        # TODO: add test
+
+    def test_heuristic(self):
+        """
+        Test heuristic.
+        """
+        # TODO: add test
 
     def test_theory(self):
         """
