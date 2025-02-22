@@ -48,6 +48,52 @@ void Backend::edge(int node_u, int node_v, LitSpan condition) {
     handle_error(clingo_backend_acyc_edge(backend_, node_u, node_v, condition.data(), condition.size()));
 }
 
+auto Backend::theory_number(int number) -> clingo_id_t {
+    clingo_id_t id = 0;
+    handle_error(clingo_backend_theory_term_number(backend_, number, &id));
+    return id;
+}
+
+auto Backend::theory_string(std::string const &string) -> clingo_id_t {
+    clingo_id_t id = 0;
+    handle_error(clingo_backend_theory_term_string(backend_, string.c_str(), &id));
+    return id;
+}
+
+auto Backend::theory_symbol(Symbol symbol) -> clingo_id_t {
+    clingo_id_t id = 0;
+    handle_error(clingo_backend_theory_term_symbol(backend_, *c_cast(&symbol), &id));
+    return id;
+}
+
+auto Backend::theory_sequence(clingo_theory_sequence_type_e type, IdSpan elements) -> clingo_id_t {
+    clingo_id_t id = 0;
+    handle_error(clingo_backend_theory_term_sequence(backend_, type, elements.data(), elements.size(), &id));
+    return id;
+}
+
+auto Backend::theory_function(std::string const &name, IdSpan elements) -> clingo_id_t {
+    clingo_id_t id = 0;
+    handle_error(clingo_backend_theory_term_function(backend_, name.c_str(), elements.data(), elements.size(), &id));
+    return id;
+}
+
+auto Backend::theory_element(IdSpan tuple, LitSpan condition) -> clingo_id_t {
+    clingo_id_t id = 0;
+    handle_error(
+        clingo_backend_theory_element(backend_, tuple.data(), tuple.size(), condition.data(), condition.size(), &id));
+    return id;
+}
+
+auto Backend::theory_atom(std::optional<clingo_atom_t> atom, Symbol name, IdSpan elements,
+                          std::optional<std::pair<std::string, clingo_id_t>> const &guard) -> clingo_atom_t {
+    clingo_atom_t res = 0;
+    handle_error(clingo_backend_theory_atom(backend_, *c_cast(&name), elements.data(), elements.size(),
+                                            guard ? &*guard->first.c_str() : nullptr, guard ? guard->second : 0,
+                                            atom ? &*atom : nullptr, &res));
+    return res;
+}
+
 // BackendManager
 
 auto BackendManager::enter() -> Backend {

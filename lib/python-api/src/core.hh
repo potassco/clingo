@@ -150,6 +150,8 @@ using Atom_t = clingo_atom_t;
 using AtomVec = std::vector<Atom_t>;
 using AtomSpan = std::span<Atom_t const>;
 
+using IdSpan = std::span<clingo_id_t>;
+
 using WeightLitVec = std::vector<clingo_weighted_literal_t>;
 using WeightLitSpan = std::span<clingo_weighted_literal_t const>;
 

@@ -21,6 +21,15 @@ class Backend {
     void heuristic(clingo_atom_t atom, clingo_heuristic_type_e type, int bias, unsigned priority, LitSpan condition);
     void edge(int node_u, int node_v, LitSpan condition);
 
+    auto theory_number(int number) -> clingo_id_t;
+    auto theory_string(std::string const &string) -> clingo_id_t;
+    auto theory_symbol(Symbol symbol) -> clingo_id_t;
+    auto theory_sequence(clingo_theory_sequence_type_e type, IdSpan elements) -> clingo_id_t;
+    auto theory_function(std::string const &name, IdSpan elements) -> clingo_id_t;
+    auto theory_element(IdSpan tuple, LitSpan condition) -> clingo_id_t;
+    auto theory_atom(std::optional<clingo_atom_t> atom, Symbol name, IdSpan elements,
+                     std::optional<std::pair<std::string, clingo_id_t>> const &guard) -> clingo_atom_t;
+
   private:
     clingo_backend_t *backend_;
 };
