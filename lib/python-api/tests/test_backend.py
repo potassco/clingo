@@ -2,7 +2,7 @@
 Unit tests for clingo.backend module.
 """
 
-from clingo.backend import ExternalType, TheorySequenceType
+from clingo.backend import ExternalType, HeuristicType, TheorySequenceType
 from clingo.control import Control
 from clingo.core import Library
 from clingo.symbol import Function, Number
@@ -130,9 +130,10 @@ class TestBackend:
         """
         Test project.
         """
-        # TODO: investigate
-        self._ctl = Control(self.lib, ["0", "--project"])
-        # self.ctl.config.solve.project = "auto"
+        # TODO: Currently, config updates are not applied often enough. That's
+        # why there is the seamingly unnecessary call to solve below.
+        self.ctl.config.solve.project = "auto"
+        self.ctl.solve()
         with self.ctl.backend as bck:
             a = bck.atom(Function(self.lib, "a"))
             b = bck.atom(Function(self.lib, "b"))
@@ -149,13 +150,44 @@ class TestBackend:
         """
         Test minimize.
         """
-        # TODO: add test
+        with self.ctl.backend as bck:
+            a = bck.atom(Function(self.lib, "a"))
+            b = bck.atom(Function(self.lib, "b"))
+            c = bck.atom(Function(self.lib, "c"))
+            d = bck.atom(Function(self.lib, "d"))
+            bck.rule([a, b, c, d], choice=True)
+            bck.minimize([(a, 1), (b, -1), (c, 1), (d, -1)])
+
+        with self.ctl.solve(on_model=print) as hnd:
+            assert hnd.get().satisfiable
+            last = hnd.last()
+            assert last is not None
+            syms = [str(sym) for sym in sorted(last.symbols(shown=True))]
+            assert syms == ["b", "d"]
 
     def test_heuristic(self):
         """
         Test heuristic.
         """
-        # TODO: add test
+        # TODO: Currently, config updates are not applied often enough. That's
+        # why there is the seamingly unnecessary call to solve below.
+        self.ctl.config.solver.heuristic = "domain"
+        self.ctl.config.solve.models = "1"
+        self.ctl.solve()
+        with self.ctl.backend as bck:
+            a = bck.atom(Function(self.lib, "a"))
+            b = bck.atom(Function(self.lib, "b"))
+            c = bck.atom(Function(self.lib, "c"))
+            d = bck.atom(Function(self.lib, "d"))
+            bck.rule([a, b, c, d], choice=True)
+            bck.heuristic(a, HeuristicType.True_, 1)
+            bck.heuristic(b, HeuristicType.False_, 1)
+            bck.heuristic(c, HeuristicType.True_, 1)
+            bck.heuristic(d, HeuristicType.False_, 1)
+        mcb = MCB()
+        with self.ctl.solve(on_model=mcb) as hnd:
+            assert hnd.get().satisfiable
+        assert mcb.symbols == [["a", "c"]]
 
     def test_theory(self):
         """
