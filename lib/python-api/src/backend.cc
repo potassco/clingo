@@ -140,6 +140,25 @@ SAT
 ```
 
 The next example shows how to add theory atoms to a program:
+```python
+>>> from clingo.core import Library
+>>> from clingo.symbol import Function
+>>> from clingo.control import Control
+...
+>>> lib = Library()
+>>> ctl = Control(lib)
+...
+>>> with ctl.backend as bck:
+... n = Function(lib, "p")
+... a = bck.theory_string("a")
+... o = bck.theory_number(1)
+... f = bck.theory_function("f", [a, o])
+... e = bck.theory_element([f], [])
+... bck.theory_atom(0, n, [e])
+...
+>>> print(ctl.base.theory[0])
+&p { f(a,1) }
+```
 )"_d);
 
     py::enum_<clingo_heuristic_type_e>(backend, "HeuristicType", R"doc(Available heuristic types.)doc")
@@ -151,17 +170,23 @@ The next example shows how to add theory atoms to a program:
         .value("Sign", clingo_heuristic_type_sign, R"doc(The sign modifier.)doc");
 
     py::enum_<clingo_external_type_e>(backend, "ExternalType", R"doc(Available external types.)doc")
-        .value("True_", clingo_external_type_true)
-        .value("False_", clingo_external_type_false)
-        .value("Free", clingo_external_type_free)
-        .value("Release", clingo_external_type_release);
+        .value("True_", clingo_external_type_true, R"(Make an external atom true.)")
+        .value("False_", clingo_external_type_false, R"(Make an external atom false.)")
+        .value("Free", clingo_external_type_free, R"(Make an external atom a choice.)")
+        .value("Release", clingo_external_type_release, R"(Release an external atom.)");
+
+    py::enum_<clingo_theory_sequence_type_e>(backend, "TheorySequenceType", R"(Available theory sequence types.)")
+        .value("Tuple", clingo_theory_sequence_type_tuple, R"(Sequences enclosed in parentheses.)")
+        .value("List", clingo_theory_sequence_type_list, R"(Sequences enclosed in brackets.)")
+        .value("Set", clingo_theory_sequence_type_set, R"(Sequences enclosed in braces.)");
 
     py::class_<Backend>(backend, "Backend", R"(
 Provides an interface to extend a logic program.
 
 The Backend class allows for extending logic programs through a low-level
 interface. It provides methods to add various types of rules, set external
-atoms, specify heuristics, and define optimization statements.
+atoms, specify heuristics, define optimization statements, and extend the
+underlying theory.
 
 See Also:
     clingo.control.Control.backend
@@ -175,7 +200,8 @@ atoms will be used in subequents calls to ground for instantiation.
 Args:
     symbol: The symbol associated with the atom.
 
-Returns: The program atom representing the atom.
+Returns:
+	The program atom representing the atom.
 )"_d)
         .def("rule", &Backend::rule, py::arg("head"), py::arg("body") = LitSpan{}, py::arg("choice") = false, R"(
 Add a rule to the program.
@@ -281,6 +307,105 @@ values of projected atoms, regardless of other atoms in the model.
 
 Args:
 	atoms: Sequence of atoms to project on.
+)"_d)
+        .def("theory_number", &Backend::theory_number, py::arg("number"), R"(
+Create a numeric theory term.
+
+The function creates a numeric theory term with the given value and return its
+unique identifier. This id can be used in other theory-related methods to
+reference this term.
+
+Args:
+    number: The numeric value of the theory term to create.
+
+Returns:
+	The unique id of the created theory term.
+)"_d)
+        .def("theory_string", &Backend::theory_string, py::arg("string"), R"(
+Create a string theory term.
+
+The method creates a string theory term with the given value and returns its
+unique identifier. This id can be used in other theory-related methods to
+reference this term.
+
+Args:
+	string: The string value of the theory term to create.
+
+Returns:
+	The unique id of the created string theory term.
+)"_d)
+        .def("theory_symbol", &Backend::theory_symbol, py::arg("symbol"), R"(
+Convert a symbol into a theory term.
+
+The method converts the given symbol into a theory term and returns its unique
+identifier. This id can be used in other theory-related methods to reference
+this term.
+
+Args:
+	symbol: The symbol to create the theory term from.
+
+Returns:
+	The unique id of the created theory term.
+)"_d)
+        .def("theory_sequence", &Backend::theory_sequence, py::arg("type"), py::arg("elements"), R"(
+Create a sequence theory term.
+
+The method creates a sequence theory term of the specified type, containing the
+given elements, and returns its unique identifier. This id can be used in other
+theory-related methods to reference this term.
+
+Args:
+	type: The type of the sequence (e.g., tuple, list, set).
+	elements: A sequence of ids representing theory terms.
+
+Returns:
+	The unique id of the created sequence theory term.
+)"_d)
+        .def("theory_function", &Backend::theory_function, py::arg("name"), py::arg("arguments"), R"(
+Create a function theory term.
+
+The method creates a function theory term with the given name and arguments,
+and returns its unique identifier. This id can be used in other theory-related
+methods to reference this term.
+
+Args:
+	name: The name of the function.
+	arguments: A sequence of ids of theory terms.
+
+Returns:
+	The unique id of the created function theory term.
+)"_d)
+        .def("theory_element", &Backend::theory_element, py::arg("tuple"), py::arg("condition"), R"(
+Create a theory element.
+
+The method creates a theory element consisting of a tuple and a condition, and
+returns its unique identifier. This id can be used in other theory-related
+methods to reference this element.
+
+Args:
+	tuple: A sequence of ids representing theory terms.
+	condition: A sequence of program literals.
+
+Returns:
+	The unique id of the created theory element.
+)"_d)
+        .def("theory_atom", &Backend::theory_atom, py::arg("atom"), py::arg("name"), py::arg("elements"),
+             py::arg("guard") = std::nullopt, R"(
+The method creates a theory atom with the given components and returns its
+associated program atom. If the theory atom does not exist yet, it will be
+assigned a program atom based on the following rules:
+- If a specific atom value is provided, that value is used.
+- If None is given, a fresh program atom is introduced.
+- For program directives, value zero should be used.
+
+Args:
+	atom: The program atom to assign, or None to assign a fresh one.
+	name: The name of the theory atom.
+	elements: A sequence of ids representing theory elements.
+	guard: A tuple containing the guard operator and the id of the guard term, or None if there is no guard.
+
+Returns:
+	The program atom associated with the created theory atom.
 )"_d);
 
     py::class_<BackendManager>(backend, "BackendManager", R"(
