@@ -150,8 +150,41 @@ using Atom_t = clingo_atom_t;
 using AtomVec = std::vector<Atom_t>;
 using AtomSpan = std::span<Atom_t const>;
 
-using WeightLit = std::pair<clingo_literal_t, clingo_weight_t>;
-using WeightLitVec = std::vector<WeightLit>;
-using WeightLitSpan = std::span<WeightLit const>;
+using WeightLitVec = std::vector<clingo_weighted_literal_t>;
+using WeightLitSpan = std::span<clingo_weighted_literal_t const>;
 
 } // namespace Clingo::Python
+
+namespace pybind11::detail {
+
+template <> struct type_caster<clingo_weighted_literal_t> {
+  public:
+    using literal_conv = make_caster<clingo_literal_t>;
+    using weight_conv = make_caster<clingo_weight_t>;
+    using type = clingo_weighted_literal_t;
+
+    PYBIND11_TYPE_CASTER(type, _("Tuple[int, int]"));
+
+    auto load(handle src, bool convert) -> bool {
+        if (!isinstance<tuple>(src) || len(src) != 2) {
+            return false;
+        }
+
+        literal_conv lc;
+        weight_conv wc;
+        if (!lc.load(src[pybind11::int_{0}], convert) || !wc.load(src[pybind11::int_{1}], convert)) {
+            return false;
+        }
+
+        value = clingo_weighted_literal_t{cast_op<clingo_literal_t>(lc), cast_op<clingo_weight_t>(wc)};
+        return true;
+    }
+
+    static auto cast(const type &src, return_value_policy policy, handle parent) -> handle {
+        return make_tuple(literal_conv::cast(src.literal, policy, parent),
+                          weight_conv::cast(src.weight, policy, parent))
+            .release();
+    }
+};
+
+} // namespace pybind11::detail
