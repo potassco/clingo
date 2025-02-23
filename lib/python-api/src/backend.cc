@@ -8,6 +8,23 @@ namespace Clingo::Python {
 
 // Backend
 
+namespace {
+
+// TODO:
+// - template to implement observer to visit logic program
+// - next step is to implement the c-api using the actual interface
+class Observer {
+  public:
+    void rule(AtomSpan head, LitSpan body, bool choice) {
+        PYBIND11_OVERRIDE_NAME(void, Observer, "test", no_op, head, body, choice);
+    }
+
+  private:
+    template <class... Args> void no_op([[maybe_unused]] Args const &...args) {}
+};
+
+} // namespace
+
 auto Backend::atom(std::optional<Symbol> symbol) -> clingo_atom_t {
     clingo_atom_t atom = 0;
     clingo_backend_add_atom(backend_, symbol ? c_cast(&*symbol) : nullptr, &atom);
@@ -179,6 +196,28 @@ The next example shows how to add theory atoms to a program:
         .value("Tuple", clingo_theory_sequence_type_tuple, R"(Sequences enclosed in parentheses.)")
         .value("List", clingo_theory_sequence_type_list, R"(Sequences enclosed in brackets.)")
         .value("Set", clingo_theory_sequence_type_set, R"(Sequences enclosed in braces.)");
+
+    py::class_<Observer>(backend, "Observer", R"(
+ABC to inspect aspif directives.
+
+Not all functions of the interface have to be implemented and can be omitted if
+not needed.
+
+See Also:
+    `clingo.control.Control.observe`
+)")
+        .def(py::init<>())
+        .def("rule", &Observer::rule, py::arg("head"), py::arg("body"), py::arg("choice"), R"(
+Corresponds to `Backend.rule`.
+
+Args:
+    head:
+        List of program atoms forming the rule head.
+    body:
+        List of program literals forming the rule body.
+    choice:
+        Determines if the head is a choice or a disjunction.
+)"_d);
 
     py::class_<Backend>(backend, "Backend", R"(
 Provides an interface to extend a logic program.
