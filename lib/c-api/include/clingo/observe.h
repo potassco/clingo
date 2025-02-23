@@ -25,7 +25,7 @@ typedef struct clingo_control clingo_control_t;
 //! needed. If one of the callbacks in the struct fails, inspection is stopped.
 //!
 //! @see clingo_control_register_observer()
-typedef struct clingo_ground_program_observer {
+typedef struct clingo_observer {
     //! Called once in the beginning.
     //!
     //! If the incremental flag is true, there can be multiple calls to @ref clingo_control_solve().
@@ -218,10 +218,11 @@ typedef struct clingo_ground_program_observer {
 //! calling clingo_control_solve().
 //!
 //! @param[in] control the control object
-//! @param[out] observer the resulting observer
+//! @param[in] observer the observer to use
+//! @param[in] data user data for the observer
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_observe(clingo_control_t *control,
-                                                                 clingo_observer_t **observer);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_observe(clingo_control_t *control, clingo_observer_t *observer,
+                                                                 void *data);
 
 //! @}
 

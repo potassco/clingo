@@ -1,5 +1,6 @@
 add_library(clingo
     "src/ast.cc"
+    "src/observe.cc"
     "src/ast_yaml.cc"
     "src/base.cc"
     "src/config.cc"
