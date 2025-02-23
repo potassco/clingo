@@ -52,6 +52,12 @@ extern "C" {
 
 //! @defgroup c_base Symbolic Atom Inspection
 
+//! @defgroup c_shared Basic Shared Types
+
+//! @defgroup c_observe Ground Program Inspection
+
+//! @defgroup c_backend Ground Program Extension
+
 //! @defgroup c_model Model Inspection
 
 //! @defgroup c_solve Solving
