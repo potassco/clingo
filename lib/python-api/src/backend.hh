@@ -1,12 +1,25 @@
 #pragma once
 
 #include <clingo/backend.h>
+#include <clingo/observe.h>
 
 #include <pybind11/pybind11.h>
 
 #include "symbol.hh"
 
 namespace Clingo::Python {
+
+class Observer {
+  public:
+    void rule(AtomSpan head, LitSpan body, bool choice);
+
+    void observe(clingo_control_t *ctl);
+
+  private:
+    template <class... Args> void no_op([[maybe_unused]] Args const &...args) {}
+
+    std::exception_ptr exception_;
+};
 
 class Backend {
   public:

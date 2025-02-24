@@ -221,8 +221,8 @@ typedef struct clingo_observer {
 //! @param[in] observer the observer to use
 //! @param[in] data user data for the observer
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_observe(clingo_control_t *control, clingo_observer_t *observer,
-                                                                 void *data);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_observe(clingo_control_t *control,
+                                                                 clingo_observer_t const *observer, void *data);
 
 //! @}
 

@@ -62,67 +62,67 @@ auto map(Potassco::DomModifier val) -> clingo_heuristic_type_t {
 
 class Observer : public Potassco::AbstractProgram {
   public:
-    Observer(clingo_observer_t &obs, void *data) : obs_{obs}, data_{data} {}
+    Observer(clingo_observer_t const &obs, void *data) : obs_{&obs}, data_{data} {}
     void initProgram(bool incremental) override {
-        if (obs_.init_program != nullptr) {
-            handle_error(obs_.init_program(incremental, data_));
+        if (obs_->init_program != nullptr) {
+            handle_error(obs_->init_program(incremental, data_));
         }
     }
     void beginStep() override {
-        if (obs_.init_program != nullptr) {
-            handle_error(obs_.begin_step(data_));
+        if (obs_->init_program != nullptr) {
+            handle_error(obs_->begin_step(data_));
         }
     }
 
     void rule(Potassco::HeadType ht, Potassco::AtomSpan head, Potassco::LitSpan body) override {
-        if (obs_.rule != nullptr) {
-            handle_error(
-                obs_.rule(ht == Potassco::HeadType::choice, head.data(), head.size(), body.data(), body.size(), data_));
+        if (obs_->rule != nullptr) {
+            handle_error(obs_->rule(ht == Potassco::HeadType::choice, head.data(), head.size(), body.data(),
+                                    body.size(), data_));
         }
     }
     void rule(Potassco::HeadType ht, Potassco::AtomSpan head, Potassco::Weight_t bound,
               Potassco::WeightLitSpan body) override {
-        if (obs_.weight_rule != nullptr) {
-            handle_error(obs_.weight_rule(ht == Potassco::HeadType::choice, head.data(), head.size(), bound, map(body),
-                                          body.size(), data_));
+        if (obs_->weight_rule != nullptr) {
+            handle_error(obs_->weight_rule(ht == Potassco::HeadType::choice, head.data(), head.size(), bound, map(body),
+                                           body.size(), data_));
         }
     }
     void minimize(Potassco::Weight_t prio, Potassco::WeightLitSpan lits) override {
-        if (obs_.minimize != nullptr) {
-            handle_error(obs_.minimize(prio, map(lits), lits.size(), data_));
+        if (obs_->minimize != nullptr) {
+            handle_error(obs_->minimize(prio, map(lits), lits.size(), data_));
         }
     }
 
     void project(Potassco::AtomSpan atoms) override {
-        if (obs_.project != nullptr) {
-            handle_error(obs_.project(atoms.data(), atoms.size(), data_));
+        if (obs_->project != nullptr) {
+            handle_error(obs_->project(atoms.data(), atoms.size(), data_));
         }
     }
     void external(Potassco::Atom_t a, Potassco::TruthValue v) override {
-        if (obs_.external != nullptr) {
-            handle_error(obs_.external(a, map(v), data_));
+        if (obs_->external != nullptr) {
+            handle_error(obs_->external(a, map(v), data_));
         }
     }
     void assume(Potassco::LitSpan lits) override {
-        if (obs_.assume != nullptr) {
-            handle_error(obs_.assume(lits.data(), lits.size(), data_));
+        if (obs_->assume != nullptr) {
+            handle_error(obs_->assume(lits.data(), lits.size(), data_));
         }
     }
     void heuristic(Potassco::Atom_t a, Potassco::DomModifier t, int bias, unsigned prio,
                    Potassco::LitSpan condition) override {
-        if (obs_.heuristic != nullptr) {
-            handle_error(obs_.heuristic(a, map(t), bias, prio, condition.data(), condition.size(), data_));
+        if (obs_->heuristic != nullptr) {
+            handle_error(obs_->heuristic(a, map(t), bias, prio, condition.data(), condition.size(), data_));
         }
     }
     void acycEdge(int s, int t, Potassco::LitSpan condition) override {
-        if (obs_.acyc_edge != nullptr) {
-            handle_error(obs_.acyc_edge(s, t, condition.data(), condition.size(), data_));
+        if (obs_->acyc_edge != nullptr) {
+            handle_error(obs_->acyc_edge(s, t, condition.data(), condition.size(), data_));
         }
     }
 
     void endStep() override {
-        if (obs_.end_step != nullptr) {
-            handle_error(obs_.end_step(data_));
+        if (obs_->end_step != nullptr) {
+            handle_error(obs_->end_step(data_));
         }
     }
 
@@ -148,25 +148,28 @@ class Observer : public Potassco::AbstractProgram {
                     [[maybe_unused]] Potassco::Id_t rhs) override {}
 
   private:
-    clingo_observer_t obs_;
+    clingo_observer_t const *obs_;
     void *data_;
 };
 
-extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observer_t *observer, void *data)
+extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observer_t const *observer, void *data)
     -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || observer == nullptr) {
             return clingo_result_invalid;
         }
+        // NOLINTNEXTLINE
+        auto &prg = const_cast<Clasp::Asp::LogicProgram &>(control->slv->clasp_program());
+        // TODO: should this alwasy be called here?
+        prg.endProgram();
+
         Observer obs{*observer, data};
-        if (bool inc = control->slv->clasp_facade().incremental();
-            !inc || control->slv->clasp_facade().summary().step == 0) {
-            obs.initProgram(inc);
+        // TODO: is this always correct?
+        if (prg.startAtom() == 1) {
+            obs.initProgram(prg.isIncremental());
         }
         obs.beginStep();
-        // TODO: check if accept can be const
-        // NOLINTNEXTLINE
-        const_cast<Clasp::Asp::LogicProgram &>(control->slv->clasp_program()).accept(obs);
+        prg.accept(obs);
         obs.endStep();
     }
     CLINGO_CATCH;

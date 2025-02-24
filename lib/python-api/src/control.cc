@@ -96,6 +96,10 @@ auto Control::base() -> Base {
     return {base};
 }
 
+void Control::observe(Observer &obs) {
+    obs.observe(ctl_.get());
+}
+
 auto Control::backend() -> BackendManager {
     return BackendManager{ctl_.get()};
 }
@@ -279,6 +283,12 @@ Ground and solver a logic program.
 
 This function proceeds as clingo calling the main function from a script if
 there is any.
+)"_d)
+        .def("observe", &Control::observe, py::arg("observer"), R"(
+Inspect the ground program of the current step.
+
+Args:
+    observer: The program observer to inspect the program.
 )"_d)
         .def_property_readonly("buffer", &Control::buffer, R"(The content of the output bufer.)")
         .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)")

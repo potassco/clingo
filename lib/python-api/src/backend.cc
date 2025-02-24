@@ -1,4 +1,5 @@
 #include <clingo/backend.h>
+#include <clingo/observe.h>
 
 #include "backend.hh"
 #include "iterable.hh" // IWYU pragma: keep
@@ -8,22 +9,41 @@ namespace Clingo::Python {
 
 // Backend
 
-namespace {
+void Observer::rule(AtomSpan head, LitSpan body, bool choice) {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "rule", no_op, head, body, choice);
+}
 
-// TODO:
-// - template to implement observer to visit logic program
-// - next step is to implement the c-api using the actual interface
-class Observer {
-  public:
-    void rule(AtomSpan head, LitSpan body, bool choice) {
-        PYBIND11_OVERRIDE_NAME(void, Observer, "test", no_op, head, body, choice);
-    }
-
-  private:
-    template <class... Args> void no_op([[maybe_unused]] Args const &...args) {}
-};
-
-} // namespace
+void Observer::observe(clingo_control_t *ctl) {
+    static constexpr auto g_obs = clingo_observer_t{
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        [](bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size,
+           void *data) -> clingo_result_t {
+            auto *obs = static_cast<Observer *>(data);
+            CLINGO_TRY {
+                obs->rule(std::span{head, head_size}, std::span{body, body_size}, choice);
+            }
+            CLINGO_CATCH(obs->exception_);
+        },
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr, //
+        nullptr,
+    };
+    handle_error(clingo_control_observe(ctl, &g_obs, static_cast<void *>(this)), exception_);
+}
 
 auto Backend::atom(std::optional<Symbol> symbol) -> clingo_atom_t {
     clingo_atom_t atom = 0;
