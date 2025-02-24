@@ -10,3 +10,5 @@ max-module-lines=10000
 
 [DESIGN]
 max-public-methods=10000
+max-positional-arguments=20
+max-args=20
