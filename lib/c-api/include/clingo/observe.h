@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include <clingo/base.h>
 #include <clingo/core.h>
 #include <clingo/shared.h>
 #include <clingo/symbol.h>
@@ -47,9 +48,10 @@ typedef struct clingo_observer {
     //!
     //! @see @ref begin_step
     //!
+    //! @param[in] base the base of the program
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*end_step)(void *data);
+    clingo_result_t (*end_step)(clingo_base_t const *base, void *data);
 
     //! Observe rules passed to the solver.
     //!
@@ -91,23 +93,6 @@ typedef struct clingo_observer {
     //! @param[in] data user data for the callback
     //! @return the result code
     clingo_result_t (*project)(clingo_atom_t const *atoms, size_t size, void *data);
-    //! Observe shown atoms passed to the solver.
-    //! \note Facts do not have an associated aspif atom.
-    //! The value of the atom is set to zero.
-    //!
-    //! @param[in] symbol the symbolic representation of the atom
-    //! @param[in] atom the aspif atom (0 for facts)
-    //! @param[in] data user data for the callback
-    //! @return the result code
-    clingo_result_t (*output_atom)(clingo_symbol_t symbol, clingo_atom_t atom, void *data);
-    //! Observe shown terms passed to the solver.
-    //!
-    //! @param[in] symbol the symbolic representation of the term
-    //! @param[in] condition the literals of the condition
-    //! @param[in] size the size of the condition
-    //! @param[in] data user data for the callback
-    //! @return the result code
-    clingo_result_t (*output_term)(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, void *data);
     //! Observe external statements passed to the solver.
     //!
     //! @param[in] atom the external atom
@@ -144,71 +129,6 @@ typedef struct clingo_observer {
     //! @param[in] data user data for the callback
     //! @return the result code
     clingo_result_t (*acyc_edge)(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data);
-
-    //! Observe numeric theory terms.
-    //!
-    //! @param[in] term_id the id of the term
-    //! @param[in] number the value of the term
-    //! @param[in] data user data for the callback
-    //! @return the result code
-    clingo_result_t (*theory_term_number)(clingo_id_t term_id, int number, void *data);
-    //! Observe string theory terms.
-    //!
-    //! @param[in] term_id the id of the term
-    //! @param[in] name the value of the term
-    //! @param[in] data user data for the callback
-    //! @return the result code
-    clingo_result_t (*theory_term_string)(clingo_id_t term_id, char const *name, void *data);
-    //! Observe compound theory terms.
-    //!
-    //! The name_id_or_type gives the type of the compound term:
-    //! - if it is -1, then it is a tuple
-    //! - if it is -2, then it is a set
-    //! - if it is -3, then it is a list
-    //! - otherwise, it is a function and name_id_or_type refers to the id of the name (in form of a string term)
-    //!
-    //! @param[in] term_id the id of the term
-    //! @param[in] name_id_or_type the name or type of the term
-    //! @param[in] arguments the arguments of the term
-    //! @param[in] size the number of arguments
-    //! @param[in] data user data for the callback
-    //! @return the result code
-    clingo_result_t (*theory_term_compound)(clingo_id_t term_id, int name_id_or_type, clingo_id_t const *arguments,
-                                            size_t size, void *data);
-    //! Observe theory elements.
-    //!
-    //! @param element_id the id of the element
-    //! @param terms the term tuple of the element
-    //! @param terms_size the number of terms in the tuple
-    //! @param condition the condition of the elemnt
-    //! @param condition_size the number of literals in the condition
-    //! @param[in] data user data for the callback
-    //! @return the result code
-    clingo_result_t (*theory_element)(clingo_id_t element_id, clingo_id_t const *terms, size_t terms_size,
-                                      clingo_literal_t const *condition, size_t condition_size, void *data);
-    //! Observe theory atoms without guard.
-    //!
-    //! @param[in] atom_id_or_zero the id of the atom or zero for directives
-    //! @param[in] term_id the term associated with the atom
-    //! @param[in] elements the elements of the atom
-    //! @param[in] size the number of elements
-    //! @param[in] data user data for the callback
-    //! @return the result code
-    clingo_result_t (*theory_atom)(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements,
-                                   size_t size, void *data);
-    //! Observe theory atoms with guard.
-    //!
-    //! @param[in] atom_id_or_zero the id of the atom or zero for directives
-    //! @param[in] term_id the term associated with the atom
-    //! @param[in] elements the elements of the atom
-    //! @param[in] size the number of elements
-    //! @param[in] operator_id the id of the operator (a string term)
-    //! @param[in] right_hand_side_id the id of the term on the right hand side of the atom
-    //! @param[in] data user data for the callback
-    //! @return the result code
-    clingo_result_t (*theory_atom_with_guard)(clingo_id_t atom_id_or_zero, clingo_id_t term_id,
-                                              clingo_id_t const *elements, size_t size, clingo_id_t operator_id,
-                                              clingo_id_t right_hand_side_id, void *data);
 } clingo_observer_t;
 
 //! Get an observer to inspect the ground program.

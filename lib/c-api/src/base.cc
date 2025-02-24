@@ -107,6 +107,28 @@ extern "C" auto clingo_base_is_fact(clingo_base_t const *atoms, clingo_literal_t
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_base_is_shown(clingo_base_t const *atoms, clingo_literal_t literal, bool *is_shown)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (atoms == nullptr || is_shown == nullptr) {
+            return clingo_result_invalid;
+        }
+        *is_shown = get_program(atoms).isShown(std::abs(literal));
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_base_is_projected(clingo_base_t const *atoms, clingo_literal_t literal, bool *is_projected)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (atoms == nullptr || is_projected == nullptr) {
+            return clingo_result_invalid;
+        }
+        *is_projected = get_program(atoms).isProjected(std::abs(literal));
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" auto clingo_base_is_external(clingo_base_t const *atoms, clingo_literal_t literal, bool *is_external)
     -> clingo_result_t {
     CLINGO_TRY {

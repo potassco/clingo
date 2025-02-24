@@ -5,6 +5,7 @@ Unit tests for clingo.backend module.
 from typing import Sequence
 
 from clingo.backend import ExternalType, HeuristicType, Observer
+from clingo.base import Base
 from clingo.control import Control
 from clingo.core import Library
 from clingo.symbol import Function
@@ -38,7 +39,8 @@ class ExampleObserver(Observer):
     def begin_step(self) -> None:
         self.begin_steps += 1
 
-    def end_step(self) -> None:
+    def end_step(self, base: Base) -> None:
+        assert base is not None
         self.end_steps += 1
 
     def assume(self, literals: Sequence[int]) -> None:

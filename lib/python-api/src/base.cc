@@ -214,10 +214,23 @@ auto Base::is_external(clingo_literal_t literal) -> bool {
     handle_error(clingo_base_is_external(base_, literal, &ext));
     return ext;
 }
+
 auto Base::is_fact(clingo_literal_t literal) -> bool {
     auto fact = false;
     handle_error(clingo_base_is_fact(base_, literal, &fact));
     return fact;
+}
+
+auto Base::is_shown(clingo_literal_t literal) -> bool {
+    auto shown = false;
+    handle_error(clingo_base_is_shown(base_, literal, &shown));
+    return shown;
+}
+
+auto Base::is_projected(clingo_literal_t literal) -> bool {
+    auto projected = false;
+    handle_error(clingo_base_is_fact(base_, literal, &projected));
+    return projected;
 }
 
 auto Base::size() -> size_t {
@@ -476,6 +489,22 @@ Args:
     literal: The literal to check.
 Returns:
     Whether the literal is a fact.
+)"_d)
+        .def("is_shown", &Base::is_shown, py::arg("literal"), R"(
+Check whether the literal is shown via a `#show` directive.
+
+Args:
+    literal: The literal to check.
+Returns:
+    Whether the literal is shown.
+)"_d)
+        .def("is_projected", &Base::is_projected, py::arg("literal"), R"(
+Check whether the literal is part of a `#project` directive.
+
+Args:
+    literal: The literal to check.
+Returns:
+    Whether the literal is subject to projection.
 )"_d)
         .def_property_readonly("terms", &Base::terms, "The term base (given by show directives).")
         .def_property_readonly("theory", &Base::theory, "The theory base.");

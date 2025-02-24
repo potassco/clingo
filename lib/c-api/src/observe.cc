@@ -62,7 +62,8 @@ auto map(Potassco::DomModifier val) -> clingo_heuristic_type_t {
 
 class Observer : public Potassco::AbstractProgram {
   public:
-    Observer(clingo_observer_t const &obs, void *data) : obs_{&obs}, data_{data} {}
+    Observer(clingo_base_t const &base, clingo_observer_t const &obs, void *data)
+        : base_{&base}, obs_{&obs}, data_{data} {}
     void initProgram(bool incremental) override {
         if (obs_->init_program != nullptr) {
             handle_error(obs_->init_program(incremental, data_));
@@ -122,7 +123,7 @@ class Observer : public Potassco::AbstractProgram {
 
     void endStep() override {
         if (obs_->end_step != nullptr) {
-            handle_error(obs_->end_step(data_));
+            handle_error(obs_->end_step(base_, data_));
         }
     }
 
@@ -148,6 +149,7 @@ class Observer : public Potassco::AbstractProgram {
                     [[maybe_unused]] Potassco::Id_t rhs) override {}
 
   private:
+    clingo_base_t const *base_;
     clingo_observer_t const *obs_;
     void *data_;
 };
@@ -163,7 +165,9 @@ extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observe
         // TODO: should this alwasy be called here?
         prg.endProgram();
 
-        Observer obs{*observer, data};
+        // NOLINTNEXTLINE
+        auto const *base = reinterpret_cast<clingo_base_t const *>(control->slv);
+        Observer obs{*base, *observer, data};
         // TODO: is this always correct?
         if (prg.startAtom() == 1) {
             obs.initProgram(prg.isIncremental());

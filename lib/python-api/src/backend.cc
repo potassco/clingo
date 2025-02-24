@@ -2,6 +2,7 @@
 #include <clingo/observe.h>
 
 #include "backend.hh"
+#include "base.hh"
 #include "iterable.hh" // IWYU pragma: keep
 #include "util.hh"
 
@@ -17,8 +18,8 @@ void Observer::begin_step() {
     PYBIND11_OVERRIDE_NAME(void, Observer, "begin_step", no_op);
 }
 
-void Observer::end_step() {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "end_step", no_op);
+void Observer::end_step(Base base) {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "end_step", no_op, base);
 }
 
 void Observer::rule(AtomSpan head, LitSpan body, bool choice) {
@@ -70,10 +71,10 @@ void Observer::observe(clingo_control_t *ctl) {
             }
             CLINGO_CATCH(obs->exception_);
         },
-        [](void *data) -> clingo_result_t {
+        [](clingo_base_t const *base, void *data) -> clingo_result_t {
             auto *obs = static_cast<Observer *>(data);
             CLINGO_TRY {
-                obs->end_step();
+                obs->end_step(Base{base});
             }
             CLINGO_CATCH(obs->exception_);
         },
@@ -108,8 +109,6 @@ void Observer::observe(clingo_control_t *ctl) {
             }
             CLINGO_CATCH(obs->exception_);
         },
-        nullptr, //
-        nullptr, //
         [](clingo_atom_t atom, clingo_external_type_t type, void *data) -> clingo_result_t {
             auto *obs = static_cast<Observer *>(data);
             CLINGO_TRY {
@@ -140,12 +139,6 @@ void Observer::observe(clingo_control_t *ctl) {
             }
             CLINGO_CATCH(obs->exception_);
         },
-        nullptr, //
-        nullptr, //
-        nullptr, //
-        nullptr, //
-        nullptr, //
-        nullptr,
     };
     handle_error(clingo_control_observe(ctl, &g_obs, static_cast<void *>(this)), exception_);
 }
@@ -344,7 +337,7 @@ Args:
         .def("begin_step", &Observer::begin_step, R"(
 Called at the beginning of a step.
 )"_d)
-        .def("end_step", &Observer::end_step, R"(
+        .def("end_step", &Observer::end_step, py::arg("base"), R"(
 Called at the end of a step.
 )"_d)
         .def("rule", &Observer::rule, py::arg("head"), py::arg("body"), py::arg("choice"), R"(

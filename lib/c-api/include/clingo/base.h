@@ -116,6 +116,28 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_fact(clingo_base_t cons
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_external(clingo_base_t const *atoms, clingo_literal_t literal,
                                                                   bool *is_external);
 
+//! Check whether an atom is shown.
+//!
+//! An atom is shown if it has been shown by a show directive.
+//!
+//! @param[in] atoms the target
+//! @param[in] literal the index of the atom
+//! @param[out] is_shown whether the atom is shown
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_shown(clingo_base_t const *atoms, clingo_literal_t literal,
+                                                               bool *is_shown);
+
+//! Check whether an atom is subject to projection.
+//!
+//! An atom is subject to projection if it occurred in a project directive.
+//!
+//! @param[in] atoms the target
+//! @param[in] literal the index of the atom
+//! @param[out] is_projected whether the atom is subject to projection
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_projected(clingo_base_t const *atoms, clingo_literal_t literal,
+                                                                   bool *is_projected);
+
 //! Get the number of atom bases in the program.
 //!
 //! Each atom base is associated with a signature.
