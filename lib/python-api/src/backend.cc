@@ -9,15 +9,74 @@ namespace Clingo::Python {
 
 // Backend
 
+void Observer::init_program(bool incremental) {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "init_program", no_op, incremental);
+}
+
+void Observer::begin_step() {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "begin_step", no_op);
+}
+
+void Observer::end_step() {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "end_step", no_op);
+}
+
 void Observer::rule(AtomSpan head, LitSpan body, bool choice) {
     PYBIND11_OVERRIDE_NAME(void, Observer, "rule", no_op, head, body, choice);
 }
 
+void Observer::weight_rule(AtomSpan head, clingo_weight_t lower, WeightLitSpan body, bool choice) {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "weight_rule", no_op, head, lower, body, choice);
+}
+
+void Observer::minimize(WeightLitSpan literals, clingo_weight_t priority) {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "minimize", no_op, literals, priority);
+}
+
+void Observer::project(AtomSpan atoms) {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "project", no_op, atoms);
+}
+
+void Observer::external(clingo_atom_t atom, clingo_external_type_e type) {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "external", no_op, atom, type);
+}
+
+void Observer::assume(LitSpan literals) {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "assume", no_op, literals);
+}
+
+void Observer::heuristic(clingo_atom_t atom, clingo_heuristic_type_e type, int bias, unsigned priority,
+                         LitSpan condition) {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "heuristic", no_op, atom, type, bias, priority, condition);
+}
+
+void Observer::edge(int node_u, int node_v, LitSpan condition) {
+    PYBIND11_OVERRIDE_NAME(void, Observer, "edge", no_op, node_u, node_v, condition);
+}
+
 void Observer::observe(clingo_control_t *ctl) {
     static constexpr auto g_obs = clingo_observer_t{
-        nullptr, //
-        nullptr, //
-        nullptr, //
+        [](bool incremental, void *data) -> clingo_result_t {
+            auto *obs = static_cast<Observer *>(data);
+            CLINGO_TRY {
+                obs->init_program(incremental);
+            }
+            CLINGO_CATCH(obs->exception_);
+        },
+        [](void *data) -> clingo_result_t {
+            auto *obs = static_cast<Observer *>(data);
+            CLINGO_TRY {
+                obs->begin_step();
+            }
+            CLINGO_CATCH(obs->exception_);
+        },
+        [](void *data) -> clingo_result_t {
+            auto *obs = static_cast<Observer *>(data);
+            CLINGO_TRY {
+                obs->end_step();
+            }
+            CLINGO_CATCH(obs->exception_);
+        },
         [](bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size,
            void *data) -> clingo_result_t {
             auto *obs = static_cast<Observer *>(data);
@@ -26,15 +85,61 @@ void Observer::observe(clingo_control_t *ctl) {
             }
             CLINGO_CATCH(obs->exception_);
         },
+        [](bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower,
+           clingo_weighted_literal_t const *body, size_t body_size, void *data) -> clingo_result_t {
+            auto *obs = static_cast<Observer *>(data);
+            CLINGO_TRY {
+                obs->weight_rule(std::span{head, head_size}, lower, std::span{body, body_size}, choice);
+            }
+            CLINGO_CATCH(obs->exception_);
+        },
+        [](clingo_weight_t priority, clingo_weighted_literal_t const *body, size_t body_size,
+           void *data) -> clingo_result_t {
+            auto *obs = static_cast<Observer *>(data);
+            CLINGO_TRY {
+                obs->minimize(std::span{body, body_size}, priority);
+            }
+            CLINGO_CATCH(obs->exception_);
+        },
+        [](clingo_atom_t const *atoms, size_t size, void *data) -> clingo_result_t {
+            auto *obs = static_cast<Observer *>(data);
+            CLINGO_TRY {
+                obs->project(std::span{atoms, size});
+            }
+            CLINGO_CATCH(obs->exception_);
+        },
         nullptr, //
         nullptr, //
-        nullptr, //
-        nullptr, //
-        nullptr, //
-        nullptr, //
-        nullptr, //
-        nullptr, //
-        nullptr, //
+        [](clingo_atom_t atom, clingo_external_type_t type, void *data) -> clingo_result_t {
+            auto *obs = static_cast<Observer *>(data);
+            CLINGO_TRY {
+                obs->external(atom, static_cast<clingo_external_type_e>(type));
+            }
+            CLINGO_CATCH(obs->exception_);
+        },
+        [](clingo_literal_t const *literals, size_t size, void *data) -> clingo_result_t {
+            auto *obs = static_cast<Observer *>(data);
+            CLINGO_TRY {
+                obs->assume(std::span{literals, size});
+            }
+            CLINGO_CATCH(obs->exception_);
+        },
+        [](clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority,
+           clingo_literal_t const *condition, size_t size, void *data) -> clingo_result_t {
+            auto *obs = static_cast<Observer *>(data);
+            CLINGO_TRY {
+                obs->heuristic(atom, static_cast<clingo_heuristic_type_e>(type), bias, priority,
+                               std::span{condition, size});
+            }
+            CLINGO_CATCH(obs->exception_);
+        },
+        [](int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data) -> clingo_result_t {
+            auto *obs = static_cast<Observer *>(data);
+            CLINGO_TRY {
+                obs->edge(node_u, node_v, std::span{condition, size});
+            }
+            CLINGO_CATCH(obs->exception_);
+        },
         nullptr, //
         nullptr, //
         nullptr, //
@@ -227,16 +332,99 @@ See Also:
     `clingo.control.Control.observe`
 )")
         .def(py::init<>())
-        .def("rule", &Observer::rule, py::arg("head"), py::arg("body"), py::arg("choice"), R"(
-Corresponds to `Backend.rule`.
+        .def("init_program", &Observer::init_program, py::arg("incremental"), R"(
+The first directive in a program.
+
+The parameter `incremental` indicates whether the program can consist of more
+than one step.
 
 Args:
-    head:
-        List of program atoms forming the rule head.
-    body:
-        List of program literals forming the rule body.
-    choice:
-        Determines if the head is a choice or a disjunction.
+	incremental: Whether the program is incremental.
+)"_d)
+        .def("begin_step", &Observer::begin_step, R"(
+Called at the beginning of a step.
+)"_d)
+        .def("end_step", &Observer::end_step, R"(
+Called at the end of a step.
+)"_d)
+        .def("rule", &Observer::rule, py::arg("head"), py::arg("body"), py::arg("choice"), R"(
+Called for rules in the program.
+
+See also `Backend.rule`.
+
+Args:
+	head: Sequence of literals in the rule head.
+	body: Sequence of literals in the rule body (default: []).
+	choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
+)"_d)
+        .def("weight_rule", &Observer::weight_rule, py::arg("head"), py::arg("lower_bound"), py::arg("body"),
+             py::arg("choice"), R"(
+Called for weight rules in the program.
+
+See also `Backend.weight_rule`.
+
+Args:
+	head: Sequence of literals in the rule head.
+	lower_bound: The lower bound of the weight constraint.
+	body: Sequence of (literal, weight) tuples forming the weight constraint.
+	choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
+)"_d)
+        .def("assume", &Observer::assume, py::arg("literals"), R"(
+Called for assumptions in the solver.
+
+See also `Backend.assume`.
+
+Args:
+    literals: Sequence of program literals to assume.
+)"_d)
+        .def("edge", &Observer::edge, py::arg("node_u"), py::arg("node_v"), py::arg("condtition"), R"(
+Called for edge directives in the program.
+
+See also `Backend.edge`.
+
+Args:
+    node_u: The start node of the edge.
+    node_v: The end node of the edge.
+    condition: Sequence of literals representing the edge condition.
+)"_d)
+        .def("external", &Observer::external, py::arg("atom"), py::arg("type"), R"(
+Called for external directives in the program.
+
+See also `Backend.external`.
+
+Args:
+    atom: The external atom (must be a positive literal).
+    type: The type determining the truth value of the atom.
+)"_d)
+        .def("heuristic", &Observer::heuristic, py::arg("atom"), py::arg("type"), py::arg("weight"),
+             py::arg("priority"), py::arg("condition"), R"(
+Called for heuristic directives in the program.
+
+See also `Backend.heuristic`.
+
+Args:
+	atom: The atom to which the heuristic applies.
+	type: The type of the heuristic.
+	weight: The weight of the heuristic.
+	priority: The priority of the heuristic (default: 0).
+	condition: Sequence of literals representing the condition (default: []).
+)"_d)
+        .def("minimize", &Observer::minimize, py::arg("literals"), py::arg("priority"), R"(
+Called for minimize constraints in the program.
+
+See also `Backend.minimize`.
+
+Args:
+	literals: Sequence of (literal, weight) tuples to minimize.
+	priority: Priority of the constraint (default: 0).
+)"_d)
+        .def("project", &Observer::project, py::arg("atoms"), R"(
+Called for projection directives in the program.
+
+See also `Backend.project`.
+
+Args:
+	atoms: Sequence of atoms to project on.
 )"_d);
 
     py::class_<Backend>(backend, "Backend", R"(
@@ -323,7 +511,6 @@ Add an external directive.
 Declares an atom as external and sets its truth value according to the
 specified type. External atoms can be used as assumptions or for incremental
 solving. The special value `ExternalType.Release` can be used to permanently
-
 set an external atom to false.
 
 Args:

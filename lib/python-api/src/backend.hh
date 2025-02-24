@@ -11,7 +11,17 @@ namespace Clingo::Python {
 
 class Observer {
   public:
+    void init_program(bool incremental);
+    void begin_step();
+    void end_step();
     void rule(AtomSpan head, LitSpan body, bool choice);
+    void weight_rule(AtomSpan head, clingo_weight_t lower, WeightLitSpan body, bool choice);
+    void minimize(WeightLitSpan literals, clingo_weight_t priority);
+    void project(AtomSpan atoms);
+    void external(clingo_atom_t atom, clingo_external_type_e type);
+    void assume(LitSpan literals);
+    void heuristic(clingo_atom_t atom, clingo_heuristic_type_e type, int bias, unsigned priority, LitSpan condition);
+    void edge(int node_u, int node_v, LitSpan condition);
 
     void observe(clingo_control_t *ctl);
 
