@@ -233,6 +233,12 @@ auto Base::is_projected(clingo_literal_t literal) -> bool {
     return projected;
 }
 
+auto Base::is_current(clingo_literal_t literal) -> bool {
+    auto current = false;
+    handle_error(clingo_base_is_current(base_, literal, &current));
+    return current;
+}
+
 auto Base::size() -> size_t {
     size_t size = 0;
     handle_error(clingo_base_atoms_size(base_, &size));
@@ -500,6 +506,17 @@ Returns:
 )"_d)
         .def("is_projected", &Base::is_projected, py::arg("literal"), R"(
 Check whether the literal is part of a `#project` directive.
+
+Args:
+    literal: The literal to check.
+Returns:
+    Whether the literal is subject to projection.
+)"_d)
+        .def("is_current", &Base::is_current, py::arg("literal"), R"(
+Check whether a literal has been introduced in the current step.
+
+Note that all literals introduced before the last solve call are considered
+from a previous step.
 
 Args:
     literal: The literal to check.

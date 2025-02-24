@@ -30,6 +30,7 @@ class ExampleObserver(Observer):
         self.projections = []
         self.rules = []
         self.weight_rules = []
+        self.symbols = []
 
     def init_program(self, incremental: bool) -> None:
         if self.incremental is not None:
@@ -40,6 +41,14 @@ class ExampleObserver(Observer):
         self.begin_steps += 1
 
     def end_step(self, base: Base) -> None:
+        symbols = []
+        for atoms in base.values():
+            symbols.extend(
+                atom.symbol for atom in atoms.values() if base.is_current(atom.literal)
+            )
+        symbols.sort()
+        self.symbols = [str(sym) for sym in symbols]
+
         assert base is not None
         self.end_steps += 1
 
@@ -120,6 +129,7 @@ class TestObserve:
         return self._ctl
 
     def test_observe(self):
+        # pylint: disable=too-many-statements
         """
         Test observe.
         """
@@ -127,12 +137,12 @@ class TestObserve:
         self.ctl.ground([("a", [])])
         obs = ExampleObserver()
         self.ctl.observe(obs)
-
         assert obs.incremental
         assert obs.begin_steps == obs.end_steps == 1
         assert len(obs.rules) == 2
         assert sum(1 for _, _, choice in obs.rules if choice) == 1
         assert sum(1 for _, _, choice in obs.rules if not choice) == 1
+        assert obs.symbols == ["a", "b", "c"]
 
         self.ctl.parse_string("#program b. {p(1..20)}. :- #sum { X: p(X) } >= 40.")
         self.ctl.ground([("b", [])])
@@ -143,6 +153,7 @@ class TestObserve:
         assert obs.weight_rules[0][1] == 40
         assert len(obs.weight_rules[0][2]) == 20
         assert not obs.weight_rules[0][3]
+        assert len(obs.symbols) == 20
 
         self.ctl.parse_string("#program c. #project p/1.")
         self.ctl.ground([("c", [])])
@@ -150,6 +161,7 @@ class TestObserve:
         assert obs.begin_steps == obs.end_steps == 3
         assert len(obs.projections) == 1
         assert len(obs.projections[0]) == 20
+        assert len(obs.symbols) == 0
 
         with self.ctl.backend as bck:
             a = bck.atom(Function(self.lib, "a"))
@@ -160,9 +172,40 @@ class TestObserve:
         assert obs.begin_steps == obs.end_steps == 4
         assert len(obs.assumptions) == 1
         assert len(obs.assumptions[0]) == 3
+        assert len(obs.symbols) == 0
 
-        # TODO:
-        # - externals
-        # - heuristics
-        # - edge
-        # - minimize
+        self.ctl.parse_string("#program d. #external a. [true] #external d. [true]")
+        self.ctl.ground([("d", [])])
+        self.ctl.observe(obs)
+        assert obs.begin_steps == obs.end_steps == 5
+        assert len(obs.externals) == 1
+        assert obs.externals[0][1] == ExternalType.True_
+        assert len(obs.symbols) == 1
+
+        self.ctl.parse_string("#program e. #heuristic a. [1@2,sign]")
+        self.ctl.ground([("e", [])])
+        self.ctl.observe(obs)
+        assert obs.begin_steps == obs.end_steps == 6
+        assert len(obs.heuristics) == 1
+        assert obs.heuristics[0][1] == HeuristicType.Sign
+        assert obs.heuristics[0][2] == 1
+        assert obs.heuristics[0][3] == 2
+        assert len(obs.heuristics[0][4]) == 0
+        assert len(obs.symbols) == 0
+
+        self.ctl.parse_string("#program f. #edge (1, 2) : a, c.")
+        self.ctl.ground([("f", [])])
+        self.ctl.observe(obs)
+        assert len(obs.edges) == 1
+        assert obs.edges[0][0] != obs.edges[0][1]
+        assert len(obs.edges[0][2]) == 2
+        assert len(obs.symbols) == 0
+
+        self.ctl.parse_string("#program g. #minimize{ 1@2: a; 2@3: b }.")
+        self.ctl.ground([("g", [])])
+        self.ctl.observe(obs)
+        assert len(obs.minimizes) == 2
+        m2, m3 = sorted(obs.minimizes, key=lambda x: x[1])
+        assert m2[1] == 2
+        assert m3[1] == 3
+        assert len(obs.symbols) == 0

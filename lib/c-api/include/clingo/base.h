@@ -93,50 +93,62 @@ typedef struct clingo_theory_base clingo_theory_base_t;
 
 //! Check whether the given literal is a fact.
 //!
-//! @note This does not determine if an atom is a cautious consequence. The
+//! @note This does not determine if a literal is a cautious consequence. The
 //! grounding or solving component's simplifications can only detect this in
 //! some cases.
 //!
 //! @param[in] atoms the atom base
-//! @param[in] literal the index of the atom
-//! @param[out] is_fact whether the atom is a fact
+//! @param[in] literal the index of the literal
+//! @param[out] is_fact whether the literal is a fact
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_fact(clingo_base_t const *atoms, clingo_literal_t literal,
                                                               bool *is_fact);
 
-//! Check whether an atom is external.
+//! Check whether an literal is external.
 //!
-//! An atom is external if it has been defined using an external directive and
+//! A literal is external if it has been defined using an external directive and
 //! has not been released or defined by a rule.
 //!
 //! @param[in] atoms the target
-//! @param[in] literal the index of the atom
-//! @param[out] is_external whether the atom is an external
+//! @param[in] literal the index of the literal
+//! @param[out] is_external whether the literal is an external
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_external(clingo_base_t const *atoms, clingo_literal_t literal,
                                                                   bool *is_external);
 
-//! Check whether an atom is shown.
+//! Check whether an literal is shown.
 //!
-//! An atom is shown if it has been shown by a show directive.
+//! A literal is shown if it has been shown by a show directive.
 //!
 //! @param[in] atoms the target
-//! @param[in] literal the index of the atom
-//! @param[out] is_shown whether the atom is shown
+//! @param[in] literal the index of the tom
+//! @param[out] is_shown whether the tom is shown
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_shown(clingo_base_t const *atoms, clingo_literal_t literal,
                                                                bool *is_shown);
 
-//! Check whether an atom is subject to projection.
+//! Check whether a literal is subject to projection.
 //!
-//! An atom is subject to projection if it occurred in a project directive.
+//! An literal is subject to projection if it occurred in a project directive.
 //!
 //! @param[in] atoms the target
-//! @param[in] literal the index of the atom
-//! @param[out] is_projected whether the atom is subject to projection
+//! @param[in] literal the index of the literal
+//! @param[out] is_projected whether the literal is subject to projection
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_projected(clingo_base_t const *atoms, clingo_literal_t literal,
                                                                    bool *is_projected);
+
+//! Check whether a literal has been introduced in the current step.
+//!
+//! Note that all literals introduced before the last solve call are considered
+//! from a previous step.
+//!
+//! @param[in] atoms the target
+//! @param[in] literal the index of the literal
+//! @param[out] is_current whether the literal was introduced in the current step
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_current(clingo_base_t const *atoms, clingo_literal_t literal,
+                                                                 bool *is_current);
 
 //! Get the number of atom bases in the program.
 //!

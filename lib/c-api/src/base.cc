@@ -140,6 +140,19 @@ extern "C" auto clingo_base_is_external(clingo_base_t const *atoms, clingo_liter
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_base_is_current(clingo_base_t const *atoms, clingo_literal_t literal, bool *is_current)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (atoms == nullptr || is_current == nullptr) {
+            return clingo_result_invalid;
+        }
+        auto atom = static_cast<clingo_atom_t>(std::abs(literal));
+        auto const &prg = get_program(atoms);
+        *is_current = prg.startAtom() <= atom && atom <= prg.endAtom();
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" auto clingo_atom_base_symbol(clingo_atom_base_t const *atoms, size_t index, clingo_symbol_t *symbol)
     -> clingo_result_t {
     CLINGO_TRY {

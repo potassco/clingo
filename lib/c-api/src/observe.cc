@@ -127,12 +127,8 @@ class Observer : public Potassco::AbstractProgram {
         }
     }
 
-    // TODO: I am not 100% whether the functions below should be provided.
-    // There is currently the base module which provides the same information.
-    // Possible options are:
-    // - Do not call the functions below but pass the base to endStep.
-    // - Call the functions below but map the strings below to symbols. (Needs
-    //   a custom implementation.)
+    // NOTE: the functions below are currently not used because there are other
+    // means to inspect atoms and theory data.
     void output([[maybe_unused]] std::string_view str, [[maybe_unused]] Potassco::LitSpan condition) override {}
     void outputAtom([[maybe_unused]] Potassco::Atom_t a, [[maybe_unused]] Potassco::ConstString const &str) override {}
 
