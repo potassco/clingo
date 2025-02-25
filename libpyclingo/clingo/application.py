@@ -24,7 +24,7 @@ The following example reproduces the default clingo application:
 """
 
 import sys
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from typing import Any, Callable, List, Optional, Sequence
 
 from ._internal import (
@@ -190,12 +190,11 @@ class Application(metaclass=ABCMeta):
     Maximum number of messages defaulting to `20` passed to the logger.
     """
 
-    @abstractmethod
     def main(self, control: Control, files: Sequence[str]) -> None:
         """
         Function to replace clingo's default main function.
 
-        This function must be implemented.
+        If this function is not implemented, clingo's default is used.
 
         Parameters
         ----------
