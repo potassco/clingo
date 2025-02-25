@@ -9,6 +9,7 @@ set(sources
     stats.c
     symbol.c
     version.c
+    propagate.c
 )
 
 foreach(source ${sources})
