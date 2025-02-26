@@ -331,9 +331,11 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_set_check_mode(c
 //! Get the current check mode of the propagator.
 //!
 //! @param[in] init the target
+//! @param[out] mode the rersulting mode
+//! @return the result code
 //! @see clingo_propagate_init_set_check_mode()
-CLINGO_VISIBILITY_DEFAULT clingo_propagator_check_mode_t
-clingo_propagate_init_get_check_mode(clingo_propagate_init_t const *init);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_get_check_mode(clingo_propagate_init_t const *init,
+                                                                               clingo_propagator_check_mode_t *mode);
 //! Configure when to call the undo method of the propagator.
 //!
 //! @param[in] init the target
@@ -345,15 +347,18 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_set_undo_mode(cl
 //! Get the current undo mode of the propagator.
 //!
 //! @param[in] init the target
+//! @param[out] mode the resulting mode
+//! @return the result code
 //! @see clingo_propagate_init_set_undo_mode()
-CLINGO_VISIBILITY_DEFAULT clingo_propagator_undo_mode_t
-clingo_propagate_init_get_undo_mode(clingo_propagate_init_t const *init);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_get_undo_mode(clingo_propagate_init_t const *init,
+                                                                              clingo_propagator_undo_mode_t *mode);
 //! Get the top level assignment solver.
 //!
 //! @param[in] init the target
-//! @return the assignment
-CLINGO_VISIBILITY_DEFAULT clingo_assignment_t const *
-clingo_propagate_init_assignment(clingo_propagate_init_t const *init);
+//! @param[out] assignment the resulting assignment
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_assignment(clingo_propagate_init_t const *init,
+                                                                           clingo_assignment_t const **assignment);
 //! Add a literal to the solver.
 //!
 //! To be able to use the variable in clauses during propagation or add watches to it, it has to be frozen.
@@ -454,14 +459,17 @@ typedef struct clingo_propagate_control clingo_propagate_control_t;
 //! Thread ids are consecutive numbers starting with zero.
 //!
 //! @param[in] control the target
-//! @return the thread id
-CLINGO_VISIBILITY_DEFAULT clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_control_t const *control);
+//! @param[out] the thread id
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_control_thread_id(clingo_propagate_control_t const *control,
+                                                                             clingo_id_t *thread_id);
 //! Get the assignment associated with the underlying solver.
 //!
 //! @param[in] control the target
-//! @return the assignment
-CLINGO_VISIBILITY_DEFAULT clingo_assignment_t const *
-clingo_propagate_control_assignment(clingo_propagate_control_t const *control);
+//! @param[out] the resulting assignment
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_control_assignment(clingo_propagate_control_t const *control,
+                                                                              clingo_assignment_t const **assignment);
 //! Adds a new volatile literal to the underlying solver thread.
 //!
 //! @attention The literal is only valid within the current solving step and solver thread.
