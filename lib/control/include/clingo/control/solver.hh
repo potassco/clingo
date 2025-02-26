@@ -427,6 +427,17 @@ class BackendHandle {
 //! A unique pointer to a backend handle.
 using UBackendHandle = std::unique_ptr<BackendHandle>;
 
+//! The propagator interface.
+class Propagator : public Potassco::AbstractPropagator, public Potassco::AbstractHeuristic {
+  public:
+    //! Called before solving to initialize the propagator.
+    virtual void init(Clingo::Control::Solver &slv, Clasp::ClingoPropagatorInit &init) = 0;
+    //! Can return false to not also register the propagator as a heuristic.
+    [[nodiscard]] virtual auto hasHeuristic() const -> bool = 0;
+};
+//! A unique pointer to a propagator.
+using UPropagator = std::unique_ptr<Propagator>;
+
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
@@ -495,6 +506,11 @@ class Solver : public BaseView {
         auto const *stats = clasp_->getStats();
         return stats != nullptr ? *stats : throw std::runtime_error("not in solving mode");
     }
+
+    //! Register the given propagator with the control object.
+    //!
+    //! @param propagator the propagator
+    void register_propagator(UPropagator propagator);
 
   private:
     //! States for step transitions.

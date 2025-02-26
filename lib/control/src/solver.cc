@@ -757,6 +757,11 @@ void Solver::output_program(std::ostream &out) {
     grd_.output_program(out);
 }
 
+void register_propagator(UPropagator propagator) {
+    static_cast<void>(propagator);
+    throw std::logic_error("implement me: register propagator");
+}
+
 namespace {
 
 class BackendHandleImpl : public BackendHandle {

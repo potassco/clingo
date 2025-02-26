@@ -5,41 +5,10 @@
 
 #include <potassco/clingo.h>
 
+#include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
 namespace {
-
-auto cpp_cast(clingo_assignment_t const *assignment) -> Potassco::AbstractAssignment const * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Potassco::AbstractAssignment const *>(assignment);
-}
-
-auto cpp_cast(clingo_propagate_control_t const *control) -> Potassco::AbstractSolver const * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Potassco::AbstractSolver const *>(control);
-}
-
-auto cpp_cast(clingo_propagate_control_t *control) -> Potassco::AbstractSolver * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Potassco::AbstractSolver *>(control);
-}
-
-auto map(Potassco::TruthValue value) -> clingo_truth_value_t {
-    switch (value) {
-        case Potassco::TruthValue::false_: {
-            return clingo_truth_value_false;
-        }
-        case Potassco::TruthValue::true_: {
-            return clingo_truth_value_true;
-        }
-        case Potassco::TruthValue::free: {
-            return clingo_truth_value_free;
-        }
-        default: {
-            throw std::logic_error{"invalid truth vlaue"};
-        }
-    }
-}
 
 //! Class to initialize a propagator.
 class PropagateInit {
@@ -125,7 +94,7 @@ class PropagateInit {
                 break;
             }
         }
-        // TODO: remove once addressed
+        // for bug in clang-analyzer
         // NOLINTBEGIN
         return Clasp::WeightConstraint::create(*ctx.master(), Clasp::decodeLit(lit), clits, bound,
                                                static_cast<Clasp::WeightConstraint::CreateFlag>(flags))
@@ -178,6 +147,93 @@ auto cpp_cast(clingo_propagate_init_t const *init) -> PropagateInit const * {
     // NOLINTNEXTLINE
     return reinterpret_cast<PropagateInit const *>(init);
 }
+
+auto c_cast(PropagateInit *init) -> clingo_propagate_init_t * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_propagate_init_t *>(init);
+}
+
+auto cpp_cast(clingo_assignment_t const *assignment) -> Potassco::AbstractAssignment const * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Potassco::AbstractAssignment const *>(assignment);
+}
+
+auto c_cast(Potassco::AbstractAssignment const *assignment) -> clingo_assignment_t const * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_assignment_t const *>(assignment);
+}
+
+auto cpp_cast(clingo_propagate_control_t const *control) -> Potassco::AbstractSolver const * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Potassco::AbstractSolver const *>(control);
+}
+
+auto cpp_cast(clingo_propagate_control_t *control) -> Potassco::AbstractSolver * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Potassco::AbstractSolver *>(control);
+}
+
+auto c_cast(Potassco::AbstractSolver const *init) -> clingo_propagate_control_t const * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_propagate_control_t const *>(init);
+}
+
+auto c_cast(Potassco::AbstractSolver *init) -> clingo_propagate_control_t * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_propagate_control_t *>(init);
+}
+
+auto map(Potassco::TruthValue value) -> clingo_truth_value_t {
+    static_assert(static_cast<clingo_truth_value_t>(Potassco::TruthValue::true_) == clingo_truth_value_true);
+    static_assert(static_cast<clingo_truth_value_t>(Potassco::TruthValue::false_) == clingo_truth_value_false);
+    static_assert(static_cast<clingo_truth_value_t>(Potassco::TruthValue::free) == clingo_truth_value_free);
+    return static_cast<clingo_truth_value_t>(value);
+}
+
+class ClingoPropagator : public Clingo::Control::Propagator {
+  public:
+    ClingoPropagator(clingo_propagator_t prop, void *data) : prop_(prop), data_(data) {}
+
+    void init(Clingo::Control::Solver &slv, Clasp::ClingoPropagatorInit &init) override {
+        if (prop_.init != nullptr) {
+            auto cinit = PropagateInit{slv, init};
+            handle_error(prop_.init(c_cast(&cinit), data_));
+        }
+    }
+
+    void propagate(Potassco::AbstractSolver &solver, Potassco::LitSpan changes) override {
+        if (prop_.propagate != nullptr) {
+            handle_error(prop_.propagate(c_cast(&solver), changes.data(), changes.size(), data_));
+        }
+    }
+
+    void undo(Potassco::AbstractSolver const &solver, Potassco::LitSpan undo) override {
+        if (prop_.undo != nullptr) {
+            prop_.undo(c_cast(&solver), undo.data(), undo.size(), data_);
+        }
+    }
+
+    void check(Potassco::AbstractSolver &solver) override {
+        if (prop_.check != nullptr) {
+            handle_error(prop_.check(c_cast(&solver), data_));
+        }
+    }
+
+    [[nodiscard]] auto hasHeuristic() const -> bool override { return prop_.decide != nullptr; }
+
+    auto decide(Potassco::Id_t solverId, const Potassco::AbstractAssignment &assignment, Potassco::Lit_t fallback)
+        -> Potassco::Lit_t override {
+        clingo_literal_t decision = 0;
+        if (prop_.decide != nullptr) {
+            handle_error(prop_.decide(solverId, c_cast(&assignment), fallback, data_, &decision));
+        }
+        return decision;
+    }
+
+  private:
+    clingo_propagator_t prop_;
+    void *data_;
+};
 
 } // namespace
 
@@ -496,8 +552,7 @@ extern "C" auto clingo_propagate_init_assignment(clingo_propagate_init_t const *
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        // NOLINTNEXTLINE
-        *assignment = reinterpret_cast<clingo_assignment_t const *>(&cpp_cast(init)->assignment());
+        *assignment = c_cast(&cpp_cast(init)->assignment());
     }
     CLINGO_CATCH;
 }
@@ -578,8 +633,7 @@ extern "C" auto clingo_propagate_control_assignment(clingo_propagate_control_t c
         if (control == nullptr || assignment == nullptr) {
             return clingo_result_invalid;
         }
-        // NOLINTNEXTLINE
-        *assignment = reinterpret_cast<clingo_assignment_t const *>(&cpp_cast(control)->assignment());
+        *assignment = c_cast(&cpp_cast(control)->assignment());
     }
     CLINGO_CATCH;
 }
@@ -660,10 +714,7 @@ extern "C" auto clingo_propagate_control_propagate(clingo_propagate_control_t *c
 extern "C" auto clingo_control_register_propagator(clingo_control_t *control, clingo_propagator_t const *propagator,
                                                    void *data) -> clingo_result_t {
     CLINGO_TRY {
-        static_cast<void>(control);
-        static_cast<void>(propagator);
-        static_cast<void>(data);
-        throw std::runtime_error("implement me!!!");
+        control->slv->register_propagator(std::make_unique<ClingoPropagator>(*propagator, data));
     }
     CLINGO_CATCH;
 }
