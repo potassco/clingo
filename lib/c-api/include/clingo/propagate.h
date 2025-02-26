@@ -24,13 +24,10 @@ typedef struct clingo_control clingo_control_t;
 //!
 //! ## Code ##
 
-//! @defgroup Propagator Theory Propagation
+//! @addtogroup c_propagate
 //! Extend the search with propagators for arbitrary theories.
 //!
-//! For an example, see @ref propagator.c.
-//! @ingroup Control
-
-//! @addtogroup Propagator
+//! For an example, see @ref propagate.c.
 //! @{
 
 //! Represents a (partial) assignment of a particular solver.
@@ -239,14 +236,14 @@ typedef int clingo_weight_constraint_type_t;
 
 //! Object to initialize a user-defined propagator before each solving step.
 //!
-//! Each @link SymbolicAtoms symbolic@endlink or @link TheoryAtoms theory atom@endlink is uniquely associated with an
+//! Each @link c_base symbolic or theory atom@endlink is uniquely associated with an
 //! aspif atom in form of a positive integer (@ref ::clingo_literal_t). Aspif literals additionally are signed to
 //! represent default negation. Furthermore, there are non-zero integer solver literals (also represented using @ref
 //! ::clingo_literal_t). There is a surjective mapping from program atoms to solver literals.
 //!
 //! All methods called during propagation use solver literals whereas clingo_symbolic_atoms_literal() and
 //! clingo_theory_atoms_atom_literal() return program literals. The function clingo_propagate_init_solver_literal() can
-//! be used to map program literals or @link clingo_theory_atoms_element_condition_id() condition ids@endlink to solver
+//! be used to map program literals or @link clingo_theory_base_element_condition_id() condition ids@endlink to solver
 //! literals.
 typedef struct clingo_propagate_init clingo_propagate_init_t;
 
@@ -369,23 +366,23 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_assignment(cling
 //!
 //! @param[in] init the target
 //! @param[in] freeze whether to freeze the literal
-//! @param[out] result the added literal
+//! @param[out] solver_literal the added literal
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_add_literal(clingo_propagate_init_t *init, bool freeze,
-                                                                            clingo_literal_t *result);
+                                                                            clingo_literal_t *solver_literal);
 //! Add the given clause to the solver.
 //!
 //! @attention No further calls on the init object or functions on the assignment should be called when the result of
 //! this method is false.
 //!
 //! @param[in] init the target
-//! @param[in] clause the clause to add
+//! @param[in] literals the clause to add
 //! @param[in] size the size of the clause
 //! @param[out] result result indicating whether the problem became unsatisfiable
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_add_clause(clingo_propagate_init_t *init,
-                                                                           clingo_literal_t const *clause, size_t size,
-                                                                           bool *result);
+                                                                           clingo_literal_t const *literals,
+                                                                           size_t size, bool *result);
 //! Add the given weight constraint to the solver.
 //!
 //! This function adds a constraint of form `literal <=> { lit=weight | (lit, weight) in literals } >= bound` to the
@@ -396,7 +393,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_add_clause(cling
 //! this method is false.
 //!
 //! @param[in] init the target
-//! @param[in] literal the literal of the constraint
+//! @param[in] solver_literal the literal of the constraint
 //! @param[in] literals the weighted literals
 //! @param[in] size the number of weighted literals
 //! @param[in] bound the bound of the constraint
@@ -405,19 +402,19 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_add_clause(cling
 //! @param[out] result result indicating whether the problem became unsatisfiable
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_add_weight_constraint(
-    clingo_propagate_init_t *init, clingo_literal_t literal, clingo_weighted_literal_t const *literals, size_t size,
-    clingo_weight_t bound, clingo_weight_constraint_type_t type, bool compare_equal, bool *result);
+    clingo_propagate_init_t *init, clingo_literal_t solver_literal, clingo_weighted_literal_t const *literals,
+    size_t size, clingo_weight_t bound, clingo_weight_constraint_type_t type, bool compare_equal, bool *result);
 //! Add the given literal to minimize to the solver.
 //!
 //! This corresponds to a weak constraint of form `:~ literal. [weight@priority]`.
 //!
 //! @param[in] init the target
-//! @param[in] literal the literal to minimize
+//! @param[in] solver_literal the literal to minimize
 //! @param[in] weight the weight of the literal
 //! @param[in] priority the priority of the literal
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_add_minimize(clingo_propagate_init_t *init,
-                                                                             clingo_literal_t literal,
+                                                                             clingo_literal_t solver_literal,
                                                                              clingo_weight_t weight,
                                                                              clingo_weight_t priority);
 //! Propagates consequences of the underlying problem excluding registered propagators.
@@ -459,14 +456,14 @@ typedef struct clingo_propagate_control clingo_propagate_control_t;
 //! Thread ids are consecutive numbers starting with zero.
 //!
 //! @param[in] control the target
-//! @param[out] the thread id
+//! @param[out] thread_id the thread id
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_control_thread_id(clingo_propagate_control_t const *control,
                                                                              clingo_id_t *thread_id);
 //! Get the assignment associated with the underlying solver.
 //!
 //! @param[in] control the target
-//! @param[out] the resulting assignment
+//! @param[out] assignment the resulting assignment
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_control_assignment(clingo_propagate_control_t const *control,
                                                                               clingo_assignment_t const **assignment);
@@ -516,13 +513,13 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_control_remove_watch(
 //! this method is false.
 //!
 //! @param[in] control the target
-//! @param[in] clause the clause to add
+//! @param[in] literals the literals of the clause
 //! @param[in] size the size of the clause
 //! @param[in] type the clause type determining its lifetime
 //! @param[out] result result indicating whether propagation has to be stopped
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_control_add_clause(clingo_propagate_control_t *control,
-                                                                              clingo_literal_t const *clause,
+                                                                              clingo_literal_t const *literals,
                                                                               size_t size, clingo_clause_type_t type,
                                                                               bool *result);
 //! Propagate implied literals (resulting from added clauses).
@@ -657,6 +654,15 @@ typedef struct clingo_propagator {
                               void *data, clingo_literal_t *decision);
 } clingo_propagator_t;
 
+//! Register a custom propagator with the control object.
+//!
+//! @param[in] control the target
+//! @param[in] propagator the propagator
+//! @param[in] data user data passed to the propagator functions
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_register_propagator(clingo_control_t *control,
+                                                                             clingo_propagator_t const *propagator,
+                                                                             void *data);
 //! @}
 
 #ifdef __cplusplus

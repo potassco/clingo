@@ -24,15 +24,6 @@ auto get_store(clingo_backend_t *backend) -> Clingo::SymbolStore & {
     return cpp_cast(backend)->store();
 }
 
-auto map(clingo_weighted_literal_t const *lits, size_t size) -> std::vector<Potassco::WeightLit> & {
-    static thread_local auto ret = std::vector<Potassco::WeightLit>{};
-    ret.clear();
-    for (auto const &lit : std::span{lits, size}) {
-        ret.emplace_back(lit.literal, lit.weight);
-    }
-    return ret;
-}
-
 auto map(clingo_external_type_e type) -> Potassco::TruthValue {
     switch (type) {
         case clingo_external_type_false: {

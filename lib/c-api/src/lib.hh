@@ -49,6 +49,16 @@ inline auto cpp_cast(clingo_symbol_t const *sym) -> Clingo::Symbol const * {
     return reinterpret_cast<Clingo::Symbol const *>(sym);
 }
 
+inline auto map(clingo_weighted_literal_t const *lits, size_t size) -> Potassco::WeightLitSpan {
+    // NOLINTNEXTLINE
+    return Potassco::WeightLitSpan{reinterpret_cast<Potassco::WeightLit const *>(lits), size};
+}
+
+inline auto map(Potassco::WeightLitSpan lits) -> clingo_weighted_literal_t const * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_weighted_literal_t const *>(lits.data());
+}
+
 class ClingoError : public std::exception {
   public:
     ClingoError(clingo_result_t code) : code_{code} {}

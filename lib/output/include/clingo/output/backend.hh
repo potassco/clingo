@@ -88,7 +88,7 @@ class ProgramBackend {
     //! Show the atom with the given symbol and program literal.
     //!
     //! @param sym the symbol to show
-    //! @param body the condition when to show the symbol
+    //! @param lit the literal when to show the symbol
     void show_atom(Symbol sym, lit_t lit) { do_show_atom(sym, lit); }
 
     //! Add an edge for acyclicity checking.
@@ -221,9 +221,15 @@ using UTheoryBackend = std::unique_ptr<TheoryBackend>;
 //! Class similar to Potassco::TheoryData but with automatic id generation.
 class TheoryData {
   public:
+    //! A vector of ids.
     using IdVec = Util::small_vector<id_t, 4>;
+    //! A vector of literals.
     using LitVec = Util::small_vector<lit_t, 4>;
 
+    //! Construct a theory data object.
+    //!
+    //! @param store the underlying symbol store
+    //! @param backend the underlying backend
     TheoryData(SymbolStore &store, UTheoryBackend backend) : store_{&store}, backend_{std::move(backend)} {}
 
     //! Add a number term.
@@ -334,6 +340,8 @@ class TheoryData {
 //!
 //! @param store the store holding symbols
 //! @param backend the target backend
+//! @param theory the target backend
+//! @return the output
 auto make_backend_output(SymbolStore &store, ProgramBackend &backend, TheoryData &theory) -> UOutputStm;
 
 //! @}

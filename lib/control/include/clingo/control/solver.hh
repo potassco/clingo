@@ -390,11 +390,31 @@ class PropagatorLock : public Clasp::ClingoPropagatorLock {
 //! the grounder. This has to be done using add_atom().
 class BackendHandle {
   public:
+    //! Get the logic program.
+    //!
+    //! @return the program
     [[nodiscard]] auto program() -> Clasp::Asp::LogicProgram & { return do_program(); }
+    //! Get the theory.
+    //!
+    //! @return the theory
     [[nodiscard]] auto theory() -> Output::TheoryData & { return do_theory(); }
+    //! The symbol store.
+    //!
+    //! @return the symbol store
     [[nodiscard]] auto store() -> SymbolStore & { return do_store(); }
+    //! Add a literal for the given symbol.
+    //!
+    //! Returns literals of existing symbolic atoms are introduces a new one.
+    //!
+    //! @param atom the symbol
+    //! @return the literal of the symbolic atom
     [[nodiscard]] auto add_atom(Symbol atom) -> Output::lit_t { return do_add_atom(atom); }
+    //! Close the handle.
+    //!
+    //! This functions must be called before continuing to use the associated
+    //! solver.
     void close() { do_close(); }
+    //! Destroy the handle.
     virtual ~BackendHandle() = default;
 
   private:
@@ -404,6 +424,7 @@ class BackendHandle {
     virtual auto do_add_atom(Symbol atom) -> Output::lit_t = 0;
     virtual void do_close() = 0;
 };
+//! A unique pointer to a backend handle.
 using UBackendHandle = std::unique_ptr<BackendHandle>;
 
 //! A grounder and solver for logic programs.

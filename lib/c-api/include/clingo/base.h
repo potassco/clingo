@@ -28,9 +28,9 @@ typedef struct clingo_control clingo_control_t;
 //! @example base-theory.c
 //! The example shows how to inspect and use theory atoms.
 //!
-//! This is a very simple example that uses the @link ProgramBuilder c_backend@endlink to let theory atoms affect answer
+//! This is a very simple example that uses the @link c_backend ProgramBuilder@endlink to let theory atoms affect answer
 //! sets. In general, the backend can be used to implement a custom theory by translating it to a logic program. On the
-//! other hand, a @link Propagator c_prop@endlink can be used to implement a custom theory without adding any
+//! other hand, a @link c_propagate Propagator@endlink can be used to implement a custom theory without adding any
 //! constraints in advance. Or both approaches can be combined.
 //!
 //! ## Output ##
@@ -48,7 +48,7 @@ typedef struct clingo_control clingo_control_t;
 //! @addtogroup c_base
 //! Inspection of atoms occurring in ground logic programs.
 //!
-//! For an example, see @ref base.c.
+//! For an examples, see @ref base-atoms.c and base-theory.c.
 //! @{
 
 //! Represents a predicate signature.
@@ -244,7 +244,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_terms(clingo_base_t const 
 //! For an example, see @ref base-theory.c.
 //!
 //! @param base the base
-//! @param terms the term base
+//! @param theory the theory base
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_theory(clingo_base_t const *base,
                                                              clingo_theory_base_t const **theory);
@@ -257,9 +257,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_theory(clingo_base_t const
 //! solving@endlink. If afterward fresh theory atoms are @link clingo_control_ground() grounded@endlink, previously used
 //! ids are reused.
 //!
-//! For an example, see @ref theory-atoms.c.
+//! For an example, see @ref base-theory.c.
 //!
-
 //! Get the number of shown terms in a program.
 //!
 //! @param[in] terms the term base
