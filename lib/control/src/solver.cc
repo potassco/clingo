@@ -721,6 +721,12 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         }
         state_ = State::solved;
         clasp_->asp()->addAssumption(assumptions);
+        if (!propagators_.empty()) {
+            clasp_->program()->endProgram();
+            for (auto &propagator : propagators_) {
+                propagator.first->init(*this);
+            }
+        }
         clasp_->prepare();
         theory_->reset();
         return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), grd_.base(), *clasp_, mode, std::move(handler));
@@ -757,9 +763,25 @@ void Solver::output_program(std::ostream &out) {
     grd_.output_program(out);
 }
 
-void register_propagator(UPropagator propagator) {
-    static_cast<void>(propagator);
-    throw std::logic_error("implement me: register propagator");
+auto Solver::decide(Potassco::Id_t solver_id, Potassco::AbstractAssignment const &assignment, Potassco::Lit_t fallback)
+    -> Potassco::Lit_t {
+    for (auto &heuristic : heuristics_) {
+        if (auto ret = heuristic->decide(solver_id, assignment, fallback); ret != 0) {
+            return ret;
+        }
+    }
+    return fallback;
+}
+
+void Solver::register_propagator(UPropagator propagator) {
+    auto prop = std::make_unique<Clasp::ClingoPropagatorInit>(*propagator);
+    clasp_config_->addConfigurator(*prop);
+    clasp_facade().asp()->enableDistinctTrue();
+    if (propagator->hasHeuristic()) {
+        clasp_config_->setHeuristicCreator(Clasp::ClingoHeuristic::creator(*this));
+        heuristics_.emplace_back(propagator.get());
+    }
+    propagators_.emplace_back(std::move(propagator), std::move(prop));
 }
 
 namespace {

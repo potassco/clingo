@@ -431,7 +431,7 @@ using UBackendHandle = std::unique_ptr<BackendHandle>;
 class Propagator : public Potassco::AbstractPropagator, public Potassco::AbstractHeuristic {
   public:
     //! Called before solving to initialize the propagator.
-    virtual void init(Clingo::Control::Solver &slv, Clasp::ClingoPropagatorInit &init) = 0;
+    virtual void init(Clingo::Control::Solver &slv) = 0;
     //! Can return false to not also register the propagator as a heuristic.
     [[nodiscard]] virtual auto hasHeuristic() const -> bool = 0;
 };
@@ -441,7 +441,7 @@ using UPropagator = std::unique_ptr<Propagator>;
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
-class Solver : public BaseView {
+class Solver : public BaseView, private Potassco::AbstractHeuristic {
   public:
     //! Create a solver object.
     Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &config, Logger &log, SymbolStore &store,
@@ -545,7 +545,12 @@ class Solver : public BaseView {
         return clasp_->asp() != nullptr ? *clasp_->asp() : throw std::runtime_error("not in solving mode");
     }
 
+    auto decide(Potassco::Id_t solver_id, Potassco::AbstractAssignment const &assignment, Potassco::Lit_t fallback)
+        -> Potassco::Lit_t override;
+
     PropagatorLock lock_;
+    std::vector<std::pair<UPropagator, std::unique_ptr<Clasp::ClingoPropagatorInit>>> propagators_;
+    std::vector<Potassco::AbstractHeuristic *> heuristics_;
     Clasp::ClaspFacade *clasp_;
     Clasp::Cli::ClaspCliConfig *clasp_config_;
     Util::OutputBuffer buf_;

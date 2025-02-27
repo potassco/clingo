@@ -194,8 +194,9 @@ class ClingoPropagator : public Clingo::Control::Propagator {
   public:
     ClingoPropagator(clingo_propagator_t prop, void *data) : prop_(prop), data_(data) {}
 
-    void init(Clingo::Control::Solver &slv, Clasp::ClingoPropagatorInit &init) override {
+    void init(Clingo::Control::Solver &slv) override {
         if (prop_.init != nullptr) {
+            auto init = Clasp::ClingoPropagatorInit{*this};
             auto cinit = PropagateInit{slv, init};
             handle_error(prop_.init(c_cast(&cinit), data_));
         }
