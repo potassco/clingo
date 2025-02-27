@@ -260,6 +260,17 @@ extern "C" auto clingo_assignment_root_level(clingo_assignment_t const *assignme
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_assignment_has_conflict(clingo_assignment_t const *assignment, bool *is_conflicting)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (assignment == nullptr || is_conflicting == nullptr) {
+            return clingo_result_invalid;
+        }
+        *is_conflicting = cpp_cast(assignment)->hasConflict();
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" auto clingo_assignment_has_literal(clingo_assignment_t const *assignment, clingo_literal_t literal,
                                               bool *is_valid) -> clingo_result_t {
     CLINGO_TRY {

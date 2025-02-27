@@ -149,6 +149,22 @@ class Assignment {
         return level;
     }
 
+    auto value(clingo_literal_t lit) -> std::optional<bool> {
+        clingo_truth_value_t res = 0;
+        handle_error(clingo_assignment_truth_value(assignment_, lit, &res));
+        switch (res) {
+            case clingo_truth_value_true: {
+                return true;
+            }
+            case clingo_truth_value_false: {
+                return false;
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+
     auto root_level() -> uint32_t {
         uint32_t level = 0;
         handle_error(clingo_assignment_root_level(assignment_, &level));
@@ -175,12 +191,14 @@ Functions and classes to implement custom propagators.
 >>> from clingo.propagate import Propagator
 >>> from clingo.control import Control
 >>>
+>>> LIB = Library()
+>>>
 >>> class AIFFB(Propagator):
 ...     # add watches for atoms `a` and `b`
 ...     def init(self, init):
 ...         # get program literals for atoms `a` and `b`
-...         plit_a = init.symbolic_atoms[Function("a")].literal
-...         plit_b = init.symbolic_atoms[Function("b")].literal
+...         plit_a = init.base[Function(LIB, "a")].literal
+...         plit_b = init.base[Function(LIB, "b")].literal
 ...         # get solver literals for program literals `a` and `b`
 ...         self.slit_a = init.solver_literal(plit_a)
 ...         self.slit_b = init.solver_literal(plit_b)
@@ -191,15 +209,17 @@ Functions and classes to implement custom propagators.
 ...     def propagate(self, ctl, changes):
 ...         # if `a` is true imply `b`
 ...         if self.slit_a in changes:
+...             assert ctl.assignment.is_true(self.slit_a)
 ...             ctl.add_clause([-self.slit_a, self.slit_b])
 ...         # if `b` is true imply `a`
 ...         if self.slit_b in changes:
+...             assert ctl.assignment.is_true(self.slit_b)
 ...             ctl.add_clause([-self.slit_b, self.slit_a])
 ...
->>> ctl = Control(["0"])
+>>> ctl = Control(LIB, ["0"])
 >>> ctl.register_propagator(AIFFB())
->>> ctl.add("base", [], "1 { a; b }.")
->>> ctl.ground([("base", [])])
+>>> ctl.add("1 { a; b }.")
+>>> ctl.ground()
 >>> print(ctl.solve(on_model=print))
 a b
 SAT
@@ -209,7 +229,7 @@ SAT
     py::class_<TrailView>(propagate, "_TrailView", R"(
 Provides access to a subrange of literals in the solver's trail.
 
-This class implements the sequence interface.
+Implements `Sequence[int]` to access the solver literals in the view.
 )"_d)
         .def("__len__", &TrailView::size, R"(
 Get the number of literals in the view.
@@ -233,7 +253,7 @@ logical dependencies between them as determined by the solver's propagation and
 learning mechanisms. The decision literal for each level is placed at the
 beginning of its respective sequence.
 
-This class implements the sequence interface.
+Implements `Sequence[int]` to access the solver literals in the trail.
 )"_d)
         .def("__len__", &Trail::size, R"(
 Get the number of literals in the trail.
@@ -275,10 +295,116 @@ Returns:
 )"_d);
 
     py::class_<Assignment>(propagate, "Assignment", R"(
-Get the literals of the given levels.
+Provides information about the current state of literals in the solver.
+
+It provides methods to inspect and query the assignment, which is essential for
+implementing custom propagators.
+
+Key concepts:
+- Each literal is either true, false, or unassigned.
+- Each assigned literal has a decision level.
+- There is exactly one decision literal per level.
+- All other literals on the same level are implied by the decision literal and
+  literals from earlier levels.
+- The current decision level is the highest level at which atoms are assigned.
+- The root level is the lowest decision level that can be backtracked to.
+
+Implements `Sequence[int]` to access the solver literals in the assignment.
 )"_d)
         .def("__len__", &Assignment::size, R"(
-TODO
+Get the number of literals in the assignment.
+)"_d)
+        .def("__getitem__", &Assignment::at, py::arg("index"), R"(
+Get the literal at the given index.
+)"_d)
+        .def("__contains__", &Assignment::has_literal, py::arg("literal"), R"(
+Determine if the given literal is contained in the assignment.
+
+Args:
+    literal: The solver literal.
+Returns:
+    Whether the literal is valid.
+)"_d)
+        .def("decision", &Assignment::decision, py::arg("level"), R"(
+Returns the decision literal of the given level.
+
+Each level has exactly one decision literal, which implies other literals on
+the same level.
+
+Args:
+    level: The decision level.
+Returns:
+    The decision literal.
+)"_d)
+        .def("is_false", &Assignment::is_false, py::arg("literal"), R"(
+Check if the given literal is false.
+
+Args:
+    literal: The solver literal.
+Returns:
+    Whether the literal is false.
+)"_d)
+        .def("is_true", &Assignment::is_true, py::arg("literal"), R"(
+Check if the given literal is true.
+
+Args:
+    literal: The solver literal.
+Returns:
+    Whether the literal is true.
+)"_d)
+        .def("is_free", &Assignment::is_free, py::arg("literal"), R"(
+Check if the given literal is free.
+
+Args:
+    literal: The solver literal.
+Returns:
+    Whether the literal is free.
+)"_d)
+        .def("is_fixed", &Assignment::is_fixed, py::arg("literal"), R"(
+Checks if the truth value of the literal is fixed.
+
+Args:
+    literal: The solver literal.
+Returns:
+    Whether the literal is fixed.
+)"_d)
+        .def("level", &Assignment::level, py::arg("literal"), R"(
+Returns the decision level of the given literal.
+
+The decision level indicates when the literal was assigned or implied during
+the solving process.
+
+Args:
+    literal: The solver literal.
+Returns:
+    The decision level of the literal.
+)"_d)
+        .def("value", &Assignment::value, py::arg("literal"), R"(
+Returns the truth value of the literal, or None if unassigned.
+
+Args:
+    literal: The solver literal.
+Returns:
+    The truth value of the literal.
+)"_d)
+        .def_property_readonly("decision_level", &Assignment::decision_level, R"(
+Get the current decision level.
+)"_d)
+        .def_property_readonly("has_conflict", &Assignment::has_conflict, R"(
+Check if the assignment is conflicting.
+)"_d)
+        .def_property_readonly("is_total", &Assignment::is_total, R"(
+Check if all literals in the assigment are assigned.
+)"_d)
+        .def_property_readonly("root_level", &Assignment::root_level, R"(
+Get the current root level.
+
+The root level is the lowest decision level that can be backtracked to.
+Literals on the root level or below can be considered fixed by a propagator.
+They include, for example, assumptions.
+)"_d)
+        .def_property_readonly("trail", &Assignment::trail, R"(
+Get the trail of literals.
 )"_d);
 }
 
