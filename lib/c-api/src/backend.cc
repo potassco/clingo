@@ -284,7 +284,7 @@ extern "C" auto clingo_backend_theory_atom(clingo_backend_t *backend, clingo_sym
             return clingo_result_invalid;
         }
         auto op = Clingo::SharedString{};
-        auto guard = std::optional<std::pair<Clingo::String, id_t>>{};
+        auto guard = std::optional<std::pair<Clingo::String, clingo_id_t>>{};
         if (operator_name != nullptr) {
             op = get_store(backend).string(operator_name);
             guard.emplace(*op, right_hand_side_id);
