@@ -187,6 +187,7 @@ Functions and classes to implement custom propagators.
 # Example
 
 ```python
+>>> from clingo.core import Library
 >>> from clingo.symbol import Function
 >>> from clingo.propagate import Propagator
 >>> from clingo.control import Control
