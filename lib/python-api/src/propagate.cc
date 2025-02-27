@@ -166,7 +166,44 @@ class Assignment {
 void register_propagate(pybind11::module &m) {
     using namespace Clingo::Python;
     auto propagate = m.def_submodule("propagate", R"(
-TODO
+Functions and classes to implement custom propagators.
+
+# Example
+
+```python
+>>> from clingo.symbol import Function
+>>> from clingo.propagate import Propagator
+>>> from clingo.control import Control
+>>>
+>>> class AIFFB(Propagator):
+...     # add watches for atoms `a` and `b`
+...     def init(self, init):
+...         # get program literals for atoms `a` and `b`
+...         plit_a = init.symbolic_atoms[Function("a")].literal
+...         plit_b = init.symbolic_atoms[Function("b")].literal
+...         # get solver literals for program literals `a` and `b`
+...         self.slit_a = init.solver_literal(plit_a)
+...         self.slit_b = init.solver_literal(plit_b)
+...         # add watches for solver literals `a` and `b`
+...         init.add_watch(self.slit_a)
+...         init.add_watch(self.slit_b)
+...     # propagate solver literals `a` and `b`
+...     def propagate(self, ctl, changes):
+...         # if `a` is true imply `b`
+...         if self.slit_a in changes:
+...             ctl.add_clause([-self.slit_a, self.slit_b])
+...         # if `b` is true imply `a`
+...         if self.slit_b in changes:
+...             ctl.add_clause([-self.slit_b, self.slit_a])
+...
+>>> ctl = Control(["0"])
+>>> ctl.register_propagator(AIFFB())
+>>> ctl.add("base", [], "1 { a; b }.")
+>>> ctl.ground([("base", [])])
+>>> print(ctl.solve(on_model=print))
+a b
+SAT
+```
 )"_d);
 
     py::class_<TrailView>(propagate, "_TrailView", R"(
