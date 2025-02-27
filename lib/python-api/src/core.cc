@@ -6,6 +6,7 @@
 namespace Clingo::Python {
 
 Library::Library(bool shared, bool slotted, std::optional<Logger> cb, size_t default_message_limit) {
+    assert(!cb || *cb != nullptr);
     clingo_lib_flags_t flags = 0;
     if (shared) {
         flags |= clingo_lib_flags_shared;
@@ -256,8 +257,9 @@ Destroying the library object frees the logger, the symbols, and the scripts.
 
 This class implements the ContextManager interface.
 )"_d)
-        .def(py::init<bool, bool, Logger, size_t>(), "Create a library object.", py::arg("shared") = true,
-             py::arg("slotted") = true, py::arg("logger") = nullptr, py::arg("message_limit") = default_message_limit,
+        .def(py::init<bool, bool, std::optional<Logger>, size_t>(), "Create a library object.",
+             py::arg("shared") = true, py::arg("slotted") = true, py::arg("logger") = std::nullopt,
+             py::arg("message_limit") = default_message_limit,
              R"(
 Create a library object.
 
