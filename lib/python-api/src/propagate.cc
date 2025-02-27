@@ -177,6 +177,30 @@ class Assignment {
     clingo_assignment_t *assignment_;
 };
 
+class PropagateInit {
+  public:
+    PropagateInit(clingo_propagate_init_t *init) : init_{init} {}
+
+    auto base() -> Base {
+        clingo_base_t const *base = nullptr;
+        handle_error(clingo_propagate_init_base(init_, &base));
+        return {base};
+    }
+
+  private:
+    clingo_propagate_init_t *init_;
+};
+
+class PropagateControl {
+  public:
+    PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
+
+    void add_watch(clingo_literal_t lit) { handle_error(clingo_propagate_control_add_watch(ctl_, lit)); }
+
+  private:
+    clingo_propagate_control_t *ctl_;
+};
+
 } // namespace
 
 void register_propagate(pybind11::module &m) {
@@ -406,6 +430,20 @@ They include, for example, assumptions.
 )"_d)
         .def_property_readonly("trail", &Assignment::trail, R"(
 Get the trail of literals.
+)"_d);
+
+    py::class_<PropagateInit>(propagate, "PropagateInit", R"(
+TODO
+)"_d)
+        .def_property_readonly("base", &PropagateInit::base, R"(
+TODO
+)"_d);
+
+    py::class_<PropagateControl>(propagate, "PropagateControl", R"(
+TODO
+)"_d)
+        .def("add_watch", &PropagateControl::add_watch, py::arg("literal"), R"(
+TODO
 )"_d);
 }
 
