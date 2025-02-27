@@ -5,6 +5,7 @@
 #include "config.hh"
 #include "control.hh"
 #include "core.hh"
+#include "propagate.hh"
 #include "script.hh"
 #include "solve.hh"
 #include "stats.hh"
@@ -124,6 +125,7 @@ SAT
     Clingo::Python::register_solve(m);
     Clingo::Python::register_config(m);
     Clingo::Python::register_stats(m);
+    Clingo::Python::register_propagate(m);
     Clingo::Python::register_control(m);
     Clingo::Python::register_script(m);
 }

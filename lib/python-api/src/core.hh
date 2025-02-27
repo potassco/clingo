@@ -29,7 +29,7 @@ static constexpr size_t default_message_limit = 25;
 
 class Library {
   public:
-    Library(bool shared, bool slotted, Logger cb, size_t default_message_limit);
+    Library(bool shared, bool slotted, std::optional<Logger> cb, size_t default_message_limit);
     Library(clingo_lib_t *lib) : lib_{lib} {}
     void close() noexcept;
 

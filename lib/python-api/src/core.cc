@@ -5,7 +5,7 @@
 
 namespace Clingo::Python {
 
-Library::Library(bool shared, bool slotted, Logger cb, size_t default_message_limit) {
+Library::Library(bool shared, bool slotted, std::optional<Logger> cb, size_t default_message_limit) {
     clingo_lib_flags_t flags = 0;
     if (shared) {
         flags |= clingo_lib_flags_shared;
@@ -13,11 +13,10 @@ Library::Library(bool shared, bool slotted, Logger cb, size_t default_message_li
     if (slotted) {
         flags |= clingo_lib_flags_slotted;
     }
-    bool has_logger = cb != nullptr;
-    auto *ptr = py::cast(std::move(cb)).release().ptr();
+    auto *ptr = cb ? py::cast(std::move(*cb)).release().ptr() : nullptr;
     auto *lib = static_cast<clingo_lib_t *>(nullptr);
-    handle_error(clingo_lib_new(flags, has_logger ? &logger_ : nullptr, has_logger ? &free : nullptr,
-                                has_logger ? ptr : nullptr, default_message_limit, &lib));
+    handle_error(clingo_lib_new(flags, ptr != nullptr ? &logger_ : nullptr, ptr != nullptr ? &free_logger_ : nullptr,
+                                ptr, default_message_limit, &lib));
     lib_.reset(lib);
 }
 

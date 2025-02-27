@@ -7,6 +7,7 @@ add_library(clingo_python
     src/config.cc
     src/control.cc
     src/core.cc
+    src/propagate.cc
     src/script.cc
     src/solve.cc
     src/stats.cc
