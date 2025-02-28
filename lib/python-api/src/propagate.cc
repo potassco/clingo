@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "base.hh"
 #include "iterable.hh"
 #include "propagate.hh"
 #include "util.hh"
@@ -202,6 +203,26 @@ class PropagateControl {
 };
 
 } // namespace
+
+class Propagator {
+  public:
+    void init(PropagateInit &init) { PYBIND11_OVERRIDE_NAME(void, Propagator, "init", no_op, init); }
+    void propagate(PropagateControl &ctl, LitSpan changes) {
+        PYBIND11_OVERRIDE_NAME(void, Propagator, "propagate", no_op, ctl, changes);
+    }
+    void undo(uint32_t thread_id, Assignment &assignment, LitSpan changes) {
+        PYBIND11_OVERRIDE_NAME(void, Propagator, "undo", no_op, thread_id, assignment, changes);
+    }
+    void check(PropagateControl &ctl) { PYBIND11_OVERRIDE_NAME(void, Propagator, "check", no_op, ctl); }
+    void decide(uint32_t thread_id, Assignment &assignment, clingo_literal_t lit) {
+        PYBIND11_OVERRIDE_NAME(void, Propagator, "decide", no_op, thread_id, assignment, lit);
+    }
+
+  private:
+    template <class... Args> void no_op([[maybe_unused]] Args const &...args) {}
+
+    std::exception_ptr exception_;
+};
 
 void register_propagate(pybind11::module &m) {
     using namespace Clingo::Python;
@@ -443,6 +464,26 @@ TODO
 TODO
 )"_d)
         .def("add_watch", &PropagateControl::add_watch, py::arg("literal"), R"(
+TODO
+)"_d);
+
+    py::class_<Propagator>(propagate, "Propagator", R"(
+TODO
+)")
+        .def(py::init<>())
+        .def("init", &Propagator::init, py::arg("init"), R"(
+TODO
+)"_d)
+        .def("propagate", &Propagator::propagate, py::arg("control"), py::arg("changes"), R"(
+TODO
+)"_d)
+        .def("undo", &Propagator::undo, py::arg("thread_id"), py::arg("assignment"), py::arg("changes"), R"(
+TODO
+)"_d)
+        .def("check", &Propagator::check, py::arg("control"), R"(
+TODO
+)"_d)
+        .def("decide", &Propagator::decide, py::arg("thread_id"), py::arg("assignment"), py::arg("fallback"), R"(
 TODO
 )"_d);
 }

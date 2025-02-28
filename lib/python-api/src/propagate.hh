@@ -4,10 +4,9 @@
 
 #include <pybind11/pybind11.h>
 
-#include "base.hh"
-#include "symbol.hh"
-
 namespace Clingo::Python {
+
+class Propagator;
 
 void register_propagate(pybind11::module &m);
 
