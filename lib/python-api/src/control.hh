@@ -4,6 +4,7 @@
 #include "backend.hh"
 #include "base.hh"
 #include "config.hh"
+#include "propagate.hh"
 #include "solve.hh"
 #include "symbol.hh"
 
@@ -18,6 +19,12 @@ class Control {
     Control(Library &lib, std::vector<std::string> const &args);
     Control(clingo_control_t *ctl) : ctl_{ctl} {}
 
+    ~Control() = default;
+    Control(Control const &other) = delete;
+    Control(Control &&other) = default;
+    auto operator=(Control const &other) -> Control & = delete;
+    auto operator=(Control &&other) -> Control & = default;
+
     void parse_string(char const *str);
     void join(Program &prg);
     void ground(std::optional<std::vector<std::pair<std::string, SymbolVec>>> const &parts, py::handle ctx);
@@ -30,6 +37,8 @@ class Control {
     auto stats() -> py::dict;
     void main();
     auto buffer() -> char const *;
+
+    void register_propagator(Propagator &propagator);
 
   private:
     static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name,

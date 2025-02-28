@@ -64,13 +64,14 @@ class Script {
         CLINGO_CATCH(self->lib_);
     }
 
-    void main(Library lib, Control ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, &lib, &ctl); }
+    void main(Library lib, Control &ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, &lib, &ctl); }
 
     static auto c_main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
         auto *self = static_cast<py::object *>(data)->cast<Script *>();
         CLINGO_TRY {
             auto *self = static_cast<py::object *>(data)->cast<Script *>();
-            self->main(lib, control);
+            auto py_ctl = Control{control};
+            self->main(lib, py_ctl);
         }
         CLINGO_CATCH(self->lib_);
     }

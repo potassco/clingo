@@ -148,6 +148,14 @@ auto Control::buffer() -> char const * {
     return ret;
 }
 
+void Control::register_propagator(Propagator &propagator) {
+    // TODO: call the register method in the propagator module + add an
+    // exception pointer and fiddle it into the solve handle.
+    static_cast<void>(propagator);
+    static_cast<void>(this);
+    throw std::logic_error{"implement me!!!"};
+}
+
 void register_control(pybind11::module &m) {
     auto control = m.def_submodule("control", R"(
 Module containing the Control class responsible for grounding and solving.
@@ -207,24 +215,37 @@ Args:
   lib: The library storing symbols and scripts.
   options: The command line options to initialize the control object.
 )"_d)
+        .def("register_propagator", &Control::register_propagator, py::arg("proagator"), R"(
+Register the given propagator for theory propagation.
+
+See the `clingo.propagate` module for an example.
+
+Args:
+    propagator:
+        The propagator.
+)"_d)
         .def("join", &Control::join, py::arg("program"), R"(
 Join with the given non-ground logic program.
 
 Args:
-  program: A non-ground logic program.
+    program:
+        A non-ground logic program.
 )"_d)
         .def("parse_string", &Control::parse_string, py::arg("program"), R"(
 Parses a logic program given as a string.
 
 Args:
-  program: The logic program as string.
+    program:
+        The logic program as string.
 )"_d)
         .def("ground", &Control::ground, py::arg("parts") = std::nullopt, py::arg("context") = py::none(), R"(
 Ground the given program parts.
 
 Args:
-  parts: A list of tuples of part names and their symbolic arguments.
-  context: An optional object with functions to call during grounding.
+    parts:
+        A list of tuples of part names and their symbolic arguments.
+    context:
+        An optional object with functions to call during grounding.
 )"_d)
         .def("solve", &Control::solve, py::arg("assumptions") = Control::AssumptionVec{},
              py::arg("on_model") = std::nullopt, py::arg("on_stats") = std::nullopt, py::arg("yield_") = false,

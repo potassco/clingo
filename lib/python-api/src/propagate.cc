@@ -15,6 +15,8 @@ auto to_rng(uint32_t size, py::slice const &slc) {
     return py::module::import("builtins").attr("range")(size)[slc];
 }
 
+} // namespace
+
 class TrailView {
   public:
     TrailView(clingo_assignment_t const *assignment, py::object rng) : assignment_{assignment}, rng_{std::move(rng)} {}
@@ -202,41 +204,33 @@ class PropagateControl {
     clingo_propagate_control_t *ctl_;
 };
 
-} // namespace
+void Propagator::init(PropagateInit &init) {
+    PYBIND11_OVERRIDE_NAME(void, Propagator, "init", no_op, init);
+}
+void Propagator::propagate(PropagateControl &ctl, LitSpan changes) {
+    PYBIND11_OVERRIDE_NAME(void, Propagator, "propagate", no_op, ctl, changes);
+}
+void Propagator::undo(uint32_t thread_id, Assignment &assignment, LitSpan changes) {
+    PYBIND11_OVERRIDE_NAME(void, Propagator, "undo", no_op, thread_id, assignment, changes);
+}
+void Propagator::check(PropagateControl &ctl) {
+    PYBIND11_OVERRIDE_NAME(void, Propagator, "check", no_op, ctl);
+}
+auto Propagator::decide(uint32_t thread_id, Assignment &assignment, clingo_literal_t lit) -> clingo_literal_t {
+    PYBIND11_OVERRIDE_NAME(clingo_literal_t, Propagator, "decide", decide_, thread_id, assignment, lit);
+}
 
-class Propagator {
-  public:
-    void init(PropagateInit &init) { PYBIND11_OVERRIDE_NAME(void, Propagator, "init", no_op, init); }
-    void propagate(PropagateControl &ctl, LitSpan changes) {
-        PYBIND11_OVERRIDE_NAME(void, Propagator, "propagate", no_op, ctl, changes);
-    }
-    void undo(uint32_t thread_id, Assignment &assignment, LitSpan changes) {
-        PYBIND11_OVERRIDE_NAME(void, Propagator, "undo", no_op, thread_id, assignment, changes);
-    }
-    void check(PropagateControl &ctl) { PYBIND11_OVERRIDE_NAME(void, Propagator, "check", no_op, ctl); }
-    auto decide(uint32_t thread_id, Assignment &assignment, clingo_literal_t lit) -> clingo_literal_t {
-        PYBIND11_OVERRIDE_NAME(clingo_literal_t, Propagator, "decide", decide_, thread_id, assignment, lit);
-    }
+auto Propagator::decide_([[maybe_unused]] uint32_t thread_id, [[maybe_unused]] Assignment &assignment,
+                         [[maybe_unused]] clingo_literal_t lit) -> clingo_literal_t {
+    static_cast<void>(this);
+    return lit;
+}
 
-  private:
-    template <class... Args> void no_op([[maybe_unused]] Args const &...args) {}
-
-    auto decide_([[maybe_unused]] uint32_t thread_id, [[maybe_unused]] Assignment &assignment,
-                 [[maybe_unused]] clingo_literal_t lit) -> clingo_literal_t {
-        static_cast<void>(this);
-        return lit;
-    }
-};
-
-// To handle exceptions nicely, exceptions are stored in the python control
-// wrapper. The pointer is reset when solving starts and rethrown by the
-// SolveHandle::get if necessary.
-using UserData = std::pair<std::exception_ptr, Propagator *>;
-
-void register_propagator(clingo_control_t *ctl, UserData &data) {
+void register_propagator(clingo_control_t *ctl, PropagatorData &data) {
+    // propagator without heuristic
     static constexpr auto c_prop = clingo_propagator_t{
         [](clingo_propagate_init_t *init, void *data) -> clingo_result_t {
-            auto &[exception, self] = *static_cast<UserData *>(data);
+            auto &[exception, self] = *static_cast<PropagatorData *>(data);
             CLINGO_TRY {
                 auto py_init = PropagateInit{init};
                 self->init(py_init);
@@ -245,7 +239,7 @@ void register_propagator(clingo_control_t *ctl, UserData &data) {
         },
         [](clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size,
            void *data) -> clingo_result_t {
-            auto &[exception, self] = *static_cast<UserData *>(data);
+            auto &[exception, self] = *static_cast<PropagatorData *>(data);
             CLINGO_TRY {
                 auto py_ctl = PropagateControl{control};
                 self->propagate(py_ctl, LitSpan{changes, size});
@@ -254,7 +248,7 @@ void register_propagator(clingo_control_t *ctl, UserData &data) {
         },
         [](clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data) {
             try {
-                auto &[exception, self] = *static_cast<UserData *>(data);
+                auto &[exception, self] = *static_cast<PropagatorData *>(data);
                 uint32_t thread_id = 0;
                 handle_error(clingo_propagate_control_thread_id(control, &thread_id));
                 clingo_assignment_t const *assignment = nullptr;
@@ -267,7 +261,7 @@ void register_propagator(clingo_control_t *ctl, UserData &data) {
             }
         },
         [](clingo_propagate_control_t *control, void *data) -> clingo_result_t {
-            auto &[exception, self] = *static_cast<UserData *>(data);
+            auto &[exception, self] = *static_cast<PropagatorData *>(data);
             CLINGO_TRY {
                 auto py_ctl = PropagateControl{control};
                 self->check(py_ctl);
@@ -276,23 +270,22 @@ void register_propagator(clingo_control_t *ctl, UserData &data) {
         },
         nullptr,
     };
-    if (pybind11::get_override(static_cast<const Propagator *>(data.second), "decide")) {
-        static constexpr auto c_heu = clingo_propagator_t{
-            c_prop.init, c_prop.propagate, c_prop.undo, c_prop.check,
-            [](clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data,
-               clingo_literal_t *decision) -> clingo_result_t {
-                auto &[exception, self] = *static_cast<UserData *>(data);
-                CLINGO_TRY {
-                    auto py_assignment = Assignment{assignment};
-                    *decision = self->decide(thread_id, py_assignment, fallback);
-                }
-                CLINGO_CATCH(exception);
-            }};
-        handle_error(clingo_control_register_propagator(ctl, &c_heu, static_cast<void *>(&data)), data.first);
-    } else {
-        handle_error(clingo_control_register_propagator(ctl, &c_prop, static_cast<void *>(&data)), data.first);
-    }
+    // propagator with heuristic
+    static constexpr auto c_heu =
+        clingo_propagator_t{c_prop.init, c_prop.propagate, c_prop.undo, c_prop.check,
+                            [](clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback,
+                               void *data, clingo_literal_t *decision) -> clingo_result_t {
+                                auto &[exception, self] = *static_cast<PropagatorData *>(data);
+                                CLINGO_TRY {
+                                    auto py_assignment = Assignment{assignment};
+                                    *decision = self->decide(thread_id, py_assignment, fallback);
+                                }
+                                CLINGO_CATCH(exception);
+                            }};
+    auto has_heu = pybind11::get_override(static_cast<const Propagator *>(data.second), "decide");
+    handle_error(clingo_control_register_propagator(ctl, has_heu ? &c_heu : &c_prop, static_cast<void *>(&data)));
 }
+
 void register_propagate(pybind11::module &m) {
     using namespace Clingo::Python;
     auto propagate = m.def_submodule("propagate", R"(
