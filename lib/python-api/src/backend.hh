@@ -28,8 +28,6 @@ class Observer {
 
   private:
     template <class... Args> void no_op([[maybe_unused]] Args const &...args) {}
-
-    std::exception_ptr exception_;
 };
 
 class Backend {
