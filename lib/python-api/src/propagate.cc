@@ -196,7 +196,13 @@ class PropagateInit {
         return res;
     }
 
-    void add_watch(clingo_literal_t lit) { handle_error(clingo_propagate_init_add_watch(init_, lit)); }
+    void add_watch(clingo_literal_t lit, std::optional<uint32_t> thread_id) {
+        if (thread_id) {
+            handle_error(clingo_propagate_init_add_watch_to_thread(init_, lit, *thread_id));
+        } else {
+            handle_error(clingo_propagate_init_add_watch(init_, lit));
+        }
+    }
 
   private:
     clingo_propagate_init_t *init_;
@@ -207,6 +213,25 @@ class PropagateControl {
     PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
 
     void add_watch(clingo_literal_t lit) { handle_error(clingo_propagate_control_add_watch(ctl_, lit)); }
+
+    auto add_clause(LitSpan literals, bool tag, bool lock) -> bool {
+        clingo_clause_type_t type = 0;
+        if (tag) {
+            type |= clingo_clause_type_volatile;
+        }
+        if (lock) {
+            type |= clingo_clause_type_static;
+        }
+        auto res = false;
+        handle_error(clingo_propagate_control_add_clause(ctl_, literals.data(), literals.size(), type, &res));
+        return res;
+    }
+
+    auto assignment() -> Assignment {
+        clingo_assignment_t const *assignment = nullptr;
+        handle_error(clingo_propagate_control_assignment(ctl_, &assignment));
+        return {assignment};
+    }
 
   private:
     clingo_propagate_control_t *ctl_;
@@ -526,7 +551,7 @@ Get the trail of literals.
     py::class_<PropagateInit>(propagate, "PropagateInit", R"(
 TODO
 )"_d)
-        .def("add_watch", &PropagateInit::add_watch, py::arg("literal"), R"(
+        .def("add_watch", &PropagateInit::add_watch, py::arg("literal"), py::arg("thread_id") = std::nullopt, R"(
 TODO
 )"_d)
         .def("solver_literal", &PropagateInit::solver_literal, py::arg("literal"), R"(
@@ -539,7 +564,14 @@ TODO
     py::class_<PropagateControl>(propagate, "PropagateControl", R"(
 TODO
 )"_d)
+        .def("add_clause", &PropagateControl::add_clause, py::arg("literals"), py::arg("tag") = false,
+             py::arg("lock") = false, R"(
+TODO
+)"_d)
         .def("add_watch", &PropagateControl::add_watch, py::arg("literal"), R"(
+TODO
+)"_d)
+        .def_property_readonly("assignment", &PropagateControl::assignment, R"(
 TODO
 )"_d);
 
