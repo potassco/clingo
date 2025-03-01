@@ -106,7 +106,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     void run(Clasp::ClaspFacade &clasp) override {
         if (mode_ != Mode::clasp) {
             if (mode_ == Mode::solve) {
-                clasp.startAsp(claspConfig_, true);
+                clasp.startAsp(claspConfig_, false);
             }
             auto slv = Clingo::Control::Solver{clasp,
                                                claspConfig_,

@@ -687,6 +687,9 @@ void Solver::main(std::span<std::string_view const> const &files,
 
 void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
     if (scripts_->callable("main", 0)) {
+        if (mode_ == AppMode::solve) {
+            clasp_->enableProgramUpdates();
+        }
         scripts_->main(*this);
     } else {
         if (mode_ == AppMode::parse) {
