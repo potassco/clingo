@@ -15,6 +15,11 @@ template <typename T> class Sequence : public py::object {
     using py::object::object;
 };
 
+template <typename T> class Annotation : public py::object {
+    PYBIND11_OBJECT_DEFAULT(Annotation, py::object, PyObject_Type)
+    using py::object::object;
+};
+
 template <class T, class A = std::allocator<T>> class Iterable {
   public:
     using Vector = std::vector<T, A>;
@@ -55,6 +60,10 @@ namespace pybind11::detail {
 
 template <typename T> struct handle_type_name<Clingo::Python::Sequence<T>> {
     static constexpr auto name = const_name("Sequence[") + make_caster<T>::name + const_name("]");
+};
+
+template <typename T> struct handle_type_name<Clingo::Python::Annotation<T>> {
+    static constexpr auto name = make_caster<T>::name;
 };
 
 template <typename T, typename A> class type_caster<Clingo::Python::Iterable<T, A>> {

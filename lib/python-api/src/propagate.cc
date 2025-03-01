@@ -190,6 +190,14 @@ class PropagateInit {
         return {base};
     }
 
+    auto solver_literal(clingo_literal_t lit) -> clingo_literal_t {
+        clingo_literal_t res = 0;
+        handle_error(clingo_propagate_init_solver_literal(init_, lit, &res));
+        return res;
+    }
+
+    void add_watch(clingo_literal_t lit) { handle_error(clingo_propagate_init_add_watch(init_, lit)); }
+
   private:
     clingo_propagate_init_t *init_;
 };
@@ -516,6 +524,12 @@ Get the trail of literals.
 )"_d);
 
     py::class_<PropagateInit>(propagate, "PropagateInit", R"(
+TODO
+)"_d)
+        .def("add_watch", &PropagateInit::add_watch, py::arg("literal"), R"(
+TODO
+)"_d)
+        .def("solver_literal", &PropagateInit::solver_literal, py::arg("literal"), R"(
 TODO
 )"_d)
         .def_property_readonly("base", &PropagateInit::base, R"(

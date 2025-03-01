@@ -4,6 +4,7 @@
 #include "backend.hh"
 #include "base.hh"
 #include "config.hh"
+#include "iterable.hh"
 #include "propagate.hh"
 #include "solve.hh"
 #include "symbol.hh"
@@ -38,7 +39,7 @@ class Control {
     void main();
     auto buffer() -> char const *;
 
-    void register_propagator(py::typing::Type<Propagator> &propagator);
+    void register_propagator(Annotation<Propagator> propagator);
 
   private:
     static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name,

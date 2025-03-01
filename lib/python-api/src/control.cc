@@ -149,7 +149,7 @@ auto Control::buffer() -> char const * {
     return ret;
 }
 
-void Control::register_propagator(py::typing::Type<Propagator> &propagator) {
+void Control::register_propagator(Annotation<Propagator> propagator) {
     auto &prop = propagator.cast<Propagator &>();
     props_.emplace_back(std::move(propagator));
     prop_data_.emplace_front(&prop, &exception_);
@@ -215,7 +215,7 @@ Args:
   lib: The library storing symbols and scripts.
   options: The command line options to initialize the control object.
 )"_d)
-        .def("register_propagator", &Control::register_propagator, py::arg("proagator"), R"(
+        .def("register_propagator", &Control::register_propagator, py::arg("propagator"), R"(
 Register the given propagator for theory propagation.
 
 See the `clingo.propagate` module for an example.
