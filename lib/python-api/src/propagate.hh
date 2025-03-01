@@ -27,7 +27,7 @@ class Propagator {
                  [[maybe_unused]] clingo_literal_t lit) -> clingo_literal_t;
 };
 
-using PropagatorData = std::pair<std::exception_ptr, Propagator *>;
+using PropagatorData = std::pair<Propagator *, std::exception_ptr *>;
 
 //! Register a proagator with the given control object.
 //!

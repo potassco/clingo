@@ -120,7 +120,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_get(clingo_solve_h
 //! @param[in] handle the target
 //! @param[in] timeout the maximum time to wait
 //! @param[out] result whether the search has finished
-CLINGO_VISIBILITY_DEFAULT void clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result);
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout,
+                                                                   bool *result);
 //! Get the next model (or zero if there are no more models).
 //!
 //! @param[in] handle the target

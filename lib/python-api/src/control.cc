@@ -87,7 +87,7 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
             (*eh->stats_)(Stats{c_stats, step}, Stats{c_stats, accu});
         }
     }
-    CLINGO_CATCH(eh->ptr_);
+    CLINGO_CATCH(*eh->ptr_);
 }
 
 auto Control::base() -> Base {
@@ -123,7 +123,8 @@ auto Control::stats() -> py::dict {
 
 auto Control::solve(MixedLitlVec const &assumptions, std::optional<ModelCallback> on_model,
                     std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
-    auto res = std::make_shared<SolveHandle>(std::move(on_model), std::move(on_stats));
+    exception_ = nullptr;
+    auto res = std::make_shared<SolveHandle>(exception_, std::move(on_model), std::move(on_stats));
     auto mode = clingo_solve_mode_bitset_t{0};
     if (yield) {
         mode |= clingo_solve_mode_yield;
@@ -134,7 +135,7 @@ auto Control::solve(MixedLitlVec const &assumptions, std::optional<ModelCallback
     auto ass = convert(base(), assumptions);
     handle_error(clingo_control_solve(ctl_.get(), mode, ass.data(), assumptions.size(), &SolveHandle::c_event_handler,
                                       res.get(), &res->handle()),
-                 res->exception_ptr());
+                 exception_);
     return res;
 }
 
@@ -148,12 +149,11 @@ auto Control::buffer() -> char const * {
     return ret;
 }
 
-void Control::register_propagator(Propagator &propagator) {
-    // TODO: call the register method in the propagator module + add an
-    // exception pointer and fiddle it into the solve handle.
-    static_cast<void>(propagator);
-    static_cast<void>(this);
-    throw std::logic_error{"implement me!!!"};
+void Control::register_propagator(py::typing::Type<Propagator> &propagator) {
+    auto &prop = propagator.cast<Propagator &>();
+    props_.emplace_back(std::move(propagator));
+    prop_data_.emplace_front(&prop, &exception_);
+    Clingo::Python::register_propagator(ctl_.get(), prop_data_.front());
 }
 
 void register_control(pybind11::module &m) {

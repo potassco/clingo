@@ -27,10 +27,14 @@ extern "C" auto clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_so
     CLINGO_CATCH;
 }
 
-extern "C" void clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result) {
-    if (handle != nullptr) {
-        *result = cpp_cast(handle, false)->wait(timeout);
+extern "C" auto clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (handle != nullptr) {
+            *result = cpp_cast(handle, false)->wait(timeout);
+        }
     }
+    CLINGO_CATCH;
 }
 
 extern "C" auto clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model)

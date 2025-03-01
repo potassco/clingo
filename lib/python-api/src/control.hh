@@ -38,7 +38,7 @@ class Control {
     void main();
     auto buffer() -> char const *;
 
-    void register_propagator(Propagator &propagator);
+    void register_propagator(py::typing::Type<Propagator> &propagator);
 
   private:
     static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name,
@@ -46,6 +46,9 @@ class Control {
                      clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t;
     static void free_(clingo_control_t *ctl) noexcept { clingo_control_free(ctl); }
     owner_ptr<clingo_control_t, free_> ctl_;
+    std::exception_ptr exception_;
+    std::vector<py::object> props_;
+    std::forward_list<PropagatorData> prop_data_;
 };
 
 void register_control(pybind11::module &m);

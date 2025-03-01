@@ -230,25 +230,25 @@ void register_propagator(clingo_control_t *ctl, PropagatorData &data) {
     // propagator without heuristic
     static constexpr auto c_prop = clingo_propagator_t{
         [](clingo_propagate_init_t *init, void *data) -> clingo_result_t {
-            auto &[exception, self] = *static_cast<PropagatorData *>(data);
+            auto &[self, exception] = *static_cast<PropagatorData *>(data);
             CLINGO_TRY {
                 auto py_init = PropagateInit{init};
                 self->init(py_init);
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(*exception);
         },
         [](clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size,
            void *data) -> clingo_result_t {
-            auto &[exception, self] = *static_cast<PropagatorData *>(data);
+            auto &[self, exception] = *static_cast<PropagatorData *>(data);
             CLINGO_TRY {
                 auto py_ctl = PropagateControl{control};
                 self->propagate(py_ctl, LitSpan{changes, size});
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(*exception);
         },
         [](clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data) {
             try {
-                auto &[exception, self] = *static_cast<PropagatorData *>(data);
+                auto &[self, exception] = *static_cast<PropagatorData *>(data);
                 uint32_t thread_id = 0;
                 handle_error(clingo_propagate_control_thread_id(control, &thread_id));
                 clingo_assignment_t const *assignment = nullptr;
@@ -261,12 +261,12 @@ void register_propagator(clingo_control_t *ctl, PropagatorData &data) {
             }
         },
         [](clingo_propagate_control_t *control, void *data) -> clingo_result_t {
-            auto &[exception, self] = *static_cast<PropagatorData *>(data);
+            auto &[self, exception] = *static_cast<PropagatorData *>(data);
             CLINGO_TRY {
                 auto py_ctl = PropagateControl{control};
                 self->check(py_ctl);
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(*exception);
         },
         nullptr,
     };
@@ -275,14 +275,14 @@ void register_propagator(clingo_control_t *ctl, PropagatorData &data) {
         clingo_propagator_t{c_prop.init, c_prop.propagate, c_prop.undo, c_prop.check,
                             [](clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback,
                                void *data, clingo_literal_t *decision) -> clingo_result_t {
-                                auto &[exception, self] = *static_cast<PropagatorData *>(data);
+                                auto &[self, exception] = *static_cast<PropagatorData *>(data);
                                 CLINGO_TRY {
                                     auto py_assignment = Assignment{assignment};
                                     *decision = self->decide(thread_id, py_assignment, fallback);
                                 }
-                                CLINGO_CATCH(exception);
+                                CLINGO_CATCH(*exception);
                             }};
-    auto has_heu = pybind11::get_override(static_cast<const Propagator *>(data.second), "decide");
+    auto has_heu = pybind11::get_override(static_cast<const Propagator *>(data.first), "decide");
     handle_error(clingo_control_register_propagator(ctl, has_heu ? &c_heu : &c_prop, static_cast<void *>(&data)));
 }
 
