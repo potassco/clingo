@@ -196,10 +196,14 @@ class PropagateInit {
         return {base};
     }
 
-    auto check_mode() -> clingo_propagator_check_mode_e {
+    auto get_check_mode() -> clingo_propagator_check_mode_e {
         clingo_propagator_check_mode_t mode = 0;
         handle_error(clingo_propagate_init_get_check_mode(init_, &mode));
         return static_cast<clingo_propagator_check_mode_e>(mode);
+    }
+
+    void set_check_mode(clingo_propagator_check_mode_e mode) {
+        handle_error(clingo_propagate_init_set_check_mode(init_, mode));
     }
 
     auto number_of_threads() -> size_t {
@@ -208,10 +212,14 @@ class PropagateInit {
         return res;
     }
 
-    auto undo_mode() -> clingo_propagator_undo_mode_e {
+    auto get_undo_mode() -> clingo_propagator_undo_mode_e {
         clingo_propagator_check_mode_t mode = 0;
         handle_error(clingo_propagate_init_get_undo_mode(init_, &mode));
         return static_cast<clingo_propagator_undo_mode_e>(mode);
+    }
+
+    void set_undo_mode(clingo_propagator_undo_mode_e mode) {
+        handle_error(clingo_propagate_init_set_undo_mode(init_, mode));
     }
 
     auto add_clause(LitSpan literals) -> bool {
@@ -226,10 +234,8 @@ class PropagateInit {
         return lit;
     }
 
-    auto add_minimize(clingo_literal_t literal, clingo_weight_t weight, clingo_weight_t priority) -> clingo_literal_t {
-        clingo_literal_t lit = 0;
+    void add_minimize(clingo_literal_t literal, clingo_weight_t weight, clingo_weight_t priority) {
         handle_error(clingo_propagate_init_add_minimize(init_, literal, weight, priority));
-        return lit;
     }
 
     void add_watch(clingo_literal_t lit, std::optional<uint32_t> thread_id) {
@@ -681,105 +687,297 @@ Get the trail of literals.
 )"_d);
 
     py::class_<PropagateInit>(propagate, "PropagateInit", R"(
-TODO
+Class for initializing a propagator.
+
+This class provides methods for setting up propagation, including adding
+clauses, literals, watches, and constraints.
 )"_d)
         .def("add_clause", &PropagateInit::add_clause, py::arg("literals"), R"(
-TODO
+Add a clause to the solver.
+
+If the clause could not be added to the solver, there is a top-level conflict
+and the underlying problem is unsatisfiable.
+
+Args:
+    literals:
+        A sequence of solver literals representing the clause.
+
+Returns:
+    Whether the clause could be added without conflict.
 )"_d)
         .def("add_literal", &PropagateInit::add_literal, py::arg("freeze"), R"(
-TODO
+Add a new literal to the solver.
+
+See also `freeze_literal()`.
+
+Args:
+    freeze:
+        Whether to freeze the literal.
+
+Returns:
+    The newly added solver literal.
 )"_d)
         .def("add_minimize", &PropagateInit::add_minimize, py::arg("literal"), py::arg("weight"), py::arg("priority"),
              R"(
-TODO
+Add a weighted literal to minimize to the solver.
+
+Args:
+    literal:
+        The literal to minimize.
+    weight:
+        The weight of the literal.
+    priority:
+        The priority of the literal.
 )"_d)
         .def("add_watch", &PropagateInit::add_watch, py::arg("literal"), py::arg("thread_id") = std::nullopt, R"(
-TODO
+Add a watch for the given solver literal.
+
+Args:
+    literal:
+        The literal to watch.
+    thread_id:
+        The id of the thread to add the watch to. If None, adds to all threads.
 )"_d)
         .def("add_weight_constraint", &PropagateInit::add_weight_constraint, py::arg("literal"), py::arg("literals"),
-             py::arg("bound"), py::arg("type"), py::arg("compare_equal"),
-             R"(
-TODO
+             py::arg("bound"), py::arg("type"), py::arg("compare_equal"), R"(
+Add a weight constraint to the solver.
+
+See `add_clause` for how to interpret the return value.
+
+Args:
+    literal:
+        The literal associated with the constraint.
+    literals:
+        A sequence of (literal, weight) tuples.
+    bound:
+        The bound of the weight constraint.
+    type:
+        The type of the weight constraint.
+    compare_equal:
+        Whether to use equality comparison.
+
+Returns:
+    Whether the weight constraint could be added without conflict.
 )"_d)
         .def("freeze_literal", &PropagateInit::freeze_literal, py::arg("literal"), R"(
-TODO
+Freeze the given literal.
+
+Frozen literals are exempt from simplification. This is important for literals
+whose truth values a propagator has to track.
+
+Args:
+    literal:
+        The literal to freeze.
 )"_d)
         .def("propagate", &PropagateInit::propagate, R"(
-TODO
+Perform initial propagation.
+
+See the `add_clause()` for how to intepret the return value.
+
+Returns:
+    True if propagation was successful, False otherwise.
 )"_d)
         .def("remove_watch", &PropagateInit::remove_watch, py::arg("literal"), py::arg("thread_id") = std::nullopt, R"(
-TODO
+Remove the watch for the given literal.
+
+Args:
+    literal:
+        The literal to remove the watch for.
+    thread_id:
+        The id of the thread to remove the watch from. If None, removes from
+        all threads.
 )"_d)
         .def("solver_literal", &PropagateInit::solver_literal, py::arg("literal"), R"(
-TODO
+Map the given program literal to a solver literal.
+
+Args:
+    literal:
+        The program literal to map.
+
+Returns:
+    The corresponding solver literal.
 )"_d)
         .def_property_readonly("assignment", &PropagateInit::assignment, R"(
-TODO
+The current assignment.
 )"_d)
         .def_property_readonly("base", &PropagateInit::base, R"(
-TODO
+The base object to inspect the grounder's base.
 )"_d)
-        .def_property_readonly("check_mode", &PropagateInit::check_mode, R"(
-TODO
+        .def_property("check_mode", &PropagateInit::get_check_mode, &PropagateInit::set_check_mode, R"(
+Get/set the check mode for the propagator.
 )"_d)
         .def_property_readonly("number_of_threads", &PropagateInit::number_of_threads, R"(
-TODO
+The number of solver threads.
 )"_d)
-        .def_property_readonly("undo_mode", &PropagateInit::undo_mode, R"(
-TODO
+        .def_property("undo_mode", &PropagateInit::get_undo_mode, &PropagateInit::set_undo_mode, R"(
+Get/set the undo mode for the propagator.
 )"_d);
 
     py::class_<PropagateControl>(propagate, "PropagateControl", R"(
-TODO
+Class for controlling propagation.
+
+This class provides methods for adding clauses, literals, and nogoods, as well
+as managing watches and performing propagation.
 )"_d)
         .def("add_clause", &PropagateControl::add_clause, py::arg("literals"), py::arg("tag") = false,
              py::arg("lock") = false, R"(
-TODO
+Add a clause to the solver.
+
+Tagged clauses are deleted after the current solve call finishes while locked
+clauses are exempt from the solvers clause deletion strategy.
+
+See `propagate()` for how to handle the case that the function returns false.
+
+Args:
+    literals:
+        A sequence of solver literals representing the clause.
+    tag:
+        Whether to tag the clause.
+    lock:
+        Whether to lock the clause.
+
+Returns:
+    Whether the clause could be integrated without conflict.
 )"_d)
-        .def("add_literal", &PropagateControl::add_clause, R"(
-TODO
+        .def("add_literal", &PropagateControl::add_literal, R"(
+Add a literal to the solver.
+
+This literal is only added to the associated solving thread and deleted after
+the solve call.
+
+Returns:
+    A fresh solver literal.
 )"_d)
         .def("add_nogood", &PropagateControl::add_clause, py::arg("literals"), py::arg("tag") = false,
              py::arg("lock") = false, R"(
-TODO
+A shortcut for `add_clause([-literal for literal in literals], tag, lock)`.
+
+Args:
+    literals:
+        A sequence of solver literals representing the nogood.
+    tag:
+        Whether to tag the nogood.
+    lock:
+        Whether to lock the nogood.
+
+Returns:
+    Whether the nogood could be integrated without conflict.
 )"_d)
         .def("add_watch", &PropagateControl::add_watch, py::arg("literal"), R"(
-TODO
+Add a watch for the given solver literal.
+
+Args:
+    literal: The literal to watch.
 )"_d)
         .def("has_watch", &PropagateControl::has_watch, py::arg("literal"), R"(
-TODO
+Check if a watch exists for the given solver literal.
+
+Args:
+    literal: The literal to check.
+
+Returns:
+    True if a watch exists for the literal, False otherwise.
 )"_d)
         .def("propagate", &PropagateControl::propagate, R"(
-TODO
+Perform propagation in the solver.
+
+If this function returns False, the propagator must add no further
+clauses/literals and immediately return from the corresponding
+`Propagator.propagator()` or `Propagator.check()` call.
+
+Returns:
+    True if propagation was successful, False otherwise.
 )"_d)
         .def("remove_watch", &PropagateControl::remove_watch, py::arg("literal"), R"(
-TODO
+Remove the watch for the given literal.
+
+This function has no effect if the literal is not watched.
+
+Args:
+    literal: The literal to remove the watch for.
 )"_d)
         .def_property_readonly("assignment", &PropagateControl::assignment, R"(
-TODO
+The current assignment.
 )"_d)
         .def_property_readonly("thread_id", &PropagateControl::thread_id, R"(
-TODO
+The id of the current solving thread.
 )"_d);
 
     py::class_<Propagator>(propagate, "Propagator", R"(
-TODO
+Interface for implementing propagators.
+
+This class defines methods that can be implemented to create custom propagators
+for use with the solver. They can be left empty to use their default
+implementation.
 )")
         .def(py::init<>())
         .def("init", &Propagator::init, py::arg("init"), R"(
-TODO
+Initialize the propagator.
+
+This method is called once before each solving step. It is used to map
+relevant program literals to solver literals, add watches for solver
+literals, and initialize the propagator's internal state.
+
+Args:
+    init:
+        The propagate init object for initializing the propagator.
 )"_d)
         .def("propagate", &Propagator::propagate, py::arg("control"), py::arg("changes"), R"(
-TODO
+Propagate given a set of changes.
+
+This method is called during propagation with a non-empty list watched literals
+that have been assigned truth values. A propagator should add clauses to
+propagate literals and to implement its constraints.
+
+Typical propagators add unit-resulting or conflicting constraints only.
+
+Args:
+    control:
+        The propagate control object for managing propagation.
+    changes:
+        A list of literals that have changed.
 )"_d)
         .def("undo", &Propagator::undo, py::arg("thread_id"), py::arg("assignment"), py::arg("changes"), R"(
-TODO
+Undo previous assignments.
+
+This method is called to undo previous assignments.
+
+See also `PropagateInit.undo_mode`.
+
+Args:
+    thread_id:
+        The id of the current solver thread.
+    assignment:
+        The current assignment.
+    changes:
+        The literals whose assignment is undone.
 )"_d)
         .def("check", &Propagator::check, py::arg("control"), R"(
-TODO
+Check if the current assignment is valid.
+
+This method is called on propagation fixpoints or total assignments (see
+`PropagateInit.check_mode`). A propagator should add clauses to implement its
+constraints here.
+
+Args:
+    control:
+        The propagate control object for managing propagation.
 )"_d)
         .def("decide", &Propagator::decide, py::arg("thread_id"), py::arg("assignment"), py::arg("fallback"), R"(
-TODO
+Make a decision on the next literal to assign.
+
+This method is called to decide on a literal to be assigned next.
+
+Args:
+    thread_id:
+        The id of the current solver thread.
+    assignment:
+        The current assignment.
+    fallback:
+        The literal choosen by the solver's heuristic.
+
+Returns:
+    The literal to assign or 0 if no decision was made.
 )"_d);
 }
 
