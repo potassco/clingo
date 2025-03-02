@@ -727,7 +727,7 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         if (!propagators_.empty()) {
             clasp_->program()->endProgram();
             for (auto &propagator : propagators_) {
-                propagator.first->init(*this);
+                propagator.first->init(*this, *propagator.second);
             }
         }
         clasp_->prepare();

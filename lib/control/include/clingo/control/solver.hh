@@ -431,7 +431,7 @@ using UBackendHandle = std::unique_ptr<BackendHandle>;
 class Propagator : public Potassco::AbstractPropagator, public Potassco::AbstractHeuristic {
   public:
     //! Called before solving to initialize the propagator.
-    virtual void init(Clingo::Control::Solver &slv) = 0;
+    virtual void init(Clingo::Control::Solver &slv, Clasp::ClingoPropagatorInit &init) = 0;
     //! Can return false to not also register the propagator as a heuristic.
     [[nodiscard]] virtual auto hasHeuristic() const -> bool = 0;
 };
