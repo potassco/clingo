@@ -184,16 +184,52 @@ class PropagateInit {
   public:
     PropagateInit(clingo_propagate_init_t *init) : init_{init} {}
 
+    auto assignment() -> Assignment {
+        clingo_assignment_t const *assignment = nullptr;
+        handle_error(clingo_propagate_init_assignment(init_, &assignment));
+        return {assignment};
+    }
+
     auto base() -> Base {
         clingo_base_t const *base = nullptr;
         handle_error(clingo_propagate_init_base(init_, &base));
         return {base};
     }
 
-    auto solver_literal(clingo_literal_t lit) -> clingo_literal_t {
-        clingo_literal_t res = 0;
-        handle_error(clingo_propagate_init_solver_literal(init_, lit, &res));
+    auto check_mode() -> clingo_propagator_check_mode_e {
+        clingo_propagator_check_mode_t mode = 0;
+        handle_error(clingo_propagate_init_get_check_mode(init_, &mode));
+        return static_cast<clingo_propagator_check_mode_e>(mode);
+    }
+
+    auto number_of_threads() -> size_t {
+        size_t res = 0;
+        handle_error(clingo_propagate_init_number_of_threads(init_, &res));
         return res;
+    }
+
+    auto undo_mode() -> clingo_propagator_undo_mode_e {
+        clingo_propagator_check_mode_t mode = 0;
+        handle_error(clingo_propagate_init_get_undo_mode(init_, &mode));
+        return static_cast<clingo_propagator_undo_mode_e>(mode);
+    }
+
+    auto add_clause(LitSpan literals) -> bool {
+        auto res = false;
+        handle_error(clingo_propagate_init_add_clause(init_, literals.data(), literals.size(), &res));
+        return res;
+    }
+
+    auto add_literal(bool freeze) -> clingo_literal_t {
+        clingo_literal_t lit = 0;
+        handle_error(clingo_propagate_init_add_literal(init_, freeze, &lit));
+        return lit;
+    }
+
+    auto add_minimize(clingo_literal_t literal, clingo_weight_t weight, clingo_weight_t priority) -> clingo_literal_t {
+        clingo_literal_t lit = 0;
+        handle_error(clingo_propagate_init_add_minimize(init_, literal, weight, priority));
+        return lit;
     }
 
     void add_watch(clingo_literal_t lit, std::optional<uint32_t> thread_id) {
@@ -204,6 +240,36 @@ class PropagateInit {
         }
     }
 
+    auto add_weight_constraint(clingo_literal_t literal, WeightLitSpan literals, clingo_weight_t bound,
+                               clingo_weight_constraint_type_e type, bool compare_equal) -> bool {
+        auto res = false;
+        handle_error(clingo_propagate_init_add_weight_constraint(init_, literal, literals.data(), literals.size(),
+                                                                 bound, type, compare_equal, &res));
+        return res;
+    }
+
+    void freeze_literal(clingo_literal_t lit) { handle_error(clingo_propagate_init_freeze_literal(init_, lit)); }
+
+    auto propagate() -> bool {
+        auto res = false;
+        handle_error(clingo_propagate_init_propagate(init_, &res));
+        return res;
+    }
+
+    void remove_watch(clingo_literal_t lit, std::optional<uint32_t> thread_id) {
+        if (thread_id) {
+            handle_error(clingo_propagate_init_remove_watch_from_thread(init_, lit, *thread_id));
+        } else {
+            handle_error(clingo_propagate_init_remove_watch(init_, lit));
+        }
+    }
+
+    auto solver_literal(clingo_literal_t lit) -> clingo_literal_t {
+        clingo_literal_t res = 0;
+        handle_error(clingo_propagate_init_solver_literal(init_, lit, &res));
+        return res;
+    }
+
   private:
     clingo_propagate_init_t *init_;
 };
@@ -211,8 +277,6 @@ class PropagateInit {
 class PropagateControl {
   public:
     PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
-
-    void add_watch(clingo_literal_t lit) { handle_error(clingo_propagate_control_add_watch(ctl_, lit)); }
 
     auto add_clause(LitSpan literals, bool tag, bool lock) -> bool {
         clingo_clause_type_t type = 0;
@@ -227,10 +291,44 @@ class PropagateControl {
         return res;
     }
 
+    auto add_literal() -> clingo_literal_t {
+        clingo_literal_t lit = 0;
+        handle_error(clingo_propagate_control_add_literal(ctl_, &lit));
+        return lit;
+    }
+
+    auto add_nogood(LitSpan literals, bool tag, bool lock) -> bool {
+        static thread_local auto lits = LitVec{};
+        lits.assign(literals.begin(), literals.end());
+        return add_clause(lits, tag, lock);
+    }
+
+    void add_watch(clingo_literal_t lit) { handle_error(clingo_propagate_control_add_watch(ctl_, lit)); }
+
+    auto has_watch(clingo_literal_t lit) -> bool {
+        auto res = false;
+        handle_error(clingo_propagate_control_has_watch(ctl_, lit, &res));
+        return res;
+    }
+
+    auto propagate() -> bool {
+        auto res = false;
+        handle_error(clingo_propagate_control_propagate(ctl_, &res));
+        return res;
+    }
+
+    void remove_watch(clingo_literal_t lit) { handle_error(clingo_propagate_control_remove_watch(ctl_, lit)); }
+
     auto assignment() -> Assignment {
         clingo_assignment_t const *assignment = nullptr;
         handle_error(clingo_propagate_control_assignment(ctl_, &assignment));
         return {assignment};
+    }
+
+    auto thread_id() -> uint32_t {
+        uint32_t id = 0;
+        handle_error(clingo_propagate_control_thread_id(ctl_, &id));
+        return id;
     }
 
   private:
@@ -435,6 +533,29 @@ Returns:
     The index after the last literal.
 )"_d);
 
+    py::enum_<clingo_weight_constraint_type_e>(propagate, "WeightConstraintType",
+                                               "Enumeration of weight constraint types.")
+        .value("Equivalence", clingo_weight_constraint_type_equivalence,
+               R"(The weight constraint is equal to its literal.)")
+        .value("LeftImplication", clingo_weight_constraint_type_implication_left,
+               R"(The weight constraint implies its literal.)")
+        .value("RightImplication", clingo_weight_constraint_type_implication_right,
+               R"(The literal implies the weight constraint.)");
+
+    py::enum_<clingo_propagator_check_mode_e>(propagate, "CheckMode", "Enumeration of check modes.")
+        .value("Off", clingo_propagator_check_mode_none, R"(Do not call `Propagator.check()` at all.)")
+        .value("Fixpoint", clingo_propagator_check_mode_fixpoint,
+               R"(Call `Propagator.check()` on propagation fixpoints.)")
+        .value("Total", clingo_propagator_check_mode_total, R"(Call `Propagator.check()` on total assignments.)")
+        .value("Both", clingo_propagator_check_mode_both,
+               R"(Call `Propagator.check()` on propagation fixpoints and total assignments.)");
+
+    py::enum_<clingo_propagator_undo_mode_e>(propagate, "UndoMode", "Enumeration of undo modes.")
+        .value("Default", clingo_propagator_undo_mode_default,
+               R"(Call `Propagator.undo()` when check has been called.)")
+        .value("Always", clingo_propagator_undo_mode_always,
+               R"(Call `Propagator.undo()` for decision levels with non-emty changes.)");
+
     py::class_<Assignment>(propagate, "Assignment", R"(
 Provides information about the current state of literals in the solver.
 
@@ -551,13 +672,49 @@ Get the trail of literals.
     py::class_<PropagateInit>(propagate, "PropagateInit", R"(
 TODO
 )"_d)
+        .def("add_clause", &PropagateInit::add_clause, py::arg("literals"), R"(
+TODO
+)"_d)
+        .def("add_literal", &PropagateInit::add_literal, py::arg("freeze"), R"(
+TODO
+)"_d)
+        .def("add_minimize", &PropagateInit::add_minimize, py::arg("literal"), py::arg("weight"), py::arg("priority"),
+             R"(
+TODO
+)"_d)
         .def("add_watch", &PropagateInit::add_watch, py::arg("literal"), py::arg("thread_id") = std::nullopt, R"(
+TODO
+)"_d)
+        .def("add_weight_constraint", &PropagateInit::add_weight_constraint, py::arg("literal"), py::arg("literals"),
+             py::arg("bound"), py::arg("type"), py::arg("compare_equal"),
+             R"(
+TODO
+)"_d)
+        .def("freeze_literal", &PropagateInit::freeze_literal, py::arg("literal"), R"(
+TODO
+)"_d)
+        .def("propagate", &PropagateInit::propagate, R"(
+TODO
+)"_d)
+        .def("remove_watch", &PropagateInit::remove_watch, py::arg("literal"), py::arg("thread_id") = std::nullopt, R"(
 TODO
 )"_d)
         .def("solver_literal", &PropagateInit::solver_literal, py::arg("literal"), R"(
 TODO
 )"_d)
+        .def_property_readonly("assignment", &PropagateInit::assignment, R"(
+TODO
+)"_d)
         .def_property_readonly("base", &PropagateInit::base, R"(
+TODO
+)"_d)
+        .def_property_readonly("check_mode", &PropagateInit::check_mode, R"(
+TODO
+)"_d)
+        .def_property_readonly("number_of_threads", &PropagateInit::number_of_threads, R"(
+TODO
+)"_d)
+        .def_property_readonly("undo_mode", &PropagateInit::undo_mode, R"(
 TODO
 )"_d);
 
@@ -568,10 +725,29 @@ TODO
              py::arg("lock") = false, R"(
 TODO
 )"_d)
+        .def("add_literal", &PropagateControl::add_clause, R"(
+TODO
+)"_d)
+        .def("add_nogood", &PropagateControl::add_clause, py::arg("literals"), py::arg("tag") = false,
+             py::arg("lock") = false, R"(
+TODO
+)"_d)
         .def("add_watch", &PropagateControl::add_watch, py::arg("literal"), R"(
 TODO
 )"_d)
+        .def("has_watch", &PropagateControl::has_watch, py::arg("literal"), R"(
+TODO
+)"_d)
+        .def("propagate", &PropagateControl::propagate, R"(
+TODO
+)"_d)
+        .def("remove_watch", &PropagateControl::remove_watch, py::arg("literal"), R"(
+TODO
+)"_d)
         .def_property_readonly("assignment", &PropagateControl::assignment, R"(
+TODO
+)"_d)
+        .def_property_readonly("thread_id", &PropagateControl::thread_id, R"(
 TODO
 )"_d);
 
