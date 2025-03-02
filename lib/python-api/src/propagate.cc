@@ -425,16 +425,25 @@ Functions and classes to implement custom propagators.
 # Example
 
 ```python
->>> from clingo.core import Library
->>> from clingo.symbol import Function
->>> from clingo.propagate import Propagator
+>>> from typing import Sequence
 >>> from clingo.control import Control
+>>> from clingo.core import Library
+>>> from clingo.propagate import PropagateControl, PropagateInit, Propagator
+>>> from clingo.symbol import Function
 >>>
 >>> LIB = Library()
 >>>
 >>> class AIFFB(Propagator):
+...     slit_a: int
+...     slit_b: int
+...
+...     def __init__(self) -> None:
+...         super().__init__()
+...         self.slit_a = 0
+...         self.slit_b = 0
+...
 ...     # add watches for atoms `a` and `b`
-...     def init(self, init):
+...     def init(self, init: PropagateInit) -> None:
 ...         # get program literals for atoms `a` and `b`
 ...         plit_a = init.base[Function(LIB, "a")].literal
 ...         plit_b = init.base[Function(LIB, "b")].literal
@@ -444,22 +453,24 @@ Functions and classes to implement custom propagators.
 ...         # add watches for solver literals `a` and `b`
 ...         init.add_watch(self.slit_a)
 ...         init.add_watch(self.slit_b)
+...
 ...     # propagate solver literals `a` and `b`
-...     def propagate(self, ctl, changes):
+...     def propagate(self, control: PropagateControl, changes: Sequence[int]) -> None:
 ...         # if `a` is true imply `b`
 ...         if self.slit_a in changes:
-...             assert ctl.assignment.is_true(self.slit_a)
-...             ctl.add_clause([-self.slit_a, self.slit_b])
+...             assert control.assignment.is_true(self.slit_a)
+...             control.add_clause([-self.slit_a, self.slit_b])
 ...         # if `b` is true imply `a`
 ...         if self.slit_b in changes:
-...             assert ctl.assignment.is_true(self.slit_b)
-...             ctl.add_clause([-self.slit_b, self.slit_a])
+...             assert control.assignment.is_true(self.slit_b)
+...             control.add_clause([-self.slit_b, self.slit_a])
 ...
 >>> ctl = Control(LIB, ["0"])
 >>> ctl.register_propagator(AIFFB())
->>> ctl.add("1 { a; b }.")
+>>> ctl.parse_string("1 { a; b }.")
 >>> ctl.ground()
->>> print(ctl.solve(on_model=print))
+>>> with ctl.solve(on_model=print) as hnd:
+>>>     print(hnd.get())
 a b
 SAT
 ```
