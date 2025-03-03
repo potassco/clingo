@@ -28,29 +28,29 @@ class AIFFB(Propagator):
         """
         Add watches for atoms `a` and `b`.
         """
-        lib = init.library
-        # get program literals for atoms `a` and `b`
-        plit_a = init.base[Function(lib, "a")].literal
-        plit_b = init.base[Function(lib, "b")].literal
-        # get solver literals for program literals `a` and `b`
-        self.slit_a = init.solver_literal(plit_a)
-        self.slit_b = init.solver_literal(plit_b)
-        # add watches for solver literals `a` and `b`
-        init.add_watch(self.slit_a)
-        init.add_watch(self.slit_b)
+
+        def watch(p):
+            plit = init.base[Function(init.library, p)].literal
+            slit = init.solver_literal(plit)
+            init.add_watch(slit)
+            return slit
+
+        self.slit_a = watch("a")
+        self.slit_b = watch("b")
 
     def propagate(self, control: PropagateControl, changes: Sequence[int]) -> None:
         """
         Propagate solver literals `a` and `b`.
         """
-        # if `a` is true imply `b`
-        if self.slit_a in changes:
-            assert control.assignment.is_true(self.slit_a)
-            control.add_clause([-self.slit_a, self.slit_b])
-        # if `b` is true imply `a`
-        if self.slit_b in changes:
-            assert control.assignment.is_true(self.slit_b)
-            control.add_clause([-self.slit_b, self.slit_a])
+
+        def propagate(p, q):
+            # propagate a implies b
+            if p in changes:
+                assert control.assignment.is_true(p)
+                control.add_clause([-p, q])
+
+        propagate(self.slit_a, self.slit_b)
+        propagate(self.slit_b, self.slit_a)
 
 
 class TestPropgate:
