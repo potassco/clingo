@@ -190,6 +190,12 @@ class PropagateInit {
         return {assignment};
     }
 
+    auto library() -> Library {
+        clingo_lib_t *lib = nullptr;
+        handle_error(clingo_propagate_init_library(init_, &lib));
+        return {lib};
+    }
+
     auto base() -> Base {
         clingo_base_t const *base = nullptr;
         handle_error(clingo_propagate_init_base(init_, &base));
@@ -799,6 +805,9 @@ Returns:
 )"_d)
         .def_property_readonly("assignment", &PropagateInit::assignment, R"(
 The current assignment.
+)"_d)
+        .def_property_readonly("library", &PropagateInit::library, R"(
+The library object managing symbols.
 )"_d)
         .def_property_readonly("base", &PropagateInit::base, R"(
 The base object to inspect the grounder's base.

@@ -302,6 +302,13 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_remove_watch_fro
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_freeze_literal(clingo_propagate_init_t *init,
                                                                                clingo_literal_t solver_literal);
+//! Get the underlying library object.
+//!
+//! @param[in] init the target
+//! @param[out] lib the resulting object
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_library(clingo_propagate_init_t const *init,
+                                                                        clingo_lib_t **lib);
 //! Get an object to inspect the base.
 //!
 //! @param[in] init the target

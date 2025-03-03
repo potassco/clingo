@@ -29,13 +29,14 @@ class PropagateInit {
     static_assert(static_cast<clingo_propagator_undo_mode_t>(Clasp::ClingoPropagatorUndoType::def) ==
                   clingo_propagator_undo_mode_default);
 
-    PropagateInit(Clingo::Control::Solver &slv, Clasp::ClingoPropagatorInit &init)
-        : slv_{&slv}, init_{&init}, assignment_{*facade_().ctx.master()}, cc_{facade_().ctx.master()} {
+    PropagateInit(clingo_control_t *ctl, Clasp::ClingoPropagatorInit &init)
+        : ctl_{ctl}, init_{&init}, assignment_{*facade_().ctx.master()}, cc_{facade_().ctx.master()} {
         init_->enableHistory(false);
     }
-    [[nodiscard]] auto base() const -> Clingo::Control::BaseView const & { return *slv_; }
+    [[nodiscard]] auto library() const -> clingo_lib_t * { return ctl_->lib; }
+    [[nodiscard]] auto base() const -> Clingo::Control::BaseView const & { return *ctl_->slv; }
     [[nodiscard]] auto map_lit(Lit_t lit) const -> Potassco::Lit_t {
-        const auto &prg = slv_->clasp_program();
+        const auto &prg = ctl_->slv->clasp_program();
         return Clasp::encodeLit(prg.getLiteral(lit, Clasp::Asp::MapLit::refined));
     }
     [[nodiscard]] auto threads() const -> uint32_t { return facade_().ctx.concurrency(); }
@@ -130,9 +131,9 @@ class PropagateInit {
     }
 
   private:
-    [[nodiscard]] auto facade_() const -> Clasp::ClaspFacade & { return slv_->clasp_facade(); }
+    [[nodiscard]] auto facade_() const -> Clasp::ClaspFacade & { return ctl_->slv->clasp_facade(); }
 
-    Clingo::Control::Solver *slv_;
+    clingo_control_t *ctl_;
     Clasp::ClingoPropagatorInit *init_;
     Clasp::ClingoAssignment assignment_;
     Clasp::ClauseCreator cc_;
@@ -192,11 +193,12 @@ auto map(Potassco::TruthValue value) -> clingo_truth_value_t {
 
 class ClingoPropagator : public Clingo::Control::Propagator {
   public:
-    ClingoPropagator(clingo_propagator_t prop, void *data) : prop_(prop), data_(data) {}
+    ClingoPropagator(clingo_control_t *ctl, clingo_propagator_t prop, void *data)
+        : ctl_{ctl}, prop_(prop), data_(data) {}
 
-    void init(Clingo::Control::Solver &slv, Clasp::ClingoPropagatorInit &init) override {
+    void init(Clasp::ClingoPropagatorInit &init) override {
         if (prop_.init != nullptr) {
-            auto cinit = PropagateInit{slv, init};
+            auto cinit = PropagateInit{ctl_, init};
             handle_error(prop_.init(c_cast(&cinit), data_));
         }
     }
@@ -231,6 +233,7 @@ class ClingoPropagator : public Clingo::Control::Propagator {
     }
 
   private:
+    clingo_control_t *ctl_;
     clingo_propagator_t prop_;
     void *data_;
 };
@@ -490,10 +493,21 @@ extern "C" auto clingo_propagate_init_freeze_literal(clingo_propagate_init_t *in
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_propagate_init_library(clingo_propagate_init_t const *init, clingo_lib_t **lib)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (init == nullptr || lib == nullptr) {
+            return clingo_result_invalid;
+        }
+        *lib = cpp_cast(init)->library();
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" auto clingo_propagate_init_base(clingo_propagate_init_t const *init, clingo_base_t const **base)
     -> clingo_result_t {
     CLINGO_TRY {
-        if (init == nullptr) {
+        if (init == nullptr || base == nullptr) {
             return clingo_result_invalid;
         }
         // NOLINTNEXTLINE
@@ -725,7 +739,10 @@ extern "C" auto clingo_propagate_control_propagate(clingo_propagate_control_t *c
 extern "C" auto clingo_control_register_propagator(clingo_control_t *control, clingo_propagator_t const *propagator,
                                                    void *data) -> clingo_result_t {
     CLINGO_TRY {
-        control->slv->register_propagator(std::make_unique<ClingoPropagator>(*propagator, data));
+        if (control == nullptr || propagator == nullptr) {
+            return clingo_result_invalid;
+        }
+        control->slv->register_propagator(std::make_unique<ClingoPropagator>(control, *propagator, data));
     }
     CLINGO_CATCH;
 }
