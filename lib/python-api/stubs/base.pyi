@@ -1,0 +1,468 @@
+"""
+Functions and classes to work with atom and term bases.
+
+# Examples
+
+```python
+>>> from clingo.core import Library
+>>> from clingo.symbol import Function, Number
+>>> from clingo.control import Control
+>>> lib = Library()
+>>> ctl = Control(lib)
+>>> ctl.parse_string(\"\"\"\\
+... p(1).
+... { p(3) }.
+... #external p(1..3).
+...
+... q(X) :- p(X).
+... \"\"\")
+>>> ctl.ground()
+>>> bse = ctl.base
+>>> len(bse)
+2
+>>> p = bse[("p", 1)]
+>>> Function(lib, "p", [Number(lib, 2)]) in p
+True
+>>> Function(lib, "p", [Number(lib, 4)]) in p
+False
+>>> [sig for sig in bse]
+[('p', 1, False), ('q', 1, False)]
+>>> [(str(x.symbol), bse.is_fact(x.literal), bse.is_external(x.literal))
+...  for x in p.values()]
+[('p(1)', True, False), ('p(3)', False, False), ('p(2)', False, True)]
+```
+"""
+
+from __future__ import annotations
+
+import typing
+
+import clingo.symbol
+
+__all__ = [
+    "Atom",
+    "AtomBase",
+    "Base",
+    "Term",
+    "TermBase",
+    "TheoryAtom",
+    "TheoryBase",
+    "TheoryElement",
+    "TheoryTerm",
+    "TheoryTermType",
+]
+
+class Atom:
+    """
+    A class providing information about symbolic atoms.
+    """
+
+    @property
+    def literal(self) -> int:
+        """
+        Get the program literal of the atom.
+        """
+
+    @property
+    def symbol(self) -> clingo.symbol.Symbol:
+        """
+        Get the symbol of the atom.
+        """
+
+class AtomBase:
+    """
+    An atom base mapping symbols to atoms.
+    """
+
+    def __contains__(self, arg0: clingo.symbol.Symbol) -> bool:
+        """
+        Check if the base contains an atom with the given symbol.
+        """
+
+    def __getitem__(self, arg0: clingo.symbol.Symbol) -> Atom:
+        """
+        Get the atom with the given symbol.
+        """
+
+    def __iter__(self) -> typing.Iterator[clingo.symbol.Symbol]:
+        """
+        Get an iterable over the keys in the map.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the number of atoms in the base.
+        """
+
+    def items(self) -> typing.Iterator[tuple[clingo.symbol.Symbol, Atom]]:
+        """
+        Get an iterator over the items in the map.
+        """
+
+    def keys(self) -> typing.Iterator[clingo.symbol.Symbol]:
+        """
+        Get get an iterator over the keys in the map.
+        """
+
+    def values(self) -> typing.Iterator[Atom]:
+        """
+        Get an iterator over the values in the map.
+        """
+
+class Base:
+    """
+
+    The base provides information about atoms and show term directives occuring in a program.
+
+    It implements a map from signatures to atom bases.
+    """
+
+    @typing.overload
+    def __contains__(self, signature: tuple[str, int, bool]) -> bool:
+        """
+        Check if there is an atom base with the given signature.
+        """
+
+    @typing.overload
+    def __contains__(self, signature: tuple[str, int]) -> bool:
+        """
+        Check if there is an atom base with the given (short) signature.
+        """
+
+    @typing.overload
+    def __contains__(self, symbol: clingo.symbol.Symbol) -> bool:
+        """
+        Check if there is an atom with the given symbol.
+        """
+
+    @typing.overload
+    def __getitem__(self, symbol: clingo.symbol.Symbol) -> Atom:
+        """
+        Get the atom with the given symbol.
+        """
+
+    @typing.overload
+    def __getitem__(self, signature: tuple[str, int]) -> AtomBase:
+        """
+        Get the atom base with the given (short) signature.
+
+        This function provides a shortcut assuming the sign is false.
+        """
+
+    @typing.overload
+    def __getitem__(self, signature: tuple[str, int, bool]) -> AtomBase:
+        """
+        Get the atom base with the given signature.
+        """
+
+    def __iter__(self) -> typing.Iterator[tuple[str, int, bool]]:
+        """
+        Get an iterator over the keys in the map.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the number of atom bases.
+        """
+
+    def is_current(self, literal: int) -> bool:
+        """
+        Check whether a literal has been introduced in the current step.
+
+        Note that all literals introduced before the last solve call are considered
+        from a previous step.
+
+        Args:
+            literal: The literal to check.
+        Returns:
+            Whether the literal is subject to projection.
+        """
+
+    def is_external(self, literal: int) -> bool:
+        """
+        Check whether the given program literal corresponds to an external.
+
+        Args:
+            literal: The literal to check.
+        Returns:
+            Whether the literal is external.
+        """
+
+    def is_fact(self, literal: int) -> bool:
+        """
+        Check whether the literal is a fact.
+
+        Args:
+            literal: The literal to check.
+        Returns:
+            Whether the literal is a fact.
+        """
+
+    def is_projected(self, literal: int) -> bool:
+        """
+        Check whether the literal is part of a `#project` directive.
+
+        Args:
+            literal: The literal to check.
+        Returns:
+            Whether the literal is subject to projection.
+        """
+
+    def is_shown(self, literal: int) -> bool:
+        """
+        Check whether the literal is shown via a `#show` directive.
+
+        Args:
+            literal: The literal to check.
+        Returns:
+            Whether the literal is shown.
+        """
+
+    def items(self) -> typing.Iterator[tuple[tuple[str, int, bool], AtomBase]]:
+        """
+        Get an iterator over the items in the map.
+        """
+
+    def keys(self) -> typing.Iterator[tuple[str, int, bool]]:
+        """
+        Get get an iterator over the keys in the map.
+        """
+
+    def values(self) -> typing.Iterator[AtomBase]:
+        """
+        Get an iterator over the values in the map.
+        """
+
+    @property
+    def terms(self) -> TermBase:
+        """
+        The term base (given by show directives).
+        """
+
+    @property
+    def theory(self) -> TheoryBase:
+        """
+        The theory base.
+        """
+
+class Term:
+    """
+    A class providing information about terms.
+    """
+
+    @property
+    def condition(self) -> typing.Sequence[int] | None:
+        """
+        Get the condition of the term.
+        """
+
+    @property
+    def symbol(self) -> clingo.symbol.Symbol:
+        """
+        Get the symbol of the term.
+        """
+
+class TermBase:
+    """
+    A base to inspect show term directives in a program.
+
+    The base is established by the show directives occurring in a program.
+
+    Implements a map form symbols to terms.
+    """
+
+    def __contains__(self, arg0: clingo.symbol.Symbol) -> bool:
+        """
+        Check if the base contains a term with the given symbol.
+        """
+
+    def __getitem__(self, arg0: clingo.symbol.Symbol) -> Term:
+        """
+        Get the term with the given symbol.
+        """
+
+    def __iter__(self) -> typing.Iterator[clingo.symbol.Symbol]:
+        """
+        Get an iterator over the keys in the map.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the number of terms in the base.
+        """
+
+    def items(self) -> typing.Iterator[tuple[clingo.symbol.Symbol, Term]]:
+        """
+        Get an iterator over the items in the map.
+        """
+
+    def keys(self) -> typing.Iterator[clingo.symbol.Symbol]:
+        """
+        Get get an iterator over the keys in the map.
+        """
+
+    def values(self) -> typing.Iterator[Term]:
+        """
+        Get an iterator over the values in the map.
+        """
+
+class TheoryAtom:
+    """
+    A view to inspect a theory atom.
+    """
+
+    def __str__(self) -> str:
+        """
+        Get a string representation of the atom.
+        """
+
+    @property
+    def elements(self) -> list[TheoryElement]:
+        """
+        Get the elements of a theory atom.
+        """
+
+    @property
+    def guard(self) -> tuple[str, TheoryTerm] | None:
+        """
+        Get optional guard of a theory atom.
+        """
+
+    @property
+    def literal(self) -> int:
+        """
+        Get the literal of the theory atom (zero for directives).
+        """
+
+    @property
+    def name(self) -> TheoryTerm:
+        """
+        Get the name of a theory atom.
+        """
+
+class TheoryBase:
+    """
+    A base to inspect theory atoms.
+
+    Implements a sequences over theory atoms.
+    """
+
+    def __getitem__(self, arg0: int) -> TheoryAtom:
+        """
+        Get the atom with the given index.
+        """
+
+    def __iter__(self) -> typing.Iterator[TheoryAtom]:
+        """
+        Get an iterable over the keys in the map.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the number of theory atoms in the base.
+        """
+
+class TheoryElement:
+    """
+    A view to inspect a theory element.
+    """
+
+    def __str__(self) -> str:
+        """
+        Get a string representation of the element.
+        """
+
+    @property
+    def condition(self) -> typing.Sequence[int]:
+        """
+        Get the condition of a theory element.
+        """
+
+    @property
+    def condition_id(self) -> int:
+        """
+        Get the condition id of a theory element.
+        """
+
+    @property
+    def tuple(self) -> list[TheoryTerm]:
+        """
+        Get the term tuple of a theory element.
+        """
+
+class TheoryTerm:
+    """
+    A view to inspect a theory term.
+    """
+
+    def __str__(self) -> str:
+        """
+        Get a string representation of the term.
+        """
+
+    @property
+    def arguments(self) -> list[TheoryTerm]:
+        """
+        Get the arguments of a function, tuple, list, or set theory term.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        Get the name of a theory symbol or function.
+        """
+
+    @property
+    def number(self) -> int:
+        """
+        Get the value of a numeric theory term.
+        """
+
+    @property
+    def type(self) -> TheoryTermType:
+        """
+        Get the type of the theory term.
+        """
+
+class TheoryTermType:
+    """
+    Enumeration of theory term types.
+
+    Members:
+
+      Number : For numeric theory terms.
+
+      Symbol : For symbolic theory terms (simple strings).
+
+      Tuple : For tuple theory terms.
+
+      List : For list theory term.
+
+      Set : For set theory terms.
+
+      Function : For function theory terms.
+    """
+
+    Function: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Function: 3>
+    List: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.List: 1>
+    Number: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Number: 4>
+    Set: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Set: 2>
+    Symbol: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Symbol: 5>
+    Tuple: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Tuple: 0>
+    __members__: typing.ClassVar[
+        dict[str, TheoryTermType]
+    ]  # value = {'Number': <TheoryTermType.Number: 4>, 'Symbol': <TheoryTermType.Symbol: 5>, 'Tuple': <TheoryTermType.Tuple: 0>, 'List': <TheoryTermType.List: 1>, 'Set': <TheoryTermType.Set: 2>, 'Function': <TheoryTermType.Function: 3>}
+    def __eq__(self, other: typing.Any) -> bool: ...
+    def __getstate__(self) -> int: ...
+    def __hash__(self) -> int: ...
+    def __index__(self) -> int: ...
+    def __init__(self, value: int) -> None: ...
+    def __int__(self) -> int: ...
+    def __ne__(self, other: typing.Any) -> bool: ...
+    def __repr__(self) -> str: ...
+    def __setstate__(self, state: int) -> None: ...
+    def __str__(self) -> str: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def value(self) -> int: ...

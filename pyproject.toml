@@ -1,3 +1,19 @@
+[project]
+name = "clingo"
+version = "6.0.0"
+
+[build-system]
+requires = ["scikit-build-core", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build.sdist]
+include = ["lib/*", "third_party/*", "app/*", "CMakeLists.txt"]
+exclude = ["*.pyc"]
+
+[tool.scikit-build.wheel]
+# TODO: install components are the cleaner way to implement this
+exclude = ["include/amc/*", "bin/*", "share/*"]
+
 [tool.pytest.ini_options]
 addopts = [
     "--ignore=third_party",
@@ -5,5 +21,6 @@ addopts = [
     "--ignore=.git",
 ]
 testpaths = ["lib"]
+
 [tool.ruff]
 ignore = ["E741"]

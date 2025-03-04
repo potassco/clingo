@@ -22,6 +22,10 @@ pybind11_add_module(clingo_python_module src/module.cc)
 clingo_target_properties(clingo_python_module "lib/pyclingo-module" "python")
 set_target_properties(clingo_python_module PROPERTIES OUTPUT_NAME "clingo")
 target_link_libraries(clingo_python_module PRIVATE clingo clingo_python)
+if (DEFINED SKBUILD)
+    install(TARGETS clingo_python_module LIBRARY DESTINATION .)
+    install(DIRECTORY stubs/ DESTINATION clingo-stubs)
+endif()
 
 # the embedded library
 add_library(clingo_python_embed src/embed.cc)

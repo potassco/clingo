@@ -35,6 +35,13 @@ if (PARSER_PROFILE)
 endif()
 
 add_subdirectory(third_party)
+
+if (DEFINED SKBUILD)
+    set(PYBIND11_NEWPYTHON ON)
+    set(PYBIND11_FINDPYTHON ON)
+    find_package(pybind11 CONFIG REQUIRED)
+endif()
+
 add_subdirectory(lib libclingo)
 if (NOT PARSER_BUILD_WEB)
     add_subdirectory(examples/c-api)
