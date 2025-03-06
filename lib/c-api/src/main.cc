@@ -8,6 +8,10 @@
 
 #include <clasp/cli/clasp_app.h>
 
+#include <forward_list>
+#include <unordered_set>
+#include <utility>
+
 namespace {
 
 using namespace Clingo::Input;
@@ -24,7 +28,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     using ClaspOutput = Clasp::Cli::Output;
     using ProblemType = Clasp::ProblemType;
     using BaseType = Clasp::Cli::ClaspAppBase;
-    using OptionParser = std::function<bool(char const *)>;
     using AppMode = Clingo::Control::AppMode;
     enum class Mode : uint8_t {
         parse = static_cast<uint8_t>(AppMode::parse),
@@ -154,6 +157,56 @@ auto run(clingo_lib_t *lib, std::span<char const *const> args) -> clingo_result_
     }
     return clingo_result_success;
 }
+
+class ExtensibleClingoApp : public ClingoApp {
+  public:
+    using OptionParser = std::function<bool(char const *)>;
+
+    ExtensibleClingoApp(clingo_lib_t &lib) : ClingoApp{lib} {}
+
+    void add_option(char const *group, char const *option, char const *description, OptionParser parser,
+                    char const *argument = nullptr, bool multi = false) {
+        using namespace Potassco::ProgramOptions;
+        auto value = std::unique_ptr<Value>(
+            parse([parser = std::move(parser)]([[maybe_unused]] std::string const &name, std::string const &value) {
+                return parser(value.c_str());
+            }));
+        if (argument != nullptr) {
+            value->arg(add_name_(argument));
+        }
+        if (multi) {
+            value->composing();
+        }
+        add_option_(group, option, std::move(value), description);
+    }
+
+    void add_flag(char const *group, char const *option, char const *description, bool &target) {
+        using namespace Potassco::ProgramOptions;
+        std::unique_ptr<Value> value{flag(target)};
+        value->negatable();
+        add_option_(group, option, std::move(value), description);
+    }
+
+  private:
+    auto add_name_(char const *name) -> char const * { return names_.emplace(name).first->c_str(); }
+
+    void add_option_(char const *group, char const *option, std::unique_ptr<Potassco::ProgramOptions::Value> value,
+                     char const *description) {
+        auto init = add_group_(add_name_(group)).addOptions();
+        auto const *copt = add_name_(option);
+        auto const *cdesc = add_name_(description);
+        init(copt, value.release(), cdesc);
+    }
+
+    auto add_group_(char const *group) -> Potassco::ProgramOptions::OptionGroup & {
+        auto it =
+            std::ranges::find(groups_, std::string_view{group}, [](auto const &group) { return group.caption(); });
+        return it != groups_.end() ? *it : groups_.emplace_front(group);
+    }
+
+    std::unordered_set<std::string> names_;
+    std::forward_list<Potassco::ProgramOptions::OptionGroup> groups_;
+};
 
 } // namespace
 
