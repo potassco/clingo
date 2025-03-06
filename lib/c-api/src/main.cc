@@ -24,19 +24,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     [[nodiscard]] auto getVersion() const -> char const * override { return CLINGO_VERSION; }
     [[nodiscard]] auto getUsage() const -> char const * override { return "[number] [options] [files]"; }
 
-  private:
-    using ClaspOutput = Clasp::Cli::Output;
-    using ProblemType = Clasp::ProblemType;
-    using BaseType = Clasp::Cli::ClaspAppBase;
-    using AppMode = Clingo::Control::AppMode;
-    enum class Mode : uint8_t {
-        parse = static_cast<uint8_t>(AppMode::parse),
-        rewrite = static_cast<uint8_t>(AppMode::rewrite),
-        ground = static_cast<uint8_t>(AppMode::ground),
-        solve = static_cast<uint8_t>(AppMode::solve),
-        clasp = static_cast<uint8_t>(AppMode::solve) + 1,
-    };
-
+  protected:
     void initOptions(Potassco::ProgramOptions::OptionContext &root) override {
         using namespace Potassco::ProgramOptions;
         BaseType::initOptions(root);
@@ -102,6 +90,19 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         lib_->log.set_level(log_level_);
     }
 
+  private:
+    using ClaspOutput = Clasp::Cli::Output;
+    using ProblemType = Clasp::ProblemType;
+    using BaseType = Clasp::Cli::ClaspAppBase;
+    using AppMode = Clingo::Control::AppMode;
+    enum class Mode : uint8_t {
+        parse = static_cast<uint8_t>(AppMode::parse),
+        rewrite = static_cast<uint8_t>(AppMode::rewrite),
+        ground = static_cast<uint8_t>(AppMode::ground),
+        solve = static_cast<uint8_t>(AppMode::solve),
+        clasp = static_cast<uint8_t>(AppMode::solve) + 1,
+    };
+
     auto getProblemType() -> ProblemType override {
         return mode_ != Mode::clasp ? Clasp::ProblemType::asp : Clasp::ClaspFacade::detectProblemType(getStream());
     }
@@ -158,11 +159,9 @@ auto run(clingo_lib_t *lib, std::span<char const *const> args) -> clingo_result_
     return clingo_result_success;
 }
 
-class ExtensibleClingoApp : public ClingoApp {
+class ApplicationOptions {
   public:
     using OptionParser = std::function<bool(char const *)>;
-
-    ExtensibleClingoApp(clingo_lib_t &lib) : ClingoApp{lib} {}
 
     void add_option(char const *group, char const *option, char const *description, OptionParser parser,
                     char const *argument = nullptr, bool multi = false) {
@@ -172,40 +171,75 @@ class ExtensibleClingoApp : public ClingoApp {
                 return parser(value.c_str());
             }));
         if (argument != nullptr) {
-            value->arg(add_name_(argument));
+            value->arg(add_string_(argument));
         }
         if (multi) {
             value->composing();
         }
-        add_option_(group, option, std::move(value), description);
+        add_option_value_(group, option, std::move(value), description);
     }
 
     void add_flag(char const *group, char const *option, char const *description, bool &target) {
         using namespace Potassco::ProgramOptions;
         std::unique_ptr<Value> value{flag(target)};
         value->negatable();
-        add_option_(group, option, std::move(value), description);
+        add_option_value_(group, option, std::move(value), description);
+    }
+
+    void init(Potassco::ProgramOptions::OptionContext &root) {
+        for (auto const &group : groups_) {
+            root.add(group);
+        }
     }
 
   private:
-    auto add_name_(char const *name) -> char const * { return names_.emplace(name).first->c_str(); }
+    auto add_string_(char const *name) -> char const * { return names_.emplace(name).first->c_str(); }
 
-    void add_option_(char const *group, char const *option, std::unique_ptr<Potassco::ProgramOptions::Value> value,
-                     char const *description) {
-        auto init = add_group_(add_name_(group)).addOptions();
-        auto const *copt = add_name_(option);
-        auto const *cdesc = add_name_(description);
+    void add_option_value_(char const *group, char const *option,
+                           std::unique_ptr<Potassco::ProgramOptions::Value> value, char const *description) {
+        auto init = add_option_group_(add_string_(group)).addOptions();
+        auto const *copt = add_string_(option);
+        auto const *cdesc = add_string_(description);
         init(copt, value.release(), cdesc);
     }
 
-    auto add_group_(char const *group) -> Potassco::ProgramOptions::OptionGroup & {
-        auto it =
-            std::ranges::find(groups_, std::string_view{group}, [](auto const &group) { return group.caption(); });
-        return it != groups_.end() ? *it : groups_.emplace_front(group);
+    auto add_option_group_(char const *group) -> Potassco::ProgramOptions::OptionGroup & {
+        auto it = groups_.before_begin();
+        for (auto &option_group : groups_) {
+            if (option_group.caption() == group) {
+                return option_group;
+            }
+            ++it;
+        }
+        return *groups_.emplace_after(it, group);
     }
 
     std::unordered_set<std::string> names_;
     std::forward_list<Potassco::ProgramOptions::OptionGroup> groups_;
+};
+
+class ExtensibleClingoApp : public ClingoApp {
+  public:
+    using BaseType = ClingoApp;
+
+    ExtensibleClingoApp(clingo_lib_t &lib) : ClingoApp{lib} {}
+
+  protected:
+    void initOptions(Potassco::ProgramOptions::OptionContext &root) override {
+        BaseType::initOptions(root);
+        // TODO: run init_options callback
+        opts_.init(root);
+    }
+
+    void validateOptions(const Potassco::ProgramOptions::OptionContext &root,
+                         const Potassco::ProgramOptions::ParsedOptions &parsed,
+                         const Potassco::ProgramOptions::ParsedValues &vals) override {
+        BaseType::validateOptions(root, parsed, vals);
+        // TODO: run validate_options callback
+    }
+
+  private:
+    ApplicationOptions opts_;
 };
 
 } // namespace
