@@ -1,4 +1,6 @@
-#include "lib.hh"
+#include "lib.hh" // IWYU pragma: keep
+
+#include <clingo/app.h>
 
 #include <clingo/control/solver.hh>
 
@@ -25,6 +27,22 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     [[nodiscard]] auto getUsage() const -> char const * override { return "[number] [options] [files]"; }
 
   protected:
+    using ClaspOutput = Clasp::Cli::Output;
+    using ProblemType = Clasp::ProblemType;
+    using BaseType = Clasp::Cli::ClaspAppBase;
+    using AppMode = Clingo::Control::AppMode;
+    enum class Mode : uint8_t {
+        parse = static_cast<uint8_t>(AppMode::parse),
+        rewrite = static_cast<uint8_t>(AppMode::rewrite),
+        ground = static_cast<uint8_t>(AppMode::ground),
+        solve = static_cast<uint8_t>(AppMode::solve),
+        clasp = static_cast<uint8_t>(AppMode::solve) + 1,
+    };
+
+    auto getProblemType() -> ProblemType override {
+        return mode_ != Mode::clasp ? Clasp::ProblemType::asp : Clasp::ClaspFacade::detectProblemType(getStream());
+    }
+
     void initOptions(Potassco::ProgramOptions::OptionContext &root) override {
         using namespace Potassco::ProgramOptions;
         BaseType::initOptions(root);
@@ -90,21 +108,8 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         lib_->log.set_level(log_level_);
     }
 
-  private:
-    using ClaspOutput = Clasp::Cli::Output;
-    using ProblemType = Clasp::ProblemType;
-    using BaseType = Clasp::Cli::ClaspAppBase;
-    using AppMode = Clingo::Control::AppMode;
-    enum class Mode : uint8_t {
-        parse = static_cast<uint8_t>(AppMode::parse),
-        rewrite = static_cast<uint8_t>(AppMode::rewrite),
-        ground = static_cast<uint8_t>(AppMode::ground),
-        solve = static_cast<uint8_t>(AppMode::solve),
-        clasp = static_cast<uint8_t>(AppMode::solve) + 1,
-    };
-
-    auto getProblemType() -> ProblemType override {
-        return mode_ != Mode::clasp ? Clasp::ProblemType::asp : Clasp::ClaspFacade::detectProblemType(getStream());
+    auto createTextOutput(const ClaspAppBase::TextOptions &options) -> ClaspOutput * override {
+        return mode_ == Mode::solve || mode_ == Mode::clasp ? BaseType::createTextOutput(options) : nullptr;
     }
 
     void run(Clasp::ClaspFacade &clasp) override {
@@ -128,10 +133,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         }
     }
 
-    auto createTextOutput(const ClaspAppBase::TextOptions &options) -> ClaspOutput * override {
-        return mode_ == Mode::solve || mode_ == Mode::clasp ? BaseType::createTextOutput(options) : nullptr;
-    }
-
+  private:
     RewriteOptions rewrite_opts_;
     Clingo::LogLevel log_level_ = Clingo::LogLevel::info;
     std::optional<std::vector<Clingo::Input::ProgramParamVec>> parts_;
@@ -140,24 +142,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     clingo_lib_t *lib_;
     Parser parser_{lib_->log, *lib_->store};
 };
-
-auto run(clingo_lib_t *lib, std::span<char const *const> args) -> clingo_result_t {
-    try {
-        auto app = ClingoApp{*lib};
-        auto c_args = std::vector<char *>{};
-        c_args.reserve(args.size() + 2);
-        c_args.emplace_back(const_cast<char *>(app.getName())); // NOLINT
-        for (auto const &arg : args) {
-            c_args.emplace_back(const_cast<char *>(arg)); // NOLINT
-        }
-        c_args.emplace_back(nullptr);
-        app.main(static_cast<int>(args.size()), c_args.data());
-    } catch (std::exception const &e) {
-        GRINGO_REPORT(lib->log, error) << e.what();
-        return handle_error();
-    }
-    return clingo_result_success;
-}
 
 class ApplicationOptions {
   public:
@@ -197,7 +181,7 @@ class ApplicationOptions {
 
     void add_option_value_(char const *group, char const *option,
                            std::unique_ptr<Potassco::ProgramOptions::Value> value, char const *description) {
-        auto init = add_option_group_(add_string_(group)).addOptions();
+        auto init = add_option_group_(group).addOptions();
         auto const *copt = add_string_(option);
         auto const *cdesc = add_string_(description);
         init(copt, value.release(), cdesc);
@@ -218,38 +202,92 @@ class ApplicationOptions {
     std::forward_list<Potassco::ProgramOptions::OptionGroup> groups_;
 };
 
+auto c_cast(ApplicationOptions *opts) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_options_t *>(opts);
+}
+
 class ExtensibleClingoApp : public ClingoApp {
   public:
     using BaseType = ClingoApp;
 
-    ExtensibleClingoApp(clingo_lib_t &lib) : ClingoApp{lib} {}
+    ExtensibleClingoApp(clingo_lib_t &lib, clingo_application_t &app, void *data)
+        : ClingoApp{lib}, app_{&app}, data_{data} {}
+
+    [[nodiscard]] auto getName() const -> char const * override {
+        return app_->program_name != nullptr ? app_->program_name(data_) : BaseType::getName();
+    }
+    [[nodiscard]] auto getVersion() const -> char const * override {
+        return app_->version != nullptr ? app_->version(data_) : BaseType::getVersion();
+    }
 
   protected:
     void initOptions(Potassco::ProgramOptions::OptionContext &root) override {
         BaseType::initOptions(root);
-        // TODO: run init_options callback
+        if (app_->register_options != nullptr) {
+            handle_error(app_->register_options(c_cast(&opts_), data_));
+        }
         opts_.init(root);
     }
 
     void validateOptions(const Potassco::ProgramOptions::OptionContext &root,
                          const Potassco::ProgramOptions::ParsedOptions &parsed,
                          const Potassco::ProgramOptions::ParsedValues &vals) override {
+        if (app_->validate_options != nullptr) {
+            handle_error(app_->validate_options(data_));
+        }
         BaseType::validateOptions(root, parsed, vals);
-        // TODO: run validate_options callback
+    }
+
+    auto createTextOutput(const ClaspAppBase::TextOptions &options) -> ClaspOutput * override {
+        if (app_->printer != nullptr) {
+            throw std::logic_error("implement me: app::printer");
+        }
+        return BaseType::createTextOutput(options);
+    }
+
+    void run(Clasp::ClaspFacade &clasp) override {
+        if (app_->main != nullptr) {
+            throw std::logic_error("implement me: app::main");
+        }
+        BaseType::run(clasp);
     }
 
   private:
+    clingo_application_t *app_;
+    void *data_;
     ApplicationOptions opts_;
 };
 
+auto map(char const *name, char const *const *args, size_t size) {
+    auto c_args = std::vector<char *>{};
+    c_args.reserve(size + 2);
+    c_args.emplace_back(const_cast<char *>(name)); // NOLINT
+    for (auto const &arg : std::span{args, size}) {
+        c_args.emplace_back(const_cast<char *>(arg)); // NOLINT
+    }
+    c_args.emplace_back(nullptr);
+    return c_args;
+}
+
 } // namespace
 
-extern "C" auto clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size) -> clingo_result_t {
+extern "C" auto clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size, clingo_application_t *app,
+                            void *data) -> int {
     try {
-        return run(lib, std::span{arguments, size});
+        if (lib == nullptr || (arguments == nullptr && size > 0)) {
+            return clingo_result_invalid;
+        }
+        if (app == nullptr) {
+            auto capp = ClingoApp{*lib};
+            auto args = map(capp.getName(), arguments, size);
+            return capp.main(static_cast<int>(args.size()), args.data());
+        }
+        auto capp = ExtensibleClingoApp{*lib, *app, data};
+        auto args = map(capp.getName(), arguments, size);
+        return capp.main(static_cast<int>(args.size()), args.data());
     } catch (std::exception const &e) {
-        fprintf(stderr, "panic: %s\n", e.what());
-        fflush(stderr);
-        return clingo_result_runtime;
+        GRINGO_REPORT(lib->log, error) << e.what();
+        return 1;
     }
 }

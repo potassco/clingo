@@ -31,10 +31,7 @@ auto main(int argc, char *argv[]) -> int {
         return 1;
     }
 #endif
-    res = clingo_main(lib, argv + 1, argc - 1);
-    if (res != clingo_result_success) {
-        clingo_lib_free(lib, true);
-        return 1;
-    }
+    res = clingo_main(lib, argv + 1, argc - 1, nullptr, nullptr);
     clingo_lib_free(lib, true);
+    return res;
 }

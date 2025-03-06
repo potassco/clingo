@@ -1,4 +1,5 @@
 set(sources
+    app.c
     ast.c
     base-atoms.c
     base-theory.c
