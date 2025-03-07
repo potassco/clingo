@@ -19,8 +19,139 @@ namespace {
 
 using namespace Clingo::Input;
 
+class AppOptions {
+  public:
+    using OptionParser = std::function<bool(char const *)>;
+
+    void add_option(char const *group, char const *option, char const *description, OptionParser parser,
+                    char const *argument = nullptr, bool multi = false) {
+        using namespace Potassco::ProgramOptions;
+        auto value = std::unique_ptr<Value>(
+            parse([parser = std::move(parser)]([[maybe_unused]] std::string const &name, std::string const &value) {
+                return parser(value.c_str());
+            }));
+        if (argument != nullptr) {
+            value->arg(add_string_(argument));
+        }
+        if (multi) {
+            value->composing();
+        }
+        add_option_value_(group, option, std::move(value), description);
+    }
+
+    void add_flag(char const *group, char const *option, char const *description, bool &target) {
+        using namespace Potassco::ProgramOptions;
+        std::unique_ptr<Value> value{flag(target)};
+        value->negatable();
+        add_option_value_(group, option, std::move(value), description);
+    }
+
+    void init(Potassco::ProgramOptions::OptionContext &root) {
+        for (auto const &group : groups_) {
+            root.add(group);
+        }
+    }
+
+  private:
+    auto add_string_(char const *name) -> char const * { return names_.emplace(name).first->c_str(); }
+
+    void add_option_value_(char const *group, char const *option,
+                           std::unique_ptr<Potassco::ProgramOptions::Value> value, char const *description) {
+        auto init = add_option_group_(group).addOptions();
+        auto const *copt = add_string_(option);
+        auto const *cdesc = add_string_(description);
+        init(copt, value.release(), cdesc);
+    }
+
+    auto add_option_group_(char const *group) -> Potassco::ProgramOptions::OptionGroup & {
+        auto it = groups_.before_begin();
+        for (auto &option_group : groups_) {
+            if (option_group.caption() == group) {
+                return option_group;
+            }
+            ++it;
+        }
+        return *groups_.emplace_after(it, group);
+    }
+
+    std::unordered_set<std::string> names_;
+    std::forward_list<Potassco::ProgramOptions::OptionGroup> groups_;
+};
+
+auto c_cast(AppOptions *opts) -> clingo_options_t * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_options_t *>(opts);
+}
+
+auto cpp_cast(clingo_options_t *opts) -> AppOptions * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<AppOptions *>(opts);
+}
+
+class AppAdapter {
+  public:
+    AppAdapter(clingo_application_t *app, void *data) : app_(app), data_(data) {}
+
+    [[nodiscard]] auto get_name() const -> char const * {
+        return app_->program_name != nullptr ? app_->program_name(data_) : "clingo";
+    }
+    [[nodiscard]] auto get_version() const -> char const * {
+        return app_->version != nullptr ? app_->version(data_) : CLINGO_VERSION;
+    }
+
+    void register_options(Potassco::ProgramOptions::OptionContext &root) {
+        if (app_ != nullptr && app_->register_options != nullptr) {
+            handle_error(app_->register_options(c_cast(&opts_), data_));
+            opts_.init(root);
+        }
+    }
+
+    void validateOptions() {
+        if (app_ != nullptr && app_->validate_options != nullptr) {
+            handle_error(app_->validate_options(data_));
+        }
+    }
+
+    [[nodiscard]] auto has_print_model() const -> bool { return app_ != nullptr && app_->print_model != nullptr; }
+
+    template <class T> void print_model(Clingo::Control::Model &mdl, T &prt) const {
+        assert(has_print_model());
+        auto cprt = [](void *data) -> clingo_result_t {
+            CLINGO_TRY {
+                (*static_cast<T const *>(data))();
+            }
+            CLINGO_CATCH;
+        };
+        // NOLINTNEXTLINE
+        auto *cmdl = reinterpret_cast<clingo_model_t *>(&mdl);
+        // TODO: callback should be locked
+        handle_error(app_->print_model(cmdl, cprt, static_cast<void *>(&prt), data_));
+    }
+
+    [[nodiscard]] auto has_main() const -> bool { return app_ != nullptr && app_->main != nullptr; }
+
+    void main(clingo_control_t *ctl, std::span<std::string const> const &input) {
+        assert(has_main());
+        auto vec = Clingo::Util::transform(input, [](auto const &str) { return str.c_str(); });
+        handle_error(app_->main(ctl, vec.data(), vec.size(), data_));
+    }
+
+  private:
+    AppOptions opts_;
+    clingo_application_t *app_;
+    void *data_;
+};
+
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
   public:
+    ClingoApp(clingo_lib_t &lib, clingo_application_t *app = nullptr, void *data = nullptr)
+        : ctl_{&lib, nullptr, nullptr, nullptr}, app_{app, data} {}
+
+    [[nodiscard]] auto getName() const -> char const * override { return app_.get_name(); }
+    [[nodiscard]] auto getVersion() const -> char const * override { return app_.get_version(); }
+    [[nodiscard]] auto getUsage() const -> char const * override { return "[number] [options] [files]"; }
+
+  private:
     using AppMode = Clingo::Control::AppMode;
     enum class Mode : uint8_t {
         parse = static_cast<uint8_t>(AppMode::parse),
@@ -29,17 +160,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         solve = static_cast<uint8_t>(AppMode::solve),
         clasp = static_cast<uint8_t>(AppMode::solve) + 1,
     };
-
-    ClingoApp(clingo_lib_t &lib) : ctl_{&lib, nullptr, nullptr, nullptr} {}
-
-    [[nodiscard]] auto getName() const -> char const * override { return "clingo"; }
-    [[nodiscard]] auto getVersion() const -> char const * override { return CLINGO_VERSION; }
-    [[nodiscard]] auto getUsage() const -> char const * override { return "[number] [options] [files]"; }
-
-    [[nodiscard]] auto get_ctl() -> clingo_control_t & { return ctl_; }
-    [[nodiscard]] auto get_mode() const -> Mode { return mode_; }
-
-  protected:
     using ClaspOutput = Clasp::Cli::Output;
     using ProblemType = Clasp::ProblemType;
     using BaseType = Clasp::Cli::ClaspAppBase;
@@ -105,6 +225,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                                                           })),
              "Select log level {error|warn|info|debug|trace}");
         root.add(group_basic);
+        app_.register_options(root);
     }
 
     void validateOptions(const Potassco::ProgramOptions::OptionContext &root,
@@ -112,14 +233,27 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                          const Potassco::ProgramOptions::ParsedValues &vals) override {
         BaseType::validateOptions(root, parsed, vals);
         ctl_.lib->log.set_level(log_level_);
+        app_.validateOptions();
     }
 
     auto createTextOutput(const ClaspAppBase::TextOptions &options) -> ClaspOutput * override {
-        return mode_ == Mode::solve || mode_ == Mode::clasp ? BaseType::createTextOutput(options) : nullptr;
-    }
+        if (mode_ == Mode::solve && app_.has_print_model()) {
+            class CustomTextOutput : public Clasp::Cli::TextOutput {
+              public:
+                using BaseType = Clasp::Cli::TextOutput;
+                CustomTextOutput(ClingoApp &app, Clasp::Cli::ClaspAppBase::TextOptions const &opts)
+                    : TextOutput(opts.verbosity, opts.format, opts.catAtom, opts.ifs), self_{&app} {}
 
-    virtual void run(clingo_control_t &ctl) {
-        ctl.slv->main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()}, parts_);
+              private:
+                void printModelValues(Clasp::OutputTable const &out, Clasp::Model const &mdl) override {
+                    auto prt = [&]() { BaseType::printModelValues(out, mdl); };
+                    self_->app_.print_model(self_->ctl_.slv->map_model(mdl), prt);
+                }
+                ClingoApp *self_;
+            };
+            return new CustomTextOutput(*this, options);
+        }
+        return mode_ == Mode::solve || mode_ == Mode::clasp ? BaseType::createTextOutput(options) : nullptr;
     }
 
     void run(Clasp::ClaspFacade &clasp) override {
@@ -141,13 +275,17 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             ctl_.slv = &slv;
             ctl_.cfg = &slv.clasp_config();
             ctl_.clasp = &slv.clasp_facade();
-            run(ctl_);
+            if (app_.has_main()) {
+                app_.main(&ctl_, claspAppOpts_.input);
+            } else {
+                ctl_.slv->main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()},
+                               parts_);
+            }
         } else {
             BaseType::run(clasp);
         }
     }
 
-  private:
     RewriteOptions rewrite_opts_;
     Clingo::LogLevel log_level_ = Clingo::LogLevel::info;
     std::optional<std::vector<Clingo::Input::ProgramParamVec>> parts_;
@@ -155,151 +293,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     Mode mode_ = Mode::solve;
     clingo_control_t ctl_;
     Parser parser_{ctl_.lib->log, *ctl_.lib->store};
-};
-
-class ApplicationOptions {
-  public:
-    using OptionParser = std::function<bool(char const *)>;
-
-    void add_option(char const *group, char const *option, char const *description, OptionParser parser,
-                    char const *argument = nullptr, bool multi = false) {
-        using namespace Potassco::ProgramOptions;
-        auto value = std::unique_ptr<Value>(
-            parse([parser = std::move(parser)]([[maybe_unused]] std::string const &name, std::string const &value) {
-                return parser(value.c_str());
-            }));
-        if (argument != nullptr) {
-            value->arg(add_string_(argument));
-        }
-        if (multi) {
-            value->composing();
-        }
-        add_option_value_(group, option, std::move(value), description);
-    }
-
-    void add_flag(char const *group, char const *option, char const *description, bool &target) {
-        using namespace Potassco::ProgramOptions;
-        std::unique_ptr<Value> value{flag(target)};
-        value->negatable();
-        add_option_value_(group, option, std::move(value), description);
-    }
-
-    void init(Potassco::ProgramOptions::OptionContext &root) {
-        for (auto const &group : groups_) {
-            root.add(group);
-        }
-    }
-
-  private:
-    auto add_string_(char const *name) -> char const * { return names_.emplace(name).first->c_str(); }
-
-    void add_option_value_(char const *group, char const *option,
-                           std::unique_ptr<Potassco::ProgramOptions::Value> value, char const *description) {
-        auto init = add_option_group_(group).addOptions();
-        auto const *copt = add_string_(option);
-        auto const *cdesc = add_string_(description);
-        init(copt, value.release(), cdesc);
-    }
-
-    auto add_option_group_(char const *group) -> Potassco::ProgramOptions::OptionGroup & {
-        auto it = groups_.before_begin();
-        for (auto &option_group : groups_) {
-            if (option_group.caption() == group) {
-                return option_group;
-            }
-            ++it;
-        }
-        return *groups_.emplace_after(it, group);
-    }
-
-    std::unordered_set<std::string> names_;
-    std::forward_list<Potassco::ProgramOptions::OptionGroup> groups_;
-};
-
-auto c_cast(ApplicationOptions *opts) -> clingo_options_t * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<clingo_options_t *>(opts);
-}
-
-auto cpp_cast(clingo_options_t *opts) -> ApplicationOptions * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<ApplicationOptions *>(opts);
-}
-
-class ExtensibleClingoApp : public ClingoApp {
-  public:
-    using BaseType = ClingoApp;
-
-    ExtensibleClingoApp(clingo_lib_t &lib, clingo_application_t &app, void *data)
-        : ClingoApp{lib}, app_{&app}, data_{data} {}
-
-    [[nodiscard]] auto getName() const -> char const * override {
-        return app_->program_name != nullptr ? app_->program_name(data_) : BaseType::getName();
-    }
-    [[nodiscard]] auto getVersion() const -> char const * override {
-        return app_->version != nullptr ? app_->version(data_) : BaseType::getVersion();
-    }
-
-  protected:
-    void initOptions(Potassco::ProgramOptions::OptionContext &root) override {
-        BaseType::initOptions(root);
-        if (app_->register_options != nullptr) {
-            handle_error(app_->register_options(c_cast(&opts_), data_));
-        }
-        opts_.init(root);
-    }
-
-    void validateOptions(const Potassco::ProgramOptions::OptionContext &root,
-                         const Potassco::ProgramOptions::ParsedOptions &parsed,
-                         const Potassco::ProgramOptions::ParsedValues &vals) override {
-        if (app_->validate_options != nullptr) {
-            handle_error(app_->validate_options(data_));
-        }
-        BaseType::validateOptions(root, parsed, vals);
-    }
-
-    auto createTextOutput(ClaspAppBase::TextOptions const &options) -> ClaspOutput * override {
-        if (get_mode() == Mode::solve && app_->print_model != nullptr) {
-            class CustomTextOutput : public Clasp::Cli::TextOutput {
-              public:
-                using BaseType = Clasp::Cli::TextOutput;
-                CustomTextOutput(ExtensibleClingoApp &app, Clasp::Cli::ClaspAppBase::TextOptions const &opts)
-                    : TextOutput(opts.verbosity, opts.format, opts.catAtom, opts.ifs), self_{&app} {}
-
-              private:
-                void printModelValues(Clasp::OutputTable const &out, Clasp::Model const &mdl) override {
-                    // NOLINTNEXTLINE
-                    auto *cmdl = reinterpret_cast<clingo_model_t *>(&self_->get_ctl().slv->map_model(mdl));
-                    auto prt = [&]() { BaseType::printModelValues(out, mdl); };
-                    auto cprt = [](void *data) -> clingo_result_t {
-                        CLINGO_TRY {
-                            (*static_cast<decltype(prt) *>(data))();
-                        }
-                        CLINGO_CATCH;
-                    };
-                    // TODO: callback should be locked
-                    handle_error(self_->app_->print_model(cmdl, cprt, &prt, self_->data_));
-                }
-                ExtensibleClingoApp *self_;
-            };
-            return new CustomTextOutput(*this, options);
-        }
-        return BaseType::createTextOutput(options);
-    }
-
-    void run(clingo_control_t &ctl) override {
-        if (app_->main != nullptr) {
-            auto vec = Clingo::Util::transform(claspAppOpts_.input, [](auto const &str) { return str.c_str(); });
-            handle_error(app_->main(&get_ctl(), vec.data(), vec.size(), data_));
-        } else {
-            BaseType::run(ctl);
-        }
-    }
-
-  private:
-    clingo_application_t *app_;
-    void *data_;
-    ApplicationOptions opts_;
+    AppAdapter app_;
 };
 
 auto map(char const *name, char const *const *args, size_t size) {
@@ -347,12 +341,7 @@ extern "C" auto clingo_main(clingo_lib_t *lib, char const *const *arguments, siz
         if (lib == nullptr || (arguments == nullptr && size > 0)) {
             return clingo_result_invalid;
         }
-        if (app == nullptr) {
-            auto capp = ClingoApp{*lib};
-            auto args = map(capp.getName(), arguments, size);
-            return capp.main(static_cast<int>(args.size()), args.data());
-        }
-        auto capp = ExtensibleClingoApp{*lib, *app, data};
+        auto capp = ClingoApp{*lib, app, data};
         auto args = map(capp.getName(), arguments, size);
         return capp.main(static_cast<int>(args.size()), args.data());
     } catch (std::exception const &e) {
