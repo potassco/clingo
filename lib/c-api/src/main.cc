@@ -194,12 +194,11 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
              "Replace term occurrences of <id> with <term>")               //
             ("parts", parse(parse_parts), "Parse program parts to ground") //
             ("projection-mode,@1",
-             storeTo(rewrite_opts_.project_mode = Clingo::Input::ProjectionMode::pure,
-                     values<Clingo::Input::ProjectionMode>({
-                         {"none", ProjectionMode::disabled},
-                         {"anonymous", ProjectionMode::anonymous},
-                         {"pure", ProjectionMode::pure},
-                     })),
+             storeTo(rewrite_opts_.project_mode = ProjectionMode::pure, values<ProjectionMode>({
+                                                                            {"none", ProjectionMode::disabled},
+                                                                            {"anonymous", ProjectionMode::anonymous},
+                                                                            {"pure", ProjectionMode::pure},
+                                                                        })),
              "Select which variables to project") //
             ("project-anonymous,@1", flag(rewrite_opts_.project_anonymous = false), "Project anonymous variables");
         // registerOptions(gringo, grOpts_, GringoOptions::AppType::Clingo);
@@ -288,7 +287,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 
     RewriteOptions rewrite_opts_;
     Clingo::LogLevel log_level_ = Clingo::LogLevel::info;
-    std::optional<std::vector<Clingo::Input::ProgramParamVec>> parts_;
+    std::optional<std::vector<ProgramParamVec>> parts_;
     std::vector<std::pair<Clingo::SharedString, Clingo::SharedSymbol>> const_defs_;
     Mode mode_ = Mode::solve;
     clingo_control_t ctl_;
