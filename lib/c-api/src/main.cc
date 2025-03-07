@@ -21,21 +21,7 @@ using namespace Clingo::Input;
 
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
   public:
-    ClingoApp(clingo_lib_t &lib) : lib_{&lib} {}
-
-    [[nodiscard]] auto getName() const -> char const * override { return "clingo"; }
-    [[nodiscard]] auto getVersion() const -> char const * override { return CLINGO_VERSION; }
-    [[nodiscard]] auto getUsage() const -> char const * override { return "[number] [options] [files]"; }
-
-    [[nodiscard]] auto get_lib() const -> clingo_lib_t * { return lib_; }
-
-  protected:
-    using ClaspOutput = Clasp::Cli::Output;
-    using ProblemType = Clasp::ProblemType;
-    using BaseType = Clasp::Cli::ClaspAppBase;
     using AppMode = Clingo::Control::AppMode;
-    using BaseType::run;
-
     enum class Mode : uint8_t {
         parse = static_cast<uint8_t>(AppMode::parse),
         rewrite = static_cast<uint8_t>(AppMode::rewrite),
@@ -43,6 +29,21 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         solve = static_cast<uint8_t>(AppMode::solve),
         clasp = static_cast<uint8_t>(AppMode::solve) + 1,
     };
+
+    ClingoApp(clingo_lib_t &lib) : ctl_{&lib, nullptr, nullptr, nullptr} {}
+
+    [[nodiscard]] auto getName() const -> char const * override { return "clingo"; }
+    [[nodiscard]] auto getVersion() const -> char const * override { return CLINGO_VERSION; }
+    [[nodiscard]] auto getUsage() const -> char const * override { return "[number] [options] [files]"; }
+
+    [[nodiscard]] auto get_ctl() -> clingo_control_t & { return ctl_; }
+    [[nodiscard]] auto get_mode() const -> Mode { return mode_; }
+
+  protected:
+    using ClaspOutput = Clasp::Cli::Output;
+    using ProblemType = Clasp::ProblemType;
+    using BaseType = Clasp::Cli::ClaspAppBase;
+    using BaseType::run;
 
     auto getProblemType() -> ProblemType override {
         return mode_ != Mode::clasp ? Clasp::ProblemType::asp : Clasp::ClaspFacade::detectProblemType(getStream());
@@ -54,7 +55,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         auto group_grounder = OptionGroup{"Grounder Options"};
         auto parse_const = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
             // NOTE: this might use the logger.
-            parser_.init(value, *lib_->store->string("<const>"));
+            parser_.init(value, *ctl_.lib->store->string("<const>"));
             auto def = parser_.parse_const_def();
             if (def) {
                 const_defs_.emplace_back(*def);
@@ -63,7 +64,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         };
         auto parse_parts = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
             // NOTE: this might use the logger.
-            parser_.init(value, *lib_->store->string("<parts>"));
+            parser_.init(value, *ctl_.lib->store->string("<parts>"));
             parts_ = parser_.parse_program_parts();
             return static_cast<bool>(parts_);
         };
@@ -110,15 +111,15 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                          const Potassco::ProgramOptions::ParsedOptions &parsed,
                          const Potassco::ProgramOptions::ParsedValues &vals) override {
         BaseType::validateOptions(root, parsed, vals);
-        lib_->log.set_level(log_level_);
+        ctl_.lib->log.set_level(log_level_);
     }
 
     auto createTextOutput(const ClaspAppBase::TextOptions &options) -> ClaspOutput * override {
         return mode_ == Mode::solve || mode_ == Mode::clasp ? BaseType::createTextOutput(options) : nullptr;
     }
 
-    virtual void run(Clingo::Control::Solver &slv) {
-        slv.main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()}, parts_);
+    virtual void run(clingo_control_t &ctl) {
+        ctl.slv->main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()}, parts_);
     }
 
     void run(Clasp::ClaspFacade &clasp) override {
@@ -128,15 +129,19 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             }
             auto slv = Clingo::Control::Solver{clasp,
                                                claspConfig_,
-                                               lib_->log,
-                                               *lib_->store,
-                                               lib_->scripts,
+                                               ctl_.lib->log,
+                                               *ctl_.lib->store,
+                                               ctl_.lib->scripts,
                                                rewrite_opts_,
                                                static_cast<AppMode>(mode_)};
             for (auto const &[name, value] : const_defs_) {
                 slv.add_const(*name, *value);
             }
-            slv.main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()}, parts_);
+            // NOTE: member for createTextOutput
+            ctl_.slv = &slv;
+            ctl_.cfg = &slv.clasp_config();
+            ctl_.clasp = &slv.clasp_facade();
+            run(ctl_);
         } else {
             BaseType::run(clasp);
         }
@@ -148,8 +153,8 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     std::optional<std::vector<Clingo::Input::ProgramParamVec>> parts_;
     std::vector<std::pair<Clingo::SharedString, Clingo::SharedSymbol>> const_defs_;
     Mode mode_ = Mode::solve;
-    clingo_lib_t *lib_;
-    Parser parser_{lib_->log, *lib_->store};
+    clingo_control_t ctl_;
+    Parser parser_{ctl_.lib->log, *ctl_.lib->store};
 };
 
 class ApplicationOptions {
@@ -248,20 +253,41 @@ class ExtensibleClingoApp : public ClingoApp {
         BaseType::validateOptions(root, parsed, vals);
     }
 
-    auto createTextOutput(const ClaspAppBase::TextOptions &options) -> ClaspOutput * override {
-        if (app_->printer != nullptr) {
-            throw std::logic_error("implement me: app::printer");
+    auto createTextOutput(ClaspAppBase::TextOptions const &options) -> ClaspOutput * override {
+        if (get_mode() == Mode::solve && app_->print_model != nullptr) {
+            class CustomTextOutput : public Clasp::Cli::TextOutput {
+              public:
+                using BaseType = Clasp::Cli::TextOutput;
+                CustomTextOutput(ExtensibleClingoApp &app, Clasp::Cli::ClaspAppBase::TextOptions const &opts)
+                    : TextOutput(opts.verbosity, opts.format, opts.catAtom, opts.ifs), self_{&app} {}
+
+              private:
+                void printModelValues(Clasp::OutputTable const &out, Clasp::Model const &mdl) override {
+                    // NOLINTNEXTLINE
+                    auto *cmdl = reinterpret_cast<clingo_model_t *>(&self_->get_ctl().slv->map_model(mdl));
+                    auto prt = [&]() { BaseType::printModelValues(out, mdl); };
+                    auto cprt = [](void *data) -> clingo_result_t {
+                        CLINGO_TRY {
+                            (*static_cast<decltype(prt) *>(data))();
+                        }
+                        CLINGO_CATCH;
+                    };
+                    // TODO: callback should be locked
+                    handle_error(self_->app_->print_model(cmdl, cprt, &prt, self_->data_));
+                }
+                ExtensibleClingoApp *self_;
+            };
+            return new CustomTextOutput(*this, options);
         }
         return BaseType::createTextOutput(options);
     }
 
-    void run(Clingo::Control::Solver &slv) override {
+    void run(clingo_control_t &ctl) override {
         if (app_->main != nullptr) {
-            auto ctl = clingo_control{get_lib(), &slv, &slv.clasp_config(), &slv.clasp_facade()};
             auto vec = Clingo::Util::transform(claspAppOpts_.input, [](auto const &str) { return str.c_str(); });
-            handle_error(app_->main(&ctl, vec.data(), vec.size(), data_));
+            handle_error(app_->main(&get_ctl(), vec.data(), vec.size(), data_));
         } else {
-            BaseType::run(slv);
+            BaseType::run(ctl);
         }
     }
 

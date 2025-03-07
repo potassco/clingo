@@ -183,6 +183,7 @@ class Model {
     [[nodiscard]] virtual auto do_thread_id() const -> Output::id_t = 0;
     [[nodiscard]] virtual auto do_control() -> SolveControl & = 0;
 };
+using UModel = std::unique_ptr<Model>;
 
 //! The solve result.
 //!
@@ -478,6 +479,9 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
     //! Output the current program.
     void output_program(std::ostream &out);
 
+    //! Map the given clasp model to the clingo one.
+    auto map_model(Clasp::Model const &mdl) -> Model &;
+
     //! Get the output buffer.
     //!
     //! If the control object has been constructed without a null output FILE,
@@ -557,6 +561,7 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
     Output::UProgramBackend backend_;
     std::unique_ptr<Output::TheoryData> theory_;
     UOutputStm out_;
+    UModel mdl_;
     Grounder grd_;
     Scripts *scripts_;
     State state_ = State::initial;

@@ -282,9 +282,11 @@ class ModelImpl : public Model, private SolveControl {
     ~ModelImpl() override { clasp_->ctx.output.theory = nullptr; }
 
     //! Sets the given model returning true if it is not null.
-    auto set_model(Clasp::Model const *mdl) -> bool {
+    auto set_model(Clasp::Model const *mdl, bool clear_extend = true) -> bool {
         // NOTE: Extended symbols carry over to the last model.
-        extend_.clear();
+        if (clear_extend) {
+            extend_.clear();
+        }
         return (mdl_ = mdl) != nullptr;
     }
 
@@ -463,15 +465,14 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     //!
     //! This initializes the underlying solve handle, which in turn starts
     //! solving.
-    EventHandlerAdapter(PropagatorLock &lock, Logger &logger, Ground::Bases const &bases, Clasp::ClaspFacade &clasp,
-                        Control::UEventHandler eh)
-        : lock_{&lock}, logger_{&logger}, mdl_{bases, clasp}, eh_{std::move(eh)} {}
+    EventHandlerAdapter(PropagatorLock &lock, Logger &logger, ModelImpl &mdl, Control::UEventHandler eh)
+        : lock_{&lock}, logger_{&logger}, mdl_{&mdl}, eh_{std::move(eh)} {}
 
     //! Intercept and report models.
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         if (eh_) {
-            mdl_.set_model(&mdl);
-            return eh_->on_model(mdl_);
+            mdl_->set_model(&mdl);
+            return eh_->on_model(*mdl_);
         }
         return true;
     }
@@ -483,7 +484,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
         if (eh_) {
             if (auto const *res = event_cast<ClaspFacade::StepReady>(event); res != nullptr) {
                 try {
-                    if (auto *stats = mdl_.clasp().getStats(); stats != nullptr) {
+                    if (auto *stats = mdl_->clasp().getStats(); stats != nullptr) {
                         eh_->on_stats(*stats);
                     }
                     eh_->on_finish(convert(res->summary->result));
@@ -531,12 +532,12 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     }
 
     //! Get the underlying ModelImple.
-    [[nodiscard]] auto model() -> ModelImpl & { return mdl_; }
+    [[nodiscard]] auto model() -> ModelImpl & { return *mdl_; }
 
   private:
     PropagatorLock *lock_;
     Logger *logger_;
-    ModelImpl mdl_;
+    ModelImpl *mdl_;
     Clasp::SumVec bound_;
     Control::UEventHandler eh_;
     std::exception_ptr ptr_;
@@ -571,9 +572,8 @@ auto convert(SolveMode mode) -> Clasp::SolveMode {
 //! The solve handle implementation.
 class SolveHandleImpl : public SolveHandle {
   public:
-    SolveHandleImpl(PropagatorLock &lock, Logger &log, Ground::Bases const &bases, Clasp::ClaspFacade &clasp,
-                    SolveMode mode, UEventHandler eh)
-        : eh_{lock, log, bases, clasp, std::move(eh)}, hnd_{clasp.solve(convert(mode), {}, &eh_)} {}
+    SolveHandleImpl(PropagatorLock &lock, Logger &log, ModelImpl &mdl, SolveMode mode, UEventHandler eh)
+        : eh_{lock, log, mdl, std::move(eh)}, hnd_{mdl.clasp().solve(convert(mode), {}, &eh_)} {}
 
     ~SolveHandleImpl() override { hnd_.cancel(); }
 
@@ -716,6 +716,13 @@ void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> con
     }
 }
 
+auto Solver::map_model(Clasp::Model const &mdl) -> Model & {
+    assert(mdl_);
+    // NOLINTNEXTLINE
+    static_cast<ModelImpl &>(*mdl_).set_model(&mdl, false);
+    return *mdl_;
+}
+
 auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode mode) -> USolveHandle {
     if (mode_ == AppMode::solve) {
         if (state_ == State::solved || state_ == State::initial) {
@@ -732,7 +739,12 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         }
         clasp_->prepare();
         theory_->reset();
-        return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), grd_.base(), *clasp_, mode, std::move(handler));
+        if (mdl_ == nullptr) {
+            mdl_ = std::make_unique<ModelImpl>(grd_.base(), *clasp_);
+        }
+        // NOLINTNEXTLINE
+        return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), static_cast<ModelImpl &>(*mdl_), mode,
+                                                 std::move(handler));
     }
     return std::make_unique<SolveHandleFixed>();
 }

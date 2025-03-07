@@ -78,7 +78,7 @@ typedef struct clingo_application {
     char const *(*program_name)(void *data); //!< callback to obtain program name
     char const *(*version)(void *data);      //!< callback to obtain version information
     clingo_main_function_t main;             //!< callback to override clingo's main function
-    clingo_model_printer_t printer;          //!< callback to override default model printing
+    clingo_model_printer_t print_model;      //!< callback to override default model printing
     clingo_result_t (*register_options)(clingo_options_t *options, void *data); //!< callback to register options
     clingo_result_t (*validate_options)(void *data);                            //!< callback validate options
 } clingo_application_t;
