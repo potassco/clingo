@@ -20,7 +20,7 @@ void run(std::vector<std::string> const &args) {
     std::ranges::transform(args, c_args.begin(), [](auto const &str) { return str.c_str(); });
     if (clingo_lib_new(clingo_lib_flags_slotted, nullptr, nullptr, nullptr, message_limit, &lib) ==
         clingo_result_success) {
-        std::ignore = clingo_main(lib, c_args.data(), c_args.size());
+        std::ignore = clingo_main(lib, c_args.data(), c_args.size(), nullptr, nullptr);
     }
     clingo_lib_free(lib, true);
 }
