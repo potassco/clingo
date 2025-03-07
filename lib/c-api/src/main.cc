@@ -216,9 +216,14 @@ class ApplicationOptions {
     std::forward_list<Potassco::ProgramOptions::OptionGroup> groups_;
 };
 
-auto c_cast(ApplicationOptions *opts) {
+auto c_cast(ApplicationOptions *opts) -> clingo_options_t * {
     // NOLINTNEXTLINE
     return reinterpret_cast<clingo_options_t *>(opts);
+}
+
+auto cpp_cast(clingo_options_t *opts) -> ApplicationOptions * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<ApplicationOptions *>(opts);
 }
 
 class ExtensibleClingoApp : public ClingoApp {
@@ -309,6 +314,32 @@ auto map(char const *name, char const *const *args, size_t size) {
 }
 
 } // namespace
+
+extern "C" auto clingo_options_add(clingo_options_t *options, char const *group, char const *option,
+                                   char const *description, clingo_option_parser_t parser, void *data, bool multi,
+                                   char const *argument) -> clingo_result_t {
+    CLINGO_TRY {
+        auto *opts = cpp_cast(options);
+        opts->add_option(
+            group, option, description,
+            [parser, data](char const *value) {
+                auto result = false;
+                handle_error(parser(value, data, &result));
+                return result;
+            },
+            argument, multi);
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_options_add_flag(clingo_options_t *options, char const *group, char const *option,
+                                        char const *description, bool *target) -> clingo_result_t {
+    CLINGO_TRY {
+        auto *opts = cpp_cast(options);
+        opts->add_flag(group, option, description, *target);
+    }
+    CLINGO_CATCH;
+}
 
 extern "C" auto clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size, clingo_application_t *app,
                             void *data) -> int {

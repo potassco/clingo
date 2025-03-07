@@ -50,16 +50,14 @@ typedef struct clingo_options clingo_options_t;
 //! @param[in] files files passed via command line arguments
 //! @param[in] size number of files
 //! @param[in] data user data for the callback
-//!
-//! @return whether the call was successful
+//! @return the result code
 typedef clingo_result_t (*clingo_main_function_t)(clingo_control_t *control, char const *const *files, size_t size,
                                                   void *data);
 
 //! Callback to print a model in default format.
 //!
 //! @param[in] data user data for the callback
-//!
-//! @return whether the call was successful
+//! @return the result code
 typedef clingo_result_t (*clingo_default_model_printer_t)(void *data);
 
 //! Callback to customize model printing.
@@ -68,8 +66,7 @@ typedef clingo_result_t (*clingo_default_model_printer_t)(void *data);
 //! @param[in] printer the default model printer
 //! @param[in] printer_data user data for the printer
 //! @param[in] data user data for the callback
-//!
-//! @return whether the call was successful
+//! @return the result code
 typedef clingo_result_t (*clingo_model_printer_t)(clingo_model_t const *model, clingo_default_model_printer_t printer,
                                                   void *printer_data, void *data);
 
@@ -82,6 +79,14 @@ typedef struct clingo_application {
     clingo_result_t (*register_options)(clingo_options_t *options, void *data); //!< callback to register options
     clingo_result_t (*validate_options)(void *data);                            //!< callback validate options
 } clingo_application_t;
+
+//! Callback to parse the value of a command-line option.
+//!
+//! @param[in] value the value to parse
+//! @param[in] data the user data of the callback
+//! @param[in] result
+//! @return the result code
+typedef clingo_result_t (*clingo_option_parser_t)(char const *value, void *data, bool *result);
 
 //! Add an option that is processed with a custom parser.
 //!
@@ -97,15 +102,15 @@ typedef struct clingo_application {
 //! @param[in] group options are grouped into sections as given by this string
 //! @param[in] option specifies the command line option
 //! @param[in] description the description of the option
-//! @param[in] parse callback to parse the value of the option
+//! @param[in] parser callback to parse the value of the option
 //! @param[in] data user data for the callback
 //! @param[in] multi whether the option can appear multiple times on the command-line
 //! @param[in] argument optional string to change the value name in the generated help output
-//! @return whether the call was successful
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_options_add(clingo_options_t *options, char const *group,
                                                              char const *option, char const *description,
-                                                             bool (*parse)(char const *value, void *data), void *data,
-                                                             bool multi, char const *argument);
+                                                             clingo_option_parser_t parser, void *data, bool multi,
+                                                             char const *argument);
 //! Add an option that is a simple flag.
 //!
 //! This function is similar to @ref clingo_options_add() but simpler because it only supports flags, which do not have
@@ -116,7 +121,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_options_add(clingo_options_t *o
 //! @param[in] option specifies the command line option
 //! @param[in] description the description of the option
 //! @param[in] target boolean set to true if the flag is given on the command-line
-//! @return whether the call was successful
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_options_add_flag(clingo_options_t *options, char const *group,
                                                                   char const *option, char const *description,
                                                                   bool *target);
