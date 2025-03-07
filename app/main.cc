@@ -19,19 +19,19 @@ static constexpr auto message_limit = 25;
 EMSCRIPTEN_KEEPALIVE
 auto main(int argc, char *argv[]) -> int {
     clingo_result_t res = clingo_result_success;
-    clingo_lib_t *lib = nullptr;
-    res = clingo_lib_new(clingo_lib_flags_slotted, nullptr, nullptr, nullptr, message_limit, &lib);
+    struct scoped_lib {
+        ~scoped_lib() { clingo_lib_free(ptr, true); };
+        clingo_lib_t *ptr = nullptr;
+    } lib;
+    res = clingo_lib_new(clingo_lib_flags_slotted, nullptr, nullptr, nullptr, message_limit, &lib.ptr);
     if (res != clingo_result_success) {
         return 1;
     }
 #if CLINGO_PYTHON_ENABLED
-    res = clingo_register_python(lib);
+    res = clingo_register_python(lib.ptr);
     if (res != clingo_result_success) {
-        clingo_lib_free(lib, true);
         return 1;
     }
 #endif
-    res = clingo_main(lib, argv + 1, argc - 1, nullptr, nullptr);
-    clingo_lib_free(lib, true);
-    return res;
+    return clingo_main(lib.ptr, argv + 1, argc - 1, nullptr, nullptr);
 }
