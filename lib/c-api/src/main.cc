@@ -1,4 +1,5 @@
-#include "lib.hh" // IWYU pragma: keep
+#include "control.hh" // IWYU pragma: keep
+#include "lib.hh"     // IWYU pragma: keep
 
 #include <clingo/app.h>
 
@@ -26,11 +27,15 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     [[nodiscard]] auto getVersion() const -> char const * override { return CLINGO_VERSION; }
     [[nodiscard]] auto getUsage() const -> char const * override { return "[number] [options] [files]"; }
 
+    [[nodiscard]] auto get_lib() const -> clingo_lib_t * { return lib_; }
+
   protected:
     using ClaspOutput = Clasp::Cli::Output;
     using ProblemType = Clasp::ProblemType;
     using BaseType = Clasp::Cli::ClaspAppBase;
     using AppMode = Clingo::Control::AppMode;
+    using BaseType::run;
+
     enum class Mode : uint8_t {
         parse = static_cast<uint8_t>(AppMode::parse),
         rewrite = static_cast<uint8_t>(AppMode::rewrite),
@@ -110,6 +115,10 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 
     auto createTextOutput(const ClaspAppBase::TextOptions &options) -> ClaspOutput * override {
         return mode_ == Mode::solve || mode_ == Mode::clasp ? BaseType::createTextOutput(options) : nullptr;
+    }
+
+    virtual void run(Clingo::Control::Solver &slv) {
+        slv.main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()}, parts_);
     }
 
     void run(Clasp::ClaspFacade &clasp) override {
@@ -246,11 +255,14 @@ class ExtensibleClingoApp : public ClingoApp {
         return BaseType::createTextOutput(options);
     }
 
-    void run(Clasp::ClaspFacade &clasp) override {
+    void run(Clingo::Control::Solver &slv) override {
         if (app_->main != nullptr) {
-            throw std::logic_error("implement me: app::main");
+            auto ctl = clingo_control{get_lib(), &slv, &slv.clasp_config(), &slv.clasp_facade()};
+            auto vec = Clingo::Util::transform(claspAppOpts_.input, [](auto const &str) { return str.c_str(); });
+            handle_error(app_->main(&ctl, vec.data(), vec.size(), data_));
+        } else {
+            BaseType::run(slv);
         }
-        BaseType::run(clasp);
     }
 
   private:
