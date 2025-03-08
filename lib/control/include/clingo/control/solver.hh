@@ -183,6 +183,7 @@ class Model {
     [[nodiscard]] virtual auto do_thread_id() const -> Output::id_t = 0;
     [[nodiscard]] virtual auto do_control() -> SolveControl & = 0;
 };
+//! A unique pointer to a model.
 using UModel = std::unique_ptr<Model>;
 
 //! The solve result.

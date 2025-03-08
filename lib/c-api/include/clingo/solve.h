@@ -79,8 +79,8 @@ typedef unsigned clingo_solve_event_type_t;
 //! Callback function called during search to notify when the search is finished or a model is ready.
 //!
 //! If a (non-recoverable) clingo API function fails in this callback, it must return false.
-//! In case of errors not related to clingo, set error code ::clingo_error_unknown and return false to stop solving with
-//! an error.
+//! In case of errors not related to clingo, set error code ::clingo_result_unknown and return false to stop solving
+//! with an error.
 //!
 //! The event is either a pointer to a model, a pointer to an int64_t* and a size_t, a pointer to two stats objects
 //! (per step and accumulated stats), or a solve result.
