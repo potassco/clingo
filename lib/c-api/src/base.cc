@@ -147,8 +147,7 @@ extern "C" auto clingo_base_is_current(clingo_base_t const *atoms, clingo_litera
             return clingo_result_invalid;
         }
         auto atom = static_cast<clingo_atom_t>(std::abs(literal));
-        auto const &prg = get_program(atoms);
-        *is_current = prg.startAtom() <= atom && atom <= prg.endAtom();
+        *is_current = get_program(atoms).isNew(atom);
     }
     CLINGO_CATCH;
 }

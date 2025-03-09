@@ -186,7 +186,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_lib_new(clingo_lib_flags_t flag
 
 //! Report a message via the libraries logger.
 //!
-//! @param[in] lib the libary
+//! @param[in] lib the library
 //! @param[in] code associated code
 //! @param[in] message message
 CLINGO_VISIBILITY_DEFAULT void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char const *message);
@@ -200,7 +200,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_lib_report(clingo_lib_t *lib, clingo_messa
 //! NULL to just run the cleanup).
 //!
 //! The flag is mainly intended for language bindings, where cleanup of all
-//! symbols cannot be guaranteed due to unpredicatable garbage collection.
+//! symbols cannot be guaranteed due to unpredictable garbage collection.
 //! Objects using the library can still be freed after this call.
 //!
 //! @param[in] lib the target
@@ -302,7 +302,7 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_position_column(clingo_position_t const 
 CLINGO_VISIBILITY_DEFAULT size_t clingo_position_hash(clingo_position_t const *pos);
 //! Check if two positions are equal.
 //!
-//! Only positions associcated with the same library may be compared.
+//! Only positions associated with the same library may be compared.
 //!
 //! @param[in] a the first position
 //! @param[in] b the second position
@@ -310,7 +310,7 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_position_hash(clingo_position_t const *p
 CLINGO_VISIBILITY_DEFAULT bool clingo_position_equal(clingo_position_t const *a, clingo_position_t const *b);
 //! Compare two positions.
 //!
-//! Only positions associcated with the same library may be compared.
+//! Only positions associated with the same library may be compared.
 //!
 //! @param[in] a the first position
 //! @param[in] b the second position
@@ -369,7 +369,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_position_t const *clingo_location_end(clingo_lo
 CLINGO_VISIBILITY_DEFAULT size_t clingo_location_hash(clingo_location_t const *loc);
 //! Check if two locations are equal.
 //!
-//! Only locations associcated with the same library may be compared.
+//! Only locations associated with the same library may be compared.
 //!
 //! @param[in] a the first location
 //! @param[in] b the second location
@@ -377,7 +377,7 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_location_hash(clingo_location_t const *l
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_equal(clingo_location_t const *a, clingo_location_t const *b);
 //! Compare two locations.
 //!
-//! Only locations associcated with the same library may be compared.
+//! Only locations associated with the same library may be compared.
 //!
 //! @param[in] a the first location
 //! @param[in] b the second location
