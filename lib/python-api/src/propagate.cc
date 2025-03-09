@@ -311,7 +311,9 @@ class PropagateControl {
 
     auto add_nogood(LitSpan literals, bool tag, bool lock) -> bool {
         static thread_local auto lits = LitVec{};
-        lits.assign(literals.begin(), literals.end());
+        lits.reserve(literals.size());
+        std::ranges::transform(literals.begin(), literals.end(), std::back_inserter(lits),
+                               [](auto const &lit) { return -lit; });
         return add_clause(lits, tag, lock);
     }
 
@@ -857,7 +859,7 @@ the solve call.
 Returns:
     A fresh solver literal.
 )"_d)
-        .def("add_nogood", &PropagateControl::add_clause, py::arg("literals"), py::arg("tag") = false,
+        .def("add_nogood", &PropagateControl::add_nogood, py::arg("literals"), py::arg("tag") = false,
              py::arg("lock") = false, R"(
 A shortcut for `add_clause([-literal for literal in literals], tag, lock)`.
 

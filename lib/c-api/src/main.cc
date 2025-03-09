@@ -275,6 +275,9 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             ctl_.cfg = &slv.clasp_config();
             ctl_.clasp = &slv.clasp_facade();
             if (app_.has_main()) {
+                if (mode_ == Mode::solve) {
+                    ctl_.clasp->enableProgramUpdates();
+                }
                 app_.main(&ctl_, claspAppOpts_.input);
             } else {
                 ctl_.slv->main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()},

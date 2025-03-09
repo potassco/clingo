@@ -789,14 +789,16 @@ auto Solver::decide(Potassco::Id_t solver_id, Potassco::AbstractAssignment const
 }
 
 void Solver::register_propagator(UPropagator propagator) {
-    auto prop = std::make_unique<Clasp::ClingoPropagatorInit>(*propagator);
-    clasp_config_->addConfigurator(*prop);
-    clasp_facade().asp()->enableDistinctTrue();
-    if (propagator->hasHeuristic()) {
-        clasp_config_->setHeuristicCreator(Clasp::ClingoHeuristic::creator(*this));
-        heuristics_.emplace_back(propagator.get());
+    if (mode_ == AppMode::solve) {
+        auto prop = std::make_unique<Clasp::ClingoPropagatorInit>(*propagator);
+        clasp_config_->addConfigurator(*prop);
+        clasp_facade().asp()->enableDistinctTrue();
+        if (propagator->hasHeuristic()) {
+            clasp_config_->setHeuristicCreator(Clasp::ClingoHeuristic::creator(*this));
+            heuristics_.emplace_back(propagator.get());
+        }
+        propagators_.emplace_back(std::move(propagator), std::move(prop));
     }
-    propagators_.emplace_back(std::move(propagator), std::move(prop));
 }
 
 namespace {
