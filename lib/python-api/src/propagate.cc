@@ -311,6 +311,7 @@ class PropagateControl {
 
     auto add_nogood(LitSpan literals, bool tag, bool lock) -> bool {
         static thread_local auto lits = LitVec{};
+        lits.clear();
         lits.reserve(literals.size());
         std::ranges::transform(literals.begin(), literals.end(), std::back_inserter(lits),
                                [](auto const &lit) { return -lit; });
