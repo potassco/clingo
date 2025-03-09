@@ -78,7 +78,7 @@ class PropagateInit {
         for (const auto &x : lits) {
             clits.push_back({Clasp::decodeLit(x.lit), x.weight});
         }
-        uint32_t flags = 0;
+        auto flags = Clasp::WeightConstraint::CreateFlag{};
         if (eq) {
             flags |= Clasp::WeightConstraint::create_eq_bound;
         }
@@ -95,12 +95,7 @@ class PropagateInit {
                 break;
             }
         }
-        // for bug in clang-analyzer
-        // NOLINTBEGIN
-        return Clasp::WeightConstraint::create(*ctx.master(), Clasp::decodeLit(lit), clits, bound,
-                                               static_cast<Clasp::WeightConstraint::CreateFlag>(flags))
-            .ok();
-        // NOLINTEND
+        return Clasp::WeightConstraint::create(*ctx.master(), Clasp::decodeLit(lit), clits, bound, flags).ok();
     }
     void add_minimize(Potassco::Lit_t literal, Potassco::Weight_t weight, Potassco::Weight_t priority) {
         auto &ctx = facade_().ctx;
