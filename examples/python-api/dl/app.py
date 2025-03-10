@@ -7,6 +7,7 @@ import gc
 import heapq
 import sys
 from functools import singledispatch
+from itertools import filterfalse
 from typing import List, MutableMapping, Optional, Sequence, Set, Tuple, TypeVar
 
 from clingo import ast
@@ -153,6 +154,7 @@ class Graph:
     Adding an edge triggers a cycle check that will report negative cycles.
     """
 
+    _lib: Library
     _potential: MapNodeWeight
     _graph: MutableMapping[Node, MapNodeWeight]
     _gamma: MapNodeWeight
@@ -236,6 +238,11 @@ class Graph:
         changed: Set[Node] = set()  # Set of nodes for which potential has been changed
         min_gamma: List[Tuple[Weight, Node]] = []
 
+        def pop_changed():
+            while min_gamma and min_gamma[0][1] in changed:
+                heapq.heappop(min_gamma)
+            return bool(min_gamma)
+
         # Update potential change induced by new edge, 0 for other nodes
         self._gamma[u] = 0
         self._gamma[v] = self._potential[u] + d - self._potential[v]
@@ -245,21 +252,17 @@ class Graph:
             self._last_edges[v] = (u, v, d)
 
         # Propagate negative potential change
-        while len(min_gamma) > 0 and self._gamma[u] == 0:
+        while pop_changed() and self._gamma[u] == 0:
             _, s = heapq.heappop(min_gamma)
-            if s not in changed:
-                self._set_potential(level, s, self._potential[s] + self._gamma[s])
-                self._gamma[s] = 0
-                changed.add(s)
-                for t in self._graph[s]:
-                    if t not in changed:
-                        gamma_t = (
-                            self._potential[s] + self._graph[s][t] - self._potential[t]
-                        )
-                        if gamma_t < self._gamma[t]:
-                            self._gamma[t] = gamma_t
-                            heapq.heappush(min_gamma, (gamma_t, t))
-                            self._last_edges[t] = (s, t, self._graph[s][t])
+            self._set_potential(level, s, self._potential[s] + self._gamma[s])
+            self._gamma[s] = 0
+            changed.add(s)
+            for t in filterfalse(changed.__contains__, self._graph[s]):
+                gamma_t = self._potential[s] + self._graph[s][t] - self._potential[t]
+                if gamma_t < self._gamma[t]:
+                    self._gamma[t] = gamma_t
+                    heapq.heappush(min_gamma, (gamma_t, t))
+                    self._last_edges[t] = (s, t, self._graph[s][t])
 
         cycle = None
         # Check if there is a negative cycle
@@ -275,7 +278,7 @@ class Graph:
 
         # Ensure that all gamma values are zero
         self._gamma[v] = 0
-        while len(min_gamma) > 0:
+        while min_gamma:
             _, s = heapq.heappop(min_gamma)
             self._gamma[s] = 0
 
@@ -306,6 +309,7 @@ class DLPropagator(Propagator):
     A propagator for difference constraints.
     """
 
+    _lib: Library
     _l2e: MutableMapping[int, List[WeightedEdge]]
     _e2l: MutableMapping[WeightedEdge, List[int]]
     _states: List[Graph]
@@ -459,17 +463,8 @@ class DLApp(App):
                 print(f"Found new bound: {self._bound}")
                 if self._bound is None:
                     break
-                control.ground(
-                    [
-                        (
-                            "bound",
-                            [
-                                Number(self._lib, self._bound - 1),
-                                self._minimize,
-                            ],
-                        )
-                    ]
-                )
+                num = Number(self._lib, self._bound - 1)
+                control.ground([("bound", [num, self._minimize])])
 
             if self._bound is not None:
                 print("Optimum found")
