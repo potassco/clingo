@@ -6,7 +6,7 @@ propagator for difference logic.
 import gc
 import heapq
 import sys
-from functools import singledispatchmethod
+from functools import singledispatch
 from typing import List, MutableMapping, Optional, Sequence, Set, Tuple, TypeVar
 
 from clingo import ast
@@ -18,7 +18,6 @@ from clingo.propagate import Assignment, PropagateControl, PropagateInit, Propag
 from clingo.solve import Model
 from clingo.symbol import Function, Number, Symbol, SymbolType, Tuple_, parse_term
 
-TheoryAtom = TypeVar("TheoryAtom", ast.BodyTheoryAtom, ast.HeadTheoryAtom)
 Node = Symbol  # pylint: disable=invalid-name
 Weight = int
 Level = int
@@ -102,57 +101,48 @@ def _evaluate(lib: Library, term: TheoryTerm) -> Symbol:
     raise RuntimeError("Invalid Syntax")
 
 
-class HeadBodyTransformer:
+def rewrite(lib: Library, files: Sequence[str]) -> ast.Program:
     """
     Transformer to tag head and body occurrences of `&diff` atoms.
     """
+    TheoryAtom = TypeVar("TheoryAtom", ast.BodyTheoryAtom, ast.HeadTheoryAtom)
 
-    def __init__(self, lib: Library):
-        self._lib = lib
-
-    @singledispatchmethod
-    def _dispatch(self, expr):
-        """
-        Tag all theory atoms in the expression by their type.
-        """
-        return expr.transform(self._lib, self._dispatch)
-
-    def _theory_atom(self, atom: TheoryAtom) -> TheoryAtom:
+    def tag(atom: TheoryAtom) -> TheoryAtom:
         """
         Tag the theory atom by its type.
         """
         name = atom.name
         if isinstance(name, ast.TermFunction):
-            name = name.update(self._lib, name=f"__{name.name}_h")
+            name = name.update(lib, name=f"__{name.name}_h")
         else:
             assert isinstance(name, ast.TermSymbolic)
             symbol = name.symbol
             name = name.update(
-                self._lib,
+                lib,
                 symbol=Function(
-                    self._lib, f"__{symbol.name}_h", symbol.arguments, symbol.sign
+                    lib, f"__{symbol.name}_h", symbol.arguments, symbol.sign
                 ),
             )
-        return atom.update(self._lib, name=name)
+        return atom.update(lib, name=name)
 
-    @_dispatch.register
-    def _(self, atom: ast.BodyTheoryAtom) -> ast.BodyTheoryAtom:
-        return self._theory_atom(atom)
+    @singledispatch
+    def dispatch(expr):
+        return expr.transform(lib, dispatch)
 
-    @_dispatch.register
-    def _(self, atom: ast.HeadTheoryAtom) -> ast.HeadTheoryAtom:
-        return self._theory_atom(atom)
+    @dispatch.register
+    def _(atom: ast.BodyTheoryAtom) -> ast.BodyTheoryAtom:
+        return tag(atom)
 
-    def __call__(self, files: Sequence[str]) -> ast.Program:
-        """
-        Parse the statements in the given files and output them in an orderly fashion.
-        """
-        prg = ast.Program(self._lib)
-        prg.add(ast.parse_statement(self._lib, THEORY))
-        with ast.Scanner(self._lib, list(files)) as scn:
-            for stm in scn:
-                prg.add(self._dispatch(stm) or stm)
-        return prg
+    @dispatch.register
+    def _(atom: ast.HeadTheoryAtom) -> ast.HeadTheoryAtom:
+        return tag(atom)
+
+    prg = ast.Program(lib)
+    prg.add(ast.parse_statement(lib, THEORY))
+    with ast.Scanner(lib, list(files)) as scn:
+        for stm in scn:
+            prg.add(dispatch(stm) or stm)
+    return prg
 
 
 class Graph:
@@ -369,7 +359,7 @@ class DLPropagator(Propagator):
         """
         Backtrack the last decision level propagated.
         """
-        # pylint: disable=unused-argument
+        assert changes
         self._state(thread_id).backtrack(assignment.decision_level)
 
     def on_model(self, model: Model):
@@ -454,8 +444,7 @@ class DLApp(App):
         """
         control.register_propagator(self._propagator)
 
-        htb = HeadBodyTransformer(self._lib)
-        control.join(htb(files))
+        control.join(rewrite(self._lib, files))
 
         control.ground()
         if self._minimize is None:
