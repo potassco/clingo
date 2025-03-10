@@ -93,10 +93,10 @@ class AppAdapter {
     AppAdapter(clingo_application_t *app, void *data) : app_(app), data_(data) {}
 
     [[nodiscard]] auto get_name() const -> char const * {
-        return app_->program_name != nullptr ? app_->program_name(data_) : "clingo";
+        return app_ != nullptr && app_->program_name != nullptr ? app_->program_name(data_) : "clingo";
     }
     [[nodiscard]] auto get_version() const -> char const * {
-        return app_->version != nullptr ? app_->version(data_) : CLINGO_VERSION;
+        return app_ != nullptr && app_->version != nullptr ? app_->version(data_) : CLINGO_VERSION;
     }
 
     void register_options(Potassco::ProgramOptions::OptionContext &root) {

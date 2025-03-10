@@ -462,9 +462,7 @@ class DLApp(App):
                 hnd.get()
         else:
             # FIXME: parameters are not correctly replaced in theory atoms atm.
-            control.parse_string(
-                "#program bound(b, v). __p(b,v,b,v). &__diff_h { V-0 } <= B :- __p(b,v,B,V)."
-            )
+            control.parse_string("#program bound(b, v). &__diff_h { v-0 } <= b.")
             while True:
                 with control.solve(on_model=self._on_model) as hnd:
                     if not hnd.get().satisfiable:

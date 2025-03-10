@@ -20,10 +20,6 @@ namespace {
     return false;
 }
 
-[[nodiscard]] auto variable_for_param(RewriteContext &ctx, Location const &loc, size_t param) {
-    return TermVariable{loc, ctx.store().string_ref("$" + std::to_string(param))};
-}
-
 class MapParams : public Transformer<MapParams> {
   public:
     MapParams(RewriteContext &ctx) : ctx_{&ctx} {}
@@ -34,14 +30,23 @@ class MapParams : public Transformer<MapParams> {
 
     // term
 
+    [[nodiscard]] auto var(size_t param) const { return ctx_->store().string_ref("$" + std::to_string(param)); }
+
+    //! Transform a symbol span into a term tuple/theory term array.
+    template <bool plain_term>
     [[nodiscard]] auto accept(Location const &loc, SymbolSpan args) const
-        -> std::optional<std::variant<SymbolVec, ArgumentTuple>> {
-        std::optional<std::vector<std::variant<Term, Symbol>>> res_args;
+        -> std::optional<std::variant<SymbolVec, std::conditional_t<plain_term, ArgumentTuple, TheoryTermArray>>> {
+        using TermArrayValueType = std::conditional_t<plain_term, Argument, TheoryTerm>;
+        using TermSymbolType = std::conditional_t<plain_term, TermSymbol, TheoryTermSymbol>;
+        using TermType = std::conditional_t<plain_term, Term, TheoryTerm>;
+        using TermArrayType = std::conditional_t<plain_term, ArgumentTuple, TheoryTermArray>;
+
+        std::optional<std::vector<std::variant<TermType, Symbol>>> res_args;
         bool constant = true;
         {
             ssize_t i = 0;
             for (auto arg : args) {
-                auto res_arg = accept(loc, arg);
+                auto res_arg = accept<plain_term>(loc, arg);
                 if (res_arg.has_value() || res_args.has_value()) {
                     if (!res_args.has_value()) {
                         res_args.emplace();
@@ -49,7 +54,7 @@ class MapParams : public Transformer<MapParams> {
                         res_args->insert(res_args->end(), args.begin(), args.begin() + i);
                     }
                     res_args->emplace_back(std::move(res_arg).value_or(arg));
-                    if (constant && std::holds_alternative<Term>(res_args->back())) {
+                    if (constant && std::holds_alternative<TermType>(res_args->back())) {
                         constant = false;
                     }
                 }
@@ -67,30 +72,34 @@ class MapParams : public Transformer<MapParams> {
             }
             return tuple;
         }
-        auto tuple = std::vector<Argument>{};
+        auto tuple = std::vector<TermArrayValueType>{};
         tuple.reserve(res_args->size());
         for (auto &&arg : *res_args) {
             tuple.emplace_back(std::visit(
-                [&loc]<class T>(T x) -> Term {
+                [&loc]<class T>(T x) -> TermType {
                     if constexpr (std::is_same_v<T, Symbol>) {
-                        return TermSymbol{loc, x};
+                        return TermSymbolType{loc, x};
                     }
-                    if constexpr (std::is_same_v<T, Term>) {
+                    if constexpr (std::is_same_v<T, TermType>) {
                         return x;
                     }
                 },
                 std::move(arg)));
         }
-        return ArgumentTuple{std::move(tuple)};
+        return TermArrayType{std::move(tuple)};
     }
 
+    //! Transform a symbol into a term/theory term.
+    template <bool plain_term>
     [[nodiscard]] auto accept(Location const &loc, Symbol const &sym) const
-        -> std::optional<std::variant<Term, Symbol>> {
+        -> std::optional<std::variant<std::conditional_t<plain_term, Term, TheoryTerm>, Symbol>> {
+        using TermType = std::conditional_t<plain_term, Term, TheoryTerm>;
+        using TermVariableType = std::conditional_t<plain_term, TermVariable, TheoryTermVariable>;
         switch (sym.type()) {
             case SymbolType::function: {
                 if (sym.args().empty()) {
                     if (auto param = ctx_->is_param(sym.name()); param) {
-                        return variable_for_param(*ctx_, loc, param.value());
+                        return TermVariableType{loc, var(param.value())};
                     }
                     if (auto value = ctx_->is_const(sym.name()); value) {
                         if (sym.has_sign()) {
@@ -108,25 +117,42 @@ class MapParams : public Transformer<MapParams> {
                                     break;
                                 }
                             }
-                            // Note: this will evaluated as empty pool later
-                            return TermUnary{loc, UnaryOperator::minus, TermSymbol{loc, *value}};
+                            if constexpr (plain_term) {
+                                // NOTE: this will evaluated as empty pool later
+                                return TermUnary{loc, UnaryOperator::minus, TermSymbol{loc, *value}};
+                            } else {
+                                return TheoryTermFunction{loc, ctx_->store().string_ref("-"),
+                                                          Util::make_vec<TheoryTerm>(TheoryTermSymbol{loc, *value})};
+                            }
                         }
                         return *value;
                     }
                     break;
                 }
-                if (auto res_args = accept(loc, sym.args()); res_args) {
+                if (auto res_args = accept<plain_term>(loc, sym.args()); res_args) {
                     return std::visit(
-                        [this, &loc, &sym]<class T>(T tuple) -> std::variant<Term, Symbol> {
+                        [this, &loc, &sym]<class T>(T tuple) -> std::variant<TermType, Symbol> {
                             if constexpr (std::is_same_v<T, SymbolVec>) {
                                 return ctx_->store().fun_ref(sym.name(), std::move(tuple), sym.has_sign());
                             }
-                            if constexpr (std::is_same_v<T, ArgumentTuple>) {
-                                auto ret = Term{TermFunction{loc, sym.name(), {std::move(tuple)}, false}};
-                                if (sym.has_sign()) {
-                                    ret = TermUnary{loc, UnaryOperator::minus, std::move(ret)};
+                            if constexpr (plain_term) {
+                                if constexpr (std::is_same_v<T, ArgumentTuple>) {
+                                    auto ret = Term{TermFunction{
+                                        loc, sym.name(), Util::make_vec<ArgumentTuple>(std::move(tuple)), false}};
+                                    if (sym.has_sign()) {
+                                        ret = TermUnary{loc, UnaryOperator::minus, std::move(ret)};
+                                    }
+                                    return ret;
                                 }
-                                return ret;
+                            } else {
+                                if constexpr (std::is_same_v<T, TheoryTermArray>) {
+                                    auto ret = TheoryTerm{TheoryTermFunction{loc, sym.name(), {std::move(tuple)}}};
+                                    if (sym.has_sign()) {
+                                        ret = TheoryTermFunction{loc, ctx_->store().string_ref("-"),
+                                                                 Util::make_vec<TheoryTerm>(std::move(ret))};
+                                    }
+                                    return ret;
+                                }
                             }
                         },
                         std::move(res_args).value());
@@ -134,14 +160,20 @@ class MapParams : public Transformer<MapParams> {
                 break;
             }
             case SymbolType::tuple: {
-                if (auto res_args = accept(loc, sym.args()); res_args) {
+                if (auto res_args = accept<plain_term>(loc, sym.args()); res_args) {
                     return std::visit(
-                        [this, &loc]<class T>(T tuple) -> std::variant<Term, Symbol> {
+                        [this, &loc]<class T>(T tuple) -> std::variant<TermType, Symbol> {
                             if constexpr (std::is_same_v<T, SymbolVec>) {
                                 return ctx_->store().tup_ref(std::move(tuple));
                             }
-                            if constexpr (std::is_same_v<T, ArgumentTuple>) {
-                                return TermTuple{loc, Util::make_vec<TupleElement>(std::move(tuple))};
+                            if constexpr (plain_term) {
+                                if constexpr (std::is_same_v<T, ArgumentTuple>) {
+                                    return TermTuple{loc, Util::make_vec<TupleElement>(std::move(tuple))};
+                                }
+                            } else {
+                                if constexpr (std::is_same_v<T, TheoryTermArray>) {
+                                    return TheoryTermTuple{loc, TheoryTermTupleType::tuple, std::move(tuple)};
+                                }
                             }
                         },
                         std::move(res_args).value());
@@ -159,7 +191,7 @@ class MapParams : public Transformer<MapParams> {
     }
 
     [[nodiscard]] auto accept(TermSymbol const &term) const -> std::optional<Term> {
-        auto sym = accept(term.loc(), term.value());
+        auto sym = accept<true>(term.loc(), term.value());
         if (sym.has_value()) {
             return std::visit(
                 [&term]<class T>(T const &x) -> Term {
@@ -183,7 +215,7 @@ class MapParams : public Transformer<MapParams> {
             return rewrite(term, a_pool);
         }
         if (auto param = ctx_->is_param(term.name()); param) {
-            return TermVariable{term.loc(), ctx_->store().string_ref("$" + std::to_string(param.value()))};
+            return TermVariable{term.loc(), var(param.value())};
         }
         if (auto value = ctx_->is_const(term.name()); value) {
             return TermSymbol{term.loc(), *value};
@@ -193,7 +225,41 @@ class MapParams : public Transformer<MapParams> {
 
     // theory
 
-    [[nodiscard]] static auto accept([[maybe_unused]] TheoryTerm const &term) -> std::optional<TheoryTerm> {
+    template <bool HasSign>
+    [[nodiscard]] auto accept(TheoryAtom<HasSign> const &atom) const
+        -> std::optional<std::conditional_t<HasSign, BdLit, HdLit>> {
+        if (!is_identifier(atom.name())) {
+            return rewrite(atom, a_name, a_elems, a_rhs);
+        }
+        return rewrite(atom, a_elems, a_rhs);
+    }
+
+    [[nodiscard]] auto accept(TheoryTermFunction const &term) const -> std::optional<TheoryTerm> {
+        if (term.args().empty()) {
+            if (auto param = ctx_->is_param(term.name()); param) {
+                return TheoryTermVariable{term.loc(), var(param.value())};
+            }
+            if (auto value = ctx_->is_const(term.name()); value) {
+                return TheoryTermSymbol{term.loc(), *value};
+            }
+        }
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept(TheoryTermSymbol const &term) const -> std::optional<TheoryTerm> {
+        auto sym = accept<false>(term.loc(), term.value());
+        if (sym.has_value()) {
+            return std::visit(
+                [&term]<class T>(T const &x) -> TheoryTerm {
+                    if constexpr (std::is_same_v<T, Symbol>) {
+                        return term.update(a_value = x);
+                    }
+                    if constexpr (std::is_same_v<T, TheoryTerm>) {
+                        return x;
+                    }
+                },
+                sym.value());
+        }
         return std::nullopt;
     }
 
@@ -508,7 +574,7 @@ auto substitute_one(RewriteContext &ctx, Stm const &stm) -> SimplifyResult<Stm> 
     if (!ctx.has_params() || (sym.type() == SymbolType::function && sym.args().empty())) {
         return sym;
     }
-    if (auto res_sym = MapParams{ctx}.accept(loc, sym); res_sym) {
+    if (auto res_sym = MapParams{ctx}.accept<true>(loc, sym); res_sym) {
         return std::visit(
             [&loc]<class T>(T x) -> std::variant<Symbol, Stm> {
                 if constexpr (std::is_same_v<T, Symbol>) {
