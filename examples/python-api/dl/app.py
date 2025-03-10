@@ -127,14 +127,14 @@ def rewrite(lib: Library, files: Sequence[str]) -> ast.Program:
         return atom.update(lib, name=name)
 
     @singledispatch
-    def dispatch(expr):
-        return expr.transform(lib, dispatch)
+    def accept(expr):
+        return expr.transform(lib, accept)
 
-    @dispatch.register
+    @accept.register
     def _(atom: ast.BodyTheoryAtom) -> ast.BodyTheoryAtom:
         return tag(atom)
 
-    @dispatch.register
+    @accept.register
     def _(atom: ast.HeadTheoryAtom) -> ast.HeadTheoryAtom:
         return tag(atom)
 
@@ -142,7 +142,7 @@ def rewrite(lib: Library, files: Sequence[str]) -> ast.Program:
     prg.add(ast.parse_statement(lib, THEORY))
     with ast.Scanner(lib, list(files)) as scn:
         for stm in scn:
-            prg.add(dispatch(stm) or stm)
+            prg.add(accept(stm) or stm)
     return prg
 
 
