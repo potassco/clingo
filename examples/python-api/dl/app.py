@@ -3,10 +3,11 @@ This is a scaled down version of clingo-dl show casing how to implement a
 propagator for difference logic.
 """
 
+import gc
 import heapq
 import sys
 from functools import singledispatchmethod
-from typing import List, MutableMapping, Optional, Sequence, Set, Tuple, TypeVar, cast
+from typing import List, MutableMapping, Optional, Sequence, Set, Tuple, TypeVar
 
 from clingo import ast
 from clingo.app import App, AppOptions, main
@@ -491,6 +492,7 @@ class DLApp(App):
         """
         with Library() as lib:
             main(lib, sys.argv[1:], DLApp(lib))
+            gc.collect()  # optional: ensures all symbols are collected
 
 
 if __name__ == "__main__":
