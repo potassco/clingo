@@ -1,10 +1,16 @@
+# A Difference Logic Propagator
+
 This example implements a scaled down version of clingo-dl supporting
-constraints of the following form:
+constraints of form
 
     &diff{u-v} <= d
 
-Examples
-========
+where `u` and `v` are variables and `d` an integer. The special variable `0`
+can be used as a point of reference. Its value will be subtracted from the
+remaining variables. Warning: no other integer should be used as variable name
+to avoid confusion.
+
+## Examples
 
 Enumerating all solutions of a flowshop problem.
 
