@@ -16,18 +16,18 @@ struct Flag {
 class Options {
   public:
     using Parser = std::function<bool(char const *value)>;
-    using ParserList = std::forward_list<std::pair<Parser, clingo_lib_t *>>;
+    using ParserList = std::forward_list<std::pair<Annotation<Parser>, clingo_lib_t *>>;
 
     Options(clingo_options_t *opts, ParserList &parsers, clingo_lib_t *lib)
         : opts_{opts}, parsers_{&parsers}, lib_{lib} {}
 
-    void add(char const *group, char const *option, char const *description, Parser parser, bool multi,
+    void add(char const *group, char const *option, char const *description, Annotation<Parser> parser, bool multi,
              std::optional<char const *> argument) {
         parsers_->emplace_front(std::move(parser), lib_);
         static constexpr auto cparser = [](char const *value, void *data, bool *result) -> clingo_result_t {
             auto &[parser, ptr] = *static_cast<ParserList::value_type *>(data);
             CLINGO_TRY {
-                *result = parser(value);
+                *result = py::cast<Parser>(parser)(value);
             }
             CLINGO_CATCH(ptr);
         };
@@ -86,6 +86,23 @@ class App {
             has_override_("print_Model") ? print_model_ : nullptr,
             has_override_("register_options") ? register_options_ : nullptr,
             has_override_("validate_options") ? validate_options_ : nullptr,
+        };
+    }
+
+    static void setup(PyHeapTypeObject *heap_type) {
+        auto *type = &heap_type->ht_type;
+        type->tp_flags |= Py_TPFLAGS_HAVE_GC;
+        type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
+            auto &self = py::cast<App &>(py::handle(self_base));
+            for (auto const &[parser, lib] : self.parsers_) {
+                Py_VISIT(parser.ptr());
+            }
+            return 0;
+        };
+        type->tp_clear = [](PyObject *self_base) -> int {
+            auto &self = py::cast<App &>(py::handle(self_base));
+            self.parsers_.clear();
+            return 0;
         };
     }
 
@@ -198,7 +215,7 @@ TODO
 TODO
 )"_d);
 
-    py::class_<App>(app, "App", R"(
+    py::class_<App>(app, "App", py::custom_type_setup(&App::setup), R"(
 TODO
 )"_d)
         .def(py::init<char const *, char const *>(), py::arg("program_name"), py::arg("version"), R"(

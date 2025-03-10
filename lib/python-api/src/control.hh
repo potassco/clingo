@@ -41,6 +41,8 @@ class Control {
 
     void register_propagator(Annotation<Propagator> propagator);
 
+    static void setup(PyHeapTypeObject *heap_type);
+
   private:
     static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name,
                      clingo_symbol_t const *arguments, size_t arguments_size, void *data,

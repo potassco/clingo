@@ -156,6 +156,23 @@ void Control::register_propagator(Annotation<Propagator> propagator) {
     Clingo::Python::register_propagator(ctl_.get(), prop_data_.front());
 }
 
+void Control::setup(PyHeapTypeObject *heap_type) {
+    auto *type = &heap_type->ht_type;
+    type->tp_flags |= Py_TPFLAGS_HAVE_GC;
+    type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
+        auto &self = py::cast<Control &>(py::handle(self_base));
+        for (auto const &prop : self.props_) {
+            Py_VISIT(prop.ptr());
+        }
+        return 0;
+    };
+    type->tp_clear = [](PyObject *self_base) -> int {
+        auto &self = py::cast<Control &>(py::handle(self_base));
+        self.props_.clear();
+        return 0;
+    };
+}
+
 void register_control(pybind11::module &m) {
     auto control = m.def_submodule("control", R"(
 Module containing the Control class responsible for grounding and solving.
@@ -206,7 +223,8 @@ p(11) q(1) q(2)
 SAT
 ```
 )"_d);
-    py::class_<Control>(control, "Control", R"(A control object for grounding and solving.)")
+    py::class_<Control>(control, "Control", py::custom_type_setup(&Control::setup),
+                        R"(A control object for grounding and solving.)")
         .def(py::init<Library &, std::vector<std::string> const &>(), py::arg("lib"),
              py::arg("options") = std::vector<std::string>{}, R"(
 Construct a control object.
