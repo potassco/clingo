@@ -411,7 +411,10 @@ class DLApp(App):
         self._bound = None
 
     def _parse_minimize(self, val):
-        var = parse_term(self._lib, val)
+        try:
+            var = parse_term(self._lib, val)
+        except RuntimeError:
+            return False
 
         if var.type == SymbolType.Number:
             return False
