@@ -23,6 +23,11 @@ void UnprocessedProgram::mark(SymbolCollector &gc) const {
     }
 }
 
+void UnprocessedProgram::join(UnprocessedProgram const &other) {
+    meta_stms_.insert(meta_stms_.end(), other.meta_stms_.begin(), other.meta_stms_.end());
+    parts_.insert(parts_.end(), other.parts_.begin(), other.parts_.end());
+}
+
 void UnprocessedProgram::clear() {
     parts_.clear();
     meta_stms_.clear();

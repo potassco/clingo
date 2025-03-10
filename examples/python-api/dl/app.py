@@ -461,7 +461,6 @@ class DLApp(App):
             with control.solve(on_model=self._propagator.on_model) as hnd:
                 hnd.get()
         else:
-            # FIXME: parameters are not correctly replaced in theory atoms atm.
             control.parse_string("#program bound(b, v). &__diff_h { v-0 } <= b.")
             while True:
                 with control.solve(on_model=self._on_model) as hnd:
@@ -475,7 +474,7 @@ class DLApp(App):
                         (
                             "bound",
                             [
-                                Number(self._lib, cast(int, self._bound) - 1),
+                                Number(self._lib, self._bound - 1),
                                 self._minimize,
                             ],
                         )

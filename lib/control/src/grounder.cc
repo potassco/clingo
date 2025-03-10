@@ -311,7 +311,9 @@ void Grounder::add_const(String name, Symbol value) {
 }
 
 void Grounder::join(Input::UnprocessedProgram const &prg) {
-    impl_->prg.join(*impl_->log, *impl_->store, prg);
+    if (impl_->is_sat) {
+        impl_->unprocessed_prg.join(prg);
+    }
 }
 
 void Grounder::parse(std::string_view str, Ground::ScriptExec *code) {

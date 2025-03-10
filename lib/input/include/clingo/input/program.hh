@@ -63,6 +63,9 @@ class UnprocessedProgram {
     //! Mark symbols occuring in the program.
     void mark(SymbolCollector &gc) const;
 
+    //! Join with another unprocessed program.
+    void join(UnprocessedProgram const &other);
+
     //! Unprocessed statemtents.
     [[nodiscard]] auto parts() const -> ProgramPartVec const & { return parts_; }
     //! Meta statements.
