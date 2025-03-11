@@ -1,4 +1,5 @@
 #include <clingo/app.h>
+#include <clingo/control.h>
 
 #include <emscripten.h>
 #include <emscripten/bind.h>
@@ -14,15 +15,32 @@ static constexpr auto message_limit = 25;
 //! files are given and writes to stdout.
 //!
 //! @param[in] args the command line arguments
-void run(std::vector<std::string> const &args) {
+int run(std::string input, std::vector<std::string> const &args) {
+    static clingo_application_t app = {
+        nullptr,
+        nullptr,
+        [](clingo_control_t *control, char const *const *files, size_t size, void *data) -> clingo_result_t {
+            auto res = clingo_control_parse_string(control, static_cast<char const *>(data));
+            if (res != clingo_result_success) {
+                return res;
+            }
+            return clingo_control_main(control);
+        },
+        nullptr,
+        nullptr,
+        nullptr,
+
+    };
+    int res = 1;
     clingo_lib_t *lib = nullptr;
     auto c_args = std::vector<const char *>(args.size());
     std::ranges::transform(args, c_args.begin(), [](auto const &str) { return str.c_str(); });
     if (clingo_lib_new(clingo_lib_flags_slotted, nullptr, nullptr, nullptr, message_limit, &lib) ==
         clingo_result_success) {
-        std::ignore = clingo_main(lib, c_args.data(), c_args.size(), nullptr, nullptr);
+        res = clingo_main(lib, c_args.data(), c_args.size(), &app, static_cast<void *>(input.data()));
     }
     clingo_lib_free(lib, true);
+    return res;
 }
 
 EMSCRIPTEN_BINDINGS(module) {

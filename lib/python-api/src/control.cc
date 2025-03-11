@@ -123,6 +123,7 @@ auto Control::stats() -> py::dict {
 
 auto Control::solve(MixedLitlVec const &assumptions, std::optional<ModelCallback> on_model,
                     std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
+    auto release = py::gil_scoped_release{};
     exception_ = nullptr;
     auto res = std::make_shared<SolveHandle>(exception_, std::move(on_model), std::move(on_stats));
     auto mode = clingo_solve_mode_bitset_t{0};
