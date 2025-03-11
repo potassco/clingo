@@ -7,8 +7,12 @@
 
 #define GC(f) __attribute__((cleanup(f)))
 
-void free_lib(clingo_lib_t **lib) { clingo_lib_free(*lib, true); }
-void free_ctl(clingo_control_t **ctl) { clingo_control_free(*ctl); }
+void free_lib(clingo_lib_t **lib) {
+    clingo_lib_free(*lib, true);
+}
+void free_ctl(clingo_control_t **ctl) {
+    clingo_control_free(*ctl);
+}
 void handle_error(clingo_result_t ret) {
     if (ret != clingo_result_success) {
         exit(1);
@@ -62,7 +66,7 @@ int main(int argc, char *argv[]) {
     (void)argv;
 
     clingo_lib_t *lib GC(free_lib) = NULL;
-    handle_error(clingo_lib_new(0, NULL, NULL, NULL, 0, &lib));
+    handle_error(clingo_lib_new(0, NULL, NULL, 0, &lib));
 
     clingo_control_t *ctl GC(free_ctl) = NULL;
     handle_error(clingo_control_new(lib, NULL, 0, &ctl));

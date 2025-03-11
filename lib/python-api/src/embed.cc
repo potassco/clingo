@@ -37,7 +37,6 @@ class Interpreter {
     auto version() -> char const * { return version_.c_str(); }
 
   private:
-    py::scoped_interpreter py_;
     py::object scope_;
     py::object callable_;
     std::string version_;

@@ -5,8 +5,7 @@
 
 namespace Clingo::Python {
 
-Library::Library(bool shared, bool slotted, std::optional<Logger> cb, size_t default_message_limit) {
-    assert(!cb || *cb != nullptr);
+Library::Library(bool shared, bool slotted, Annotation<std::optional<Logger>> cb, size_t default_message_limit) {
     clingo_lib_flags_t flags = 0;
     if (shared) {
         flags |= clingo_lib_flags_shared;
@@ -14,10 +13,10 @@ Library::Library(bool shared, bool slotted, std::optional<Logger> cb, size_t def
     if (slotted) {
         flags |= clingo_lib_flags_slotted;
     }
-    auto *ptr = cb ? py::cast(std::move(*cb)).release().ptr() : nullptr;
-    auto *lib = static_cast<clingo_lib_t *>(nullptr);
-    handle_error(clingo_lib_new(flags, ptr != nullptr ? &logger_ : nullptr, ptr != nullptr ? &free_logger_ : nullptr,
-                                ptr, default_message_limit, &lib));
+    auto logger = cb.cast<std::optional<Logger>>();
+    auto *ptr = logger ? add_object(std::move(cb)) : nullptr;
+    clingo_lib_t *lib = nullptr;
+    handle_error(clingo_lib_new(flags, ptr != nullptr ? &logger_ : nullptr, ptr, default_message_limit, &lib));
     lib_.reset(lib);
 }
 
@@ -27,10 +26,6 @@ void Library::close() noexcept {
 
 Library::operator clingo_lib_t *() const {
     return lib_.get();
-}
-
-void Library::free_logger_(void *log) noexcept {
-    py::reinterpret_steal<py::object>(static_cast<PyObject *>(log));
 }
 
 void Library::logger_(clingo_message_t code, char const *message, void *log) noexcept {
@@ -49,6 +44,23 @@ auto version() -> std::tuple<int, int, int> {
     int patch = 0;
     clingo_version(&major, &minor, &patch);
     return {major, minor, patch};
+}
+
+void Library::setup(PyHeapTypeObject *heap_type) {
+    auto *type = &heap_type->ht_type;
+    type->tp_flags |= Py_TPFLAGS_HAVE_GC;
+    type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
+        auto &self = py::cast<Library &>(py::handle(self_base));
+        for (auto const &script : self.objs_) {
+            Py_VISIT(script.ptr());
+        }
+        return 0;
+    };
+    type->tp_clear = [](PyObject *self_base) -> int {
+        auto &self = py::cast<Library &>(py::handle(self_base));
+        self.objs_.clear();
+        return 0;
+    };
 }
 
 // definition of StringBuilder
@@ -247,7 +259,8 @@ Examples
         .value("Warn", clingo_message_warn, R"(A warning message.)")
         .value("Error", clingo_message_error, R"(An error message.)");
 
-    py::class_<Library>(core, "Library", R"(
+    py::class_<Library>(core, "Library", py::custom_type_setup(&Library::setup),
+                        R"(
 Library objects are used to store the logger, symbols, strings, and scripts.
 
 Any function/or class that needs to create symbols takes this object as a
@@ -257,7 +270,7 @@ Destroying the library object frees the logger, the symbols, and the scripts.
 
 This class implements the ContextManager interface.
 )"_d)
-        .def(py::init<bool, bool, std::optional<Logger>, size_t>(), "Create a library object.",
+        .def(py::init<bool, bool, Annotation<std::optional<Logger>>, size_t>(), "Create a library object.",
              py::arg("shared") = true, py::arg("slotted") = true, py::arg("logger") = std::nullopt,
              py::arg("message_limit") = default_message_limit,
              R"(

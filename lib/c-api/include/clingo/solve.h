@@ -62,6 +62,7 @@ typedef unsigned clingo_solve_result_bitset_t;
 enum clingo_solve_mode_e {
     clingo_solve_mode_async = 1, //!< Enable non-blocking search.
     clingo_solve_mode_yield = 2, //!< Yield models in calls to clingo_solve_handle_model.
+    clingo_solve_mode_lock = 4,  //!< Ensure callbacks are executed in lock-step.
 };
 //! Corresponding type to ::clingo_solve_mode_e.
 typedef unsigned clingo_solve_mode_bitset_t;

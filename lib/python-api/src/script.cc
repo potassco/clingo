@@ -11,12 +11,14 @@ class Script {
   public:
     void execute(char const *code) { PYBIND11_OVERRIDE_PURE(void, Script, execute, code); }
 
+    static auto get_self(void *data) -> Script & { return py::handle{static_cast<PyObject *>(data)}.cast<Script &>(); }
+
     static auto c_execute(char const *code, void *data) -> clingo_result_t {
-        auto *self = static_cast<py::object *>(data)->cast<Script *>();
+        auto &self = get_self(data);
         CLINGO_TRY {
-            self->execute(code);
+            self.execute(code);
         }
-        CLINGO_CATCH(self->lib_);
+        CLINGO_CATCH(self.lib_);
     }
 
     auto call(Library lib, char const *name, SymbolVec const &args) -> std::variant<SymbolVec, Symbol> {
@@ -29,11 +31,11 @@ class Script {
         -> clingo_result_t {
         // Note that the location could in principle be used for better error reporting.
         static_cast<void>(loc);
-        auto *self = static_cast<py::object *>(data)->cast<Script *>();
+        auto &self = get_self(data);
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
-            auto syms = self->call(lib, name, args);
+            auto syms = self.call(lib, name, args);
             return std::visit(
                 [&]<class T>(T const &res) {
                     if constexpr (std::is_same_v<T, Symbol>) {
@@ -48,7 +50,7 @@ class Script {
                 },
                 syms);
         }
-        CLINGO_CATCH(self->lib_);
+        CLINGO_CATCH(self.lib_);
     }
 
     auto callable(char const *name, size_t arguments) -> bool {
@@ -56,35 +58,35 @@ class Script {
     }
 
     static auto c_callable(char const *name, size_t arguments, bool *result, void *data) -> clingo_result_t {
-        auto *self = static_cast<py::object *>(data)->cast<Script *>();
+        auto &self = get_self(data);
         CLINGO_TRY {
-            auto *self = static_cast<py::object *>(data)->cast<Script *>();
-            *result = self->callable(name, arguments);
+            auto &self = get_self(data);
+            *result = self.callable(name, arguments);
         }
-        CLINGO_CATCH(self->lib_);
+        CLINGO_CATCH(self.lib_);
     }
 
     void main(Library lib, Control &ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, &lib, &ctl); }
 
     static auto c_main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
-        auto *self = static_cast<py::object *>(data)->cast<Script *>();
+        auto &self = get_self(data);
         CLINGO_TRY {
-            auto *self = static_cast<py::object *>(data)->cast<Script *>();
+            auto &self = get_self(data);
             auto py_ctl = Control{control};
-            self->main(lib, py_ctl);
+            self.main(lib, py_ctl);
         }
-        CLINGO_CATCH(self->lib_);
+        CLINGO_CATCH(self.lib_);
     }
 
     auto name() -> std::string { PYBIND11_OVERRIDE_PURE(std::string, Script, name); }
 
     static auto c_name(void *data) -> char const * {
         try {
-            auto *self = static_cast<py::object *>(data)->cast<Script *>();
-            if (self->name_.empty()) {
-                self->name_ = self->name();
+            auto &self = get_self(data);
+            if (self.name_.empty()) {
+                self.name_ = self.name();
             }
-            return self->name_.c_str();
+            return self.name_.c_str();
         } catch (...) {
             return "<error>";
         }
@@ -94,19 +96,14 @@ class Script {
 
     static auto c_version(void *data) -> char const * {
         try {
-            auto *self = static_cast<py::object *>(data)->cast<Script *>();
-            if (self->version_.empty()) {
-                self->version_ = self->version();
+            auto &self = get_self(data);
+            if (self.version_.empty()) {
+                self.version_ = self.version();
             }
-            return self->version_.c_str();
+            return self.version_.c_str();
         } catch (...) {
             return "<error>";
         }
-    }
-
-    static void c_free(void *data) {
-        // NOLINTNEXTLINE
-        delete static_cast<py::object *>(data);
     }
 
     void lib(clingo_lib_t *lib) { lib_ = lib; }
@@ -117,11 +114,13 @@ class Script {
     std::string version_;
 };
 
-void reg_script(Library const &lib, Script &script) {
-    script.lib(lib);
-    auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::c_main,
-                                    Script::c_name,    Script::c_version, Script::c_free};
-    handle_error(clingo_script_register(lib, &c_script, std::make_unique<py::object>(py::cast(script)).release()));
+void reg_script(Library &lib, Annotation<Script> script) {
+    py::cast<Script &>(script).lib(lib);
+    auto *ptr = lib.add_object(std::move(script));
+    auto c_script =
+        clingo_script_t{Script::c_execute, Script::c_call, Script::c_callable, Script::c_main, Script::c_name,
+                        Script::c_version, nullptr};
+    handle_error(clingo_script_register(lib, &c_script, ptr));
 }
 
 void register_script(pybind11::module &m) {

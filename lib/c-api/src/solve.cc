@@ -126,6 +126,7 @@ extern "C" auto clingo_control_solve(clingo_control_t *control, clingo_solve_mod
         if (notify != nullptr) {
             cpp_eh = std::make_unique<SolveEventHandler>(notify, data);
         }
+        control->slv->get_lock().enable((mode & clingo_solve_mode_lock) != 0);
         *handle = c_cast(control->slv->solve(std::move(cpp_eh), cpp_assumptions, cpp_mode).release());
     }
     CLINGO_CATCH;

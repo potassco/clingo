@@ -1,5 +1,6 @@
 #pragma once
 
+#include "iterable.hh"
 #include "util.hh"
 
 #include <clingo/core.h>
@@ -29,9 +30,14 @@ static constexpr size_t default_message_limit = 25;
 
 class Library {
   public:
-    Library(bool shared, bool slotted, std::optional<Logger> cb, size_t default_message_limit);
+    Library(bool shared, bool slotted, Annotation<std::optional<Logger>> cb, size_t default_message_limit);
     Library(clingo_lib_t *lib) : lib_{lib} {}
     void close() noexcept;
+    auto add_object(py::object script) -> PyObject * {
+        objs_.emplace_front(std::move(script));
+        return objs_.front().ptr();
+    }
+    static void setup(PyHeapTypeObject *heap_type);
 
     operator clingo_lib_t *() const;
 
@@ -41,10 +47,10 @@ class Library {
             clingo_lib_free(lib, false);
         }
     }
-    static void free_logger_(void *log) noexcept;
     static void logger_(clingo_message_t code, char const *message, void *log) noexcept;
 
     owner_ptr<clingo_lib_t, free_lib_> lib_;
+    std::forward_list<py::object> objs_;
 };
 
 inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {

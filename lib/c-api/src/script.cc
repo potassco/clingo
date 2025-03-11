@@ -8,7 +8,11 @@ namespace {
 class CScript : public Clingo::Control::Script {
   public:
     CScript(clingo_lib *lib, clingo_script_t script, void *data) : lib_{lib}, script_{script}, data_{data} {}
-    ~CScript() noexcept override { script_.free(data_); }
+    ~CScript() noexcept override {
+        if (script_.free != nullptr) {
+            script_.free(data_);
+        }
+    }
 
   private:
     void do_exec(std::string_view code) override { script_.execute(std::string(code).c_str(), data_); }
