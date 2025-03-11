@@ -329,55 +329,6 @@ enum class SolveMode : uint8_t {
 //! Enable bit set operations.
 CLINGO_ENABLE_BITSET_ENUM(SolveMode);
 
-//! This lock ensures that callbacks during solving are called in lock-step.
-//!
-//! To avoid locking, the lock only engages if there are propagators that
-//! require locking and search proceeds with more than one thread.
-//!
-//! This lock is required for scripting languages that do not support
-//! mulit-threading - like for example, the Lua language.
-//! @todo: Check if the current implementation covers all use cases.
-class PropagatorLock : public Clasp::ClingoPropagatorLock {
-  public:
-    //! Acquire the lock.
-    void lock() override {
-        if (mut_) {
-            mut_->lock();
-        }
-    }
-    //! Release the lock.
-    void unlock() override {
-        if (mut_) {
-            mut_->unlock();
-        }
-    }
-    //! Add a propagator with the required locking.
-    //!
-    //! @param seq whether the propagator requires lockning
-    //! @return a reference to self
-    auto add(bool seq) -> PropagatorLock * {
-        if (seq) {
-            ++seq_;
-            return this;
-        }
-        return nullptr;
-    }
-    //! Initialize the internal lock for the given number of threads.
-    //!
-    //! @param threads the number of threads
-    void init(size_t threads) {
-        if (threads < 2 || seq_ == 0) {
-            mut_.reset();
-        } else if (!mut_) {
-            mut_.emplace();
-        }
-    }
-
-  private:
-    std::optional<std::mutex> mut_;
-    size_t seq_ = 0;
-};
-
 //! Object to provide access to the backend.
 //!
 //! This backend is intended to be used in the C API to extend the ground
@@ -439,6 +390,52 @@ class Propagator : public Potassco::AbstractPropagator, public Potassco::Abstrac
 };
 //! A unique pointer to a propagator.
 using UPropagator = std::unique_ptr<Propagator>;
+
+//! This lock ensures that callbacks during solving are called in lock-step.
+//!
+//! This lock is required for scripting languages that do not support
+//! mulit-threading - like for example, the Lua language.
+class CallbackLock {
+  public:
+    //! Acquire the lock.
+    void lock() {
+        if (mut_) {
+            mut_->lock();
+        }
+    }
+    //! Release the lock.
+    void unlock() {
+        if (mut_) {
+            mut_->unlock();
+        }
+    }
+    //! Enable or disable the lock.
+    void enable(bool state) {
+        if (!state) {
+            mut_.reset();
+        } else if (!mut_) {
+            mut_.emplace();
+            mut_->lock();
+        }
+    }
+
+  private:
+    std::optional<std::mutex> mut_;
+};
+
+//! RAII helper to unlock a mutex.
+template <class M> class unlock_guard {
+  public:
+    //! Constructor unlocking the mutex.
+    explicit unlock_guard(M &mut) : mut_{&mut} { mut_->unlock(); }
+    //! Destructor re-locking the mutex.
+    unlock_guard(const unlock_guard &) = delete;
+    ~unlock_guard() { mut_->lock(); }
+    auto operator=(const unlock_guard &) -> unlock_guard & = delete;
+
+  private:
+    M *mut_;
+};
 
 //! A grounder and solver for logic programs.
 //!
@@ -517,6 +514,9 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
     //! @param propagator the propagator
     void register_propagator(UPropagator propagator);
 
+    //! Get the solvers callback lock.
+    auto get_lock() -> CallbackLock & { return lock_; }
+
   private:
     //! States for step transitions.
     //!
@@ -553,7 +553,7 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
     auto decide(Potassco::Id_t solver_id, Potassco::AbstractAssignment const &assignment, Potassco::Lit_t fallback)
         -> Potassco::Lit_t override;
 
-    PropagatorLock lock_;
+    CallbackLock lock_;
     std::vector<std::pair<UPropagator, std::unique_ptr<Clasp::ClingoPropagatorInit>>> propagators_;
     std::vector<Potassco::AbstractHeuristic *> heuristics_;
     Clasp::ClaspFacade *clasp_;

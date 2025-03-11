@@ -246,6 +246,8 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
               private:
                 void printModelValues(Clasp::OutputTable const &out, Clasp::Model const &mdl) override {
                     auto prt = [&]() { BaseType::printModelValues(out, mdl); };
+                    // NOTE: the function can only be called while the solve handle is alive
+                    auto guard = Clingo::Control::unlock_guard{self_->ctl_.slv->get_lock()};
                     self_->app_.print_model(self_->ctl_.slv->map_model(mdl), prt);
                 }
                 ClingoApp *self_;
@@ -270,6 +272,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             for (auto const &[name, value] : const_defs_) {
                 slv.add_const(*name, *value);
             }
+            // TODO: add a lock to the control
             // NOTE: member for createTextOutput
             ctl_.slv = &slv;
             ctl_.cfg = &slv.clasp_config();

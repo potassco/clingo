@@ -465,12 +465,13 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     //!
     //! This initializes the underlying solve handle, which in turn starts
     //! solving.
-    EventHandlerAdapter(PropagatorLock &lock, Logger &logger, ModelImpl &mdl, Control::UEventHandler eh)
+    EventHandlerAdapter(CallbackLock &lock, Logger &logger, ModelImpl &mdl, Control::UEventHandler eh)
         : lock_{&lock}, logger_{&logger}, mdl_{&mdl}, eh_{std::move(eh)} {}
 
     //! Intercept and report models.
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         if (eh_) {
+            auto guard = std::lock_guard{*lock_};
             mdl_->set_model(&mdl);
             return eh_->on_model(*mdl_);
         }
@@ -484,6 +485,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
         if (eh_) {
             if (auto const *res = event_cast<ClaspFacade::StepReady>(event); res != nullptr) {
                 try {
+                    auto guard = std::lock_guard{*lock_};
                     if (auto *stats = mdl_->clasp().getStats(); stats != nullptr) {
                         eh_->on_stats(*stats);
                     }
@@ -495,6 +497,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
             }
         }
         if (auto const *log = event_cast<LogEvent>(event); log != nullptr && log->isWarning()) {
+            auto guard = std::lock_guard{*lock_};
             logger_->print(MessageCode::warn, log->msg);
         }
     }
@@ -507,7 +510,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
             bound_.reserve(ctx->minimizer()->numRules());
             bound_.assign(mdl.costs.begin(), mdl.costs.begin() + lower.level);
             bound_.push_back(lower.bound);
-            auto guard = std::lock_guard<PropagatorLock>{*lock_};
+            auto guard = std::lock_guard{*lock_};
             eh_->on_unsat(bound_);
         }
         return true;
@@ -516,6 +519,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     //! Report unsatisfiable cores.
     void onCore(Potassco::LitSpan core) {
         if (eh_) {
+            auto guard = std::lock_guard{*lock_};
             eh_->on_core(core);
         }
     }
@@ -534,8 +538,11 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     //! Get the underlying ModelImple.
     [[nodiscard]] auto model() -> ModelImpl & { return *mdl_; }
 
+    //! Get the underlying lock.
+    [[nodiscard]] auto get_lock() const -> CallbackLock & { return *lock_; }
+
   private:
-    PropagatorLock *lock_;
+    CallbackLock *lock_;
     Logger *logger_;
     ModelImpl *mdl_;
     Clasp::SumVec bound_;
@@ -572,13 +579,14 @@ auto convert(SolveMode mode) -> Clasp::SolveMode {
 //! The solve handle implementation.
 class SolveHandleImpl : public SolveHandle {
   public:
-    SolveHandleImpl(PropagatorLock &lock, Logger &log, ModelImpl &mdl, SolveMode mode, UEventHandler eh)
+    SolveHandleImpl(CallbackLock &lock, Logger &log, ModelImpl &mdl, SolveMode mode, UEventHandler eh)
         : eh_{lock, log, mdl, std::move(eh)}, hnd_{mdl.clasp().solve(convert(mode), {}, &eh_)} {}
 
-    ~SolveHandleImpl() override { hnd_.cancel(); }
+    ~SolveHandleImpl() override { cancel(); }
 
   private:
     auto do_get() -> SolveResult override {
+        auto guard = unlock_guard{eh_.get_lock()};
         auto res = convert(hnd_.get());
         if (intersects(res, SolveResult::unsatisfiable)) {
             eh_.onCore(do_core());
@@ -586,9 +594,18 @@ class SolveHandleImpl : public SolveHandle {
         eh_.onFinalize();
         return res;
     }
-    void do_cancel() override { hnd_.cancel(); }
-    void do_resume() override { hnd_.resume(); }
-    auto do_model() -> Model const * override { return eh_.model().set_model(hnd_.model()) ? &eh_.model() : nullptr; }
+    void do_cancel() override {
+        auto guard = unlock_guard{eh_.get_lock()};
+        hnd_.cancel();
+    }
+    void do_resume() override {
+        auto guard = unlock_guard{eh_.get_lock()};
+        hnd_.resume();
+    }
+    auto do_model() -> Model const * override {
+        auto guard = unlock_guard{eh_.get_lock()};
+        return eh_.model().set_model(hnd_.model()) ? &eh_.model() : nullptr;
+    }
     auto do_last() -> Model const * override { return eh_.model().set_last() ? &eh_.model() : nullptr; }
     auto do_core() -> Output::LitSpan override {
         auto const &clasp = eh_.model().clasp();
@@ -599,6 +616,7 @@ class SolveHandleImpl : public SolveHandle {
         return core_;
     }
     auto do_wait(double timeout) -> bool override {
+        auto guard = unlock_guard{eh_.get_lock()};
         if (timeout == 0) {
             return hnd_.ready();
         }
@@ -725,6 +743,7 @@ auto Solver::map_model(Clasp::Model const &mdl) -> Model & {
 
 auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode mode) -> USolveHandle {
     if (mode_ == AppMode::solve) {
+        auto guard = unlock_guard{lock_};
         if (state_ == State::solved || state_ == State::initial) {
             // we inject an emtpy ground
             ground(Input::ProgramParamVec{}, nullptr);
