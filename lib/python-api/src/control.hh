@@ -17,7 +17,7 @@ class Control {
   public:
     using AssumptionVec = std::vector<std::variant<std::pair<Symbol, bool>, Lit_t>>;
 
-    Control(Library &lib, std::vector<std::string> const &args);
+    Control(Library &lib, std::span<std::string const> args);
     Control(clingo_control_t *ctl) : ctl_{ctl} {}
 
     ~Control() = default;
@@ -26,6 +26,7 @@ class Control {
     auto operator=(Control const &other) -> Control & = delete;
     auto operator=(Control &&other) -> Control & = default;
 
+    void parse_files(std::span<std::string const> files);
     void parse_string(char const *str);
     void join(Program &prg);
     void ground(std::optional<std::vector<std::pair<std::string, SymbolVec>>> const &parts, py::handle ctx);

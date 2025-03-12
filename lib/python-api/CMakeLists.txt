@@ -16,6 +16,7 @@ add_library(clingo_python
     src/util.cc
     )
 clingo_target_properties(clingo_python "lib/pyclingo")
+target_compile_definitions(clingo_python PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}")
 target_link_libraries(clingo_python PRIVATE pybind11::pybind11 clingo)
 
 # the standalone module
@@ -33,7 +34,6 @@ add_library(clingo_python_embed src/embed.cc)
 add_library(clingo::python ALIAS clingo_python_embed)
 clingo_target_properties(clingo_python_embed "lib/pyclingo-embed")
 target_include_directories(clingo_python_embed PUBLIC "include")
-target_compile_definitions(clingo_python_embed PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}")
 target_compile_definitions(clingo_python_embed PUBLIC CLINGO_PYTHON_ENABLED)
 target_link_libraries(clingo_python_embed PRIVATE pybind11::embed clingo clingo_python)
 

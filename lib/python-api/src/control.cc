@@ -10,7 +10,7 @@
 
 namespace Clingo::Python {
 
-Control::Control(Library &lib, std::vector<std::string> const &args) {
+Control::Control(Library &lib, std::span<std::string const> args) {
     auto c_args = transform(args, [](auto const &str) { return str.c_str(); });
     auto *ctl = static_cast<clingo_control_t *>(nullptr);
     handle_error(clingo_control_new(lib, c_args.data(), c_args.size(), &ctl));
@@ -23,6 +23,11 @@ void Control::join(Program &prg) {
 
 void Control::parse_string(char const *str) {
     handle_error(clingo_control_parse_string(ctl_.get(), str));
+}
+
+void Control::parse_files(std::span<std::string const> files) {
+    auto cfiles = transform(files, [](auto const &x) { return x.c_str(); });
+    handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()));
 }
 
 auto Control::ctx_(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location, char const *name,
@@ -256,6 +261,13 @@ Parses a logic program given as a string.
 Args:
     program:
         The logic program as string.
+)"_d)
+        .def("parse_files", &Control::parse_files, py::arg("files"), R"(
+Parses the logic programs in the given files
+
+Args:
+    files:
+        The files to parse.
 )"_d)
         .def("ground", &Control::ground, py::arg("parts") = std::nullopt, py::arg("context") = py::none(), R"(
 Ground the given program parts.

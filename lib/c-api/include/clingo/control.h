@@ -129,8 +129,8 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);
 //! @return the result code; might return one of the following codes:
 //! - ::clingo_result_bad_alloc
 //! - ::clingo_result_runtime if parsing or checking fails
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_file(clingo_control_t *control, char const **files,
-                                                                    size_t files_size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_files(clingo_control_t *control, char const **files,
+                                                                     size_t files_size);
 
 //! Extend the logic program with the given non-ground logic program in string form.
 //!
