@@ -72,6 +72,13 @@ extern "C" void clingo_control_free(clingo_control_t *control) {
     delete control;
 }
 
+extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode) -> clingo_result_t {
+    CLINGO_TRY {
+        *mode = static_cast<clingo_mode_t>(control->slv->get_mode());
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" auto clingo_control_parse_files(clingo_control_t *control, char const **files, size_t files_size)
     -> clingo_result_t {
     CLINGO_TRY {
@@ -127,28 +134,20 @@ class Context : public Clingo::Ground::ScriptCallback {
 
 } // namespace
 
-extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size,
-                                      clingo_ground_callback_t ground_callback, void *ground_callback_data)
-    -> clingo_result_t {
+extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t size,
+                                      clingo_ground_callback_t ground_callback, void *data) -> clingo_result_t {
     CLINGO_TRY {
-        auto ctx = ground_callback != nullptr
-                       ? std::make_optional<Context>(control->lib, ground_callback, ground_callback_data)
-                       : std::nullopt;
-        auto make_part = [&](auto const &sym) { return Clingo::SharedSymbol{Clingo::Symbol::from_rep(sym)}; };
-        auto make_parts = [&](auto const &part) {
-            return Clingo::Input::ProgramParam{
-                control->lib->store->string(part.name),
-                Clingo::Util::transform(part.params, part.params + part.size, make_part)};
-        };
-        control->slv->ground(Clingo::Util::transform(parts, parts + parts_size, make_parts),
-                             ctx ? &ctx.value() : nullptr);
+        auto ctx = ground_callback != nullptr ? std::make_optional<Context>(control->lib, ground_callback, data)
+                                              : std::nullopt;
+        control->slv->ground(convert(control, parts, size), ctx ? &ctx.value() : nullptr);
     }
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_control_main(clingo_control_t *control) -> clingo_result_t {
+extern "C" auto clingo_control_main(clingo_control_t *control, clingo_parts_array_t const *parts, size_t size)
+    -> clingo_result_t {
     CLINGO_TRY {
-        control->slv->main(std::nullopt);
+        control->slv->main(convert(control, parts, size));
     }
     CLINGO_CATCH;
 }

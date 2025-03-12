@@ -3,6 +3,7 @@ Unit tests for clingo.script module.
 """
 
 from textwrap import dedent
+from typing import Sequence
 
 from clingo.control import Control
 from clingo.core import Library
@@ -46,11 +47,16 @@ class MyScript(Script):
 
         return name in self._scope and callable(self._scope[name])
 
-    def main(self, lib: Library, control: Control) -> None:
+    def main(
+        self,
+        lib: Library,
+        control: Control,
+        parts: Sequence[Sequence[tuple[str, Sequence[int]]]] = None,
+    ) -> None:
         """
         Run the main function from the main scope.
         """
-        self._scope["main"](lib, control)
+        self._scope["main"](lib, control, parts)
 
 
 class TestScript:
@@ -97,7 +103,7 @@ class TestScript:
                         * 242357902759023475928437592438759234752049375294375293457902759247590275902745,
                     )
 
-                def main(lib, ctl):
+                def main(lib, ctl, parts):
                     ctl.parse_string("#program one(k). p(k).")
                     ctl.ground([("one", [Number(lib, 1)])])
 

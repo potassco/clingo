@@ -130,10 +130,12 @@ class AppAdapter {
 
     [[nodiscard]] auto has_main() const -> bool { return app_ != nullptr && app_->main != nullptr; }
 
-    void main(clingo_control_t *ctl, std::span<std::string const> const &input) {
+    void main(clingo_control_t *ctl, std::span<std::string const> const &input,
+              std::optional<Clingo::Control::ProgramParamsVec> const &parts) {
         assert(has_main());
         auto vec = Clingo::Util::transform(input, [](auto const &str) { return str.c_str(); });
-        handle_error(app_->main(ctl, vec.data(), vec.size(), data_));
+        auto [cparts, vecs] = convert(parts);
+        handle_error(app_->main(ctl, vec.data(), vec.size(), cparts.data(), cparts.size(), data_));
     }
 
   private:
@@ -281,7 +283,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                 if (mode_ == Mode::solve) {
                     ctl_.clasp->enableProgramUpdates();
                 }
-                app_.main(&ctl_, claspAppOpts_.input);
+                app_.main(&ctl_, claspAppOpts_.input, parts_);
             } else {
                 ctl_.slv->main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()},
                                parts_);
@@ -293,7 +295,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 
     RewriteOptions rewrite_opts_;
     Clingo::LogLevel log_level_ = Clingo::LogLevel::info;
-    std::optional<std::vector<ProgramParamVec>> parts_;
+    std::optional<Clingo::Control::ProgramParamsVec> parts_;
     std::vector<std::pair<Clingo::SharedString, Clingo::SharedSymbol>> const_defs_;
     Mode mode_ = Mode::solve;
     clingo_control_t ctl_;

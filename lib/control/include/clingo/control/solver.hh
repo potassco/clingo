@@ -15,19 +15,21 @@ namespace Clingo::Control {
 
 class Solver;
 
+using ProgramParamsVec = std::vector<Clingo::Input::ProgramParamVec>;
+
 //! Script providing code execution, main, and callbacks.
 //!
 //! This interface should be implemend by custom scripts.
 class Script : public Ground::ScriptCallback {
   public:
     //! Run the main function.
-    void main(Solver &slv) { do_main(slv); }
+    void main(Solver &slv, std::optional<ProgramParamsVec> const &params) { do_main(slv, params); }
     //! Execute the given code.
     void exec(std::string_view code) { do_exec(code); }
 
   private:
     virtual void do_exec(std::string_view code) = 0;
-    virtual void do_main(Solver &slv) = 0;
+    virtual void do_main(Solver &slv, std::optional<ProgramParamsVec> const &params) = 0;
 };
 //! A unique pointer to a script.
 using UScript = std::unique_ptr<Script>;
@@ -41,7 +43,7 @@ class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
     //! Register the given script.
     void register_script(std::string_view name, UScript script);
     //! Run the main function.
-    void main(Solver &slv);
+    void main(Solver &slv, std::optional<ProgramParamsVec> const &params);
 
   private:
     void do_exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) override;
@@ -447,10 +449,9 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
            Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out = stdout);
 
     //! Parse, ground, and solve a program.
-    void main(std::span<std::string_view const> const &files,
-              std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params);
+    void main(std::span<std::string_view const> const &files, std::optional<ProgramParamsVec> const &params);
     //! Ground and solve a program.
-    void main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params);
+    void main(std::optional<ProgramParamsVec> const &params);
 
     //! Parse a program from the given string.
     void join(Input::UnprocessedProgram const &prg);
@@ -519,6 +520,8 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
 
     //! Block execution of the main function in scripts.
     void block_main(bool block) { block_main_ = block; }
+
+    [[nodiscard]] auto get_mode() const -> AppMode { return mode_; }
 
   private:
     //! States for step transitions.

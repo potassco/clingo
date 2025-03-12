@@ -17,6 +17,12 @@ Control::Control(Library &lib, std::span<std::string const> args) {
     ctl_.reset(ctl);
 }
 
+auto Control::mode() -> clingo_mode_e {
+    clingo_mode_t mode = 0;
+    handle_error(clingo_control_mode(ctl_.get(), &mode));
+    return static_cast<clingo_mode_e>(mode);
+}
+
 void Control::join(Program &prg) {
     handle_error(clingo_control_join(ctl_.get(), prg));
 }
@@ -60,15 +66,13 @@ auto Control::ctx_(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *
     CLINGO_CATCH(lib);
 }
 
-void Control::ground(std::optional<std::vector<std::pair<std::string, SymbolVec>>> const &parts, py::handle ctx) {
+void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
     auto release = py::gil_scoped_release{};
-    static auto const base = std::vector{std::pair{std::string{"base"}, SymbolVec{}}};
-    auto c_args = transform(parts ? *parts : base, [](auto const &part) {
-        return clingo_part_t{part.first.c_str(),
-                             // NOLINTNEXTLINE
-                             reinterpret_cast<clingo_symbol_t const *>(part.second.data()), part.second.size()};
-    });
-    handle_error(clingo_control_ground(ctl_.get(), c_args.data(), c_args.size(),
+    if (!parts) {
+        static constexpr auto part = clingo_part_t{"base", nullptr, 0};
+        parts.emplace(&part, 1);
+    }
+    handle_error(clingo_control_ground(ctl_.get(), parts->data(), parts->size(),
                                        !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
 }
 
@@ -145,9 +149,14 @@ auto Control::solve(MixedLitlVec const &assumptions, std::optional<ModelCallback
     return res;
 }
 
-void Control::main() {
+void Control::main(std::optional<PartsSpan> parts) {
     auto release = py::gil_scoped_release{};
-    handle_error(clingo_control_main(ctl_.get()));
+    if (!parts) {
+        static constexpr clingo_part_t part = {"base", nullptr, 0};
+        static constexpr clingo_parts_array_t part_array = {&part, 1};
+        parts.emplace(&part_array, 1);
+    }
+    handle_error(clingo_control_main(ctl_.get(), parts->data(), parts->size()));
 }
 
 auto Control::buffer() -> char const * {
@@ -230,6 +239,13 @@ p(11) q(1) q(2)
 SAT
 ```
 )"_d);
+
+    py::enum_<clingo_mode_e>(control, "ControlMode", "Available control modes.")
+        .value("Parse", clingo_mode_parse, R"(Parse only.)")
+        .value("Rewrite", clingo_mode_rewrite, R"(Parse and rewrite.)")
+        .value("Ground", clingo_mode_ground, R"(Parse, rewrite, and ground.)")
+        .value("Solve", clingo_mode_solve, R"(Parse, rewrite, ground, and solve.)");
+
     py::class_<Control>(control, "Control", py::custom_type_setup(&Control::setup),
                         R"(A control object for grounding and solving.)")
         .def(py::init<Library &, std::vector<std::string> const &>(), py::arg("lib"),
@@ -331,11 +347,18 @@ Note:
 See Also:
     clingo.solve: For more examples how to use this method.
 )"_d)
-        .def("main", &Control::main, R"(
+        .def("main", &Control::main, py::arg("parts") = std::nullopt, R"(
 Ground and solver a logic program.
 
 This function proceeds as clingo calling the main function from a script if
 there is any.
+
+If the optional parts member is given, each of its elements corresponds to one
+incremental solving step where the elements' parts are grounded.
+
+Args:
+    parts:
+        A sequence of part sequences to ground and solve.
 )"_d)
         .def("observe", &Control::observe, py::arg("observer"), R"(
 Inspect the ground program of the current step.
@@ -347,7 +370,8 @@ Args:
         .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)")
         .def_property_readonly("backend", &Control::backend, R"(Get a backend manager to extend the ground program.)")
         .def_property_readonly("config", &Control::config, R"(Get the solver config.)")
-        .def_property_readonly("stats", &Control::stats, R"(Get the solver stats.)");
+        .def_property_readonly("stats", &Control::stats, R"(Get the solver stats.)")
+        .def_property_readonly("mode", &Control::mode, R"(Get the application mode.)");
 }
 
 } // namespace Clingo::Python

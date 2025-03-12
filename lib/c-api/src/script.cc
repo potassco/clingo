@@ -17,7 +17,8 @@ class CScript : public Clingo::Control::Script {
   private:
     void do_exec(std::string_view code) override { script_.execute(std::string(code).c_str(), data_); }
 
-    void do_main(Clingo::Control::Solver &slv) override {
+    void do_main(Clingo::Control::Solver &slv,
+                 std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) override {
         class main_guard {
           public:
             main_guard(Clingo::Control::Solver &slv) : slv_{&slv} { slv_->block_main(true); }
@@ -27,7 +28,8 @@ class CScript : public Clingo::Control::Script {
             Clingo::Control::Solver *slv_;
         } guard{slv};
         auto ctl = clingo_control_t{lib_, &slv, &slv.clasp_config(), &slv.clasp_facade()};
-        handle_error(script_.main(lib_, &ctl, data_));
+        auto [cparts, vecs] = convert(params);
+        handle_error(script_.main(lib_, &ctl, cparts.data(), cparts.size(), data_));
     }
 
     auto do_callable(std::string_view name, size_t args) -> bool override {

@@ -33,6 +33,16 @@ typedef struct clingo_program clingo_program_t;
 //! Control object holding grounding and solving state.
 typedef struct clingo_control clingo_control_t;
 
+//! The available application modes.
+enum clingo_mode_e {
+    clingo_mode_parse = 0,   //!< parse only
+    clingo_mode_rewrite = 1, //!< parse and rewrite
+    clingo_mode_ground = 2,  //!< parse, rewrite, ground
+    clingo_mode_solve = 3,   //!< parse, rewrite, ground, and solve
+};
+//! The corresponding type to ::clingo_mode_e.
+typedef int clingo_mode_t;
+
 //! Struct used to specify the program parts that have to be grounded.
 //!
 //! Programs may be structured into parts, which can be grounded independently with ::clingo_control_ground.
@@ -49,6 +59,15 @@ typedef struct clingo_part {
     clingo_symbol_t const *params; //!< array of parameters
     size_t size;                   //!< number of parameters
 } clingo_part_t;
+
+//! Struct used to specify a list of program parts that have to be grounded and
+//! solved.
+//!
+//! Each part group is grounded together and solved afterward.
+typedef struct clingo_parts_array {
+    clingo_part_t const *parts; //!< array of part groups
+    size_t size;                //!< number of part groups
+} clingo_parts_array_t;
 
 //! Callback function to implement external functions.
 //!
@@ -111,9 +130,7 @@ typedef clingo_result_t (*clingo_ground_callback_t)(clingo_lib_t *lib, clingo_lo
 //! @param[in] arguments C string array of command line arguments
 //! @param[in] arguments_size size of the arguments array
 //! @param[out] control resulting control object
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! - ::clingo_result_runtime if argument parsing fails
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_new(clingo_lib_t *lib, char const *const *arguments,
                                                              size_t arguments_size, clingo_control_t **control);
 
@@ -121,14 +138,19 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_new(clingo_lib_t *lib, 
 //! @param[in] control the target
 CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);
 
+//! Get the configured mode.
+//!
+//! @param[in] control the target
+//! @param[in] mode the mode
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode);
+
 //! Extend the logic program with a program in a file.
 //!
 //! @param[in] control the target
 //! @param[in] files the files to parse
 //! @param[in] files_size the number of files to parse
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! - ::clingo_result_runtime if parsing or checking fails
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_files(clingo_control_t *control, char const **files,
                                                                      size_t files_size);
 
@@ -139,9 +161,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_files(clingo_cont
 //!
 //! @param[in] control the target
 //! @param[in] program string representation of the program
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! - ::clingo_result_runtime if parsing fails
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_string(clingo_control_t *control, char const *program);
 
 //! Ground the selected parts of the current (non-ground) logic program.
@@ -154,28 +174,22 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_string(clingo_con
 //!
 //! @param[in] control the target
 //! @param[in] parts array of parts to ground
-//! @param[in] parts_size size of the parts array
+//! @param[in] size size of the parts array
 //! @param[in] ground_callback callback to implement external functions
-//! @param[in] ground_callback_data user data for ground_callback
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! - error code of ground callback
-//!
-//! @see clingo_part
+//! @param[in] data user data for ground_callback
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts,
-                                                                size_t parts_size,
-                                                                clingo_ground_callback_t ground_callback,
-                                                                void *ground_callback_data);
+                                                                size_t size, clingo_ground_callback_t ground_callback,
+                                                                void *data);
 
 //! Execute the default ground and solve flow after parsing.
 //!
 //! @param[in] control the target
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! - error code of ground callback
-//!
-//! @see clingo_part
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_main(clingo_control_t *control);
+//! @param[in] part_array the parts to ground and solve
+//! @param[in] size the number of parts in the array
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_main(clingo_control_t *control,
+                                                              clingo_parts_array_t const *parts, size_t size);
 
 //! Get the output of the text output.
 //!

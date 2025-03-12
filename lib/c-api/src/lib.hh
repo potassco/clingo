@@ -39,6 +39,11 @@ inline auto c_cast(Clingo::Symbol const *sym) -> clingo_symbol_t const * {
     return reinterpret_cast<clingo_symbol_t const *>(sym);
 }
 
+inline auto c_cast(Clingo::SharedSymbol const *sym) -> clingo_symbol_t const * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_symbol_t const *>(sym);
+}
+
 inline auto cpp_cast(clingo_symbol_t sym) -> Clingo::Symbol {
     return Clingo::Symbol::from_rep(sym);
 }

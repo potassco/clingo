@@ -5,6 +5,7 @@
 
 #include <clingo/script.h>
 
+#include <pybind11/embed.h>
 #include <pybind11/eval.h>
 
 namespace Clingo::Python {
@@ -13,24 +14,40 @@ namespace {
 
 class Interpreter {
   public:
-    Interpreter()
-        : scope_{py::module_::import("__main__").attr("__dict__")},
-          callable_{py::module_::import("builtins").attr("callable")},
-          version_{py::module_::import("sys").attr("version").cast<std::string>()} {}
+    Interpreter() {
+        if (Py_IsInitialized() == 0) {
+            py_ = std::make_unique<py::scoped_interpreter>();
+        }
+        auto gil = py::gil_scoped_acquire{};
+        scope_ = py::module_::import("__main__").attr("__dict__");
+        callable_ = py::module_::import("builtins").attr("callable");
+        version_ = py::module_::import("sys").attr("version").cast<std::string>();
+    }
 
-    void exec(char const *code) { py::exec(code, scope_); }
+    void exec(char const *code) {
+        auto gil = py::gil_scoped_acquire{};
+        py::exec(code, scope_);
+    }
 
-    auto callable(char const *name) -> bool { return scope_.contains(name) && callable_(scope_[name]).cast<bool>(); }
+    auto callable(char const *name) -> bool {
+        auto gil = py::gil_scoped_acquire{};
+        return scope_.contains(name) && callable_(scope_[name]).cast<bool>();
+    }
 
     auto call(Library lib, char const *name, SymbolVec args) -> std::variant<SymbolVec, Symbol> {
+        auto gil = py::gil_scoped_acquire{};
         return scope_[name](&lib, *py::cast(args)).cast<std::variant<SymbolVec, Symbol>>();
     }
 
-    auto main(Library lib, Control ctl) { scope_["main"](&lib, &ctl); }
+    auto main(Library lib, Control ctl, PartsSpan parts) {
+        auto gil = py::gil_scoped_acquire{};
+        scope_["main"](&lib, &ctl, parts);
+    }
 
     auto version() -> char const * { return version_.c_str(); }
 
   private:
+    std::unique_ptr<py::scoped_interpreter> py_;
     py::object scope_;
     py::object callable_;
     std::string version_;
@@ -38,16 +55,22 @@ class Interpreter {
 
 class MainScript {
   public:
-    MainScript(clingo_lib_t *lib) : lib_{lib} {}
+    MainScript(clingo_lib_t *lib) : lib_{lib} {
+        // NOTE: Initialize right away if the interpreter is already running.
+        // If the interpreter is not yet running, it will be started as soon as
+        // Python code is executed. If the intepreter is running, Python
+        // functions must be callable even if no code is executed.
+        if (Py_IsInitialized() != 0) {
+            init_();
+        }
+    }
 
     static auto cast(void *data) -> MainScript * { return static_cast<MainScript *>(data); }
 
     static auto c_execute(char const *code, void *data) -> clingo_result_t {
         auto *self = cast(data);
         CLINGO_TRY {
-            if (!self->py_) {
-                self->py_ = std::make_unique<Interpreter>();
-            }
+            self->init_();
             self->py_->exec(code);
         }
         CLINGO_CATCH(self->lib_);
@@ -93,11 +116,18 @@ class MainScript {
         CLINGO_CATCH(self->lib_);
     }
 
-    static auto main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
+    static auto main(clingo_lib_t *lib, clingo_control_t *control, clingo_parts_array_t const *parts, size_t size,
+                     void *data) -> clingo_result_t {
         auto *self = cast(data);
         CLINGO_TRY {
             if (self->py_) {
-                self->py_->main(lib, control);
+                for (auto const &part : std::span{parts, size}) {
+                    printf("party: %zu\n", part.size);
+                    for (auto const &par : std::span{parts->parts, parts->size}) {
+                        printf("part: %s\n", par.name);
+                    }
+                }
+                self->py_->main(lib, control, std::span{parts, size});
             }
         }
         CLINGO_CATCH(self->lib_);
@@ -119,6 +149,12 @@ class MainScript {
     }
 
   private:
+    void init_() {
+        if (!py_) {
+            py_ = std::make_unique<Interpreter>();
+        }
+    }
+
     std::unique_ptr<Interpreter> py_;
     clingo_lib_t *lib_;
 };
@@ -182,14 +218,16 @@ class Script {
         CLINGO_CATCH(self.lib_);
     }
 
-    void main(Library lib, Control &ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, &lib, &ctl); }
+    void main(Library lib, Control &ctl, PartsSpan parts) {
+        PYBIND11_OVERRIDE_PURE(void, Script, main, &lib, &ctl, &parts);
+    }
 
-    static auto c_main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
+    static auto c_main(clingo_lib_t *lib, clingo_control_t *control, clingo_parts_array_t const *parts, size_t size,
+                       void *data) -> clingo_result_t {
         auto &self = get_self(data);
         CLINGO_TRY {
-            auto &self = get_self(data);
             auto py_ctl = Control{control};
-            self.main(lib, py_ctl);
+            self.main(lib, py_ctl, std::span{parts, size});
         }
         CLINGO_CATCH(self.lib_);
     }
@@ -245,7 +283,8 @@ auto register_python(clingo_lib_t *lib) -> clingo_result_t {
     using Script = Clingo::Python::MainScript;
     auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::main,
                                     Script::c_name,    Script::c_version, Script::c_free};
-    return clingo_script_register(lib, &c_script, std::make_unique<Script>(lib).release());
+    auto script = std::make_unique<Script>(lib);
+    return clingo_script_register(lib, &c_script, script.release());
 }
 
 void register_script(pybind11::module &m) {
@@ -312,15 +351,19 @@ q(8).
 Execute the given code.
 
 Args:
-    code: The code to execute.
+    code:
+        The code to execute.
 )")
         .def("call", &Script::call, py::arg("lib"), py::arg("name"), py::arg("arguments"), R"(
 Call the function with the given name and arguments.
 
 Args:
-    lib: The library object to store symbols.
-    name: The name of the function.
-    arguments: The arguments of the function.
+    lib:
+        The library object to store symbols.
+    name:
+        The name of the function.
+    arguments:
+        The arguments of the function.
 
 Returns:
     A list of symbols.
@@ -329,18 +372,24 @@ Returns:
 Check if the function with the given signature is callable.
 
 Args:
-    name: The name of the function.
-    arguments: The number of arguments of the function.
+    name:
+        The name of the function.
+    arguments:
+        The number of arguments of the function.
 
 Returns:
     Whether the function is callable.
 )")
-        .def("main", &Script::main, py::arg("lib"), py::arg("control"), R"(
+        .def("main", &Script::main, py::arg("lib"), py::arg("control"), py::arg("parts") = std::nullopt, R"(
 Run the main function.
 
 Args:
-    lib: The (main) library object.
-    control: The (main) control object.
+    lib:
+        The (main) library object.
+    control:
+        The (main) control object.
+    parts:
+        The parts to ground and solve.
 )")
         .def("name", &Script::name, R"(Get the name of the script.)")
         .def("version", &Script::version, R"(Get the version of the script.)");
@@ -350,14 +399,17 @@ Args:
 Registers a script language which can then be embedded into a logic program.
 
 Args:
-    lib: The library to register the script with.
-    script: The script to register.
+    lib:
+        The library to register the script with.
+    script:
+        The script to register.
 )")
         .def("enable_python", [](Library &lib) { handle_error(register_python(lib)); }, py::arg("lib"), R"(
 Enable embedded python scripts.
 
 Args:
-    lib: The library to register the script with.
+    lib:
+        The library to register the script with.
 )"_d);
 }
 

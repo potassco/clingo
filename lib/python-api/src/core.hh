@@ -61,6 +61,11 @@ inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
 inline auto handle_error(clingo_lib_t *lib) -> clingo_result_t {
     try {
         throw;
+    } catch (py::error_already_set const &e) {
+        clingo_lib_report(lib, clingo_message_error, e.what());
+        auto gil = py::gil_scoped_acquire{};
+        PyErr_Clear();
+        return clingo_result_runtime;
     } catch (std::invalid_argument const &e) {
         clingo_lib_report(lib, clingo_message_error, e.what());
         return clingo_result_invalid;
@@ -77,6 +82,7 @@ inline auto handle_error(clingo_lib_t *lib) -> clingo_result_t {
         clingo_lib_report(lib, clingo_message_error, e.what());
         return clingo_result_runtime;
     }
+    unreachable();
 }
 
 class StringBuilder {

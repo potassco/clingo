@@ -651,10 +651,10 @@ void Scripts::do_exec(Location const &loc, Logger &log, std::string_view name, s
     }
 }
 
-void Scripts::main(Solver &slv) {
+void Scripts::main(Solver &slv, std::optional<ProgramParamsVec> const &params) {
     for (auto const &script : scripts_) {
         if (script.second->callable("main", 0)) {
-            script.second->main(slv);
+            script.second->main(slv, params);
         }
     }
 }
@@ -697,18 +697,17 @@ auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
     Util::unreachable();
 }
 
-void Solver::main(std::span<std::string_view const> const &files,
-                  std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
+void Solver::main(std::span<std::string_view const> const &files, std::optional<ProgramParamsVec> const &params) {
     parse(files);
     main(params);
 }
 
-void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
+void Solver::main(std::optional<ProgramParamsVec> const &params) {
     if (!block_main_ && scripts_->callable("main", 0)) {
         if (mode_ == AppMode::solve) {
             clasp_->enableProgramUpdates();
         }
-        scripts_->main(*this);
+        scripts_->main(*this, params);
     } else {
         if (mode_ == AppMode::parse) {
             output_unprocessed_program(std::cout);

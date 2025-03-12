@@ -13,6 +13,11 @@
 
 namespace Clingo::Python {
 
+using Part = clingo_part_t;
+using PartSpan = std::span<Part const>;
+using Parts = clingo_parts_array_t;
+using PartsSpan = std::span<Parts const>;
+
 class Control {
   public:
     using AssumptionVec = std::vector<std::variant<std::pair<Symbol, bool>, Lit_t>>;
@@ -26,10 +31,11 @@ class Control {
     auto operator=(Control const &other) -> Control & = delete;
     auto operator=(Control &&other) -> Control & = default;
 
+    auto mode() -> clingo_mode_e;
     void parse_files(std::span<std::string const> files);
     void parse_string(char const *str);
     void join(Program &prg);
-    void ground(std::optional<std::vector<std::pair<std::string, SymbolVec>>> const &parts, py::handle ctx);
+    void ground(std::optional<PartSpan> parts, py::handle ctx);
     auto solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model,
                std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle;
     auto base() -> Base;
@@ -37,7 +43,7 @@ class Control {
     auto backend() -> BackendManager;
     auto config() -> Config;
     auto stats() -> py::dict;
-    void main();
+    void main(std::optional<PartsSpan> parts);
     auto buffer() -> char const *;
 
     void register_propagator(Annotation<Propagator> propagator);
@@ -58,3 +64,154 @@ class Control {
 void register_control(pybind11::module &m);
 
 } // namespace Clingo::Python
+
+namespace pybind11::detail {
+
+struct part_span_holder {
+    using name_conv = make_caster<std::string>;
+    using params_conv = make_caster<Clingo::Python::SymbolVec>;
+    using type = Clingo::Python::PartSpan;
+
+    auto load(handle src, bool convert) -> bool {
+        if (!isinstance<iterable>(src)) {
+            return false;
+        }
+        auto n = len(src);
+        names.reserve(n);
+        args.reserve(n);
+        parts.reserve(n);
+        for (auto const &part : src) {
+            name_conv nc;
+            params_conv sc;
+            if (!nc.load(part[pybind11::int_{0}], convert) || !sc.load(part[pybind11::int_{1}], convert)) {
+                return false;
+            }
+            names.emplace_back(cast_op<std::string>(std::move(nc)));
+            args.emplace_back(cast_op<Clingo::Python::SymbolVec>(std::move(sc)));
+            parts.emplace_back(names.back().c_str(), c_cast(args.back().data()), args.back().size());
+        }
+        return true;
+    }
+
+    [[nodiscard]] auto cast() const -> type { return parts; }
+
+    std::vector<std::string> names;
+    std::vector<Clingo::Python::SymbolVec> args;
+    std::vector<Clingo::Python::Part> parts;
+};
+
+struct parts_span_holder {
+    using type = Clingo::Python::PartsSpan;
+
+    auto load(handle src, bool convert) -> bool {
+        if (!isinstance<iterable>(src)) {
+            return false;
+        }
+        size_t n = len(src);
+        parts.reserve(n);
+        arrays.reserve(n);
+        // NOLINTNEXTLINE(readability-use-anyofallof)
+        for (auto const &elem : src) {
+            parts.emplace_back();
+            if (!parts.back().load(elem, convert)) {
+                return false;
+            }
+            auto span = parts.back().cast();
+            arrays.emplace_back(span.data(), span.size());
+        }
+        return true;
+    }
+
+    [[nodiscard]] auto cast() const -> type { return arrays; }
+
+    std::vector<part_span_holder> parts;
+    std::vector<clingo_parts_array_t> arrays;
+};
+
+template <> struct type_caster<std::optional<Clingo::Python::PartSpan>> {
+  public:
+    using name_conv = make_caster<std::string>;
+    using params_conv = make_caster<Clingo::Python::SymbolVec>;
+    using type = std::optional<Clingo::Python::PartSpan>;
+
+    PYBIND11_TYPE_CASTER(type, _("Sequence[Tuple[str, Sequence[clingo.symbol.Symbol]]]"));
+
+    auto load(handle src, bool convert) -> bool {
+        if (src.is_none()) {
+            value = std::nullopt;
+            return true;
+        }
+        if (!isinstance<iterable>(src)) {
+            return false;
+        }
+        if (!holder_.load(src, convert)) {
+            return false;
+        }
+        value = holder_.cast();
+        return true;
+    }
+
+  private:
+    part_span_holder holder_;
+    std::vector<std::string> names_;
+    std::vector<Clingo::Python::SymbolVec> args_;
+    std::vector<Clingo::Python::Part> parts_;
+};
+
+template <> struct type_caster<Clingo::Python::PartsSpan> {
+  public:
+    using name_conv = make_caster<std::string>;
+    using params_conv = make_caster<Clingo::Python::SymbolVec>;
+    using type = Clingo::Python::PartsSpan;
+
+    PYBIND11_TYPE_CASTER(type, _("Sequence[Sequence[Tuple[str, Sequence[clingo.symbol.Symbol]]]]"));
+
+    auto load(handle src, bool convert) -> bool {
+        if (!holder_.load(src, convert)) {
+            return false;
+        }
+        value = holder_.cast();
+        return true;
+    }
+
+    static auto cast(const type &src, return_value_policy policy, handle parent) -> handle {
+        list res;
+        for (auto const &parts : src) {
+            list pyparts;
+            for (auto const &part : std::span{parts.parts, parts.size}) {
+                pyparts.append(make_tuple(
+                    name_conv::cast(part.name, policy, parent),
+                    params_conv::cast(std::span{Clingo::Python::cpp_cast(part.params), part.size}, policy, parent)));
+            }
+            res.append(std::move(pyparts));
+        }
+        return res.release();
+    }
+
+  private:
+    parts_span_holder holder_;
+};
+
+template <> struct type_caster<std::optional<Clingo::Python::PartsSpan>> {
+  public:
+    using type = std::optional<Clingo::Python::PartsSpan>;
+
+    PYBIND11_TYPE_CASTER(type, _("Optional[Sequence[Sequence[Tuple[str, Sequence[clingo.symbol.Symbol]]]]]"));
+
+    auto load(handle src, bool convert) -> bool {
+        if (src.is_none()) {
+            value = std::nullopt;
+            return true;
+        }
+        if (!holder_.load(src, convert)) {
+            return false;
+        }
+        value = holder_.cast();
+        return true;
+    }
+
+  private:
+    parts_span_holder holder_;
+};
+
+} // namespace pybind11::detail

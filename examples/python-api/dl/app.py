@@ -13,7 +13,7 @@ from typing import List, MutableMapping, Optional, Sequence, Set, Tuple, TypeVar
 from clingo import ast
 from clingo.app import App, AppOptions, clingo_main
 from clingo.base import TheoryTerm, TheoryTermType
-from clingo.control import Control
+from clingo.control import Control, ControlMode
 from clingo.core import Library
 from clingo.propagate import Assignment, PropagateControl, PropagateInit, Propagator
 from clingo.solve import Model
@@ -444,27 +444,38 @@ class DLApp(App):
                     self._bound = v.number
                     break
 
-    def main(self, control: Control, files: Sequence[str]) -> None:
+    def main(
+        self,
+        control: Control,
+        files: Sequence[str],
+        parts: Sequence[Sequence[tuple[str, Sequence[Symbol]]]],
+    ) -> None:
         """
         Register the difference constraint propagator, and then ground and
         solve.
         """
         control.register_propagator(self._propagator)
-
         control.join(rewrite(self._lib, files))
 
-        if self._minimize is None:
-            control.main()
+        if control.mode in (ControlMode.Parse, ControlMode.Rewrite):
+            control.main(parts)
+        elif self._minimize is None:
+            for part in parts:
+                control.ground(part)
+                with control.solve(on_model=self._on_model) as hnd:
+                    hnd.get()
         else:
-            control.ground()
+            if len(parts) != 1:
+                raise RuntimeError("minimization supports only one solving step")
+            control.ground(parts[0])
             control.parse_string("#program bound(b, v). &__diff_h { v-0 } <= b.")
             while True:
                 with control.solve(on_model=self._on_model) as hnd:
                     if not hnd.get().satisfiable:
                         break
-                print(f"Found new bound: {self._bound}")
                 if self._bound is None:
                     break
+                print(f"Found new bound: {self._bound}")
                 num = Number(self._lib, self._bound - 1)
                 control.ground([("bound", [num, self._minimize])])
 

@@ -5,11 +5,9 @@
 extern "C" {
 #endif
 
+#include <clingo/control.h>
 #include <clingo/core.h>
 #include <clingo/symbol.h>
-
-// Note: forward declaration
-typedef struct clingo_control clingo_control_t;
 
 //! @addtogroup c_script
 //! Support for calling exteral functions during grounding and customizing the main solving loop.
@@ -46,7 +44,8 @@ typedef struct clingo_script {
     //! @param[in] control the control object to pass to the main function
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    clingo_result_t (*main)(clingo_lib_t *lib, clingo_control_t *control, void *data);
+    clingo_result_t (*main)(clingo_lib_t *lib, clingo_control_t *control, clingo_parts_array_t const *parts,
+                            size_t size, void *data);
     //! Get the name of the script.
     //! @return the name of the script.
     char const *(*name)(void *data);
