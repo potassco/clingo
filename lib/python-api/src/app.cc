@@ -52,7 +52,7 @@ class Options {
 
 class App {
   public:
-    App(std::string program_name, std::string version)
+    App(std::optional<std::string> program_name, std::optional<std::string> version)
         : program_name_{std::move(program_name)}, version_{std::move(version)} {}
     App(App const &other) = delete;
     App(App &&other) = delete;
@@ -71,17 +71,23 @@ class App {
 
     void validate_options() { PYBIND11_OVERRIDE_NAME(void, App, "validate_options", no_op_); }
 
-    auto program_name() -> char const * { return program_name_.c_str(); }
+    auto program_name() -> char const * {
+        assert(program_name_);
+        return program_name_->c_str();
+    }
 
-    auto version() -> char const * { return version_.c_str(); }
+    auto version() -> char const * {
+        assert(version_);
+        return version_->c_str();
+    }
 
     auto lib() -> clingo_lib_t * { return lib_; }
 
     auto prepare(clingo_lib_t *lib) -> clingo_application_t {
         lib_ = lib;
         return {
-            get_program_name_,
-            get_version_,
+            program_name_ ? get_program_name_ : nullptr,
+            version_ ? get_version_ : nullptr,
             has_override_("main") ? &main_ : nullptr,
             has_override_("print_model") ? print_model_ : nullptr,
             has_override_("register_options") ? register_options_ : nullptr,
@@ -169,9 +175,9 @@ class App {
     //! The list of option parsers.
     Options::ParserList parsers_;
     //! The applications name.
-    std::string program_name_;
+    std::optional<std::string> program_name_;
     //! The applications version.
-    std::string version_;
+    std::optional<std::string> version_;
     //! Lib object to report exceptions.
     clingo_lib_t *lib_ = nullptr;
 };
@@ -322,8 +328,12 @@ This class encapsulates the main execution flow of a Clingo-based application.
 It provides methods for executing the program, printing models, registering
 application options, and validating the configuration.
 )"_d)
-        .def(py::init<char const *, char const *>(), py::arg("program_name"), py::arg("version"), R"(
+        .def(py::init<std::optional<std::string>, std::optional<std::string>>(), py::arg("program_name") = std::nullopt,
+             py::arg("version") = std::nullopt, R"(
 Initializes the application with a program name and its version.
+
+If no name is given, `"clingo"` is used. If no version is given, the current
+clingo version is used.
 
 Args:
     program_name:
