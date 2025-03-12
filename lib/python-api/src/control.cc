@@ -146,6 +146,7 @@ auto Control::solve(MixedLitlVec const &assumptions, std::optional<ModelCallback
 }
 
 void Control::main() {
+    auto release = py::gil_scoped_release{};
     handle_error(clingo_control_main(ctl_.get()));
 }
 

@@ -11,7 +11,7 @@ from itertools import filterfalse
 from typing import List, MutableMapping, Optional, Sequence, Set, Tuple, TypeVar
 
 from clingo import ast
-from clingo.app import App, AppOptions, main
+from clingo.app import App, AppOptions, clingo_main
 from clingo.base import TheoryTerm, TheoryTermType
 from clingo.control import Control
 from clingo.core import Library
@@ -453,11 +453,10 @@ class DLApp(App):
 
         control.join(rewrite(self._lib, files))
 
-        control.ground()
         if self._minimize is None:
-            with control.solve(on_model=self._propagator.on_model) as hnd:
-                hnd.get()
+            control.main()
         else:
+            control.ground()
             control.parse_string("#program bound(b, v). &__diff_h { v-0 } <= b.")
             while True:
                 with control.solve(on_model=self._on_model) as hnd:
@@ -478,7 +477,7 @@ class DLApp(App):
         Run the application.
         """
         with Library() as lib:
-            main(lib, sys.argv[1:], DLApp(lib))
+            clingo_main(lib, sys.argv[1:], DLApp(lib))
             gc.collect()  # optional: ensures all symbols are collected
 
 

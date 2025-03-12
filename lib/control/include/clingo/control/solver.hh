@@ -517,6 +517,9 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
     //! Get the solvers callback lock.
     auto get_lock() -> CallbackLock & { return lock_; }
 
+    //! Block execution of the main function in scripts.
+    void block_main(bool block) { block_main_ = block; }
+
   private:
     //! States for step transitions.
     //!
@@ -567,6 +570,7 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
     Scripts *scripts_;
     State state_ = State::initial;
     AppMode mode_;
+    bool block_main_ = false;
 };
 
 //! @}

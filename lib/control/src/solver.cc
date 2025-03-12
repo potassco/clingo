@@ -704,7 +704,7 @@ void Solver::main(std::span<std::string_view const> const &files,
 }
 
 void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
-    if (scripts_->callable("main", 0)) {
+    if (!block_main_ && scripts_->callable("main", 0)) {
         if (mode_ == AppMode::solve) {
             clasp_->enableProgramUpdates();
         }
@@ -728,7 +728,7 @@ void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> con
         } else {
             ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}}, nullptr);
             if (mode_ == AppMode::solve) {
-                solve(nullptr);
+                solve(nullptr)->get();
             }
         }
     }

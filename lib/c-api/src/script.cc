@@ -18,6 +18,14 @@ class CScript : public Clingo::Control::Script {
     void do_exec(std::string_view code) override { script_.execute(std::string(code).c_str(), data_); }
 
     void do_main(Clingo::Control::Solver &slv) override {
+        class main_guard {
+          public:
+            main_guard(Clingo::Control::Solver &slv) : slv_{&slv} { slv_->block_main(true); }
+            ~main_guard() { slv_->block_main(false); }
+
+          private:
+            Clingo::Control::Solver *slv_;
+        } guard{slv};
         auto ctl = clingo_control_t{lib_, &slv, &slv.clasp_config(), &slv.clasp_facade()};
         handle_error(script_.main(lib_, &ctl, data_));
     }
