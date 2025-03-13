@@ -158,3 +158,45 @@ extern "C" auto clingo_control_buffer(clingo_control_t *control, char const **bu
     }
     CLINGO_CATCH;
 }
+
+auto c_cast(Clingo::Input::ConstMap const *map) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_const_map_t const *>(map);
+}
+
+auto cpp_cast(clingo_const_map_t const *map) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Clingo::Input::ConstMap const *>(map);
+}
+
+extern "C" auto clingo_control_const_map(clingo_control_t *control, clingo_const_map_t const **map) -> clingo_result_t {
+    CLINGO_TRY {
+        if (control == nullptr || map == nullptr) {
+            return clingo_result_invalid;
+        }
+        *map = c_cast(&control->slv->const_map());
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_const_map_get(clingo_const_map_t const *map, char const *name, clingo_symbol_t *symbol,
+                                     bool *found) -> clingo_result_t {
+    CLINGO_TRY {
+        if (map == nullptr || name == nullptr) {
+            return clingo_result_invalid;
+        }
+        auto const *cmap = cpp_cast(map);
+        auto it = cmap->find(std::string_view{name});
+        if (it != cmap->end()) {
+            if (found != nullptr) {
+                *found = true;
+            }
+            if (symbol != nullptr) {
+                *symbol = *c_cast(&*it->second.second);
+            }
+        } else if (found != nullptr) {
+            *found = false;
+        }
+    }
+    CLINGO_CATCH;
+}

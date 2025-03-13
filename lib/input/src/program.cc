@@ -33,6 +33,10 @@ void UnprocessedProgram::clear() {
     meta_stms_.clear();
 }
 
+auto UnprocessedProgram::empty() const -> bool {
+    return parts_.empty() && meta_stms_.empty();
+}
+
 void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
     std::visit(
         [&]<class T>(T const &stm) {

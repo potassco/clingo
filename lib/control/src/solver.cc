@@ -783,6 +783,10 @@ void Solver::add_const(String name, Symbol value) {
     grd_.add_const(name, value);
 }
 
+auto Solver::const_map() -> Input::ConstMap const & {
+    return grd_.const_map();
+}
+
 void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) {
     prepare_();
     std::ignore = grd_.ground(params, ctx != nullptr ? ctx : scripts_);

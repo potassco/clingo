@@ -30,6 +30,8 @@ class Grounder {
     void parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code = nullptr);
     //! Define a constant.
     void add_const(String name, Symbol value);
+    //! Get the const map.
+    auto const_map() -> Input::ConstMap const &;
     //! Ground the program.
     [[nodiscard]] auto ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context = nullptr) -> bool;
 

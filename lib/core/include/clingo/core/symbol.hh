@@ -143,23 +143,31 @@ class SharedString {
 
     //! Equality compare two strings.
     friend auto operator==(SharedString const &a, SharedString const &b) -> bool { return a.ref_ == b.get(); }
-
     //! Equality compare two strings.
     friend auto operator==(SharedString const &a, String const &b) -> bool { return a.ref_ == b; }
-
     //! Equality compare two strings.
     friend auto operator==(String const &a, SharedString const &b) -> bool { return a == b.get(); }
+    //! Equality compare two strings.
+    friend auto operator==(std::string_view a, SharedString const &b) -> bool { return a == b->view(); }
+    //! Equality compare two strings.
+    friend auto operator==(SharedString const &a, std::string_view b) -> bool { return a->view() == b; }
 
-    //! Less than compare two strings.
+    //! Compare two strings.
     friend auto operator<=>(SharedString const &a, SharedString const &b) -> std::strong_ordering {
         return a.get() <=> b.get();
     }
-
-    //! Less than compare two strings.
+    //! Compare two strings.
     friend auto operator<=>(SharedString const &a, String const &b) -> std::strong_ordering { return a.get() <=> b; }
-
-    //! Less than compare two strings.
+    //! Compare two strings.
     friend auto operator<=>(String const &a, SharedString const &b) -> std::strong_ordering { return a <=> b.get(); }
+    //! Equality compare two strings.
+    friend auto operator<=>(std::string_view a, SharedString const &b) -> std::strong_ordering {
+        return a <=> b->view();
+    }
+    //! Equality compare two strings.
+    friend auto operator<=>(SharedString const &a, std::string_view b) -> std::strong_ordering {
+        return a->view() <=> b;
+    }
 
   private:
     String ref_;

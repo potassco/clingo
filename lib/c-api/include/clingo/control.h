@@ -117,6 +117,19 @@ typedef clingo_result_t (*clingo_ground_callback_t)(clingo_lib_t *lib, clingo_lo
                                                     clingo_symbol_callback_t symbol_callback,
                                                     void *symbol_callback_data);
 
+//! A map from constantns to their values.
+typedef struct clingo_const_map clingo_const_map_t;
+
+//! Get the constant with the given name.
+//!
+//! @param[in] map the target
+//! @param[in] name the name of the constant
+//! @param[out] symbol the value of the constant
+//! @param[out] found whether the constant was found
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_get(clingo_const_map_t const *map, char const *name,
+                                                               clingo_symbol_t *symbol, bool *found);
+
 //! Create a new control object.
 //!
 //! A control object has to be freed using clingo_control_free().
@@ -190,6 +203,14 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_ground(clingo_control_t
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_main(clingo_control_t *control,
                                                               clingo_parts_array_t const *parts, size_t size);
+
+//! Get the map of constants.
+//!
+//! @param[in] control the target
+//! @param[out] map the map of constants
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_const_map(clingo_control_t *control,
+                                                                   clingo_const_map_t const **map);
 
 //! Get the output of the text output.
 //!

@@ -121,12 +121,6 @@ class MainScript {
         auto *self = cast(data);
         CLINGO_TRY {
             if (self->py_) {
-                for (auto const &part : std::span{parts, size}) {
-                    printf("party: %zu\n", part.size);
-                    for (auto const &par : std::span{parts->parts, parts->size}) {
-                        printf("part: %s\n", par.name);
-                    }
-                }
                 self->py_->main(lib, control, std::span{parts, size});
             }
         }

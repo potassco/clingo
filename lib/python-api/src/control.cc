@@ -10,6 +10,30 @@
 
 namespace Clingo::Python {
 
+auto ConstMap::contains(char const *name) -> bool {
+    bool found = false;
+    handle_error(clingo_const_map_get(map_, name, nullptr, &found));
+    return found;
+}
+
+auto ConstMap::get(char const *name, std::optional<Symbol> def) -> std::optional<Symbol> {
+    clingo_symbol_t sym = 0;
+    bool found = false;
+    handle_error(clingo_const_map_get(map_, name, &sym, &found));
+    if (found) {
+        return Symbol{sym, true};
+    }
+    return def;
+}
+
+auto ConstMap::getitem(char const *name) -> Symbol {
+    auto ret = get(name, std::nullopt);
+    if (ret) {
+        return *std::move(ret);
+    }
+    throw py::index_error{"element not found"};
+}
+
 Control::Control(Library &lib, std::span<std::string const> args) {
     auto c_args = transform(args, [](auto const &str) { return str.c_str(); });
     auto *ctl = static_cast<clingo_control_t *>(nullptr);
@@ -165,6 +189,12 @@ auto Control::buffer() -> char const * {
     return ret;
 }
 
+auto Control::const_map() -> ConstMap {
+    clingo_const_map_t const *map = nullptr;
+    handle_error(clingo_control_const_map(ctl_.get(), &map));
+    return ConstMap{map};
+}
+
 void Control::register_propagator(Annotation<Propagator> propagator) {
     auto &prop = propagator.cast<Propagator &>();
     props_.emplace_back(std::move(propagator));
@@ -238,6 +268,18 @@ The second example shows how to call functions from within a program:
 p(11) q(1) q(2)
 SAT
 ```
+)"_d);
+
+    // TODO: this class should be hidden behind a mapping
+    py::class_<ConstMap>(control, "ConstMap", R"(The map from constants defiend by #const directives.)")
+        .def("__contains__", &ConstMap::contains, py::arg("key"), R"(
+Check if the map contains the given constant.
+)"_d)
+        .def("__getitem__", &ConstMap::getitem, py::arg("key"), R"(
+Get the constant with the given name.
+)"_d)
+        .def("get", &ConstMap::get, py::arg("key"), py::arg("default") = std::nullopt, R"(
+Get the constant with the given name.
 )"_d);
 
     py::enum_<clingo_mode_e>(control, "ControlMode", "Available control modes.")
@@ -371,7 +413,9 @@ Args:
         .def_property_readonly("backend", &Control::backend, R"(Get a backend manager to extend the ground program.)")
         .def_property_readonly("config", &Control::config, R"(Get the solver config.)")
         .def_property_readonly("stats", &Control::stats, R"(Get the solver stats.)")
-        .def_property_readonly("mode", &Control::mode, R"(Get the application mode.)");
+        .def_property_readonly("mode", &Control::mode, R"(Get the application mode.)")
+        .def_property_readonly("const_map", &Control::const_map,
+                               R"(Get the map of constants defined by `#const` directives.)");
 }
 
 } // namespace Clingo::Python

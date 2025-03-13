@@ -60,6 +60,9 @@ class UnprocessedProgram {
     //! Reset the program to its initial state removing all added statements.
     void clear();
 
+    //! Check if the program is empty.
+    [[nodiscard]] auto empty() const -> bool;
+
     //! Mark symbols occuring in the program.
     void mark(SymbolCollector &gc) const;
 
@@ -194,6 +197,9 @@ class Program {
 
     //! Get a sorted vector of all signatures of theory directives in the program.
     [[nodiscard]] auto theory_directives() const -> TheorySigVec;
+
+    //! Get the constants in the program.
+    [[nodiscard]] auto const_map() const -> ConstMap const & { return const_map_; };
 
   private:
     //! The signature of a program part.

@@ -349,12 +349,19 @@ void Grounder::parse(std::span<std::string_view const> const &files, Ground::Scr
 }
 
 void Grounder::prepare_() {
-    GRINGO_REPORT(*impl_->log, debug) << "preparing...";
-    if (impl_->is_sat) {
-        GCLock lock{*impl_->store};
-        impl_->prg.join(*impl_->log, *impl_->store, impl_->unprocessed_prg);
-        impl_->unprocessed_prg.clear();
+    if (!impl_->unprocessed_prg.empty()) {
+        GRINGO_REPORT(*impl_->log, debug) << "preparing...";
+        if (impl_->is_sat) {
+            GCLock lock{*impl_->store};
+            impl_->prg.join(*impl_->log, *impl_->store, impl_->unprocessed_prg);
+            impl_->unprocessed_prg.clear();
+        }
     }
+}
+
+auto Grounder::const_map() -> Input::ConstMap const & {
+    prepare_();
+    return impl_->prg.const_map();
 }
 
 auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context) -> bool {

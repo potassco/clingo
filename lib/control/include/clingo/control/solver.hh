@@ -461,6 +461,8 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
     void parse(std::span<std::string_view const> const &files);
     //! Define a constant.
     void add_const(String name, Symbol value);
+    //! Get the const map.
+    [[nodiscard]] auto const_map() -> Input::ConstMap const &;
     //! Ground the program.
     void ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx);
     //! Solve the program.

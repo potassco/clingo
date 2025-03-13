@@ -18,6 +18,17 @@ using PartSpan = std::span<Part const>;
 using Parts = clingo_parts_array_t;
 using PartsSpan = std::span<Parts const>;
 
+class ConstMap {
+  public:
+    ConstMap(clingo_const_map_t const *map) : map_{map} {}
+    auto contains(char const *name) -> bool;
+    auto getitem(char const *name) -> Symbol;
+    auto get(char const *name, std::optional<Symbol> def) -> std::optional<Symbol>;
+
+  private:
+    clingo_const_map_t const *map_;
+};
+
 class Control {
   public:
     using AssumptionVec = std::vector<std::variant<std::pair<Symbol, bool>, Lit_t>>;
@@ -45,6 +56,7 @@ class Control {
     auto stats() -> py::dict;
     void main(std::optional<PartsSpan> parts);
     auto buffer() -> char const *;
+    auto const_map() -> ConstMap;
 
     void register_propagator(Annotation<Propagator> propagator);
 
