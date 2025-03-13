@@ -31,7 +31,7 @@ class PropagateInit {
 
     PropagateInit(clingo_control_t *ctl, Clasp::ClingoPropagatorInit &init)
         : ctl_{ctl}, init_{&init}, assignment_{*facade_().ctx.master()}, cc_{facade_().ctx.master()} {
-        init_->enableHistory(false);
+        init_->enableHistory(true);
     }
     [[nodiscard]] auto library() const -> clingo_lib_t * { return ctl_->lib; }
     [[nodiscard]] auto base() const -> Clingo::Control::BaseView const & { return *ctl_->slv; }

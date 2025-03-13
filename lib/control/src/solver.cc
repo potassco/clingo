@@ -813,7 +813,6 @@ auto Solver::decide(Potassco::Id_t solver_id, Potassco::AbstractAssignment const
 void Solver::register_propagator(UPropagator propagator) {
     if (mode_ == AppMode::solve) {
         auto prop = std::make_unique<Clasp::ClingoPropagatorInit>(*propagator);
-        prop->enableHistory(true);
         clasp_config_->addConfigurator(*prop);
         clasp_facade().asp()->enableDistinctTrue();
         if (propagator->hasHeuristic()) {
