@@ -10,13 +10,13 @@
 
 namespace Clingo::Python {
 
-auto ConstMap::contains(char const *name) -> bool {
+auto ConstMap::contains(key_type name) -> bool {
     bool found = false;
     handle_error(clingo_const_map_find(map_, name, nullptr, &found));
     return found;
 }
 
-auto ConstMap::get(char const *name, std::optional<Symbol> def) -> std::optional<Symbol> {
+auto ConstMap::get(key_type name, std::optional<Symbol> def) -> std::optional<mapped_type> {
     clingo_symbol_t sym = 0;
     bool found = false;
     handle_error(clingo_const_map_find(map_, name, &sym, &found));
@@ -26,7 +26,20 @@ auto ConstMap::get(char const *name, std::optional<Symbol> def) -> std::optional
     return def;
 }
 
-auto ConstMap::getitem(char const *name) -> Symbol {
+auto ConstMap::at(size_t index) -> value_type {
+    char const *name = nullptr;
+    clingo_symbol_t sym = 0;
+    handle_error(clingo_const_map_at(map_, index, &name, &sym));
+    return {name, Symbol{sym, true}};
+}
+
+auto ConstMap::size() -> size_t {
+    size_t size = 0;
+    handle_error(clingo_const_map_size(map_, &size));
+    return size;
+}
+
+auto ConstMap::getitem(key_type name) -> mapped_type {
     auto ret = get(name, std::nullopt);
     if (ret) {
         return *std::move(ret);
@@ -189,10 +202,10 @@ auto Control::buffer() -> char const * {
     return ret;
 }
 
-auto Control::const_map() -> ConstMap {
+auto Control::const_map() -> HintConstMap {
     clingo_const_map_t const *map = nullptr;
     handle_error(clingo_control_const_map(ctl_.get(), &map));
-    return ConstMap{map};
+    return py::cast(ConstMap{map});
 }
 
 void Control::register_propagator(Annotation<Propagator> propagator) {
@@ -270,17 +283,24 @@ SAT
 ```
 )"_d);
 
-    // TODO: this class should be hidden behind a mapping
-    py::class_<ConstMap>(control, "ConstMap", R"(The map from constants defiend by #const directives.)")
-        .def("__contains__", &ConstMap::contains, py::arg("key"), R"(
-Check if the map contains the given constant.
-)"_d)
-        .def("__getitem__", &ConstMap::getitem, py::arg("key"), R"(
-Get the constant with the given name.
-)"_d)
-        .def("get", &ConstMap::get, py::arg("key"), py::arg("default") = std::nullopt, R"(
-Get the constant with the given name.
-)"_d);
+    py::class_<ConstMap>(control, "_ConstMap", R"(The map from constants defiend by #const directives.)")
+        .def("__len__", &ConstMap::size, "Get the number elements in the map.")
+        .def("__contains__", &ConstMap::contains, py::arg("key"), R"(Check if the map contains the given key.)")
+        .def("__getitem__", &ConstMap::getitem, py::arg("key"), R"(Get the value for the given key.)")
+        .def(
+            "__iter__", [](ConstMap &base) { return py::make_key_iterator(base.begin(), base.end()); },
+            "Get an iterator over the keys in the map.")
+        .def(
+            "items", [](ConstMap &base) { return py::make_iterator(base.begin(), base.end()); },
+            R"(Get an iterator over the items in the map.)")
+        .def("get", &ConstMap::get, py::arg("key"), py::arg("default") = std::nullopt,
+             R"(Get the value for the given key or the default if absent.)")
+        .def(
+            "values", [](ConstMap &base) { return py::make_value_iterator(base.begin(), base.end()); },
+            R"(Get an iterator over the values in the map.)")
+        .def(
+            "keys", [](ConstMap &base) { return py::make_key_iterator(base.begin(), base.end()); },
+            R"(Get get an iterator over the keys in the map.)");
 
     py::enum_<clingo_mode_e>(control, "ControlMode", "Available control modes.")
         .value("Parse", clingo_mode_parse, R"(Parse only.)")

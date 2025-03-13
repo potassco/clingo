@@ -20,6 +20,18 @@ template <typename T> class Annotation : public py::object {
     using py::object::object;
 };
 
+// NOLINTBEGIN
+template <size_t N> struct StringLiteral {
+    constexpr StringLiteral(const char (&str)[N]) { std::copy_n(str, N, value); }
+    char value[N]{};
+};
+// NOLINTEND
+
+template <StringLiteral L> class TypeHint : public py::object {
+    PYBIND11_OBJECT_DEFAULT(TypeHint, py::object, PyObject_Type)
+    using py::object::object;
+};
+
 template <class T, class A = std::allocator<T>> class Iterable {
   public:
     using Vector = std::vector<T, A>;
@@ -64,6 +76,10 @@ template <typename T> struct handle_type_name<Clingo::Python::Sequence<T>> {
 
 template <typename T> struct handle_type_name<Clingo::Python::Annotation<T>> {
     static constexpr auto name = make_caster<T>::name;
+};
+
+template <Clingo::Python::StringLiteral L> struct handle_type_name<Clingo::Python::TypeHint<L>> {
+    static constexpr auto name = const_name(L.value);
 };
 
 template <typename T, typename A> class type_caster<Clingo::Python::Iterable<T, A>> {

@@ -20,10 +20,18 @@ using PartsSpan = std::span<Parts const>;
 
 class ConstMap {
   public:
+    using key_type = char const *;
+    using mapped_type = Symbol;
+    using value_type = std::pair<key_type, mapped_type>;
+
     ConstMap(clingo_const_map_t const *map) : map_{map} {}
     auto contains(char const *name) -> bool;
-    auto getitem(char const *name) -> Symbol;
-    auto get(char const *name, std::optional<Symbol> def) -> std::optional<Symbol>;
+    auto getitem(char const *name) -> mapped_type;
+    auto get(char const *name, std::optional<mapped_type> def) -> std::optional<mapped_type>;
+    auto at(size_t index) -> value_type;
+    auto size() -> size_t;
+    auto begin() { return RandomAccessIterator{*this, 0}; }
+    auto end() { return RandomAccessIterator{*this, size()}; };
 
   private:
     clingo_const_map_t const *map_;
@@ -32,6 +40,7 @@ class ConstMap {
 class Control {
   public:
     using AssumptionVec = std::vector<std::variant<std::pair<Symbol, bool>, Lit_t>>;
+    using HintConstMap = TypeHint<"typing.Mapping[str, clingo.symbol.Symbol]">;
 
     Control(Library &lib, std::span<std::string const> args);
     Control(clingo_control_t *ctl) : ctl_{ctl} {}
@@ -56,7 +65,7 @@ class Control {
     auto stats() -> py::dict;
     void main(std::optional<PartsSpan> parts);
     auto buffer() -> char const *;
-    auto const_map() -> ConstMap;
+    auto const_map() -> HintConstMap;
 
     void register_propagator(Annotation<Propagator> propagator);
 
