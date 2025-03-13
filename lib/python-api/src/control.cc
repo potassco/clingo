@@ -12,14 +12,14 @@ namespace Clingo::Python {
 
 auto ConstMap::contains(char const *name) -> bool {
     bool found = false;
-    handle_error(clingo_const_map_get(map_, name, nullptr, &found));
+    handle_error(clingo_const_map_find(map_, name, nullptr, &found));
     return found;
 }
 
 auto ConstMap::get(char const *name, std::optional<Symbol> def) -> std::optional<Symbol> {
     clingo_symbol_t sym = 0;
     bool found = false;
-    handle_error(clingo_const_map_get(map_, name, &sym, &found));
+    handle_error(clingo_const_map_find(map_, name, &sym, &found));
     if (found) {
         return Symbol{sym, true};
     }

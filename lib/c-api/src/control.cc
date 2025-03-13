@@ -179,8 +179,8 @@ extern "C" auto clingo_control_const_map(clingo_control_t *control, clingo_const
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_const_map_get(clingo_const_map_t const *map, char const *name, clingo_symbol_t *symbol,
-                                     bool *found) -> clingo_result_t {
+extern "C" auto clingo_const_map_find(clingo_const_map_t const *map, char const *name, clingo_symbol_t *symbol,
+                                      bool *found) -> clingo_result_t {
     CLINGO_TRY {
         if (map == nullptr || name == nullptr) {
             return clingo_result_invalid;
@@ -197,6 +197,35 @@ extern "C" auto clingo_const_map_get(clingo_const_map_t const *map, char const *
         } else if (found != nullptr) {
             *found = false;
         }
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_const_map_at(clingo_const_map_t const *map, size_t index, char const **name,
+                                    clingo_symbol_t *symbol) -> clingo_result_t {
+    CLINGO_TRY {
+        if (map == nullptr) {
+            return clingo_result_invalid;
+        }
+        auto const *cmap = cpp_cast(map);
+        auto it = cmap->nth(index);
+        if (symbol != nullptr) {
+            *symbol = *c_cast(&*it->second.second);
+        }
+        if (name != nullptr) {
+            *name = it->first->c_str();
+        }
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_const_map_size(clingo_const_map_t const *map, size_t *size) -> clingo_result_t {
+    CLINGO_TRY {
+        if (map == nullptr || size == nullptr) {
+            return clingo_result_invalid;
+        }
+        auto const *cmap = cpp_cast(map);
+        *size = cmap->size();
     }
     CLINGO_CATCH;
 }

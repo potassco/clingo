@@ -127,8 +127,25 @@ typedef struct clingo_const_map clingo_const_map_t;
 //! @param[out] symbol the value of the constant
 //! @param[out] found whether the constant was found
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_get(clingo_const_map_t const *map, char const *name,
-                                                               clingo_symbol_t *symbol, bool *found);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_find(clingo_const_map_t const *map, char const *name,
+                                                                clingo_symbol_t *symbol, bool *found);
+
+//! Get the name and value of the contstant at the given index.
+//!
+//! @param[in] map the target
+//! @param[in] index the index of the elemnt
+//! @param[out] name the name of the constant
+//! @param[out] symbol the value of the constant
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_at(clingo_const_map_t const *map, size_t index,
+                                                              char const **name, clingo_symbol_t *symbol);
+
+//! Get the size of the constant map.
+//!
+//! @param[in] map the target
+//! @param[out] size the size of the map
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_size(clingo_const_map_t const *map, size_t *size);
 
 //! Create a new control object.
 //!
