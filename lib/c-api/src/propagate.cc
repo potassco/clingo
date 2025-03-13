@@ -45,7 +45,7 @@ class PropagateInit {
     void remove_watch(Lit_t lit) { init_->removeWatch(Clasp::decodeLit(lit)); }
     void remove_watch(uint32_t thread_id, Lit_t lit) { init_->removeWatch(thread_id, Clasp::decodeLit(lit)); }
     void freeze_literal(Lit_t lit) { init_->freezeLit(Clasp::decodeLit(lit)); }
-    void enable_history(bool enable) { init_->enableHistory(enable); };
+    void enable_history(bool enable) { init_->enableHistory(enable); }
     [[nodiscard]] auto add_literal(bool freeze) -> Potassco::Lit_t {
         auto &ctx = facade_().ctx;
         auto var = ctx.addVar(Clasp::VarType::atom);

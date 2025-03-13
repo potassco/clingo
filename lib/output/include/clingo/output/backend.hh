@@ -49,7 +49,7 @@ static constexpr auto lit_min = -lit_max;
 
 //! Abstract class connecting grounder and solver.
 //!
-//! The backend is repsonsible for passig grounded statements to the solver (or
+//! The backend is responsible for passing grounded statements to the solver (or
 //! other forms of backends).
 class ProgramBackend {
   public:
@@ -79,7 +79,7 @@ class ProgramBackend {
     //! @param choice whether the rule is a choice or disjunctive rule
     void rule(LitSpan head, LitSpan body, bool choice) { do_rule(head, body, choice); }
 
-    //! Show the given symbol if the given conditon is true.
+    //! Show the given symbol if the given condition is true.
     //!
     //! @param sym the symbol to show
     //! @param body the condition when to show the symbol
@@ -156,21 +156,21 @@ class TheoryBackend {
 
     //! Add a theory number.
     //!
-    //! @note The caller is repsonsible to assign unique ids.
+    //! @note The caller is responsible to assign unique ids.
     //!
     //! @param id the unique term id
     //! @param num the number
     void num(id_t id, weight_t num) { do_num(id, num); }
     //! Add a theory string.
     //!
-    //! @note The caller is repsonsible to assign unique ids.
+    //! @note The caller is responsible to assign unique ids.
     //!
     //! @param id the unique term id
     //! @param str the string
     void str(id_t id, char const *str) { do_str(id, str); }
     //! Add a theory function.
     //!
-    //! @note The caller is repsonsible to assign unique ids.
+    //! @note The caller is responsible to assign unique ids.
     //! @pre The name must be an id to a string.
     //!
     //! @param id the unique term id
@@ -180,7 +180,7 @@ class TheoryBackend {
 
     //! Add a theory tuple.
     //!
-    //! @note The caller is repsonsible to assign unique ids.
+    //! @note The caller is responsible to assign unique ids.
     //!
     //! @param id the unique term id
     //! @param type the type of the tuple
@@ -189,7 +189,7 @@ class TheoryBackend {
 
     //! Add a theory element.
     //!
-    //! @note The caller is repsonsible to assign unique ids.
+    //! @note The caller is responsible to assign unique ids.
     //!
     //! @param id the unique element id
     //! @param terms the terms forming the tuple
@@ -313,7 +313,7 @@ class TheoryData {
     using ElemMap = Util::unordered_map<std::pair<IdVec, LitVec>, id_t>;
     using AtomMap = Util::unordered_map<std::tuple<id_t, IdVec, std::optional<std::pair<id_t, id_t>>>, lit_t>;
 
-    //! Helper to insert elemens into the term maps.
+    //! Helper to insert elements into the term maps.
     //!
     //! @param map the map to insert in
     //! @param val the value to insert

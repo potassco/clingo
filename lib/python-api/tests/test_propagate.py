@@ -370,7 +370,7 @@ class AIFFB(Propagator):
         propagate(self.slit_b, self.slit_a)
 
 
-class TestPropgate:
+class TestPropagate:
     # pylint: disable=attribute-defined-outside-init
     """
     Tests for the propagate module.

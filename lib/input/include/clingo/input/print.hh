@@ -110,9 +110,9 @@ auto operator<<(Util::OutputBuffer &out, TheoryTerm const &term) -> Util::Output
 //! @name Aggregates
 //! @{
 
-//! Output the condititional literal to the given stream.
+//! Output the conditional literal to the given stream.
 auto operator<<(std::ostream &out, CondLit const &lit) -> std::ostream &;
-//! Output the condititional literal to the given stream.
+//! Output the conditional literal to the given stream.
 auto operator<<(Util::OutputBuffer &out, CondLit const &lit) -> Util::OutputBuffer &;
 
 //! Output the theory atom element to the given stream.

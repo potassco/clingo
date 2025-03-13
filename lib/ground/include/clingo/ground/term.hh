@@ -23,8 +23,8 @@ using VariableVec = VariableSet::values_container_type;
 
 //! Modes determining how to handle variables in terms.
 enum class RenameMode : uint8_t {
-    rename_vars,       //!< Succesively rename variables in order of traversal.
-    rename_projection, //!< Succesively introduce variables for projections in order of traversal.
+    rename_vars,       //!< Successively rename variables in order of traversal.
+    rename_projection, //!< Successively introduce variables for projections in order of traversal.
     drop_projection,   //!< Drop projections from tuples and functions.
 };
 
@@ -100,7 +100,7 @@ class Term {
     //! Compute a hash for the term.
     [[nodiscard]] auto hash() const -> size_t { return do_hash(); }
 
-    //! Compute a siganture of the term.
+    //! Compute a signature of the term.
     //!
     //! This renames variables in the term in ascending order and then return a pair of the term and the bound
     //! variables.

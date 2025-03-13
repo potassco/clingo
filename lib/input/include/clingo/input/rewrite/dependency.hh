@@ -42,7 +42,7 @@ namespace Clingo::Input {
 
 // graph:
 // - n: number of statements
-// - m: number of atoms in depneds
+// - m: number of atoms in depends
 // - nodes: [0,n) + [n,n+m)
 // - statement depends on atoms occurring in it (either positively or negatively)
 // - component graph uses both dependencies

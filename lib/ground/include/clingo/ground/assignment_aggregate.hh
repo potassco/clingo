@@ -13,7 +13,7 @@ namespace Clingo::Ground {
 //! @addtogroup ground_assignaggr
 //! @{
 
-//! Extensible ground representation of assignemnt aggregates.
+//! Extensible ground representation of assignment aggregates.
 class AtomAssignAggr {
   public:
     //! The possible values an assignment aggregate can take.
@@ -97,9 +97,9 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
     //! Get the derived atoms.
     [[nodiscard]] auto derived() -> AtomSet &;
 
-    //! Check whether all relevant elemens of the aggregate are domain.
+    //! Check whether all relevant elements of the aggregate are domain.
     [[nodiscard]] auto domain_elems() const -> bool;
-    //! Check whether all relevant elemens of the aggregate can be grounded in a single pass.
+    //! Check whether all relevant elements of the aggregate can be grounded in a single pass.
     [[nodiscard]] auto single_pass_elems() const -> bool;
 
   private:
@@ -180,7 +180,7 @@ class StateAssignAggr : public State {
     //!
     //! This does not take into account the body prefix of elements.
     [[nodiscard]] auto domain_elems() const -> bool;
-    //! Indicates that all necessary elemements can be grounded in a single
+    //! Indicates that all necessary elements can be grounded in a single
     //! pass.
     //!
     //! This does not take into account the body prefix of elements.
@@ -188,7 +188,7 @@ class StateAssignAggr : public State {
     //! Get the update index.
     [[nodiscard]] auto index() const -> size_t;
 
-    //! Propagate equeued aggregates.
+    //! Propagate enqueued aggregates.
     auto propagate(SymbolStore &store) -> bool;
 
     //! Insert an aggregate atom (stemming from an aggregate element).
@@ -213,7 +213,7 @@ class StateAssignAggr : public State {
     void output(Logger &log, SymbolStore &store, OutputStm &out) override;
 
   private:
-    //! Enqueu the given atom for propagation.
+    //! Enqueue the given atom for propagation.
     void enqueue_(AtomMap::iterator it);
 
     BaseAssignAggr base_;

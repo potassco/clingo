@@ -63,13 +63,13 @@ class UnprocessedProgram {
     //! Check if the program is empty.
     [[nodiscard]] auto empty() const -> bool;
 
-    //! Mark symbols occuring in the program.
+    //! Mark symbols occurring in the program.
     void mark(SymbolCollector &gc) const;
 
     //! Join with another unprocessed program.
     void join(UnprocessedProgram const &other);
 
-    //! Unprocessed statemtents.
+    //! Unprocessed statements.
     [[nodiscard]] auto parts() const -> ProgramPartVec const & { return parts_; }
     //! Meta statements.
     [[nodiscard]] auto meta_stms() const -> StmVec const & { return meta_stms_; }
@@ -102,11 +102,11 @@ CLINGO_ENABLE_BITSET_ENUM(ComponentType);
 struct Component {
     //! The statements in the component.
     std::vector<Stm const *> stms;
-    //! The literals a component dependends one.
+    //! The literals a component depends on.
     Util::unordered_set<std::tuple<String, size_t, bool>> depend;
     //! This vector captures literals that are not yet complete.
     Util::ordered_map<Term const *, Util::ordered_set<Term const *>> incomplete;
-    //! The type of the componnent.
+    //! The type of the component.
     ComponentType type;
 };
 
@@ -189,10 +189,10 @@ class Program {
     //! Prepare the statements in a program for grounding.
     [[nodiscard]] auto analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const -> bool;
 
-    //! Mark symbols occuring in the program.
+    //! Mark symbols occurring in the program.
     void mark(SymbolCollector &gc) const;
 
-    //! Check program and emit diagonstics.
+    //! Check program and emit diagnostics.
     void check(Logger &log);
 
     //! Get a sorted vector of all signatures of theory directives in the program.
@@ -211,7 +211,7 @@ class Program {
 
     //! Gather all identifiers appearing in a program part.
     [[nodiscard]] static auto param_map_(SymbolStore &store, ProgramPart const &part) -> ParamUnmap;
-    //! Replace all bound paramets in a statement by parsable ids.
+    //! Replace all bound parameters in a statement by parsable ids.
     [[nodiscard]] static auto unmap_(SymbolStore &store, ParamUnmap const &pum, Stm const &stm) -> std::optional<Stm>;
 
     //! The rewrite level of the program.

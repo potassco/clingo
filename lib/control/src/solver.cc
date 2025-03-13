@@ -535,7 +535,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
         }
     }
 
-    //! Get the underlying ModelImple.
+    //! Get the underlying ModelImpl.
     [[nodiscard]] auto model() -> ModelImpl & { return *mdl_; }
 
     //! Get the underlying lock.
@@ -552,7 +552,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
 
 //! A solve handle that does nothing.
 //!
-//! @note This handle is used if no solver has been setup (for example, in
+//! @note This handle is used if no solver has been set up (for example, in
 //! ground-only mode).
 class SolveHandleFixed : public SolveHandle {
   private:

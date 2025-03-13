@@ -61,8 +61,8 @@ static constexpr auto invalid_offset = std::numeric_limits<size_t>::max();
 
 //! A matcher that matches only provides one match.
 //!
-//! By default it provides exactly one match. Its do_once method can be
-//! overriden to restrict matches further.
+//! By default, it provides exactly one match. Its do_once method can be
+//! overridden to restrict matches further.
 class OnceMatcher : public Matcher {
   public:
     //! Construct the matcher.
@@ -143,7 +143,7 @@ template <IsBase Base> class FullIndex {
               size_t &prev) -> bool {
         auto n = base_->end(type);
         // populate the index if it does not yet hold enough elements
-        // (this also adds elements from previus generations that cannot match)
+        // (this also adds elements from previous generations that cannot match)
         for (; imported_ <= cur; ++imported_) {
             // the current index can no longer provide a match
             if (cur >= n) {

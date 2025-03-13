@@ -20,7 +20,7 @@ using ProgramParamsVec = std::vector<Clingo::Input::ProgramParamVec>;
 
 //! Script providing code execution, main, and callbacks.
 //!
-//! This interface should be implemend by custom scripts.
+//! This interface should be implemented by custom scripts.
 class Script : public Ground::ScriptCallback {
   public:
     //! Run the main function.
@@ -81,7 +81,7 @@ enum class ModelType : uint8_t {
     cautious_consequences = 2 //!< The model represents a set of cautious consequences.
 };
 
-//! Enumeration of availale consequence types.
+//! Enumeration of available consequence types.
 enum class ConsequenceType : uint8_t {
     false_ = 0, //!< The literal is not a consequence.
     true_ = 1,  //!< The literal is a consequence.
@@ -152,11 +152,11 @@ class Model {
     //!
     //! @return the costs
     [[nodiscard]] auto costs() const -> std::span<Output::sum_t const> { return do_costs(); }
-    //! get the priorites of the costs.
+    //! get the priorities of the costs.
     //!
     //! @return the priorities
     [[nodiscard]] auto priorities() const -> std::span<Output::weight_t const> { return do_priorities(); }
-    //! Check if the model coresponds to an optimal solution.
+    //! Check if the model corresponds to an optimal solution.
     //!
     //! @return whether the model is optimal
     [[nodiscard]] auto optimality_proven() const -> bool { return do_optimality_proven(); }
@@ -306,7 +306,7 @@ class EventHandler {
     //! Callback to inform that the search has finished.
     //!
     //! Note that this function is not called from the main thread when solving
-    //! asynchronously to allow for thread synchonization.
+    //! asynchronously to allow for thread synchronization.
     //!
     //! @param result the solve result
     void on_finish(SolveResult result) { do_on_finish(result); }
@@ -397,7 +397,7 @@ using UPropagator = std::unique_ptr<Propagator>;
 //! This lock ensures that callbacks during solving are called in lock-step.
 //!
 //! This lock is required for scripting languages that do not support
-//! mulit-threading - like for example, the Lua language.
+//! multi-threading - like for example, the Lua language.
 class CallbackLock {
   public:
     //! Acquire the lock.
@@ -493,7 +493,7 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
     //! Get a handle that provides access to the backend to add atoms and rules.
     //!
     //! While the handle is alive, the solver object should not be accessed.
-    //! It can be seen like an active ground ground call.
+    //! It can be seen like an active ground call.
     [[nodiscard]] auto backend() -> UBackendHandle;
 
     //! Get a pointer to the underlying clasp facade.
@@ -507,7 +507,7 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
         return clasp_config_ != nullptr ? *clasp_config_ : throw std::runtime_error("not in solving mode");
     }
 
-    //! Get the statsistics.
+    //! Get the statistics.
     [[nodiscard]] auto clasp_stats() -> Potassco::AbstractStatistics const & {
         auto const *stats = clasp_->getStats();
         return stats != nullptr ? *stats : throw std::runtime_error("not in solving mode");
@@ -530,13 +530,13 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
   private:
     //! States for step transitions.
     //!
-    //! The initial state is special and is only entered intially. The prepared
+    //! The initial state is special and is only entered initially. The prepared
     //! state is entered after some API functions. For example, when
     //! information about literals is requested that needs help of the solver.
-    //! The grounded and solved states are entederd after grounding and
+    //! The grounded and solved states are entered after grounding and
     //! solving, respectively.
     enum class State : uint8_t {
-        initial,  //< intial step
+        initial,  //< initial step
         grounded, //< step has been grounded
         prepared, //< step is prepared for solving
         solved,   //< step has been solved
@@ -544,7 +544,7 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
 
     //! Create output according to mode.
     //!
-    //! This function additionally initizalizes required members, for example,
+    //! This function additionally initializes required members, for example,
     //! the backend for the clasp output.
     //!
     //! @param mode the configured output mode
