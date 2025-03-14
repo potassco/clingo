@@ -15,6 +15,7 @@ namespace Clingo::Control {
 
 class Solver;
 
+//! A sequences of program parameter vectors to ground and solve incrementally.
 using ProgramParamsVec = std::vector<Clingo::Input::ProgramParamVec>;
 
 //! Script providing code execution, main, and callbacks.
@@ -523,6 +524,7 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
     //! Block execution of the main function in scripts.
     void block_main(bool block) { block_main_ = block; }
 
+    //! Get the application mode.
     [[nodiscard]] auto get_mode() const -> AppMode { return mode_; }
 
   private:

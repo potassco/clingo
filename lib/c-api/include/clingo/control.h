@@ -215,7 +215,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_ground(clingo_control_t
 //! Execute the default ground and solve flow after parsing.
 //!
 //! @param[in] control the target
-//! @param[in] part_array the parts to ground and solve
+//! @param[in] parts the parts to ground and solve
 //! @param[in] size the number of parts in the array
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_main(clingo_control_t *control,
