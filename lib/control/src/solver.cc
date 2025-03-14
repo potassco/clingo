@@ -890,11 +890,8 @@ auto Solver::backend() -> UBackendHandle {
 }
 
 void Solver::prepare_() {
-    if (mode_ == AppMode::solve && state_ != State::initial) {
-        // NOTE: previously, this was only called if set value has been called
-        // on the configuration. I would prefer not to do this because it would
-        // require wrapping clasp's cli configuration.
-        clasp_->update(true);
+    if (mode_ == AppMode::solve) {
+        clasp_->update();
     }
     state_ = State::grounded;
 }

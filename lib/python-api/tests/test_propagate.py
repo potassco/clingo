@@ -335,11 +335,14 @@ class AIFFB(Propagator):
 
     slit_a: int
     slit_b: int
+    n_threads: int
+    error: str
 
     def __init__(self) -> None:
         super().__init__()
         self.slit_a = 0
         self.slit_b = 0
+        self.n_threads = 1
 
     def init(self, init: PropagateInit) -> None:
         """
@@ -352,8 +355,23 @@ class AIFFB(Propagator):
             init.add_watch(slit)
             return slit
 
-        self.slit_a = watch("a")
-        self.slit_b = watch("b")
+        if self.slit_a == 0:
+            self.slit_a = watch("a")
+            self.slit_b = watch("b")
+
+        self.error = ""
+        self.n_threads = init.number_of_threads
+
+    def check(self, control: PropagateControl) -> None:
+        def check_watch(p):
+            try:
+                assert control.has_watch(p), f"solver {control.thread_id} misses watch {p}"
+            except AssertionError as e:
+                self.error = str(e)
+                return False
+            return True
+
+        check_watch(self.slit_a) and check_watch(self.slit_b)
 
     def propagate(self, control: PropagateControl, changes: Sequence[int]) -> None:
         """
@@ -364,7 +382,7 @@ class AIFFB(Propagator):
             # propagate a implies b
             if p in changes:
                 assert control.assignment.is_true(p)
-                control.add_clause([-p, q])
+                control.add_clause([-p, q], tag=True)
 
         propagate(self.slit_a, self.slit_b)
         propagate(self.slit_b, self.slit_a)
@@ -412,10 +430,15 @@ class TestPropagate:
         """
         Test the example a iff b propagator.
         """
-        self.ctl.register_propagator(AIFFB())
+        prop = AIFFB()
+        self.ctl.register_propagator(prop)
         self.ctl.parse_string("1 { a; b }.")
         self.ctl.ground()
-        mcb = MCB()
-        with self.ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
-        assert mcb.symbols == [["a", "b"]]
+        for n in [1, 3]:
+            self.ctl.config.solve.parallel_mode = n
+            mcb = MCB()
+            with self.ctl.solve(on_model=mcb) as hnd:
+                assert hnd.get().satisfiable
+            assert prop.n_threads == n, "init called with wrong number of threads"
+            assert prop.error == "", prop.error
+            assert mcb.symbols == [["a", "b"]]
