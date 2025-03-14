@@ -158,7 +158,7 @@ class TestBackend:
             bck.rule([a, b, c, d], choice=True)
             bck.minimize([(a, 1), (b, -1), (c, 1), (d, -1)])
 
-        with self.ctl.solve(on_model=print) as hnd:
+        with self.ctl.solve() as hnd:
             assert hnd.get().satisfiable
             last = hnd.last()
             assert last is not None
