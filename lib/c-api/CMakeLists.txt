@@ -18,3 +18,7 @@ add_library(clingo
 clingo_target_properties(clingo "lib/clingo")
 target_include_directories(clingo PUBLIC "include")
 target_link_libraries(clingo PRIVATE clingo::control)
+string(TOLOWER "${CMAKE_BUILD_TYPE}" build_type)
+if(build_type STREQUAL "debug")
+    target_compile_definitions(clingo PRIVATE CLINGO_DEBUG)
+endif()
