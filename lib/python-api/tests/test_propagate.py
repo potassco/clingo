@@ -336,7 +336,7 @@ class AIFFB(Propagator):
     slit_a: int
     slit_b: int
     n_threads: int
-    error: str
+    errors: list[str]
 
     def __init__(self) -> None:
         super().__init__()
@@ -359,19 +359,17 @@ class AIFFB(Propagator):
             self.slit_a = watch("a")
             self.slit_b = watch("b")
 
-        self.error = ""
+        self.errors = []
         self.n_threads = init.number_of_threads
 
     def check(self, control: PropagateControl) -> None:
-        def check_watch(p):
-            try:
-                assert control.has_watch(p), f"solver {control.thread_id} misses watch {p}"
-            except AssertionError as e:
-                self.error = str(e)
-                return False
-            return True
+        """
+        Check if watch es are set correctly.
+        """
 
-        check_watch(self.slit_a) and check_watch(self.slit_b)
+        for p in [self.slit_a, self.slit_b]:
+            if not control.has_watch(p):
+                self.errors.append(f"solver {control.thread_id} misses watch {p}")
 
     def propagate(self, control: PropagateControl, changes: Sequence[int]) -> None:
         """
@@ -440,5 +438,5 @@ class TestPropagate:
             with self.ctl.solve(on_model=mcb) as hnd:
                 assert hnd.get().satisfiable
             assert prop.n_threads == n, "init called with wrong number of threads"
-            assert prop.error == "", prop.error
+            assert not prop.errors
             assert mcb.symbols == [["a", "b"]]
