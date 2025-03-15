@@ -6,9 +6,19 @@ propagator for difference logic.
 import gc
 import heapq
 import sys
+from enum import StrEnum
 from functools import singledispatch
 from itertools import filterfalse
-from typing import List, MutableMapping, Optional, Sequence, Set, Tuple, TypeVar
+from typing import (
+    Callable,
+    List,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    TypeVar,
+)
 
 from clingo import ast
 from clingo.app import App, AppOptions, clingo_main
@@ -42,14 +52,47 @@ THEORY = """
 }.
 """
 
-_BOP = {
+
+class ErrorMessage(StrEnum):
+    """
+    Available error messages.
+    """
+
+    INVALID_BINARY_OP = "Invalid Binary Operation"
+    DIVISION_BY_ZERO = "Division by Zero"
+    INVALID_UNARY_OP = "Invalid Unary Operation"
+    INVALID_SYNTAX = "Invalid Syntax"
+
+
+_BOP: dict[str, Callable[[int, int], int]] = {
     "+": lambda a, b: a + b,
     "-": lambda a, b: a - b,
     "*": lambda a, b: a * b,
-    "**": lambda a, b: a**b,
-    "\\": lambda a, b: a % b,
     "/": lambda a, b: a // b,
+    "\\": lambda a, b: a % b,
 }
+
+
+def _evaluate_unary_op(lib: Library, term: TheoryTerm) -> Symbol:
+    term_a = _evaluate(lib, term.arguments[0])
+
+    if term_a.type == SymbolType.Number:
+        return Number(lib, -term_a.number)
+
+    if term_a.type == SymbolType.Function and term_a.name:
+        return Function(lib, term_a.name, term_a.arguments, not term_a.sign)
+
+    raise RuntimeError(ErrorMessage.INVALID_UNARY_OP)
+
+
+def _evaluate_binary_op(lib: Library, term: TheoryTerm) -> Symbol:
+    term_a = _evaluate(lib, term.arguments[0])
+    term_b = _evaluate(lib, term.arguments[1])
+    if term_a.type != SymbolType.Number or term_b.type != SymbolType.Number:
+        raise RuntimeError(ErrorMessage.INVALID_BINARY_OP)
+    if term.name in ("/", "\\") and term_b.number == 0:
+        raise RuntimeError(ErrorMessage.DIVISION_BY_ZERO)
+    return Number(lib, _BOP[term.name](term_a.number, term_b.number))
 
 
 def _evaluate(lib: Library, term: TheoryTerm) -> Symbol:
@@ -57,49 +100,21 @@ def _evaluate(lib: Library, term: TheoryTerm) -> Symbol:
     Evaluates the operators in a theory term in the same fashion as clingo
     evaluates its arithmetic functions.
     """
-    # tuples
-    if term.type == TheoryTermType.Tuple:
-        return Tuple_(lib, [_evaluate(lib, x) for x in term.arguments])
-
-    # functions and arithmetic operations
-    if term.type == TheoryTermType.Function:
-        # binary operations
-        if term.name in _BOP and len(term.arguments) == 2:
-            term_a = _evaluate(lib, term.arguments[0])
-            term_b = _evaluate(lib, term.arguments[1])
-
-            if term_a.type != SymbolType.Number or term_b.type != SymbolType.Number:
-                raise RuntimeError("Invalid Binary Operation")
-
-            if term.name in ("/", "\\") and term_b.number == 0:
-                raise RuntimeError("Division by Zero")
-
-            return Number(lib, _BOP[term.name](term_a.number, term_b.number))
-
-        # unary operations
-        if term.name == "-" and len(term.arguments) == 1:
-            term_a = _evaluate(lib, term.arguments[0])
-
-            if term_a.type == SymbolType.Number:
-                return Number(lib, -term_a.number)
-
-            if term_a.type == SymbolType.Function and term_a.name:
-                return Function(lib, term_a.name, term_a.arguments, not term_a.sign)
-
-            raise RuntimeError("Invalid Unary Operation")
-
-        # functions
-        return Function(lib, term.name, [_evaluate(lib, x) for x in term.arguments])
-
-    # constants
-    if term.type == TheoryTermType.Symbol:
-        return Function(lib, term.name)
-
-    # numbers
-    if term.type == TheoryTermType.Number:
-        return Number(lib, term.number)
-
-    raise RuntimeError("Invalid Syntax")
+    match term.type:
+        case TheoryTermType.Number:
+            return Number(lib, term.number)
+        case TheoryTermType.Symbol:
+            return Function(lib, term.name)
+        case TheoryTermType.Tuple:
+            return Tuple_(lib, [_evaluate(lib, x) for x in term.arguments])
+        case TheoryTermType.Function:
+            if term.name in _BOP and len(term.arguments) == 2:
+                return _evaluate_binary_op(lib, term)
+            if term.name == "-" and len(term.arguments) == 1:
+                return _evaluate_unary_op(lib, term)
+            return Function(lib, term.name, [_evaluate(lib, x) for x in term.arguments])
+        case _:
+            raise RuntimeError(ErrorMessage.INVALID_SYNTAX)
 
 
 def rewrite(lib: Library, files: Sequence[str]) -> ast.Program:
@@ -147,6 +162,7 @@ def rewrite(lib: Library, files: Sequence[str]) -> ast.Program:
 
 
 class Graph:
+    # pylint: disable=too-many-instance-attributes
     """
     This class captures a graph with weighted edges that can be extended
     incrementally.
@@ -161,6 +177,8 @@ class Graph:
     _last_edges: MutableMapping[Node, WeightedEdge]
     _previous_edge: MutableMapping[Level, MutableMapping[Edge, Weight]]
     _previous_potential: MutableMapping[Level, MapNodeWeight]
+    _changed: Set[Node]
+    _min_gamma: List[Tuple[Weight, Node]]
 
     def __init__(self, lib: Library):
         self._lib = lib
@@ -170,6 +188,8 @@ class Graph:
         self._last_edges = {}  # {node: edge}
         self._previous_edge = {}  # {level: {(node, node): weight}}
         self._previous_potential = {}  # {level: {node: potential}}
+        self._changed = set()  # {node}
+        self._min_gamma = []  # [(weight, node)]
 
     @staticmethod
     def _set(level, key, val, previous, get_current):
@@ -216,6 +236,60 @@ class Graph:
             lambda key: (self._potential, key),
         )
 
+    def _pop_changed(self):
+        """
+        Advance to the next node that needs processing.
+        """
+        while self._min_gamma and self._min_gamma[0][1] in self._changed:
+            heapq.heappop(self._min_gamma)
+        return bool(self._min_gamma)
+
+    def _init_check(self, level: Level, u: Node, v: Node, d: Weight):
+        """
+        Initialize the potentials and gammas of of nodes `u` and `v`.
+        """
+        if u not in self._potential:
+            self._set_potential(level, u, 0)
+        if v not in self._potential:
+            self._set_potential(level, v, 0)
+        self._gamma[u] = 0
+        self._gamma[v] = self._potential[u] + d - self._potential[v]
+        self._graph.setdefault(u, {})
+        self._graph.setdefault(v, {})
+
+        # enqueue v if its potential became negative
+        if self._gamma[v] < 0:
+            heapq.heappush(self._min_gamma, (self._gamma[v], v))
+            self._last_edges[v] = (u, v, d)
+
+    def _extract_cycle(
+        self, level: Level, u: Node, v: Node, d: Weight
+    ) -> Optional[List[WeightedEdge]]:
+        """
+        Check if there is a negative cycle.
+        """
+        # reset gammas
+        has_cycle = self._gamma[u] < 0
+        self._gamma[v] = 0
+        while self._min_gamma:
+            _, s = heapq.heappop(self._min_gamma)
+            self._gamma[s] = 0
+        self._changed.clear()
+
+        # extract cycle
+        if has_cycle:
+            cycle = []
+            x, y, c = self._last_edges[v]
+            cycle.append((x, y, c))
+            while v != x:
+                x, y, c = self._last_edges[x]
+                cycle.append((x, y, c))
+            return cycle
+
+        # add edge that did not introduce a cycle
+        self._set_edge(level, (u, v), d)
+        return None
+
     def add_edge(
         self, level: Level, edge: WeightedEdge
     ) -> Optional[List[WeightedEdge]]:
@@ -223,66 +297,26 @@ class Graph:
         Add an edge to the graph and return a negative cycle (if there is one).
         """
         u, v, d = edge
-        # If edge already exists from u to v with lower weight, new edge is redundant
+        # prune redundant edges
         if u in self._graph and v in self._graph[u] and self._graph[u][v] <= d:
             return None
 
-        # Initialize potential and graph
-        if u not in self._potential:
-            self._set_potential(level, u, 0)
-        if v not in self._potential:
-            self._set_potential(level, v, 0)
-        self._graph.setdefault(u, {})
-        self._graph.setdefault(v, {})
+        self._init_check(level, u, v, d)
 
-        changed: Set[Node] = set()  # Set of nodes for which potential has been changed
-        min_gamma: List[Tuple[Weight, Node]] = []
-
-        def pop_changed():
-            while min_gamma and min_gamma[0][1] in changed:
-                heapq.heappop(min_gamma)
-            return bool(min_gamma)
-
-        # Update potential change induced by new edge, 0 for other nodes
-        self._gamma[u] = 0
-        self._gamma[v] = self._potential[u] + d - self._potential[v]
-
-        if self._gamma[v] < 0:
-            heapq.heappush(min_gamma, (self._gamma[v], v))
-            self._last_edges[v] = (u, v, d)
-
-        # Propagate negative potential change
-        while pop_changed() and self._gamma[u] == 0:
-            _, s = heapq.heappop(min_gamma)
+        # propagate negative potential changes
+        while self._pop_changed() and self._gamma[u] == 0:
+            _, s = heapq.heappop(self._min_gamma)
             self._set_potential(level, s, self._potential[s] + self._gamma[s])
             self._gamma[s] = 0
-            changed.add(s)
-            for t in filterfalse(changed.__contains__, self._graph[s]):
+            self._changed.add(s)
+            for t in filterfalse(self._changed.__contains__, self._graph[s]):
                 gamma_t = self._potential[s] + self._graph[s][t] - self._potential[t]
                 if gamma_t < self._gamma[t]:
                     self._gamma[t] = gamma_t
-                    heapq.heappush(min_gamma, (gamma_t, t))
+                    heapq.heappush(self._min_gamma, (gamma_t, t))
                     self._last_edges[t] = (s, t, self._graph[s][t])
 
-        cycle = None
-        # Check if there is a negative cycle
-        if self._gamma[u] < 0:
-            cycle = []
-            x, y, c = self._last_edges[v]
-            cycle.append((x, y, c))
-            while v != x:
-                x, y, c = self._last_edges[x]
-                cycle.append((x, y, c))
-        else:
-            self._set_edge(level, (u, v), d)
-
-        # Ensure that all gamma values are zero
-        self._gamma[v] = 0
-        while min_gamma:
-            _, s = heapq.heappop(min_gamma)
-            self._gamma[s] = 0
-
-        return cycle
+        return self._extract_cycle(level, u, v, d)
 
     def get_assignment(self) -> List[Tuple[Node, Weight]]:
         """
@@ -388,7 +422,7 @@ class DLPropagator(Propagator):
         for lit in self._e2l[edge]:
             if control.assignment.is_true(lit):
                 return lit
-        raise RuntimeError("must not happen")
+        assert False
 
 
 class DLApp(App):
@@ -466,7 +500,7 @@ class DLApp(App):
                     hnd.get()
         else:
             if len(parts) != 1:
-                raise RuntimeError("minimization supports only one solving step")
+                raise ValueError("minimization supports only one solving step")
             control.ground(parts[0])
             control.parse_string("#program bound(b, v). &__diff_h { v-0 } <= b.")
             while True:
