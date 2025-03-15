@@ -768,7 +768,7 @@ enum class CommentType : uint8_t {
     block, //!< A block comment enclosed in <tt>%*</tt> and <tt>*%</tt>.
 };
 
-//! A commment.
+//! A comment.
 //!
 //! For example: <tt>%* comment *%</tt>
 class StmComment : public Expression<StmComment> {

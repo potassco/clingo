@@ -206,7 +206,7 @@ template <class KeyType, class BaseType> class BaseImpl {
 //! The base tracks the generation of atoms for semi-naive evaluation,
 //! and the state of atoms.
 //!
-//! An atom base can also stores unknown atoms. For such atoms it is not yet
+//! An atom base can also store unknown atoms. For such atoms it is not yet
 //! know whether there will be a rule deriving them. The only purpose is to
 //! store them here is to associated them with a unique id.
 class AtomBase : public BaseImpl<Symbol, AtomBase> {
@@ -357,7 +357,7 @@ using UProjectState = std::unique_ptr<ProjectState>;
 
 //! A map from a terms with projections associated state used during grounding.
 //!
-//! The terms represents a class of similar terms that can reuse the same projection state.
+//! The terms represent a class of similar terms that can reuse the same projection state.
 using ProjectMap = Util::ordered_map<Ground::UTerm, UProjectState>;
 
 //! A map from signatures to atom bases.
@@ -366,7 +366,7 @@ using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, UAtomBase>;
 //! A state plus an offset to track which conditions have been passed to the output.
 //!
 //! Since the backend does not permit updating previous conditions, extra logic
-//! is required to handle incremental extensios of show term directives. An
+//! is required to handle incremental extensions of show term directives. An
 //! internal translation ensures that a term is shown if one of the previously
 //! added conditions is true or one of the newly added conditions but not one
 //! of the old ones.

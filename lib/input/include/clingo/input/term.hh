@@ -169,7 +169,7 @@ class TermFunction : public RecursiveExpression<TermFunction> {
     //! The record attributes.
     static constexpr auto attributes() {
         return std::tuple{a_loc = &TermFunction::loc_, a_name = &TermFunction::name, a_pool = &TermFunction::pool_,
-                          a_exteral = &TermFunction::external_};
+                          a_external = &TermFunction::external_};
     }
 
     //! Construct a symbolic function.

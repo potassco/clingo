@@ -353,7 +353,7 @@ class LitFailCheck : public LitCheck {
     //! Construct the literal.
     //!
     //! Additionally, the first num terms are required to be numbers.
-    //! The result of the evalution is stored in the optional result vector.
+    //! The result of the evaluation is stored in the optional result vector.
     LitFailCheck(UTermVec terms) : terms_{std::move(terms)} {}
 
   private:

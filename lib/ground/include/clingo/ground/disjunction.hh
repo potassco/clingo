@@ -106,7 +106,7 @@ class StateDisjunction : public State {
     //! A map from disjunction atoms and their heads to conditions.
     using ElementMap = Util::ordered_map<ElementKey, std::pair<size_t, Util::small_vector<size_t>>>;
 
-    //! Initialize an disjunction state.
+    //! Initialize a disjunction state.
     StateDisjunction(std::pmr::monotonic_buffer_resource &mbr, DisjunctionBaseVec bases, VariableVec global,
                      size_t index, bool single_pass_body)
         : base_{global.size()}, global_{std::move(global)}, bases_{std::move(bases)}, mbr_{&mbr}, index_{index},
@@ -116,7 +116,7 @@ class StateDisjunction : public State {
     [[nodiscard]] auto global() const -> VariableVec const &;
     //! Get a buffer to store values for global variables.
     [[nodiscard]] auto symbols() -> SymbolVec &;
-    //! Indicates that all necessary elemements can be grounded in a single
+    //! Indicates that all necessary elements can be grounded in a single
     //! pass.
     [[nodiscard]] auto single_pass_body() const -> bool;
     //! Get the update index for the disjunction.
@@ -129,7 +129,7 @@ class StateDisjunction : public State {
     //! Enqueue disjunction element rules.
     void enqueue(Queue &queue);
 
-    //! Propagate equeued disjunction atoms.
+    //! Propagate enqueued disjunction atoms.
     void propagate(OutputStm &out, Queue &queue);
 
     //! Insert a disjunction atom.
@@ -148,10 +148,10 @@ class StateDisjunction : public State {
     [[nodiscard]] auto base() -> BaseDisjunction &;
 
   private:
-    //! Enequeue an atom for propgation.
+    //! Enqueue an atom for propagation.
     void enqueue_(AtomMap::iterator it);
 
-    //! Get the index of an disjunction atom.
+    //! Get the index of a disjunction atom.
     //!
     //! This index also captures not yet derived atoms.
     auto atom_index_(AtomMap::iterator it) -> size_t;

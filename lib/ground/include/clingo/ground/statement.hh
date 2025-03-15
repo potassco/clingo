@@ -160,7 +160,7 @@ class StmExternal : public Stm {
     ExternalType res_type_ = ExternalType::free;
 };
 
-//! A statement capturing weak constraints constraints.
+//! A statement capturing weak constraints.
 class StmWeakConstraint : public Stm {
   public:
     //! Construct the statement.

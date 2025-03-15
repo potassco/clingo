@@ -50,7 +50,7 @@ class LinearTerm {
     [[nodiscard]] auto term_n() const -> Term const & { return mxn_->rhs(); }
     //! The term for the variable.
     [[nodiscard]] auto term_x() const -> Term const & { return *std::get<TermBinary>(term_mx()).rhs(); }
-    //! The term for the coefficient times the varibale.
+    //! The term for the coefficient times the variable.
     [[nodiscard]] auto term_mx() const -> Term const & { return mxn_->lhs(); }
     //! The term for the whole linear term.
     [[nodiscard]] auto term_mxn() const -> TermBinary const & { return *mxn_; }
@@ -147,7 +147,7 @@ auto check_linear(Term const &term) -> std::optional<LinearTerm>;
 
 //! Check if the literal is classical.
 //!
-//! This function is used to enable additional projction in rule bodies
+//! This function is used to enable additional projection in rule bodies
 //! whenever it can be statically determined that the head does not derive anything.
 //!
 //! Note that this function could also be extended to aggregates that do not derive atoms.
@@ -165,7 +165,7 @@ auto check_linear(Term const &term) -> std::optional<LinearTerm>;
 //! This function evaluates arithmetic expressions as long as they evaluate to one-elementary pools.
 [[nodiscard]] auto is_fact(SymbolStore &store, Stm const &stm) -> std::optional<Symbol>;
 
-//! Check that none of the given varables are local in the statement.
+//! Check that none of the given variables are local in the statement.
 [[nodiscard]] auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> bool;
 
 //! Check if the given string is a theory operator.
@@ -181,7 +181,7 @@ auto check_linear(Term const &term) -> std::optional<LinearTerm>;
 //! Matchable terms only contain (non-external) functions, tuples, constants,
 //! variables, linear terms, and negated terms.
 //!
-//! For example, the folllowing terms is matchable: `f(1,c,X,X+1,-X,(X,Y))`.
+//! For example, the following terms is matchable: `f(1,c,X,X+1,-X,(X,Y))`.
 [[nodiscard]] auto is_matchable(Term const &term) -> bool;
 
 //! Extract terms whose evaluation can fail.

@@ -535,7 +535,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
         }
     }
 
-    //! Get the underlying ModelImple.
+    //! Get the underlying ModelImpl.
     [[nodiscard]] auto model() -> ModelImpl & { return *mdl_; }
 
     //! Get the underlying lock.
@@ -552,7 +552,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
 
 //! A solve handle that does nothing.
 //!
-//! @note This handle is used if no solver has been setup (for example, in
+//! @note This handle is used if no solver has been set up (for example, in
 //! ground-only mode).
 class SolveHandleFixed : public SolveHandle {
   private:
@@ -890,11 +890,8 @@ auto Solver::backend() -> UBackendHandle {
 }
 
 void Solver::prepare_() {
-    if (mode_ == AppMode::solve && state_ != State::initial) {
-        // NOTE: previously, this was only called if set value has been called
-        // on the configuration. I would prefer not to do this because it would
-        // require wrapping clasp's cli configuration.
-        clasp_->update(true);
+    if (mode_ == AppMode::solve) {
+        clasp_->update();
     }
     state_ = State::grounded;
 }

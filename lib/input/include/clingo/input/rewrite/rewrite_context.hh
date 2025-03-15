@@ -51,7 +51,7 @@ class TheoryTermParser {
 
     //! Returns true if the stack has to be reduced.
     //!
-    //! Returns true if the priority of the given binary operator is lower than the preceeding operator on the stack.
+    //! Returns true if the priority of the given binary operator is lower than the preceding operator on the stack.
     auto check_(String op) const -> bool;
 
     //! Combines the last unary or binary term on the stack.

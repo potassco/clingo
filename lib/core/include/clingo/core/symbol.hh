@@ -565,7 +565,7 @@ void init_default_symbol_store(USymbolStore store);
 //! Get the default symbol store.
 //!
 //! If no symbol store has been set, a default one that is *not* thread-safe is
-//! setup and returned.
+//! set up and returned.
 auto default_symbol_store() -> SymbolStore &;
 
 //! Construct a new symbol store.

@@ -69,9 +69,9 @@ class Logger {
   public:
     //! Callback to report messages.
     using Printer = std::function<void(MessageCode, char const *)>;
-    //! Contruct a logger reporting messages to stderr.
+    //! Construct a logger reporting messages to stderr.
     Logger(size_t limit = default_message_limit) : Logger{nullptr, limit} {}
-    //! Contruct a logger reporting messages via the given callback.
+    //! Construct a logger reporting messages via the given callback.
     Logger(Printer p, size_t limit = default_message_limit)
         : p_(std::move(p)), limit_{limit}, cur_limit_(limit), color_{p_ == nullptr && isatty(fileno(stderr)) == 1} {}
 
@@ -83,9 +83,9 @@ class Logger {
     void enable(MessageCode code, bool enable);
     //! Check if the given message code is enabled.
     [[nodiscard]] auto enabled(MessageCode code) const -> bool;
-    //! Unconditonally output a message with a given code.
+    //! Unconditionally output a message with a given code.
     void print(MessageCode code, char const *msg);
-    //! Unconditonally output a message with a given code.
+    //! Unconditionally output a message with a given code.
     void print(MessageCode code, std::string const &str);
     //! Set the log level.
     void set_level(LogLevel level);
@@ -97,7 +97,7 @@ class Logger {
     //!
     //! This keeps all settings but resets the error flag and message limit.
     void reset();
-    //! Explicitely enable or disable coloring.
+    //! Explicitly enable or disable coloring.
     void enable_color(bool color) { color_ = color; };
 
   private:

@@ -22,7 +22,7 @@ namespace Clingo::Control {
 
 //! A map from a terms with projections associated state used during grounding.
 //!
-//! The terms represents a class of similar terms that can reuse the same projection state.
+//! The terms represent a class of similar terms that can reuse the same projection state.
 using ProjectMap = Clingo::Ground::ProjectMap;
 
 //! A map from signatures to atom bases.

@@ -20,7 +20,7 @@ class ParserState;
 //! A parser for the clingo language.
 class Parser {
   public:
-    //! Consruct the parser.
+    //! Construct the parser.
     //!
     //! The parser is in an invalid state and must be initialized first.
     Parser(Logger &log, SymbolStore &store);

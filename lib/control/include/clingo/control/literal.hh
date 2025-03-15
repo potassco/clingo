@@ -28,7 +28,7 @@ template <class F, bool stratify = false> class BuilderLit {
     //!
     //! @note: This should never be called on rewritten programs.
     void operator()(Input::LitBool const &lit) const { cb_(std::make_unique<Ground::LitBool>(lit.value())); }
-    //! Translate comparision literals.
+    //! Translate comparison literals.
     //!
     //! This function also handles intervals and external functions.
     //!

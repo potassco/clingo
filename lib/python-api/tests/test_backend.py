@@ -130,10 +130,7 @@ class TestBackend:
         """
         Test project.
         """
-        # TODO: Currently, config updates are not applied often enough. That's
-        # why there is the seamingly unnecessary call to solve below.
         self.ctl.config.solve.project = "auto"
-        self.ctl.solve()
         with self.ctl.backend as bck:
             a = bck.atom(Function(self.lib, "a"))
             b = bck.atom(Function(self.lib, "b"))
@@ -169,11 +166,8 @@ class TestBackend:
         """
         Test heuristic.
         """
-        # TODO: Currently, config updates are not applied often enough. That's
-        # why there is the seamingly unnecessary call to solve below.
         self.ctl.config.solver.heuristic = "domain"
         self.ctl.config.solve.models = "1"
-        self.ctl.solve()
         with self.ctl.backend as bck:
             a = bck.atom(Function(self.lib, "a"))
             b = bck.atom(Function(self.lib, "b"))

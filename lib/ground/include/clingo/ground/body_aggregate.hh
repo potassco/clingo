@@ -208,7 +208,7 @@ class StateBdAggr : public State {
     //!
     //! Neither takes the sign of the aggregate nor its elements into account.
     [[nodiscard]] auto monotone() const -> bool;
-    //! Indicates that all necessary elemements can be grounded in a single
+    //! Indicates that all necessary elements can be grounded in a single
     //! pass.
     //!
     //! This does not take into account the body prefix of elements.
@@ -216,7 +216,7 @@ class StateBdAggr : public State {
     //! Get the update index.
     [[nodiscard]] auto index() const -> size_t;
 
-    //! Propagate equeued aggregates.
+    //! Propagate enqueued aggregates.
     auto propagate() -> bool;
 
     //! Insert an aggregate atom (stemming from an aggregate element).
@@ -243,7 +243,7 @@ class StateBdAggr : public State {
     void output(Logger &log, SymbolStore &store, OutputStm &out) override;
 
   private:
-    //! Enequeue an atom for propgation.
+    //! Enqueue an atom for propagation.
     void enqueue_(AtomMap::iterator it);
 
     //! Get the index of an aggregate atom.

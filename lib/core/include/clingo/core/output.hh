@@ -67,7 +67,7 @@ class OutputLit {
     void boolean(bool value) { do_boolean(value); }
     //! Output the given conditional literal.
     //!
-    //! Note that its elemens have to be accumulated before using the statement output.
+    //! Note that its elements have to be accumulated before using the statement output.
     auto cond_lit(std::optional<size_t> uid) -> size_t { return do_cond_lit(uid); }
     //! Delayed output of a body aggregate.
     //!
@@ -176,7 +176,7 @@ class OutputStm {
     auto show_term(Symbol term) -> size_t { return do_show_term(term); }
     //! Output the given term.
     //!
-    //! This function can show terms incremetally. If the function is called
+    //! This function can show terms incrementally. If the function is called
     //! with `conds.size() - done == 0`, then the term is unconditionally
     //! shown.
     //!
