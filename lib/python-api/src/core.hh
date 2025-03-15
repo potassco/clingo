@@ -54,7 +54,15 @@ class Library {
 };
 
 inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
-    ptr = std::current_exception();
+    try {
+        throw;
+    } catch (py::error_already_set const &e) {
+        auto gil = py::gil_scoped_acquire{};
+        ptr = std::current_exception();
+        PyErr_Clear();
+    } catch (...) {
+        ptr = std::current_exception();
+    }
     return clingo_result_unknown;
 }
 

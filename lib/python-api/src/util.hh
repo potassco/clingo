@@ -90,13 +90,23 @@ template <FixedString S> consteval auto operator""_d() -> char const * {
 // NOLINTEND
 
 inline void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr) {
+    // FIXME: remove once codes are propagated properly
+    if (code != clingo_result_success && ptr != nullptr) {
+        code = clingo_result_unknown;
+    }
     switch (static_cast<clingo_result_e>(code)) {
         case clingo_result_success: {
             break;
         }
         case clingo_result_unknown: {
             if (ptr != nullptr) {
-                std::rethrow_exception(ptr);
+                try {
+                    std::rethrow_exception(ptr);
+                } catch (py::error_already_set &e) {
+                    auto gil = py::gil_scoped_acquire{};
+                    e.restore();
+                    throw py::error_already_set{};
+                }
             }
             throw std::runtime_error("unknown error");
         }
