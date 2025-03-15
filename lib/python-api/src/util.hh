@@ -100,13 +100,7 @@ inline void handle_error(clingo_result_t code, std::exception_ptr const &ptr = n
         }
         case clingo_result_unknown: {
             if (ptr != nullptr) {
-                try {
-                    std::rethrow_exception(ptr);
-                } catch (py::error_already_set &e) {
-                    auto gil = py::gil_scoped_acquire{};
-                    e.restore();
-                    throw py::error_already_set{};
-                }
+                std::rethrow_exception(ptr);
             }
             throw std::runtime_error("unknown error");
         }
