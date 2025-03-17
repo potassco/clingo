@@ -319,8 +319,10 @@ class TestAddAssertingClause(TestCase):
         self.ctl.solve()
 '''
 
-from typing import Sequence
+from threading import Barrier
+from typing import Optional, Sequence
 
+import pytest
 from clingo.control import Control
 from clingo.core import Library
 from clingo.propagate import PropagateControl, PropagateInit, Propagator
@@ -337,12 +339,16 @@ class AIFFB(Propagator):
     slit_b: int
     n_threads: int
     errors: list[str]
+    fail_thread: int
+    barrier: Optional[Barrier]
 
     def __init__(self) -> None:
         super().__init__()
         self.slit_a = 0
         self.slit_b = 0
         self.n_threads = 1
+        self.fail_thread = -1
+        self.barrier = None
 
     def init(self, init: PropagateInit) -> None:
         """
@@ -361,15 +367,23 @@ class AIFFB(Propagator):
 
         self.errors = []
         self.n_threads = init.number_of_threads
+        self.barrier = (
+            Barrier(init.number_of_threads) if self.fail_thread >= 0 else None
+        )
 
     def check(self, control: PropagateControl) -> None:
         """
-        Check if watch es are set correctly.
+        Check if watches are set correctly.
         """
-
         for p in [self.slit_a, self.slit_b]:
             if not control.has_watch(p):
                 self.errors.append(f"solver {control.thread_id} misses watch {p}")
+
+        if self.barrier:
+            self.barrier.wait()
+            self.barrier = None
+            if control.thread_id == self.fail_thread:
+                raise ValueError(f"Forcing error on solver {control.thread_id}")
 
     def propagate(self, control: PropagateControl, changes: Sequence[int]) -> None:
         """
@@ -432,6 +446,7 @@ class TestPropagate:
         self.ctl.register_propagator(prop)
         self.ctl.parse_string("1 { a; b }.")
         self.ctl.ground()
+
         for n in [1, 3]:
             self.ctl.config.solve.parallel_mode = n
             mcb = MCB()
@@ -440,3 +455,21 @@ class TestPropagate:
             assert prop.n_threads == n, "init called with wrong number of threads"
             assert not prop.errors
             assert mcb.symbols == [["a", "b"]]
+
+    def test_exception_propagation(self):
+        """
+        Test python exception propagation.
+        """
+        prop = AIFFB()
+        self.ctl.register_propagator(prop)
+        self.ctl.parse_string("1 { a; b }.")
+        self.ctl.ground()
+        for n in [3, 1]:
+            self.ctl.config.solve.parallel_mode = n
+            prop.fail_thread = n - 1
+            mcb = MCB()
+
+            with pytest.raises(ValueError, match=f".* solver {n - 1}"):
+                with self.ctl.solve(on_model=mcb) as hnd:
+                    assert hnd.get().satisfiable
+                assert prop.n_threads == n, "init called with wrong number of threads"

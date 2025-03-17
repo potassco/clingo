@@ -90,10 +90,6 @@ template <FixedString S> consteval auto operator""_d() -> char const * {
 // NOLINTEND
 
 inline void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr) {
-    // FIXME: remove once codes are propagated properly
-    if (code != clingo_result_success && ptr != nullptr) {
-        code = clingo_result_unknown;
-    }
     switch (static_cast<clingo_result_e>(code)) {
         case clingo_result_success: {
             break;
@@ -111,7 +107,7 @@ inline void handle_error(clingo_result_t code, std::exception_ptr const &ptr = n
             throw std::logic_error("logic error");
         }
         case clingo_result_invalid: {
-            throw std::invalid_argument("invalid argumets");
+            throw std::invalid_argument("invalid arguments");
         }
         case clingo_result_range: {
             throw std::range_error("range error");
