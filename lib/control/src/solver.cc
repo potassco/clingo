@@ -750,6 +750,9 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         state_ = State::solved;
         clasp_->asp()->addAssumption(assumptions);
         if (!propagators_.empty()) {
+            // clasp config might have changed (e.g. number of solve threads) after last ground call
+            // FIXME: propagator init logic could be part of ClaspFacade::prepare().
+            clasp_->update();
             clasp_->program()->endProgram();
             for (auto &propagator : propagators_) {
                 propagator.first->init(*propagator.second);
