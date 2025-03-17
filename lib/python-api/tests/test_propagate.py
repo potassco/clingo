@@ -318,15 +318,16 @@ class TestAddAssertingClause(TestCase):
         self.ctl.register_propagator(prop)
         self.ctl.solve()
 '''
-import pytest
-from typing import Sequence, Optional
 
+from threading import Barrier
+from typing import Optional, Sequence
+
+import pytest
 from clingo.control import Control
 from clingo.core import Library
 from clingo.propagate import PropagateControl, PropagateInit, Propagator
 from clingo.symbol import Function
 from util import MCB
-from threading import Barrier
 
 
 class AIFFB(Propagator):
@@ -366,7 +367,9 @@ class AIFFB(Propagator):
 
         self.errors = []
         self.n_threads = init.number_of_threads
-        self.barrier = Barrier(init.number_of_threads) if self.fail_thread >= 0 else None
+        self.barrier = (
+            Barrier(init.number_of_threads) if self.fail_thread >= 0 else None
+        )
 
     def check(self, control: PropagateControl) -> None:
         """
