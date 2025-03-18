@@ -26,7 +26,6 @@ class ConstMap {
 
     ConstMap(clingo_const_map_t const *map) : map_{map} {}
     [[nodiscard]] auto contains(char const *name) const -> bool;
-    [[nodiscard]] auto getitem(char const *name) const -> mapped_type;
     [[nodiscard]] auto get(char const *name, std::optional<mapped_type> def) const -> std::optional<mapped_type>;
     [[nodiscard]] auto at(size_t index) const -> value_type;
     [[nodiscard]] auto size() const -> size_t;

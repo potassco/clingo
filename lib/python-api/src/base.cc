@@ -34,10 +34,10 @@ auto AtomBase::at(size_t index) const -> value_type {
     return index < size() ? value_type{atom.symbol(), atom} : throw py::index_error{"index out of range"};
 }
 
-auto AtomBase::lookup(key_type const &symbol) const -> mapped_type {
+auto AtomBase::get(key_type const &symbol, std::optional<mapped_type> def) const -> std::optional<mapped_type> {
     auto index = size_t{0};
     handle_error(clingo_atom_base_find(base_, *c_cast(&symbol), &index));
-    return index < size() ? Atom{base_, index} : throw py::key_error{"key not found"};
+    return index < size() ? std::make_optional<mapped_type>(base_, index) : def;
 }
 
 auto AtomBase::contains(key_type const &symbol) const -> bool {
@@ -289,7 +289,9 @@ auto Base::lookup_short(std::pair<char const *, size_t> const &sig) const -> map
 
 auto Base::lookup_symbol(Symbol const &sym) const -> Atom {
     if (auto sig = sym.signature(); sig) {
-        return lookup(*sig).lookup(sym);
+        if (auto atom = lookup(*sig).get(sym, std::nullopt)) {
+            return *std::move(atom);
+        }
     }
     throw py::key_error("key does not exist");
 }
@@ -314,8 +316,10 @@ auto convert(Base base, MixedLitlVec const &lits) -> LitVec {
                     return x;
                 } else {
                     auto const &[sym, positive] = x;
-                    auto lit = base.lookup(sym.signature().value()).lookup(sym).literal();
-                    return positive ? lit : -lit;
+                    if (auto atom = base.lookup(sym.signature().value()).get(sym, std::nullopt)) {
+                        return positive ? atom->literal() : -atom->literal();
+                    }
+                    throw pybind11::key_error{"key not found"};
                 }
             },
             x);
@@ -363,22 +367,7 @@ False
         .def_property_readonly("literal", &Atom::literal, "Get the program literal of the atom.")
         .def_property_readonly("symbol", &Atom::symbol, "Get the symbol of the atom.");
 
-    py::class_<AtomBase>(base, "AtomBase", R"(An atom base mapping symbols to atoms.)")
-        .def("__len__", &AtomBase::size, "Get the number of atoms in the base.")
-        .def("__getitem__", &AtomBase::lookup, R"( Get the atom with the given symbol.)")
-        .def("__contains__", &AtomBase::contains, R"( Check if the base contains an atom with the given symbol.)")
-        .def(
-            "__iter__", [](AtomBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
-            "Get an iterable over the keys in the map.")
-        .def(
-            "items", [](AtomBase &base) { return py::make_iterator(base.begin(), base.end()); },
-            R"(Get an iterator over the items in the map.)")
-        .def(
-            "values", [](AtomBase &base) { return py::make_value_iterator(base.begin(), base.end()); },
-            R"(Get an iterator over the values in the map.)")
-        .def(
-            "keys", [](AtomBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
-            R"(Get get an iterator over the keys in the map.)");
+    make_mapping(py::class_<AtomBase>(base, "AtomBase", R"(An atom base mapping symbols to atoms.)"));
 
     py::class_<Term>(base, "Term", R"(A class providing information about terms.)")
         .def_property_readonly("symbol", &Term::symbol, "Get the symbol of the term.")

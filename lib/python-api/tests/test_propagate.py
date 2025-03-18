@@ -365,11 +365,15 @@ class PropagatorControl(Propagator):
         """
         Test initialization.
         """
+        ass = init.assignment
         init.check_mode = CheckMode.Off
         assert init.check_mode == CheckMode.Off
         assert init.number_of_threads == 1
+        assert len(ass) >= 1
         a = init.base[Function(self._lib, "a")]
         self._lit_a = init.solver_literal(a.literal)
+        assert self._lit_a in ass
+        assert -self._lit_a in ass
         init.add_watch(-self._lit_a)
 
     def propagate(self, control: PropagateControl, changes: Sequence[int]):

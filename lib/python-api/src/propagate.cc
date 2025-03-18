@@ -90,81 +90,87 @@ class Trail {
 
 class Assignment {
   public:
+    using value_type = clingo_literal_t;
+
     Assignment(clingo_assignment_t const *assignment) : assignment_(assignment) {}
 
-    auto size() -> size_t {
+    [[nodiscard]] auto size() const -> size_t {
         size_t size = 0;
         handle_error(clingo_assignment_size(assignment_, &size));
         return size;
     }
 
-    auto at(size_t size) -> clingo_literal_t {
+    [[nodiscard]] auto at(size_t size) const -> clingo_literal_t {
         clingo_literal_t lit = 0;
         handle_error(clingo_assignment_at(assignment_, size, &lit));
         return lit;
     }
 
-    auto decision(uint32_t level) -> clingo_literal_t {
+    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
+
+    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
+
+    [[nodiscard]] auto decision(uint32_t level) const -> clingo_literal_t {
         clingo_literal_t lit = 0;
         handle_error(clingo_assignment_decision(assignment_, level, &lit));
         return lit;
     }
 
-    auto decision_level() -> uint32_t {
+    [[nodiscard]] auto decision_level() const -> uint32_t {
         uint32_t level = 0;
         handle_error(clingo_assignment_decision_level(assignment_, &level));
         return level;
     }
 
-    auto has_conflict() -> bool {
+    [[nodiscard]] auto has_conflict() const -> bool {
         auto res = false;
         handle_error(clingo_assignment_has_conflict(assignment_, &res));
         return res;
     }
 
-    auto has_literal(clingo_literal_t lit) -> bool {
+    [[nodiscard]] auto has_literal(clingo_literal_t lit) const -> bool {
         auto res = false;
         handle_error(clingo_assignment_has_literal(assignment_, lit, &res));
         return res;
     }
 
-    auto is_false(clingo_literal_t lit) -> bool {
+    [[nodiscard]] auto is_false(clingo_literal_t lit) const -> bool {
         auto res = false;
         handle_error(clingo_assignment_is_false(assignment_, lit, &res));
         return res;
     }
 
-    auto is_fixed(clingo_literal_t lit) -> bool {
+    [[nodiscard]] auto is_fixed(clingo_literal_t lit) const -> bool {
         auto res = false;
         handle_error(clingo_assignment_is_fixed(assignment_, lit, &res));
         return res;
     }
 
-    auto is_free(clingo_literal_t lit) -> bool {
+    [[nodiscard]] auto is_free(clingo_literal_t lit) const -> bool {
         clingo_truth_value_t res = 0;
         handle_error(clingo_assignment_truth_value(assignment_, lit, &res));
         return res == clingo_truth_value_free;
     }
 
-    auto is_total() -> bool {
+    [[nodiscard]] auto is_total() const -> bool {
         auto res = false;
         handle_error(clingo_assignment_is_total(assignment_, &res));
         return res;
     }
 
-    auto is_true(clingo_literal_t lit) -> bool {
+    [[nodiscard]] auto is_true(clingo_literal_t lit) const -> bool {
         auto res = false;
         handle_error(clingo_assignment_is_true(assignment_, lit, &res));
         return res;
     }
 
-    auto level(clingo_literal_t lit) -> uint32_t {
+    [[nodiscard]] auto level(clingo_literal_t lit) const -> uint32_t {
         uint32_t level = 0;
         handle_error(clingo_assignment_level(assignment_, lit, &level));
         return level;
     }
 
-    auto value(clingo_literal_t lit) -> std::optional<bool> {
+    [[nodiscard]] auto value(clingo_literal_t lit) const -> std::optional<bool> {
         clingo_truth_value_t res = 0;
         handle_error(clingo_assignment_truth_value(assignment_, lit, &res));
         switch (res) {
@@ -180,13 +186,13 @@ class Assignment {
         }
     }
 
-    auto root_level() -> uint32_t {
+    [[nodiscard]] auto root_level() const -> uint32_t {
         uint32_t level = 0;
         handle_error(clingo_assignment_root_level(assignment_, &level));
         return level;
     }
 
-    auto trail() -> Trail { return Trail{assignment_}; }
+    [[nodiscard]] auto trail() const -> Trail { return Trail{assignment_}; }
 
   private:
     clingo_assignment_t const *assignment_;
@@ -507,16 +513,7 @@ SAT
 Provides access to a subrange of literals in the solver's trail.
 
 Implements `Sequence[int]` to access the solver literals in the view.
-)"_d))
-        .def("__len__", &TrailView::size, R"(
-Get the number of literals in the view.
-)"_d)
-        .def("__getitem__", &TrailView::at, py::arg("index"), R"(
-Get the literal at the given index.
-)"_d)
-        .def("__getitem__", &TrailView::slice, py::arg("slice"), R"(
-Slice the view.
-)"_d);
+)"_d));
 
     make_sequence(py::class_<Trail>(propagate, "Trail", R"(
 Provides access to literals in the solver's trail.
@@ -532,15 +529,6 @@ beginning of its respective sequence.
 
 Implements `Sequence[int]` to access the solver literals in the trail.
 )"_d))
-        .def("__len__", &Trail::size, R"(
-Get the number of literals in the trail.
-)"_d)
-        .def("__getitem__", &Trail::at, py::arg("index"), R"(
-Get the literal at the given index.
-)"_d)
-        .def("__getitem__", &Trail::slice, py::arg("slice"), R"(
-Slice the trail.
-)"_d)
         .def("level", &Trail::level, py::arg("level"), R"(
 Get the literals assigned at the given decision level.
 
@@ -594,7 +582,7 @@ Returns:
         .value("Always", clingo_propagator_undo_mode_always,
                R"(Call `Propagator.undo()` for decision levels with non-emty changes.)");
 
-    py::class_<Assignment>(propagate, "Assignment", R"(
+    make_sequence(py::class_<Assignment>(propagate, "Assignment", R"(
 Provides information about the current state of literals in the solver.
 
 It provides methods to inspect and query the assignment, which is essential for
@@ -610,7 +598,8 @@ Key concepts:
 - The root level is the lowest decision level that can be backtracked to.
 
 Implements `Sequence[int]` to access the solver literals in the assignment.
-)"_d)
+)"_d),
+                  MakeSequence::no_contains(), MakeSequence::no_slice())
         .def("__len__", &Assignment::size, R"(
 Get the number of literals in the assignment.
 )"_d)

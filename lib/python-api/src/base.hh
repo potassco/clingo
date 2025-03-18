@@ -34,7 +34,7 @@ class AtomBase {
     [[nodiscard]] auto size() const -> size_t;
     [[nodiscard]] auto at(size_t index) const -> value_type;
     [[nodiscard]] auto contains(key_type const &symbol) const -> bool;
-    [[nodiscard]] auto lookup(key_type const &symbol) const -> mapped_type;
+    [[nodiscard]] auto get(key_type const &symbol, std::optional<mapped_type> def) const -> std::optional<mapped_type>;
     [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
     [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
 

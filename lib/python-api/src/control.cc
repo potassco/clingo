@@ -39,14 +39,6 @@ auto ConstMap::size() const -> size_t {
     return size;
 }
 
-auto ConstMap::getitem(key_type name) const -> mapped_type {
-    auto ret = get(name, std::nullopt);
-    if (ret) {
-        return *std::move(ret);
-    }
-    throw py::index_error{"element not found"};
-}
-
 Control::Control(Library &lib, std::span<std::string const> args) {
     auto c_args = transform(args, [](auto const &str) { return str.c_str(); });
     auto *ctl = static_cast<clingo_control_t *>(nullptr);
@@ -283,24 +275,7 @@ SAT
 ```
 )"_d);
 
-    py::class_<ConstMap>(control, "_ConstMap", R"(The map from constants defiend by #const directives.)")
-        .def("__len__", &ConstMap::size, "Get the number elements in the map.")
-        .def("__contains__", &ConstMap::contains, py::arg("key"), R"(Check if the map contains the given key.)")
-        .def("__getitem__", &ConstMap::getitem, py::arg("key"), R"(Get the value for the given key.)")
-        .def(
-            "__iter__", [](ConstMap &base) { return py::make_key_iterator(base.begin(), base.end()); },
-            "Get an iterator over the keys in the map.")
-        .def(
-            "items", [](ConstMap &base) { return py::make_iterator(base.begin(), base.end()); },
-            R"(Get an iterator over the items in the map.)")
-        .def("get", &ConstMap::get, py::arg("key"), py::arg("default") = std::nullopt,
-             R"(Get the value for the given key or the default if absent.)")
-        .def(
-            "values", [](ConstMap &base) { return py::make_value_iterator(base.begin(), base.end()); },
-            R"(Get an iterator over the values in the map.)")
-        .def(
-            "keys", [](ConstMap &base) { return py::make_key_iterator(base.begin(), base.end()); },
-            R"(Get get an iterator over the keys in the map.)");
+    make_mapping(py::class_<ConstMap>(control, "_ConstMap", R"(The map from constants defiend by #const directives.)"));
 
     py::enum_<clingo_mode_e>(control, "ControlMode", "Available control modes.")
         .value("Parse", clingo_mode_parse, R"(Parse only.)")
