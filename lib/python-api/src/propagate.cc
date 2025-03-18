@@ -691,7 +691,7 @@ Args:
 Returns:
     Whether the clause could be added without conflict.
 )"_d)
-        .def("add_literal", &PropagateInit::add_literal, py::arg("freeze"), R"(
+        .def("add_literal", &PropagateInit::add_literal, py::arg("freeze") = true, R"(
 Add a new literal to the solver.
 
 See also `freeze_literal()`.
@@ -703,7 +703,8 @@ Args:
 Returns:
     The newly added solver literal.
 )"_d)
-        .def("add_minimize", &PropagateInit::add_minimize, py::arg("literal"), py::arg("weight"), py::arg("priority"),
+        .def("add_minimize", &PropagateInit::add_minimize, py::arg("literal"), py::arg("weight"),
+             py::arg("priority") = 0,
              R"(
 Add a weighted literal to minimize to the solver.
 
@@ -725,7 +726,9 @@ Args:
         The id of the thread to add the watch to. If None, adds to all threads.
 )"_d)
         .def("add_weight_constraint", &PropagateInit::add_weight_constraint, py::arg("literal"), py::arg("literals"),
-             py::arg("bound"), py::arg("type"), py::arg("compare_equal"), R"(
+             py::arg("bound"),
+             py::arg("type") = clingo_weight_constraint_type_e::clingo_weight_constraint_type_equivalence,
+             py::arg("compare_equal") = false, R"(
 Add a weight constraint to the solver.
 
 See `add_clause` for how to interpret the return value.

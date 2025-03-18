@@ -112,9 +112,21 @@ class PropagateInit {
         return ctx.master()->propagate();
     }
     void set_check_mode(clingo_propagator_check_mode_t mode) {
+        static_assert(static_cast<Clasp::ClingoPropagatorCheckType>(clingo_propagator_check_mode_total) ==
+                      Clasp::ClingoPropagatorCheckType::total);
+        static_assert(static_cast<Clasp::ClingoPropagatorCheckType>(clingo_propagator_check_mode_both) ==
+                      Clasp::ClingoPropagatorCheckType::both);
+        static_assert(static_cast<Clasp::ClingoPropagatorCheckType>(clingo_propagator_check_mode_fixpoint) ==
+                      Clasp::ClingoPropagatorCheckType::fixpoint);
+        static_assert(static_cast<Clasp::ClingoPropagatorCheckType>(clingo_propagator_check_mode_none) ==
+                      Clasp::ClingoPropagatorCheckType::no);
         init_->enableClingoPropagatorCheck(static_cast<Clasp::ClingoPropagatorCheckType>(mode));
     }
     void set_undo_mode(clingo_propagator_undo_mode_t mode) {
+        static_assert(static_cast<Clasp::ClingoPropagatorUndoType>(clingo_propagator_undo_mode_default) ==
+                      Clasp::ClingoPropagatorUndoType::def);
+        static_assert(static_cast<Clasp::ClingoPropagatorUndoType>(clingo_propagator_undo_mode_always) ==
+                      Clasp::ClingoPropagatorUndoType::always);
         init_->enableClingoPropagatorUndo(static_cast<Clasp::ClingoPropagatorUndoType>(mode));
     }
     [[nodiscard]] auto assignment() const -> Potassco::AbstractAssignment const & { return assignment_; }

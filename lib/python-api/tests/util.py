@@ -12,8 +12,12 @@ class MCB:
 
     def __init__(self) -> None:
         self._syms = []
+        self.cleared = False
 
     def __call__(self, mdl: Model):
+        if not self.cleared and mdl.optimality_proven:
+            self.cleared = True
+            self._syms.clear()
         self._syms.append(sorted(mdl.symbols(shown=True)))
 
     @property
