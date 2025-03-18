@@ -57,6 +57,13 @@ class Atom:
     A class providing information about symbolic atoms.
     """
 
+    def __eq__(self, arg0: Atom) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __ne__(self, arg0: Atom) -> bool: ...
     @property
     def literal(self) -> int:
         """
@@ -74,24 +81,31 @@ class AtomBase:
     An atom base mapping symbols to atoms.
     """
 
-    def __contains__(self, arg0: clingo.symbol.Symbol) -> bool:
+    def __contains__(self, key: clingo.symbol.Symbol) -> bool:
         """
-        Check if the base contains an atom with the given symbol.
+        Check if the map contains the given key.
         """
 
-    def __getitem__(self, arg0: clingo.symbol.Symbol) -> Atom:
+    def __getitem__(self, key: clingo.symbol.Symbol) -> Atom:
         """
-        Get the atom with the given symbol.
+        Get the value for the given key.
         """
 
     def __iter__(self) -> typing.Iterator[clingo.symbol.Symbol]:
         """
-        Get an iterable over the keys in the map.
+        Get an iterator over the keys in the map.
         """
 
     def __len__(self) -> int:
         """
-        Get the number of atoms in the base.
+        Get the number elements in the map.
+        """
+
+    def get(
+        self, key: clingo.symbol.Symbol, default: Atom | None = None
+    ) -> Atom | None:
+        """
+        Get the value for the given key or the default if absent.
         """
 
     def items(self) -> typing.Iterator[tuple[clingo.symbol.Symbol, Atom]]:
@@ -118,9 +132,9 @@ class Base:
     """
 
     @typing.overload
-    def __contains__(self, signature: tuple[str, int, bool]) -> bool:
+    def __contains__(self, key: tuple[str, int, bool]) -> bool:
         """
-        Check if there is an atom base with the given signature.
+        Check if the map contains the given key.
         """
 
     @typing.overload
@@ -133,6 +147,12 @@ class Base:
     def __contains__(self, symbol: clingo.symbol.Symbol) -> bool:
         """
         Check if there is an atom with the given symbol.
+        """
+
+    @typing.overload
+    def __getitem__(self, key: tuple[str, int, bool]) -> AtomBase:
+        """
+        Get the value for the given key.
         """
 
     @typing.overload
@@ -149,12 +169,6 @@ class Base:
         This function provides a shortcut assuming the sign is false.
         """
 
-    @typing.overload
-    def __getitem__(self, signature: tuple[str, int, bool]) -> AtomBase:
-        """
-        Get the atom base with the given signature.
-        """
-
     def __iter__(self) -> typing.Iterator[tuple[str, int, bool]]:
         """
         Get an iterator over the keys in the map.
@@ -162,7 +176,14 @@ class Base:
 
     def __len__(self) -> int:
         """
-        Get the number of atom bases.
+        Get the number elements in the map.
+        """
+
+    def get(
+        self, key: tuple[str, int, bool], default: AtomBase | None = None
+    ) -> AtomBase | None:
+        """
+        Get the value for the given key or the default if absent.
         """
 
     def is_current(self, literal: int) -> bool:
@@ -250,6 +271,13 @@ class Term:
     A class providing information about terms.
     """
 
+    def __eq__(self, arg0: Term) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __ne__(self, arg0: Term) -> bool: ...
     @property
     def condition(self) -> typing.Sequence[int] | None:
         """
@@ -271,14 +299,14 @@ class TermBase:
     Implements a map form symbols to terms.
     """
 
-    def __contains__(self, arg0: clingo.symbol.Symbol) -> bool:
+    def __contains__(self, key: clingo.symbol.Symbol) -> bool:
         """
-        Check if the base contains a term with the given symbol.
+        Check if the map contains the given key.
         """
 
-    def __getitem__(self, arg0: clingo.symbol.Symbol) -> Term:
+    def __getitem__(self, key: clingo.symbol.Symbol) -> Term:
         """
-        Get the term with the given symbol.
+        Get the value for the given key.
         """
 
     def __iter__(self) -> typing.Iterator[clingo.symbol.Symbol]:
@@ -288,7 +316,14 @@ class TermBase:
 
     def __len__(self) -> int:
         """
-        Get the number of terms in the base.
+        Get the number elements in the map.
+        """
+
+    def get(
+        self, key: clingo.symbol.Symbol, default: Term | None = None
+    ) -> Term | None:
+        """
+        Get the value for the given key or the default if absent.
         """
 
     def items(self) -> typing.Iterator[tuple[clingo.symbol.Symbol, Term]]:
@@ -311,6 +346,13 @@ class TheoryAtom:
     A view to inspect a theory atom.
     """
 
+    def __eq__(self, arg0: TheoryAtom) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __ne__(self, arg0: TheoryAtom) -> bool: ...
     def __str__(self) -> str:
         """
         Get a string representation of the atom.
@@ -347,19 +389,39 @@ class TheoryBase:
     Implements a sequences over theory atoms.
     """
 
-    def __getitem__(self, arg0: int) -> TheoryAtom:
+    def __contains__(self, value: TheoryAtom) -> bool:
         """
-        Get the atom with the given index.
+        Get a reverse iterator for the sequence.
+        """
+
+    def __getitem__(self, index: int) -> TheoryAtom:
+        """
+        Get the value at the given index.
         """
 
     def __iter__(self) -> typing.Iterator[TheoryAtom]:
         """
-        Get an iterable over the keys in the map.
+        Get an iterator for the sequence.
         """
 
     def __len__(self) -> int:
         """
-        Get the number of theory atoms in the base.
+        Get the size of the sequence.
+        """
+
+    def __reversed__(self) -> typing.Iterator[TheoryAtom]:
+        """
+        Get a reverse iterator for the sequence.
+        """
+
+    def count(self, value: TheoryAtom) -> int:
+        """
+        Count how often the given value occurs in the sequence.
+        """
+
+    def index(self, value: TheoryAtom) -> int:
+        """
+        Get the index of the given value in the sequence.
         """
 
 class TheoryElement:
@@ -367,6 +429,13 @@ class TheoryElement:
     A view to inspect a theory element.
     """
 
+    def __eq__(self, arg0: TheoryElement) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __ne__(self, arg0: TheoryElement) -> bool: ...
     def __str__(self) -> str:
         """
         Get a string representation of the element.
@@ -395,6 +464,13 @@ class TheoryTerm:
     A view to inspect a theory term.
     """
 
+    def __eq__(self, arg0: TheoryTerm) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __ne__(self, arg0: TheoryTerm) -> bool: ...
     def __str__(self) -> str:
         """
         Get a string representation of the term.

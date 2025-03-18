@@ -62,7 +62,7 @@ import clingo.solve
 import clingo.stats
 import clingo.symbol
 
-__all__ = ["Control"]
+__all__ = ["Control", "ControlMode"]
 
 class Control:
     """
@@ -80,7 +80,9 @@ class Control:
 
     def ground(
         self,
-        parts: list[tuple[str, list[clingo.symbol.Symbol]]] | None = None,
+        parts: typing.Sequence[
+            tuple[str, typing.Sequence[clingo.symbol.Symbol]]
+        ] = None,
         context: typing.Any = None,
     ) -> None:
         """
@@ -102,12 +104,27 @@ class Control:
                 A non-ground logic program.
         """
 
-    def main(self) -> None:
+    def main(
+        self,
+        parts: (
+            typing.Sequence[
+                typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]]
+            ]
+            | None
+        ) = None,
+    ) -> None:
         """
         Ground and solver a logic program.
 
         This function proceeds as clingo calling the main function from a script if
         there is any.
+
+        If the optional parts member is given, each of its elements corresponds to one
+        incremental solving step where the elements' parts are grounded.
+
+        Args:
+            parts:
+                A sequence of part sequences to ground and solve.
         """
 
     def observe(self, observer: clingo.backend.Observer) -> None:
@@ -116,6 +133,15 @@ class Control:
 
         Args:
             observer: The program observer to inspect the program.
+        """
+
+    def parse_files(self, files: typing.Sequence[str]) -> None:
+        """
+        Parses the logic programs in the given files
+
+        Args:
+            files:
+                The files to parse.
         """
 
     def parse_string(self, program: str) -> None:
@@ -224,7 +250,103 @@ class Control:
         """
 
     @property
+    def const_map(self) -> typing.Mapping[str, clingo.symbol.Symbol]:
+        """
+        Get the map of constants defined by `#const` directives.
+        """
+
+    @property
+    def mode(self) -> ControlMode:
+        """
+        Get the application mode.
+        """
+
+    @property
     def stats(self) -> dict:
         """
         Get the solver stats.
+        """
+
+class ControlMode:
+    """
+    Available control modes.
+
+    Members:
+
+      Parse : Parse only.
+
+      Rewrite : Parse and rewrite.
+
+      Ground : Parse, rewrite, and ground.
+
+      Solve : Parse, rewrite, ground, and solve.
+    """
+
+    Ground: typing.ClassVar[ControlMode]  # value = <ControlMode.Ground: 2>
+    Parse: typing.ClassVar[ControlMode]  # value = <ControlMode.Parse: 0>
+    Rewrite: typing.ClassVar[ControlMode]  # value = <ControlMode.Rewrite: 1>
+    Solve: typing.ClassVar[ControlMode]  # value = <ControlMode.Solve: 3>
+    __members__: typing.ClassVar[
+        dict[str, ControlMode]
+    ]  # value = {'Parse': <ControlMode.Parse: 0>, 'Rewrite': <ControlMode.Rewrite: 1>, 'Ground': <ControlMode.Ground: 2>, 'Solve': <ControlMode.Solve: 3>}
+    def __eq__(self, other: typing.Any) -> bool: ...
+    def __getstate__(self) -> int: ...
+    def __hash__(self) -> int: ...
+    def __index__(self) -> int: ...
+    def __init__(self, value: int) -> None: ...
+    def __int__(self) -> int: ...
+    def __ne__(self, other: typing.Any) -> bool: ...
+    def __repr__(self) -> str: ...
+    def __setstate__(self, state: int) -> None: ...
+    def __str__(self) -> str: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def value(self) -> int: ...
+
+class _ConstMap:
+    """
+    The map from constants defiend by #const directives.
+    """
+
+    def __contains__(self, key: str) -> bool:
+        """
+        Check if the map contains the given key.
+        """
+
+    def __getitem__(self, key: str) -> clingo.symbol.Symbol:
+        """
+        Get the value for the given key.
+        """
+
+    def __iter__(self) -> typing.Iterator[str]:
+        """
+        Get an iterator over the keys in the map.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the number elements in the map.
+        """
+
+    def get(
+        self, key: str, default: clingo.symbol.Symbol | None = None
+    ) -> clingo.symbol.Symbol | None:
+        """
+        Get the value for the given key or the default if absent.
+        """
+
+    def items(self) -> typing.Iterator[tuple[str, clingo.symbol.Symbol]]:
+        """
+        Get an iterator over the items in the map.
+        """
+
+    def keys(self) -> typing.Iterator[str]:
+        """
+        Get get an iterator over the keys in the map.
+        """
+
+    def values(self) -> typing.Iterator[clingo.symbol.Symbol]:
+        """
+        Get an iterator over the values in the map.
         """

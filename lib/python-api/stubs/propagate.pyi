@@ -92,24 +92,34 @@ class Assignment:
     Implements `Sequence[int]` to access the solver literals in the assignment.
     """
 
-    def __contains__(self, literal: int) -> bool:
+    def __contains__(self, value: int) -> bool:
         """
-        Determine if the given literal is contained in the assignment.
-
-        Args:
-            literal: The solver literal.
-        Returns:
-            Whether the literal is valid.
+        Get a reverse iterator for the sequence.
         """
 
     def __getitem__(self, index: int) -> int:
         """
-        Get the literal at the given index.
+        Get the value at the given index.
+        """
+
+    def __iter__(self) -> typing.Iterator[int]:
+        """
+        Get an iterator for the sequence.
         """
 
     def __len__(self) -> int:
         """
-        Get the number of literals in the assignment.
+        Get the size of the sequence.
+        """
+
+    def __reversed__(self) -> typing.Iterator[int]:
+        """
+        Get a reverse iterator for the sequence.
+        """
+
+    def count(self, value: int) -> int:
+        """
+        Count how often the given value occurs in the sequence.
         """
 
     def decision(self, level: int) -> int:
@@ -123,6 +133,11 @@ class Assignment:
             level: The decision level.
         Returns:
             The decision literal.
+        """
+
+    def index(self, value: int) -> int:
+        """
+        Get the index of the given value in the sequence.
         """
 
     def is_false(self, literal: int) -> bool:
@@ -395,7 +410,7 @@ class PropagateInit:
             Whether the clause could be added without conflict.
         """
 
-    def add_literal(self, freeze: bool) -> int:
+    def add_literal(self, freeze: bool = True) -> int:
         """
         Add a new literal to the solver.
 
@@ -409,7 +424,7 @@ class PropagateInit:
             The newly added solver literal.
         """
 
-    def add_minimize(self, literal: int, weight: int, priority: int) -> None:
+    def add_minimize(self, literal: int, weight: int, priority: int = 0) -> None:
         """
         Add a weighted literal to minimize to the solver.
 
@@ -438,8 +453,8 @@ class PropagateInit:
         literal: int,
         literals: typing.Sequence[tuple[int, int]],
         bound: int,
-        type: WeightConstraintType,
-        compare_equal: bool,
+        type: WeightConstraintType = WeightConstraintType.Equivalence,
+        compare_equal: bool = False,
     ) -> bool:
         """
         Add a weight constraint to the solver.
@@ -658,21 +673,36 @@ class Trail:
     Implements `Sequence[int]` to access the solver literals in the trail.
     """
 
+    def __contains__(self, value: int) -> bool:
+        """
+        Get a reverse iterator for the sequence.
+        """
+
     @typing.overload
     def __getitem__(self, index: int) -> int:
         """
-        Get the literal at the given index.
+        Get the value at the given index.
         """
 
     @typing.overload
     def __getitem__(self, slice: slice) -> typing.Sequence[int]:
         """
-        Slice the trail.
+        Slice the sequence.
+        """
+
+    def __iter__(self) -> typing.Iterator[int]:
+        """
+        Get an iterator for the sequence.
         """
 
     def __len__(self) -> int:
         """
-        Get the number of literals in the trail.
+        Get the size of the sequence.
+        """
+
+    def __reversed__(self) -> typing.Iterator[int]:
+        """
+        Get a reverse iterator for the sequence.
         """
 
     def begin(self, level: int) -> int:
@@ -687,6 +717,11 @@ class Trail:
             The index of the decision literal.
         """
 
+    def count(self, value: int) -> int:
+        """
+        Count how often the given value occurs in the sequence.
+        """
+
     def end(self, level: int) -> int:
         """
         Get the index after the last literal on the given level.
@@ -695,6 +730,11 @@ class Trail:
             level: A decision level.
         Returns:
             The index after the last literal.
+        """
+
+    def index(self, value: int) -> int:
+        """
+        Get the index of the given value in the sequence.
         """
 
     def level(self, level: int) -> typing.Sequence[int]:
@@ -788,19 +828,44 @@ class _TrailView:
     Implements `Sequence[int]` to access the solver literals in the view.
     """
 
+    def __contains__(self, value: int) -> bool:
+        """
+        Get a reverse iterator for the sequence.
+        """
+
     @typing.overload
     def __getitem__(self, index: int) -> int:
         """
-        Get the literal at the given index.
+        Get the value at the given index.
         """
 
     @typing.overload
     def __getitem__(self, slice: slice) -> typing.Sequence[int]:
         """
-        Slice the view.
+        Slice the sequence.
+        """
+
+    def __iter__(self) -> typing.Iterator[int]:
+        """
+        Get an iterator for the sequence.
         """
 
     def __len__(self) -> int:
         """
-        Get the number of literals in the view.
+        Get the size of the sequence.
+        """
+
+    def __reversed__(self) -> typing.Iterator[int]:
+        """
+        Get a reverse iterator for the sequence.
+        """
+
+    def count(self, value: int) -> int:
+        """
+        Count how often the given value occurs in the sequence.
+        """
+
+    def index(self, value: int) -> int:
+        """
+        Get the index of the given value in the sequence.
         """

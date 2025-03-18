@@ -104,6 +104,7 @@ SAT
 from __future__ import annotations
 
 from . import (
+    app,
     ast,
     backend,
     base,
@@ -118,6 +119,7 @@ from . import (
 )
 
 __all__ = [
+    "app",
     "ast",
     "backend",
     "base",

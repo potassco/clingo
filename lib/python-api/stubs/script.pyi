@@ -65,7 +65,7 @@ import clingo.control
 import clingo.core
 import clingo.symbol
 
-__all__ = ["Script", "register"]
+__all__ = ["Script", "enable_python", "register"]
 
 class Script:
     """
@@ -84,9 +84,12 @@ class Script:
         Call the function with the given name and arguments.
 
         Args:
-            lib: The library object to store symbols.
-            name: The name of the function.
-            arguments: The arguments of the function.
+            lib:
+                The library object to store symbols.
+            name:
+                The name of the function.
+            arguments:
+                The arguments of the function.
 
         Returns:
             A list of symbols.
@@ -97,8 +100,10 @@ class Script:
         Check if the function with the given signature is callable.
 
         Args:
-            name: The name of the function.
-            arguments: The number of arguments of the function.
+            name:
+                The name of the function.
+            arguments:
+                The number of arguments of the function.
 
         Returns:
             Whether the function is callable.
@@ -109,16 +114,28 @@ class Script:
         Execute the given code.
 
         Args:
-            code: The code to execute.
+            code:
+                The code to execute.
         """
 
-    def main(self, lib: clingo.core.Library, control: clingo.control.Control) -> None:
+    def main(
+        self,
+        lib: clingo.core.Library,
+        control: clingo.control.Control,
+        parts: typing.Sequence[
+            typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]]
+        ] = None,
+    ) -> None:
         """
         Run the main function.
 
         Args:
-            lib: The (main) library object.
-            control: The (main) control object.
+            lib:
+                The (main) library object.
+            control:
+                The (main) control object.
+            parts:
+                The parts to ground and solve.
         """
 
     def name(self) -> str:
@@ -131,11 +148,22 @@ class Script:
         Get the version of the script.
         """
 
+def enable_python(lib: clingo.core.Library) -> None:
+    """
+    Enable embedded python scripts.
+
+    Args:
+        lib:
+            The library to register the script with.
+    """
+
 def register(lib: clingo.core.Library, script: Script) -> None:
     """
     Registers a script language which can then be embedded into a logic program.
 
     Args:
-        lib: The library to register the script with.
-        script: The script to register.
+        lib:
+            The library to register the script with.
+        script:
+            The script to register.
     """

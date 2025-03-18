@@ -18,6 +18,8 @@ subprocess.check_call(
     [
         "pybind11-stubgen",
         "--root-suffix=-stubs",
+        "--enum-class-locations",
+        "WeightConstraintType:clingo.propagate",
         "-o",
         libpath,
         "clingo",
