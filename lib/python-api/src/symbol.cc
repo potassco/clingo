@@ -278,7 +278,7 @@ p(3)
         .value("Tuple", clingo_symbol_type_tuple, R"("A tuple symbol `(1,a)`.")")
         .value("Function", clingo_symbol_type_function, R"(A function symbol, e.g., `c`, `-c`, or `f(1,"a")`.)");
 
-    py::class_<Symbol>(symbol, "Symbol", R"(
+    make_comparable(py::class_<Symbol>(symbol, "Symbol", R"(
 Represents a clingo symbol.
 
 This includes `#inf` and `#sup`, numbers, strings, tuples, functions (including
@@ -291,10 +291,9 @@ representation corresponds to their clingo representation.
 Note that this class does not have a constructor. Instead there are the
 preconstructed symbols `Infimum` and `Supremum` and the functions `Number`,
 `String`, `Tuple_`, and `Function` to construct symbol objects.
-)"_d)
+)"_d))
         .def("__str__", &Symbol::str)
         .def("__repr__", &Symbol::repr)
-        .def("__hash__", &Symbol::hash)
         .def("signature", &Symbol::signature, R"(
 Get the signature of function symbols.
 
@@ -327,7 +326,7 @@ Returns:
         .def_property_readonly("name", &Symbol::name, R"(The name.)")
         .def_property_readonly("arguments", &Symbol::args, R"(The list of arguments.)")
         .def_property_readonly("arity", &Symbol::arity, R"(The arity of a function or tuple.)")
-        .def_property_readonly("sign", &Symbol::sign, R"(Whether the symbol has a sign.)") CLINGO_PY_TOTAL_ORDER;
+        .def_property_readonly("sign", &Symbol::sign, R"(Whether the symbol has a sign.)");
 
     symbol.add_object("Infimum", py::cast(Infimum()));
     symbol.add_object("Supremum", py::cast(Supremum()));

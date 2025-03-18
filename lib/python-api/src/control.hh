@@ -29,8 +29,6 @@ class ConstMap {
     [[nodiscard]] auto get(char const *name, std::optional<mapped_type> def) const -> std::optional<mapped_type>;
     [[nodiscard]] auto at(size_t index) const -> value_type;
     [[nodiscard]] auto size() const -> size_t;
-    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
-    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; };
 
   private:
     clingo_const_map_t const *map_;

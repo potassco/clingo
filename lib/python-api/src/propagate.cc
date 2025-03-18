@@ -35,8 +35,6 @@ class TrailView {
         return lit;
     }
     [[nodiscard]] auto size() const -> uint32_t { return py::len(rng_); }
-    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
-    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_assignment_t const *assignment_;
@@ -81,9 +79,6 @@ class Trail {
         return slice(py::slice(begin_level(level), end_level(level), 1));
     }
 
-    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
-    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
-
   private:
     clingo_assignment_t const *assignment_;
 };
@@ -106,10 +101,6 @@ class Assignment {
         return lit;
     }
 
-    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
-
-    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
-
     [[nodiscard]] auto decision(uint32_t level) const -> clingo_literal_t {
         clingo_literal_t lit = 0;
         handle_error(clingo_assignment_decision(assignment_, level, &lit));
@@ -128,7 +119,7 @@ class Assignment {
         return res;
     }
 
-    [[nodiscard]] auto has_literal(clingo_literal_t lit) const -> bool {
+    [[nodiscard]] auto contains(clingo_literal_t lit) const -> bool {
         auto res = false;
         handle_error(clingo_assignment_has_literal(assignment_, lit, &res));
         return res;
@@ -598,22 +589,7 @@ Key concepts:
 - The root level is the lowest decision level that can be backtracked to.
 
 Implements `Sequence[int]` to access the solver literals in the assignment.
-)"_d),
-                  MakeSequence::no_contains(), MakeSequence::no_slice())
-        .def("__len__", &Assignment::size, R"(
-Get the number of literals in the assignment.
-)"_d)
-        .def("__getitem__", &Assignment::at, py::arg("index"), R"(
-Get the literal at the given index.
-)"_d)
-        .def("__contains__", &Assignment::has_literal, py::arg("literal"), R"(
-Determine if the given literal is contained in the assignment.
-
-Args:
-    literal: The solver literal.
-Returns:
-    Whether the literal is valid.
-)"_d)
+)"_d))
         .def("decision", &Assignment::decision, py::arg("level"), R"(
 Returns the decision literal of the given level.
 

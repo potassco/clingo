@@ -298,7 +298,7 @@ Return self.
             R"(
 Close the library object.
 )"_d);
-    py::class_<Position>(core, "Position", R"(Position object tracking locations in files.)")
+    make_comparable(py::class_<Position>(core, "Position", R"(Position object tracking locations in files.)"))
         .def(py::init<Library &, char const *, size_t, size_t>(), py::arg("lib"), py::arg("file"), py::arg("line"),
              py::arg("column"), R"(
 Create a position object.
@@ -313,26 +313,20 @@ Args:
         .def_property_readonly("line", &Position::line, "The line number.")
         .def_property_readonly("column", &Position::column, "The column number.")
         .def("__str__", &Position::str)
-        .def("__repr__", &Position::repr)
-        .def("__hash__", &Position::hash)
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        .def("__repr__", &Position::repr);
 
-    py::class_<Location>(core, "Location", R"(Location tracking object.)")
-        .def(py::init<Position const &, Position const &>(), py::arg("begin"), py::arg("end"), R"(
+    make_comparable(py::class_<Location>(core, "Location", R"(Location tracking object.)")
+                        .def(py::init<Position const &, Position const &>(), py::arg("begin"), py::arg("end"), R"(
 Create a location object.
 
 Args:
     begin: The beginning of the location.
     end: The end of the location.
-)"_d)
+)"_d))
         .def_property_readonly("begin", &Location::begin, "The beginning of the location.")
         .def_property_readonly("end", &Location::end, "The end of the location.")
         .def("__str__", &Location::str)
-        .def("__repr__", &Location::repr)
-        .def("__hash__", &Location::hash)
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+        .def("__repr__", &Location::repr);
 }
 
 } // namespace Clingo::Python

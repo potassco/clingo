@@ -83,10 +83,10 @@ auto TermBase::contains(key_type const &symbol) const -> bool {
     return index < size();
 }
 
-auto TermBase::lookup(key_type const &symbol) const -> mapped_type {
+auto TermBase::get(key_type const &symbol, std::optional<mapped_type> def) const -> std::optional<mapped_type> {
     auto index = size_t{0};
     handle_error(clingo_term_base_find(base_, *c_cast(&symbol), &index));
-    return index < size() ? Term{*base_, index} : throw py::key_error("key does not exist");
+    return index < size() ? std::make_optional<mapped_type>(*base_, index) : def;
 }
 
 // TheoryTerm
@@ -275,6 +275,14 @@ auto Base::contains(key_type const &sig) const -> bool {
     return found;
 }
 
+auto Base::get(key_type const &sig, std::optional<mapped_type> def) const -> std::optional<mapped_type> {
+    auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
+    clingo_atom_base_t const *atoms = nullptr;
+    auto found = false;
+    handle_error(clingo_base_atoms_find(base_, &csig, &atoms, &found));
+    return found ? std::make_optional<AtomBase>(atoms) : def;
+}
+
 auto Base::lookup(key_type const &sig) const -> mapped_type {
     auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
     clingo_atom_base_t const *atoms = nullptr;
@@ -363,38 +371,23 @@ False
 [('p(1)', True, False), ('p(3)', False, False), ('p(2)', False, True)]
 ```)"_d);
 
-    py::class_<Atom>(base, "Atom", R"(A class providing information about symbolic atoms.)")
+    make_hashable(py::class_<Atom>(base, "Atom", R"(A class providing information about symbolic atoms.)"))
         .def_property_readonly("literal", &Atom::literal, "Get the program literal of the atom.")
         .def_property_readonly("symbol", &Atom::symbol, "Get the symbol of the atom.");
 
     make_mapping(py::class_<AtomBase>(base, "AtomBase", R"(An atom base mapping symbols to atoms.)"));
 
-    py::class_<Term>(base, "Term", R"(A class providing information about terms.)")
+    make_hashable(py::class_<Term>(base, "Term", R"(A class providing information about terms.)"))
         .def_property_readonly("symbol", &Term::symbol, "Get the symbol of the term.")
         .def_property_readonly("condition", &Term::condition, "Get the condition of the term.");
 
-    py::class_<TermBase>(base, "TermBase", R"(
+    make_mapping(py::class_<TermBase>(base, "TermBase", R"(
 A base to inspect show term directives in a program.
 
 The base is established by the show directives occurring in a program.
 
 Implements a map form symbols to terms.
-)"_d)
-        .def("__len__", &TermBase::size, "Get the number of terms in the base.")
-        .def("__getitem__", &TermBase::lookup, R"(Get the term with the given symbol.)")
-        .def("__contains__", &TermBase::contains, R"( Check if the base contains a term with the given symbol.)")
-        .def(
-            "__iter__", [](TermBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
-            "Get an iterator over the keys in the map.")
-        .def(
-            "items", [](TermBase &base) { return py::make_iterator(base.begin(), base.end()); },
-            R"(Get an iterator over the items in the map.)")
-        .def(
-            "values", [](TermBase &base) { return py::make_value_iterator(base.begin(), base.end()); },
-            R"(Get an iterator over the values in the map.)")
-        .def(
-            "keys", [](TermBase &base) { return py::make_key_iterator(base.begin(), base.end()); },
-            R"(Get get an iterator over the keys in the map.)");
+)"_d));
 
     py::enum_<clingo_theory_term_type_e>(base, "TheoryTermType", "Enumeration of theory term types.")
         .value("Number", clingo_theory_term_type_number, R"(For numeric theory terms.)")
@@ -404,7 +397,7 @@ Implements a map form symbols to terms.
         .value("Set", clingo_theory_term_type_set, R"(For set theory terms.)")
         .value("Function", clingo_theory_term_type_function, R"(For function theory terms.)");
 
-    py::class_<TheoryTerm>(base, "TheoryTerm", R"(A view to inspect a theory term.)")
+    make_hashable(py::class_<TheoryTerm>(base, "TheoryTerm", R"(A view to inspect a theory term.)"))
         .def("__str__", &TheoryTerm::str, R"(Get a string representation of the term.)")
         .def_property_readonly("type", &TheoryTerm::type, R"(Get the type of the theory term.)")
         .def_property_readonly("number", &TheoryTerm::number, R"(Get the value of a numeric theory term.)")
@@ -412,14 +405,14 @@ Implements a map form symbols to terms.
         .def_property_readonly("arguments", &TheoryTerm::arguments,
                                R"(Get the arguments of a function, tuple, list, or set theory term.)");
 
-    py::class_<TheoryElement>(base, "TheoryElement", R"(A view to inspect a theory element.)")
+    make_hashable(py::class_<TheoryElement>(base, "TheoryElement", R"(A view to inspect a theory element.)"))
         .def("__str__", &TheoryElement::str, R"(Get a string representation of the element.)")
         .def_property_readonly("tuple", &TheoryElement::tuple, R"(Get the term tuple of a theory element.)")
         .def_property_readonly("condition", &TheoryElement::condition, R"(Get the condition of a theory element.)")
         .def_property_readonly("condition_id", &TheoryElement::condition_id,
                                R"(Get the condition id of a theory element.)");
 
-    py::class_<TheoryAtom>(base, "TheoryAtom", R"(A view to inspect a theory atom.)")
+    make_hashable(py::class_<TheoryAtom>(base, "TheoryAtom", R"(A view to inspect a theory atom.)"))
         .def("__str__", &TheoryAtom::str, R"(Get a string representation of the atom.)")
         .def_property_readonly("name", &TheoryAtom::name, R"(Get the name of a theory atom.)")
         .def_property_readonly("elements", &TheoryAtom::elements, R"(Get the elements of a theory atom.)")
@@ -427,48 +420,27 @@ Implements a map form symbols to terms.
                                R"(Get the literal of the theory atom (zero for directives).)")
         .def_property_readonly("guard", &TheoryAtom::guard, R"(Get optional guard of a theory atom.)");
 
-    py::class_<TheoryBase>(base, "TheoryBase", R"(
+    make_sequence(py::class_<TheoryBase>(base, "TheoryBase", R"(
 A base to inspect theory atoms.
 
 Implements a sequences over theory atoms.
-)"_d)
-        .def("__len__", &TheoryBase::size, "Get the number of theory atoms in the base.")
-        .def("__getitem__", &TheoryBase::at, R"(Get the atom with the given index.)")
-        .def(
-            "__iter__", [](TheoryBase &base) { return py::make_iterator(base.begin(), base.end()); },
-            "Get an iterable over the keys in the map.");
+)"_d));
 
-    py::class_<Base>(base, "Base", R"(
+    make_mapping(py::class_<Base>(base, "Base", R"(
 The base provides information about atoms and show term directives occuring in a program.
 
 It implements a map from signatures to atom bases.
-)")
-        .def("__len__", &Base::size, "Get the number of atom bases.")
+)"))
         .def("__getitem__", &Base::lookup_symbol, py::arg("symbol"), R"(Get the atom with the given symbol.)")
         .def("__getitem__", &Base::lookup_short, py::arg("signature"), R"(
 Get the atom base with the given (short) signature.
 
 This function provides a shortcut assuming the sign is false.
 )"_d)
-        .def("__getitem__", &Base::lookup, py::arg("signature"), R"(Get the atom base with the given signature.)")
-        .def("__contains__", &Base::contains, py::arg("signature"),
-             R"(Check if there is an atom base with the given signature.)")
         .def("__contains__", &Base::contains_short, py::arg("signature"),
              R"( Check if there is an atom base with the given (short) signature.)")
         .def("__contains__", &Base::contains_symbol, py::arg("symbol"),
              R"(Check if there is an atom with the given symbol.)")
-        .def(
-            "__iter__", [](Base &base) { return py::make_key_iterator(base.begin(), base.end()); },
-            "Get an iterator over the keys in the map.")
-        .def(
-            "items", [](Base &base) { return py::make_iterator(base.begin(), base.end()); },
-            R"(Get an iterator over the items in the map.)")
-        .def(
-            "values", [](Base &base) { return py::make_value_iterator(base.begin(), base.end()); },
-            R"(Get an iterator over the values in the map.)")
-        .def(
-            "keys", [](Base &base) { return py::make_key_iterator(base.begin(), base.end()); },
-            R"(Get get an iterator over the keys in the map.)")
         .def("is_external", &Base::is_external, py::arg("literal"), R"(
 Check whether the given program literal corresponds to an external.
 

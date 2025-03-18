@@ -8,6 +8,34 @@
 
 namespace Clingo::Python {
 
+namespace Detail {
+
+template <typename T>
+concept HasContains = requires(T const &t, T::value_type const &val) {
+    { t.contains(val) };
+};
+
+template <typename T>
+concept HasSlice = requires(T const &t, pybind11::slice const &slc) {
+    { t.slice(slc) };
+};
+
+template <typename Seq>
+concept IsSequence = requires(Seq c, size_t i) {
+    typename Seq::value_type;
+    { c.at(i) } -> std::same_as<typename Seq::value_type>;
+    { c.size() } -> std::integral;
+};
+
+template <typename Map>
+concept IsMapping =
+    IsSequence<Map> && requires(Map c, Map::key_type key, std::optional<typename Map::mapped_type> val) {
+        typename Map::key_type;
+        typename Map::mapped_type;
+        { c.contains(key) } -> std::same_as<bool>;
+        { c.get(key, val) } -> std::same_as<std::optional<typename Map::mapped_type>>;
+    };
+
 template <typename T> class ArrowProxy {
   public:
     constexpr ArrowProxy(T value) : value_(std::move(value)) {}
@@ -17,24 +45,19 @@ template <typename T> class ArrowProxy {
     T value_;
 };
 
-template <typename View>
-concept IsView = requires(View c, size_t i) {
-    typename View::value_type;
-    { c.at(i) } -> std::same_as<typename View::value_type>;
-};
+} // namespace Detail
 
-template <IsView View> class RandomAccessIterator {
+template <Detail::IsSequence Seq> class RandomAccessIterator {
   public:
     using iterator_category = std::random_access_iterator_tag;
-    using value_type = typename View::value_type;
+    using value_type = typename Seq::value_type;
     using difference_type = std::ptrdiff_t;
-    using pointer = ArrowProxy<value_type>;
+    using pointer = Detail::ArrowProxy<value_type>;
     using reference = value_type;
 
     // NOTE: Added to fullfil the sentinel_for concept; should not be used.
     constexpr RandomAccessIterator() : view_{throw std::logic_error("invalid iterator")}, index_{0} {}
-    constexpr RandomAccessIterator(View container, size_t index) noexcept
-        : view_{std::move(container)}, index_{index} {}
+    constexpr RandomAccessIterator(Seq container, size_t index) noexcept : view_{std::move(container)}, index_{index} {}
     constexpr auto operator*() const -> reference { return view_.at(index_); }
     constexpr auto operator->() const -> pointer { return view_.at(index_); }
     constexpr auto operator++() -> RandomAccessIterator & {
@@ -61,6 +84,9 @@ template <IsView View> class RandomAccessIterator {
     constexpr auto operator+(difference_type n) const -> RandomAccessIterator {
         return RandomAccessIterator(view_, index_ + n);
     }
+    friend constexpr auto operator+(difference_type n, RandomAccessIterator it) -> RandomAccessIterator {
+        return RandomAccessIterator(it.view_, it.index_ + n);
+    }
     constexpr auto operator-(difference_type n) const -> RandomAccessIterator {
         return RandomAccessIterator(view_, index_ - n);
     }
@@ -77,55 +103,67 @@ template <IsView View> class RandomAccessIterator {
     constexpr auto operator[](difference_type n) const -> reference { return view_.at(index_ + n); }
 
   private:
-    View view_;
+    Seq view_;
     size_t index_;
 };
 
-namespace MakeSequence {
-struct no_contains {};
-struct no_slice {};
-template <typename T, typename... Args> constexpr auto contains_tag() -> bool {
-    return (std::is_same_v<T, Args> || ...);
-}
-} // namespace MakeSequence
+namespace Detail {
 
-template <IsView T, typename... O, typename... Args>
-auto make_sequence(pybind11::class_<T, O...> cls, [[maybe_unused]] Args const &...args) -> pybind11::class_<T, O...> {
+template <IsSequence T> auto begin(T x) {
+    return RandomAccessIterator{std::move(x), 0};
+}
+
+template <IsSequence T> auto end(T x) {
+    auto n = x.size();
+    return RandomAccessIterator{std::move(x), n};
+}
+
+} // namespace Detail
+
+template <Detail::IsSequence T, typename... O>
+auto make_sequence(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
     cls.def("__len__", &T::size, R"(Get the size of the sequence.)")
         .def("__getitem__", &T::at, pybind11::arg("index"), R"(Get the value at the given index.)")
         .def(
-            "__iter__", [](T const &x) { return pybind11::make_iterator(x.begin(), x.end()); },
+            "__iter__", [](T const &seq) { return pybind11::make_iterator(Detail::begin(seq), Detail::end(seq)); },
             "Get an iterator for the sequence.")
         .def(
             "__reversed__",
-            [](T const &x) {
-                return pybind11::make_iterator(std::make_reverse_iterator(x.end()),
-                                               std::make_reverse_iterator(x.begin()));
+            [](T const &seq) {
+                return pybind11::make_iterator(std::make_reverse_iterator(Detail::end(seq)),
+                                               std::make_reverse_iterator(Detail::begin(seq)));
             },
             "Get a reverse iterator for the sequence.")
         .def(
             "index",
-            [](T const &x, T::value_type lit) {
-                auto it = std::ranges::find(x, lit);
-                return it != x.end() ? std::distance(x.begin(), it) : throw pybind11::value_error("Value not found");
+            [](T const &seq, T::value_type val) {
+                auto it = std::ranges::find(Detail::begin(seq), Detail::end(seq), val);
+                return it != Detail::end(seq) ? std::distance(Detail::begin(seq), it)
+                                              : throw pybind11::value_error("Value not found");
             },
             pybind11::arg("value"), "Get the index of the given value in the sequence.")
         .def(
-            "count", [](T const &x, T::value_type lit) { return std::count(x.begin(), x.end(), lit); },
+            "count",
+            [](T const &seq, T::value_type val) { return std::count(Detail::begin(seq), Detail::end(seq), val); },
             pybind11::arg("value"), "Count how often the given value occurs in the sequence.");
-    if constexpr (!MakeSequence::contains_tag<MakeSequence::no_contains, Args...>()) {
+    if constexpr (Detail::HasContains<T>) {
+        cls.def("__contains__", &T::contains, pybind11::arg("value"), "Get a reverse iterator for the sequence.");
+    } else {
         cls.def(
             "__contains__",
-            [](T const &x, T::value_type lit) { return std::ranges::find(x.begin(), x.end(), lit) != x.end(); },
+            [](T const &seq, T::value_type val) {
+                return std::ranges::find(Detail::begin(seq), Detail::end(seq), val) != Detail::end(seq);
+            },
             pybind11::arg("value"), "Get a reverse iterator for the sequence.");
     }
-    if constexpr (!MakeSequence::contains_tag<MakeSequence::no_slice, Args...>()) {
+    if constexpr (Detail::HasSlice<T>) {
         cls.def("__getitem__", &T::slice, pybind11::arg("slice"), "Slice the sequence.");
     }
     return cls;
 }
 
-template <IsView T, typename... O> auto make_mapping(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
+template <Detail::IsMapping T, typename... O>
+auto make_mapping(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
     cls.def("__len__", &T::size, "Get the number elements in the map.")
         .def("__contains__", &T::contains, pybind11::arg("key"), R"(Check if the map contains the given key.)")
         .def(
@@ -136,18 +174,18 @@ template <IsView T, typename... O> auto make_mapping(pybind11::class_<T, O...> c
             },
             pybind11::arg("key"), R"(Get the value for the given key.)")
         .def(
-            "__iter__", [](T const &map) { return pybind11::make_key_iterator(map.begin(), map.end()); },
+            "__iter__", [](T const &map) { return pybind11::make_key_iterator(Detail::begin(map), Detail::end(map)); },
             "Get an iterator over the keys in the map.")
         .def(
-            "items", [](T const &map) { return pybind11::make_iterator(map.begin(), map.end()); },
+            "items", [](T const &map) { return pybind11::make_iterator(Detail::begin(map), Detail::end(map)); },
             R"(Get an iterator over the items in the map.)")
         .def("get", &T::get, pybind11::arg("key"), pybind11::arg("default") = std::nullopt,
              R"(Get the value for the given key or the default if absent.)")
         .def(
-            "values", [](T const &map) { return pybind11::make_value_iterator(map.begin(), map.end()); },
+            "values", [](T const &map) { return pybind11::make_value_iterator(Detail::begin(map), Detail::end(map)); },
             R"(Get an iterator over the values in the map.)")
         .def(
-            "keys", [](T const &map) { return pybind11::make_key_iterator(map.begin(), map.end()); },
+            "keys", [](T const &map) { return pybind11::make_key_iterator(Detail::begin(map), Detail::end(map)); },
             R"(Get get an iterator over the keys in the map.)");
     return cls;
 }

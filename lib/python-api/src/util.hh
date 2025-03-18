@@ -222,4 +222,30 @@ template <std::ranges::range R, class F> auto transform_vec(R &&rng, F &&fun) {
 //! Get a thread locaol string builder.
 auto string_builder() -> clingo_string_builder_t *;
 
+template <class T> auto hash_value(T const &x) {
+    return std::hash<T>{}(x);
+}
+
+inline auto hash_combine(size_t a, size_t b) -> size_t {
+    // NOLINTBEGIN
+    auto p = std::make_pair(a, b);
+    return std::hash<std::string_view>{}(std::string_view(reinterpret_cast<char const *>(&p), sizeof(decltype(p))));
+    // NOLINTEND
+}
+
+template <class T, typename... O> auto make_hashable(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
+    cls.def("__hash__", &T::hash, "Compute a hash for the object.").def(py::self == py::self).def(py::self != py::self);
+    return cls;
+}
+
+template <class T, typename... O> auto make_comparable(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
+    cls.def(py::self == py::self)
+        .def(py::self != py::self)
+        .def(py::self < py::self)
+        .def(py::self <= py::self)
+        .def(py::self > py::self)
+        .def(py::self >= py::self);
+    return make_hashable(std::move(cls));
+}
+
 } // namespace Clingo::Python

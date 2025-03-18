@@ -18,6 +18,10 @@ class Atom {
     auto literal() -> clingo_literal_t;
     auto symbol() -> Symbol;
 
+    [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
+    friend auto operator==(Atom const &a, Atom const &b) -> bool { return a.index_ == b.index_; }
+    friend auto operator!=(Atom const &a, Atom const &b) -> bool = default;
+
   private:
     clingo_atom_base_t const *base_;
     size_t index_;
@@ -35,8 +39,6 @@ class AtomBase {
     [[nodiscard]] auto at(size_t index) const -> value_type;
     [[nodiscard]] auto contains(key_type const &symbol) const -> bool;
     [[nodiscard]] auto get(key_type const &symbol, std::optional<mapped_type> def) const -> std::optional<mapped_type>;
-    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
-    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_atom_base_t const *base_;
@@ -48,6 +50,10 @@ class Term {
 
     auto symbol() -> Symbol;
     auto condition() -> std::optional<std::span<clingo_literal_t const>>;
+
+    [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
+    friend auto operator==(Term const &a, Term const &b) -> bool { return a.index_ == b.index_; }
+    friend auto operator!=(Term const &a, Term const &b) -> bool = default;
 
   private:
     clingo_term_base_t const *base_;
@@ -65,9 +71,7 @@ class TermBase {
     [[nodiscard]] auto size() const -> size_t;
     [[nodiscard]] auto at(size_t index) const -> value_type;
     [[nodiscard]] auto contains(key_type const &symbol) const -> bool;
-    [[nodiscard]] auto lookup(key_type const &symbol) const -> mapped_type;
-    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
-    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
+    [[nodiscard]] auto get(key_type const &symbol, std::optional<mapped_type> def) const -> std::optional<mapped_type>;
 
   private:
     clingo_term_base_t const *base_;
@@ -85,6 +89,10 @@ class TheoryTerm {
     auto arguments() -> TheoryTermVec;
     auto str() -> char const *;
 
+    [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
+    friend auto operator==(TheoryTerm const &a, TheoryTerm const &b) -> bool { return a.index_ == b.index_; }
+    friend auto operator!=(TheoryTerm const &a, TheoryTerm const &b) -> bool = default;
+
   private:
     clingo_theory_base_t const *base_;
     size_t index_;
@@ -97,6 +105,10 @@ class TheoryElement {
     auto condition() -> LitSpan;
     auto condition_id() -> clingo_literal_t;
     auto str() -> char const *;
+
+    [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
+    friend auto operator==(TheoryElement const &a, TheoryElement const &b) -> bool { return a.index_ == b.index_; }
+    friend auto operator!=(TheoryElement const &a, TheoryElement const &b) -> bool = default;
 
   private:
     clingo_theory_base_t const *base_;
@@ -113,6 +125,10 @@ class TheoryAtom {
     auto guard() -> std::optional<std::pair<char const *, TheoryTerm>>;
     auto str() -> char const *;
 
+    [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
+    friend auto operator==(TheoryAtom const &a, TheoryAtom const &b) -> bool { return a.index_ == b.index_; }
+    friend auto operator!=(TheoryAtom const &a, TheoryAtom const &b) -> bool = default;
+
   private:
     clingo_theory_base_t const *base_;
     size_t index_;
@@ -125,8 +141,6 @@ class TheoryBase {
     TheoryBase(clingo_theory_base_t const &base) : base_{&base} {}
     [[nodiscard]] auto size() const -> size_t;
     [[nodiscard]] auto at(size_t index) const -> value_type;
-    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
-    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_theory_base_t const *base_;
@@ -150,13 +164,12 @@ class Base {
     [[nodiscard]] auto contains(key_type const &sig) const -> bool;
     [[nodiscard]] auto contains_short(std::pair<char const *, size_t> const &sig) const -> bool;
     [[nodiscard]] auto contains_symbol(Symbol const &sym) const -> bool;
+    [[nodiscard]] auto get(key_type const &sig, std::optional<mapped_type> def) const -> std::optional<mapped_type>;
     [[nodiscard]] auto lookup(key_type const &sig) const -> mapped_type;
     [[nodiscard]] auto lookup_short(std::pair<char const *, size_t> const &sig) const -> mapped_type;
     [[nodiscard]] auto lookup_symbol(Symbol const &sym) const -> Atom;
     [[nodiscard]] auto terms() const -> TermBase;
     [[nodiscard]] auto theory() const -> TheoryBase;
-    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
-    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_base_t const *base_;
