@@ -10,13 +10,13 @@
 
 namespace Clingo::Python {
 
-auto ConstMap::contains(key_type name) -> bool {
+auto ConstMap::contains(key_type name) const -> bool {
     bool found = false;
     handle_error(clingo_const_map_find(map_, name, nullptr, &found));
     return found;
 }
 
-auto ConstMap::get(key_type name, std::optional<Symbol> def) -> std::optional<mapped_type> {
+auto ConstMap::get(key_type name, std::optional<Symbol> def) const -> std::optional<mapped_type> {
     clingo_symbol_t sym = 0;
     bool found = false;
     handle_error(clingo_const_map_find(map_, name, &sym, &found));
@@ -26,20 +26,20 @@ auto ConstMap::get(key_type name, std::optional<Symbol> def) -> std::optional<ma
     return def;
 }
 
-auto ConstMap::at(size_t index) -> value_type {
+auto ConstMap::at(size_t index) const -> value_type {
     char const *name = nullptr;
     clingo_symbol_t sym = 0;
     handle_error(clingo_const_map_at(map_, index, &name, &sym));
     return {name, Symbol{sym, true}};
 }
 
-auto ConstMap::size() -> size_t {
+auto ConstMap::size() const -> size_t {
     size_t size = 0;
     handle_error(clingo_const_map_size(map_, &size));
     return size;
 }
 
-auto ConstMap::getitem(key_type name) -> mapped_type {
+auto ConstMap::getitem(key_type name) const -> mapped_type {
     auto ret = get(name, std::nullopt);
     if (ret) {
         return *std::move(ret);

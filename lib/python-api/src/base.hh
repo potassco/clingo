@@ -31,12 +31,12 @@ class AtomBase {
 
     AtomBase(clingo_atom_base_t const *base) : base_{base} {}
 
-    auto size() -> size_t;
-    auto at(size_t index) -> value_type;
-    auto contains(key_type const &symbol) -> bool;
-    auto lookup(key_type const &symbol) -> mapped_type;
-    [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }
-    [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
+    [[nodiscard]] auto size() const -> size_t;
+    [[nodiscard]] auto at(size_t index) const -> value_type;
+    [[nodiscard]] auto contains(key_type const &symbol) const -> bool;
+    [[nodiscard]] auto lookup(key_type const &symbol) const -> mapped_type;
+    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
+    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_atom_base_t const *base_;
@@ -62,12 +62,12 @@ class TermBase {
 
     TermBase(clingo_term_base_t const &base) : base_{&base} {}
 
-    auto size() -> size_t;
-    auto at(size_t index) -> value_type;
-    auto contains(key_type const &symbol) -> bool;
-    auto lookup(key_type const &symbol) -> mapped_type;
-    [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }
-    [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
+    [[nodiscard]] auto size() const -> size_t;
+    [[nodiscard]] auto at(size_t index) const -> value_type;
+    [[nodiscard]] auto contains(key_type const &symbol) const -> bool;
+    [[nodiscard]] auto lookup(key_type const &symbol) const -> mapped_type;
+    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
+    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_term_base_t const *base_;
@@ -123,10 +123,10 @@ class TheoryBase {
     using value_type = TheoryAtom;
 
     TheoryBase(clingo_theory_base_t const &base) : base_{&base} {}
-    auto size() -> size_t;
-    auto at(size_t index) -> value_type;
-    [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }
-    [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
+    [[nodiscard]] auto size() const -> size_t;
+    [[nodiscard]] auto at(size_t index) const -> value_type;
+    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
+    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_theory_base_t const *base_;
@@ -140,23 +140,23 @@ class Base {
 
     Base(clingo_base_t const *base) : base_{base} {}
 
-    auto is_external(clingo_literal_t lit) -> bool;
-    auto is_fact(clingo_literal_t lit) -> bool;
-    auto is_shown(clingo_literal_t lit) -> bool;
-    auto is_projected(clingo_literal_t lit) -> bool;
-    auto is_current(clingo_literal_t lit) -> bool;
-    auto size() -> size_t;
-    auto at(size_t index) -> value_type;
-    auto contains(key_type const &sig) -> bool;
-    auto contains_short(std::pair<char const *, size_t> const &sig) -> bool;
-    auto contains_symbol(Symbol const &sym) -> bool;
-    auto lookup(key_type const &sig) -> mapped_type;
-    auto lookup_short(std::pair<char const *, size_t> const &sig) -> mapped_type;
-    auto lookup_symbol(Symbol const &sym) -> Atom;
-    auto terms() -> TermBase;
-    auto theory() -> TheoryBase;
-    [[nodiscard]] auto begin() { return RandomAccessIterator{*this, 0}; }
-    [[nodiscard]] auto end() { return RandomAccessIterator{*this, size()}; }
+    [[nodiscard]] auto is_external(clingo_literal_t lit) const -> bool;
+    [[nodiscard]] auto is_fact(clingo_literal_t lit) const -> bool;
+    [[nodiscard]] auto is_shown(clingo_literal_t lit) const -> bool;
+    [[nodiscard]] auto is_projected(clingo_literal_t lit) const -> bool;
+    [[nodiscard]] auto is_current(clingo_literal_t lit) const -> bool;
+    [[nodiscard]] auto size() const -> size_t;
+    [[nodiscard]] auto at(size_t index) const -> value_type;
+    [[nodiscard]] auto contains(key_type const &sig) const -> bool;
+    [[nodiscard]] auto contains_short(std::pair<char const *, size_t> const &sig) const -> bool;
+    [[nodiscard]] auto contains_symbol(Symbol const &sym) const -> bool;
+    [[nodiscard]] auto lookup(key_type const &sig) const -> mapped_type;
+    [[nodiscard]] auto lookup_short(std::pair<char const *, size_t> const &sig) const -> mapped_type;
+    [[nodiscard]] auto lookup_symbol(Symbol const &sym) const -> Atom;
+    [[nodiscard]] auto terms() const -> TermBase;
+    [[nodiscard]] auto theory() const -> TheoryBase;
+    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
+    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_base_t const *base_;

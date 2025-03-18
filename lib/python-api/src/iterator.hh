@@ -1,7 +1,10 @@
 #pragma once
 
+#include <pybind11/pybind11.h>
+
 #include <concepts>
 #include <iterator>
+#include <stdexcept>
 
 namespace Clingo::Python {
 
@@ -28,10 +31,12 @@ template <IsView View> class RandomAccessIterator {
     using pointer = ArrowProxy<value_type>;
     using reference = value_type;
 
+    // NOTE: Added to fullfil the sentinel_for concept; should not be used.
+    constexpr RandomAccessIterator() : view_{throw std::logic_error("invalid iterator")}, index_{0} {}
     constexpr RandomAccessIterator(View container, size_t index) noexcept
         : view_{std::move(container)}, index_{index} {}
-    constexpr auto operator*() -> reference { return view_.at(index_); }
-    constexpr auto operator->() -> pointer { return &view_.at(index_); }
+    constexpr auto operator*() const -> reference { return view_.at(index_); }
+    constexpr auto operator->() const -> pointer { return view_.at(index_); }
     constexpr auto operator++() -> RandomAccessIterator & {
         ++index_;
         return *this;
@@ -49,6 +54,9 @@ template <IsView View> class RandomAccessIterator {
         auto tmp = *this;
         --index_;
         return tmp;
+    }
+    constexpr auto operator-(const RandomAccessIterator &other) const -> difference_type {
+        return static_cast<difference_type>(index_) - static_cast<difference_type>(other.index_);
     }
     constexpr auto operator+(difference_type n) const -> RandomAccessIterator {
         return RandomAccessIterator(view_, index_ + n);
@@ -72,5 +80,33 @@ template <IsView View> class RandomAccessIterator {
     View view_;
     size_t index_;
 };
+
+template <IsView T, typename... O> auto make_sequence(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
+    cls.def(
+           "__iter__", [](T &x) { return pybind11::make_iterator(x.begin(), x.end()); },
+           "Get an iterator for the sequence.")
+        .def(
+            "__contains__",
+            [](T &x, T::value_type lit) { return std::ranges::find(x.begin(), x.end(), lit) != x.end(); },
+            pybind11::arg("value"), "Get a reverse iterator for the sequence.")
+        .def(
+            "__reversed__",
+            [](T &x) {
+                return pybind11::make_iterator(std::make_reverse_iterator(x.end()),
+                                               std::make_reverse_iterator(x.begin()));
+            },
+            "Get a reverse iterator for the sequence.")
+        .def(
+            "index",
+            [](T &x, T::value_type lit) {
+                auto it = std::ranges::find(x, lit);
+                return it != x.end() ? std::distance(x.begin(), it) : throw pybind11::value_error("Value not found");
+            },
+            pybind11::arg("value"), "Get the index of the given value in the sequence.")
+        .def(
+            "count", [](T &x, T::value_type lit) { return std::count(x.begin(), x.end(), lit); },
+            pybind11::arg("value"), "Count how often the given value occurs in the sequence.");
+    return cls;
+}
 
 } // namespace Clingo::Python

@@ -1,5 +1,6 @@
 #include <clingo/propagate.h>
 
+#include <algorithm>
 #include <utility>
 
 #include "base.hh"
@@ -19,19 +20,23 @@ auto to_rng(uint32_t size, py::slice const &slc) {
 
 class TrailView {
   public:
+    using value_type = clingo_literal_t;
+
     TrailView(clingo_assignment_t const *assignment, py::object rng) : assignment_{assignment}, rng_{std::move(rng)} {}
 
-    auto slice(py::slice const &slc) -> Sequence<clingo_literal_t> {
+    [[nodiscard]] auto slice(py::slice const &slc) const -> Sequence<clingo_literal_t> {
         return py::cast(TrailView{assignment_, rng_[slc]});
     }
 
-    auto at(uint32_t index) -> clingo_literal_t {
+    [[nodiscard]] auto at(uint32_t index) const -> clingo_literal_t {
         clingo_literal_t lit = 0;
         auto offset = rng_[py::int_{index}].cast<uint32_t>();
         handle_error(clingo_assignment_trail_at(assignment_, offset, &lit));
         return lit;
     }
-    auto size() -> uint32_t { return py::len(rng_); }
+    [[nodiscard]] auto size() const -> uint32_t { return py::len(rng_); }
+    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
+    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_assignment_t const *assignment_;
@@ -40,37 +45,44 @@ class TrailView {
 
 class Trail {
   public:
+    using value_type = clingo_literal_t;
+
     Trail(clingo_assignment_t const *assignment) : assignment_{assignment} {}
 
-    auto slice(py::slice const &slc) -> Sequence<clingo_literal_t> {
+    [[nodiscard]] auto slice(py::slice const &slc) const -> Sequence<clingo_literal_t> {
         return py::cast(TrailView{assignment_, to_rng(size(), slc)});
     }
 
-    auto at(uint32_t index) -> clingo_literal_t {
+    [[nodiscard]] auto at(uint32_t index) const -> clingo_literal_t {
         clingo_literal_t lit = 0;
         handle_error(clingo_assignment_trail_at(assignment_, index, &lit));
         return lit;
     }
 
-    auto size() -> uint32_t {
+    [[nodiscard]] auto size() const -> uint32_t {
         uint32_t size = 0;
         handle_error(clingo_assignment_trail_size(assignment_, &size));
         return size;
     }
 
-    auto begin(uint32_t level) -> uint32_t {
+    [[nodiscard]] auto begin_level(uint32_t level) const -> uint32_t {
         uint32_t offset = 0;
         handle_error(clingo_assignment_trail_begin(assignment_, level, &offset));
         return offset;
     }
 
-    auto end(uint32_t level) -> uint32_t {
+    [[nodiscard]] auto end_level(uint32_t level) const -> uint32_t {
         uint32_t offset = 0;
         handle_error(clingo_assignment_trail_end(assignment_, level, &offset));
         return offset;
     }
 
-    auto level(uint32_t level) -> Sequence<clingo_literal_t> { return slice(py::slice(begin(level), end(level), 1)); }
+    [[nodiscard]] auto level(uint32_t level) const -> Sequence<clingo_literal_t> {
+        return slice(py::slice(begin_level(level), end_level(level), 1));
+    }
+
+    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
+    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; }
 
   private:
     clingo_assignment_t const *assignment_;
@@ -491,11 +503,11 @@ SAT
 ```
 )"_d);
 
-    py::class_<TrailView>(propagate, "_TrailView", R"(
+    make_sequence(py::class_<TrailView>(propagate, "_TrailView", R"(
 Provides access to a subrange of literals in the solver's trail.
 
 Implements `Sequence[int]` to access the solver literals in the view.
-)"_d)
+)"_d))
         .def("__len__", &TrailView::size, R"(
 Get the number of literals in the view.
 )"_d)
@@ -506,7 +518,7 @@ Get the literal at the given index.
 Slice the view.
 )"_d);
 
-    py::class_<Trail>(propagate, "Trail", R"(
+    make_sequence(py::class_<Trail>(propagate, "Trail", R"(
 Provides access to literals in the solver's trail.
 
 The trail represents the sequence of literals assigned during the solving
@@ -519,7 +531,7 @@ learning mechanisms. The decision literal for each level is placed at the
 beginning of its respective sequence.
 
 Implements `Sequence[int]` to access the solver literals in the trail.
-)"_d)
+)"_d))
         .def("__len__", &Trail::size, R"(
 Get the number of literals in the trail.
 )"_d)
@@ -540,7 +552,7 @@ Args:
 Returns:
     A sequence of literals.
 )"_d)
-        .def("begin", &Trail::begin, py::arg("level"), R"(
+        .def("begin", &Trail::begin_level, py::arg("level"), R"(
 Get the index of the first literal on the given level.
 
 This also corresponds to the decision literal for that level.
@@ -550,7 +562,7 @@ Args:
 Returns:
     The index of the decision literal.
 )"_d)
-        .def("end", &Trail::end, py::arg("level"), R"(
+        .def("end", &Trail::end_level, py::arg("level"), R"(
 Get the index after the last literal on the given level.
 
 Args:

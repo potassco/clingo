@@ -23,24 +23,24 @@ auto Atom::symbol() -> Symbol {
 
 // AtomBase
 
-auto AtomBase::size() -> size_t {
+auto AtomBase::size() const -> size_t {
     size_t size = 0;
     handle_error(clingo_atom_base_size(base_, &size));
     return size;
 }
 
-auto AtomBase::at(size_t index) -> value_type {
+auto AtomBase::at(size_t index) const -> value_type {
     auto atom = Atom{base_, index};
     return index < size() ? value_type{atom.symbol(), atom} : throw py::index_error{"index out of range"};
 }
 
-auto AtomBase::lookup(key_type const &symbol) -> mapped_type {
+auto AtomBase::lookup(key_type const &symbol) const -> mapped_type {
     auto index = size_t{0};
     handle_error(clingo_atom_base_find(base_, *c_cast(&symbol), &index));
     return index < size() ? Atom{base_, index} : throw py::key_error{"key not found"};
 }
 
-auto AtomBase::contains(key_type const &symbol) -> bool {
+auto AtomBase::contains(key_type const &symbol) const -> bool {
     auto index = size_t{0};
     handle_error(clingo_atom_base_find(base_, *c_cast(&symbol), &index));
     return index < size();
@@ -66,24 +66,24 @@ auto Term::condition() -> std::optional<std::span<clingo_literal_t const>> {
 
 // TermBase
 
-auto TermBase::size() -> size_t {
+auto TermBase::size() const -> size_t {
     size_t size = 0;
     handle_error(clingo_term_base_size(base_, &size));
     return size;
 }
 
-auto TermBase::at(size_t index) -> value_type {
+auto TermBase::at(size_t index) const -> value_type {
     auto term = Term{*base_, index};
     return index < size() ? value_type{term.symbol(), term} : throw py::index_error{"index out of range"};
 }
 
-auto TermBase::contains(key_type const &symbol) -> bool {
+auto TermBase::contains(key_type const &symbol) const -> bool {
     auto index = size_t{0};
     handle_error(clingo_term_base_find(base_, *c_cast(&symbol), &index));
     return index < size();
 }
 
-auto TermBase::lookup(key_type const &symbol) -> mapped_type {
+auto TermBase::lookup(key_type const &symbol) const -> mapped_type {
     auto index = size_t{0};
     handle_error(clingo_term_base_find(base_, *c_cast(&symbol), &index));
     return index < size() ? Term{*base_, index} : throw py::key_error("key does not exist");
@@ -197,11 +197,11 @@ auto TheoryAtom::str() -> char const * {
 
 // TheoryBase
 
-auto TheoryBase::at(size_t index) -> value_type {
+auto TheoryBase::at(size_t index) const -> value_type {
     return index < size() ? TheoryAtom{*base_, index} : throw std::range_error{"atom index out of range"};
 }
 
-auto TheoryBase::size() -> size_t {
+auto TheoryBase::size() const -> size_t {
     auto size = size_t{0};
     handle_error(clingo_theory_base_size(base_, &size));
     return size;
@@ -209,43 +209,43 @@ auto TheoryBase::size() -> size_t {
 
 // Base
 
-auto Base::is_external(clingo_literal_t literal) -> bool {
+auto Base::is_external(clingo_literal_t literal) const -> bool {
     auto ext = false;
     handle_error(clingo_base_is_external(base_, literal, &ext));
     return ext;
 }
 
-auto Base::is_fact(clingo_literal_t literal) -> bool {
+auto Base::is_fact(clingo_literal_t literal) const -> bool {
     auto fact = false;
     handle_error(clingo_base_is_fact(base_, literal, &fact));
     return fact;
 }
 
-auto Base::is_shown(clingo_literal_t literal) -> bool {
+auto Base::is_shown(clingo_literal_t literal) const -> bool {
     auto shown = false;
     handle_error(clingo_base_is_shown(base_, literal, &shown));
     return shown;
 }
 
-auto Base::is_projected(clingo_literal_t literal) -> bool {
+auto Base::is_projected(clingo_literal_t literal) const -> bool {
     auto projected = false;
     handle_error(clingo_base_is_fact(base_, literal, &projected));
     return projected;
 }
 
-auto Base::is_current(clingo_literal_t literal) -> bool {
+auto Base::is_current(clingo_literal_t literal) const -> bool {
     auto current = false;
     handle_error(clingo_base_is_current(base_, literal, &current));
     return current;
 }
 
-auto Base::size() -> size_t {
+auto Base::size() const -> size_t {
     size_t size = 0;
     handle_error(clingo_base_atoms_size(base_, &size));
     return size;
 }
 
-auto Base::at(size_t index) -> value_type {
+auto Base::at(size_t index) const -> value_type {
     auto sig = clingo_signature_t{};
     clingo_atom_base_t const *atoms = nullptr;
     if (index < size()) {
@@ -255,11 +255,11 @@ auto Base::at(size_t index) -> value_type {
     throw py::index_error{"index out of range"};
 }
 
-auto Base::contains_short(std::pair<char const *, size_t> const &sig) -> bool {
+auto Base::contains_short(std::pair<char const *, size_t> const &sig) const -> bool {
     return contains({get<0>(sig), get<1>(sig), false});
 }
 
-auto Base::contains_symbol(Symbol const &sym) -> bool {
+auto Base::contains_symbol(Symbol const &sym) const -> bool {
     auto sig = sym.signature();
     if (sig && contains(*sig)) {
         auto base = lookup(*sig);
@@ -268,14 +268,14 @@ auto Base::contains_symbol(Symbol const &sym) -> bool {
     return false;
 }
 
-auto Base::contains(key_type const &sig) -> bool {
+auto Base::contains(key_type const &sig) const -> bool {
     auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
     auto found = false;
     handle_error(clingo_base_atoms_find(base_, &csig, nullptr, &found));
     return found;
 }
 
-auto Base::lookup(key_type const &sig) -> mapped_type {
+auto Base::lookup(key_type const &sig) const -> mapped_type {
     auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
     clingo_atom_base_t const *atoms = nullptr;
     auto found = false;
@@ -283,24 +283,24 @@ auto Base::lookup(key_type const &sig) -> mapped_type {
     return found ? AtomBase{atoms} : throw py::key_error("key does not exist");
 }
 
-auto Base::lookup_short(std::pair<char const *, size_t> const &sig) -> mapped_type {
+auto Base::lookup_short(std::pair<char const *, size_t> const &sig) const -> mapped_type {
     return lookup({get<0>(sig), get<1>(sig), false});
 }
 
-auto Base::lookup_symbol(Symbol const &sym) -> Atom {
+auto Base::lookup_symbol(Symbol const &sym) const -> Atom {
     if (auto sig = sym.signature(); sig) {
         return lookup(*sig).lookup(sym);
     }
     throw py::key_error("key does not exist");
 }
 
-auto Base::terms() -> TermBase {
+auto Base::terms() const -> TermBase {
     auto const *terms = static_cast<clingo_term_base_t const *>(nullptr);
     handle_error(clingo_base_terms(base_, &terms));
     return TermBase{*terms};
 }
 
-auto Base::theory() -> TheoryBase {
+auto Base::theory() const -> TheoryBase {
     auto const *base = static_cast<clingo_theory_base_t const *>(nullptr);
     handle_error(clingo_base_theory(base_, &base));
     return TheoryBase{*base};

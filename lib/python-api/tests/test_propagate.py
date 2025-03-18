@@ -22,48 +22,6 @@ from clingo import (
 from .util import _MCB, _check_sat, _p
 
 
-class TestPropagatorControl(Propagator):
-    """
-    Test functions in PropagateControl.
-    """
-
-    def __init__(self, case: TestCase):
-        self._case = case
-        self._lit_a = 0
-
-    def init(self, init: PropagateInit):
-        init.check_mode = PropagatorCheckMode.Off
-        self._case.assertEqual(init.check_mode, PropagatorCheckMode.Off)
-        self._case.assertEqual(init.number_of_threads, 1)
-        a = init.symbolic_atoms[Function("a")]
-        self._case.assertIsNotNone(a)
-        self._lit_a = init.solver_literal(cast(SymbolicAtom, a).literal)
-        init.add_watch(-self._lit_a)
-
-    def propagate(self, control: PropagateControl, changes):
-        ass = control.assignment
-        trail = ass.trail
-        lvl = ass.decision_level
-        self._case.assertIn(-self._lit_a, changes)
-        self._case.assertGreaterEqual(lvl, 1)
-        self._case.assertGreaterEqual(ass.level(self._lit_a), 1)
-        self._case.assertGreaterEqual(len(trail), 1)
-        self._case.assertGreaterEqual(len(list(trail)), 1)
-        self._case.assertEqual(trail[trail.begin(lvl)], -self._lit_a)
-        self._case.assertEqual(
-            list(trail[trail.begin(lvl) : trail.end(lvl)]), [-self._lit_a]
-        )
-        self._case.assertEqual(ass.decision(lvl), -self._lit_a)
-        self._case.assertEqual(control.thread_id, 0)
-        self._case.assertTrue(control.has_watch(-self._lit_a))
-        self._case.assertTrue(control.propagate())
-        self._case.assertFalse(control.add_clause([self._lit_a]))
-
-    def undo(self, thread_id, assignment, changes):
-        self._case.assertEqual(thread_id, 0)
-        self._case.assertIn(-self._lit_a, changes)
-
-
 class TestPropagatorMode(Propagator):
     """
     Test check/undo mode.
@@ -193,22 +151,6 @@ class TestSymbol(TestCase):
         self.mcb = None
         self.ctl = None
 
-    def test_propagator_control(self):
-        """
-        Test PropagateControl.
-        """
-        self.ctl.add("base", [], "{a}.")
-        self.ctl.ground([("base", [])])
-        self.ctl.register_propagator(TestPropagatorControl(self))
-        _check_sat(
-            self,
-            cast(
-                SolveResult,
-                self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False),
-            ),
-        )
-        self.assertEqual(self.mcb.models, _p(["a"]))
-
     def test_propagator_init(self):
         """
         Test PropagateInit and Assignment.
@@ -325,7 +267,13 @@ from typing import Optional, Sequence
 import pytest
 from clingo.control import Control
 from clingo.core import Library
-from clingo.propagate import PropagateControl, PropagateInit, Propagator
+from clingo.propagate import (
+    Assignment,
+    CheckMode,
+    PropagateControl,
+    PropagateInit,
+    Propagator,
+)
 from clingo.symbol import Function
 from util import MCB
 
@@ -400,6 +348,59 @@ class AIFFB(Propagator):
         propagate(self.slit_b, self.slit_a)
 
 
+class PropagatorControl(Propagator):
+    """
+    Test functions in PropagateControl.
+    """
+
+    _lit_a: int
+    _lib: Library
+
+    def __init__(self, lib: Library):
+        super().__init__()
+        self._lit_a = 0
+        self._lib = lib
+
+    def init(self, init: PropagateInit):
+        """
+        Test initialization.
+        """
+        init.check_mode = CheckMode.Off
+        assert init.check_mode == CheckMode.Off
+        assert init.number_of_threads == 1
+        a = init.base[Function(self._lib, "a")]
+        self._lit_a = init.solver_literal(a.literal)
+        init.add_watch(-self._lit_a)
+
+    def propagate(self, control: PropagateControl, changes: Sequence[int]):
+        """
+        Test propagation.
+        """
+        ass = control.assignment
+        trail = ass.trail
+        lvl = ass.decision_level
+        assert -self._lit_a in changes
+        assert lvl >= 1
+        assert ass.level(self._lit_a) >= 1
+        assert len(trail) >= 1
+        assert len(list(trail)) >= 1
+        assert trail[trail.begin(lvl)] == -self._lit_a
+        assert list(trail[trail.begin(lvl) : trail.end(lvl)]) == [-self._lit_a]
+        assert ass.decision(lvl) == -self._lit_a
+        assert control.thread_id == 0
+        assert control.has_watch(-self._lit_a)
+        assert control.propagate()
+        assert not control.add_clause([self._lit_a])
+
+    def undo(self, thread_id: int, assignment: Assignment, changes: Sequence[int]):
+        """
+        Test undo.
+        """
+        assert assignment
+        assert thread_id == 0
+        assert -self._lit_a in changes
+
+
 class TestPropagate:
     # pylint: disable=attribute-defined-outside-init
     """
@@ -437,6 +438,18 @@ class TestPropagate:
         """
         assert self._ctl is not None
         return self._ctl
+
+    def test_control(self):
+        """
+        Test basic propagate control functionality.
+        """
+        self.ctl.parse_string("{a}.")
+        self.ctl.ground()
+        self.ctl.register_propagator(PropagatorControl(self.lib))
+        mcb = MCB()
+        with self.ctl.solve(on_model=mcb) as hnd:
+            assert hnd.get().satisfiable
+        assert mcb.symbols == [["a"]]
 
     def test_aiffb(self):
         """

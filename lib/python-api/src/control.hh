@@ -25,13 +25,13 @@ class ConstMap {
     using value_type = std::pair<key_type, mapped_type>;
 
     ConstMap(clingo_const_map_t const *map) : map_{map} {}
-    auto contains(char const *name) -> bool;
-    auto getitem(char const *name) -> mapped_type;
-    auto get(char const *name, std::optional<mapped_type> def) -> std::optional<mapped_type>;
-    auto at(size_t index) -> value_type;
-    auto size() -> size_t;
-    auto begin() { return RandomAccessIterator{*this, 0}; }
-    auto end() { return RandomAccessIterator{*this, size()}; };
+    [[nodiscard]] auto contains(char const *name) const -> bool;
+    [[nodiscard]] auto getitem(char const *name) const -> mapped_type;
+    [[nodiscard]] auto get(char const *name, std::optional<mapped_type> def) const -> std::optional<mapped_type>;
+    [[nodiscard]] auto at(size_t index) const -> value_type;
+    [[nodiscard]] auto size() const -> size_t;
+    [[nodiscard]] auto begin() const { return RandomAccessIterator{*this, 0}; }
+    [[nodiscard]] auto end() const { return RandomAccessIterator{*this, size()}; };
 
   private:
     clingo_const_map_t const *map_;
