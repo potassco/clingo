@@ -22,30 +22,6 @@ from clingo import (
 from .util import _MCB, _check_sat, _p
 
 
-class TestPropagatorMode(Propagator):
-    """
-    Test check/undo mode.
-    """
-
-    def __init__(self, case: TestCase):
-        self._case = case
-        self.num_check = 0
-        self.num_undo = 0
-
-    def init(self, init: PropagateInit):
-        init.check_mode = PropagatorCheckMode.Fixpoint
-        init.undo_mode = PropagatorUndoMode.Always
-
-        self._case.assertEqual(init.check_mode, PropagatorCheckMode.Fixpoint)
-        self._case.assertEqual(init.undo_mode, PropagatorUndoMode.Always)
-
-    def check(self, control: PropagateControl):
-        self.num_check += 1
-
-    def undo(self, thread_id, assignment, changes):
-        self.num_undo += 1
-
-
 class TestPropagatorInit(Propagator):
     """
     Test functions in PropagateInit.
@@ -273,6 +249,7 @@ from clingo.propagate import (
     PropagateControl,
     PropagateInit,
     Propagator,
+    UndoMode,
 )
 from clingo.symbol import Function
 from util import MCB
@@ -405,6 +382,44 @@ class PropagatorControl(Propagator):
         assert -self._lit_a in changes
 
 
+class PropagatorMode(Propagator):
+    """
+    Test check/undo mode.
+    """
+
+    def __init__(self):
+        self.num_check = 0
+        self.num_undo = 0
+
+    def init(self, init: PropagateInit):
+        """
+        Test init.
+        """
+        init.check_mode = CheckMode.Fixpoint
+        init.undo_mode = UndoMode.Always
+
+        assert init.check_mode == CheckMode.Fixpoint
+        assert init.undo_mode == UndoMode.Always
+
+    def check(self, control: PropagateControl) -> None:
+        """
+        Test propagate.
+        """
+        assert control
+        self.num_check += 1
+
+    def undo(
+        self, thread_id: int, assignment: Assignment, changes: Sequence[int]
+    ) -> None:
+        """
+        Test undo.
+        """
+        assert thread_id == 0
+        assert assignment
+        assert changes
+        self.num_undo += 1
+
+
 class TestPropagate:
     # pylint: disable=attribute-defined-outside-init
     """
@@ -454,6 +469,19 @@ class TestPropagate:
         with self.ctl.solve(on_model=mcb) as hnd:
             assert hnd.get().satisfiable
         assert mcb.symbols == [["a"]]
+
+    def test_mode(self):
+        """
+        Test check and undo mode.
+        """
+        self.ctl.parse_string("{a; b}.")
+        self.ctl.ground()
+        tpm = PropagatorMode()
+        self.ctl.register_propagator(tpm)
+        with self.ctl.solve() as hnd:
+            assert hnd.get().satisfiable
+        assert tpm.num_check >= 3
+        assert tpm.num_undo + 1 >= tpm.num_check
 
     def test_aiffb(self):
         """

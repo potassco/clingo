@@ -12,15 +12,9 @@
 #include <type_traits>
 #include <variant>
 
-// NOLINTBEGIN(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
+namespace Clingo::Python {
 
-#define CLINGO_PY_TOTAL_ORDER                                                                                          \
-    .def(py::self == py::self)                                                                                         \
-        .def(py::self != py::self)                                                                                     \
-        .def(py::self < py::self)                                                                                      \
-        .def(py::self <= py::self)                                                                                     \
-        .def(py::self > py::self)                                                                                      \
-        .def(py::self >= py::self)
+namespace py = pybind11;
 
 namespace Detail {
 
@@ -43,6 +37,16 @@ auto compare(T const &t, std::variant<Ts...> const &v) {
 
 } // namespace Detail
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
+
+#define CLINGO_PY_TOTAL_ORDER                                                                                          \
+    .def(py::self == py::self)                                                                                         \
+        .def(py::self != py::self)                                                                                     \
+        .def(py::self < py::self)                                                                                      \
+        .def(py::self <= py::self)                                                                                     \
+        .def(py::self > py::self)                                                                                      \
+        .def(py::self >= py::self)
+
 #define CLINGO_PY_TOTAL_ORDER_O(S, T)                                                                                  \
     .def(py::self == py::self)                                                                                         \
         .def(py::self != py::self)                                                                                     \
@@ -57,25 +61,7 @@ auto compare(T const &t, std::variant<Ts...> const &v) {
         .def("__lt__", [](S const &a, T const &b) -> bool { return Detail::compare(a, b) < 0; })                       \
         .def("__gt__", [](S const &a, T const &b) -> bool { return Detail::compare(a, b) > 0; })
 
-#define CLINGO_CPP_TOTAL_ORDER(type, T)                                                                                \
-    [[maybe_unused]] type auto operator!=(T const &a, T const &b)->bool {                                              \
-        return !(a == b);                                                                                              \
-    }                                                                                                                  \
-    [[maybe_unused]] type auto operator<=(T const &a, T const &b)->bool {                                              \
-        return !(b < a);                                                                                               \
-    }                                                                                                                  \
-    [[maybe_unused]] type auto operator>(T const &a, T const &b)->bool {                                               \
-        return b < a;                                                                                                  \
-    }                                                                                                                  \
-    [[maybe_unused]] type auto operator>=(T const &a, T const &b)->bool {                                              \
-        return !(a < b);                                                                                               \
-    }
-
 // NOLINTEND(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
-
-namespace Clingo::Python {
-
-namespace py = pybind11;
 
 // NOLINTBEGIN
 template <unsigned N> struct FixedString {
