@@ -256,7 +256,7 @@ auto Base::at(size_t index) const -> value_type {
 }
 
 auto Base::contains_short(std::pair<char const *, size_t> const &sig) const -> bool {
-    return contains({get<0>(sig), get<1>(sig), false});
+    return contains({std::get<0>(sig), std::get<1>(sig), false});
 }
 
 auto Base::contains_symbol(Symbol const &sym) const -> bool {
