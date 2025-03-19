@@ -152,7 +152,7 @@ template <> struct type_caster<std::optional<Clingo::Python::PartSpan>> {
     using params_conv = make_caster<Clingo::Python::SymbolVec>;
     using type = std::optional<Clingo::Python::PartSpan>;
 
-    PYBIND11_TYPE_CASTER(type, _("Sequence[Tuple[str, Sequence[clingo.symbol.Symbol]]]"));
+    PYBIND11_TYPE_CASTER(type, _("Optional[Sequence[Tuple[str, Sequence[clingo.symbol.Symbol]]]]"));
 
     auto load(handle src, bool convert) -> bool {
         if (src.is_none()) {

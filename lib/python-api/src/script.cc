@@ -374,7 +374,7 @@ Args:
 Returns:
     Whether the function is callable.
 )")
-        .def("main", &Script::main, py::arg("lib"), py::arg("control"), py::arg("parts") = std::nullopt, R"(
+        .def("main", &Script::main, py::arg("lib"), py::arg("control"), py::arg("parts"), R"(
 Run the main function.
 
 Args:

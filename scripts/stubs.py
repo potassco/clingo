@@ -18,6 +18,22 @@ class Rewriter:
     def __init__(self):
         self.python = False
 
+    def simplify_comparisons(self, content: str) -> str:
+        """
+        Simplify comparison signatures.
+        """
+        for method in ["__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__"]:
+            overload_pattern = rf"(@typing\.overload\s+def\s+{method}.*?\.\.\.(?:\s*@typing\.overload\s+def\s+{method}.*?\.\.\.)*)"
+            simple_pattern = rf"def\s+{method}.*?\.\.\."
+
+            # replacement for both patterns
+            replacement = f"def {method}(self, arg0: typing.Any) -> bool: ..."
+
+            # apply both patterns
+            content = re.sub(overload_pattern, replacement, content, flags=re.DOTALL)
+            content = re.sub(simple_pattern, replacement, content, flags=re.DOTALL)
+        return content
+
     def extract_docstrings(self, code):
         """
         Extract and replace dostrings with a placeholder.
@@ -90,6 +106,7 @@ class Rewriter:
         """
         # extract class definitions
         content, docstrings = self.extract_docstrings(content)
+        content = self.simplify_comparisons(content)
         class_pattern = re.compile(r"(?m)^class\s[^:]+:\n(?:    .*\n)*")
         classes = class_pattern.findall(content)
         for class_def in classes:
@@ -165,7 +182,7 @@ class Rewriter:
             clingo_stubs = os.path.join(libpath, "clingo")
             args.extend(["--stub-extension=py"])
         else:
-            extension = ".ipy"
+            extension = ".pyi"
             libpath = sysconfig.get_path("purelib")
             clingo_stubs = os.path.join(libpath, "clingo-stubs")
             args.extend(["--root-suffix=-stubs"])
