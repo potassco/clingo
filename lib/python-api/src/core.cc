@@ -30,6 +30,7 @@ Library::operator clingo_lib_t *() const {
 
 void Library::logger_(clingo_message_t code, char const *message, void *log) noexcept {
     try {
+        auto gil = py::gil_scoped_acquire{};
         auto hnd = py::reinterpret_borrow<py::object>(static_cast<PyObject *>(log));
         hnd.cast<Logger>()(static_cast<clingo_message_e>(code), message);
     } catch (std::exception const &e) {
