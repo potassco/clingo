@@ -150,27 +150,22 @@ class Observer : public Potassco::AbstractProgram {
     void *data_;
 };
 
-extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observer_t const *observer, void *data)
-    -> clingo_result_t {
+extern "C" auto clingo_control_observe(clingo_control_t *control, bool preprocess, clingo_observer_t const *observer,
+                                       void *data) -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || observer == nullptr) {
             return clingo_result_invalid;
         }
         // NOLINTNEXTLINE
         auto &prg = const_cast<Clasp::Asp::LogicProgram &>(control->slv->clasp_program());
-        // TODO: should this alwasy be called here?
-        prg.endProgram();
+        if (preprocess) {
+            prg.endProgram();
+        }
 
         // NOLINTNEXTLINE
         auto const *base = reinterpret_cast<clingo_base_t const *>(control->slv);
         Observer obs{*base, *observer, data};
-        // TODO: is this always correct?
-        if (prg.startAtom() == 1) {
-            obs.initProgram(prg.isIncremental());
-        }
-        obs.beginStep();
-        prg.accept(obs);
-        obs.endStep();
+        prg.accept(obs, true);
     }
     CLINGO_CATCH;
 }

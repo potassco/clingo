@@ -24,7 +24,7 @@ class Observer {
     void heuristic(clingo_atom_t atom, clingo_heuristic_type_e type, int bias, unsigned priority, LitSpan condition);
     void edge(int node_u, int node_v, LitSpan condition);
 
-    void observe(clingo_control_t *ctl);
+    void observe(clingo_control_t *ctl, bool preprocess);
 
   private:
     template <class... Args> void no_op([[maybe_unused]] Args const &...args) {}

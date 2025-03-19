@@ -56,7 +56,7 @@ class Control {
     auto solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model,
                std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle;
     auto base() -> Base;
-    void observe(Observer &obs);
+    void observe(Observer &obs, bool preprocess);
     auto backend() -> BackendManager;
     auto config() -> Config;
     auto stats() -> py::dict;

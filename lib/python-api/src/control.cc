@@ -134,8 +134,8 @@ auto Control::base() -> Base {
     return {base};
 }
 
-void Control::observe(Observer &obs) {
-    obs.observe(ctl_.get());
+void Control::observe(Observer &obs, bool preprocess) {
+    obs.observe(ctl_.get(), preprocess);
 }
 
 auto Control::backend() -> BackendManager {
@@ -275,7 +275,7 @@ SAT
 ```
 )"_d);
 
-    make_mapping(py::class_<ConstMap>(control, "_ConstMap", R"(The map from constants defiend by #const directives.)"));
+    make_mapping(py::class_<ConstMap>(control, "_ConstMap", R"(The map from constants defined by #const directives.)"));
 
     py::enum_<clingo_mode_e>(control, "ControlMode", "Available control modes.")
         .value("Parse", clingo_mode_parse, R"(Parse only.)")
@@ -397,13 +397,14 @@ Args:
     parts:
         A sequence of part sequences to ground and solve.
 )"_d)
-        .def("observe", &Control::observe, py::arg("observer"), R"(
+        .def("observe", &Control::observe, py::arg("observer"), py::arg("preprocess") = true, R"(
 Inspect the ground program of the current step.
 
 Args:
     observer: The program observer to inspect the program.
+    preprocess: Whether the program should be preprocessed first (default: true).
 )"_d)
-        .def_property_readonly("buffer", &Control::buffer, R"(The content of the output bufer.)")
+        .def_property_readonly("buffer", &Control::buffer, R"(The content of the output buffer.)")
         .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)")
         .def_property_readonly("backend", &Control::backend, R"(Get a backend manager to extend the ground program.)")
         .def_property_readonly("config", &Control::config, R"(Get the solver config.)")
