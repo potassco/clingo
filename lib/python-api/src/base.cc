@@ -269,14 +269,14 @@ auto Base::contains_symbol(Symbol const &sym) const -> bool {
 }
 
 auto Base::contains(key_type const &sig) const -> bool {
-    auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
+    auto csig = clingo_signature_t{std::get<0>(sig), std::get<1>(sig), std::get<2>(sig)};
     auto found = false;
     handle_error(clingo_base_atoms_find(base_, &csig, nullptr, &found));
     return found;
 }
 
 auto Base::get(key_type const &sig, std::optional<mapped_type> def) const -> std::optional<mapped_type> {
-    auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
+    auto csig = clingo_signature_t{std::get<0>(sig), std::get<1>(sig), std::get<2>(sig)};
     clingo_atom_base_t const *atoms = nullptr;
     auto found = false;
     handle_error(clingo_base_atoms_find(base_, &csig, &atoms, &found));
@@ -284,7 +284,7 @@ auto Base::get(key_type const &sig, std::optional<mapped_type> def) const -> std
 }
 
 auto Base::lookup(key_type const &sig) const -> mapped_type {
-    auto csig = clingo_signature_t{get<0>(sig), get<1>(sig), get<2>(sig)};
+    auto csig = clingo_signature_t{std::get<0>(sig), std::get<1>(sig), std::get<2>(sig)};
     clingo_atom_base_t const *atoms = nullptr;
     auto found = false;
     handle_error(clingo_base_atoms_find(base_, &csig, &atoms, &found));
@@ -292,7 +292,7 @@ auto Base::lookup(key_type const &sig) const -> mapped_type {
 }
 
 auto Base::lookup_short(std::pair<char const *, size_t> const &sig) const -> mapped_type {
-    return lookup({get<0>(sig), get<1>(sig), false});
+    return lookup({std::get<0>(sig), std::get<1>(sig), false});
 }
 
 auto Base::lookup_symbol(Symbol const &sym) const -> Atom {
