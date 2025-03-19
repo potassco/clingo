@@ -196,7 +196,7 @@ class Rewriter:
                     with open(path, "w", encoding="utf8") as hnd:
                         hnd.write(content)
 
-        if self.python:
+        if not self.python:
             try:
                 for lib in glob("./build/debug/bin/python/clingo*.so"):
                     name = os.path.basename(lib)
