@@ -589,7 +589,7 @@ This can be used to auto-generate most of the binding.)doc");
 {%-       if loop.last %};{% endif -%}
 {%-     endfor %}
 {%    elif type.type == 'record' %}
-    py_{{ type_name }}
+    {{ type_name | comp }}(py_{{ type_name }})
         .def(py::init(&{{ c_type_name }}::construct), py::arg("lib")
         {%- for argument_name, argument in type.arguments.items() -%}
             , py::arg("{{ argument_name }}")
@@ -607,7 +607,6 @@ Args:
     {{ argument_name }}: {{ argument.doc | param_doc }}
 {%-     endfor %})doc")
         .def("__str__", &{{ c_type_name }}::to_string)
-        .def("__hash__", &{{ c_type_name }}::hash)
 {%-     for argument_name, argument in type.arguments.items() %}
         .def_property_readonly("{{argument_name}}", &{{ c_type_name }}::{{argument_name}}, R"doc({{ argument.doc }})doc")
 {%-     endfor %}
@@ -634,9 +633,7 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        {{ type_name | comp }};
+)doc");
 {%    endif %}
 {%- endfor %}
     py::class_<Scanner>(ast, "Scanner", R"doc( Scanner to parse statements.)doc")

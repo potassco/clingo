@@ -200,8 +200,8 @@ def make_comp(types):
 
     def comp(text):
         if text in unions:
-            return f"CLINGO_PY_TOTAL_ORDER_O({camel(text)}, {camel(unions[text])})"
-        return "CLINGO_PY_TOTAL_ORDER"
+            return f"make_comparable_base<{camel(unions[text])}>"
+        return "make_comparable"
 
     return comp
 

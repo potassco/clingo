@@ -6564,14 +6564,13 @@ term.)doc");
     py_comment_type.value("Line", CommentType::Line, R"doc(For line comments.)doc")
         .value("Block", CommentType::Block, R"doc(For block comments.)doc");
 
-    py_projection
+    make_comparable_base<TermOrProjection>(py_projection)
         .def(py::init(&Projection::construct), py::arg("lib"), py::arg("location"), R"doc(Construct a Projection object.
 
 Args:
     lib: The library object for storing symbols.
     location:     The location of the placeholder.)doc")
         .def("__str__", &Projection::to_string)
-        .def("__hash__", &Projection::hash)
         .def_property_readonly("location", &Projection::location, R"doc(The location of the placeholder.)doc")
         .def("visit", &Projection::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
@@ -6597,11 +6596,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(Projection, TermOrProjection);
+)doc");
 
-    py_term_variable
+    make_comparable_base<Term>(py_term_variable)
         .def(py::init(&TermVariable::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("anonymous") = false, R"doc(Construct a TermVariable object.
 
@@ -6613,7 +6610,6 @@ Args:
 
     Anonymous variables receive a unique name during preprocessing.)doc")
         .def("__str__", &TermVariable::to_string)
-        .def("__hash__", &TermVariable::hash)
         .def_property_readonly("location", &TermVariable::location, R"doc(The location of the variable.)doc")
         .def_property_readonly("name", &TermVariable::name, R"doc(The name of the variable.)doc")
         .def_property_readonly("anonymous", &TermVariable::anonymous, R"doc(Whether the variable is anonymous.
@@ -6642,11 +6638,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TermVariable, Term);
+)doc");
 
-    py_term_symbolic
+    make_comparable_base<Term>(py_term_symbolic)
         .def(py::init(&TermSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("symbol"),
              R"doc(Construct a TermSymbolic object.
 
@@ -6655,7 +6649,6 @@ Args:
     location:     The location of the symbol.
     symbol:     The symbol.)doc")
         .def("__str__", &TermSymbolic::to_string)
-        .def("__hash__", &TermSymbolic::hash)
         .def_property_readonly("location", &TermSymbolic::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("symbol", &TermSymbolic::symbol, R"doc(The symbol.)doc")
         .def("visit", &TermSymbolic::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -6682,11 +6675,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TermSymbolic, Term);
+)doc");
 
-    py_term_absolute
+    make_comparable_base<Term>(py_term_absolute)
         .def(py::init(&TermAbsolute::construct), py::arg("lib"), py::arg("location"), py::arg("pool"),
              R"doc(Construct a TermAbsolute object.
 
@@ -6698,7 +6689,6 @@ Args:
     If there is more than one argument in the pool, the term is
     unpooled during preprocessing.)doc")
         .def("__str__", &TermAbsolute::to_string)
-        .def("__hash__", &TermAbsolute::hash)
         .def_property_readonly("location", &TermAbsolute::location, R"doc(The location of the operation.)doc")
         .def_property_readonly("pool", &TermAbsolute::pool, R"doc(The argument pool.
 If there is more than one argument in the pool, the term is unpooled during preprocessing.)doc")
@@ -6726,11 +6716,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TermAbsolute, Term);
+)doc");
 
-    py_term_unary_operation
+    make_comparable_base<Term>(py_term_unary_operation)
         .def(py::init(&TermUnaryOperation::construct), py::arg("lib"), py::arg("location"), py::arg("operator_type"),
              py::arg("right"), R"doc(Construct a TermUnaryOperation object.
 
@@ -6740,7 +6728,6 @@ Args:
     operator_type:     The type of the operation.
     right:     The argument of the operation.)doc")
         .def("__str__", &TermUnaryOperation::to_string)
-        .def("__hash__", &TermUnaryOperation::hash)
         .def_property_readonly("location", &TermUnaryOperation::location, R"doc(The location of the operation.)doc")
         .def_property_readonly("operator_type", &TermUnaryOperation::operator_type,
                                R"doc(The type of the operation.)doc")
@@ -6769,11 +6756,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TermUnaryOperation, Term);
+)doc");
 
-    py_term_binary_operation
+    make_comparable_base<Term>(py_term_binary_operation)
         .def(py::init(&TermBinaryOperation::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
              py::arg("operator_type"), py::arg("right"), R"doc(Construct a TermBinaryOperation object.
 
@@ -6784,7 +6769,6 @@ Args:
     operator_type:     The type of the operation.
     right:     The right argument of the operation.)doc")
         .def("__str__", &TermBinaryOperation::to_string)
-        .def("__hash__", &TermBinaryOperation::hash)
         .def_property_readonly("location", &TermBinaryOperation::location, R"doc(The location of the operation.)doc")
         .def_property_readonly("left", &TermBinaryOperation::left, R"doc(The left argument of the operation.)doc")
         .def_property_readonly("operator_type", &TermBinaryOperation::operator_type,
@@ -6814,11 +6798,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TermBinaryOperation, Term);
+)doc");
 
-    py_term_tuple
+    make_comparable_base<Term>(py_term_tuple)
         .def(py::init(&TermTuple::construct), py::arg("lib"), py::arg("location"), py::arg("pool"),
              R"doc(Construct a TermTuple object.
 
@@ -6830,7 +6812,6 @@ Args:
     If there is more than one element in the pool, the term is
     unpooled during preprocessing.)doc")
         .def("__str__", &TermTuple::to_string)
-        .def("__hash__", &TermTuple::hash)
         .def_property_readonly("location", &TermTuple::location, R"doc(The location of the tuple.)doc")
         .def_property_readonly("pool", &TermTuple::pool, R"doc(The argument pool of the tuple.
 If there is more than one element in the pool, the term is unpooled during preprocessing.)doc")
@@ -6857,11 +6838,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TermTuple, Term);
+)doc");
 
-    py_term_function
+    make_comparable_base<Term>(py_term_function)
         .def(py::init(&TermFunction::construct), py::arg("lib"), py::arg("location"), py::arg("name"), py::arg("pool"),
              py::arg("external") = false, R"doc(Construct a TermFunction object.
 
@@ -6875,7 +6854,6 @@ Args:
     unpooled during preprocessing.
     external:     Whether the function is external.)doc")
         .def("__str__", &TermFunction::to_string)
-        .def("__hash__", &TermFunction::hash)
         .def_property_readonly("location", &TermFunction::location, R"doc(The location of the function.)doc")
         .def_property_readonly("name", &TermFunction::name, R"doc(The name of the function.)doc")
         .def_property_readonly("pool", &TermFunction::pool, R"doc(The argument pool of the function.
@@ -6905,11 +6883,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TermFunction, Term);
+)doc");
 
-    py_argument_tuple
+    make_comparable_base<TermOrArgumentTuple>(py_argument_tuple)
         .def(py::init(&ArgumentTuple::construct), py::arg("lib"), py::arg("arguments") = TermOrProjectionArray{},
              R"doc(Construct a ArgumentTuple object.
 
@@ -6917,7 +6893,6 @@ Args:
     lib: The library object for storing symbols.
     arguments:     The arguments of the tuple.)doc")
         .def("__str__", &ArgumentTuple::to_string)
-        .def("__hash__", &ArgumentTuple::hash)
         .def_property_readonly("arguments", &ArgumentTuple::arguments, R"doc(The arguments of the tuple.)doc")
         .def("visit", &ArgumentTuple::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
@@ -6943,11 +6918,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(ArgumentTuple, TermOrArgumentTuple);
+)doc");
 
-    py_left_guard
+    make_comparable(py_left_guard)
         .def(py::init(&LeftGuard::construct), py::arg("lib"), py::arg("term"), py::arg("relation"),
              R"doc(Construct a LeftGuard object.
 
@@ -6956,7 +6929,6 @@ Args:
     term:     The term of the guard.
     relation:     The relation of the guard.)doc")
         .def("__str__", &LeftGuard::to_string)
-        .def("__hash__", &LeftGuard::hash)
         .def_property_readonly("term", &LeftGuard::term, R"doc(The term of the guard.)doc")
         .def_property_readonly("relation", &LeftGuard::relation, R"doc(The relation of the guard.)doc")
         .def("visit", &LeftGuard::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -6982,11 +6954,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_right_guard
+    make_comparable(py_right_guard)
         .def(py::init(&RightGuard::construct), py::arg("lib"), py::arg("relation"), py::arg("term"),
              R"doc(Construct a RightGuard object.
 
@@ -6995,7 +6965,6 @@ Args:
     relation:     The relation of the guard.
     term:     The term of the guard.)doc")
         .def("__str__", &RightGuard::to_string)
-        .def("__hash__", &RightGuard::hash)
         .def_property_readonly("relation", &RightGuard::relation, R"doc(The relation of the guard.)doc")
         .def_property_readonly("term", &RightGuard::term, R"doc(The term of the guard.)doc")
         .def("visit", &RightGuard::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -7022,11 +6991,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_literal_boolean
+    make_comparable_base<Literal>(py_literal_boolean)
         .def(py::init(&LiteralBoolean::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("value"), R"doc(Construct a LiteralBoolean object.
 
@@ -7036,7 +7003,6 @@ Args:
     sign:     The sign of the literal.
     value:     The fixed value of the literal.)doc")
         .def("__str__", &LiteralBoolean::to_string)
-        .def("__hash__", &LiteralBoolean::hash)
         .def_property_readonly("location", &LiteralBoolean::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("sign", &LiteralBoolean::sign, R"doc(The sign of the literal.)doc")
         .def_property_readonly("value", &LiteralBoolean::value, R"doc(The fixed value of the literal.)doc")
@@ -7064,11 +7030,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(LiteralBoolean, Literal);
+)doc");
 
-    py_literal_comparison
+    make_comparable_base<Literal>(py_literal_comparison)
         .def(py::init(&LiteralComparison::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("left"), py::arg("right"), R"doc(Construct a LiteralComparison object.
 
@@ -7081,7 +7045,6 @@ Args:
 
     Note that the chain must have at least length one.)doc")
         .def("__str__", &LiteralComparison::to_string)
-        .def("__hash__", &LiteralComparison::hash)
         .def_property_readonly("location", &LiteralComparison::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("sign", &LiteralComparison::sign, R"doc(The sign of the literal.)doc")
         .def_property_readonly("left", &LiteralComparison::left, R"doc(The first term of the comparison.)doc")
@@ -7111,11 +7074,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(LiteralComparison, Literal);
+)doc");
 
-    py_literal_symbolic
+    make_comparable_base<Literal>(py_literal_symbolic)
         .def(py::init(&LiteralSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("atom"), R"doc(Construct a LiteralSymbolic object.
 
@@ -7125,7 +7086,6 @@ Args:
     sign:     The sign of the literal.
     atom:     The term representing the atom.)doc")
         .def("__str__", &LiteralSymbolic::to_string)
-        .def("__hash__", &LiteralSymbolic::hash)
         .def_property_readonly("location", &LiteralSymbolic::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("sign", &LiteralSymbolic::sign, R"doc(The sign of the literal.)doc")
         .def_property_readonly("atom", &LiteralSymbolic::atom, R"doc(The term representing the atom.)doc")
@@ -7153,11 +7113,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(LiteralSymbolic, Literal);
+)doc");
 
-    py_unparsed_element
+    make_comparable(py_unparsed_element)
         .def(py::init(&UnparsedElement::construct), py::arg("lib"), py::arg("operators"), py::arg("term"),
              R"doc(Construct a UnparsedElement object.
 
@@ -7166,7 +7124,6 @@ Args:
     operators:     The list of theory operators.
     term:     The theory term.)doc")
         .def("__str__", &UnparsedElement::to_string)
-        .def("__hash__", &UnparsedElement::hash)
         .def_property_readonly("operators", &UnparsedElement::operators, R"doc(The list of theory operators.)doc")
         .def_property_readonly("term", &UnparsedElement::term, R"doc(The theory term.)doc")
         .def("visit", &UnparsedElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -7193,11 +7150,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_theory_term_variable
+    make_comparable_base<TheoryTerm>(py_theory_term_variable)
         .def(py::init(&TheoryTermVariable::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("anonymous") = false, R"doc(Construct a TheoryTermVariable object.
 
@@ -7209,7 +7164,6 @@ Args:
 
     Anonymous variables receive a unique name during preprocessing.)doc")
         .def("__str__", &TheoryTermVariable::to_string)
-        .def("__hash__", &TheoryTermVariable::hash)
         .def_property_readonly("location", &TheoryTermVariable::location, R"doc(The location of the variable.)doc")
         .def_property_readonly("name", &TheoryTermVariable::name, R"doc(The name of the variable.)doc")
         .def_property_readonly("anonymous", &TheoryTermVariable::anonymous, R"doc(Whether the variable is anonymous.
@@ -7238,11 +7192,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TheoryTermVariable, TheoryTerm);
+)doc");
 
-    py_theory_term_symbolic
+    make_comparable_base<TheoryTerm>(py_theory_term_symbolic)
         .def(py::init(&TheoryTermSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("symbol"),
              R"doc(Construct a TheoryTermSymbolic object.
 
@@ -7251,7 +7203,6 @@ Args:
     location:     The location of the symbol.
     symbol:     The symbol.)doc")
         .def("__str__", &TheoryTermSymbolic::to_string)
-        .def("__hash__", &TheoryTermSymbolic::hash)
         .def_property_readonly("location", &TheoryTermSymbolic::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("symbol", &TheoryTermSymbolic::symbol, R"doc(The symbol.)doc")
         .def("visit", &TheoryTermSymbolic::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -7278,11 +7229,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TheoryTermSymbolic, TheoryTerm);
+)doc");
 
-    py_theory_term_tuple
+    make_comparable_base<TheoryTerm>(py_theory_term_tuple)
         .def(py::init(&TheoryTermTuple::construct), py::arg("lib"), py::arg("location"), py::arg("tuple_type"),
              py::arg("arguments"), R"doc(Construct a TheoryTermTuple object.
 
@@ -7292,7 +7241,6 @@ Args:
     tuple_type:     The type of the tuple.
     arguments:     The arguments of the tuple.)doc")
         .def("__str__", &TheoryTermTuple::to_string)
-        .def("__hash__", &TheoryTermTuple::hash)
         .def_property_readonly("location", &TheoryTermTuple::location, R"doc(The location of the tuple.)doc")
         .def_property_readonly("tuple_type", &TheoryTermTuple::tuple_type, R"doc(The type of the tuple.)doc")
         .def_property_readonly("arguments", &TheoryTermTuple::arguments, R"doc(The arguments of the tuple.)doc")
@@ -7320,11 +7268,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TheoryTermTuple, TheoryTerm);
+)doc");
 
-    py_theory_term_function
+    make_comparable_base<TheoryTerm>(py_theory_term_function)
         .def(py::init(&TheoryTermFunction::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("arguments"), R"doc(Construct a TheoryTermFunction object.
 
@@ -7334,7 +7280,6 @@ Args:
     name:     The name of the function.
     arguments:     The arguments of the function.)doc")
         .def("__str__", &TheoryTermFunction::to_string)
-        .def("__hash__", &TheoryTermFunction::hash)
         .def_property_readonly("location", &TheoryTermFunction::location, R"doc(The location of the function.)doc")
         .def_property_readonly("name", &TheoryTermFunction::name, R"doc(The name of the function.)doc")
         .def_property_readonly("arguments", &TheoryTermFunction::arguments, R"doc(The arguments of the function.)doc")
@@ -7362,11 +7307,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TheoryTermFunction, TheoryTerm);
+)doc");
 
-    py_theory_term_unparsed
+    make_comparable_base<TheoryTerm>(py_theory_term_unparsed)
         .def(py::init(&TheoryTermUnparsed::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
              R"doc(Construct a TheoryTermUnparsed object.
 
@@ -7375,7 +7318,6 @@ Args:
     location:     The location of the theory term.
     elements:     The unparsed theory elements.)doc")
         .def("__str__", &TheoryTermUnparsed::to_string)
-        .def("__hash__", &TheoryTermUnparsed::hash)
         .def_property_readonly("location", &TheoryTermUnparsed::location, R"doc(The location of the theory term.)doc")
         .def_property_readonly("elements", &TheoryTermUnparsed::elements, R"doc(The unparsed theory elements.)doc")
         .def("visit", &TheoryTermUnparsed::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -7402,11 +7344,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(TheoryTermUnparsed, TheoryTerm);
+)doc");
 
-    py_theory_right_guard
+    make_comparable(py_theory_right_guard)
         .def(py::init(&TheoryRightGuard::construct), py::arg("lib"), py::arg("theory_operator"), py::arg("term"),
              R"doc(Construct a TheoryRightGuard object.
 
@@ -7415,7 +7355,6 @@ Args:
     theory_operator:     The operator of the guard.
     term:     The theory term of the guard.)doc")
         .def("__str__", &TheoryRightGuard::to_string)
-        .def("__hash__", &TheoryRightGuard::hash)
         .def_property_readonly("theory_operator", &TheoryRightGuard::theory_operator,
                                R"doc(The operator of the guard.)doc")
         .def_property_readonly("term", &TheoryRightGuard::term, R"doc(The theory term of the guard.)doc")
@@ -7443,11 +7382,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_set_aggregate_element
+    make_comparable(py_set_aggregate_element)
         .def(py::init(&SetAggregateElement::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
              py::arg("condition"), R"doc(Construct a SetAggregateElement object.
 
@@ -7457,7 +7394,6 @@ Args:
     literal:     The literal of the element.
     condition:     The condition of the element.)doc")
         .def("__str__", &SetAggregateElement::to_string)
-        .def("__hash__", &SetAggregateElement::hash)
         .def_property_readonly("location", &SetAggregateElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("literal", &SetAggregateElement::literal, R"doc(The literal of the element.)doc")
         .def_property_readonly("condition", &SetAggregateElement::condition, R"doc(The condition of the element.)doc")
@@ -7485,11 +7421,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_body_aggregate_element
+    make_comparable(py_body_aggregate_element)
         .def(py::init(&BodyAggregateElement::construct), py::arg("lib"), py::arg("location"), py::arg("tuple"),
              py::arg("condition"), R"doc(Construct a BodyAggregateElement object.
 
@@ -7499,7 +7433,6 @@ Args:
     tuple:     The term tuple of the element.
     condition:     The condition of the element.)doc")
         .def("__str__", &BodyAggregateElement::to_string)
-        .def("__hash__", &BodyAggregateElement::hash)
         .def_property_readonly("location", &BodyAggregateElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("tuple", &BodyAggregateElement::tuple, R"doc(The term tuple of the element.)doc")
         .def_property_readonly("condition", &BodyAggregateElement::condition, R"doc(The condition of the element.)doc")
@@ -7527,11 +7460,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_theory_atom_element
+    make_comparable(py_theory_atom_element)
         .def(py::init(&TheoryAtomElement::construct), py::arg("lib"), py::arg("location"), py::arg("tuple"),
              py::arg("condition"), R"doc(Construct a TheoryAtomElement object.
 
@@ -7541,7 +7472,6 @@ Args:
     tuple:     The theory term tuple of the element.
     condition:     The condition of the element.)doc")
         .def("__str__", &TheoryAtomElement::to_string)
-        .def("__hash__", &TheoryAtomElement::hash)
         .def_property_readonly("location", &TheoryAtomElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("tuple", &TheoryAtomElement::tuple, R"doc(The theory term tuple of the element.)doc")
         .def_property_readonly("condition", &TheoryAtomElement::condition, R"doc(The condition of the element.)doc")
@@ -7569,11 +7499,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_body_simple_literal
+    make_comparable_base<BodyLiteral>(py_body_simple_literal)
         .def(py::init(&BodySimpleLiteral::construct), py::arg("lib"), py::arg("literal"),
              R"doc(Construct a BodySimpleLiteral object.
 
@@ -7581,7 +7509,6 @@ Args:
     lib: The library object for storing symbols.
     literal:     The literal.)doc")
         .def("__str__", &BodySimpleLiteral::to_string)
-        .def("__hash__", &BodySimpleLiteral::hash)
         .def_property_readonly("literal", &BodySimpleLiteral::literal, R"doc(The literal.)doc")
         .def("visit", &BodySimpleLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
@@ -7607,11 +7534,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(BodySimpleLiteral, BodyLiteral);
+)doc");
 
-    py_body_aggregate
+    make_comparable_base<BodyLiteral>(py_body_aggregate)
         .def(py::init(&BodyAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("sign"), py::arg("left"),
              py::arg("function"), py::arg("elements"), py::arg("right"), R"doc(Construct a BodyAggregate object.
 
@@ -7624,7 +7549,6 @@ Args:
     elements:     The aggregate elements.
     right:     The right guard of the aggregate.)doc")
         .def("__str__", &BodyAggregate::to_string)
-        .def("__hash__", &BodyAggregate::hash)
         .def_property_readonly("location", &BodyAggregate::location, R"doc(The location of the element.)doc")
         .def_property_readonly("sign", &BodyAggregate::sign, R"doc(The sign of the literal.)doc")
         .def_property_readonly("left", &BodyAggregate::left, R"doc(The left guard of the aggregate.)doc")
@@ -7655,11 +7579,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(BodyAggregate, BodyLiteral);
+)doc");
 
-    py_body_set_aggregate
+    make_comparable_base<BodyLiteral>(py_body_set_aggregate)
         .def(py::init(&BodySetAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("left"), py::arg("elements"), py::arg("right"), R"doc(Construct a BodySetAggregate object.
 
@@ -7671,7 +7593,6 @@ Args:
     elements:     The aggregate elements.
     right:     The right guard of the aggregate.)doc")
         .def("__str__", &BodySetAggregate::to_string)
-        .def("__hash__", &BodySetAggregate::hash)
         .def_property_readonly("location", &BodySetAggregate::location, R"doc(The location of the element.)doc")
         .def_property_readonly("sign", &BodySetAggregate::sign, R"doc(The sign of the literal.)doc")
         .def_property_readonly("left", &BodySetAggregate::left, R"doc(The left guard of the aggregate.)doc")
@@ -7701,11 +7622,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(BodySetAggregate, BodyLiteral);
+)doc");
 
-    py_body_theory_atom
+    make_comparable_base<BodyLiteral>(py_body_theory_atom)
         .def(py::init(&BodyTheoryAtom::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("name"), py::arg("elements"), py::arg("right"), R"doc(Construct a BodyTheoryAtom object.
 
@@ -7717,7 +7636,6 @@ Args:
     elements:     The aggregate elements.
     right:     The right guard of the theory atom.)doc")
         .def("__str__", &BodyTheoryAtom::to_string)
-        .def("__hash__", &BodyTheoryAtom::hash)
         .def_property_readonly("location", &BodyTheoryAtom::location, R"doc(The location of the element.)doc")
         .def_property_readonly("sign", &BodyTheoryAtom::sign, R"doc(The sign of the literal.)doc")
         .def_property_readonly("name", &BodyTheoryAtom::name, R"doc(The name of the theory atom.)doc")
@@ -7747,11 +7665,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(BodyTheoryAtom, BodyLiteral);
+)doc");
 
-    py_body_conditional_literal
+    make_comparable_base<BodyLiteral>(py_body_conditional_literal)
         .def(py::init(&BodyConditionalLiteral::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
              py::arg("condition"), R"doc(Construct a BodyConditionalLiteral object.
 
@@ -7761,7 +7677,6 @@ Args:
     literal:     The literal of the element.
     condition:     The condition of the element.)doc")
         .def("__str__", &BodyConditionalLiteral::to_string)
-        .def("__hash__", &BodyConditionalLiteral::hash)
         .def_property_readonly("location", &BodyConditionalLiteral::location, R"doc(The location of the element.)doc")
         .def_property_readonly("literal", &BodyConditionalLiteral::literal, R"doc(The literal of the element.)doc")
         .def_property_readonly("condition", &BodyConditionalLiteral::condition,
@@ -7790,11 +7705,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(BodyConditionalLiteral, BodyLiteral);
+)doc");
 
-    py_head_conditional_literal
+    make_comparable_base<DisjunctionElement>(py_head_conditional_literal)
         .def(py::init(&HeadConditionalLiteral::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
              py::arg("condition"), R"doc(Construct a HeadConditionalLiteral object.
 
@@ -7804,7 +7717,6 @@ Args:
     literal:     The literal of the element.
     condition:     The condition of the element.)doc")
         .def("__str__", &HeadConditionalLiteral::to_string)
-        .def("__hash__", &HeadConditionalLiteral::hash)
         .def_property_readonly("location", &HeadConditionalLiteral::location, R"doc(The location of the element.)doc")
         .def_property_readonly("literal", &HeadConditionalLiteral::literal, R"doc(The literal of the element.)doc")
         .def_property_readonly("condition", &HeadConditionalLiteral::condition,
@@ -7833,11 +7745,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(HeadConditionalLiteral, DisjunctionElement);
+)doc");
 
-    py_head_aggregate_element
+    make_comparable(py_head_aggregate_element)
         .def(py::init(&HeadAggregateElement::construct), py::arg("lib"), py::arg("location"), py::arg("tuple"),
              py::arg("literal"), py::arg("condition"), R"doc(Construct a HeadAggregateElement object.
 
@@ -7848,7 +7758,6 @@ Args:
     literal:     The literal of the element.
     condition:     The condition of the element.)doc")
         .def("__str__", &HeadAggregateElement::to_string)
-        .def("__hash__", &HeadAggregateElement::hash)
         .def_property_readonly("location", &HeadAggregateElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("tuple", &HeadAggregateElement::tuple, R"doc(The term tuple of the element.)doc")
         .def_property_readonly("literal", &HeadAggregateElement::literal, R"doc(The literal of the element.)doc")
@@ -7877,11 +7786,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_head_simple_literal
+    make_comparable_base<HeadLiteral>(py_head_simple_literal)
         .def(py::init(&HeadSimpleLiteral::construct), py::arg("lib"), py::arg("literal"),
              R"doc(Construct a HeadSimpleLiteral object.
 
@@ -7889,7 +7796,6 @@ Args:
     lib: The library object for storing symbols.
     literal:     The literal.)doc")
         .def("__str__", &HeadSimpleLiteral::to_string)
-        .def("__hash__", &HeadSimpleLiteral::hash)
         .def_property_readonly("literal", &HeadSimpleLiteral::literal, R"doc(The literal.)doc")
         .def("visit", &HeadSimpleLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
@@ -7915,11 +7821,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(HeadSimpleLiteral, HeadLiteral);
+)doc");
 
-    py_head_aggregate
+    make_comparable_base<HeadLiteral>(py_head_aggregate)
         .def(py::init(&HeadAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
              py::arg("function"), py::arg("elements"), py::arg("right"), R"doc(Construct a HeadAggregate object.
 
@@ -7931,7 +7835,6 @@ Args:
     elements:     The aggregate elements.
     right:     The right guard of the aggregate.)doc")
         .def("__str__", &HeadAggregate::to_string)
-        .def("__hash__", &HeadAggregate::hash)
         .def_property_readonly("location", &HeadAggregate::location, R"doc(The location of the element.)doc")
         .def_property_readonly("left", &HeadAggregate::left, R"doc(The left guard of the aggregate.)doc")
         .def_property_readonly("function", &HeadAggregate::function, R"doc(The aggregate function.)doc")
@@ -7961,11 +7864,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(HeadAggregate, HeadLiteral);
+)doc");
 
-    py_head_set_aggregate
+    make_comparable_base<HeadLiteral>(py_head_set_aggregate)
         .def(py::init(&HeadSetAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
              py::arg("elements"), py::arg("right"), R"doc(Construct a HeadSetAggregate object.
 
@@ -7976,7 +7877,6 @@ Args:
     elements:     The aggregate elements.
     right:     The right guard of the aggregate.)doc")
         .def("__str__", &HeadSetAggregate::to_string)
-        .def("__hash__", &HeadSetAggregate::hash)
         .def_property_readonly("location", &HeadSetAggregate::location, R"doc(The location of the element.)doc")
         .def_property_readonly("left", &HeadSetAggregate::left, R"doc(The left guard of the aggregate.)doc")
         .def_property_readonly("elements", &HeadSetAggregate::elements, R"doc(The aggregate elements.)doc")
@@ -8005,11 +7905,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(HeadSetAggregate, HeadLiteral);
+)doc");
 
-    py_head_theory_atom
+    make_comparable_base<HeadLiteral>(py_head_theory_atom)
         .def(py::init(&HeadTheoryAtom::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("elements"), py::arg("right"), R"doc(Construct a HeadTheoryAtom object.
 
@@ -8020,7 +7918,6 @@ Args:
     elements:     The aggregate elements.
     right:     The right guard of the theory atom.)doc")
         .def("__str__", &HeadTheoryAtom::to_string)
-        .def("__hash__", &HeadTheoryAtom::hash)
         .def_property_readonly("location", &HeadTheoryAtom::location, R"doc(The location of the element.)doc")
         .def_property_readonly("name", &HeadTheoryAtom::name, R"doc(The name of the theory atom.)doc")
         .def_property_readonly("elements", &HeadTheoryAtom::elements, R"doc(The aggregate elements.)doc")
@@ -8049,11 +7946,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(HeadTheoryAtom, HeadLiteral);
+)doc");
 
-    py_head_disjunction
+    make_comparable_base<HeadLiteral>(py_head_disjunction)
         .def(py::init(&HeadDisjunction::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
              R"doc(Construct a HeadDisjunction object.
 
@@ -8062,7 +7957,6 @@ Args:
     location:     The location of the element.
     elements:     The elements of the disjunction.)doc")
         .def("__str__", &HeadDisjunction::to_string)
-        .def("__hash__", &HeadDisjunction::hash)
         .def_property_readonly("location", &HeadDisjunction::location, R"doc(The location of the element.)doc")
         .def_property_readonly("elements", &HeadDisjunction::elements, R"doc(The elements of the disjunction.)doc")
         .def("visit", &HeadDisjunction::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -8089,11 +7983,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(HeadDisjunction, HeadLiteral);
+)doc");
 
-    py_theory_operator_definition
+    make_comparable(py_theory_operator_definition)
         .def(py::init(&TheoryOperatorDefinition::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("priority"), py::arg("operator_type"), R"doc(Construct a TheoryOperatorDefinition object.
 
@@ -8104,7 +7996,6 @@ Args:
     priority:     The priority of the operator.
     operator_type:     The type of the operator.)doc")
         .def("__str__", &TheoryOperatorDefinition::to_string)
-        .def("__hash__", &TheoryOperatorDefinition::hash)
         .def_property_readonly("location", &TheoryOperatorDefinition::location,
                                R"doc(The location of the definition.)doc")
         .def_property_readonly("name", &TheoryOperatorDefinition::name, R"doc(The name of the definition.)doc")
@@ -8136,11 +8027,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_theory_term_definition
+    make_comparable(py_theory_term_definition)
         .def(py::init(&TheoryTermDefinition::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("operators"), R"doc(Construct a TheoryTermDefinition object.
 
@@ -8150,7 +8039,6 @@ Args:
     name:     The name of the definition.
     operators:     The operator definitions to construct terms.)doc")
         .def("__str__", &TheoryTermDefinition::to_string)
-        .def("__hash__", &TheoryTermDefinition::hash)
         .def_property_readonly("location", &TheoryTermDefinition::location, R"doc(The location of the definition.)doc")
         .def_property_readonly("name", &TheoryTermDefinition::name, R"doc(The name of the definition.)doc")
         .def_property_readonly("operators", &TheoryTermDefinition::operators,
@@ -8179,11 +8067,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_theory_guard_definition
+    make_comparable(py_theory_guard_definition)
         .def(py::init(&TheoryGuardDefinition::construct), py::arg("lib"), py::arg("operators"), py::arg("term"),
              R"doc(Construct a TheoryGuardDefinition object.
 
@@ -8192,7 +8078,6 @@ Args:
     operators:     A list of operator definition names.
     term:     The name of a term definition.)doc")
         .def("__str__", &TheoryGuardDefinition::to_string)
-        .def("__hash__", &TheoryGuardDefinition::hash)
         .def_property_readonly("operators", &TheoryGuardDefinition::operators,
                                R"doc(A list of operator definition names.)doc")
         .def_property_readonly("term", &TheoryGuardDefinition::term, R"doc(The name of a term definition.)doc")
@@ -8220,11 +8105,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_theory_atom_definition
+    make_comparable(py_theory_atom_definition)
         .def(py::init(&TheoryAtomDefinition::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("arity"), py::arg("term"), py::arg("guard"), py::arg("atom_type"),
              R"doc(Construct a TheoryAtomDefinition object.
@@ -8238,7 +8121,6 @@ Args:
     guard:     An optional guard definition.
     atom_type:     The type of the atom definition.)doc")
         .def("__str__", &TheoryAtomDefinition::to_string)
-        .def("__hash__", &TheoryAtomDefinition::hash)
         .def_property_readonly("location", &TheoryAtomDefinition::location, R"doc(The location of the definition.)doc")
         .def_property_readonly("name", &TheoryAtomDefinition::name, R"doc(The name of the atom.)doc")
         .def_property_readonly("arity", &TheoryAtomDefinition::arity, R"doc(The arity of the atom.)doc")
@@ -8270,11 +8152,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_optimize_tuple
+    make_comparable(py_optimize_tuple)
         .def(py::init(&OptimizeTuple::construct), py::arg("lib"), py::arg("weight"), py::arg("priority"),
              py::arg("terms"), R"doc(Construct a OptimizeTuple object.
 
@@ -8284,7 +8164,6 @@ Args:
     priority:     An optional priority.
     terms:     The remaining terms in the tuple.)doc")
         .def("__str__", &OptimizeTuple::to_string)
-        .def("__hash__", &OptimizeTuple::hash)
         .def_property_readonly("weight", &OptimizeTuple::weight, R"doc(The weight of the tuple.)doc")
         .def_property_readonly("priority", &OptimizeTuple::priority, R"doc(An optional priority.)doc")
         .def_property_readonly("terms", &OptimizeTuple::terms, R"doc(The remaining terms in the tuple.)doc")
@@ -8312,11 +8191,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_optimize_element
+    make_comparable(py_optimize_element)
         .def(py::init(&OptimizeElement::construct), py::arg("lib"), py::arg("tuple"), py::arg("condition"),
              R"doc(Construct a OptimizeElement object.
 
@@ -8325,7 +8202,6 @@ Args:
     tuple:     The tuple of the element.
     condition:     The condition of the element.)doc")
         .def("__str__", &OptimizeElement::to_string)
-        .def("__hash__", &OptimizeElement::hash)
         .def_property_readonly("tuple", &OptimizeElement::tuple, R"doc(The tuple of the element.)doc")
         .def_property_readonly("condition", &OptimizeElement::condition, R"doc(The condition of the element.)doc")
         .def("visit", &OptimizeElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -8352,11 +8228,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_edge
+    make_comparable(py_edge)
         .def(py::init(&Edge::construct), py::arg("lib"), py::arg("u"), py::arg("v"), R"doc(Construct a Edge object.
 
 Args:
@@ -8364,7 +8238,6 @@ Args:
     u:     The start vertex.
     v:     The end vertex.)doc")
         .def("__str__", &Edge::to_string)
-        .def("__hash__", &Edge::hash)
         .def_property_readonly("u", &Edge::u, R"doc(The start vertex.)doc")
         .def_property_readonly("v", &Edge::v, R"doc(The end vertex.)doc")
         .def("visit", &Edge::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -8390,11 +8263,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER;
+)doc");
 
-    py_statement_rule
+    make_comparable_base<Statement>(py_statement_rule)
         .def(py::init(&StatementRule::construct), py::arg("lib"), py::arg("location"), py::arg("head"), py::arg("body"),
              R"doc(Construct a StatementRule object.
 
@@ -8404,7 +8275,6 @@ Args:
     head:     The head literal.
     body:     The body of the statement.)doc")
         .def("__str__", &StatementRule::to_string)
-        .def("__hash__", &StatementRule::hash)
         .def_property_readonly("location", &StatementRule::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("head", &StatementRule::head, R"doc(The head literal.)doc")
         .def_property_readonly("body", &StatementRule::body, R"doc(The body of the statement.)doc")
@@ -8432,11 +8302,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementRule, Statement);
+)doc");
 
-    py_statement_theory
+    make_comparable_base<Statement>(py_statement_theory)
         .def(py::init(&StatementTheory::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("terms"), py::arg("atoms"), R"doc(Construct a StatementTheory object.
 
@@ -8447,7 +8315,6 @@ Args:
     terms:     A list of term definitions.
     atoms:     A list of atom definitions.)doc")
         .def("__str__", &StatementTheory::to_string)
-        .def("__hash__", &StatementTheory::hash)
         .def_property_readonly("location", &StatementTheory::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementTheory::name, R"doc(The name of the theory.)doc")
         .def_property_readonly("terms", &StatementTheory::terms, R"doc(A list of term definitions.)doc")
@@ -8476,11 +8343,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementTheory, Statement);
+)doc");
 
-    py_statement_optimize
+    make_comparable_base<Statement>(py_statement_optimize)
         .def(py::init(&StatementOptimize::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
              py::arg("optimize_type"), R"doc(Construct a StatementOptimize object.
 
@@ -8490,7 +8355,6 @@ Args:
     elements:     The elements of the statement.
     optimize_type:     The type of the statement.)doc")
         .def("__str__", &StatementOptimize::to_string)
-        .def("__hash__", &StatementOptimize::hash)
         .def_property_readonly("location", &StatementOptimize::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("elements", &StatementOptimize::elements, R"doc(The elements of the statement.)doc")
         .def_property_readonly("optimize_type", &StatementOptimize::optimize_type,
@@ -8519,11 +8383,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementOptimize, Statement);
+)doc");
 
-    py_statement_weak_constraint
+    make_comparable_base<Statement>(py_statement_weak_constraint)
         .def(py::init(&StatementWeakConstraint::construct), py::arg("lib"), py::arg("location"), py::arg("body"),
              py::arg("tuple"), R"doc(Construct a StatementWeakConstraint object.
 
@@ -8533,7 +8395,6 @@ Args:
     body:     The body of the statement.
     tuple:     The tuple of the statement.)doc")
         .def("__str__", &StatementWeakConstraint::to_string)
-        .def("__hash__", &StatementWeakConstraint::hash)
         .def_property_readonly("location", &StatementWeakConstraint::location,
                                R"doc(The location of the statement.)doc")
         .def_property_readonly("body", &StatementWeakConstraint::body, R"doc(The body of the statement.)doc")
@@ -8562,11 +8423,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementWeakConstraint, Statement);
+)doc");
 
-    py_statement_show
+    make_comparable_base<Statement>(py_statement_show)
         .def(py::init(&StatementShow::construct), py::arg("lib"), py::arg("location"), py::arg("term"), py::arg("body"),
              R"doc(Construct a StatementShow object.
 
@@ -8576,7 +8435,6 @@ Args:
     term:     The term to show.
     body:     The body of the statement.)doc")
         .def("__str__", &StatementShow::to_string)
-        .def("__hash__", &StatementShow::hash)
         .def_property_readonly("location", &StatementShow::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("term", &StatementShow::term, R"doc(The term to show.)doc")
         .def_property_readonly("body", &StatementShow::body, R"doc(The body of the statement.)doc")
@@ -8604,11 +8462,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementShow, Statement);
+)doc");
 
-    py_statement_show_nothing
+    make_comparable_base<Statement>(py_statement_show_nothing)
         .def(py::init(&StatementShowNothing::construct), py::arg("lib"), py::arg("location"),
              R"doc(Construct a StatementShowNothing object.
 
@@ -8616,7 +8472,6 @@ Args:
     lib: The library object for storing symbols.
     location:     The location of the statement.)doc")
         .def("__str__", &StatementShowNothing::to_string)
-        .def("__hash__", &StatementShowNothing::hash)
         .def_property_readonly("location", &StatementShowNothing::location, R"doc(The location of the statement.)doc")
         .def("visit", &StatementShowNothing::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
@@ -8642,11 +8497,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementShowNothing, Statement);
+)doc");
 
-    py_statement_show_signature
+    make_comparable_base<Statement>(py_statement_show_signature)
         .def(py::init(&StatementShowSignature::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("arity"), py::arg("sign") = false, R"doc(Construct a StatementShowSignature object.
 
@@ -8657,7 +8510,6 @@ Args:
     arity:     The arity of the atom to show.
     sign:     The classical sign of the atom.)doc")
         .def("__str__", &StatementShowSignature::to_string)
-        .def("__hash__", &StatementShowSignature::hash)
         .def_property_readonly("location", &StatementShowSignature::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementShowSignature::name, R"doc(The name of the atom to show.)doc")
         .def_property_readonly("arity", &StatementShowSignature::arity, R"doc(The arity of the atom to show.)doc")
@@ -8686,11 +8538,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementShowSignature, Statement);
+)doc");
 
-    py_statement_project
+    make_comparable_base<Statement>(py_statement_project)
         .def(py::init(&StatementProject::construct), py::arg("lib"), py::arg("location"), py::arg("atom"),
              py::arg("body"), R"doc(Construct a StatementProject object.
 
@@ -8700,7 +8550,6 @@ Args:
     atom:     The atom to project.
     body:     The body of the statement.)doc")
         .def("__str__", &StatementProject::to_string)
-        .def("__hash__", &StatementProject::hash)
         .def_property_readonly("location", &StatementProject::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("atom", &StatementProject::atom, R"doc(The atom to project.)doc")
         .def_property_readonly("body", &StatementProject::body, R"doc(The body of the statement.)doc")
@@ -8728,11 +8577,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementProject, Statement);
+)doc");
 
-    py_statement_project_signature
+    make_comparable_base<Statement>(py_statement_project_signature)
         .def(py::init(&StatementProjectSignature::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("arity"), py::arg("sign") = false, R"doc(Construct a StatementProjectSignature object.
 
@@ -8743,7 +8590,6 @@ Args:
     arity:     The arity of the atom to project.
     sign:     The classical sign of the atom.)doc")
         .def("__str__", &StatementProjectSignature::to_string)
-        .def("__hash__", &StatementProjectSignature::hash)
         .def_property_readonly("location", &StatementProjectSignature::location,
                                R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementProjectSignature::name, R"doc(The name of the atom to project.)doc")
@@ -8773,11 +8619,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementProjectSignature, Statement);
+)doc");
 
-    py_statement_defined
+    make_comparable_base<Statement>(py_statement_defined)
         .def(py::init(&StatementDefined::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("arity"), py::arg("sign") = false, R"doc(Construct a StatementDefined object.
 
@@ -8788,7 +8632,6 @@ Args:
     arity:     The arity of the atom to project.
     sign:     The classical sign of the atom.)doc")
         .def("__str__", &StatementDefined::to_string)
-        .def("__hash__", &StatementDefined::hash)
         .def_property_readonly("location", &StatementDefined::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementDefined::name, R"doc(The name of the atom to project.)doc")
         .def_property_readonly("arity", &StatementDefined::arity, R"doc(The arity of the atom to project.)doc")
@@ -8817,11 +8660,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementDefined, Statement);
+)doc");
 
-    py_statement_external
+    make_comparable_base<Statement>(py_statement_external)
         .def(py::init(&StatementExternal::construct), py::arg("lib"), py::arg("location"), py::arg("atom"),
              py::arg("body"), py::arg("external_type") = std::nullopt, R"doc(Construct a StatementExternal object.
 
@@ -8832,7 +8673,6 @@ Args:
     body:     The body of the statement.
     external_type:     The type of the external.)doc")
         .def("__str__", &StatementExternal::to_string)
-        .def("__hash__", &StatementExternal::hash)
         .def_property_readonly("location", &StatementExternal::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("atom", &StatementExternal::atom, R"doc(The atom to project.)doc")
         .def_property_readonly("body", &StatementExternal::body, R"doc(The body of the statement.)doc")
@@ -8861,11 +8701,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementExternal, Statement);
+)doc");
 
-    py_statement_edge
+    make_comparable_base<Statement>(py_statement_edge)
         .def(py::init(&StatementEdge::construct), py::arg("lib"), py::arg("location"), py::arg("pool"), py::arg("body"),
              R"doc(Construct a StatementEdge object.
 
@@ -8875,7 +8713,6 @@ Args:
     pool:     The edge pool of the statement.
     body:     The body of the statement.)doc")
         .def("__str__", &StatementEdge::to_string)
-        .def("__hash__", &StatementEdge::hash)
         .def_property_readonly("location", &StatementEdge::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("pool", &StatementEdge::pool, R"doc(The edge pool of the statement.)doc")
         .def_property_readonly("body", &StatementEdge::body, R"doc(The body of the statement.)doc")
@@ -8903,11 +8740,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementEdge, Statement);
+)doc");
 
-    py_statement_heuristic
+    make_comparable_base<Statement>(py_statement_heuristic)
         .def(py::init(&StatementHeuristic::construct), py::arg("lib"), py::arg("location"), py::arg("atom"),
              py::arg("body"), py::arg("weight"), py::arg("modifier"), py::arg("priority") = std::nullopt,
              R"doc(Construct a StatementHeuristic object.
@@ -8921,7 +8756,6 @@ Args:
     modifier:     The heuristic modifier.
     priority:     An optional priority.)doc")
         .def("__str__", &StatementHeuristic::to_string)
-        .def("__hash__", &StatementHeuristic::hash)
         .def_property_readonly("location", &StatementHeuristic::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("atom", &StatementHeuristic::atom, R"doc(The atom to heuristically modify.)doc")
         .def_property_readonly("body", &StatementHeuristic::body, R"doc(The body of the statement.)doc")
@@ -8953,11 +8787,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementHeuristic, Statement);
+)doc");
 
-    py_statement_script
+    make_comparable_base<Statement>(py_statement_script)
         .def(py::init(&StatementScript::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
              py::arg("script_type"), R"doc(Construct a StatementScript object.
 
@@ -8967,7 +8799,6 @@ Args:
     value:     The content of the script.
     script_type:     The type of the script.)doc")
         .def("__str__", &StatementScript::to_string)
-        .def("__hash__", &StatementScript::hash)
         .def_property_readonly("location", &StatementScript::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("value", &StatementScript::value, R"doc(The content of the script.)doc")
         .def_property_readonly("script_type", &StatementScript::script_type, R"doc(The type of the script.)doc")
@@ -8995,11 +8826,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementScript, Statement);
+)doc");
 
-    py_statement_include
+    make_comparable_base<Statement>(py_statement_include)
         .def(py::init(&StatementInclude::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
              py::arg("include_type"), R"doc(Construct a StatementInclude object.
 
@@ -9009,7 +8838,6 @@ Args:
     value:     The path of the statement.
     include_type:     The type of the include.)doc")
         .def("__str__", &StatementInclude::to_string)
-        .def("__hash__", &StatementInclude::hash)
         .def_property_readonly("location", &StatementInclude::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("value", &StatementInclude::value, R"doc(The path of the statement.)doc")
         .def_property_readonly("include_type", &StatementInclude::include_type, R"doc(The type of the include.)doc")
@@ -9037,11 +8865,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementInclude, Statement);
+)doc");
 
-    py_statement_program
+    make_comparable_base<Statement>(py_statement_program)
         .def(py::init(&StatementProgram::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("arguments"), R"doc(Construct a StatementProgram object.
 
@@ -9051,7 +8877,6 @@ Args:
     name:     The name of the program.
     arguments:     The arguments of the program.)doc")
         .def("__str__", &StatementProgram::to_string)
-        .def("__hash__", &StatementProgram::hash)
         .def_property_readonly("location", &StatementProgram::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementProgram::name, R"doc(The name of the program.)doc")
         .def_property_readonly("arguments", &StatementProgram::arguments, R"doc(The arguments of the program.)doc")
@@ -9079,11 +8904,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementProgram, Statement);
+)doc");
 
-    py_statement_const
+    make_comparable_base<Statement>(py_statement_const)
         .def(py::init(&StatementConst::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("value"), py::arg("const_type"), R"doc(Construct a StatementConst object.
 
@@ -9094,7 +8917,6 @@ Args:
     value:     The term of the statement.
     const_type:     The type of the statement.)doc")
         .def("__str__", &StatementConst::to_string)
-        .def("__hash__", &StatementConst::hash)
         .def_property_readonly("location", &StatementConst::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementConst::name, R"doc(The name of the statement.)doc")
         .def_property_readonly("value", &StatementConst::value, R"doc(The term of the statement.)doc")
@@ -9123,11 +8945,9 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementConst, Statement);
+)doc");
 
-    py_statement_comment
+    make_comparable_base<Statement>(py_statement_comment)
         .def(py::init(&StatementComment::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
              py::arg("comment_type"), R"doc(Construct a StatementComment object.
 
@@ -9137,7 +8957,6 @@ Args:
     value:     The value of the comment.
     comment_type:     The type of the comment.)doc")
         .def("__str__", &StatementComment::to_string)
-        .def("__hash__", &StatementComment::hash)
         .def_property_readonly("location", &StatementComment::location, R"doc(The location of the comment.)doc")
         .def_property_readonly("value", &StatementComment::value, R"doc(The value of the comment.)doc")
         .def_property_readonly("comment_type", &StatementComment::comment_type, R"doc(The type of the comment.)doc")
@@ -9165,9 +8984,7 @@ Args:
     lib: The library object for storing symbols.
 Returns:
     The updated object.
-)doc")
-        // generate comparison operators
-        CLINGO_PY_TOTAL_ORDER_O(StatementComment, Statement);
+)doc");
 
     py::class_<Scanner>(ast, "Scanner", R"doc( Scanner to parse statements.)doc")
         .def(py::init<Library &, char const *>(), py::arg("lib"), py::arg("program"),
