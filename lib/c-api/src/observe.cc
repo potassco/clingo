@@ -150,8 +150,8 @@ class Observer : public Potassco::AbstractProgram {
     void *data_;
 };
 
-extern "C" auto clingo_control_observe(clingo_control_t *control, bool preprocess, clingo_observer_t const *observer,
-                                       void *data) -> clingo_result_t {
+extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observer_t const *observer, void *data,
+                                       bool preprocess) -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || observer == nullptr) {
             return clingo_result_invalid;

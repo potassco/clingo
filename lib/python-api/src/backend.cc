@@ -142,7 +142,7 @@ void Observer::observe(clingo_control_t *ctl, bool preprocess) {
         },
     };
     auto data = UserData{std::exception_ptr{}, this};
-    handle_error(clingo_control_observe(ctl, preprocess, &g_obs, static_cast<void *>(&data)), data.first);
+    handle_error(clingo_control_observe(ctl, &g_obs, static_cast<void *>(&data), preprocess), data.first);
 }
 
 auto Backend::atom(std::optional<Symbol> symbol) -> clingo_atom_t {
