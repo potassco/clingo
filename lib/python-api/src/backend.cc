@@ -372,7 +372,7 @@ See also `Backend.assume`.
 Args:
     literals: Sequence of program literals to assume.
 )"_d)
-        .def("edge", &Observer::edge, py::arg("node_u"), py::arg("node_v"), py::arg("condtition"), R"(
+        .def("edge", &Observer::edge, py::arg("node_u"), py::arg("node_v"), py::arg("condition"), R"(
 Called for edge directives in the program.
 
 See also `Backend.edge`.
@@ -489,7 +489,7 @@ as false. These assumptions apply only to the next solve call.
 Args:
     literals: Sequence of program literals to assume.
 )"_d)
-        .def("edge", &Backend::edge, py::arg("node_u"), py::arg("node_v"), py::arg("condtition"), R"(
+        .def("edge", &Backend::edge, py::arg("node_u"), py::arg("node_v"), py::arg("condition"), R"(
 Add an edge directive.
 
 Adds an edge from node_u to node_v to the graph. The edge is subject to the
