@@ -140,9 +140,11 @@ typedef struct clingo_observer {
 //! @param[in] control the control object
 //! @param[in] observer the observer to use
 //! @param[in] data user data for the observer
+//! @param[in] preprocess whether to preprocess the program first
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_observe(clingo_control_t *control,
-                                                                 clingo_observer_t const *observer, void *data);
+                                                                 clingo_observer_t const *observer, void *data,
+                                                                 bool preprocess);
 
 //! @}
 

@@ -83,8 +83,8 @@ class ExampleObserver(Observer):
     def external(self, atom: int, type: ExternalType) -> None:
         self.externals.append((atom, type))
 
-    def edge(self, node_u: int, node_v: int, condtition: Sequence[int]) -> None:
-        self.edges.append((node_u, node_v, condtition))
+    def edge(self, node_u: int, node_v: int, condition: Sequence[int]) -> None:
+        self.edges.append((node_u, node_v, condition))
 
     def minimize(self, literals: Sequence[tuple[int, int]], priority: int) -> None:
         self.minimizes.append((literals, priority))
@@ -209,3 +209,31 @@ class TestObserve:
         assert m2[1] == 2
         assert m3[1] == 3
         assert len(obs.symbols) == 0
+
+    def test_observe_preprocessing(self):
+        self.ctl.parse_string("{a;c}. b :- a. :- a.")
+        self.ctl.ground()
+
+        obs = ExampleObserver()
+        self.ctl.observe(obs, preprocess=False)
+        assert obs.incremental
+        assert obs.begin_steps == obs.end_steps == 1
+        assert obs.symbols == ["a", "b", "c"]
+        assert len(obs.rules) == 3
+
+        obs = ExampleObserver()
+        self.ctl.observe(obs, preprocess=True)
+        assert obs.incremental
+        assert obs.begin_steps == obs.end_steps == 1
+        assert obs.symbols == ["a", "b", "c"]
+        assert len(obs.rules) == 1
+        assert obs.rules[0][0] == [2]
+        assert obs.rules[0][1] == []
+        assert obs.rules[0][2] == True
+
+        self.ctl.solve()
+        obs = ExampleObserver()
+        self.ctl.observe(obs)
+        assert obs.begin_steps == obs.end_steps == 1
+        assert obs.symbols == ["a", "b", "c"]
+        assert len(obs.rules) == 0

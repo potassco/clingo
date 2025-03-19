@@ -55,7 +55,7 @@ void Observer::edge(int node_u, int node_v, LitSpan condition) {
     PYBIND11_OVERRIDE_NAME(void, Observer, "edge", no_op, node_u, node_v, condition);
 }
 
-void Observer::observe(clingo_control_t *ctl) {
+void Observer::observe(clingo_control_t *ctl, bool preprocess) {
     using UserData = std::pair<std::exception_ptr, Observer *>;
     static constexpr auto g_obs = clingo_observer_t{
         [](bool incremental, void *data) -> clingo_result_t {
@@ -142,7 +142,7 @@ void Observer::observe(clingo_control_t *ctl) {
         },
     };
     auto data = UserData{std::exception_ptr{}, this};
-    handle_error(clingo_control_observe(ctl, &g_obs, static_cast<void *>(&data)), data.first);
+    handle_error(clingo_control_observe(ctl, &g_obs, static_cast<void *>(&data), preprocess), data.first);
 }
 
 auto Backend::atom(std::optional<Symbol> symbol) -> clingo_atom_t {
