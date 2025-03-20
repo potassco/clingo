@@ -47,6 +47,17 @@ pipx run build .
 
 ### Installation
 
+It is strongly recommended to install the package into a virtual environment to
+avoid potential conflicts with other packages or system-wide Python
+installations. To create and activate a virtual environment, you can use the
+following commands:
+
+```sh
+python -m venv .venv
+source .venv/bin/activate # Unix-based systems
+.venv/Scripts/activate    # Windows
+```
+
 After building, install the generated wheel file from the `dist` folder:
 
 ```sh
