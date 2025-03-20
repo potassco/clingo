@@ -15,12 +15,52 @@ from __future__ import annotations
 
 import typing
 
-__all__ = ["Library", "Location", "MessageType", "Position", "version"]
+__all__ = ["Library", "Location", "LogLevel", "MessageType", "Position", "version"]
 
 def version() -> tuple[int, int, int]:
     """
     Clingo's version as a tuple (major, minor, revision).
     """
+
+class LogLevel:
+    """
+    The available log levels.
+
+    Members:
+
+      Trace : Report trace messages (includes debug level).
+
+      Debug : Report debug messages (includes info level).
+
+      Info : Report info messages (includes warning level).
+
+      Warn : Report warning messages (includes error level).
+
+      Error : Report error messages.
+    """
+
+    Debug: typing.ClassVar[LogLevel]  # value = <LogLevel.Debug: 1>
+    Error: typing.ClassVar[LogLevel]  # value = <LogLevel.Error: 8>
+    Info: typing.ClassVar[LogLevel]  # value = <LogLevel.Info: 2>
+    Trace: typing.ClassVar[LogLevel]  # value = <LogLevel.Trace: 0>
+    Warn: typing.ClassVar[LogLevel]  # value = <LogLevel.Warn: 7>
+    __members__: typing.ClassVar[
+        dict[str, LogLevel]
+    ]  # value = {'Trace': <LogLevel.Trace: 0>, 'Debug': <LogLevel.Debug: 1>, 'Info': <LogLevel.Info: 2>, 'Warn': <LogLevel.Warn: 7>, 'Error': <LogLevel.Error: 8>}
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __getstate__(self) -> int: ...
+    def __hash__(self) -> int: ...
+    def __index__(self) -> int: ...
+    def __init__(self, value: int) -> None: ...
+    def __int__(self) -> int: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __repr__(self) -> str: ...
+    def __setstate__(self, state: int) -> None: ...
+    def __str__(self) -> str: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def value(self) -> int: ...
 
 class MessageType:
     """
@@ -106,6 +146,7 @@ class Library:
         self,
         shared: bool = True,
         slotted: bool = True,
+        log_level: LogLevel = LogLevel.Trace,
         logger: typing.Callable[[MessageType, str], None] | None = None,
         message_limit: int = 25,
     ) -> None:
@@ -118,6 +159,7 @@ class Library:
             shared: Indicates whether symbols should be created in a thread-safe
                 manner. Setting this to false might improve performance in
                 single-threaded applications.
+            log_level: The log level.
             logger: A logger to emit/intercept messages.
             message_limit: The maximum number of messages to emit.
         """

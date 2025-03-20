@@ -26,9 +26,13 @@ class Rewriter:
         """
         Format the given code.
         """
-        content = isort.code(content, profile="black")
-        mode = black.FileMode(is_pyi=not self.python)
-        return black.format_file_contents(content, fast=False, mode=mode)
+        try:
+            content = isort.code(content, profile="black")
+            mode = black.FileMode(is_pyi=not self.python)
+            return black.format_file_contents(content, fast=False, mode=mode)
+        except:
+            print(content)
+            sys.exit(1)
 
     def simplify_comparisons(self, content: str) -> str:
         """
@@ -119,7 +123,7 @@ class Rewriter:
         # extract class definitions
         content, docstrings = self.extract_docstrings(content)
         content = self.simplify_comparisons(content)
-        class_pattern = re.compile(r"(?m)^class\s[^:]+:\n(?:    .*\n)*")
+        class_pattern = re.compile(r"(?m)^class\s[^:]+:\n(?:\n|(?:    .*\n))*")
         classes = class_pattern.findall(content)
         for class_def in classes:
             content = content.replace(class_def, "")
@@ -203,6 +207,8 @@ class Rewriter:
             [
                 "--enum-class-locations",
                 "WeightConstraintType:clingo.propagate",
+                "--enum-class-locations",
+                "LogLevel:clingo.core",
                 "-o",
                 libpath,
                 "clingo",

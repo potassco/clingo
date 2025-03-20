@@ -30,7 +30,8 @@ static constexpr size_t default_message_limit = 25;
 
 class Library {
   public:
-    Library(bool shared, bool slotted, Annotation<std::optional<Logger>> cb, size_t default_message_limit);
+    Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
+            size_t default_message_limit);
     Library(clingo_lib_t *lib) : lib_{lib} {}
     void close() noexcept;
     auto add_object(py::object script) -> PyObject * {

@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     (void)argv;
 
     clingo_lib_t *lib GC(free_lib) = NULL;
-    handle_error(clingo_lib_new(0, NULL, NULL, 0, &lib));
+    handle_error(clingo_lib_new(0, clingo_log_level_info, NULL, NULL, 0, &lib));
 
     clingo_control_t *ctl GC(free_ctl) = NULL;
     handle_error(clingo_control_new(lib, NULL, 0, &ctl));

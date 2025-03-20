@@ -82,21 +82,22 @@ extern "C" auto clingo_message_string(clingo_message_t code) -> char const * {
     return "unknown message code";
 }
 
-extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger, void *logger_data,
-                               size_t message_limit, clingo_lib_t **lib) -> clingo_result_t {
+extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t level, clingo_logger_t logger, void *data,
+                               size_t limit, clingo_lib_t **lib) -> clingo_result_t {
     try {
         *lib = nullptr;
         Clingo::Logger::Printer prt = nullptr;
         if (logger != nullptr) {
-            prt = [logger, logger_data](Clingo::MessageCode code, char const *msg) {
-                logger(static_cast<clingo_message_t>(code), msg, logger_data);
+            prt = [logger, data](Clingo::MessageCode code, char const *msg) {
+                logger(static_cast<clingo_message_t>(code), msg, data);
             };
         }
-        *lib = std::make_unique<clingo_lib>(Clingo::Logger{prt, message_limit},
+        *lib = std::make_unique<clingo_lib>(Clingo::Logger{prt, limit},
                                             Clingo::make_symbol_store((flags & clingo_lib_flags_slotted) != 0,
                                                                       (flags & clingo_lib_flags_shared) != 0),
-                                            logger_data)
+                                            data)
                    .release();
+        (*lib)->log.set_level(static_cast<Clingo::LogLevel>(level));
     }
     CLINGO_CATCH;
 }

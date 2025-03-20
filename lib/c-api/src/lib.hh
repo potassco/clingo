@@ -7,7 +7,7 @@
 #include <clingo/core/logger.hh>
 #include <clingo/core/symbol.hh>
 
-#include <stdexcept>
+#include <stdexcept> // IWYU pragma: keep
 
 struct clingo_lib {
     clingo_lib(Clingo::Logger log, std::unique_ptr<Clingo::SymbolStore> store, void *data)
@@ -78,23 +78,7 @@ inline void handle_error(clingo_result_t code) {
     }
 }
 
-inline auto handle_error() -> clingo_result_t {
-    try {
-        throw;
-    } catch (std::bad_alloc const &) {
-        return clingo_result_bad_alloc;
-    } catch (std::range_error const &) {
-        return clingo_result_range;
-    } catch (std::invalid_argument const &) {
-        return clingo_result_invalid;
-    } catch (std::logic_error const &) {
-        return clingo_result_logic;
-    } catch (ClingoError const &e) {
-        return e.code();
-    } catch (...) {
-        return clingo_result_runtime;
-    }
-}
+auto handle_error() -> clingo_result_t;
 
 template <typename In, typename C, typename Pred> auto append_n(In begin, size_t n, C &out, Pred pred) {
     out.reserve(out.size() + n);

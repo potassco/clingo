@@ -5,7 +5,8 @@
 
 namespace Clingo::Python {
 
-Library::Library(bool shared, bool slotted, Annotation<std::optional<Logger>> cb, size_t default_message_limit) {
+Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
+                 size_t default_message_limit) {
     clingo_lib_flags_t flags = 0;
     if (shared) {
         flags |= clingo_lib_flags_shared;
@@ -16,7 +17,7 @@ Library::Library(bool shared, bool slotted, Annotation<std::optional<Logger>> cb
     auto logger = cb.cast<std::optional<Logger>>();
     auto *ptr = logger ? add_object(std::move(cb)) : nullptr;
     clingo_lib_t *lib = nullptr;
-    handle_error(clingo_lib_new(flags, ptr != nullptr ? &logger_ : nullptr, ptr, default_message_limit, &lib));
+    handle_error(clingo_lib_new(flags, level, ptr != nullptr ? &logger_ : nullptr, ptr, default_message_limit, &lib));
     lib_.reset(lib);
 }
 
@@ -247,6 +248,13 @@ Examples
 )"_d);
     core.def("version", &version, "Clingo's version as a tuple (major, minor, revision).");
 
+    py::enum_<clingo_log_level_e>(core, "LogLevel", "The available log levels.")
+        .value("Trace", clingo_log_level_trace, R"(Report trace messages (includes debug level).)")
+        .value("Debug", clingo_log_level_debug, R"(Report debug messages (includes info level).)")
+        .value("Info", clingo_log_level_info, R"(Report info messages (includes warning level).)")
+        .value("Warn", clingo_log_level_warn, R"(Report warning messages (includes error level).)")
+        .value("Error", clingo_log_level_error, R"(Report error messages.)");
+
     py::enum_<clingo_message_e>(core, "MessageType", "Message categories emitted by the logger.")
         .value("Trace", clingo_message_trace, R"(A trace message.)")
         .value("Debug", clingo_message_debug, R"(A debug message.)")
@@ -271,8 +279,9 @@ Destroying the library object frees the logger, the symbols, and the scripts.
 
 This class implements the ContextManager interface.
 )"_d)
-        .def(py::init<bool, bool, Annotation<std::optional<Logger>>, size_t>(), "Create a library object.",
-             py::arg("shared") = true, py::arg("slotted") = true, py::arg("logger") = std::nullopt,
+        .def(py::init<bool, bool, clingo_log_level_e, Annotation<std::optional<Logger>>, size_t>(),
+             "Create a library object.", py::arg("shared") = true, py::arg("slotted") = true,
+             py::arg("log_level") = clingo_log_level_trace, py::arg("logger") = std::nullopt,
              py::arg("message_limit") = default_message_limit,
              R"(
 Create a library object.
@@ -283,6 +292,7 @@ Args:
     shared: Indicates whether symbols should be created in a thread-safe
         manner. Setting this to false might improve performance in
         single-threaded applications.
+    log_level: The log level.
     logger: A logger to emit/intercept messages.
     message_limit: The maximum number of messages to emit.
 )"_d)

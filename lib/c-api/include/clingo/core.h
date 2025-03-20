@@ -86,13 +86,6 @@ typedef struct clingo_weighted_literal {
     clingo_weight_t weight;   //!< the weight
 } clingo_weighted_literal_t;
 
-//! Obtain the clingo version.
-//!
-//! @param[out] major major version number
-//! @param[out] minor minor version number
-//! @param[out] revision revision number
-CLINGO_VISIBILITY_DEFAULT void clingo_version(int *major, int *minor, int *revision);
-
 //! Enumeration of error codes.
 //!
 //! @note Errors can only be recovered from if explicitly mentioned; most
@@ -111,13 +104,12 @@ enum clingo_result_e {
 //! Corresponding type to ::clingo_result_e.
 typedef int clingo_result_t;
 
-//! Convert the given result code into a string.
+//! A logger for result codes other than success and unknown.
 //!
-//! The function returns string literals that do not have to be cleaned up.
-//!
-//! @param[in] code the result code
-//! @return the string representation
-CLINGO_VISIBILITY_DEFAULT char const *clingo_result_string(clingo_result_t code);
+//! @param[in] code associated code
+//! @param[in] message message
+//! @param[in] data user data for callback
+typedef void (*clingo_error_logger_t)(clingo_result_t code, char const *message, void *data);
 
 //! Enumeration of message codes.
 enum clingo_message_e {
@@ -134,13 +126,16 @@ enum clingo_message_e {
 //! Corresponding type to ::clingo_message_e.
 typedef int clingo_message_t;
 
-//! Convert the giving message code into a string.
-//!
-//! The function returns string literals that do not have to be cleaned up.
-//!
-//! @param[in] code the message code
-//! @return the string representation
-CLINGO_VISIBILITY_DEFAULT char const *clingo_message_string(clingo_message_t code);
+//! Enumeration of message codes.
+enum clingo_log_level_e {
+    clingo_log_level_trace = clingo_message_trace, //!< the trace level (most verbose)
+    clingo_log_level_debug = clingo_message_debug, //!< the debug level
+    clingo_log_level_info = clingo_message_info,   //!< the info level
+    clingo_log_level_warn = clingo_message_warn,   //!< the warning level
+    clingo_log_level_error = clingo_message_error, //!< the error level (least verbose)
+};
+//! Corresponding type to ::clingo_log_level_e.
+typedef int clingo_log_level_t;
 
 //! Callback to intercept messages.
 //!
@@ -162,6 +157,38 @@ enum clingo_lib_flags_e {
 //! Bitset of ::clingo_lib_flags_e.
 typedef uint32_t clingo_lib_flags_t;
 
+//! Obtain the clingo version.
+//!
+//! @param[out] major major version number
+//! @param[out] minor minor version number
+//! @param[out] revision revision number
+CLINGO_VISIBILITY_DEFAULT void clingo_version(int *major, int *minor, int *revision);
+
+//! Convert the given result code into a string.
+//!
+//! The function returns string literals that do not have to be cleaned up.
+//!
+//! @param[in] code the result code
+//! @return the string representation
+CLINGO_VISIBILITY_DEFAULT char const *clingo_result_string(clingo_result_t code);
+
+//! Convert the giving message code into a string.
+//!
+//! The function returns string literals that do not have to be cleaned up.
+//!
+//! @param[in] code the message code
+//! @return the string representation
+CLINGO_VISIBILITY_DEFAULT char const *clingo_message_string(clingo_message_t code);
+
+//! Set the global error logger.
+//!
+//! This logger is used to report error messages. Such message are usually
+//! related to wrong API usage and meant to help debug problems during
+//! development.
+//!
+//! The default logger simply prints message to stderr.
+CLINGO_VISIBILITY_DEFAULT void clingo_error_logger(clingo_error_logger_t logger, void *data);
+
 //! Create a library object.
 //!
 //! A library has to be freed using clingo_lib_free().
@@ -169,13 +196,15 @@ typedef uint32_t clingo_lib_flags_t;
 //! If the logger is NULL, the default logger printing messages to stderr is used.
 //!
 //! @param[in] flags construction flags
+//! @param[in] level the log level for the message logger
 //! @param[in] logger callback functions for warnings and info messages
-//! @param[in] logger_data user data for the logger callback
-//! @param[in] message_limit maximum number of times the logger callback is called
+//! @param[in] data user data for the logger callback
+//! @param[in] limit maximum number of times the logger callback is called
 //! @param[out] lib the resulting library object
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger,
-                                                         void *logger_data, size_t message_limit, clingo_lib_t **lib);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t level,
+                                                         clingo_logger_t logger, void *data, size_t limit,
+                                                         clingo_lib_t **lib);
 
 //! Report a message via the libraries logger.
 //!

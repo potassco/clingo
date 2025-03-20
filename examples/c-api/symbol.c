@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
         goto out;
     }
 
-    res = clingo_lib_new(0, NULL, NULL, message_limit, &lib);
+    res = clingo_lib_new(0, clingo_log_level_info, NULL, NULL, message_limit, &lib);
     if (res != clingo_result_success) {
         handle_result(res);
         goto out;

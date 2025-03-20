@@ -6,6 +6,7 @@ add_library(clingo
     "src/config.cc"
     "src/control.cc"
     "src/core.cc"
+    "src/lib.cc"
     "src/main.cc"
     "src/model.cc"
     "src/observe.cc"
