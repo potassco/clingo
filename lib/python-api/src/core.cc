@@ -28,9 +28,13 @@ auto handle_error(clingo_lib_t *lib) -> clingo_result_t {
         clingo_result_t code = clingo_result_runtime;
         auto const *msg = e.what();
         if (e.type().is(py::module::import("clingo").attr("_ClingoError"))) {
+            char const *end = std::next(msg, static_cast<ssize_t>(std::strlen(msg)));
+            char const *num = std::find_if(msg, end, [](char c) { return std::isdigit(c); });
             unsigned char res = 0;
-            std::from_chars(msg, std::next(msg, static_cast<ssize_t>(std::strlen(msg))), res, code_base);
-            code = res;
+            std::from_chars(num, end, res, code_base);
+            if (res != 0) {
+                code = res;
+            }
         } else {
             clingo_lib_report(lib, clingo_message_error, msg);
         }

@@ -1,4 +1,5 @@
 #include <clingo/app.h>
+#include <cstdio>
 
 #ifndef CLINGO_PYTHON_ENABLED
 #define CLINGO_PYTHON_ENABLED 0
