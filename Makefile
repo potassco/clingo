@@ -13,7 +13,7 @@ test: debug
 
 .venv:
 	python3 -m venv .venv
-	source .venv/bin/activate && pip install pynvim pyyaml jinja2 mypy pybind11-stubgen pdoc compdb
+	source .venv/bin/activate && pip install isort black pynvim pyyaml jinja2 mypy pybind11-stubgen pdoc compdb
 
 venv: .venv
 

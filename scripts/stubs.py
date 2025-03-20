@@ -9,6 +9,9 @@ import subprocess
 import sysconfig
 from glob import glob
 
+import black
+import isort
+
 
 class Rewriter:
     """
@@ -17,6 +20,13 @@ class Rewriter:
 
     def __init__(self):
         self.python = False
+
+    def format(self, content: str):
+        """
+        Format the given code.
+        """
+        content = isort.code(content, profile="black")
+        return black.format_file_contents(content, fast=False, mode=black.FileMode())
 
     def simplify_comparisons(self, content: str) -> str:
         """
@@ -207,9 +217,11 @@ class Rewriter:
                     path = os.path.join(root, file)
                     with open(path, "r", encoding="utf8") as hnd:
                         content = hnd.read()
-                        content = self.enums_to_top(content)
-                        if self.python:
-                            content = self.doc_enums(content)
+                    content = self.enums_to_top(content)
+                    if self.python:
+                        content = self.doc_enums(content)
+                    else:
+                        content = self.format(content)
                     with open(path, "w", encoding="utf8") as hnd:
                         hnd.write(content)
 
