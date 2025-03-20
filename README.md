@@ -2,6 +2,11 @@
 
 This readme is a stub subject to future improvement!
 
+## Resources
+
+- Online Demo: <https://rkaminsk.github.io/preprocessor/>
+- Python API Documentation: <https://rkaminsk.github.io/preprocessor/python-api/>
+
 ## Building the Application
 
 ### Requirements
