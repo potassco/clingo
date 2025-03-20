@@ -6,6 +6,7 @@ import argparse
 import os
 import re
 import subprocess
+import sys
 import sysconfig
 from glob import glob
 
@@ -26,7 +27,8 @@ class Rewriter:
         Format the given code.
         """
         content = isort.code(content, profile="black")
-        return black.format_file_contents(content, fast=False, mode=black.FileMode())
+        mode = black.FileMode(is_pyi=not self.python)
+        return black.format_file_contents(content, fast=False, mode=mode)
 
     def simplify_comparisons(self, content: str) -> str:
         """
@@ -213,6 +215,7 @@ class Rewriter:
         for root, dirs, files in os.walk(clingo_stubs):
             assert dirs is not None
             for file in files:
+                sys.stderr.write(f"processing {file}...\n")
                 if file.endswith(extension):
                     path = os.path.join(root, file)
                     with open(path, "r", encoding="utf8") as hnd:
@@ -222,6 +225,12 @@ class Rewriter:
                         content = self.doc_enums(content)
                     else:
                         content = self.format(content)
+                        gen_path = os.path.join("lib", "python-api", "stubs", file)
+                        with open(gen_path, "r", encoding="utf8") as hnd:
+                            gen_content = hnd.read()
+                        if content != gen_content:
+                            with open(gen_path, "w", encoding="utf8") as hnd:
+                                hnd.write(content)
                     with open(path, "w", encoding="utf8") as hnd:
                         hnd.write(content)
 

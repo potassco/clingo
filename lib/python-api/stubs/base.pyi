@@ -52,18 +52,61 @@ __all__ = [
     "TheoryTermType",
 ]
 
+class TheoryTermType:
+    """
+    Enumeration of theory term types.
+
+    Members:
+
+      Number : For numeric theory terms.
+
+      Symbol : For symbolic theory terms (simple strings).
+
+      Tuple : For tuple theory terms.
+
+      List : For list theory term.
+
+      Set : For set theory terms.
+
+      Function : For function theory terms.
+    """
+
+    Function: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Function: 3>
+    List: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.List: 1>
+    Number: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Number: 4>
+    Set: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Set: 2>
+    Symbol: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Symbol: 5>
+    Tuple: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Tuple: 0>
+    __members__: typing.ClassVar[
+        dict[str, TheoryTermType]
+    ]  # value = {'Number': <TheoryTermType.Number: 4>, 'Symbol': <TheoryTermType.Symbol: 5>, 'Tuple': <TheoryTermType.Tuple: 0>, 'List': <TheoryTermType.List: 1>, 'Set': <TheoryTermType.Set: 2>, 'Function': <TheoryTermType.Function: 3>}
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __getstate__(self) -> int: ...
+    def __hash__(self) -> int: ...
+    def __index__(self) -> int: ...
+    def __init__(self, value: int) -> None: ...
+    def __int__(self) -> int: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __repr__(self) -> str: ...
+    def __setstate__(self, state: int) -> None: ...
+    def __str__(self) -> str: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def value(self) -> int: ...
+
 class Atom:
     """
     A class providing information about symbolic atoms.
     """
 
-    def __eq__(self, arg0: Atom) -> bool: ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
         """
 
-    def __ne__(self, arg0: Atom) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
     @property
     def literal(self) -> int:
         """
@@ -271,13 +314,13 @@ class Term:
     A class providing information about terms.
     """
 
-    def __eq__(self, arg0: Term) -> bool: ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
         """
 
-    def __ne__(self, arg0: Term) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
     @property
     def condition(self) -> typing.Sequence[int] | None:
         """
@@ -346,13 +389,13 @@ class TheoryAtom:
     A view to inspect a theory atom.
     """
 
-    def __eq__(self, arg0: TheoryAtom) -> bool: ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
         """
 
-    def __ne__(self, arg0: TheoryAtom) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
     def __str__(self) -> str:
         """
         Get a string representation of the atom.
@@ -429,13 +472,13 @@ class TheoryElement:
     A view to inspect a theory element.
     """
 
-    def __eq__(self, arg0: TheoryElement) -> bool: ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
         """
 
-    def __ne__(self, arg0: TheoryElement) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
     def __str__(self) -> str:
         """
         Get a string representation of the element.
@@ -464,13 +507,13 @@ class TheoryTerm:
     A view to inspect a theory term.
     """
 
-    def __eq__(self, arg0: TheoryTerm) -> bool: ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
         """
 
-    def __ne__(self, arg0: TheoryTerm) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
     def __str__(self) -> str:
         """
         Get a string representation of the term.
@@ -499,46 +542,3 @@ class TheoryTerm:
         """
         Get the type of the theory term.
         """
-
-class TheoryTermType:
-    """
-    Enumeration of theory term types.
-
-    Members:
-
-      Number : For numeric theory terms.
-
-      Symbol : For symbolic theory terms (simple strings).
-
-      Tuple : For tuple theory terms.
-
-      List : For list theory term.
-
-      Set : For set theory terms.
-
-      Function : For function theory terms.
-    """
-
-    Function: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Function: 3>
-    List: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.List: 1>
-    Number: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Number: 4>
-    Set: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Set: 2>
-    Symbol: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Symbol: 5>
-    Tuple: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Tuple: 0>
-    __members__: typing.ClassVar[
-        dict[str, TheoryTermType]
-    ]  # value = {'Number': <TheoryTermType.Number: 4>, 'Symbol': <TheoryTermType.Symbol: 5>, 'Tuple': <TheoryTermType.Tuple: 0>, 'List': <TheoryTermType.List: 1>, 'Set': <TheoryTermType.Set: 2>, 'Function': <TheoryTermType.Function: 3>}
-    def __eq__(self, other: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, other: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...

@@ -17,6 +17,69 @@ import typing
 
 __all__ = ["Library", "Location", "MessageType", "Position", "version"]
 
+def version() -> tuple[int, int, int]:
+    """
+    Clingo's version as a tuple (major, minor, revision).
+    """
+
+class MessageType:
+    """
+    Message categories emitted by the logger.
+
+    Members:
+
+      Trace : A trace message.
+
+      Debug : A debug message.
+
+      Info : A generic info message.
+
+      OperationUndefined : An info message about an undefined operation.
+
+      AtomUndefined : An info message about an undefined atom.
+
+      FileIncluded : An info message about an already included file.
+
+      GlobalVariable : An info message about a global variable in the tuple of an aggregate.
+
+      Warn : A warning message.
+
+      Error : An error message.
+    """
+
+    AtomUndefined: typing.ClassVar[
+        MessageType
+    ]  # value = <MessageType.AtomUndefined: 4>
+    Debug: typing.ClassVar[MessageType]  # value = <MessageType.Debug: 1>
+    Error: typing.ClassVar[MessageType]  # value = <MessageType.Error: 8>
+    FileIncluded: typing.ClassVar[MessageType]  # value = <MessageType.FileIncluded: 5>
+    GlobalVariable: typing.ClassVar[
+        MessageType
+    ]  # value = <MessageType.GlobalVariable: 6>
+    Info: typing.ClassVar[MessageType]  # value = <MessageType.Info: 2>
+    OperationUndefined: typing.ClassVar[
+        MessageType
+    ]  # value = <MessageType.OperationUndefined: 3>
+    Trace: typing.ClassVar[MessageType]  # value = <MessageType.Trace: 0>
+    Warn: typing.ClassVar[MessageType]  # value = <MessageType.Warn: 7>
+    __members__: typing.ClassVar[
+        dict[str, MessageType]
+    ]  # value = {'Trace': <MessageType.Trace: 0>, 'Debug': <MessageType.Debug: 1>, 'Info': <MessageType.Info: 2>, 'OperationUndefined': <MessageType.OperationUndefined: 3>, 'AtomUndefined': <MessageType.AtomUndefined: 4>, 'FileIncluded': <MessageType.FileIncluded: 5>, 'GlobalVariable': <MessageType.GlobalVariable: 6>, 'Warn': <MessageType.Warn: 7>, 'Error': <MessageType.Error: 8>}
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __getstate__(self) -> int: ...
+    def __hash__(self) -> int: ...
+    def __index__(self) -> int: ...
+    def __init__(self, value: int) -> None: ...
+    def __int__(self) -> int: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __repr__(self) -> str: ...
+    def __setstate__(self, state: int) -> None: ...
+    def __str__(self) -> str: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def value(self) -> int: ...
+
 class Library:
     """
     Library objects are used to store the logger, symbols, strings, and scripts.
@@ -64,12 +127,9 @@ class Location:
     Location tracking object.
     """
 
-    @typing.overload
-    def __eq__(self, arg0: Location) -> bool: ...
-    @typing.overload
-    def __eq__(self, arg0: Location) -> bool: ...
-    def __ge__(self, arg0: Location) -> bool: ...
-    def __gt__(self, arg0: Location) -> bool: ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
@@ -84,12 +144,9 @@ class Location:
             end: The end of the location.
         """
 
-    def __le__(self, arg0: Location) -> bool: ...
-    def __lt__(self, arg0: Location) -> bool: ...
-    @typing.overload
-    def __ne__(self, arg0: Location) -> bool: ...
-    @typing.overload
-    def __ne__(self, arg0: Location) -> bool: ...
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
     def __repr__(self) -> str: ...
     def __str__(self) -> str: ...
     @property
@@ -104,75 +161,14 @@ class Location:
         The end of the location.
         """
 
-class MessageType:
-    """
-    Message categories emitted by the logger.
-
-    Members:
-
-      Trace : A trace message.
-
-      Debug : A debug message.
-
-      Info : A generic info message.
-
-      OperationUndefined : An info message about an undefined operation.
-
-      AtomUndefined : An info message about an undefined atom.
-
-      FileIncluded : An info message about an already included file.
-
-      GlobalVariable : An info message about a global variable in the tuple of an aggregate.
-
-      Warn : A warning message.
-
-      Error : An error message.
-    """
-
-    AtomUndefined: typing.ClassVar[
-        MessageType
-    ]  # value = <MessageType.AtomUndefined: 4>
-    Debug: typing.ClassVar[MessageType]  # value = <MessageType.Debug: 1>
-    Error: typing.ClassVar[MessageType]  # value = <MessageType.Error: 8>
-    FileIncluded: typing.ClassVar[MessageType]  # value = <MessageType.FileIncluded: 5>
-    GlobalVariable: typing.ClassVar[
-        MessageType
-    ]  # value = <MessageType.GlobalVariable: 6>
-    Info: typing.ClassVar[MessageType]  # value = <MessageType.Info: 2>
-    OperationUndefined: typing.ClassVar[
-        MessageType
-    ]  # value = <MessageType.OperationUndefined: 3>
-    Trace: typing.ClassVar[MessageType]  # value = <MessageType.Trace: 0>
-    Warn: typing.ClassVar[MessageType]  # value = <MessageType.Warn: 7>
-    __members__: typing.ClassVar[
-        dict[str, MessageType]
-    ]  # value = {'Trace': <MessageType.Trace: 0>, 'Debug': <MessageType.Debug: 1>, 'Info': <MessageType.Info: 2>, 'OperationUndefined': <MessageType.OperationUndefined: 3>, 'AtomUndefined': <MessageType.AtomUndefined: 4>, 'FileIncluded': <MessageType.FileIncluded: 5>, 'GlobalVariable': <MessageType.GlobalVariable: 6>, 'Warn': <MessageType.Warn: 7>, 'Error': <MessageType.Error: 8>}
-    def __eq__(self, other: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, other: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
-
 class Position:
     """
     Position object tracking locations in files.
     """
 
-    @typing.overload
-    def __eq__(self, arg0: Position) -> bool: ...
-    @typing.overload
-    def __eq__(self, arg0: Position) -> bool: ...
-    def __ge__(self, arg0: Position) -> bool: ...
-    def __gt__(self, arg0: Position) -> bool: ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
@@ -189,12 +185,9 @@ class Position:
             column: The column number of the postion.
         """
 
-    def __le__(self, arg0: Position) -> bool: ...
-    def __lt__(self, arg0: Position) -> bool: ...
-    @typing.overload
-    def __ne__(self, arg0: Position) -> bool: ...
-    @typing.overload
-    def __ne__(self, arg0: Position) -> bool: ...
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
     def __repr__(self) -> str: ...
     def __str__(self) -> str: ...
     @property
@@ -214,8 +207,3 @@ class Position:
         """
         The line number.
         """
-
-def version() -> tuple[int, int, int]:
-    """
-    Clingo's version as a tuple (major, minor, revision).
-    """

@@ -67,6 +67,26 @@ import clingo.symbol
 
 __all__ = ["Script", "enable_python", "register"]
 
+def enable_python(lib: clingo.core.Library) -> None:
+    """
+    Enable embedded python scripts.
+
+    Args:
+        lib:
+            The library to register the script with.
+    """
+
+def register(lib: clingo.core.Library, script: Script) -> None:
+    """
+    Registers a script language which can then be embedded into a logic program.
+
+    Args:
+        lib:
+            The library to register the script with.
+        script:
+            The script to register.
+    """
+
 class Script:
     """
     ABC for custom scripts.
@@ -124,7 +144,7 @@ class Script:
         control: clingo.control.Control,
         parts: typing.Sequence[
             typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]]
-        ] = None,
+        ],
     ) -> None:
         """
         Run the main function.
@@ -147,23 +167,3 @@ class Script:
         """
         Get the version of the script.
         """
-
-def enable_python(lib: clingo.core.Library) -> None:
-    """
-    Enable embedded python scripts.
-
-    Args:
-        lib:
-            The library to register the script with.
-    """
-
-def register(lib: clingo.core.Library, script: Script) -> None:
-    """
-    Registers a script language which can then be embedded into a logic program.
-
-    Args:
-        lib:
-            The library to register the script with.
-        script:
-            The script to register.
-    """

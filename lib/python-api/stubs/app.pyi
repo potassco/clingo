@@ -72,6 +72,28 @@ import clingo.symbol
 
 __all__ = ["App", "AppOptions", "Flag", "clingo_main"]
 
+def clingo_main(
+    lib: clingo.core.Library, arguments: typing.Sequence[str], app: App | None = None
+) -> int:
+    """
+    Entry point for running the Clingo application.
+
+    This function initializes necessary components, processes input arguments, and
+    then executes the main functionality of the Clingo application. It can
+    optionally use a provided App instance to customize this behavior.
+
+    Args:
+        lib:
+                The Clingo core library interface.
+        arguments:
+                A list of command-line arguments.
+        app:
+                An optional App instance containing application-specific logic.
+
+        Returns:
+            An integer exit code.
+    """
+
 class App:
     """
     Interface to implement a custom Clingo-based application.
@@ -236,25 +258,3 @@ class Flag:
 
     @value.setter
     def value(self, arg0: bool) -> None: ...
-
-def clingo_main(
-    lib: clingo.core.Library, arguments: typing.Sequence[str], app: App | None = None
-) -> int:
-    """
-    Entry point for running the Clingo application.
-
-    This function initializes necessary components, processes input arguments, and
-    then executes the main functionality of the Clingo application. It can
-    optionally use a provided App instance to customize this behavior.
-
-    Args:
-        lib:
-                The Clingo core library interface.
-        arguments:
-                A list of command-line arguments.
-        app:
-                An optional App instance containing application-specific logic.
-
-        Returns:
-            An integer exit code.
-    """
