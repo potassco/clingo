@@ -215,8 +215,8 @@ class Rewriter:
         for root, dirs, files in os.walk(clingo_stubs):
             assert dirs is not None
             for file in files:
-                sys.stderr.write(f"processing {file}...\n")
                 if file.endswith(extension):
+                    sys.stderr.write(f"processing {file}...\n")
                     path = os.path.join(root, file)
                     with open(path, "r", encoding="utf8") as hnd:
                         content = hnd.read()
