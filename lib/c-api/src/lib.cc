@@ -74,7 +74,7 @@ auto handle_error() -> clingo_result_t {
         return clingo_result_logic;
     } catch (ClingoError const &e) {
         return e.code();
-    } catch (std::runtime_error const &e) {
+    } catch (std::exception const &e) {
         ErrorLogger::log(clingo_result_runtime, e.what());
         return clingo_result_runtime;
     } catch (...) {

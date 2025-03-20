@@ -1,7 +1,5 @@
 #pragma once
 
-#include <clingo/core.h>
-
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
@@ -52,35 +50,6 @@ template <FixedString S> consteval auto operator""_d() -> char const * {
     return S.buf + 1;
 }
 // NOLINTEND
-
-inline void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr) {
-    switch (static_cast<clingo_result_e>(code)) {
-        case clingo_result_success: {
-            break;
-        }
-        case clingo_result_unknown: {
-            if (ptr != nullptr) {
-                std::rethrow_exception(ptr);
-            }
-            throw std::runtime_error("unknown error");
-        }
-        case clingo_result_runtime: {
-            throw std::runtime_error("runtime error");
-        }
-        case clingo_result_logic: {
-            throw std::logic_error("logic error");
-        }
-        case clingo_result_invalid: {
-            throw std::invalid_argument("invalid arguments");
-        }
-        case clingo_result_range: {
-            throw std::range_error("range error");
-        }
-        case clingo_result_bad_alloc: {
-            throw std::bad_alloc();
-        }
-    }
-}
 
 //! Use std::transform to build a vector.
 template <class It, class Pred> auto transform(It begin, It end, Pred pred) {
@@ -207,9 +176,6 @@ template <std::ranges::range R, class F> auto transform_vec(R &&rng, F &&fun) {
     std::ranges::transform(std::forward<R>(rng), std::back_inserter(result), std::forward<F>(fun));
     return result;
 }
-
-//! Get a thread locaol string builder.
-auto string_builder() -> clingo_string_builder_t *;
 
 //! Compute the hash for the given type.
 //!

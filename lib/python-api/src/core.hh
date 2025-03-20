@@ -3,6 +3,7 @@
 #include "iterable.hh"
 #include "util.hh"
 
+#include <charconv>
 #include <clingo/core.h>
 
 #include <pybind11/pybind11.h>
@@ -54,6 +55,56 @@ class Library {
     std::forward_list<py::object> objs_;
 };
 
+static constexpr auto code_base = 36;
+
+class PyClingoError : public std::exception {
+  public:
+    PyClingoError(clingo_result_t code) {
+        std::to_chars(msg_.begin(), msg_.end(), static_cast<unsigned char>(code), code_base);
+    }
+
+    [[nodiscard]] auto what() const noexcept -> char const * override { return msg_.data(); }
+    [[nodiscard]] auto code() const noexcept -> clingo_result_t {
+        unsigned char res = 0;
+        std::from_chars(msg_.begin(), msg_.end(), res, code_base);
+        return res;
+    }
+
+  private:
+    std::array<char, 3> msg_{};
+};
+
+//! This function should be used to handle failing C API calls.
+//!
+//! If the given exception pointer is not null and the code is unknown, the
+//! exception is rethrown. Otherwise, the code is wrapped in a PyClingoError,
+//! which has an empty error message. This error is intended to just forward
+//! the code but is otherwise ignored by exception handling.
+inline void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr) {
+    switch (static_cast<clingo_result_e>(code)) {
+        case clingo_result_success: {
+            break;
+        }
+        case clingo_result_unknown: {
+            if (ptr != nullptr) {
+                std::rethrow_exception(ptr);
+            }
+            [[fallthrough]];
+        }
+        default: {
+            throw PyClingoError{code};
+        }
+    }
+}
+
+//! Rethrows the current exception and stores it in the given exception
+//! pointer.
+//!
+//! Must be called in a catch clause.
+//!
+//! If a pybind11 exception is to be stored, python's error indicator is
+//! cleared to allow further execution of python code in the current thread.
+//! Always returns result code unknown.
 inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
     try {
         throw;
@@ -67,32 +118,14 @@ inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
     return clingo_result_unknown;
 }
 
-inline auto handle_error(clingo_lib_t *lib) -> clingo_result_t {
-    try {
-        throw;
-    } catch (py::error_already_set const &e) {
-        clingo_lib_report(lib, clingo_message_error, e.what());
-        auto gil = py::gil_scoped_acquire{};
-        PyErr_Clear();
-        return clingo_result_runtime;
-    } catch (std::invalid_argument const &e) {
-        clingo_lib_report(lib, clingo_message_error, e.what());
-        return clingo_result_invalid;
-    } catch (std::range_error const &e) {
-        clingo_lib_report(lib, clingo_message_error, e.what());
-        return clingo_result_range;
-    } catch (std::bad_alloc const &e) {
-        clingo_lib_report(lib, clingo_message_error, e.what());
-        return clingo_result_bad_alloc;
-    } catch (std::logic_error const &e) {
-        clingo_lib_report(lib, clingo_message_error, e.what());
-        return clingo_result_logic;
-    } catch (std::exception const &e) {
-        clingo_lib_report(lib, clingo_message_error, e.what());
-        return clingo_result_runtime;
-    }
-    unreachable();
-}
+//! Outputs the current exception via the libraries logger.
+//!
+//! Must be called in a catch clause.
+//!
+//! This function does not report PyClingoErrors, which are assumed to be
+//! handled earlier. Their code is forwarded; other exceptions are reported and
+//! mapped to a suitable code.
+auto handle_error(clingo_lib_t *lib) -> clingo_result_t;
 
 class StringBuilder {
   public:
@@ -109,6 +142,9 @@ class StringBuilder {
   private:
     clingo_string_builder_t *bld_ = nullptr;
 };
+
+//! Get a thread local string builder.
+auto string_builder() -> clingo_string_builder_t *;
 
 class Position {
   public:

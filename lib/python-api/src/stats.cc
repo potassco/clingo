@@ -1,5 +1,5 @@
 #include "stats.hh"
-#include "util.hh"
+#include "core.hh"
 
 namespace Clingo::Python {
 

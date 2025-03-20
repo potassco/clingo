@@ -343,16 +343,20 @@ extern "C" auto clingo_options_add_flag(clingo_options_t *options, char const *g
 }
 
 extern "C" auto clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size, clingo_application_t *app,
-                            void *data) -> int {
-    try {
+                            void *data, int *code) -> clingo_result_t {
+    CLINGO_TRY {
+        if (code != nullptr) {
+            *code = 1;
+        }
         if (lib == nullptr || (arguments == nullptr && size > 0)) {
             return clingo_result_invalid;
         }
         auto capp = ClingoApp{*lib, app, data};
         auto args = map(capp.getName(), arguments, size);
-        return capp.main(static_cast<int>(args.size()), args.data());
-    } catch (std::exception const &e) {
-        GRINGO_REPORT(lib->log, error) << e.what();
-        return 1;
+        auto res = capp.main(static_cast<int>(args.size()), args.data());
+        if (code != nullptr) {
+            *code = res;
+        }
     }
+    CLINGO_CATCH;
 }

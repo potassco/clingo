@@ -11,13 +11,15 @@ namespace Clingo::Python {
 
 namespace {
 
+using SCBData = std::pair<SymbolVec, std::exception_ptr>;
+
 auto symbol_callback(clingo_symbol_t const *symbols, size_t size, void *data) -> clingo_result_t {
+    auto *res = static_cast<SCBData *>(data);
     CLINGO_TRY {
-        auto *res = static_cast<SymbolVec *>(data);
         // NOLINTNEXTLINE
-        res->assign(cpp_cast(symbols), cpp_cast(symbols) + size);
+        res->first.assign(cpp_cast(symbols), cpp_cast(symbols) + size);
     }
-    CLINGO_CATCH(nullptr);
+    CLINGO_CATCH(res->second);
 }
 
 class ModelIterator {
@@ -78,7 +80,7 @@ auto SolveControl::add_clause(MixedLitlVec const &lits) {
 }
 
 auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVec {
-    auto res = SymbolVec{};
+    auto res = SCBData{};
     clingo_show_type_bitset_t show = 0;
     if (shown) {
         show |= clingo_show_type_shown;
@@ -93,7 +95,7 @@ auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVe
         show |= clingo_show_type_theory;
     }
     handle_error(clingo_model_symbols(mdl_, show, symbol_callback, &res));
-    return res;
+    return std::move(res.first);
 }
 
 auto Model::contains(Symbol atom) -> bool {

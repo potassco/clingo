@@ -1,3 +1,7 @@
+// Note that the scripts in this class report errors via the libraries logger.
+// This design is somewhat unfortunate but proper forwarding of errors here
+// would be tough. In practice, it is best to avoid scripts and instead use
+// the context object of the ground call that supports error forwarding.
 #include "script.hh"
 #include "control.hh"
 #include "symbol.hh"

@@ -16,20 +16,20 @@ struct Flag {
 class Options {
   public:
     using Parser = std::function<bool(char const *value)>;
-    using ParserList = std::forward_list<std::pair<Annotation<Parser>, clingo_lib_t *>>;
+    using ParserList = std::forward_list<std::pair<Annotation<Parser>, std::exception_ptr *>>;
 
-    Options(clingo_options_t *opts, ParserList &parsers, clingo_lib_t *lib)
-        : opts_{opts}, parsers_{&parsers}, lib_{lib} {}
+    Options(clingo_options_t *opts, ParserList &parsers, std::exception_ptr &ptr)
+        : opts_{opts}, parsers_{&parsers}, ptr_{&ptr} {}
 
     void add(char const *group, char const *option, char const *description, Annotation<Parser> parser, bool multi,
              std::optional<char const *> argument) {
-        parsers_->emplace_front(std::move(parser), lib_);
+        parsers_->emplace_front(std::move(parser), ptr_);
         static constexpr auto cparser = [](char const *value, void *data, bool *result) -> clingo_result_t {
             auto &[parser, ptr] = *static_cast<ParserList::value_type *>(data);
             CLINGO_TRY {
                 *result = py::cast<Parser>(parser)(value);
             }
-            CLINGO_CATCH(ptr);
+            CLINGO_CATCH(*ptr);
         };
         handle_error(clingo_options_add(opts_, group, option, description, cparser,
                                         static_cast<void *>(&parsers_->front()), multi,
@@ -46,8 +46,8 @@ class Options {
     clingo_options_t *opts_;
     //! The list of parsers.
     ParserList *parsers_;
-    //! The library object for error reporting.
-    clingo_lib_t *lib_;
+    //! The exception pointer for error forwarding.
+    std::exception_ptr *ptr_;
 };
 
 class App {
@@ -81,10 +81,7 @@ class App {
         return version_->c_str();
     }
 
-    auto lib() -> clingo_lib_t * { return lib_; }
-
-    auto prepare(clingo_lib_t *lib) -> clingo_application_t {
-        lib_ = lib;
+    auto prepare() -> clingo_application_t {
         return {
             program_name_ ? get_program_name_ : nullptr,
             version_ ? get_version_ : nullptr,
@@ -111,6 +108,8 @@ class App {
             return 0;
         };
     }
+
+    auto extract_ptr() { return std::exchange(ptr_, nullptr); }
 
   private:
     template <class... Args> void no_op_([[maybe_unused]] Args const &...args) {}
@@ -145,7 +144,7 @@ class App {
             auto cfiles = std::span{files, files_size};
             app.main(pyctl, std::vector<std::string>{cfiles.begin(), cfiles.end()}, std::span{parts, parts_size});
         }
-        CLINGO_CATCH(app.lib());
+        CLINGO_CATCH(app.ptr_);
     }
 
     static auto print_model_(clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data,
@@ -154,15 +153,15 @@ class App {
         CLINGO_TRY {
             app.print_model(Model{model}, [printer, printer_data]() { handle_error(printer(printer_data)); });
         }
-        CLINGO_CATCH(app.lib());
+        CLINGO_CATCH(app.ptr_);
     }
 
     static auto register_options_(clingo_options_t *options, void *data) -> clingo_result_t {
         auto &app = *static_cast<App *>(data);
         CLINGO_TRY {
-            app.register_options(Options{options, app.parsers_, app.lib_});
+            app.register_options(Options{options, app.parsers_, app.ptr_});
         }
-        CLINGO_CATCH(app.lib());
+        CLINGO_CATCH(app.ptr_);
     }
 
     static auto validate_options_(void *data) -> clingo_result_t {
@@ -170,7 +169,7 @@ class App {
         CLINGO_TRY {
             app.validate_options();
         }
-        CLINGO_CATCH(app.lib());
+        CLINGO_CATCH(app.ptr_);
     }
 
     //! The list of option parsers.
@@ -179,18 +178,21 @@ class App {
     std::optional<std::string> program_name_;
     //! The applications version.
     std::optional<std::string> version_;
-    //! Lib object to report exceptions.
-    clingo_lib_t *lib_ = nullptr;
+    //! Exception pointer for exception forwarding.
+    std::exception_ptr ptr_;
 };
 
 auto pymain(Library const &lib, std::span<std::string const> arguments, std::optional<App *> app) -> int {
     auto capp = std::optional<clingo_application_t>{};
     if (app) {
-        capp.emplace(app.value()->prepare(lib));
+        capp.emplace(app.value()->prepare());
     }
     auto cargs = transform(arguments, [](auto const &x) { return x.c_str(); });
-    return clingo_main(lib, cargs.data(), cargs.size(), capp ? &*capp : nullptr,
-                       app ? static_cast<void *>(*app) : nullptr);
+    auto code = 0;
+    handle_error(clingo_main(lib, cargs.data(), cargs.size(), capp ? &*capp : nullptr,
+                             app ? static_cast<void *>(*app) : nullptr, &code),
+                 app ? (*app)->extract_ptr() : nullptr);
+    return code;
 }
 
 } // namespace

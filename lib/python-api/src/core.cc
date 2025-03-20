@@ -5,6 +5,58 @@
 
 namespace Clingo::Python {
 
+auto string_builder() -> clingo_string_builder_t * {
+    struct free_builder {
+        void operator()(clingo_string_builder_t const *bld) { clingo_string_builder_free(bld); }
+    };
+    thread_local static std::unique_ptr<clingo_string_builder_t, free_builder> builder;
+    if (builder == nullptr) {
+        clingo_string_builder_t *bld = nullptr;
+        handle_error(clingo_string_builder_new(&bld));
+        builder.reset(bld);
+    } else {
+        clingo_string_builder_clear(builder.get());
+    }
+    return builder.get();
+}
+
+auto handle_error(clingo_lib_t *lib) -> clingo_result_t {
+    try {
+        throw;
+    } catch (py::error_already_set &e) {
+        auto gil = py::gil_scoped_acquire{};
+        clingo_result_t code = clingo_result_runtime;
+        auto const *msg = e.what();
+        if (e.type().is(py::module::import("clingo").attr("_ClingoError"))) {
+            unsigned char res = 0;
+            std::from_chars(msg, std::next(msg, static_cast<ssize_t>(std::strlen(msg))), res, code_base);
+            code = res;
+        } else {
+            clingo_lib_report(lib, clingo_message_error, msg);
+        }
+        PyErr_Clear();
+        return code;
+    } catch (PyClingoError const &e) {
+        return e.code();
+    } catch (std::invalid_argument const &e) {
+        clingo_lib_report(lib, clingo_message_error, e.what());
+        return clingo_result_invalid;
+    } catch (std::range_error const &e) {
+        clingo_lib_report(lib, clingo_message_error, e.what());
+        return clingo_result_range;
+    } catch (std::bad_alloc const &e) {
+        clingo_lib_report(lib, clingo_message_error, e.what());
+        return clingo_result_bad_alloc;
+    } catch (std::logic_error const &e) {
+        clingo_lib_report(lib, clingo_message_error, e.what());
+        return clingo_result_logic;
+    } catch (std::exception const &e) {
+        clingo_lib_report(lib, clingo_message_error, e.what());
+        return clingo_result_runtime;
+    }
+    unreachable();
+}
+
 Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
                  size_t default_message_limit) {
     clingo_lib_flags_t flags = 0;
@@ -247,6 +299,8 @@ Examples
 ```
 )"_d);
     core.def("version", &version, "Clingo's version as a tuple (major, minor, revision).");
+
+    py::register_exception<PyClingoError>(m, "_ClingoError");
 
     py::enum_<clingo_log_level_e>(core, "LogLevel", "The available log levels.")
         .value("Trace", clingo_log_level_trace, R"(Report trace messages (includes debug level).)")

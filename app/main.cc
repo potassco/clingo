@@ -33,5 +33,7 @@ auto main(int argc, char *argv[]) -> int {
         return 1;
     }
 #endif
-    return clingo_main(lib.ptr, argv + 1, argc - 1, nullptr, nullptr);
+    int code = 0;
+    clingo_main(lib.ptr, argv + 1, argc - 1, nullptr, nullptr, &code);
+    return code;
 }

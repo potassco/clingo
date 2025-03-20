@@ -141,9 +141,10 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_options_add_flag(clingo_options
 //! @param[in] size the number of command line arguments
 //! @param[in] app struct with callbacks to override default clingo functionality
 //! @param[in] data user data for callbacks in app
+//! @param[out] code the exit code
 //! @return the exit code
-CLINGO_VISIBILITY_DEFAULT int clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size,
-                                          clingo_application_t *app, void *data);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size,
+                                                      clingo_application_t *app, void *data, int *code);
 
 //! @}
 

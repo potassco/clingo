@@ -66,6 +66,7 @@ inline auto map(Potassco::WeightLitSpan lits) -> clingo_weighted_literal_t const
 class ClingoError : public std::exception {
   public:
     ClingoError(clingo_result_t code) : code_{code} {}
+    [[nodiscard]] auto what() const noexcept -> char const * override { return "solving failed"; }
     [[nodiscard]] auto code() const -> clingo_result_t { return code_; }
 
   private:
