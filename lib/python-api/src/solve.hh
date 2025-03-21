@@ -95,7 +95,7 @@ class SolveHandle {
     static auto c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> clingo_result_t;
 
   private:
-    auto exception_() -> std::exception_ptr { return std::exchange(*ptr_, nullptr); }
+    auto exception_() -> std::exception_ptr & { return *ptr_; }
 
     std::exception_ptr *ptr_;
     clingo_solve_handle_t *hnd_ = nullptr;

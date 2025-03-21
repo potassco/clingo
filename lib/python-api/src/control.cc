@@ -65,12 +65,10 @@ void Control::parse_files(std::span<std::string const> files) {
     handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()));
 }
 
-using CTXData = std::pair<py::handle, std::exception_ptr>;
-
 auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
                    char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data,
                    clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t {
-    auto &ctx_data = *static_cast<CTXData *>(data);
+    auto &handle = *static_cast<py::handle *>(data);
     CLINGO_TRY {
         auto syms = [&] {
             auto acquire = py::gil_scoped_acquire{};
@@ -78,7 +76,7 @@ auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_l
             for (auto sym : std::span{arguments, arguments_size}) {
                 args.append(Symbol{sym, true});
             }
-            return ctx_data.first.attr(name)(*args).cast<std::variant<SymbolVec, Symbol>>();
+            return handle.attr(name)(*args).cast<std::variant<SymbolVec, Symbol>>();
         }();
         return std::visit(
             [&]<class T>(T const &res) {
@@ -94,7 +92,7 @@ auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_l
             },
             syms);
     }
-    CLINGO_CATCH(ctx_data.second);
+    CLINGO_CATCH(get_exception_ptr());
 }
 
 void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
@@ -103,10 +101,9 @@ void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
         static constexpr auto part = clingo_part_t{"base", nullptr, 0};
         parts.emplace(&part, 1);
     }
-    auto data = CTXData{ctx, nullptr};
     handle_error(clingo_control_ground(ctl_.get(), parts->data(), parts->size(),
-                                       !ctx.is_none() ? &Control::ctx_ : nullptr, &data),
-                 data.second);
+                                       !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx),
+                 get_exception_ptr());
 }
 
 auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon)

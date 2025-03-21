@@ -146,6 +146,9 @@ template <class T, void (*deleter)(T *) noexcept> class owner_ptr {
         own_ = false;
     }
 
+    //! Check if the pointer is owning.
+    [[nodiscard]] auto is_owner() const -> bool { return own_; }
+
   private:
     T *ptr_;
     bool own_;

@@ -7,14 +7,14 @@ namespace Clingo::Python {
 
 namespace Detail {
 
-void handle_error(clingo_result_t code, std::exception_ptr const &ptr) {
+void handle_error(clingo_result_t code, std::exception_ptr *ptr) {
     switch (static_cast<clingo_result_e>(code)) {
         case clingo_result_success: {
             break;
         }
         case clingo_result_unknown: {
-            if (ptr != nullptr) {
-                std::rethrow_exception(ptr);
+            if (ptr != nullptr && *ptr != nullptr) {
+                std::rethrow_exception(std::exchange(*ptr, nullptr));
             }
             [[fallthrough]];
         }
@@ -25,6 +25,11 @@ void handle_error(clingo_result_t code, std::exception_ptr const &ptr) {
 }
 
 } // namespace Detail
+
+auto get_exception_ptr() -> std::exception_ptr & {
+    static thread_local std::exception_ptr ptr;
+    return ptr;
+}
 
 auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
     try {
@@ -136,6 +141,11 @@ auto version() -> std::tuple<int, int, int> {
     int patch = 0;
     clingo_version(&major, &minor, &patch);
     return {major, minor, patch};
+}
+
+auto Library::add_object(py::object script) -> PyObject * {
+    objs_.emplace_front(std::move(script));
+    return objs_.front().ptr();
 }
 
 void Library::setup(PyHeapTypeObject *heap_type) {

@@ -89,23 +89,16 @@ class TestError:
             ctl.ground(context=self)
         assert str(exc_info.value) == "fun called with 1"
 
-    @pytest.mark.xfail(reason="fix under development")
     def test_error_script(self):
         """
         Test errors in scripts.
         """
-        try:
-            ctl = Control(self.lib)
-            register(self.lib, MyScript())
-            ctl.parse_string("p(@fun(1)). q.")
-            with pytest.raises(RuntimeError) as exc_info:
-                ctl.ground()
-            assert str(exc_info.value) == "fun called with 1"
-        except:
-            # get the ctl out of the trace back
-            # to ensure proper library cleanup
-            ctl = None
-            raise
+        ctl = Control(self.lib)
+        register(self.lib, MyScript())
+        ctl.parse_string("p(@fun(1)). q.")
+        with pytest.raises(RuntimeError) as exc_info:
+            ctl.ground()
+        assert str(exc_info.value) == "fun called with 1"
 
     # TODO:
     # - backend

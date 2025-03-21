@@ -16,20 +16,19 @@ struct Flag {
 class Options {
   public:
     using Parser = std::function<bool(char const *value)>;
-    using ParserList = std::forward_list<std::pair<Annotation<Parser>, std::exception_ptr *>>;
+    using ParserList = std::forward_list<Annotation<Parser>>;
 
-    Options(clingo_options_t *opts, ParserList &parsers, std::exception_ptr &ptr)
-        : opts_{opts}, parsers_{&parsers}, ptr_{&ptr} {}
+    Options(clingo_options_t *opts, ParserList &parsers) : opts_{opts}, parsers_{&parsers} {}
 
     void add(char const *group, char const *option, char const *description, Annotation<Parser> parser, bool multi,
              std::optional<char const *> argument) {
-        parsers_->emplace_front(std::move(parser), ptr_);
+        parsers_->emplace_front(std::move(parser));
         static constexpr auto cparser = [](char const *value, void *data, bool *result) -> clingo_result_t {
-            auto &[parser, ptr] = *static_cast<ParserList::value_type *>(data);
+            auto &parser = *static_cast<ParserList::value_type *>(data);
             CLINGO_TRY {
                 *result = py::cast<Parser>(parser)(value);
             }
-            CLINGO_CATCH(*ptr);
+            CLINGO_CATCH(get_exception_ptr());
         };
         handle_error(clingo_options_add(opts_, group, option, description, cparser,
                                         static_cast<void *>(&parsers_->front()), multi,
@@ -46,8 +45,6 @@ class Options {
     clingo_options_t *opts_;
     //! The list of parsers.
     ParserList *parsers_;
-    //! The exception pointer for error forwarding.
-    std::exception_ptr *ptr_;
 };
 
 class App {
@@ -97,7 +94,7 @@ class App {
         type->tp_flags |= Py_TPFLAGS_HAVE_GC;
         type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
             auto &self = py::cast<App &>(py::handle(self_base));
-            for (auto const &[parser, lib] : self.parsers_) {
+            for (auto const &parser : self.parsers_) {
                 Py_VISIT(parser.ptr());
             }
             return 0;
@@ -108,8 +105,6 @@ class App {
             return 0;
         };
     }
-
-    auto extract_ptr() { return std::exchange(ptr_, nullptr); }
 
   private:
     template <class... Args> void no_op_([[maybe_unused]] Args const &...args) {}
@@ -144,7 +139,7 @@ class App {
             auto cfiles = std::span{files, files_size};
             app.main(pyctl, std::vector<std::string>{cfiles.begin(), cfiles.end()}, std::span{parts, parts_size});
         }
-        CLINGO_CATCH(app.ptr_);
+        CLINGO_CATCH(get_exception_ptr());
     }
 
     static auto print_model_(clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data,
@@ -153,15 +148,15 @@ class App {
         CLINGO_TRY {
             app.print_model(Model{model}, [printer, printer_data]() { handle_error(printer(printer_data)); });
         }
-        CLINGO_CATCH(app.ptr_);
+        CLINGO_CATCH(get_exception_ptr());
     }
 
     static auto register_options_(clingo_options_t *options, void *data) -> clingo_result_t {
         auto &app = *static_cast<App *>(data);
         CLINGO_TRY {
-            app.register_options(Options{options, app.parsers_, app.ptr_});
+            app.register_options(Options{options, app.parsers_});
         }
-        CLINGO_CATCH(app.ptr_);
+        CLINGO_CATCH(get_exception_ptr());
     }
 
     static auto validate_options_(void *data) -> clingo_result_t {
@@ -169,7 +164,7 @@ class App {
         CLINGO_TRY {
             app.validate_options();
         }
-        CLINGO_CATCH(app.ptr_);
+        CLINGO_CATCH(get_exception_ptr());
     }
 
     //! The list of option parsers.
@@ -178,8 +173,6 @@ class App {
     std::optional<std::string> program_name_;
     //! The applications version.
     std::optional<std::string> version_;
-    //! Exception pointer for exception forwarding.
-    std::exception_ptr ptr_;
 };
 
 auto pymain(Library const &lib, std::span<std::string const> arguments, std::optional<App *> app) -> int {
@@ -191,7 +184,7 @@ auto pymain(Library const &lib, std::span<std::string const> arguments, std::opt
     auto code = 0;
     handle_error(clingo_main(lib, cargs.data(), cargs.size(), capp ? &*capp : nullptr,
                              app ? static_cast<void *>(*app) : nullptr, &code),
-                 app ? (*app)->extract_ptr() : nullptr);
+                 get_exception_ptr());
     return code;
 }
 

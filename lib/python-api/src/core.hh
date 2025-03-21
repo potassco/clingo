@@ -27,9 +27,15 @@ namespace py = pybind11;
 
 namespace Detail {
 
-void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr);
+void handle_error(clingo_result_t code, std::exception_ptr *ptr);
 
-}
+} // namespace Detail
+
+//! Get a per-thread exception_ptr.
+//!
+//! This exception pointer can be used in callbacks. It assumes that it is set
+//! in the scope of a callback, and rethrown in the surrounding scope.
+auto get_exception_ptr() -> std::exception_ptr &;
 
 //! This function should be used to handle failing C API calls.
 //!
@@ -37,9 +43,14 @@ void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr)
 //! exception is rethrown. Otherwise, the code is wrapped in a PyClingoError,
 //! which has an empty error message. This error is intended to just forward
 //! the code but is otherwise ignored by exception handling.
-inline void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr) {
+inline void handle_error(clingo_result_t code, std::exception_ptr &ptr) {
     if (code != clingo_result_success) {
-        Detail::handle_error(code, ptr);
+        Detail::handle_error(code, &ptr);
+    }
+}
+inline void handle_error(clingo_result_t code) {
+    if (code != clingo_result_success) {
+        Detail::handle_error(code, nullptr);
     }
 }
 
@@ -71,11 +82,9 @@ class Library {
     Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
             size_t default_message_limit);
     Library(clingo_lib_t *lib) : lib_{lib} {}
+
     void close() noexcept;
-    auto add_object(py::object script) -> PyObject * {
-        objs_.emplace_front(std::move(script));
-        return objs_.front().ptr();
-    }
+    auto add_object(py::object script) -> PyObject *;
     static void setup(PyHeapTypeObject *heap_type);
 
     operator clingo_lib_t *() const;
