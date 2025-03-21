@@ -51,7 +51,7 @@ class MyScript(Script):
         self,
         lib: Library,
         control: Control,
-        parts: Sequence[Sequence[tuple[str, Sequence[int]]]] = None,
+        parts: Sequence[Sequence[tuple[str, Sequence[Symbol]]]],
     ) -> None:
         """
         Run the main function from the main scope.

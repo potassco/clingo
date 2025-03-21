@@ -203,7 +203,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                                                                         })),
              "Select which variables to project") //
             ("project-anonymous,@1", flag(rewrite_opts_.project_anonymous = false), "Project anonymous variables");
-        // registerOptions(gringo, grOpts_, GringoOptions::AppType::Clingo);
         root.add(group_grounder);
         auto group_basic = OptionGroup{"Basic Options"};
         group_basic.addOptions() //
@@ -274,7 +273,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             for (auto const &[name, value] : const_defs_) {
                 slv.add_const(*name, *value);
             }
-            // TODO: add a lock to the control
             // NOTE: member for createTextOutput
             ctl_.slv = &slv;
             ctl_.cfg = &slv.clasp_config();

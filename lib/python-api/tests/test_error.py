@@ -7,6 +7,39 @@ import gc
 import pytest
 from clingo.control import Control
 from clingo.core import Library
+from clingo.script import Script, register
+from clingo.symbol import Symbol
+
+
+class MyScript(Script):
+    """
+    Example embedded script.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._scope = {}
+
+    def name(self) -> str:
+        """
+        Get the name of the script.
+        """
+        return "myScript"
+
+    def call(self, lib: Library, name: str, arguments: list[Symbol]) -> list[Symbol]:
+        """
+        Call the function with the given name and arguments.
+        """
+        assert lib
+        raise RuntimeError(f"{name} called with {', '.join(map(str, arguments))}")
+
+    def callable(self, name: str, arguments: int) -> bool:
+        """
+        Check if there is a function with the given name in the scope.
+        """
+        assert arguments
+        assert name
+        return True
 
 
 class TestError:
@@ -54,4 +87,17 @@ class TestError:
         ctl.parse_string("p(@fun(1)). q.")
         with pytest.raises(RuntimeError) as exc_info:
             ctl.ground(context=self)
+        assert str(exc_info.value) == "fun called with 1"
+
+    def test_error_script(self):
+        """
+        Test errors in scripts.
+        """
+        # FIXME: This fails at the moment because errors are currently reported
+        # via the libraries logger. A fix is under development.
+        ctl = Control(self.lib)
+        register(self.lib, MyScript())
+        ctl.parse_string("p(@fun(1)). q.")
+        with pytest.raises(RuntimeError) as exc_info:
+            ctl.ground()
         assert str(exc_info.value) == "fun called with 1"
