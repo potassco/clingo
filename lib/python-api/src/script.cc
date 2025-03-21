@@ -21,6 +21,7 @@ class Interpreter {
     Interpreter() {
         if (Py_IsInitialized() == 0) {
             py_ = std::make_unique<py::scoped_interpreter>();
+            py::module::import("clingo");
         }
         auto gil = py::gil_scoped_acquire{};
         scope_ = py::module_::import("__main__").attr("__dict__");
