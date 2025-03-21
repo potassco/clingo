@@ -124,7 +124,6 @@ class AppAdapter {
         };
         // NOLINTNEXTLINE
         auto *cmdl = reinterpret_cast<clingo_model_t *>(&mdl);
-        // TODO: callback should be locked
         handle_error(app_->print_model(cmdl, cprt, static_cast<void *>(&prt), data_));
     }
 
