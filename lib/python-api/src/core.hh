@@ -25,6 +25,43 @@ namespace Clingo::Python {
 
 namespace py = pybind11;
 
+namespace Detail {
+
+void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr);
+
+}
+
+//! This function should be used to handle failing C API calls.
+//!
+//! If the given exception pointer is not null and the code is unknown, the
+//! exception is rethrown. Otherwise, the code is wrapped in a PyClingoError,
+//! which has an empty error message. This error is intended to just forward
+//! the code but is otherwise ignored by exception handling.
+inline void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr) {
+    if (code != clingo_result_success) {
+        Detail::handle_error(code, ptr);
+    }
+}
+
+//! Rethrows the current exception and stores it in the given exception
+//! pointer.
+//!
+//! Must be called in a catch clause.
+//!
+//! If a pybind11 exception is to be stored, python's error indicator is
+//! cleared to allow further execution of python code in the current thread.
+//! Always returns result code unknown.
+auto handle_error(std::exception_ptr &ptr) -> clingo_result_t;
+
+//! Outputs the current exception via the libraries logger.
+//!
+//! Must be called in a catch clause.
+//!
+//! This function does not report PyClingoErrors, which are assumed to be
+//! handled earlier. Their code is forwarded; other exceptions are reported and
+//! mapped to a suitable code.
+auto handle_error(clingo_lib_t *lib) -> clingo_result_t;
+
 using Logger = std::function<void(clingo_message_e, char const *)>;
 
 static constexpr size_t default_message_limit = 25;
@@ -73,59 +110,6 @@ class PyClingoError : public std::exception {
   private:
     std::array<char, 3> msg_{};
 };
-
-//! This function should be used to handle failing C API calls.
-//!
-//! If the given exception pointer is not null and the code is unknown, the
-//! exception is rethrown. Otherwise, the code is wrapped in a PyClingoError,
-//! which has an empty error message. This error is intended to just forward
-//! the code but is otherwise ignored by exception handling.
-inline void handle_error(clingo_result_t code, std::exception_ptr const &ptr = nullptr) {
-    switch (static_cast<clingo_result_e>(code)) {
-        case clingo_result_success: {
-            break;
-        }
-        case clingo_result_unknown: {
-            if (ptr != nullptr) {
-                std::rethrow_exception(ptr);
-            }
-            [[fallthrough]];
-        }
-        default: {
-            throw PyClingoError{code};
-        }
-    }
-}
-
-//! Rethrows the current exception and stores it in the given exception
-//! pointer.
-//!
-//! Must be called in a catch clause.
-//!
-//! If a pybind11 exception is to be stored, python's error indicator is
-//! cleared to allow further execution of python code in the current thread.
-//! Always returns result code unknown.
-inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
-    try {
-        throw;
-    } catch (py::error_already_set const &e) {
-        auto gil = py::gil_scoped_acquire{};
-        ptr = std::current_exception();
-        PyErr_Clear();
-    } catch (...) {
-        ptr = std::current_exception();
-    }
-    return clingo_result_unknown;
-}
-
-//! Outputs the current exception via the libraries logger.
-//!
-//! Must be called in a catch clause.
-//!
-//! This function does not report PyClingoErrors, which are assumed to be
-//! handled earlier. Their code is forwarded; other exceptions are reported and
-//! mapped to a suitable code.
-auto handle_error(clingo_lib_t *lib) -> clingo_result_t;
 
 class StringBuilder {
   public:

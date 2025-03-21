@@ -5,19 +5,38 @@
 
 namespace Clingo::Python {
 
-auto string_builder() -> clingo_string_builder_t * {
-    struct free_builder {
-        void operator()(clingo_string_builder_t const *bld) { clingo_string_builder_free(bld); }
-    };
-    thread_local static std::unique_ptr<clingo_string_builder_t, free_builder> builder;
-    if (builder == nullptr) {
-        clingo_string_builder_t *bld = nullptr;
-        handle_error(clingo_string_builder_new(&bld));
-        builder.reset(bld);
-    } else {
-        clingo_string_builder_clear(builder.get());
+namespace Detail {
+
+void handle_error(clingo_result_t code, std::exception_ptr const &ptr) {
+    switch (static_cast<clingo_result_e>(code)) {
+        case clingo_result_success: {
+            break;
+        }
+        case clingo_result_unknown: {
+            if (ptr != nullptr) {
+                std::rethrow_exception(ptr);
+            }
+            [[fallthrough]];
+        }
+        default: {
+            throw PyClingoError{code};
+        }
     }
-    return builder.get();
+}
+
+} // namespace Detail
+
+auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
+    try {
+        throw;
+    } catch (py::error_already_set const &e) {
+        auto gil = py::gil_scoped_acquire{};
+        ptr = std::current_exception();
+        PyErr_Clear();
+    } catch (...) {
+        ptr = std::current_exception();
+    }
+    return clingo_result_unknown;
 }
 
 auto handle_error(clingo_lib_t *lib) -> clingo_result_t {
@@ -59,6 +78,21 @@ auto handle_error(clingo_lib_t *lib) -> clingo_result_t {
         return clingo_result_runtime;
     }
     unreachable();
+}
+
+auto string_builder() -> clingo_string_builder_t * {
+    struct free_builder {
+        void operator()(clingo_string_builder_t const *bld) { clingo_string_builder_free(bld); }
+    };
+    thread_local static std::unique_ptr<clingo_string_builder_t, free_builder> builder;
+    if (builder == nullptr) {
+        clingo_string_builder_t *bld = nullptr;
+        handle_error(clingo_string_builder_new(&bld));
+        builder.reset(bld);
+    } else {
+        clingo_string_builder_clear(builder.get());
+    }
+    return builder.get();
 }
 
 Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
