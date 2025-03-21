@@ -115,7 +115,8 @@ class Context : public Clingo::Ground::ScriptCallback {
     void do_call(Clingo::Location const &loc, std::string_view name, Clingo::SymbolSpan args,
                  Clingo::SymbolVec &out) override {
         auto c_name = std::string{name};
-        cb_(lib_, c_cast(&loc), c_name.c_str(), c_cast(args.data()), args.size(), data_, &Context::sym_cb_, &out);
+        handle_error(
+            cb_(lib_, c_cast(&loc), c_name.c_str(), c_cast(args.data()), args.size(), data_, &Context::sym_cb_, &out));
     }
 
     static auto sym_cb_(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> clingo_result_t {

@@ -339,7 +339,7 @@ This class implements the ContextManager interface.
 )"_d)
         .def(py::init<bool, bool, clingo_log_level_e, Annotation<std::optional<Logger>>, size_t>(),
              "Create a library object.", py::arg("shared") = true, py::arg("slotted") = true,
-             py::arg("log_level") = clingo_log_level_trace, py::arg("logger") = std::nullopt,
+             py::arg("log_level") = clingo_log_level_info, py::arg("logger") = std::nullopt,
              py::arg("message_limit") = default_message_limit,
              R"(
 Create a library object.
