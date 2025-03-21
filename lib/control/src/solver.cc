@@ -717,6 +717,9 @@ void Solver::main(std::optional<ProgramParamsVec> const &params) {
             output_program(std::cout);
             return;
         }
+        if (mode_ == AppMode::solve && params->size() >= 2) {
+            clasp_->enableProgramUpdates();
+        }
         if (params) {
             for (auto const &param : *params) {
                 ground(param, nullptr);
