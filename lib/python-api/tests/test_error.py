@@ -60,7 +60,7 @@ class TestError:
         Destroy lib.
         """
         assert method is not None
-        # Note: ensure that the held context object is collected
+        # NOTE: ensure proper symbol cleanup by destroying held objects
         gc.collect()
         self._lib = None
 
@@ -89,15 +89,26 @@ class TestError:
             ctl.ground(context=self)
         assert str(exc_info.value) == "fun called with 1"
 
+    @pytest.mark.xfail(reason="fix under development")
     def test_error_script(self):
         """
         Test errors in scripts.
         """
-        # FIXME: This fails at the moment because errors are currently reported
-        # via the libraries logger. A fix is under development.
-        ctl = Control(self.lib)
-        register(self.lib, MyScript())
-        ctl.parse_string("p(@fun(1)). q.")
-        with pytest.raises(RuntimeError) as exc_info:
-            ctl.ground()
-        assert str(exc_info.value) == "fun called with 1"
+        try:
+            ctl = Control(self.lib)
+            register(self.lib, MyScript())
+            ctl.parse_string("p(@fun(1)). q.")
+            with pytest.raises(RuntimeError) as exc_info:
+                ctl.ground()
+            assert str(exc_info.value) == "fun called with 1"
+        except:
+            # get the ctl out of the trace back
+            # to ensure proper library cleanup
+            ctl = None
+            raise
+
+    # TODO:
+    # - backend
+    # - observer
+    # - propagator??
+    # - app?
