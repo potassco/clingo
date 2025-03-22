@@ -124,6 +124,7 @@ class MainScript {
     static auto c_version([[maybe_unused]] void *data) -> char const * { return CLINGO_PYTHON_VERSION; }
 
     static void c_free(void *data) {
+        get_exception_ptr() = nullptr;
         // NOLINTNEXTLINE
         delete cast(data);
     }
