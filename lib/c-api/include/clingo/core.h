@@ -189,6 +189,12 @@ CLINGO_VISIBILITY_DEFAULT char const *clingo_message_string(clingo_message_t cod
 //! The default logger simply prints message to stderr.
 CLINGO_VISIBILITY_DEFAULT void clingo_error_logger(clingo_error_logger_t logger, void *data);
 
+//! Report a message via the global error logger.
+//!
+//! @param[in] code associated code
+//! @param[in] message message
+CLINGO_VISIBILITY_DEFAULT void clingo_error_report(clingo_result_t code, char const *message);
+
 //! Create a library object.
 //!
 //! A library has to be freed using clingo_lib_free().

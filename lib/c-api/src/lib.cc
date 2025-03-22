@@ -57,6 +57,14 @@ struct ErrorLogger {
 
 } // namespace
 
+extern "C" void clingo_error_logger(clingo_error_logger_t logger, void *data) {
+    ErrorLogger::set(logger, data);
+}
+
+extern "C" void clingo_error_report(clingo_result_t code, char const *message) {
+    ErrorLogger::log(code, message);
+}
+
 auto handle_error() -> clingo_result_t {
     try {
         throw;

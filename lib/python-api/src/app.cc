@@ -135,8 +135,7 @@ class App {
                       clingo_parts_array_t const *parts, size_t parts_size, void *data) -> clingo_result_t {
         CLINGO_TRY {
             auto &app = *static_cast<App *>(data);
-            auto pyctl = Annotation<Control>{};
-            pyctl = Control::cast(ctl, pyctl);
+            auto pyctl = Control::cast(ctl, true);
             auto cfiles = std::span{files, files_size};
             app.main(pyctl, std::vector<std::string>{cfiles.begin(), cfiles.end()}, std::span{parts, parts_size});
         }

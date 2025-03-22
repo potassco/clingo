@@ -31,13 +31,11 @@ class Interpreter {
 
     auto callable(char const *name) -> bool { return scope_.contains(name) && callable_(scope_[name]).cast<bool>(); }
 
-    auto call(Annotation<Library> const &lib, char const *name, SymbolVec args) -> std::variant<SymbolVec, Symbol> {
+    auto call(PyLibrary const &lib, char const *name, SymbolVec args) -> std::variant<SymbolVec, Symbol> {
         return scope_[name](lib, *py::cast(args)).cast<std::variant<SymbolVec, Symbol>>();
     }
 
-    auto main(Annotation<Library> const &lib, Annotation<Control> const &ctl, PartsSpan parts) {
-        scope_["main"](lib, ctl, parts);
-    }
+    auto main(PyLibrary const &lib, PyControl const &ctl, PartsSpan parts) { scope_["main"](lib, ctl, parts); }
 
     auto version() -> char const * { return version_.c_str(); }
 
@@ -50,25 +48,78 @@ class Interpreter {
 
 class MainScript {
   public:
-    MainScript() = default;
+    //! Construct the main python script.
+    //!
+    //! The flag indicates whether the class has been registered on the C or
+    //! python level. Scripts registered externally report errors right away
+    //! and are in charge of managing library and control object.
+    MainScript(bool external) : external_{external} {}
 
     static auto cast(void *data) -> MainScript * { return static_cast<MainScript *>(data); }
 
+    [[nodiscard]] auto handle_error() const -> clingo_result_t {
+        if (!external_) {
+            return Clingo::Python::handle_error(get_exception_ptr());
+        }
+        try {
+            throw;
+        } catch (py::error_already_set &e) {
+            auto gil = py::gil_scoped_acquire{};
+            clingo_result_t code = clingo_result_runtime;
+            auto const *msg = e.what();
+            if (e.type().is(py::module::import("clingo").attr("_ClingoError"))) {
+                char const *end = std::next(msg, static_cast<ssize_t>(std::strlen(msg)));
+                char const *num = std::find_if(msg, end, [](char c) { return std::isdigit(c); });
+                unsigned char res = 0;
+                std::from_chars(num, end, res, code_base);
+                if (res != 0) {
+                    code = res;
+                }
+            } else {
+                clingo_error_report(clingo_message_error, msg);
+            }
+            PyErr_Clear();
+            return code;
+        } catch (PyClingoError const &e) {
+            return e.code();
+        } catch (std::invalid_argument const &e) {
+            clingo_error_report(clingo_result_invalid, e.what());
+            return clingo_result_invalid;
+        } catch (std::range_error const &e) {
+            clingo_error_report(clingo_result_range, e.what());
+            return clingo_result_range;
+        } catch (std::bad_alloc const &e) {
+            clingo_error_report(clingo_result_bad_alloc, e.what());
+            return clingo_result_bad_alloc;
+        } catch (std::logic_error const &e) {
+            clingo_error_report(clingo_result_logic, e.what());
+            return clingo_result_logic;
+        } catch (std::exception const &e) {
+            clingo_error_report(clingo_result_runtime, e.what());
+            return clingo_result_runtime;
+        } catch (...) {
+            clingo_error_report(clingo_result_runtime, "no message");
+            return clingo_result_runtime;
+        }
+    }
+
     static auto c_execute(char const *code, void *data) -> clingo_result_t {
         auto *self = cast(data);
-        CLINGO_TRY {
+        try {
             self->init_();
             self->py_->exec(code);
+        } catch (...) {
+            return self->handle_error();
         }
-        CLINGO_CATCH(get_exception_ptr());
+        return clingo_result_success;
     }
 
     static auto c_call(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
                        clingo_symbol_t const *arguments, size_t arguments_size,
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data)
         -> clingo_result_t {
-        CLINGO_TRY {
-            auto *self = cast(data);
+        auto *self = cast(data);
+        try {
             if (self->py_) {
                 auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                       [](auto sym) { return Symbol{sym, true}; });
@@ -88,35 +139,41 @@ class MainScript {
                     },
                     syms);
             }
+        } catch (...) {
+            return self->handle_error();
         }
-        CLINGO_CATCH(get_exception_ptr());
+        return clingo_result_success;
     }
 
     static auto c_callable(char const *name, [[maybe_unused]] size_t arguments, bool *result, void *data)
         -> clingo_result_t {
         // NOTE: python cannot check the number of arguments
-        CLINGO_TRY {
-            auto *self = cast(data);
+        auto *self = cast(data);
+        try {
             if (self->py_) {
                 auto gil = py::gil_scoped_acquire{};
                 *result = self->py_->callable(name);
             } else {
                 *result = false;
             }
+        } catch (...) {
+            return self->handle_error();
         }
-        CLINGO_CATCH(get_exception_ptr());
+        return clingo_result_success;
     }
 
     static auto main(clingo_lib_t *lib, clingo_control_t *control, clingo_parts_array_t const *parts, size_t size,
                      void *data) -> clingo_result_t {
-        CLINGO_TRY {
-            auto *self = cast(data);
+        auto *self = cast(data);
+        try {
             if (self->py_) {
                 auto gil = py::gil_scoped_acquire{};
                 self->py_->main(self->get_lib(lib), self->get_ctl(control), std::span{parts, size});
             }
+        } catch (...) {
+            return self->handle_error();
         }
-        CLINGO_CATCH(get_exception_ptr());
+        return clingo_result_success;
     }
 
     static auto c_name([[maybe_unused]] void *data) -> char const * { return "python"; }
@@ -136,15 +193,33 @@ class MainScript {
         }
     }
 
-    auto get_lib(clingo_lib_t *lib) -> Annotation<Library> { return Library::cast(lib, lib_); }
+    auto get_lib(clingo_lib_t *lib) -> PyLibrary {
+        if (external_) {
+            if (lib_.ptr() == nullptr) {
+                lib_ = Library::cast(lib, true);
+            }
+            return lib_;
+        }
+        return Library::cast(lib);
+    }
 
-    auto get_ctl(clingo_control_t *ctl) -> Annotation<Control> { return Control::cast(ctl, ctl_); }
+    auto get_ctl(clingo_control_t *ctl) -> PyControl {
+        if (external_) {
+            if (ctl_.ptr() == nullptr) {
+                ctl_ = Control::cast(ctl, true);
+            }
+            return ctl_;
+        }
+        return Control::cast(ctl);
+    }
 
     std::unique_ptr<Interpreter> py_;
     //! Stores lib pointer when embedded.
-    Annotation<Library> lib_;
+    PyLibrary lib_;
     //! Stores control pointer when embedded.
-    Annotation<Control> ctl_;
+    PyControl ctl_;
+    //! Whether to store or report errors.
+    bool external_;
 };
 
 class Script {
@@ -269,7 +344,7 @@ void reg_python(Annotation<Library> const &lib) {
     auto &c_lib = py::cast<Library &>(lib);
     auto c_script = clingo_script_t{Script::c_execute, Script::c_call, Script::c_callable, Script::main, Script::c_name,
                                     Script::c_version, nullptr};
-    auto *py_script = c_lib.add_object(py::cast(Script{}));
+    auto *py_script = c_lib.add_object(py::cast(Script{false}));
     handle_error(clingo_script_register(c_lib, &c_script, py::cast<Script *>(py_script)));
 }
 
@@ -279,7 +354,7 @@ auto register_python(clingo_lib_t *lib) -> clingo_result_t {
     using Script = Clingo::Python::MainScript;
     auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::main,
                                     Script::c_name,    Script::c_version, Script::c_free};
-    auto script = std::make_unique<Script>();
+    auto script = std::make_unique<Script>(true);
     return clingo_script_register(lib, &c_script, script.release());
 }
 

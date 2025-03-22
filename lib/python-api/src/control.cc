@@ -236,23 +236,18 @@ void Control::bind() {
     }
 }
 
-auto Control::cast(clingo_control_t *ctl, PyControl &target) -> PyControl {
+auto Control::cast(clingo_control_t *ctl, bool convert) -> PyControl {
     auto *data = clingo_control_get_user_data(ctl);
     if (data == nullptr) {
-        // associated control with its python object here
-        target = py::cast(Control{ctl});
-        data = target.ptr();
-        clingo_control_set_user_data(ctl, data);
+        if (convert) {
+            auto res = py::cast(Control{ctl});
+            data = res.ptr();
+            clingo_control_set_user_data(ctl, data);
+            return res;
+        }
+        throw std::runtime_error("invalid control cast");
     }
     return py::reinterpret_borrow<Annotation<Control>>(static_cast<PyObject *>(data));
-}
-
-auto Control::cast(clingo_control_t *lib) -> PyControl {
-    auto *data = clingo_control_get_user_data(lib);
-    if (data != nullptr) {
-        return py::reinterpret_borrow<Annotation<Control>>(static_cast<PyObject *>(data));
-    }
-    throw std::runtime_error("invalid control cast");
 }
 
 void register_control(pybind11::module &m) {

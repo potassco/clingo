@@ -81,23 +81,19 @@ void Library::bind() {
     }
 }
 
-auto Library::cast(clingo_lib_t *lib, Annotation<Library> &target) -> Annotation<Library> {
+auto Library::cast(clingo_lib_t *lib, bool convert) -> Annotation<Library> {
     auto *data = clingo_lib_get_user_data(lib);
     if (data == nullptr) {
-        // associated library with its python object here
-        target = py::cast(Library{lib});
-        data = target.ptr();
-        clingo_lib_set_user_data(lib, data);
+        if (convert) {
+            // associated library with its python object here
+            auto res = py::cast(Library{lib});
+            data = res.ptr();
+            clingo_lib_set_user_data(lib, data);
+            return res;
+        }
+        throw std::runtime_error("invalid library cast");
     }
     return py::reinterpret_borrow<Annotation<Library>>(static_cast<PyObject *>(data));
-}
-
-auto Library::cast(clingo_lib_t *lib) -> Annotation<Library> {
-    auto *data = clingo_lib_get_user_data(lib);
-    if (data != nullptr) {
-        return py::reinterpret_borrow<Annotation<Library>>(static_cast<PyObject *>(data));
-    }
-    throw std::runtime_error("invalid library cast");
 }
 
 void Library::close() noexcept {

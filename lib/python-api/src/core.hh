@@ -83,8 +83,7 @@ class Library {
     operator clingo_lib_t *() const;
 
     void bind();
-    static auto cast(clingo_lib_t *lib, PyLibrary &target) -> PyLibrary;
-    static auto cast(clingo_lib_t *lib) -> PyLibrary;
+    static auto cast(clingo_lib_t *lib, bool convert = false) -> PyLibrary;
 
   private:
     Library(clingo_lib_t *lib) : lib_{lib} {}

@@ -69,8 +69,7 @@ class Control {
     void register_propagator(Annotation<Propagator> propagator);
 
     void bind();
-    static auto cast(clingo_control_t *ctl, PyControl &target) -> PyControl;
-    static auto cast(clingo_control_t *lib) -> PyControl;
+    static auto cast(clingo_control_t *ctl, bool convert = false) -> PyControl;
     static void setup(PyHeapTypeObject *heap_type);
 
   private:
