@@ -3,12 +3,26 @@ Unit tests for error propagation across various modules.
 """
 
 import gc
+from typing import Sequence
 
 import pytest
+from clingo.backend import Observer
 from clingo.control import Control
 from clingo.core import Library
 from clingo.script import Script, register
 from clingo.symbol import Symbol
+
+
+class Obs(Observer):
+    """
+    Test Observer.
+    """
+
+    def rule(self, head: Sequence[int], body: Sequence[int], choice: bool) -> None:
+        """
+        Test rule.
+        """
+        raise RuntimeError(f"rule: {head} :- {body}. [{choice}]")
 
 
 class MyScript(Script):
@@ -37,9 +51,9 @@ class MyScript(Script):
         """
         Check if there is a function with the given name in the scope.
         """
-        assert arguments
+        assert arguments >= 0
         assert name
-        return True
+        return name != "main"
 
 
 class TestError:
@@ -99,9 +113,22 @@ class TestError:
         with pytest.raises(RuntimeError) as exc_info:
             ctl.ground()
         assert str(exc_info.value) == "fun called with 1"
+        with pytest.raises(RuntimeError) as exc_info:
+            ctl.main()
+        assert str(exc_info.value) == "fun called with 1"
+
+    def test_obs(self):
+        """
+        Test errors in the observer.
+        """
+        obs = Obs()
+        ctl = Control(self.lib)
+        ctl.parse_string("{a}.")
+        ctl.ground()
+        with pytest.raises(RuntimeError) as exc_info:
+            ctl.observe(obs)
+        assert str(exc_info.value) == "rule: [1] :- []. [True]"
 
     # TODO:
-    # - backend
-    # - observer
     # - propagator??
     # - app?

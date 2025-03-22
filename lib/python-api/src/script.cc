@@ -67,11 +67,11 @@ class MainScript {
                        clingo_symbol_t const *arguments, size_t arguments_size,
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data)
         -> clingo_result_t {
-        auto *self = cast(data);
         CLINGO_TRY {
-            auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
-                                  [](auto sym) { return Symbol{sym, true}; });
+            auto *self = cast(data);
             if (self->py_) {
+                auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
+                                      [](auto sym) { return Symbol{sym, true}; });
                 auto gil = py::gil_scoped_acquire{};
                 auto syms = self->py_->call(self->get_lib(lib), name, args);
                 return std::visit(
@@ -95,10 +95,14 @@ class MainScript {
     static auto c_callable(char const *name, [[maybe_unused]] size_t arguments, bool *result, void *data)
         -> clingo_result_t {
         // NOTE: python cannot check the number of arguments
-        auto *self = cast(data);
         CLINGO_TRY {
-            auto gil = py::gil_scoped_acquire{};
-            *result = self->py_ && self->py_->callable(name);
+            auto *self = cast(data);
+            if (self->py_) {
+                auto gil = py::gil_scoped_acquire{};
+                *result = self->py_->callable(name);
+            } else {
+                *result = false;
+            }
         }
         CLINGO_CATCH(get_exception_ptr());
     }
