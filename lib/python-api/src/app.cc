@@ -173,7 +173,6 @@ class App {
 };
 
 auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<App *> app, bool raise_errors) -> int {
-    lib.bind();
     auto capp = std::optional<clingo_application_t>{};
     if (app) {
         capp.emplace(app.value()->prepare());

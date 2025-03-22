@@ -95,11 +95,71 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t leve
         *lib = std::make_unique<clingo_lib>(Clingo::Logger{prt, limit},
                                             Clingo::make_symbol_store((flags & clingo_lib_flags_slotted) != 0,
                                                                       (flags & clingo_lib_flags_shared) != 0),
-                                            data)
+                                            data, (flags & clingo_lib_flags_fast_release) != 0)
                    .release();
         (*lib)->log.set_level(static_cast<Clingo::LogLevel>(level));
     }
     CLINGO_CATCH;
+}
+
+extern "C" void clingo_lib_acquire(clingo_lib_t *lib) {
+    if (lib != nullptr) {
+        auto lck = std::unique_lock(lib->ref_mut);
+        ++lib->ref_count;
+    }
+}
+
+extern "C" void clingo_lib_release(clingo_lib_t *lib) {
+    if (lib == nullptr) {
+        return;
+    }
+    if (auto lck = std::unique_lock(lib->ref_mut); --lib->ref_count > 0) {
+        return;
+    }
+    if (lib->fast_release) {
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        delete lib;
+        return;
+    }
+    static std::mutex gc_mut;
+    static auto *lst = static_cast<clingo_lib_t *>(nullptr);
+    if (lib != nullptr) {
+        // reset logger and scripts in case they are holding symbols
+        // the store might be kept alive if it is still holding symbols
+        lib->log = Clingo::Logger{};
+        lib->scripts = Clingo::Control::Scripts{};
+        auto res = lib->store->gc();
+        if (get<0>(res) > 0 || get<1>(res) > 0) {
+            auto lck = std::unique_lock(gc_mut);
+            lib->next_ = lst;
+            lst = lib;
+        } else {
+            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+            delete lib;
+        }
+    }
+    // Note that running the gc for the lib object two times is intended.
+    // The current implementation needs two passes to free all symbols.
+    auto lck = std::unique_lock(gc_mut);
+    auto *cur = std::exchange(lst, nullptr);
+    while (cur != nullptr) {
+        auto *nxt = cur->next_;
+        auto res = cur->store->gc();
+        if (get<0>(res) > 0 || get<1>(res) > 0) {
+            cur->next_ = lst;
+            lst = cur;
+        } else {
+            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+            delete cur;
+        }
+        cur = nxt;
+    }
+#ifdef CLINGO_DEBUG
+    if (lst != nullptr) {
+        fprintf(stderr, "warning: not all symbols have been freed before the library was deleted\n");
+        fflush(stderr);
+    }
+#endif
 }
 
 extern "C" void clingo_lib_set_user_data(clingo_lib_t *lib, void *data) {
@@ -114,53 +174,6 @@ extern "C" void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char
     auto c = static_cast<Clingo::MessageCode>(code);
     if (lib != nullptr && lib->log.check(c)) {
         Clingo::Report(lib->log, c).out() << message;
-    }
-}
-
-extern "C" void clingo_lib_free(clingo_lib_t *lib, bool fast) {
-    if (fast) {
-        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-        delete lib;
-    } else {
-        static auto mut = std::mutex{};
-        static auto *lst = static_cast<clingo_lib_t *>(nullptr);
-        if (lib != nullptr) {
-            // reset logger and scripts in case they are holding symbols
-            // the store might be kept alive if it is still holding symbols
-            lib->log = Clingo::Logger{};
-            lib->scripts = Clingo::Control::Scripts{};
-            auto res = lib->store->gc();
-            if (get<0>(res) > 0 || get<1>(res) > 0) {
-                auto lck = std::unique_lock(mut);
-                lib->next_ = lst;
-                lst = lib;
-            } else {
-                // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-                delete lib;
-            }
-        }
-        // Note that running the gc for the lib object two times is intended.
-        // The current implementation needs two passes to free all symbols.
-        auto lck = std::unique_lock(mut);
-        auto *cur = std::exchange(lst, nullptr);
-        while (cur != nullptr) {
-            auto *nxt = cur->next_;
-            auto res = cur->store->gc();
-            if (get<0>(res) > 0 || get<1>(res) > 0) {
-                cur->next_ = lst;
-                lst = cur;
-            } else {
-                // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-                delete cur;
-            }
-            cur = nxt;
-        }
-#ifdef CLINGO_DEBUG
-        if (lst != nullptr) {
-            fprintf(stderr, "warning: not all symbols have been freed before the library was deleted\n");
-            fflush(stderr);
-        }
-#endif
     }
 }
 

@@ -8,7 +8,7 @@
 #define GC(f) __attribute__((cleanup(f)))
 
 void free_lib(clingo_lib_t **lib) {
-    clingo_lib_free(*lib, true);
+    clingo_lib_release(*lib);
 }
 void free_ctl(clingo_control_t **ctl) {
     clingo_control_free(*ctl);

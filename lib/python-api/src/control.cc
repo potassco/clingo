@@ -40,7 +40,6 @@ auto ConstMap::size() const -> size_t {
 }
 
 Control::Control(Library &lib, std::span<std::string const> args) {
-    lib.bind();
     auto c_args = transform(args, [](auto const &str) { return str.c_str(); });
     auto *ctl = static_cast<clingo_control_t *>(nullptr);
     handle_error(clingo_control_new(lib, c_args.data(), c_args.size(), &ctl));

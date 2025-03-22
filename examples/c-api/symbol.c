@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
     printf("\n");
 out:
     clingo_string_builder_free(builder);
-    clingo_lib_free(lib, true);
+    clingo_lib_release(lib);
 
     return ret;
 }

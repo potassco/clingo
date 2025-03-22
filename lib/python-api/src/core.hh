@@ -1,7 +1,7 @@
 #pragma once
 
 #include "iterable.hh"
-#include "util.hh"
+#include "util.hh" // IWYU pragma: keep
 
 #include <charconv>
 #include <clingo/core.h>
@@ -78,6 +78,21 @@ class Library {
   public:
     Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
             size_t default_message_limit);
+    ~Library() noexcept { release_(); }
+    Library(Library const &other) : Library{other.lib_} {}
+    Library(Library &&other) noexcept : lib_{std::exchange(other.lib_, nullptr)} {}
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
+    auto operator=(Library const &other) -> Library & {
+        other.acquire_();
+        release_();
+        lib_ = other.lib_;
+        return *this;
+    }
+    auto operator=(Library &&other) noexcept -> Library & {
+        release_();
+        lib_ = std::exchange(other.lib_, nullptr);
+        return *this;
+    }
 
     void close() noexcept;
     auto add_object(py::object script) -> PyObject *;
@@ -85,21 +100,17 @@ class Library {
 
     operator clingo_lib_t *() const;
 
-    void bind();
     static auto cast(clingo_lib_t *lib, bool convert = false) -> PyLibrary;
 
   private:
-    Library(clingo_lib_t *lib) : lib_{lib} {}
+    Library(clingo_lib_t *lib) : lib_{lib} { acquire_(); }
+    void acquire_(bool inc = true) const;
+    void release_() noexcept;
+    auto objs_() -> PyObject *;
 
-    static void free_lib_(clingo_lib_t *lib) noexcept {
-        if (lib != nullptr) {
-            clingo_lib_free(lib, false);
-        }
-    }
     static void logger_(clingo_message_t code, char const *message, void *log) noexcept;
 
-    owner_ptr<clingo_lib_t, free_lib_> lib_;
-    std::forward_list<py::object> objs_;
+    clingo_lib_t *lib_ = nullptr;
 };
 
 static constexpr auto code_base = 36;

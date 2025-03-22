@@ -10,14 +10,17 @@
 #include <stdexcept> // IWYU pragma: keep
 
 struct clingo_lib {
-    clingo_lib(Clingo::Logger log, std::unique_ptr<Clingo::SymbolStore> store, void *data)
-        : log{std::move(log)}, store{std::move(store)}, data{data} {}
+    clingo_lib(Clingo::Logger log, std::unique_ptr<Clingo::SymbolStore> store, void *data, bool fast_release)
+        : log{std::move(log)}, store{std::move(store)}, data{data}, fast_release{fast_release} {}
     Clingo::Logger log;
     Clingo::Control::Scripts scripts;
     std::unique_ptr<Clingo::SymbolStore> store;
     void *data;
     clingo_lib_t *next_ = nullptr;
+    std::mutex ref_mut;
+    size_t ref_count = 1;
     void *user_data = nullptr;
+    bool fast_release;
 };
 
 static constexpr auto c_cast(std::strong_ordering cmp) noexcept -> int {

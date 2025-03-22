@@ -151,8 +151,9 @@ typedef struct clingo_lib clingo_lib_t;
 
 //! Flags to create library objects.
 enum clingo_lib_flags_e {
-    clingo_lib_flags_slotted = 1, //!< use custom allocator for storing symbols
-    clingo_lib_flags_shared = 2,  //!< create symbols in a thread-safe manner
+    clingo_lib_flags_slotted = 1,      //!< use custom allocator for storing symbols
+    clingo_lib_flags_shared = 2,       //!< create symbols in a thread-safe manner
+    clingo_lib_flags_fast_release = 4, //!< whether to enable fast release of libraries
 };
 //! Bitset of ::clingo_lib_flags_e.
 typedef uint32_t clingo_lib_flags_t;
@@ -212,6 +213,26 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_lib_new(clingo_lib_flags_t flag
                                                          clingo_logger_t logger, void *data, size_t limit,
                                                          clingo_lib_t **lib);
 
+//! Increment the reference count of the given library.
+//!
+//! @param[in] lib the target
+CLINGO_VISIBILITY_DEFAULT void clingo_lib_acquire(clingo_lib_t *lib);
+
+//! Release a library object created with clingo_lib_new().
+//!
+//! If fast release has been disabled, the garbage collector is run to ensure
+//! that all symbols are freed. If there are still referenced symbols, the
+//! library is not deleted but put in a list for later cleanup. Further calls
+//! to this function trigger further cleanups (the lib parameter can be set to
+//! NULL to just run the cleanup).
+//!
+//! The flag is mainly intended for language bindings, where cleanup of all
+//! symbols cannot be guaranteed due to unpredictable garbage collection.
+//! Objects using the library can still be freed after this call.
+//!
+//! @param[in] lib the target
+CLINGO_VISIBILITY_DEFAULT void clingo_lib_release(clingo_lib_t *lib);
+
 //! Store the given user data in the library.
 //!
 //! This function is meant to associate library objects with their wrapper
@@ -233,22 +254,6 @@ CLINGO_VISIBILITY_DEFAULT void *clingo_lib_get_user_data(clingo_lib_t *lib);
 //! @param[in] code associated code
 //! @param[in] message message
 CLINGO_VISIBILITY_DEFAULT void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char const *message);
-
-//! Free a library object created with clingo_lib_new().
-//!
-//! If parameter fast is set to false, the garbage collector is run to ensure
-//! that all symbols are freed. If there are still referenced symbols, the
-//! library is not deleted but put in a list for later cleanup. Further calls
-//! to this function trigger further cleanups (the lib parameter can be set to
-//! NULL to just run the cleanup).
-//!
-//! The flag is mainly intended for language bindings, where cleanup of all
-//! symbols cannot be guaranteed due to unpredictable garbage collection.
-//! Objects using the library can still be freed after this call.
-//!
-//! @param[in] lib the target
-//! @param[in] fast whether to perform a fast destruction
-CLINGO_VISIBILITY_DEFAULT void clingo_lib_free(clingo_lib_t *lib, bool fast);
 
 //! A builder for strings.
 typedef struct clingo_string_builder clingo_string_builder_t;

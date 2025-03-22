@@ -21,10 +21,11 @@ EMSCRIPTEN_KEEPALIVE
 auto main(int argc, char *argv[]) -> int {
     clingo_result_t res = clingo_result_success;
     struct scoped_lib {
-        ~scoped_lib() { clingo_lib_free(ptr, true); };
+        ~scoped_lib() { clingo_lib_release(ptr); };
         clingo_lib_t *ptr = nullptr;
     } lib;
-    res = clingo_lib_new(clingo_lib_flags_slotted, clingo_log_level_trace, nullptr, nullptr, message_limit, &lib.ptr);
+    res = clingo_lib_new(clingo_lib_flags_slotted | clingo_lib_flags_fast_release, clingo_log_level_trace, nullptr,
+                         nullptr, message_limit, &lib.ptr);
     if (res != clingo_result_success) {
         return 1;
     }
