@@ -527,6 +527,9 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
     //! Get the application mode.
     [[nodiscard]] auto get_mode() const -> AppMode { return mode_; }
 
+    //! Get user data for C integration.
+    auto user_data() -> void *& { return data_; }
+
   private:
     //! States for step transitions.
     //!
@@ -577,6 +580,7 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
     Scripts *scripts_;
     State state_ = State::initial;
     AppMode mode_;
+    void *data_;
     bool block_main_ = false;
 };
 

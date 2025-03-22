@@ -44,47 +44,6 @@ auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
     return clingo_result_unknown;
 }
 
-auto handle_error(clingo_lib_t *lib) -> clingo_result_t {
-    try {
-        throw;
-    } catch (py::error_already_set &e) {
-        auto gil = py::gil_scoped_acquire{};
-        clingo_result_t code = clingo_result_runtime;
-        auto const *msg = e.what();
-        if (e.type().is(py::module::import("clingo").attr("_ClingoError"))) {
-            char const *end = std::next(msg, static_cast<ssize_t>(std::strlen(msg)));
-            char const *num = std::find_if(msg, end, [](char c) { return std::isdigit(c); });
-            unsigned char res = 0;
-            std::from_chars(num, end, res, code_base);
-            if (res != 0) {
-                code = res;
-            }
-        } else {
-            clingo_lib_report(lib, clingo_message_error, msg);
-        }
-        PyErr_Clear();
-        return code;
-    } catch (PyClingoError const &e) {
-        return e.code();
-    } catch (std::invalid_argument const &e) {
-        clingo_lib_report(lib, clingo_message_error, e.what());
-        return clingo_result_invalid;
-    } catch (std::range_error const &e) {
-        clingo_lib_report(lib, clingo_message_error, e.what());
-        return clingo_result_range;
-    } catch (std::bad_alloc const &e) {
-        clingo_lib_report(lib, clingo_message_error, e.what());
-        return clingo_result_bad_alloc;
-    } catch (std::logic_error const &e) {
-        clingo_lib_report(lib, clingo_message_error, e.what());
-        return clingo_result_logic;
-    } catch (std::exception const &e) {
-        clingo_lib_report(lib, clingo_message_error, e.what());
-        return clingo_result_runtime;
-    }
-    unreachable();
-}
-
 auto string_builder() -> clingo_string_builder_t * {
     struct free_builder {
         void operator()(clingo_string_builder_t const *bld) { clingo_string_builder_free(bld); }
@@ -114,6 +73,31 @@ Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation
     clingo_lib_t *lib = nullptr;
     handle_error(clingo_lib_new(flags, level, ptr != nullptr ? &logger_ : nullptr, ptr, default_message_limit, &lib));
     lib_.reset(lib);
+}
+
+void Library::bind() {
+    if (auto *data = clingo_lib_get_user_data(lib_.get()); data == nullptr) {
+        clingo_lib_set_user_data(lib_.get(), py::cast(this).ptr());
+    }
+}
+
+auto Library::cast(clingo_lib_t *lib, Annotation<Library> &target) -> Annotation<Library> {
+    auto *data = clingo_lib_get_user_data(lib);
+    if (data == nullptr) {
+        // associated library with its python object here
+        target = py::cast(Library{lib});
+        data = target.ptr();
+        clingo_lib_set_user_data(lib, data);
+    }
+    return py::reinterpret_borrow<Annotation<Library>>(static_cast<PyObject *>(data));
+}
+
+auto Library::cast(clingo_lib_t *lib) -> Annotation<Library> {
+    auto *data = clingo_lib_get_user_data(lib);
+    if (data != nullptr) {
+        return py::reinterpret_borrow<Annotation<Library>>(static_cast<PyObject *>(data));
+    }
+    throw std::runtime_error("invalid library cast");
 }
 
 void Library::close() noexcept {

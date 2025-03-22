@@ -163,8 +163,8 @@ extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observe
         }
 
         // NOLINTNEXTLINE
-        auto const *base = reinterpret_cast<clingo_base_t const *>(control->slv);
-        Observer obs{*base, *observer, data};
+        auto const &base = reinterpret_cast<clingo_base_t const &>(*control->slv);
+        Observer obs{base, *observer, data};
         prg.accept(obs, true);
     }
     CLINGO_CATCH;

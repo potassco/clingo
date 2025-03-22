@@ -34,13 +34,15 @@ class ConstMap {
     clingo_const_map_t const *map_;
 };
 
+class Control;
+using PyControl = Annotation<Control>;
+
 class Control {
   public:
     using AssumptionVec = std::vector<std::variant<std::pair<Symbol, bool>, Lit_t>>;
     using HintConstMap = TypeHint<"typing.Mapping[str, clingo.symbol.Symbol]">;
 
     Control(Library &lib, std::span<std::string const> args);
-    Control(clingo_control_t *ctl) : ctl_{ctl} {}
 
     ~Control() = default;
     Control(Control const &other) = delete;
@@ -66,9 +68,13 @@ class Control {
 
     void register_propagator(Annotation<Propagator> propagator);
 
+    void bind();
+    static auto cast(clingo_control_t *ctl, PyControl &target) -> PyControl;
+    static auto cast(clingo_control_t *lib) -> PyControl;
     static void setup(PyHeapTypeObject *heap_type);
 
   private:
+    Control(clingo_control_t *ctl) : ctl_{ctl} {}
     static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name,
                      clingo_symbol_t const *arguments, size_t arguments_size, void *data,
                      clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t;

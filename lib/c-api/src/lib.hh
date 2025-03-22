@@ -17,6 +17,7 @@ struct clingo_lib {
     std::unique_ptr<Clingo::SymbolStore> store;
     void *data;
     clingo_lib_t *next_ = nullptr;
+    void *user_data = nullptr;
 };
 
 static constexpr auto c_cast(std::strong_ordering cmp) noexcept -> int {

@@ -206,6 +206,21 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_lib_new(clingo_lib_flags_t flag
                                                          clingo_logger_t logger, void *data, size_t limit,
                                                          clingo_lib_t **lib);
 
+//! Store the given user data in the library.
+//!
+//! This function is meant to associate library objects with their wrapper
+//! object in language bindings.
+//!
+//! @param[in] lib the target library
+//! @param[in] data the user data to set.
+CLINGO_VISIBILITY_DEFAULT void clingo_lib_set_user_data(clingo_lib_t *lib, void *data);
+
+//! Get the user data of the library.
+//!
+//! @param[in] lib the target library
+//! @return the user data
+CLINGO_VISIBILITY_DEFAULT void *clingo_lib_get_user_data(clingo_lib_t *lib);
+
 //! Report a message via the libraries logger.
 //!
 //! @param[in] lib the library

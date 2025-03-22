@@ -133,9 +133,10 @@ class App {
 
     static auto main_(clingo_control_t *ctl, char const *const *files, size_t files_size,
                       clingo_parts_array_t const *parts, size_t parts_size, void *data) -> clingo_result_t {
-        auto &app = *static_cast<App *>(data);
         CLINGO_TRY {
-            auto pyctl = py::cast(Control(ctl));
+            auto &app = *static_cast<App *>(data);
+            auto pyctl = Annotation<Control>{};
+            pyctl = Control::cast(ctl, pyctl);
             auto cfiles = std::span{files, files_size};
             app.main(pyctl, std::vector<std::string>{cfiles.begin(), cfiles.end()}, std::span{parts, parts_size});
         }
@@ -175,7 +176,8 @@ class App {
     std::optional<std::string> version_;
 };
 
-auto pymain(Library const &lib, std::span<std::string const> arguments, std::optional<App *> app) -> int {
+auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<App *> app) -> int {
+    lib.bind();
     auto capp = std::optional<clingo_application_t>{};
     if (app) {
         capp.emplace(app.value()->prepare());

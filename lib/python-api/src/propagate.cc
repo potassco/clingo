@@ -199,10 +199,10 @@ class PropagateInit {
         return {assignment};
     }
 
-    auto library() -> Library {
+    auto library() -> PyLibrary {
         clingo_lib_t *lib = nullptr;
         handle_error(clingo_propagate_init_library(init_, &lib));
-        return {lib};
+        return Library::cast(lib);
     }
 
     auto base() -> Base {

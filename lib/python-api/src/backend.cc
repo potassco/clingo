@@ -56,93 +56,81 @@ void Observer::edge(int node_u, int node_v, LitSpan condition) {
 }
 
 void Observer::observe(clingo_control_t *ctl, bool preprocess) {
-    using UserData = std::pair<std::exception_ptr, Observer *>;
     static constexpr auto g_obs = clingo_observer_t{
         [](bool incremental, void *data) -> clingo_result_t {
-            auto &[exception, obs] = *static_cast<UserData *>(data);
             CLINGO_TRY {
-                obs->init_program(incremental);
+                static_cast<Observer *>(data)->init_program(incremental);
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(get_exception_ptr());
         },
         [](void *data) -> clingo_result_t {
-            auto &[exception, obs] = *static_cast<UserData *>(data);
             CLINGO_TRY {
-                obs->begin_step();
+                static_cast<Observer *>(data)->begin_step();
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(get_exception_ptr());
         },
         [](clingo_base_t const *base, void *data) -> clingo_result_t {
-            auto &[exception, obs] = *static_cast<UserData *>(data);
             CLINGO_TRY {
-                obs->end_step(Base{base});
+                static_cast<Observer *>(data)->end_step(Base{base});
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(get_exception_ptr());
         },
         [](bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size,
            void *data) -> clingo_result_t {
-            auto &[exception, obs] = *static_cast<UserData *>(data);
             CLINGO_TRY {
-                obs->rule(std::span{head, head_size}, std::span{body, body_size}, choice);
+                static_cast<Observer *>(data)->rule(std::span{head, head_size}, std::span{body, body_size}, choice);
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(get_exception_ptr());
         },
         [](bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower,
            clingo_weighted_literal_t const *body, size_t body_size, void *data) -> clingo_result_t {
-            auto &[exception, obs] = *static_cast<UserData *>(data);
             CLINGO_TRY {
-                obs->weight_rule(std::span{head, head_size}, lower, std::span{body, body_size}, choice);
+                static_cast<Observer *>(data)->weight_rule(std::span{head, head_size}, lower,
+                                                           std::span{body, body_size}, choice);
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(get_exception_ptr());
         },
         [](clingo_weight_t priority, clingo_weighted_literal_t const *body, size_t body_size,
            void *data) -> clingo_result_t {
-            auto &[exception, obs] = *static_cast<UserData *>(data);
             CLINGO_TRY {
-                obs->minimize(std::span{body, body_size}, priority);
+                static_cast<Observer *>(data)->minimize(std::span{body, body_size}, priority);
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(get_exception_ptr());
         },
         [](clingo_atom_t const *atoms, size_t size, void *data) -> clingo_result_t {
-            auto &[exception, obs] = *static_cast<UserData *>(data);
             CLINGO_TRY {
-                obs->project(std::span{atoms, size});
+                static_cast<Observer *>(data)->project(std::span{atoms, size});
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(get_exception_ptr());
         },
         [](clingo_atom_t atom, clingo_external_type_t type, void *data) -> clingo_result_t {
-            auto &[exception, obs] = *static_cast<UserData *>(data);
             CLINGO_TRY {
-                obs->external(atom, static_cast<clingo_external_type_e>(type));
+                static_cast<Observer *>(data)->external(atom, static_cast<clingo_external_type_e>(type));
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(get_exception_ptr());
         },
         [](clingo_literal_t const *literals, size_t size, void *data) -> clingo_result_t {
-            auto &[exception, obs] = *static_cast<UserData *>(data);
             CLINGO_TRY {
-                obs->assume(std::span{literals, size});
+                static_cast<Observer *>(data)->assume(std::span{literals, size});
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(get_exception_ptr());
         },
         [](clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority,
            clingo_literal_t const *condition, size_t size, void *data) -> clingo_result_t {
-            auto &[exception, obs] = *static_cast<UserData *>(data);
             CLINGO_TRY {
-                obs->heuristic(atom, static_cast<clingo_heuristic_type_e>(type), bias, priority,
-                               std::span{condition, size});
+                static_cast<Observer *>(data)->heuristic(atom, static_cast<clingo_heuristic_type_e>(type), bias,
+                                                         priority, std::span{condition, size});
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(get_exception_ptr());
         },
         [](int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data) -> clingo_result_t {
-            auto &[exception, obs] = *static_cast<UserData *>(data);
             CLINGO_TRY {
-                obs->edge(node_u, node_v, std::span{condition, size});
+                static_cast<Observer *>(data)->edge(node_u, node_v, std::span{condition, size});
             }
-            CLINGO_CATCH(exception);
+            CLINGO_CATCH(get_exception_ptr());
         },
     };
-    auto data = UserData{std::exception_ptr{}, this};
-    handle_error(clingo_control_observe(ctl, &g_obs, static_cast<void *>(&data), preprocess), data.first);
+    handle_error(clingo_control_observe(ctl, &g_obs, static_cast<void *>(this), preprocess), get_exception_ptr());
 }
 
 auto Backend::atom(std::optional<Symbol> symbol) -> clingo_atom_t {

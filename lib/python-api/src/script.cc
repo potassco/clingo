@@ -1,7 +1,3 @@
-// Note that the scripts in this class report errors via the libraries logger.
-// This design is somewhat unfortunate but proper forwarding of errors here
-// would be tough. In practice, it is best to avoid scripts and instead use
-// the context object of the ground call that supports error forwarding.
 #include "script.hh"
 #include "control.hh"
 #include "symbol.hh"
@@ -35,11 +31,13 @@ class Interpreter {
 
     auto callable(char const *name) -> bool { return scope_.contains(name) && callable_(scope_[name]).cast<bool>(); }
 
-    auto call(const Annotation<Library> &lib, char const *name, SymbolVec args) -> std::variant<SymbolVec, Symbol> {
+    auto call(Annotation<Library> const &lib, char const *name, SymbolVec args) -> std::variant<SymbolVec, Symbol> {
         return scope_[name](lib, *py::cast(args)).cast<std::variant<SymbolVec, Symbol>>();
     }
 
-    auto main(const Annotation<Library> &lib, Control ctl, PartsSpan parts) { scope_["main"](lib, &ctl, parts); }
+    auto main(Annotation<Library> const &lib, Annotation<Control> const &ctl, PartsSpan parts) {
+        scope_["main"](lib, ctl, parts);
+    }
 
     auto version() -> char const * { return version_.c_str(); }
 
@@ -52,8 +50,7 @@ class Interpreter {
 
 class MainScript {
   public:
-    MainScript(clingo_lib_t *lib) : clib_{lib} {}
-    MainScript(Annotation<Library> lib) : clib_{nullptr}, lib_{std::move(lib)} { init_(); }
+    MainScript() = default;
 
     static auto cast(void *data) -> MainScript * { return static_cast<MainScript *>(data); }
 
@@ -66,18 +63,17 @@ class MainScript {
         CLINGO_CATCH(get_exception_ptr());
     }
 
-    static auto c_call([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc,
-                       char const *name, clingo_symbol_t const *arguments, size_t arguments_size,
+    static auto c_call(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
+                       clingo_symbol_t const *arguments, size_t arguments_size,
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data)
         -> clingo_result_t {
-        // NOTE: the Python wrapped library is used here instead.
         auto *self = cast(data);
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
             if (self->py_) {
                 auto gil = py::gil_scoped_acquire{};
-                auto syms = self->py_->call(self->get_lib(), name, args);
+                auto syms = self->py_->call(self->get_lib(lib), name, args);
                 return std::visit(
                     [&]<class T>(T const &res) {
                         if constexpr (std::is_same_v<T, Symbol>) {
@@ -96,9 +92,9 @@ class MainScript {
         CLINGO_CATCH(get_exception_ptr());
     }
 
-    static auto c_callable(char const *name, size_t arguments, bool *result, void *data) -> clingo_result_t {
-        // Note: that python cannot check the number of arguments
-        static_cast<void>(arguments);
+    static auto c_callable(char const *name, [[maybe_unused]] size_t arguments, bool *result, void *data)
+        -> clingo_result_t {
+        // NOTE: python cannot check the number of arguments
         auto *self = cast(data);
         CLINGO_TRY {
             auto gil = py::gil_scoped_acquire{};
@@ -107,27 +103,21 @@ class MainScript {
         CLINGO_CATCH(get_exception_ptr());
     }
 
-    static auto main([[maybe_unused]] clingo_lib_t *lib, clingo_control_t *control, clingo_parts_array_t const *parts,
-                     size_t size, void *data) -> clingo_result_t {
-        auto *self = cast(data);
+    static auto main(clingo_lib_t *lib, clingo_control_t *control, clingo_parts_array_t const *parts, size_t size,
+                     void *data) -> clingo_result_t {
         CLINGO_TRY {
+            auto *self = cast(data);
             if (self->py_) {
                 auto gil = py::gil_scoped_acquire{};
-                self->py_->main(self->get_lib(), control, std::span{parts, size});
+                self->py_->main(self->get_lib(lib), self->get_ctl(control), std::span{parts, size});
             }
         }
         CLINGO_CATCH(get_exception_ptr());
     }
 
-    static auto c_name(void *data) -> char const * {
-        static_cast<void>(data);
-        return "python";
-    }
+    static auto c_name([[maybe_unused]] void *data) -> char const * { return "python"; }
 
-    static auto c_version(void *data) -> char const * {
-        static_cast<void>(data);
-        return CLINGO_PYTHON_VERSION;
-    }
+    static auto c_version([[maybe_unused]] void *data) -> char const * { return CLINGO_PYTHON_VERSION; }
 
     static void c_free(void *data) {
         // NOLINTNEXTLINE
@@ -138,54 +128,48 @@ class MainScript {
     void init_() {
         if (!py_) {
             py_ = std::make_unique<Interpreter>();
-            if (!lib_) {
-                plib_ = py::cast(Library{clib_});
-                lib_ = plib_;
-            }
         }
     }
 
-    auto get_lib() -> Annotation<Library> { return py::reinterpret_borrow<Annotation<Library>>(lib_); }
+    auto get_lib(clingo_lib_t *lib) -> Annotation<Library> { return Library::cast(lib, lib_); }
+
+    auto get_ctl(clingo_control_t *ctl) -> Annotation<Control> { return Control::cast(ctl, ctl_); }
 
     std::unique_ptr<Interpreter> py_;
-    //! NOTE: only for embedding
-    Annotation<Library> plib_;
-    //! NOTE: only for embedding
-    clingo_lib_t *clib_;
-    // FIXME: this is too messy -> needs design change to just store the above libs for embedding here
-    py::handle lib_;
+    //! Stores lib pointer when embedded.
+    Annotation<Library> lib_;
+    //! Stores control pointer when embedded.
+    Annotation<Control> ctl_;
 };
 
 class Script {
   public:
     void execute(char const *code) { PYBIND11_OVERRIDE_PURE(void, Script, execute, code); }
 
-    static auto get_self(void *data) -> Script & { return py::handle{static_cast<PyObject *>(data)}.cast<Script &>(); }
+    static auto get_self(void *data) -> Script & { return *static_cast<Script *>(data); }
 
     static auto c_execute(char const *code, void *data) -> clingo_result_t {
-        auto &self = get_self(data);
         CLINGO_TRY {
+            auto &self = get_self(data);
             self.execute(code);
         }
         CLINGO_CATCH(get_exception_ptr());
     }
 
-    auto call(const Annotation<Library> &lib, char const *name, SymbolVec const &args)
-        -> std::variant<SymbolVec, Symbol> {
+    auto call(const PyLibrary &lib, char const *name, SymbolVec const &args) -> std::variant<SymbolVec, Symbol> {
         PYBIND11_OVERRIDE_PURE(SymbolVec, Script, call, lib, name, args);
     }
 
-    static auto c_call([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc,
-                       char const *name, clingo_symbol_t const *arguments, size_t arguments_size,
+    static auto c_call(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
+                       clingo_symbol_t const *arguments, size_t arguments_size,
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data)
         -> clingo_result_t {
-        // NOTE: the Python wrapped library is used here instead.
         auto &self = get_self(data);
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
             auto gil = py::gil_scoped_acquire{};
-            auto syms = self.call(self.get_lib(), name, args);
+            auto syms = self.call(get_lib(lib), name, args);
             return std::visit(
                 [&]<class T>(T const &res) {
                     if constexpr (std::is_same_v<T, Symbol>) {
@@ -216,17 +200,16 @@ class Script {
         CLINGO_CATCH(get_exception_ptr());
     }
 
-    void main(const Annotation<Library> &lib, Control &ctl, PartsSpan parts) {
-        PYBIND11_OVERRIDE_PURE(void, Script, main, lib, &ctl, &parts);
+    void main(const PyLibrary &lib, const PyControl &ctl, PartsSpan parts) {
+        PYBIND11_OVERRIDE_PURE(void, Script, main, lib, ctl, parts);
     }
 
-    static auto c_main([[maybe_unused]] clingo_lib_t *lib, clingo_control_t *control, clingo_parts_array_t const *parts,
-                       size_t size, void *data) -> clingo_result_t {
+    static auto c_main(clingo_lib_t *lib, clingo_control_t *control, clingo_parts_array_t const *parts, size_t size,
+                       void *data) -> clingo_result_t {
         CLINGO_TRY {
             auto &self = get_self(data);
-            auto py_ctl = Control{control};
             auto gil = py::gil_scoped_acquire{};
-            self.main(self.get_lib(), py_ctl, std::span{parts, size});
+            self.main(get_lib(lib), get_ctl(control), std::span{parts, size});
         }
         CLINGO_CATCH(get_exception_ptr());
     }
@@ -259,24 +242,30 @@ class Script {
         }
     }
 
-    void set_lib(Annotation<Library> lib) { lib_ = lib.release(); }
-    auto get_lib() -> Annotation<Library> { return py::reinterpret_borrow<Annotation<Library>>(lib_); }
+    static auto get_lib(clingo_lib_t *lib) -> PyLibrary { return Library::cast(lib); }
+    static auto get_ctl(clingo_control_t *ctl) -> PyControl { return Control::cast(ctl); }
 
   private:
-    // FIXME: this is too messy -> needs design change to just store the above libs for embedding here
-    py::handle lib_;
     std::string name_;
     std::string version_;
 };
 
-void reg_script(Annotation<Library> lib, Annotation<Script> script) {
+void reg_script(Annotation<Library> const &lib, Annotation<Script> script) {
     auto &clib = py::cast<Library &>(lib);
-    py::cast<Script &>(script).set_lib(std::move(lib));
     auto *ptr = clib.add_object(std::move(script));
     auto c_script =
         clingo_script_t{Script::c_execute, Script::c_call, Script::c_callable, Script::c_main, Script::c_name,
                         Script::c_version, nullptr};
-    handle_error(clingo_script_register(clib, &c_script, ptr));
+    handle_error(clingo_script_register(clib, &c_script, py::cast<Script *>(ptr)));
+}
+
+void reg_python(Annotation<Library> const &lib) {
+    using Script = Clingo::Python::MainScript;
+    auto &c_lib = py::cast<Library &>(lib);
+    auto c_script = clingo_script_t{Script::c_execute, Script::c_call, Script::c_callable, Script::main, Script::c_name,
+                                    Script::c_version, nullptr};
+    auto *py_script = c_lib.add_object(py::cast(Script{}));
+    handle_error(clingo_script_register(c_lib, &c_script, py::cast<Script *>(py_script)));
 }
 
 } // namespace
@@ -285,19 +274,8 @@ auto register_python(clingo_lib_t *lib) -> clingo_result_t {
     using Script = Clingo::Python::MainScript;
     auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::main,
                                     Script::c_name,    Script::c_version, Script::c_free};
-    // NOTE: the script is going to manage an internal library
-    auto script = std::make_unique<Script>(lib);
+    auto script = std::make_unique<Script>();
     return clingo_script_register(lib, &c_script, script.release());
-}
-
-auto reg_python(Annotation<Library> lib) -> clingo_result_t {
-    using Script = Clingo::Python::MainScript;
-    auto &c_lib = py::cast<Library &>(lib);
-    auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::main,
-                                    Script::c_name,    Script::c_version, Script::c_free};
-    // NOTE: the library takes ownership of the script
-    auto *script = c_lib.add_object(py::cast(Script{std::move(lib)}));
-    return clingo_script_register(c_lib, &c_script, py::cast<Script *>(script));
 }
 
 void register_script(pybind11::module &m) {

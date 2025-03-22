@@ -102,6 +102,14 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t leve
     CLINGO_CATCH;
 }
 
+extern "C" void clingo_lib_set_user_data(clingo_lib_t *lib, void *data) {
+    lib->user_data = data;
+}
+
+extern "C" auto clingo_lib_get_user_data(clingo_lib_t *lib) -> void * {
+    return lib->user_data;
+}
+
 extern "C" void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char const *message) {
     auto c = static_cast<Clingo::MessageCode>(code);
     if (lib != nullptr && lib->log.check(c)) {

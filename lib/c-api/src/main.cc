@@ -146,7 +146,7 @@ class AppAdapter {
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
   public:
     ClingoApp(clingo_lib_t &lib, clingo_application_t *app = nullptr, void *data = nullptr)
-        : ctl_{&lib, nullptr, nullptr, nullptr}, app_{app, data} {}
+        : ctl_{&lib}, app_{app, data} {}
 
     [[nodiscard]] auto getName() const -> char const * override { return app_.get_name(); }
     [[nodiscard]] auto getVersion() const -> char const * override { return app_.get_version(); }
@@ -273,9 +273,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                 slv.add_const(*name, *value);
             }
             // NOTE: member for createTextOutput
-            ctl_.slv = &slv;
-            ctl_.cfg = &slv.clasp_config();
-            ctl_.clasp = &slv.clasp_facade();
+            ctl_.bind(&slv, &slv.clasp_config(), &slv.clasp_facade());
             if (app_.has_main()) {
                 if (mode_ == Mode::solve) {
                     ctl_.clasp->enableProgramUpdates();
@@ -350,7 +348,7 @@ extern "C" auto clingo_main(clingo_lib_t *lib, char const *const *arguments, siz
         }
         auto capp = ClingoApp{*lib, app, data};
         auto args = map(capp.getName(), arguments, size);
-        auto res = capp.main(static_cast<int>(args.size()), args.data());
+        auto res = capp.main(static_cast<int>(args.size() - 1), args.data());
         if (code != nullptr) {
             *code = res;
         }

@@ -40,6 +40,7 @@ auto ConstMap::size() const -> size_t {
 }
 
 Control::Control(Library &lib, std::span<std::string const> args) {
+    lib.bind();
     auto c_args = transform(args, [](auto const &str) { return str.c_str(); });
     auto *ctl = static_cast<clingo_control_t *>(nullptr);
     handle_error(clingo_control_new(lib, c_args.data(), c_args.size(), &ctl));
@@ -57,12 +58,14 @@ void Control::join(Program &prg) {
 }
 
 void Control::parse_string(char const *str) {
-    handle_error(clingo_control_parse_string(ctl_.get(), str));
+    bind();
+    handle_error(clingo_control_parse_string(ctl_.get(), str), get_exception_ptr());
 }
 
 void Control::parse_files(std::span<std::string const> files) {
+    bind();
     auto cfiles = transform(files, [](auto const &x) { return x.c_str(); });
-    handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()));
+    handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()), get_exception_ptr());
 }
 
 auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
@@ -96,6 +99,7 @@ auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_l
 }
 
 void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
+    bind();
     auto release = py::gil_scoped_release{};
     if (!parts) {
         static constexpr auto part = clingo_part_t{"base", nullptr, 0};
@@ -180,13 +184,14 @@ auto Control::solve(MixedLitlVec const &assumptions, std::optional<ModelCallback
 }
 
 void Control::main(std::optional<PartsSpan> parts) {
+    bind();
     auto release = py::gil_scoped_release{};
     if (!parts) {
         static constexpr clingo_part_t part = {"base", nullptr, 0};
         static constexpr clingo_parts_array_t part_array = {&part, 1};
         parts.emplace(&part_array, 1);
     }
-    handle_error(clingo_control_main(ctl_.get(), parts->data(), parts->size()));
+    handle_error(clingo_control_main(ctl_.get(), parts->data(), parts->size()), get_exception_ptr());
 }
 
 auto Control::buffer() -> char const * {
@@ -223,6 +228,31 @@ void Control::setup(PyHeapTypeObject *heap_type) {
         self.props_.clear();
         return 0;
     };
+}
+
+void Control::bind() {
+    if (auto *data = clingo_control_get_user_data(ctl_.get()); data == nullptr) {
+        clingo_control_set_user_data(ctl_.get(), py::cast(this).ptr());
+    }
+}
+
+auto Control::cast(clingo_control_t *ctl, PyControl &target) -> PyControl {
+    auto *data = clingo_control_get_user_data(ctl);
+    if (data == nullptr) {
+        // associated control with its python object here
+        target = py::cast(Control{ctl});
+        data = target.ptr();
+        clingo_control_set_user_data(ctl, data);
+    }
+    return py::reinterpret_borrow<Annotation<Control>>(static_cast<PyObject *>(data));
+}
+
+auto Control::cast(clingo_control_t *lib) -> PyControl {
+    auto *data = clingo_control_get_user_data(lib);
+    if (data != nullptr) {
+        return py::reinterpret_borrow<Annotation<Control>>(static_cast<PyObject *>(data));
+    }
+    throw std::runtime_error("invalid control cast");
 }
 
 void register_control(pybind11::module &m) {

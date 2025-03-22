@@ -164,6 +164,21 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_size(clingo_const_map
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_new(clingo_lib_t *lib, char const *const *arguments,
                                                              size_t arguments_size, clingo_control_t **control);
 
+//! Store the given user data in the control object.
+//!
+//! This function is meant to associate control objects with their wrapper
+//! object in language bindings.
+//!
+//! @param[in] control the target library
+//! @param[in] data the user data to set.
+CLINGO_VISIBILITY_DEFAULT void clingo_control_set_user_data(clingo_control_t *control, void *data);
+
+//! Get the user data of the control object.
+//!
+//! @param[in] control the target library
+//! @return the user data
+CLINGO_VISIBILITY_DEFAULT void *clingo_control_get_user_data(clingo_control_t *control);
+
 //! Free a control object created with clingo_control_new().
 //! @param[in] control the target
 CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);

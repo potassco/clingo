@@ -106,7 +106,6 @@ class TestScript:
                 def main(lib, ctl, parts):
                     ctl.parse_string("#program one(k). p(k).")
                     ctl.ground([("one", [Number(lib, 1)])])
-
                     ctl.parse_string("#program ext(k). p(@fun(k)).")
                     ctl.ground([("ext", [Number(lib, i)]) for i in range(1, 1000, 257)])
                 #end.

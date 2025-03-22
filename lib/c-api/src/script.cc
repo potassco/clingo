@@ -27,9 +27,9 @@ class CScript : public Clingo::Control::Script {
           private:
             Clingo::Control::Solver *slv_;
         } guard{slv};
-        auto ctl = clingo_control_t{lib_, &slv, &slv.clasp_config(), &slv.clasp_facade()};
+        auto *ctl = static_cast<clingo_control_t *>(slv.user_data());
         auto [cparts, vecs] = convert(params);
-        handle_error(script_.main(lib_, &ctl, cparts.data(), cparts.size(), data_));
+        handle_error(script_.main(lib_, ctl, cparts.data(), cparts.size(), data_));
     }
 
     auto do_callable(std::string_view name, size_t args) -> bool override {

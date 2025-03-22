@@ -11,10 +11,37 @@
 #include <forward_list>
 
 struct clingo_control {
+    clingo_control(clingo_lib_t *lib) : lib{lib} {}
+    clingo_control(clingo_lib_t *lib, std::unique_ptr<Clingo::Control::Solver> slv,
+                   std::unique_ptr<Clasp::ClaspConfig> cfg, std::unique_ptr<Clasp::ClaspFacade> clasp)
+        : lib{lib}, slv{slv.release()}, cfg{cfg.release()}, clasp{clasp.release()}, own{true} {
+        this->slv->user_data() = this;
+    }
+    clingo_control(clingo_control const &other) = delete;
+    clingo_control(clingo_control &&other) noexcept = delete;
+    auto operator=(clingo_control const &other) -> clingo_control & = delete;
+    auto operator=(clingo_control &&other) noexcept -> clingo_control & = delete;
+    ~clingo_control() {
+        if (own) {
+            delete slv;
+            delete clasp;
+            delete cfg;
+        }
+    }
+    void bind(Clingo::Control::Solver *slv, Clasp::ClaspConfig *cfg, Clasp::ClaspFacade *clasp) {
+        assert(!own);
+        this->slv = slv;
+        this->cfg = cfg;
+        this->clasp = clasp;
+        this->slv->user_data() = this;
+        own = false;
+    }
     clingo_lib_t *lib;
-    Clingo::Control::Solver *slv;
-    Clasp::ClaspConfig *cfg;
-    Clasp::ClaspFacade *clasp;
+    Clingo::Control::Solver *slv = nullptr;
+    Clasp::ClaspConfig *cfg = nullptr;
+    Clasp::ClaspFacade *clasp = nullptr;
+    void *data = nullptr;
+    bool own = false;
 };
 
 inline auto convert(Clingo::Input::ProgramParamVec const &parts) {

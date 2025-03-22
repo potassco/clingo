@@ -64,24 +64,17 @@ inline void handle_error(clingo_result_t code) {
 //! Always returns result code unknown.
 auto handle_error(std::exception_ptr &ptr) -> clingo_result_t;
 
-//! Outputs the current exception via the libraries logger.
-//!
-//! Must be called in a catch clause.
-//!
-//! This function does not report PyClingoErrors, which are assumed to be
-//! handled earlier. Their code is forwarded; other exceptions are reported and
-//! mapped to a suitable code.
-auto handle_error(clingo_lib_t *lib) -> clingo_result_t;
-
 using Logger = std::function<void(clingo_message_e, char const *)>;
 
 static constexpr size_t default_message_limit = 25;
+
+class Library;
+using PyLibrary = Annotation<Library>;
 
 class Library {
   public:
     Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
             size_t default_message_limit);
-    Library(clingo_lib_t *lib) : lib_{lib} {}
 
     void close() noexcept;
     auto add_object(py::object script) -> PyObject *;
@@ -89,7 +82,13 @@ class Library {
 
     operator clingo_lib_t *() const;
 
+    void bind();
+    static auto cast(clingo_lib_t *lib, PyLibrary &target) -> PyLibrary;
+    static auto cast(clingo_lib_t *lib) -> PyLibrary;
+
   private:
+    Library(clingo_lib_t *lib) : lib_{lib} {}
+
     static void free_lib_(clingo_lib_t *lib) noexcept {
         if (lib != nullptr) {
             clingo_lib_free(lib, false);

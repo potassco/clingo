@@ -57,18 +57,20 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
         }
         auto slv = std::make_unique<Clingo::Control::Solver>(*clasp, *slv_cfg, lib->log, *lib->store, lib->scripts,
                                                              grd_cfg, mode, nullptr);
-        *control = new clingo_control{lib, nullptr, nullptr, nullptr};
-        (*control)->cfg = slv_cfg.release();
-        (*control)->clasp = clasp.release();
-        (*control)->slv = slv.release();
+        *control = new clingo_control{lib, std::move(slv), std::move(slv_cfg), std::move(clasp)};
     }
     CLINGO_CATCH;
 }
 
+extern "C" void clingo_control_set_user_data(clingo_control_t *control, void *data) {
+    control->data = data;
+}
+
+extern "C" auto clingo_control_get_user_data(clingo_control_t *control) -> void * {
+    return control->data;
+}
+
 extern "C" void clingo_control_free(clingo_control_t *control) {
-    delete control->slv;
-    delete control->clasp;
-    delete control->cfg;
     delete control;
 }
 
