@@ -78,21 +78,6 @@ class Library {
   public:
     Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
             size_t default_message_limit);
-    ~Library() noexcept { release_(); }
-    Library(Library const &other) : Library{other.lib_} {}
-    Library(Library &&other) noexcept : lib_{std::exchange(other.lib_, nullptr)} {}
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(Library const &other) -> Library & {
-        other.acquire_();
-        release_();
-        lib_ = other.lib_;
-        return *this;
-    }
-    auto operator=(Library &&other) noexcept -> Library & {
-        release_();
-        lib_ = std::exchange(other.lib_, nullptr);
-        return *this;
-    }
 
     void close() noexcept;
     auto add_object(py::object script) -> PyObject *;
@@ -101,16 +86,16 @@ class Library {
     operator clingo_lib_t *() const;
 
     static auto cast(clingo_lib_t *lib, bool convert = false) -> PyLibrary;
+    static void acquire(clingo_lib_t *lib, bool inc = true);
+    static void release(clingo_lib_t *lib) noexcept;
 
   private:
-    Library(clingo_lib_t *lib) : lib_{lib} { acquire_(); }
-    void acquire_(bool inc = true) const;
-    void release_() noexcept;
-    auto objs_() -> PyObject *;
+    Library(clingo_lib_t *lib) : lib_{lib} {}
+    auto user_data() -> PyObject *;
 
     static void logger_(clingo_message_t code, char const *message, void *log) noexcept;
 
-    clingo_lib_t *lib_ = nullptr;
+    ManagedPtr<Library, clingo_lib_t> lib_;
 };
 
 static constexpr auto code_base = 36;

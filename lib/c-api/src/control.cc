@@ -62,16 +62,29 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
     CLINGO_CATCH;
 }
 
+extern "C" void clingo_control_acquire(clingo_control_t *control) {
+    if (control != nullptr) {
+        auto lck = std::unique_lock(control->ref_mut);
+        ++control->ref_count;
+    }
+}
+
+extern "C" void clingo_control_release(clingo_control_t *control) {
+    if (control == nullptr) {
+        return;
+    }
+    if (auto lck = std::unique_lock(control->ref_mut); --control->ref_count > 0) {
+        return;
+    }
+    delete control;
+}
+
 extern "C" void clingo_control_set_user_data(clingo_control_t *control, void *data) {
     control->data = data;
 }
 
 extern "C" auto clingo_control_get_user_data(clingo_control_t *control) -> void * {
     return control->data;
-}
-
-extern "C" void clingo_control_free(clingo_control_t *control) {
-    delete control;
 }
 
 extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode) -> clingo_result_t {

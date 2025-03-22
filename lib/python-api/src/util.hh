@@ -66,6 +66,44 @@ template <class Rng, class Pred> auto transform(Rng const &rng, Pred pred) {
     return transform(begin(rng), end(rng), pred);
 }
 
+template <class T, class P> class ManagedPtr {
+  public:
+    ManagedPtr() = default;
+    explicit ManagedPtr(P *ptr, bool inc = true) : ptr_{ptr} { T::acquire(ptr, inc); }
+    ManagedPtr(ManagedPtr const &other) : ManagedPtr{other.ptr_} {}
+    ManagedPtr(ManagedPtr &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {}
+    ~ManagedPtr() noexcept { T::release(ptr_); }
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
+    auto operator=(ManagedPtr const &other) -> ManagedPtr & {
+        T::acquire(other.ptr_);
+        T::release(ptr_);
+        ptr_ = other.ptr_;
+        return *this;
+    }
+    auto operator=(ManagedPtr &&other) noexcept -> ManagedPtr & {
+        T::release(ptr_);
+        ptr_ = std::exchange(other.ptr_, nullptr);
+        return *this;
+    }
+    [[nodiscard]] auto get() const noexcept -> P * { return ptr_; }
+    void reset(std::nullptr_t = nullptr) noexcept {
+        T::release(ptr_);
+        ptr_ = nullptr;
+    }
+    void reset(P *ptr, bool inc = true) {
+        T::release(ptr_);
+        ptr_ = ptr;
+        T::acquire(ptr_, inc);
+    }
+    friend auto operator==(ManagedPtr const &p, std::nullptr_t) noexcept -> bool { return p.ptr_ == nullptr; }
+    friend auto operator!=(ManagedPtr const &p, std::nullptr_t) noexcept -> bool { return p.ptr_ != nullptr; }
+    friend auto operator==(std::nullptr_t, ManagedPtr const &p) noexcept -> bool { return p.ptr_ == nullptr; }
+    friend auto operator!=(std::nullptr_t, ManagedPtr const &p) noexcept -> bool { return p.ptr_ != nullptr; }
+
+  private:
+    P *ptr_ = nullptr;
+};
+
 //! Smart pointer whose copies model references.
 template <class T, void (*deleter)(T *) noexcept> class owner_ptr {
   public:

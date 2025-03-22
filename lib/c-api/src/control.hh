@@ -40,6 +40,8 @@ struct clingo_control {
     Clingo::Control::Solver *slv = nullptr;
     Clasp::ClaspConfig *cfg = nullptr;
     Clasp::ClaspFacade *clasp = nullptr;
+    std::mutex ref_mut;
+    size_t ref_count = 1;
     void *data = nullptr;
     bool own = false;
 };

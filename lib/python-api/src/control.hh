@@ -44,12 +44,6 @@ class Control {
 
     Control(Library &lib, std::span<std::string const> args);
 
-    ~Control() = default;
-    Control(Control const &other) = delete;
-    Control(Control &&other) = default;
-    auto operator=(Control const &other) -> Control & = delete;
-    auto operator=(Control &&other) -> Control & = default;
-
     auto mode() -> clingo_mode_e;
     void parse_files(std::span<std::string const> files);
     void parse_string(char const *str);
@@ -68,20 +62,32 @@ class Control {
 
     void register_propagator(Annotation<Propagator> propagator);
 
-    void bind();
     static auto cast(clingo_control_t *ctl, bool convert = false) -> PyControl;
     static void setup(PyHeapTypeObject *heap_type);
+    //! This function acquires the control and user data.
+    //!
+    //! If no user data exists yet, it creates a default one.
+    //!
+    //! If parameter inc can be set to false to take ownership of a previously
+    //! created control object.
+    static void acquire(clingo_control_t *ctl, bool inc = true);
+    //! This function releases the wrapped control and the associated user
+    //! data.
+    static void release(clingo_control_t *ctl) noexcept;
 
   private:
+    struct UserData {
+        std::exception_ptr exception;
+        std::vector<py::object> props;
+        std::forward_list<PropagatorData> prop_data;
+        size_t ref_count = 1;
+    };
     Control(clingo_control_t *ctl) : ctl_{ctl} {}
+    [[nodiscard]] auto user_data() const noexcept -> UserData *;
     static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name,
                      clingo_symbol_t const *arguments, size_t arguments_size, void *data,
                      clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t;
-    static void free_(clingo_control_t *ctl) noexcept { clingo_control_free(ctl); }
-    owner_ptr<clingo_control_t, free_> ctl_;
-    std::exception_ptr exception_;
-    std::vector<py::object> props_;
-    std::forward_list<PropagatorData> prop_data_;
+    ManagedPtr<Control, clingo_control_t> ctl_;
 };
 
 void register_control(pybind11::module &m);

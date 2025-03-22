@@ -74,40 +74,41 @@ Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation
     }
     auto logger = cb.cast<std::optional<Logger>>();
     auto *ptr = logger ? cb.ptr() : nullptr;
-    handle_error(clingo_lib_new(flags, level, ptr != nullptr ? &logger_ : nullptr, ptr, default_message_limit, &lib_));
-    acquire_(false);
+    clingo_lib_t *lib = nullptr;
+    handle_error(clingo_lib_new(flags, level, ptr != nullptr ? &logger_ : nullptr, ptr, default_message_limit, &lib));
+    lib_.reset(lib, false);
     if (ptr != nullptr) {
         add_object(std::move(cb));
     }
 }
 
-void Library::release_() noexcept {
-    if (lib_ != nullptr) {
-        auto *data = static_cast<PyObject *>(clingo_lib_get_user_data(lib_));
+void Library::release(clingo_lib_t *lib) noexcept {
+    if (lib != nullptr) {
+        auto *data = static_cast<PyObject *>(clingo_lib_get_user_data(lib));
         Py_XDECREF(data);
-        clingo_lib_release(lib_);
-        lib_ = nullptr;
+        clingo_lib_release(lib);
+        lib = nullptr;
     }
 }
 
-void Library::acquire_(bool inc) const {
-    if (lib_ == nullptr) {
+void Library::acquire(clingo_lib_t *lib, bool inc) {
+    if (lib == nullptr) {
         return;
     }
     if (inc) {
-        clingo_lib_acquire(lib_);
+        clingo_lib_acquire(lib);
     }
-    auto *data = static_cast<PyObject *>(clingo_lib_get_user_data(lib_));
+    auto *data = static_cast<PyObject *>(clingo_lib_get_user_data(lib));
     if (data != nullptr) {
         Py_XINCREF(data);
     } else {
         auto list = py::list{0};
-        clingo_lib_set_user_data(lib_, list.release().ptr());
+        clingo_lib_set_user_data(lib, list.release().ptr());
     }
 }
 
-auto Library::objs_() -> PyObject * {
-    return static_cast<PyObject *>(clingo_lib_get_user_data(lib_));
+auto Library::user_data() -> PyObject * {
+    return static_cast<PyObject *>(clingo_lib_get_user_data(lib_.get()));
 }
 
 auto Library::cast(clingo_lib_t *lib, bool convert) -> Annotation<Library> {
@@ -118,11 +119,11 @@ auto Library::cast(clingo_lib_t *lib, bool convert) -> Annotation<Library> {
 }
 
 void Library::close() noexcept {
-    release_();
+    lib_.reset();
 }
 
 Library::operator clingo_lib_t *() const {
-    return lib_;
+    return lib_.get();
 }
 
 void Library::logger_(clingo_message_t code, char const *message, void *log) noexcept {
@@ -146,7 +147,7 @@ auto version() -> std::tuple<int, int, int> {
 
 auto Library::add_object(py::object script) -> PyObject * {
     auto *ret = script.ptr();
-    py::reinterpret_borrow<py::list>(objs_()).append(std::move(script));
+    py::reinterpret_borrow<py::list>(user_data()).append(std::move(script));
     return ret;
 }
 
@@ -156,20 +157,14 @@ void Library::setup(PyHeapTypeObject *heap_type) {
     type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
         auto &self = py::cast<Library &>(py::handle(self_base));
         if (self.lib_ != nullptr) {
-            auto *objs = self.objs_();
+            auto *objs = self.user_data();
             Py_VISIT(objs);
         }
         return 0;
     };
     type->tp_clear = [](PyObject *self_base) -> int {
-        // NOTE: We cannot set the user data to zero here; for example, if the
-        // logger holds a reference to the same library tp_clear will be called
-        // two times. Dangling pointers don't hurt anyone.
         auto &self = py::cast<Library &>(py::handle(self_base));
-        if (self.lib_ != nullptr) {
-            auto *objs = self.objs_();
-            Py_CLEAR(objs);
-        }
+        self.lib_.reset();
         return 0;
     };
 }

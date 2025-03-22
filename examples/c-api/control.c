@@ -11,7 +11,7 @@ void free_lib(clingo_lib_t **lib) {
     clingo_lib_release(*lib);
 }
 void free_ctl(clingo_control_t **ctl) {
-    clingo_control_free(*ctl);
+    clingo_control_release(*ctl);
 }
 void handle_error(clingo_result_t ret) {
     if (ret != clingo_result_success) {

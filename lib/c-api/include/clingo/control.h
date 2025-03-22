@@ -164,6 +164,16 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_size(clingo_const_map
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_new(clingo_lib_t *lib, char const *const *arguments,
                                                              size_t arguments_size, clingo_control_t **control);
 
+//! Increment the reference count of the given control object.
+//!
+//! @param[in] control the target
+CLINGO_VISIBILITY_DEFAULT void clingo_control_acquire(clingo_control_t *control);
+
+//! Decrement the reference count of the given control object and destroy if zero.
+//!
+//! @param[in] control the target
+CLINGO_VISIBILITY_DEFAULT void clingo_control_release(clingo_control_t *control);
+
 //! Store the given user data in the control object.
 //!
 //! This function is meant to associate control objects with their wrapper
@@ -178,10 +188,6 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_set_user_data(clingo_control_t *co
 //! @param[in] control the target library
 //! @return the user data
 CLINGO_VISIBILITY_DEFAULT void *clingo_control_get_user_data(clingo_control_t *control);
-
-//! Free a control object created with clingo_control_new().
-//! @param[in] control the target
-CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);
 
 //! Get the configured mode.
 //!
