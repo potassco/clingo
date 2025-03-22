@@ -54,6 +54,9 @@ inline void handle_error(clingo_result_t code) {
     }
 }
 
+//! Check if the given exception is a clingo error.
+auto is_clingo_error(py::error_already_set const &e) -> bool;
+
 //! Rethrows the current exception and stores it in the given exception
 //! pointer.
 //!

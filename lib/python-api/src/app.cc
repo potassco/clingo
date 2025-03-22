@@ -68,10 +68,7 @@ class App {
 
     void validate_options() { PYBIND11_OVERRIDE_NAME(void, App, "validate_options", no_op_); }
 
-    auto program_name() -> char const * {
-        assert(program_name_);
-        return program_name_->c_str();
-    }
+    auto program_name() -> char const * { return program_name_ ? program_name_->c_str() : "clingo"; }
 
     auto version() -> char const * {
         assert(version_);
@@ -175,7 +172,7 @@ class App {
     std::optional<std::string> version_;
 };
 
-auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<App *> app) -> int {
+auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<App *> app, bool raise_errors) -> int {
     lib.bind();
     auto capp = std::optional<clingo_application_t>{};
     if (app) {
@@ -183,9 +180,37 @@ auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<
     }
     auto cargs = transform(arguments, [](auto const &x) { return x.c_str(); });
     auto code = 0;
-    handle_error(clingo_main(lib, cargs.data(), cargs.size(), capp ? &*capp : nullptr,
-                             app ? static_cast<void *>(*app) : nullptr, &code),
-                 get_exception_ptr());
+    auto ret = clingo_main(lib, cargs.data(), cargs.size(), capp ? &*capp : nullptr,
+                           app ? static_cast<void *>(*app) : nullptr, &code);
+    // NOTE: Clasp's main is noexcept, it will just report the exception and
+    // return some arcane exit code. Hence, we simply check if an error has
+    // been set and forward it here.
+    try {
+        if (get_exception_ptr()) {
+            handle_error(clingo_result_unknown, get_exception_ptr());
+        } else {
+            handle_error(ret);
+        }
+    } catch (py::error_already_set const &e) {
+        if (raise_errors) {
+            throw;
+        }
+        if (!is_clingo_error(e)) {
+            auto const *name = app ? app.value()->program_name() : "clingo";
+            fprintf(stderr, "*** ERROR: (%s): %s\n", name, e.what());
+        }
+    } catch (PyClingoError const &e) {
+        if (raise_errors) {
+            throw;
+        }
+    } catch (std::exception const &e) {
+        if (raise_errors) {
+            throw;
+        }
+        auto const *name = app ? app.value()->program_name() : "clingo";
+        fprintf(stderr, "*** ERROR: (%s): %s\n", name, e.what());
+    }
+    get_exception_ptr() = nullptr;
     return code;
 }
 
@@ -379,12 +404,16 @@ Args:
         The program parts to ground and solve.
 )"_d);
 
-    app.def("clingo_main", &pymain, py::arg("lib"), py::arg("arguments"), py::arg("app") = std::nullopt, R"(
+    app.def("clingo_main", &pymain, py::arg("lib"), py::arg("arguments"), py::arg("app") = std::nullopt,
+            py::arg("raise_errors") = false, R"(
 Entry point for running the Clingo application.
 
 This function initializes necessary components, processes input arguments, and
 then executes the main functionality of the Clingo application. It can
 optionally use a provided App instance to customize this behavior.
+
+The flag raise_errors might help for debugging purposes to obtain traces where
+errors originated from.
 
 Args:
 	lib:
@@ -393,6 +422,8 @@ Args:
 		A list of command-line arguments.
 	app:
 		An optional App instance containing application-specific logic.
+    raise_errors:
+        Whether to raise errors instead of just reporting them.
 
     Returns:
         An integer exit code.

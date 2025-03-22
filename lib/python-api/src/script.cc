@@ -64,22 +64,27 @@ class MainScript {
         try {
             throw;
         } catch (py::error_already_set &e) {
-            auto gil = py::gil_scoped_acquire{};
-            clingo_result_t code = clingo_result_runtime;
-            auto const *msg = e.what();
-            if (e.type().is(py::module::import("clingo").attr("_ClingoError"))) {
-                char const *end = std::next(msg, static_cast<ssize_t>(std::strlen(msg)));
-                char const *num = std::find_if(msg, end, [](char c) { return std::isdigit(c); });
-                unsigned char res = 0;
-                std::from_chars(num, end, res, code_base);
-                if (res != 0) {
-                    code = res;
+            try {
+                auto gil = py::gil_scoped_acquire{};
+                clingo_result_t code = clingo_result_runtime;
+                auto const *msg = e.what();
+                if (is_clingo_error(e)) {
+                    char const *end = std::next(msg, static_cast<ssize_t>(std::strlen(msg)));
+                    char const *num = std::find_if(msg, end, [](char c) { return std::isdigit(c); });
+                    unsigned char res = 0;
+                    std::from_chars(num, end, res, code_base);
+                    if (res != 0) {
+                        code = res;
+                    }
+                } else {
+                    clingo_error_report(clingo_message_error, msg);
                 }
-            } else {
-                clingo_error_report(clingo_message_error, msg);
+                PyErr_Clear();
+                return code;
+            } catch (...) {
+                fprintf(stderr, "error: exception handling failed\n");
+                std::abort();
             }
-            PyErr_Clear();
-            return code;
         } catch (PyClingoError const &e) {
             return e.code();
         } catch (std::invalid_argument const &e) {

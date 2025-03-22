@@ -26,6 +26,10 @@ void handle_error(clingo_result_t code, std::exception_ptr *ptr) {
 
 } // namespace Detail
 
+auto is_clingo_error(py::error_already_set const &e) -> bool {
+    return e.type().is(py::module::import("clingo").attr("core").attr("ClingoError"));
+}
+
 auto get_exception_ptr() -> std::exception_ptr & {
     static thread_local std::exception_ptr ptr;
     return ptr;
@@ -328,7 +332,14 @@ Examples
 )"_d);
     core.def("version", &version, "Clingo's version as a tuple (major, minor, revision).");
 
-    py::register_exception<PyClingoError>(m, "_ClingoError");
+    py::register_exception<PyClingoError>(core, "ClingoError").attr("__doc__") = R"(
+This exception is used to forward internal errors.
+
+It should generally be forwarded. In the outer scope, it serves as an indicator
+that there was an error that has been reported by the error logger. It's string
+representation just contains an internal code that should not be reported to
+the user.
+)"_d;
 
     py::enum_<clingo_log_level_e>(core, "LogLevel", "The available log levels.")
         .value("Trace", clingo_log_level_trace, R"(Report trace messages (includes debug level).)")
