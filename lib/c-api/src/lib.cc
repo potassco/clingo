@@ -3,7 +3,7 @@
 namespace {
 
 void default_error_logger(clingo_result_t code, char const *message, [[maybe_unused]] void *data) {
-    char const *type = "error";
+    char const *type = "*** ERROR: (clingo)";
     switch (code) {
         case clingo_result_logic: {
             type = "logic error";
