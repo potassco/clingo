@@ -230,16 +230,16 @@ void Control::setup(PyHeapTypeObject *heap_type) {
 }
 
 auto Control::user_data() const noexcept -> UserData * {
-    return static_cast<UserData *>(clingo_control_get_user_data(ctl_.get()));
+    return static_cast<UserData *>(clingo_control_get_user_data(ctl_.get(), user_data_slot()));
 }
 
 void Control::release(clingo_control_t *ctl) noexcept {
     if (ctl != nullptr) {
-        auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl));
+        auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl, user_data_slot()));
         if (--data->ref_count == 0) {
             // NOLINTNEXTLINE
             delete data;
-            clingo_control_set_user_data(ctl, nullptr);
+            clingo_control_set_user_data(ctl, user_data_slot(), nullptr, nullptr);
         }
         clingo_control_release(ctl);
     }
@@ -252,16 +252,16 @@ void Control::acquire(clingo_control_t *ctl, bool inc) {
     if (inc) {
         clingo_control_acquire(ctl);
     }
-    auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl));
+    auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl, user_data_slot()));
     if (data != nullptr) {
         ++data->ref_count;
     } else {
-        clingo_control_set_user_data(ctl, std::make_unique<UserData>().release());
+        clingo_control_set_user_data(ctl, user_data_slot(), std::make_unique<UserData>().release(), nullptr);
     }
 }
 
 auto Control::cast(clingo_control_t *ctl, bool convert) -> PyControl {
-    if (!convert && clingo_control_get_user_data(ctl) == nullptr) {
+    if (!convert && clingo_control_get_user_data(ctl, user_data_slot()) == nullptr) {
         throw std::runtime_error("invalid library cast");
     }
     return py::cast(Control{ctl});

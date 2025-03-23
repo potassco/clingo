@@ -26,6 +26,11 @@ void handle_error(clingo_result_t code, std::exception_ptr *ptr) {
 
 } // namespace Detail
 
+auto user_data_slot() noexcept -> size_t {
+    static size_t slot = clingo_user_data_slot();
+    return slot;
+}
+
 auto is_clingo_error(py::error_already_set const &e) -> bool {
     return e.type().is(py::module::import("clingo").attr("core").attr("ClingoError"));
 }
@@ -84,7 +89,7 @@ Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation
 
 void Library::release(clingo_lib_t *lib) noexcept {
     if (lib != nullptr) {
-        auto *data = static_cast<PyObject *>(clingo_lib_get_user_data(lib));
+        auto *data = static_cast<PyObject *>(clingo_lib_get_user_data(lib, user_data_slot()));
         Py_XDECREF(data);
         clingo_lib_release(lib);
         lib = nullptr;
@@ -98,21 +103,21 @@ void Library::acquire(clingo_lib_t *lib, bool inc) {
     if (inc) {
         clingo_lib_acquire(lib);
     }
-    auto *data = static_cast<PyObject *>(clingo_lib_get_user_data(lib));
+    auto *data = static_cast<PyObject *>(clingo_lib_get_user_data(lib, user_data_slot()));
     if (data != nullptr) {
         Py_XINCREF(data);
     } else {
         auto list = py::list{0};
-        clingo_lib_set_user_data(lib, list.release().ptr());
+        clingo_lib_set_user_data(lib, user_data_slot(), list.release().ptr(), nullptr);
     }
 }
 
 auto Library::user_data() -> PyObject * {
-    return static_cast<PyObject *>(clingo_lib_get_user_data(lib_.get()));
+    return static_cast<PyObject *>(clingo_lib_get_user_data(lib_.get(), user_data_slot()));
 }
 
 auto Library::cast(clingo_lib_t *lib, bool convert) -> Annotation<Library> {
-    if (!convert && clingo_lib_get_user_data(lib) == nullptr) {
+    if (!convert && clingo_lib_get_user_data(lib, user_data_slot()) == nullptr) {
         throw std::runtime_error("invalid library cast");
     }
     return py::cast(Library{lib});

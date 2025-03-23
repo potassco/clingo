@@ -165,6 +165,11 @@ typedef uint32_t clingo_lib_flags_t;
 //! @param[out] revision revision number
 CLINGO_VISIBILITY_DEFAULT void clingo_version(int *major, int *minor, int *revision);
 
+//! Get a slot id for user data.
+//!
+//! @return a slot id
+CLINGO_VISIBILITY_DEFAULT size_t clingo_user_data_slot(void);
+
 //! Convert the given result code into a string.
 //!
 //! The function returns string literals that do not have to be cleaned up.
@@ -239,14 +244,18 @@ CLINGO_VISIBILITY_DEFAULT void clingo_lib_release(clingo_lib_t *lib);
 //! object in language bindings.
 //!
 //! @param[in] lib the target library
-//! @param[in] data the user data to set.
-CLINGO_VISIBILITY_DEFAULT void clingo_lib_set_user_data(clingo_lib_t *lib, void *data);
+//! @param[in] slot the slot to use
+//! @param[in] data the user data to set
+//! @param[in] deleter optional deleter to destroy the user data
+CLINGO_VISIBILITY_DEFAULT void clingo_lib_set_user_data(clingo_lib_t *lib, size_t slot, void *data,
+                                                        void (*deleter)(void *data));
 
 //! Get the user data of the library.
 //!
 //! @param[in] lib the target library
+//! @param[in] slot the slot to use
 //! @return the user data
-CLINGO_VISIBILITY_DEFAULT void *clingo_lib_get_user_data(clingo_lib_t *lib);
+CLINGO_VISIBILITY_DEFAULT void *clingo_lib_get_user_data(clingo_lib_t *lib, size_t slot);
 
 //! Report a message via the libraries logger.
 //!

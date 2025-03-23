@@ -36,13 +36,13 @@ struct clingo_control {
         this->slv->user_data() = this;
         own = false;
     }
+    std::vector<std::unique_ptr<void, user_data_deleter>> user_data;
     clingo_lib_t *lib;
     Clingo::Control::Solver *slv = nullptr;
     Clasp::ClaspConfig *cfg = nullptr;
     Clasp::ClaspFacade *clasp = nullptr;
     std::mutex ref_mut;
     size_t ref_count = 1;
-    void *data = nullptr;
     bool own = false;
 };
 

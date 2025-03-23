@@ -71,6 +71,8 @@ using Logger = std::function<void(clingo_message_e, char const *)>;
 
 static constexpr size_t default_message_limit = 25;
 
+auto user_data_slot() noexcept -> size_t;
+
 class Library;
 using PyLibrary = Annotation<Library>;
 

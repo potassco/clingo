@@ -9,6 +9,15 @@
 
 #include <stdexcept> // IWYU pragma: keep
 
+struct user_data_deleter {
+    void operator()(void *data) const {
+        if (deleter != nullptr) {
+            deleter(data);
+        }
+    }
+    void (*deleter)(void *data) = nullptr;
+};
+
 struct clingo_lib {
     clingo_lib(Clingo::Logger log, std::unique_ptr<Clingo::SymbolStore> store, void *data, bool fast_release)
         : log{std::move(log)}, store{std::move(store)}, data{data}, fast_release{fast_release} {}
@@ -19,7 +28,7 @@ struct clingo_lib {
     clingo_lib_t *next_ = nullptr;
     std::mutex ref_mut;
     size_t ref_count = 1;
-    void *user_data = nullptr;
+    std::vector<std::unique_ptr<void, user_data_deleter>> user_data;
     bool fast_release;
 };
 

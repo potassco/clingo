@@ -79,12 +79,17 @@ extern "C" void clingo_control_release(clingo_control_t *control) {
     delete control;
 }
 
-extern "C" void clingo_control_set_user_data(clingo_control_t *control, void *data) {
-    control->data = data;
+extern "C" void clingo_control_set_user_data(clingo_control_t *control, size_t slot, void *data,
+                                             void (*deleter)(void *data)) {
+    control->user_data.resize(slot + 1);
+    control->user_data[slot] = std::unique_ptr<void, user_data_deleter>(data, user_data_deleter{deleter});
 }
 
-extern "C" auto clingo_control_get_user_data(clingo_control_t *control) -> void * {
-    return control->data;
+extern "C" auto clingo_control_get_user_data(clingo_control_t *control, size_t slot) -> void * {
+    if (control->user_data.size() > slot) {
+        return control->user_data[slot].get();
+    }
+    return nullptr;
 }
 
 extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode) -> clingo_result_t {
