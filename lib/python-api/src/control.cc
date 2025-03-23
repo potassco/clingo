@@ -250,13 +250,13 @@ void Control::acquire(clingo_control_t *ctl, bool inc) {
         Py_XINCREF(data);
     } else {
         auto list = py::list{0};
-        clingo_control_set_user_data(ctl, user_data_slot(), list.release().ptr(), nullptr);
+        handle_error(clingo_control_set_user_data(ctl, user_data_slot(), list.release().ptr(), nullptr));
     }
 }
 
 auto Control::cast(clingo_control_t *ctl, bool convert) -> PyControl {
     if (!convert && clingo_control_get_user_data(ctl, user_data_slot()) == nullptr) {
-        throw std::runtime_error("invalid library cast");
+        throw py::cast_error("invalid Control cast");
     }
     return py::cast(Control{ctl});
 }

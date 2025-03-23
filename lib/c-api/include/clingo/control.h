@@ -183,8 +183,9 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_release(clingo_control_t *control)
 //! @param[in] slot the slot to use
 //! @param[in] data the user data to set.
 //! @param[in] deleter optional deleter to destroy the user data
-CLINGO_VISIBILITY_DEFAULT void clingo_control_set_user_data(clingo_control_t *control, size_t slot, void *data,
-                                                            void (*deleter)(void *data));
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_set_user_data(clingo_control_t *control, size_t slot,
+                                                                       void *data, void (*deleter)(void *data));
 
 //! Get the user data of the control object.
 //!

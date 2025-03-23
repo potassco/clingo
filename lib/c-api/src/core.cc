@@ -167,9 +167,13 @@ extern "C" auto clingo_user_data_slot() -> size_t {
     return slots++;
 }
 
-extern "C" void clingo_lib_set_user_data(clingo_lib_t *lib, size_t slot, void *data, void (*deleter)(void *data)) {
-    lib->user_data.resize(slot + 1);
-    lib->user_data[slot] = std::unique_ptr<void, user_data_deleter>(data, user_data_deleter{deleter});
+extern "C" auto clingo_lib_set_user_data(clingo_lib_t *lib, size_t slot, void *data, void (*deleter)(void *data))
+    -> clingo_result_t {
+    CLINGO_TRY {
+        lib->user_data.resize(slot + 1);
+        lib->user_data[slot] = std::unique_ptr<void, user_data_deleter>(data, user_data_deleter{deleter});
+    }
+    CLINGO_CATCH;
 }
 
 extern "C" auto clingo_lib_get_user_data(clingo_lib_t *lib, size_t slot) -> void * {

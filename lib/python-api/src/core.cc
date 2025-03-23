@@ -108,7 +108,7 @@ void Library::acquire(clingo_lib_t *lib, bool inc) {
         Py_XINCREF(data);
     } else {
         auto list = py::list{0};
-        clingo_lib_set_user_data(lib, user_data_slot(), list.release().ptr(), nullptr);
+        handle_error(clingo_lib_set_user_data(lib, user_data_slot(), list.release().ptr(), nullptr));
     }
 }
 
@@ -118,7 +118,7 @@ auto Library::user_data() -> PyObject * {
 
 auto Library::cast(clingo_lib_t *lib, bool convert) -> Annotation<Library> {
     if (!convert && clingo_lib_get_user_data(lib, user_data_slot()) == nullptr) {
-        throw std::runtime_error("invalid library cast");
+        throw py::cast_error("invalid Library cast");
     }
     return py::cast(Library{lib});
 }
