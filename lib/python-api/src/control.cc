@@ -126,7 +126,7 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
             (*eh->stats_)(Stats{c_stats, step}, Stats{c_stats, accu});
         }
     }
-    CLINGO_CATCH(*eh->ptr_);
+    CLINGO_CATCH(eh->exception());
 }
 
 auto Control::base() -> Base {
@@ -163,9 +163,7 @@ auto Control::stats() -> py::dict {
 auto Control::solve(MixedLitlVec const &assumptions, std::optional<ModelCallback> on_model,
                     std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
     auto release = py::gil_scoped_release{};
-    auto *data = user_data();
-    data->exception = nullptr;
-    auto res = std::make_shared<SolveHandle>(data->exception, std::move(on_model), std::move(on_stats));
+    auto res = std::make_shared<SolveHandle>(std::move(on_model), std::move(on_stats));
     auto mode = clingo_solve_mode_bitset_t{0};
     if (yield) {
         mode |= clingo_solve_mode_yield;
@@ -176,7 +174,7 @@ auto Control::solve(MixedLitlVec const &assumptions, std::optional<ModelCallback
     auto ass = convert(base(), assumptions);
     handle_error(clingo_control_solve(ctl_.get(), mode, ass.data(), assumptions.size(), &SolveHandle::c_event_handler,
                                       res.get(), &res->handle()),
-                 data->exception);
+                 get_exception_ptr());
     return res;
 }
 
@@ -204,10 +202,8 @@ auto Control::const_map() -> HintConstMap {
 
 void Control::register_propagator(Annotation<Propagator> propagator) {
     auto &prop = propagator.cast<Propagator &>();
-    auto *data = user_data();
-    data->props.emplace_back(std::move(propagator));
-    data->prop_data.emplace_front(&prop, &data->exception);
-    Clingo::Python::register_propagator(ctl_.get(), data->prop_data.front());
+    user_data().append(std::move(propagator));
+    Clingo::Python::register_propagator(ctl_.get(), prop);
 }
 
 void Control::setup(PyHeapTypeObject *heap_type) {
@@ -216,9 +212,7 @@ void Control::setup(PyHeapTypeObject *heap_type) {
     type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
         auto &self = py::cast<Control &>(py::handle(self_base));
         if (self.ctl_.get() != nullptr) {
-            for (auto const &prop : self.user_data()->props) {
-                Py_VISIT(prop.ptr());
-            }
+            Py_VISIT(self.user_data().ptr());
         }
         return 0;
     };
@@ -229,19 +223,18 @@ void Control::setup(PyHeapTypeObject *heap_type) {
     };
 }
 
-auto Control::user_data() const noexcept -> UserData * {
-    return static_cast<UserData *>(clingo_control_get_user_data(ctl_.get(), user_data_slot()));
+auto Control::user_data() const -> py::list {
+    // NOTE: this won't throw
+    return py::reinterpret_borrow<py::list>(
+        static_cast<PyObject *>(clingo_control_get_user_data(ctl_.get(), user_data_slot())));
 }
 
 void Control::release(clingo_control_t *ctl) noexcept {
     if (ctl != nullptr) {
-        auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl, user_data_slot()));
-        if (--data->ref_count == 0) {
-            // NOLINTNEXTLINE
-            delete data;
-            clingo_control_set_user_data(ctl, user_data_slot(), nullptr, nullptr);
-        }
+        auto *data = static_cast<PyObject *>(clingo_control_get_user_data(ctl, user_data_slot()));
+        Py_XDECREF(data);
         clingo_control_release(ctl);
+        ctl = nullptr;
     }
 }
 
@@ -252,11 +245,12 @@ void Control::acquire(clingo_control_t *ctl, bool inc) {
     if (inc) {
         clingo_control_acquire(ctl);
     }
-    auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl, user_data_slot()));
+    auto *data = static_cast<PyObject *>(clingo_control_get_user_data(ctl, user_data_slot()));
     if (data != nullptr) {
-        ++data->ref_count;
+        Py_XINCREF(data);
     } else {
-        clingo_control_set_user_data(ctl, user_data_slot(), std::make_unique<UserData>().release(), nullptr);
+        auto list = py::list{0};
+        clingo_control_set_user_data(ctl, user_data_slot(), list.release().ptr(), nullptr);
     }
 }
 

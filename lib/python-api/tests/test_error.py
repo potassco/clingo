@@ -3,6 +3,7 @@ Unit tests for error propagation across various modules.
 """
 
 import gc
+import re
 from typing import Sequence
 
 import pytest
@@ -56,11 +57,12 @@ class Prop(Propagator):
         assert thread_id == 0
         assert assignment
         if "d" in self.throw:
-            raise RuntimeError("prop: propagate")
+            raise RuntimeError("prop: decide")
         return fallback
 
 
 class Obs(Observer):
+    # pylint: disable=too-few-public-methods
     """
     Test Observer.
     """
@@ -146,9 +148,8 @@ class TestError:
 
         ctl = Control(self.lib)
         ctl.parse_string("p(@fun(1)). q.")
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(RuntimeError, match="fun called with 1"):
             ctl.ground(context=self)
-        assert str(exc_info.value) == "fun called with 1"
 
     def test_error_script(self):
         """
@@ -157,12 +158,10 @@ class TestError:
         ctl = Control(self.lib)
         register(self.lib, MyScript())
         ctl.parse_string("p(@fun(1)). q.")
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(RuntimeError, match="fun called with 1"):
             ctl.ground()
-        assert str(exc_info.value) == "fun called with 1"
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(RuntimeError, match="fun called with 1"):
             ctl.main()
-        assert str(exc_info.value) == "fun called with 1"
 
     def test_obs(self):
         """
@@ -172,9 +171,8 @@ class TestError:
         ctl = Control(self.lib)
         ctl.parse_string("{a}.")
         ctl.ground()
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(RuntimeError, match=re.escape("rule: [1] :- []. [True]")):
             ctl.observe(obs)
-        assert str(exc_info.value) == "rule: [1] :- []. [True]"
 
     def test_error_on_model(self):
         """
@@ -188,21 +186,28 @@ class TestError:
         register(self.lib, MyScript())
         ctl.parse_string("a.")
         ctl.ground()
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(RuntimeError, match="on_model: a"):
             ctl.solve(on_model=on_model)
-        assert str(exc_info.value) == "on_model: a"
 
-    @pytest.mark.xfail(reason="known parser issue")
     def test_error_propagate(self):
         """
         Test errors in propagators.
         """
-        for throw, msg in [("i", ""), ("p", ""), ("d", "")]:
-            ctl = Control(self.lib)
+        for throw, msg in [
+            ("i", "prop: init"),
+            ("p", "prop: propagate"),
+            ("d", "prop: decide"),
+        ]:
+            ctl = Control(self.lib, ["0"])
             ctl.register_propagator(Prop(throw))
-            with pytest.raises(RuntimeError) as exc_info:
+            with pytest.raises(RuntimeError, match=msg):
                 ctl.main()
-            assert str(exc_info.value) == msg
+
+            ctl = Control(self.lib, ["0"])
+            ctl.register_propagator(Prop(throw))
+            with pytest.raises(RuntimeError, match=msg):
+                with ctl.solve() as hnd:
+                    hnd.get()
 
     # TODO:
     # - app?

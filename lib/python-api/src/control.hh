@@ -76,14 +76,8 @@ class Control {
     static void release(clingo_control_t *ctl) noexcept;
 
   private:
-    struct UserData {
-        std::exception_ptr exception;
-        std::vector<py::object> props;
-        std::forward_list<PropagatorData> prop_data;
-        size_t ref_count = 1;
-    };
     Control(clingo_control_t *ctl) : ctl_{ctl} {}
-    [[nodiscard]] auto user_data() const noexcept -> UserData *;
+    [[nodiscard]] auto user_data() const -> py::list;
     static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name,
                      clingo_symbol_t const *arguments, size_t arguments_size, void *data,
                      clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t;

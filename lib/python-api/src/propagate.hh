@@ -20,14 +20,14 @@ class Propagator {
     void check(PropagateControl &ctl);
     auto decide(uint32_t thread_id, Assignment &assignment, clingo_literal_t lit) -> clingo_literal_t;
 
+    std::exception_ptr *exception = &get_exception_ptr();
+
   private:
     template <class... Args> void no_op([[maybe_unused]] Args const &...args) {}
 
     auto decide_([[maybe_unused]] uint32_t thread_id, [[maybe_unused]] Assignment &assignment,
                  [[maybe_unused]] clingo_literal_t lit) -> clingo_literal_t;
 };
-
-using PropagatorData = std::pair<Propagator *, std::exception_ptr *>;
 
 //! Register a proagator with the given control object.
 //!
@@ -37,7 +37,7 @@ using PropagatorData = std::pair<Propagator *, std::exception_ptr *>;
 //!
 //! @param ctl the control object to register the propagator with
 //! @param data an exception pointer together with a propagator implementation
-void register_propagator(clingo_control_t *ctl, PropagatorData &data);
+void register_propagator(clingo_control_t *ctl, Propagator &propagator);
 
 void register_propagate(pybind11::module &m);
 

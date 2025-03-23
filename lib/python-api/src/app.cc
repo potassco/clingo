@@ -130,13 +130,17 @@ class App {
 
     static auto main_(clingo_control_t *ctl, char const *const *files, size_t files_size,
                       clingo_parts_array_t const *parts, size_t parts_size, void *data) -> clingo_result_t {
+        auto &app = *static_cast<App *>(data);
+        // NOTE: safe guard if main is called in another thread than the app
+        // was created. Ensures that print_model, called after main, always
+        // has the right exception pointer.
+        app.ptr_ = &get_exception_ptr();
         CLINGO_TRY {
-            auto &app = *static_cast<App *>(data);
             auto pyctl = Control::cast(ctl, true);
             auto cfiles = std::span{files, files_size};
             app.main(pyctl, std::vector<std::string>{cfiles.begin(), cfiles.end()}, std::span{parts, parts_size});
         }
-        CLINGO_CATCH(get_exception_ptr());
+        CLINGO_CATCH(*app.ptr_);
     }
 
     static auto print_model_(clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data,
@@ -145,7 +149,7 @@ class App {
         CLINGO_TRY {
             app.print_model(Model{model}, [printer, printer_data]() { handle_error(printer(printer_data)); });
         }
-        CLINGO_CATCH(get_exception_ptr());
+        CLINGO_CATCH(*app.ptr_);
     }
 
     static auto register_options_(clingo_options_t *options, void *data) -> clingo_result_t {
@@ -170,6 +174,7 @@ class App {
     std::optional<std::string> program_name_;
     //! The applications version.
     std::optional<std::string> version_;
+    std::exception_ptr *ptr_ = &get_exception_ptr();
 };
 
 auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<App *> app, bool raise_errors) -> int {
