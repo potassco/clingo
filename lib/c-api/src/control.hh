@@ -11,25 +11,41 @@
 #include <forward_list>
 
 struct clingo_control {
-    clingo_control(clingo_lib_t *lib) : lib{lib} {}
+    //! Construct a control object that is bound later.
+    //!
+    //! See bind().
+    clingo_control(clingo_lib_t *lib) : lib{lib} {
+        assert(lib != nullptr);
+        clingo_lib_acquire(lib);
+    }
+    //! Construct a control that owns the given clasp and clingo objects.
     clingo_control(clingo_lib_t *lib, std::unique_ptr<Clingo::Control::Solver> slv,
                    std::unique_ptr<Clasp::ClaspConfig> cfg, std::unique_ptr<Clasp::ClaspFacade> clasp)
         : lib{lib}, slv{slv.release()}, cfg{cfg.release()}, clasp{clasp.release()}, own{true} {
+        assert(lib != nullptr);
+        clingo_lib_acquire(lib);
         this->slv->user_data() = this;
     }
     clingo_control(clingo_control const &other) = delete;
     clingo_control(clingo_control &&other) noexcept = delete;
     auto operator=(clingo_control const &other) -> clingo_control & = delete;
     auto operator=(clingo_control &&other) noexcept -> clingo_control & = delete;
+    //! Destroy the held clasp and clingo objects if the control is owning.
     ~clingo_control() {
         if (own) {
             delete slv;
             delete clasp;
             delete cfg;
         }
+        user_data.clear();
+        clingo_lib_release(lib);
     }
+    //! Bind the control object to the clasp and clingo objects.
+    //!
+    //! The control will not won those objects and not delete them.
     void bind(Clingo::Control::Solver *slv, Clasp::ClaspConfig *cfg, Clasp::ClaspFacade *clasp) {
         assert(!own);
+        clingo_lib_acquire(lib);
         this->slv = slv;
         this->cfg = cfg;
         this->clasp = clasp;
