@@ -48,7 +48,6 @@ struct clingo_control {
     //! The control will not own these objects and not delete them.
     void bind(Clingo::Control::Solver *slv, Clasp::ClaspConfig *cfg, Clasp::ClaspFacade *clasp) {
         assert(!own);
-        clingo_lib_acquire(lib);
         this->slv = slv;
         this->cfg = cfg;
         this->clasp = clasp;

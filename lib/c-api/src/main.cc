@@ -146,7 +146,7 @@ class AppAdapter {
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
   public:
     ClingoApp(clingo_lib_t &lib, clingo_application_t *app = nullptr, void *data = nullptr)
-        : ctl_{&lib}, app_{app, data} {}
+        : ctl_{new clingo_control_t{&lib}}, app_{app, data} {}
 
     [[nodiscard]] auto getName() const -> char const * override { return app_.get_name(); }
     [[nodiscard]] auto getVersion() const -> char const * override { return app_.get_version(); }
@@ -176,7 +176,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         auto group_grounder = OptionGroup{"Grounder Options"};
         auto parse_const = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
             // NOTE: this might use the logger.
-            parser_.init(value, *ctl_.lib->store->string("<const>"));
+            parser_.init(value, *ctl_->lib->store->string("<const>"));
             auto def = parser_.parse_const_def();
             if (def) {
                 const_defs_.emplace_back(*def);
@@ -185,7 +185,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         };
         auto parse_parts = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
             // NOTE: this might use the logger.
-            parser_.init(value, *ctl_.lib->store->string("<parts>"));
+            parser_.init(value, *ctl_->lib->store->string("<parts>"));
             parts_ = parser_.parse_program_parts();
             return static_cast<bool>(parts_);
         };
@@ -231,7 +231,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                          const Potassco::ProgramOptions::ParsedOptions &parsed,
                          const Potassco::ProgramOptions::ParsedValues &vals) override {
         BaseType::validateOptions(root, parsed, vals);
-        ctl_.lib->log.set_level(log_level_);
+        ctl_->lib->log.set_level(log_level_);
         app_.validateOptions();
     }
 
@@ -247,8 +247,8 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                 void printModelValues(Clasp::OutputTable const &out, Clasp::Model const &mdl) override {
                     auto prt = [&]() { BaseType::printModelValues(out, mdl); };
                     // NOTE: the function can only be called while the solve handle is alive
-                    auto guard = Clingo::Control::unlock_guard{self_->ctl_.slv->get_lock()};
-                    self_->app_.print_model(self_->ctl_.slv->map_model(mdl), prt);
+                    auto guard = Clingo::Control::unlock_guard{self_->ctl_->slv->get_lock()};
+                    self_->app_.print_model(self_->ctl_->slv->map_model(mdl), prt);
                 }
                 ClingoApp *self_;
             };
@@ -264,37 +264,41 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             }
             auto slv = Clingo::Control::Solver{clasp,
                                                claspConfig_,
-                                               ctl_.lib->log,
-                                               *ctl_.lib->store,
-                                               ctl_.lib->scripts,
+                                               ctl_->lib->log,
+                                               *ctl_->lib->store,
+                                               ctl_->lib->scripts,
                                                rewrite_opts_,
                                                static_cast<AppMode>(mode_)};
             for (auto const &[name, value] : const_defs_) {
                 slv.add_const(*name, *value);
             }
             // NOTE: member for createTextOutput
-            ctl_.bind(&slv, &slv.clasp_config(), &slv.clasp_facade());
+            ctl_->bind(&slv, &slv.clasp_config(), &slv.clasp_facade());
             if (app_.has_main()) {
                 if (mode_ == Mode::solve) {
-                    ctl_.clasp->enableProgramUpdates();
+                    ctl_->clasp->enableProgramUpdates();
                 }
-                app_.main(&ctl_, claspAppOpts_.input, parts_);
+                app_.main(ctl_.get(), claspAppOpts_.input, parts_);
             } else {
-                ctl_.slv->main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()},
-                               parts_);
+                ctl_->slv->main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()},
+                                parts_);
             }
         } else {
             BaseType::run(clasp);
         }
     }
 
+    struct release_control {
+        void operator()(clingo_control_t *ctl) const { clingo_control_release(ctl); }
+    };
+
     RewriteOptions rewrite_opts_;
     Clingo::LogLevel log_level_ = Clingo::LogLevel::info;
     std::optional<Clingo::Control::ProgramParamsVec> parts_;
     std::vector<std::pair<Clingo::SharedString, Clingo::SharedSymbol>> const_defs_;
     Mode mode_ = Mode::solve;
-    clingo_control_t ctl_;
-    Parser parser_{ctl_.lib->log, *ctl_.lib->store};
+    std::unique_ptr<clingo_control_t, release_control> ctl_;
+    Parser parser_{ctl_->lib->log, *ctl_->lib->store};
     AppAdapter app_;
 };
 
