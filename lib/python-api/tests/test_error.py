@@ -9,8 +9,55 @@ import pytest
 from clingo.backend import Observer
 from clingo.control import Control
 from clingo.core import Library
+from clingo.propagate import (
+    Assignment,
+    CheckMode,
+    PropagateControl,
+    PropagateInit,
+    Propagator,
+)
 from clingo.script import Script, register
 from clingo.symbol import Symbol
+
+
+class Prop(Propagator):
+    """
+    Test for errors in propagators.
+    """
+
+    throw: str
+
+    def __init__(self, throw) -> None:
+        super().__init__()
+        self.throw = throw
+
+    def init(self, init: PropagateInit) -> None:
+        """
+        Test throwing errors in init.
+        """
+        if "i" in self.throw:
+            raise RuntimeError("prop: init")
+        init.check_mode = CheckMode.Total
+        init.add_watch(init.add_literal())
+
+    def propagate(self, control: PropagateControl, changes: Sequence[int]) -> None:
+        """
+        Test throwing errors in propagate.
+        """
+        assert changes
+        assert control
+        if "p" in self.throw:
+            raise RuntimeError("prop: propagate")
+
+    def decide(self, thread_id: int, assignment: Assignment, fallback: int) -> int:
+        """
+        Test throwing errors in decide.
+        """
+        assert thread_id == 0
+        assert assignment
+        if "d" in self.throw:
+            raise RuntimeError("prop: propagate")
+        return fallback
 
 
 class Obs(Observer):
@@ -129,6 +176,33 @@ class TestError:
             ctl.observe(obs)
         assert str(exc_info.value) == "rule: [1] :- []. [True]"
 
+    def test_error_on_model(self):
+        """
+        Test errors in on_model.
+        """
+
+        def on_model(m):
+            raise RuntimeError(f"on_model: {m}")
+
+        ctl = Control(self.lib)
+        register(self.lib, MyScript())
+        ctl.parse_string("a.")
+        ctl.ground()
+        with pytest.raises(RuntimeError) as exc_info:
+            ctl.solve(on_model=on_model)
+        assert str(exc_info.value) == "on_model: a"
+
+    @pytest.mark.xfail(reason="known parser issue")
+    def test_error_propagate(self):
+        """
+        Test errors in propagators.
+        """
+        for throw, msg in [("i", ""), ("p", ""), ("d", "")]:
+            ctl = Control(self.lib)
+            ctl.register_propagator(Prop(throw))
+            with pytest.raises(RuntimeError) as exc_info:
+                ctl.main()
+            assert str(exc_info.value) == msg
+
     # TODO:
-    # - propagator??
     # - app?
