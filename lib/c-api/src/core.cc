@@ -104,16 +104,12 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t leve
 
 extern "C" void clingo_lib_acquire(clingo_lib_t *lib) {
     if (lib != nullptr) {
-        auto lck = std::unique_lock(lib->ref_mut);
         ++lib->ref_count;
     }
 }
 
 extern "C" void clingo_lib_release(clingo_lib_t *lib) {
-    if (lib == nullptr) {
-        return;
-    }
-    if (auto lck = std::unique_lock(lib->ref_mut); --lib->ref_count > 0) {
+    if (lib == nullptr || --lib->ref_count > 0) {
         return;
     }
     if (lib->fast_release) {

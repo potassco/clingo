@@ -64,19 +64,14 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
 
 extern "C" void clingo_control_acquire(clingo_control_t *control) {
     if (control != nullptr) {
-        auto lck = std::unique_lock(control->ref_mut);
         ++control->ref_count;
     }
 }
 
 extern "C" void clingo_control_release(clingo_control_t *control) {
-    if (control == nullptr) {
-        return;
+    if (control != nullptr && --control->ref_count == 0) {
+        delete control;
     }
-    if (auto lck = std::unique_lock(control->ref_mut); --control->ref_count > 0) {
-        return;
-    }
-    delete control;
 }
 
 extern "C" auto clingo_control_set_user_data(clingo_control_t *control, size_t slot, void *data,

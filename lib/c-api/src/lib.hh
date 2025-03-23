@@ -26,8 +26,7 @@ struct clingo_lib {
     std::unique_ptr<Clingo::SymbolStore> store;
     void *data;
     clingo_lib_t *next_ = nullptr;
-    std::mutex ref_mut;
-    size_t ref_count = 1;
+    std::atomic<size_t> ref_count = 1;
     std::vector<std::unique_ptr<void, user_data_deleter>> user_data;
     bool fast_release;
 };
