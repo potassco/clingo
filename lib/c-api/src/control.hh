@@ -24,6 +24,9 @@ struct clingo_control {
         : lib{lib}, slv{slv.release()}, cfg{cfg.release()}, clasp{clasp.release()}, own{true} {
         assert(lib != nullptr);
         clingo_lib_acquire(lib);
+        // NOTE: we set the user data of the solver to this to allow for
+        // obtaining this control object when mapping callbacks where the
+        // solver is passed as an argument.
         this->slv->user_data() = this;
     }
     clingo_control(clingo_control const &other) = delete;
@@ -42,13 +45,14 @@ struct clingo_control {
     }
     //! Bind the control object to the clasp and clingo objects.
     //!
-    //! The control will not won those objects and not delete them.
+    //! The control will not own these objects and not delete them.
     void bind(Clingo::Control::Solver *slv, Clasp::ClaspConfig *cfg, Clasp::ClaspFacade *clasp) {
         assert(!own);
         clingo_lib_acquire(lib);
         this->slv = slv;
         this->cfg = cfg;
         this->clasp = clasp;
+        // NOTE: see the note in the owning constructor.
         this->slv->user_data() = this;
         own = false;
     }
