@@ -231,8 +231,10 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                          const Potassco::ProgramOptions::ParsedOptions &parsed,
                          const Potassco::ProgramOptions::ParsedValues &vals) override {
         BaseType::validateOptions(root, parsed, vals);
+        setExitCode(Clasp::Cli::exit_no_run);
         ctl_->lib->log.set_level(log_level_);
         app_.validateOptions();
+        setExitCode(0);
     }
 
     auto createTextOutput(const ClaspAppBase::TextOptions &options) -> ClaspOutput * override {

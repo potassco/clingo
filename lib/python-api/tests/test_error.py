@@ -51,6 +51,8 @@ class ErrorApp(App):
         """
         if "v" in self._mode:
             raise RuntimeError("validate")
+        if "V" in self._mode:
+            raise ValueError("Validate")
 
     def register_options(self, options: AppOptions) -> None:
         """
@@ -293,7 +295,7 @@ class TestError:
             "validate",
             "register",
             "print",
-            pytest.param("option", marks=pytest.mark.xfail),
+            "option",
         ],
     )
     def test_error_app(self, mode):
@@ -303,13 +305,19 @@ class TestError:
         msg = f"mode `{mode}` failed"
         assert self.run_app_test(mode[0], f"RuntimeError: {mode}"), msg
 
+    def test_error_validate(self):
+        """
+        Test special handling of ValueErrors in validate.
+        """
+        assert self.run_app_test("V", re.escape("*** ERROR: (test): Validate"))
+
 
 def error_app_main(mode: str):
     """
     Start the test app in the given mode.
     """
     with Library() as lib:
-        clingo_main(lib, [], ErrorApp(mode))
+        clingo_main(lib, ["--test", "value"], ErrorApp(mode))
 
 
 if __name__ == "__main__" and len(sys.argv) == 3 and sys.argv[1] == "test-error-app":

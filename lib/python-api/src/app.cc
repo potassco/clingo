@@ -162,10 +162,21 @@ class App {
 
     static auto validate_options_(void *data) -> clingo_result_t {
         auto &app = *static_cast<App *>(data);
-        CLINGO_TRY {
+        try {
             app.validate_options();
+        } catch (py::error_already_set &e) {
+            // we report option validation errors here to avoid long winded
+            // messages with traces later
+            if (e.matches(PyExc_ValueError)) {
+                std::string msg = py::str(e.value());
+                fprintf(stderr, "*** ERROR: (%s): %s\n", app.program_name(), msg.c_str());
+                return clingo_result_invalid;
+            }
+            return handle_error(get_exception_ptr());
+        } catch (...) {
+            return handle_error(get_exception_ptr());
         }
-        CLINGO_CATCH(get_exception_ptr());
+        return clingo_result_success;
     }
 
     //! The list of option parsers.
