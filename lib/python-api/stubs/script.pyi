@@ -167,3 +167,6 @@ class Script:
         """
         Get the version of the script.
         """
+
+class _MainScript:
+    pass

@@ -430,7 +430,7 @@ class PropagateControl:
 
         If this function returns False, the propagator must add no further
         clauses/literals and immediately return from the corresponding
-        `Propagator.propagator()` or `Propagator.check()` call.
+        `Propagator.propagate()` or `Propagator.check()` call.
 
         Returns:
             True if propagation was successful, False otherwise.

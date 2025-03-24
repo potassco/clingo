@@ -15,7 +15,15 @@ from __future__ import annotations
 
 import typing
 
-__all__ = ["Library", "Location", "LogLevel", "MessageType", "Position", "version"]
+__all__ = [
+    "ClingoError",
+    "Library",
+    "Location",
+    "LogLevel",
+    "MessageType",
+    "Position",
+    "version",
+]
 
 def version() -> tuple[int, int, int]:
     """
@@ -120,6 +128,16 @@ class MessageType:
     @property
     def value(self) -> int: ...
 
+class ClingoError(Exception):
+    """
+    This exception is used to forward internal errors.
+
+    It should generally be forwarded. In the outer scope, it serves as an indicator
+    that there was an error that has been reported by the error logger. It's string
+    representation just contains an internal code that should not be reported to
+    the user.
+    """
+
 class Library:
     """
     Library objects are used to store the logger, symbols, strings, and scripts.
@@ -146,7 +164,7 @@ class Library:
         self,
         shared: bool = True,
         slotted: bool = True,
-        log_level: LogLevel = LogLevel.Trace,
+        log_level: LogLevel = LogLevel.Info,
         logger: typing.Callable[[MessageType, str], None] | None = None,
         message_limit: int = 25,
     ) -> None:
