@@ -211,7 +211,7 @@ void Control::setup(PyHeapTypeObject *heap_type) {
     type->tp_flags |= Py_TPFLAGS_HAVE_GC;
     type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
         auto &self = py::cast<Control &>(py::handle(self_base));
-        if (self.ctl_.get() != nullptr) {
+        if (self.ctl_ != nullptr) {
             Py_VISIT(self.user_data().ptr());
         }
         return 0;

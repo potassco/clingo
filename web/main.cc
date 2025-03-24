@@ -32,15 +32,17 @@ int run(std::string input, std::vector<std::string> const &args) {
         nullptr,
 
     };
-    int res = 1;
+    int code = 1;
     clingo_lib_t *lib = nullptr;
     auto c_args = std::vector<const char *>(args.size());
     std::ranges::transform(args, c_args.begin(), [](auto const &str) { return str.c_str(); });
-    if (clingo_lib_new(clingo_lib_flags_slotted, nullptr, nullptr, message_limit, &lib) == clingo_result_success) {
-        res = clingo_main(lib, c_args.data(), c_args.size(), &app, static_cast<void *>(input.data()));
+    if (clingo_lib_new(clingo_lib_flags_slotted | clingo_lib_flags_fast_release, clingo_log_level_info, nullptr,
+                       nullptr, message_limit, &lib) == clingo_result_success) {
+
+        clingo_main(lib, c_args.data(), c_args.size(), &app, static_cast<void *>(input.data()), &code);
     }
-    clingo_lib_free(lib, true);
-    return res;
+    clingo_lib_release(lib);
+    return code;
 }
 
 EMSCRIPTEN_BINDINGS(module) {

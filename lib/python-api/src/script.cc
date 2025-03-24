@@ -173,7 +173,7 @@ class MainScript {
         try {
             if (self->py_) {
                 auto gil = py::gil_scoped_acquire{};
-                self->py_->main(self->get_lib(lib), self->get_ctl(control), std::span{parts, size});
+                self->py_->main(self->get_lib(lib), get_ctl(control), std::span{parts, size});
             }
         } catch (...) {
             return self->handle_error();
@@ -208,21 +208,11 @@ class MainScript {
         return Library::cast(lib);
     }
 
-    auto get_ctl(clingo_control_t *ctl) -> PyControl {
-        if (external_) {
-            if (ctl_.ptr() == nullptr) {
-                ctl_ = Control::cast(ctl, true);
-            }
-            return ctl_;
-        }
-        return Control::cast(ctl);
-    }
+    static auto get_ctl(clingo_control_t *ctl) -> PyControl { return Control::cast(ctl, true); }
 
     std::unique_ptr<Interpreter> py_;
     //! Stores lib pointer when embedded.
     PyLibrary lib_;
-    //! Stores control pointer when embedded.
-    PyControl ctl_;
     //! Whether to store or report errors.
     bool external_;
 };
@@ -292,8 +282,8 @@ class Script {
     static auto c_main(clingo_lib_t *lib, clingo_control_t *control, clingo_parts_array_t const *parts, size_t size,
                        void *data) -> clingo_result_t {
         CLINGO_TRY {
-            auto &self = get_self(data);
             auto gil = py::gil_scoped_acquire{};
+            auto &self = get_self(data);
             self.main(get_lib(lib), get_ctl(control), std::span{parts, size});
         }
         CLINGO_CATCH(get_exception_ptr());
@@ -328,7 +318,7 @@ class Script {
     }
 
     static auto get_lib(clingo_lib_t *lib) -> PyLibrary { return Library::cast(lib); }
-    static auto get_ctl(clingo_control_t *ctl) -> PyControl { return Control::cast(ctl); }
+    static auto get_ctl(clingo_control_t *ctl) -> PyControl { return Control::cast(ctl, true); }
 
   private:
     std::string name_;
@@ -421,6 +411,8 @@ q(8).
 """
 ```
 )");
+    std::ignore = py::class_<MainScript>(script, "_MainScript");
+
     py::class_<Script>(script, "Script", R"(ABC for custom scripts.)")
         .def(py::init<>(), R"(Construct a script object.)")
         .def("execute", &Script::execute, py::arg("code"), R"(

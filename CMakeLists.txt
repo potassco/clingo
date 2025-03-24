@@ -48,6 +48,10 @@ if (DEFINED SKBUILD)
     find_package(pybind11 CONFIG REQUIRED)
 endif()
 
+if (EMSCRIPTEN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions")
+endif()
+
 add_subdirectory(third_party)
 add_subdirectory(lib libclingo)
 if (PARSER_BUILD_EXAMPLES)

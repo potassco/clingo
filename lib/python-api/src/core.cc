@@ -112,8 +112,9 @@ void Library::acquire(clingo_lib_t *lib, bool inc) {
     }
 }
 
-auto Library::user_data() -> PyObject * {
-    return static_cast<PyObject *>(clingo_lib_get_user_data(lib_.get(), user_data_slot()));
+auto Library::user_data() const -> py::list {
+    return py::reinterpret_borrow<py::list>(
+        static_cast<PyObject *>(clingo_lib_get_user_data(lib_.get(), user_data_slot())));
 }
 
 auto Library::cast(clingo_lib_t *lib, bool convert) -> Annotation<Library> {
@@ -152,7 +153,7 @@ auto version() -> std::tuple<int, int, int> {
 
 auto Library::add_object(py::object script) -> PyObject * {
     auto *ret = script.ptr();
-    py::reinterpret_borrow<py::list>(user_data()).append(std::move(script));
+    user_data().append(std::move(script));
     return ret;
 }
 
@@ -162,7 +163,7 @@ void Library::setup(PyHeapTypeObject *heap_type) {
     type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
         auto &self = py::cast<Library &>(py::handle(self_base));
         if (self.lib_ != nullptr) {
-            auto *objs = self.user_data();
+            auto *objs = self.user_data().ptr();
             Py_VISIT(objs);
         }
         return 0;

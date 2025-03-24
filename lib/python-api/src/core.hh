@@ -93,7 +93,7 @@ class Library {
 
   private:
     Library(clingo_lib_t *lib) : lib_{lib} {}
-    auto user_data() -> PyObject *;
+    [[nodiscard]] auto user_data() const -> py::list;
 
     static void logger_(clingo_message_t code, char const *message, void *log) noexcept;
 
