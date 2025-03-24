@@ -246,29 +246,28 @@ The following example shows how to run clingo without customization:
 
 ```python
 import sys
-
 from clingo.app import clingo_main
 from clingo.core import Library
 from clingo.script import enable_python
 
 with Library() as lib:
     enable_python(lib)
-	clingo_main(lib, sys.argv[1:])
+    clingo_main(lib, sys.argv[1:])
 ```
 
 The next example shows how to write a simple clingo-based application that adds
-on option to print atoms in models in order:
-
+an option to print atoms in models in order:
 
 ```python
 from typing import Callable, Sequence
 import sys
-
 from clingo.app import App, AppOptions, Flag, clingo_main
 from clingo.core import Library
 from clingo.control import Control
 from clingo.solve import Model
+from clingo.symbol import Symbol
 
+Parts = Sequence[Sequence[tuple[str, Sequence[Symbol]]]]
 
 class MyApp(App):
     def __init__(self) -> None:
@@ -286,21 +285,19 @@ class MyApp(App):
             "MyApp", "order", "Print atoms in models in order.", self._order
         )
 
-    def main(self, control: Control, files: Sequence[str]) -> None:
+    def main(self, control: Control, files: Sequence[str], parts: Parts) -> None:
         control.parse_files(files)
-        control.main()
-
+        control.main(parts)
 
 with Library() as lib:
     sys.exit(clingo_main(lib, sys.argv[1:], MyApp()))
 ```
-
 )"_d);
 
     py::class_<Flag>(app, "Flag", R"(
-Encapsulates a Boolean flag value with getter/setter functionality.
+Boolean flag with value management.
 
-A flag is used to represent a binary command-line option in the application.
+Represents command-line toggle options.
 )"_d)
         .def(py::init<bool>(), py::arg("value") = false, R"(
 Initializes the flag with the provided value.
@@ -312,14 +309,16 @@ Args:
         .def_readwrite("value", &Flag::value, "Get/set the value of the flag.");
 
     py::class_<Options>(app, "AppOptions", R"(
-Manage application options and their definitions.
+Manager for application options and their definitions.
 
-This class provides an interface to add various types of options (e.g., with
-arguments, flags) which the application can use for configuration.
+Provides interface to add/configures various option types:
+- argument options,
+- flag options, and
+- multi-value options.
 )"_d)
         .def("add", &Options::add, py::arg("group"), py::arg("option"), py::arg("description"), py::arg("parser"),
              py::arg("multi") = false, py::arg("argument") = std::nullopt, R"(
-Adds an option with a corresponding parser to the options set.
+Adds an option with a custom parser.
 
 An option's group name acts like a section header; all options with the same
 group name are displayed under it in the help output. The option name is the
@@ -328,9 +327,9 @@ parsed by the given parser.
 
 Args:
     group:
-        The option group.
+        The option group or category.
     option:
-        The option name.
+        The option name (after --).
     description:
         A brief description of the option.
     parser:
@@ -342,9 +341,9 @@ Args:
 )"_d)
         .def("add_flag", &Options::add_flag, py::arg("group"), py::arg("option"), py::arg("description"),
              py::arg("flag"), R"(
-Adds a flag option to the options set.
+Add a Boolean flag option.
 
-Similar to add_option but used for Boolean options that can be toggled on or
+Similar to `add_option` but used for Boolean options that can be toggled on or
 off.
 
 Args:
@@ -389,7 +388,7 @@ Args:
 Validate the options passed to the application.
 
 Once the application options have been set, this method confirms that they are
-valid. If an error is detected, an exception may be raised.
+valid. If an error is detected, a ValueError should be raised.
 )"_d)
         .def("print_model", &App::print_model, py::arg("model"), py::arg("default_printer"), R"(
 Print the given model in a custom format.
@@ -427,8 +426,8 @@ This function initializes necessary components, processes input arguments, and
 then executes the main functionality of the Clingo application. It can
 optionally use a provided App instance to customize this behavior.
 
-The flag raise_errors might help for debugging purposes to obtain traces where
-errors originated from.
+The flag `raise_errors` might help for debugging purposes to obtain traces
+where errors originated from.
 
 Args:
 	lib:
@@ -440,8 +439,8 @@ Args:
     raise_errors:
         Whether to raise errors instead of just reporting them.
 
-    Returns:
-        An integer exit code.
+Returns:
+    An integer exit code.
 )"_d);
 }
 

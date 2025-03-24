@@ -120,7 +120,7 @@ format_yaml:
 stubs: debug
 	source .venv/bin/activate && python scripts/stubs.py
 
-pdoc: venv
+pdoc: debug venv
 	source .venv/bin/activate && python scripts/stubs.py --python
 	cd pdoc && python3 -m venv .venv
 	cd pdoc && source .venv/bin/activate && pip install pdoc
