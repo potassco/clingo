@@ -53,7 +53,12 @@ class MainScript {
     //! The flag indicates whether the class has been registered on the C or
     //! python level. Scripts registered externally report errors right away
     //! and are in charge of managing library and control object.
-    MainScript(bool external) : external_{external} {}
+    MainScript(bool external) : external_{external} {
+        // ensure python functions can be executed
+        if (!external_) {
+            init_();
+        }
+    }
 
     static auto cast(void *data) -> MainScript * { return static_cast<MainScript *>(data); }
 
