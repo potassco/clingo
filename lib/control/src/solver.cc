@@ -752,15 +752,6 @@ auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode
         }
         state_ = State::solved;
         clasp_->asp()->addAssumption(assumptions);
-        if (!propagators_.empty()) {
-            // clasp config might have changed (e.g. number of solve threads) after last ground call
-            // FIXME: propagator init logic could be part of ClaspFacade::prepare().
-            clasp_->update();
-            clasp_->program()->endProgram();
-            for (auto &propagator : propagators_) {
-                propagator.first->init(*propagator.second);
-            }
-        }
         clasp_->prepare();
         theory_->reset();
         if (mdl_ == nullptr) {
@@ -806,26 +797,13 @@ void Solver::output_program(std::ostream &out) {
     grd_.output_program(out);
 }
 
-auto Solver::decide(Potassco::Id_t solver_id, Potassco::AbstractAssignment const &assignment, Potassco::Lit_t fallback)
-    -> Potassco::Lit_t {
-    for (auto &heuristic : heuristics_) {
-        if (auto ret = heuristic->decide(solver_id, assignment, fallback); ret != 0) {
-            return ret;
-        }
-    }
-    return fallback;
-}
-
 void Solver::register_propagator(UPropagator propagator) {
     if (mode_ == AppMode::solve) {
-        auto prop = std::make_unique<Clasp::ClingoPropagatorInit>(*propagator);
-        clasp_config_->addConfigurator(*prop);
-        clasp_facade().asp()->enableDistinctTrue();
+        clasp_facade().registerPropagator(*propagator, true);
         if (propagator->hasHeuristic()) {
-            clasp_config_->setHeuristicCreator(Clasp::ClingoHeuristic::creator(*this));
-            heuristics_.emplace_back(propagator.get());
+            clasp_facade().registerHeuristic(*propagator.get());
         }
-        propagators_.emplace_back(std::move(propagator), std::move(prop));
+        propagators_.emplace_back(std::move(propagator));
     }
 }
 

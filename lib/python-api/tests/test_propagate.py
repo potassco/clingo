@@ -435,7 +435,7 @@ class TestPropagate:
             assert hnd.get().satisfiable
         assert mcb.symbols == [[], []]
 
-    def test_heurisitic(self):
+    def test_heuristic(self):
         """
         Test decide.
         """
