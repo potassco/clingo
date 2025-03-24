@@ -4,9 +4,12 @@ Unit tests for error propagation across various modules.
 
 import gc
 import re
-from typing import Sequence
+import subprocess
+import sys
+from typing import Callable, Sequence
 
 import pytest
+from clingo.app import App, AppOptions, clingo_main
 from clingo.backend import Observer
 from clingo.control import Control
 from clingo.core import Library
@@ -18,7 +21,68 @@ from clingo.propagate import (
     Propagator,
 )
 from clingo.script import Script, register
+from clingo.solve import Model
 from clingo.symbol import Symbol
+
+
+class ErrorApp(App):
+    """
+    Test throwing errors in apps.
+    """
+
+    _mode: str
+
+    def __init__(self, mode: str) -> None:
+        super().__init__("test")
+        self._mode = mode
+
+    def parse_option(self, value: str) -> bool:
+        """
+        Test throwing errons in option parsers.
+        """
+        assert len(value) >= 0
+        if "o" in self._mode:
+            raise RuntimeError("option")
+        return True
+
+    def validate_options(self) -> None:
+        """
+        Test throwing errors in validate_options.
+        """
+        if "v" in self._mode:
+            raise RuntimeError("validate")
+
+    def register_options(self, options: AppOptions) -> None:
+        """
+        Test throwing errors in register options.
+        """
+        if "r" in self._mode:
+            raise RuntimeError("register")
+        options.add("Test", "test", "Test option.", self.parse_option)
+
+    def print_model(self, model: Model, default_printer: Callable[[], None]) -> None:
+        """
+        Test throwing errors in print model.
+        """
+        assert model
+        if "p" in self._mode:
+            raise RuntimeError("print")
+        default_printer()
+
+    def main(
+        self,
+        control: Control,
+        files: Sequence[str],
+        parts: Sequence[Sequence[tuple[str, Sequence[Symbol]]]],
+    ) -> None:
+        """
+        Test throwing errors in main.
+        """
+        assert len(files) == 0
+        if "m" in self._mode:
+            raise RuntimeError("main")
+        control.parse_string("a.")
+        control.main(parts)
 
 
 class Prop(Propagator):
@@ -209,5 +273,44 @@ class TestError:
                 with ctl.solve() as hnd:
                     hnd.get()
 
-    # TODO:
-    # - app?
+    def run_app_test(self, mode, pattern: str):
+        """
+        Run the test app in a subprocess.
+        """
+        output = subprocess.run(
+            [sys.executable, __file__, "test-error-app", mode],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        ).stderr
+        return bool(re.search(pattern, output, re.DOTALL))
+
+    @pytest.mark.parametrize(
+        "mode",
+        [
+            "main",
+            "validate",
+            "register",
+            "print",
+            pytest.param("option", marks=pytest.mark.xfail),
+        ],
+    )
+    def test_error_app(self, mode):
+        """
+        Test errors in propagators.
+        """
+        msg = f"mode `{mode}` failed"
+        assert self.run_app_test(mode[0], f"RuntimeError: {mode}"), msg
+
+
+def error_app_main(mode: str):
+    """
+    Start the test app in the given mode.
+    """
+    with Library() as lib:
+        clingo_main(lib, [], ErrorApp(mode))
+
+
+if __name__ == "__main__" and len(sys.argv) == 3 and sys.argv[1] == "test-error-app":
+    error_app_main(sys.argv[2])
