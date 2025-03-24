@@ -2,6 +2,9 @@
 name = "clingo"
 version = "6.0.0"
 
+[project.scripts]
+pyclingo = "clingo.app:_pyclingo"
+
 [build-system]
 requires = ["scikit-build-core", "pybind11", "re2c"]
 build-backend = "scikit_build_core.build"

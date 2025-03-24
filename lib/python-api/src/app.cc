@@ -188,6 +188,22 @@ class App {
     std::exception_ptr *ptr_ = &get_exception_ptr();
 };
 
+auto pyentry() -> int {
+    py::module sys = py::module::import("sys");
+    py::module app = py::module::import("clingo.app");
+    py::module core = py::module::import("clingo.core");
+    py::module script = py::module::import("clingo.script");
+
+    py::object clingo_main = app.attr("clingo_main");
+    py::object Library = core.attr("Library");
+    py::object enable_python = script.attr("enable_python");
+
+    auto argv = sys.attr("argv").attr("__getitem__")(py::slice{py::int_{1}, py::none(), py::none()}).cast<py::list>();
+    py::object lib = Library();
+    enable_python(lib);
+    return py::cast<int>(clingo_main(lib, argv));
+}
+
 auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<App *> app, bool raise_errors) -> int {
     auto capp = std::optional<clingo_application_t>{};
     if (app) {
@@ -441,7 +457,8 @@ Args:
 
 Returns:
     An integer exit code.
-)"_d);
+)"_d)
+        .def("_pyclingo", &pyentry);
 }
 
 } // namespace Clingo::Python
