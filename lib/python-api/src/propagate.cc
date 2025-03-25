@@ -572,9 +572,9 @@ Returns:
 
     py::enum_<clingo_propagator_undo_mode_e>(propagate, "UndoMode", "Enumeration of undo modes.")
         .value("Default", clingo_propagator_undo_mode_default,
-               R"(Call `Propagator.undo()` when check has been called.)")
+               R"(Call `Propagator.undo()` for decision levels with non-emty changes.)")
         .value("Always", clingo_propagator_undo_mode_always,
-               R"(Call `Propagator.undo()` for decision levels with non-emty changes.)");
+               R"(Additionally call `Propagator.undo()` when check has been called.)");
 
     make_sequence(py::class_<Assignment>(propagate, "Assignment", R"(
 Provides information about the current state of literals in the solver.
