@@ -16,18 +16,18 @@ from the main context (just like the embedded one in the standalone clingo).
 >>> from clingo.symbol import Number, Symbol
 ...
 >>> class PyScript(Script):
-...     def execute(self, code: str) -> None:
+...     def execute(self, code) -> None:
 ...         exec(code, __main__.__dict__, __main__.__dict__)
-...     def call(self, lib: Library, name: str, arguments: list[Symbol]) -> list[Symbol]:
+...     def call(self, lib, name, arguments):
 ...         return [getattr(__main__, name)(lib, *arguments)]
-...     def callable(self, name: str, args: int) -> bool:
+...     def callable(self, name, arguments) -> bool:
 ...         return name in __main__.__dict__ and callable(__main__.__dict__[name])
-...     def main(self, lib: Library, control: Control) -> None:
+...     def main(self, lib, control) -> None:
 ...         __main__.main(lib, control)
 ...     def name(self):
 ...         return "python"
 ...
->>> def f(lib: Library, x: Symbol) -> Symbol:
+>>> def f(lib, x):
 ...     return Number(lib, x.number * 3)
 ...
 >>> lib = Library()
@@ -38,7 +38,7 @@ from the main context (just like the embedded one in the standalone clingo).
 ...
 ... from clingo.symbol import Number, Symbol
 ...
-... def g(lib: Library, x: Symbol) -> Symbol:
+... def g(lib, x):
 ...     return Number(lib, x.number * 4)
 ...
 ... #end.
@@ -98,8 +98,11 @@ class Script:
         """
 
     def call(
-        self, lib: clingo.core.Library, name: str, arguments: list[clingo.symbol.Symbol]
-    ) -> list[clingo.symbol.Symbol] | clingo.symbol.Symbol:
+        self,
+        lib: clingo.core.Library,
+        name: str,
+        arguments: typing.Sequence[clingo.symbol.Symbol],
+    ) -> typing.Sequence[Symbol]:
         """
         Call the function with the given name and arguments.
 

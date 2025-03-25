@@ -71,21 +71,17 @@ class Config:
     config.group.subgroup[1].option = "value2"
     ```
 
-    To list the subgroups of an option group, use the `attributes` member.
-    Furthermore, there are meta options having key `configuration`. Assigning a
-    meta option sets a number of related options. To get further information about
-    an option or option group, use `description`.
+    Use the `attributes` member to list subgroups of an option group. Meta options
+    with key `configuration` set multiple related options when assigned. Use
+    `description` for more information about an option or option group.
 
-    Note that the first element of a sequence can be accessed directly without
-    going through index 0. Furthermore, config objects have a YAML-like string
-    representation to inspect the current configuration. To provide full
-    information and avoid duplication in the string representation of sequences,
-    attributes are only added if the sequence is currently emtpy.
-
-    Notes
-    -----
-    The value of an option is always a string and any value assigned to an option
-    is automatically converted into a string.
+    Notes:
+    - The first element of a sequence can be accessed directly without index 0.
+    - Config objects have a YAML-like string representation for inspection.
+    - In string representations of sequences, attributes (for index 0) are only
+      added if the sequence is empty.
+    - Option values are always strings; assigned values are automatically converted
+      to strings.
     """
 
     def __getattr__(self, name: str) -> Config:
@@ -114,7 +110,7 @@ class Config:
         """
 
     @property
-    def attributes(self) -> list[str]:
+    def attributes(self) -> typing.Sequence[str]:
         """
         Get the attribute names of nested configurations.
         """

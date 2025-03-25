@@ -121,7 +121,9 @@ class Atom:
 
 class AtomBase:
     """
-    An atom base mapping symbols to atoms.
+    An class providing information about symbolic atoms.
+
+    Implements `Mapping[Symbol, Atom]`.
     """
 
     def __contains__(self, key: clingo.symbol.Symbol) -> bool:
@@ -169,9 +171,15 @@ class AtomBase:
 class Base:
     """
 
-    The base provides information about atoms and show term directives occuring in a program.
+    A class providing information about symbolic and theory atoms and shown terms.
 
-    It implements a map from signatures to atom bases.
+    Implements `Mapping[tuple[str, int, bool], AtomBase]` providing additional
+    overloads to directly lookup symbols and short signatures (assuming a positive
+    sign):
+    - `__getitem__: Callable[[Symbol], Atom]`
+    - `__contains__: Callable[[Symbol], bool]`
+    - `__getitem__: Callable[[tuple[str, int]], AtomBase]`
+    - `__contains__: Callable[[tuple[str, int]], bool]`
     """
 
     @typing.overload
@@ -335,11 +343,11 @@ class Term:
 
 class TermBase:
     """
-    A base to inspect show term directives in a program.
+    A class providing information about shown terms.
 
     The base is established by the show directives occurring in a program.
 
-    Implements a map form symbols to terms.
+    Implements `Mapping[Symbol, Term]`.
     """
 
     def __contains__(self, key: clingo.symbol.Symbol) -> bool:
@@ -402,7 +410,7 @@ class TheoryAtom:
         """
 
     @property
-    def elements(self) -> list[TheoryElement]:
+    def elements(self) -> typing.Sequence[TheoryElement]:
         """
         Get the elements of a theory atom.
         """
@@ -427,9 +435,9 @@ class TheoryAtom:
 
 class TheoryBase:
     """
-    A base to inspect theory atoms.
+    A class  prooviding information about theory atoms.
 
-    Implements a sequences over theory atoms.
+    Implements `Sequence[TheoryAtom]`.
     """
 
     def __contains__(self, value: TheoryAtom) -> bool:
@@ -497,7 +505,7 @@ class TheoryElement:
         """
 
     @property
-    def tuple(self) -> list[TheoryTerm]:
+    def tuple(self) -> typing.Sequence[TheoryTerm]:
         """
         Get the term tuple of a theory element.
         """
@@ -520,7 +528,7 @@ class TheoryTerm:
         """
 
     @property
-    def arguments(self) -> list[TheoryTerm]:
+    def arguments(self) -> typing.Sequence[TheoryTerm]:
         """
         Get the arguments of a function, tuple, list, or set theory term.
         """

@@ -50,6 +50,12 @@ class Rewriter:
             content = re.sub(simple_pattern, replacement, content, flags=re.DOTALL)
         return content
 
+    def replace_list_returns(self, content: str) -> str:
+        """
+        Replace lists in return values by sequences.
+        """
+        return content.replace("-> list[", "-> typing.Sequence[")
+
     def extract_docstrings(self, code):
         """
         Extract and replace dostrings with a placeholder.
@@ -123,6 +129,7 @@ class Rewriter:
         # extract class definitions
         content, docstrings = self.extract_docstrings(content)
         content = self.simplify_comparisons(content)
+        content = self.replace_list_returns(content)
         class_pattern = re.compile(r"(?m)^class\s[^:]+:\n(?:\n|(?:    .*\n))*")
         classes = class_pattern.findall(content)
         for class_def in classes:

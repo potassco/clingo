@@ -46,7 +46,7 @@ __all__ = [
 def Function(
     lib: clingo.core.Library,
     name: str,
-    arguments: list[Symbol] = [],
+    arguments: typing.Sequence[Symbol] = [],
     sign: bool = False,
 ) -> Symbol:
     """
@@ -81,7 +81,7 @@ def String(lib: clingo.core.Library, string: str) -> Symbol:
         string: The given string.
     """
 
-def Tuple_(lib: clingo.core.Library, arguments: list[Symbol]) -> Symbol:
+def Tuple_(lib: clingo.core.Library, arguments: typing.Sequence[Symbol]) -> Symbol:
     """
     Construct a tuple symbol.
 
@@ -211,7 +211,7 @@ class Symbol:
         """
 
     @property
-    def arguments(self) -> list:
+    def arguments(self) -> typing.Sequence[Symbol]:
         """
         The list of arguments.
         """

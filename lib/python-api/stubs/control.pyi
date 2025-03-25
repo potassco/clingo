@@ -106,7 +106,9 @@ class Control:
     A control object for grounding and solving.
     """
 
-    def __init__(self, lib: clingo.core.Library, options: list[str] = []) -> None:
+    def __init__(
+        self, lib: clingo.core.Library, options: typing.Sequence[str] = []
+    ) -> None:
         """
         Construct a control object.
 
@@ -206,7 +208,7 @@ class Control:
 
     def solve(
         self,
-        assumptions: list[tuple[clingo.symbol.Symbol, bool] | int] = [],
+        assumptions: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int] = [],
         on_model: typing.Callable[[clingo.solve.Model], bool | None] | None = None,
         on_stats: (
             typing.Callable[[clingo.stats.Stats, clingo.stats.Stats], None] | None

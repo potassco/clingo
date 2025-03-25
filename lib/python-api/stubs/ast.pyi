@@ -283,7 +283,7 @@ def rewrite_statement(
         | StatementConst
         | StatementComment
     ),
-) -> list[
+) -> typing.Sequence[
     StatementRule
     | StatementTheory
     | StatementOptimize
@@ -860,7 +860,7 @@ class ArgumentTuple:
     @property
     def arguments(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         TermVariable
         | TermSymbolic
         | TermAbsolute
@@ -950,7 +950,7 @@ class BodyAggregate:
         """
 
     @property
-    def elements(self) -> list[BodyAggregateElement]:
+    def elements(self) -> typing.Sequence[BodyAggregateElement]:
         """
         The aggregate elements.
         """
@@ -1065,7 +1065,9 @@ class BodyAggregateElement:
         """
 
     @property
-    def condition(self) -> list[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
@@ -1079,7 +1081,7 @@ class BodyAggregateElement:
     @property
     def tuple(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         TermVariable
         | TermSymbolic
         | TermAbsolute
@@ -1164,7 +1166,9 @@ class BodyConditionalLiteral:
         """
 
     @property
-    def condition(self) -> list[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
@@ -1255,7 +1259,7 @@ class BodySetAggregate:
         """
 
     @property
-    def elements(self) -> list[SetAggregateElement]:
+    def elements(self) -> typing.Sequence[SetAggregateElement]:
         """
         The aggregate elements.
         """
@@ -1437,7 +1441,7 @@ class BodyTheoryAtom:
         """
 
     @property
-    def elements(self) -> list[TheoryAtomElement]:
+    def elements(self) -> typing.Sequence[TheoryAtomElement]:
         """
         The aggregate elements.
         """
@@ -1665,7 +1669,7 @@ class HeadAggregate:
         """
 
     @property
-    def elements(self) -> list[HeadAggregateElement]:
+    def elements(self) -> typing.Sequence[HeadAggregateElement]:
         """
         The aggregate elements.
         """
@@ -1776,7 +1780,9 @@ class HeadAggregateElement:
         """
 
     @property
-    def condition(self) -> list[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
@@ -1796,7 +1802,7 @@ class HeadAggregateElement:
     @property
     def tuple(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         TermVariable
         | TermSymbolic
         | TermAbsolute
@@ -1881,7 +1887,9 @@ class HeadConditionalLiteral:
         """
 
     @property
-    def condition(self) -> list[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
@@ -1973,7 +1981,7 @@ class HeadDisjunction:
     @property
     def elements(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         LiteralBoolean | LiteralComparison | LiteralSymbolic | HeadConditionalLiteral
     ]:
         """
@@ -2058,7 +2066,7 @@ class HeadSetAggregate:
         """
 
     @property
-    def elements(self) -> list[SetAggregateElement]:
+    def elements(self) -> typing.Sequence[SetAggregateElement]:
         """
         The aggregate elements.
         """
@@ -2232,7 +2240,7 @@ class HeadTheoryAtom:
         """
 
     @property
-    def elements(self) -> list[TheoryAtomElement]:
+    def elements(self) -> typing.Sequence[TheoryAtomElement]:
         """
         The aggregate elements.
         """
@@ -2553,7 +2561,7 @@ class LiteralComparison:
         """
 
     @property
-    def right(self) -> list[RightGuard]:
+    def right(self) -> typing.Sequence[RightGuard]:
         """
         The chain of comparisons.
         Note that the chain must have at least length one.
@@ -2740,7 +2748,9 @@ class OptimizeElement:
         """
 
     @property
-    def condition(self) -> list[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
@@ -2865,7 +2875,7 @@ class OptimizeTuple:
     @property
     def terms(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         TermVariable
         | TermSymbolic
         | TermAbsolute
@@ -3274,7 +3284,9 @@ class SetAggregateElement:
         """
 
     @property
-    def condition(self) -> list[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
@@ -3664,7 +3676,7 @@ class StatementEdge:
     @property
     def body(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
         | BodySetAggregate
@@ -3682,7 +3694,7 @@ class StatementEdge:
         """
 
     @property
-    def pool(self) -> list[Edge]:
+    def pool(self) -> typing.Sequence[Edge]:
         """
         The edge pool of the statement.
         """
@@ -3800,7 +3812,7 @@ class StatementExternal:
     @property
     def body(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
         | BodySetAggregate
@@ -3967,7 +3979,7 @@ class StatementHeuristic:
     @property
     def body(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
         | BodySetAggregate
@@ -4190,7 +4202,7 @@ class StatementOptimize:
         """
 
     @property
-    def elements(self) -> list[OptimizeElement]:
+    def elements(self) -> typing.Sequence[OptimizeElement]:
         """
         The elements of the statement.
         """
@@ -4277,7 +4289,7 @@ class StatementProgram:
         """
 
     @property
-    def arguments(self) -> list[str]:
+    def arguments(self) -> typing.Sequence[str]:
         """
         The arguments of the program.
         """
@@ -4396,7 +4408,7 @@ class StatementProject:
     @property
     def body(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
         | BodySetAggregate
@@ -4592,7 +4604,7 @@ class StatementRule:
     @property
     def body(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
         | BodySetAggregate
@@ -4796,7 +4808,7 @@ class StatementShow:
     @property
     def body(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
         | BodySetAggregate
@@ -5065,7 +5077,7 @@ class StatementTheory:
         """
 
     @property
-    def atoms(self) -> list[TheoryAtomDefinition]:
+    def atoms(self) -> typing.Sequence[TheoryAtomDefinition]:
         """
         A list of atom definitions.
         """
@@ -5083,7 +5095,7 @@ class StatementTheory:
         """
 
     @property
-    def terms(self) -> list[TheoryTermDefinition]:
+    def terms(self) -> typing.Sequence[TheoryTermDefinition]:
         """
         A list of term definitions.
         """
@@ -5166,7 +5178,7 @@ class StatementWeakConstraint:
     @property
     def body(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
         | BodySetAggregate
@@ -5276,7 +5288,7 @@ class TermAbsolute:
     @property
     def pool(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         TermVariable
         | TermSymbolic
         | TermAbsolute
@@ -5514,7 +5526,7 @@ class TermFunction:
         """
 
     @property
-    def pool(self) -> list[ArgumentTuple]:
+    def pool(self) -> typing.Sequence[ArgumentTuple]:
         """
         The argument pool of the function.
         If there is more than one element in the pool, the term is unpooled during preprocessing.
@@ -5687,7 +5699,7 @@ class TermTuple:
     @property
     def pool(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         TermVariable
         | TermSymbolic
         | TermAbsolute
@@ -6086,7 +6098,9 @@ class TheoryAtomElement:
         """
 
     @property
-    def condition(self) -> list[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
@@ -6100,7 +6114,7 @@ class TheoryAtomElement:
     @property
     def tuple(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         TheoryTermVariable
         | TheoryTermSymbolic
         | TheoryTermTuple
@@ -6176,7 +6190,7 @@ class TheoryGuardDefinition:
         """
 
     @property
-    def operators(self) -> list[str]:
+    def operators(self) -> typing.Sequence[str]:
         """
         A list of operator definition names.
         """
@@ -6458,7 +6472,7 @@ class TheoryTermDefinition:
         """
 
     @property
-    def operators(self) -> list[TheoryOperatorDefinition]:
+    def operators(self) -> typing.Sequence[TheoryOperatorDefinition]:
         """
         The operator definitions to construct terms.
         """
@@ -6541,7 +6555,7 @@ class TheoryTermFunction:
     @property
     def arguments(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         TheoryTermVariable
         | TheoryTermSymbolic
         | TheoryTermTuple
@@ -6721,7 +6735,7 @@ class TheoryTermTuple:
     @property
     def arguments(
         self,
-    ) -> list[
+    ) -> typing.Sequence[
         TheoryTermVariable
         | TheoryTermSymbolic
         | TheoryTermTuple
@@ -6812,7 +6826,7 @@ class TheoryTermUnparsed:
         """
 
     @property
-    def elements(self) -> list[UnparsedElement]:
+    def elements(self) -> typing.Sequence[UnparsedElement]:
         """
         The unparsed theory elements.
         """
@@ -6987,7 +7001,7 @@ class UnparsedElement:
         """
 
     @property
-    def operators(self) -> list[str]:
+    def operators(self) -> typing.Sequence[str]:
         """
         The list of theory operators.
         """

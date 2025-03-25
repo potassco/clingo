@@ -144,7 +144,7 @@ class Model:
             Whether the atom is contained.
         """
 
-    def extend(self, symbols: list[clingo.symbol.Symbol]) -> None:
+    def extend(self, symbols: typing.Sequence[clingo.symbol.Symbol]) -> None:
         """
         Extend a model with the given symbols.
 
@@ -193,7 +193,7 @@ class Model:
         atoms: bool = False,
         terms: bool = False,
         theory: bool = False,
-    ) -> list[clingo.symbol.Symbol]:
+    ) -> SequenceSymbol:
         """
         Get the symbols in the model.
 
@@ -251,7 +251,9 @@ class SolveControl:
     A control object to add clauses while solving.
     """
 
-    def add_clause(self, clause: list[tuple[clingo.symbol.Symbol, bool] | int]) -> None:
+    def add_clause(
+        self, clause: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
+    ) -> None:
         """
         Add a clause that applies to the current solving step during the search.
 
