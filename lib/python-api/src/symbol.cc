@@ -85,7 +85,7 @@ auto Symbol::arity() const -> size_t {
     return size;
 }
 
-auto Symbol::args() const -> py::list {
+auto Symbol::args() const -> TypeHint<"Sequence[Symbol]"> {
     auto t = type();
     if (t != clingo_symbol_type_tuple && t != clingo_symbol_type_function) {
         throw std::invalid_argument("symbol is not a tuple or function");
@@ -220,7 +220,7 @@ auto String(Library &lib, std::string const &str) -> Symbol {
     return Symbol{sym, false};
 }
 
-auto Tuple(Library &lib, std::vector<Symbol> const &args) -> Symbol {
+auto Tuple(Library &lib, std::span<Symbol> const &args) -> Symbol {
     clingo_symbol_t sym = 0;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
@@ -228,7 +228,7 @@ auto Tuple(Library &lib, std::vector<Symbol> const &args) -> Symbol {
     return Symbol{sym, false};
 }
 
-auto Function(Library &lib, std::string const &name, std::vector<Symbol> const &args, bool positive) -> Symbol {
+auto Function(Library &lib, std::string const &name, std::span<Symbol> const &args, bool positive) -> Symbol {
     clingo_symbol_t sym = 0;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
@@ -351,7 +351,7 @@ Args:
     lib: A library object to store the function in.
     arguments: The arguments in form of a list of symbols.
 )"_d);
-    symbol.def("Function", &Function, py::arg("lib"), py::arg("name"), py::arg("arguments") = std::vector<Symbol>{},
+    symbol.def("Function", &Function, py::arg("lib"), py::arg("name"), py::arg("arguments") = std::span<Symbol>{},
                py::arg("sign") = false, R"(
 Construct a function symbol.
 

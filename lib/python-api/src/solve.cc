@@ -11,15 +11,13 @@ namespace Clingo::Python {
 
 namespace {
 
-using SCBData = std::pair<SymbolVec, std::exception_ptr>;
-
 auto symbol_callback(clingo_symbol_t const *symbols, size_t size, void *data) -> clingo_result_t {
-    auto *res = static_cast<SCBData *>(data);
+    auto *res = static_cast<SymbolVec *>(data);
     CLINGO_TRY {
         // NOLINTNEXTLINE
-        res->first.assign(cpp_cast(symbols), cpp_cast(symbols) + size);
+        res->assign(cpp_cast(symbols), cpp_cast(symbols) + size);
     }
-    CLINGO_CATCH(res->second);
+    CLINGO_CATCH(get_exception_ptr());
 }
 
 class ModelIterator {
@@ -79,8 +77,8 @@ auto SolveControl::add_clause(MixedLitVec const &lits) {
     handle_error(clingo_solve_control_add_clause(ctl_, x.data(), x.size()));
 }
 
-auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVec {
-    auto res = SCBData{};
+auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> TypeHint<"SequenceSymbol"> {
+    auto res = SymbolVec{};
     clingo_show_type_bitset_t show = 0;
     if (shown) {
         show |= clingo_show_type_shown;
@@ -94,8 +92,8 @@ auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVe
     if (theory) {
         show |= clingo_show_type_theory;
     }
-    handle_error(clingo_model_symbols(mdl_, show, symbol_callback, &res));
-    return std::move(res.first);
+    handle_error(clingo_model_symbols(mdl_, show, symbol_callback, &res), get_exception_ptr());
+    return py::cast(std::move(res));
 }
 
 auto Model::contains(Symbol atom) -> bool {
@@ -116,7 +114,7 @@ auto Model::str() -> std::string {
     auto comma = false;
     for (auto const &sym : symbols(true, false, false, false)) {
         res += comma ? ", " : "";
-        res += sym.str();
+        res += py::str(sym);
         comma = true;
     }
     return res;
@@ -175,7 +173,7 @@ auto Model::thread_id() -> clingo_id_t {
     return id;
 }
 
-auto Model::extend(SymbolVec const &symbols) {
+auto Model::extend(std::span<Symbol const> symbols) {
     auto *mdl = const_cast<clingo_model_t *>(mdl_); // NOLINT
     handle_error(clingo_model_extend(mdl, c_cast(symbols.data()), symbols.size()));
 }

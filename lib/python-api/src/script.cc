@@ -236,8 +236,8 @@ class Script {
         CLINGO_CATCH(get_exception_ptr());
     }
 
-    auto call(const PyLibrary &lib, char const *name, SymbolVec const &args) -> std::variant<SymbolVec, Symbol> {
-        PYBIND11_OVERRIDE_PURE(SymbolVec, Script, call, lib, name, args);
+    auto call(const PyLibrary &lib, char const *name, SymbolSpan args) -> TypeHint<"Sequence[Symbol]"> {
+        PYBIND11_OVERRIDE_PURE(TypeHint<"Sequence[Symbol]">, Script, call, lib, name, args);
     }
 
     static auto c_call(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
@@ -249,7 +249,7 @@ class Script {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
             auto gil = py::gil_scoped_acquire{};
-            auto syms = self.call(get_lib(lib), name, args);
+            auto syms = self.call(get_lib(lib), name, args).cast<std::variant<SymbolVec, Symbol>>();
             return std::visit(
                 [&]<class T>(T const &res) {
                     if constexpr (std::is_same_v<T, Symbol>) {
@@ -376,18 +376,18 @@ from the main context (just like the embedded one in the standalone clingo).
 >>> from clingo.symbol import Number, Symbol
 ...
 >>> class PyScript(Script):
-...     def execute(self, code: str) -> None:
+...     def execute(self, code) -> None:
 ...         exec(code, __main__.__dict__, __main__.__dict__)
-...     def call(self, lib: Library, name: str, arguments: list[Symbol]) -> list[Symbol]:
+...     def call(self, lib, name, arguments):
 ...         return [getattr(__main__, name)(lib, *arguments)]
-...     def callable(self, name: str, args: int) -> bool:
+...     def callable(self, name, arguments) -> bool:
 ...         return name in __main__.__dict__ and callable(__main__.__dict__[name])
-...     def main(self, lib: Library, control: Control) -> None:
+...     def main(self, lib, control) -> None:
 ...         __main__.main(lib, control)
 ...     def name(self):
 ...         return "python"
 ...
->>> def f(lib: Library, x: Symbol) -> Symbol:
+>>> def f(lib, x):
 ...     return Number(lib, x.number * 3)
 ...
 >>> lib = Library()
@@ -398,7 +398,7 @@ from the main context (just like the embedded one in the standalone clingo).
 ...
 ... from clingo.symbol import Number, Symbol
 ...
-... def g(lib: Library, x: Symbol) -> Symbol:
+... def g(lib, x):
 ...     return Number(lib, x.number * 4)
 ...
 ... #end.

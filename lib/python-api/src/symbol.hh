@@ -25,7 +25,7 @@ class Symbol {
     [[nodiscard]] auto string() const -> py::str;
     [[nodiscard]] auto name() const -> char const *;
     [[nodiscard]] auto arity() const -> size_t;
-    [[nodiscard]] auto args() const -> py::list;
+    [[nodiscard]] auto args() const -> TypeHint<"Sequence[Symbol]">;
     [[nodiscard]] auto str() const -> char const *;
     [[nodiscard]] auto repr() const -> std::string;
     [[nodiscard]] auto sign() const -> bool;
@@ -38,9 +38,8 @@ class Symbol {
     friend auto Supremum() -> Symbol;
     friend auto Number(Library &lib, py::int_ num) -> Symbol;
     friend auto String(Library &lib, std::string const &str) -> Symbol;
-    friend auto Tuple(Library &lib, std::vector<Symbol> const &args) -> Symbol;
-    friend auto Function(Library &lib, std::string const &name, std::vector<Symbol> const &args, bool positive)
-        -> Symbol;
+    friend auto Tuple(Library &lib, std::span<Symbol> const &args) -> Symbol;
+    friend auto Function(Library &lib, std::string const &name, std::span<Symbol> const &args, bool positive) -> Symbol;
     friend auto parse_term(Library &lib, std::string str) -> Symbol;
     friend auto operator==(Symbol const &a, Symbol const &b) -> bool;
     friend auto operator<=>(Symbol const &a, Symbol const &b) -> std::strong_ordering;
@@ -52,6 +51,7 @@ class Symbol {
 };
 
 using SymbolVec = std::vector<Symbol>;
+using SymbolSpan = std::span<Symbol const>;
 
 void register_symbol(pybind11::module &m);
 

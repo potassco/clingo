@@ -50,7 +50,7 @@ class Model {
   public:
     Model(clingo_model_t const *mdl) : mdl_{mdl} {}
 
-    auto symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVec;
+    auto symbols(bool shown, bool atoms, bool terms, bool theory) -> TypeHint<"SequenceSymbol">;
     auto contains(Symbol atom) -> bool;
     auto control() -> SolveControl;
     auto type() -> clingo_model_type_e;
@@ -61,7 +61,7 @@ class Model {
     auto priorities() -> std::span<clingo_weight_t const>;
     auto optimality_proven() -> bool;
     auto thread_id() -> clingo_id_t;
-    auto extend(SymbolVec const &symbols);
+    auto extend(std::span<Symbol const> symbols);
     auto str() -> std::string;
 
   private:
