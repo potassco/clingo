@@ -4,6 +4,8 @@
 
 #include <pybind11/pybind11.h>
 
+#include "iterable.hh"
+
 namespace Clingo::Python {
 
 class Config {
@@ -23,7 +25,7 @@ class Config {
     // attribute access
     auto get(char const *name) -> Config;
     void set(char const *name, pybind11::handle value);
-    auto attrs() -> std::vector<char const *>;
+    auto attrs() -> TypeHint<"Sequence[str]">;
 
     // inspection
     auto str() -> std::string;

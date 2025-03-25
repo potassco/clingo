@@ -317,7 +317,7 @@ auto Base::theory() const -> TheoryBase {
     return TheoryBase{*base};
 }
 
-auto convert(Base base, MixedLitlVec const &lits) -> LitVec {
+auto convert(Base base, MixedLitVec const &lits) -> LitVec {
     return transform_vec(lits, [&](auto const &x) {
         return std::visit(
             [&]<typename T>(T const &x) {

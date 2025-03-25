@@ -160,7 +160,7 @@ auto Control::stats() -> py::dict {
     return Stats{const_cast<clingo_stats_t *>(stats), key}.nestify();
 }
 
-auto Control::solve(MixedLitlVec const &assumptions, std::optional<ModelCallback> on_model,
+auto Control::solve(MixedLitVec const &assumptions, std::optional<ModelCallback> on_model,
                     std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
     auto release = py::gil_scoped_release{};
     auto res = std::make_shared<SolveHandle>(std::move(on_model), std::move(on_stats));
@@ -322,8 +322,8 @@ SAT
 
     py::class_<Control>(control, "Control", py::custom_type_setup(&Control::setup),
                         R"(A control object for grounding and solving.)")
-        .def(py::init<Library &, std::vector<std::string> const &>(), py::arg("lib"),
-             py::arg("options") = std::vector<std::string>{}, R"(
+        .def(py::init<Library &, std::span<std::string> const &>(), py::arg("lib"),
+             py::arg("options") = std::span<std::string>{}, R"(
 Construct a control object.
 
 Args:
@@ -369,9 +369,8 @@ Args:
     context:
         An optional object with functions to call during grounding.
 )"_d)
-        .def("solve", &Control::solve, py::arg("assumptions") = Control::AssumptionVec{},
-             py::arg("on_model") = std::nullopt, py::arg("on_stats") = std::nullopt, py::arg("yield_") = false,
-             py::arg("async_") = false, R"(
+        .def("solve", &Control::solve, py::arg("assumptions") = MixedLitVec{}, py::arg("on_model") = std::nullopt,
+             py::arg("on_stats") = std::nullopt, py::arg("yield_") = false, py::arg("async_") = false, R"(
 Solve the current ground program.
 
 Args:

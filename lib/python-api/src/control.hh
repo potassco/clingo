@@ -39,7 +39,6 @@ using PyControl = Annotation<Control>;
 
 class Control {
   public:
-    using AssumptionVec = std::vector<std::variant<std::pair<Symbol, bool>, Lit_t>>;
     using HintConstMap = TypeHint<"typing.Mapping[str, clingo.symbol.Symbol]">;
 
     Control(Library &lib, std::span<std::string const> args);
@@ -49,7 +48,7 @@ class Control {
     void parse_string(char const *str);
     void join(Program &prg);
     void ground(std::optional<PartSpan> parts, py::handle ctx);
-    auto solve(AssumptionVec const &assumptions, std::optional<ModelCallback> on_model,
+    auto solve(MixedLitVec const &assumptions, std::optional<ModelCallback> on_model,
                std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle;
     auto base() -> Base;
     void observe(Observer &obs, bool preprocess);

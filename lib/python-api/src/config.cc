@@ -96,15 +96,15 @@ auto Config::get_value() -> std::optional<char const *> {
     return std::nullopt;
 }
 
-auto Config::attrs() -> std::vector<char const *> {
-    auto res = std::vector<char const *>{};
+auto Config::attrs() -> TypeHint<"Sequence[str]"> {
+    py::list res;
     if (is_map_()) {
         size_t size = 0;
         handle_error(clingo_config_map_size(config_, key_, &size));
         for (size_t i = 0; i < size; ++i) {
             char const *name = nullptr;
             handle_error(clingo_config_map_subkey_name(config_, key_, i, &name));
-            res.emplace_back(name);
+            res.append(py::cast(name));
         }
     }
     return res;
@@ -143,12 +143,14 @@ void Config::str_(std::ostringstream &out, size_t first_indent, size_t indent) {
         }
     }
     if (is_map_() && (!is_sequence() || len_sequence() == 0)) {
-        for (auto const *attr : attrs()) {
-            out << fi() << attr << ":";
-            auto cfg = get(attr);
+        for (auto const &attr : attrs()) {
+            auto str = py::cast<std::string>(attr);
+            out << fi() << str << ":";
+
+            auto cfg = get(str.c_str());
             if (cfg.is_value()) {
                 out << " ";
-                cfg.str_(out, 0, indent + strlen(attr) + 2);
+                cfg.str_(out, 0, indent + str.size() + 2);
             } else {
                 out << "\n";
                 cfg.str_(out, indent + 2, indent + 2);

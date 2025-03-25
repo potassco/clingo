@@ -74,7 +74,7 @@ auto SolveControl::base() -> Base {
     return {base};
 }
 
-auto SolveControl::add_clause(MixedLitlVec const &lits) {
+auto SolveControl::add_clause(MixedLitVec const &lits) {
     auto x = convert(base(), lits);
     handle_error(clingo_solve_control_add_clause(ctl_, x.data(), x.size()));
 }

@@ -40,7 +40,7 @@ class SolveControl {
     SolveControl(clingo_solve_control_t *ctl) : ctl_{ctl} {}
 
     auto base() -> Base;
-    auto add_clause(MixedLitlVec const &lits);
+    auto add_clause(MixedLitVec const &lits);
 
   private:
     clingo_solve_control_t *ctl_;
