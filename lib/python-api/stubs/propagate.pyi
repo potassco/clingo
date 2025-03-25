@@ -116,9 +116,9 @@ class UndoMode:
 
     Members:
 
-      Default : Call `Propagator.undo()` when check has been called.
+      Default : Call `Propagator.undo()` for decision levels with non-emty changes.
 
-      Always : Call `Propagator.undo()` for decision levels with non-emty changes.
+      Always : Additionally call `Propagator.undo()` when check has been called.
     """
 
     Always: typing.ClassVar[UndoMode]  # value = <UndoMode.Always: 1>

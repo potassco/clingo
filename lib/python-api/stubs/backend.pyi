@@ -180,10 +180,9 @@ class Backend:
     """
     Provides an interface to extend a logic program.
 
-    The Backend class allows for extending logic programs through a low-level
-    interface. It provides methods to add various types of rules, set external
-    atoms, specify heuristics, define optimization statements, and extend the
-    underlying theory.
+    This class offers methods to add various types of rules, set external atoms,
+    specify heuristics, define optimization statements, and extend the underlying
+    theory. It allows for low-level manipulation of logic programs.
 
     See Also:
         clingo.control.Control.backend
@@ -205,11 +204,11 @@ class Backend:
         """
         Return a fresh program atom or the atom associated with the given symbol.
 
-        If the given symbol does not exist in the atom base, it is added first. Such
-        atoms will be used in subequents calls to ground for instantiation.
+        If the given symbol does not exist in the atom base, it is added first. These
+        atoms will be used in subsequent calls to ground for instantiation.
 
         Args:
-            symbol: The symbol associated with the atom.
+                symbol: The symbol associated with the atom.
 
         Returns:
                 The program atom representing the atom.
@@ -302,15 +301,13 @@ class Backend:
         """
         Add a rule to the program.
 
-        The rule can be a disjunctive rule or a choice rule, depending on the `choice`
-        parameter. The head and body of the rule are specified as sequences of
-        literals.
+        Creates a disjunctive or choice rule based on the `choice` parameter. The
+        head and body are specified as sequences of literals.
 
-        When `choice` is false, different types of rules are created based on the
-        length of the head:
-        - An empty head forms an integrity constraint.
-        - A single literal in the head forms a normal rule.
-        - Multiple literals in the head form a disjunctive rule.
+        Rule types based on head length (when choice is False):
+        - Empty head: Integrity constraint
+        - Single literal head: Normal rule
+        - Multiple literals head: Disjunctive rule
 
         Args:
                 head: Sequence of literals in the rule head.
@@ -326,12 +323,13 @@ class Backend:
         guard: tuple[str, int] | None = None,
     ) -> int:
         """
-        The method creates a theory atom with the given components and returns its
-        associated program atom. If the theory atom does not exist yet, it will be
-        assigned a program atom based on the following rules:
+        Create a theory atom and return its associated program atom.
+
+        If the theory atom does not exist yet, the method assigns a program atom based
+        on these rules:
         - If a specific atom value is provided, that value is used.
         - If None is given, a fresh program atom is introduced.
-        - For program directives, value zero should be used.
+        - For program directives, value zero is used.
 
         Args:
                 atom: The program atom to assign, or None to assign a fresh one.

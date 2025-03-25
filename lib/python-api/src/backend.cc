@@ -246,20 +246,20 @@ Examples
 The first example shows how to add a fact to a program:
 
 ```python
+>>> from clingo.core import Library
 >>> from clingo.symbol import Function
 >>> from clingo.control import Control
->>>
->>> ctl = Control()
->>>
->>> sym = Function("a")
+...
+>>> lib = Library()
+>>> ctl = Control(lib)
+>>> sym = Function(lib, "a")
 >>> with ctl.backend as bck:
 ...     atm_a = bck.atom(sym)
 ...     bck.rule([atm_a])
-...
->>> ctl.base[sym].is_fact
+>>> ctl.base.is_fact(ctl.base[sym].literal)
 True
->>>
->>> print(ctl.solve(on_model=print))
+>>> with ctl.solve(on_model=print) as hnd:
+...     hnd.get()
 a
 SAT
 ```
@@ -477,7 +477,7 @@ Args:
         .def("edge", &Backend::edge, py::arg("node_u"), py::arg("node_v"), py::arg("condition"), R"(
 Add an edge directive.
 
-Adds an edge from node_u to node_v to the graph. The edge is subject to the
+Adds an edge from `node_u` to `node_v` to the graph. The edge is subject to the
 specified condition.
 
 Args:
