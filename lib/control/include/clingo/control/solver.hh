@@ -443,7 +443,7 @@ template <class M> class unlock_guard {
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
-class Solver : public BaseView, private Potassco::AbstractHeuristic {
+class Solver : public BaseView {
   public:
     //! Create a solver object.
     Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &config, Logger &log, SymbolStore &store,
@@ -563,12 +563,8 @@ class Solver : public BaseView, private Potassco::AbstractHeuristic {
         return clasp_->asp() != nullptr ? *clasp_->asp() : throw std::runtime_error("not in solving mode");
     }
 
-    auto decide(Potassco::Id_t solver_id, Potassco::AbstractAssignment const &assignment, Potassco::Lit_t fallback)
-        -> Potassco::Lit_t override;
-
     CallbackLock lock_;
-    std::vector<std::pair<UPropagator, std::unique_ptr<Clasp::ClingoPropagatorInit>>> propagators_;
-    std::vector<Potassco::AbstractHeuristic *> heuristics_;
+    std::vector<UPropagator> propagators_;
     Clasp::ClaspFacade *clasp_;
     Clasp::Cli::ClaspCliConfig *clasp_config_;
     Util::OutputBuffer buf_;
