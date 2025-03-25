@@ -109,11 +109,11 @@ auto TheoryTerm::name() -> char const * {
     return name;
 }
 
-auto TheoryTerm::arguments() -> TheoryTermVec {
+auto TheoryTerm::arguments() -> TypeHint<"Sequence[TheoryTerm]"> {
     size_t size = 0;
     clingo_id_t const *args = nullptr;
     handle_error(clingo_theory_base_term_arguments(base_, index_, &args, &size));
-    return transform_vec(std::span{args, size}, [this](clingo_id_t id) { return TheoryTerm{*base_, id}; });
+    return py::cast(transform_vec(std::span{args, size}, [this](clingo_id_t id) { return TheoryTerm{*base_, id}; }));
 }
 
 auto TheoryTerm::str() -> char const * {
@@ -126,11 +126,11 @@ auto TheoryTerm::str() -> char const * {
 
 // TheoryElement
 
-auto TheoryElement::tuple() -> TheoryTermVec {
+auto TheoryElement::tuple() -> TypeHint<"Sequence[TheoryTerm]"> {
     size_t size = 0;
     clingo_id_t const *tuple = nullptr;
     handle_error(clingo_theory_base_element_tuple(base_, index_, &tuple, &size));
-    return transform_vec(std::span{tuple, size}, [this](clingo_id_t id) { return TheoryTerm{*base_, id}; });
+    return py::cast(transform_vec(std::span{tuple, size}, [this](clingo_id_t id) { return TheoryTerm{*base_, id}; }));
 }
 
 auto TheoryElement::condition() -> LitSpan {
@@ -162,11 +162,12 @@ auto TheoryAtom::name() -> TheoryTerm {
     return TheoryTerm{*base_, id};
 }
 
-auto TheoryAtom::elements() -> TheoryElementVec {
+auto TheoryAtom::elements() -> TypeHint<"Sequence[TheoryElement]"> {
     size_t size = 0;
     clingo_id_t const *elems = nullptr;
     handle_error(clingo_theory_base_atom_elements(base_, index_, &elems, &size));
-    return transform_vec(std::span{elems, size}, [this](clingo_id_t id) { return TheoryElement{*base_, id}; });
+    return py::cast(
+        transform_vec(std::span{elems, size}, [this](clingo_id_t id) { return TheoryElement{*base_, id}; }));
 }
 
 auto TheoryAtom::literal() -> clingo_literal_t {
@@ -298,7 +299,7 @@ auto Base::lookup_short(std::pair<char const *, size_t> const &sig) const -> map
 auto Base::lookup_symbol(Symbol const &sym) const -> Atom {
     if (auto sig = sym.signature(); sig) {
         if (auto atom = lookup(*sig).get(sym, std::nullopt)) {
-            return *std::move(atom);
+            return *atom;
         }
     }
     throw py::key_error("key does not exist");
@@ -375,18 +376,22 @@ False
         .def_property_readonly("literal", &Atom::literal, "Get the program literal of the atom.")
         .def_property_readonly("symbol", &Atom::symbol, "Get the symbol of the atom.");
 
-    make_mapping(py::class_<AtomBase>(base, "AtomBase", R"(An atom base mapping symbols to atoms.)"));
+    make_mapping(py::class_<AtomBase>(base, "AtomBase", R"(
+An class providing information about symbolic atoms.
+
+Implements `Mapping[Symbol, Atom]`.
+)"_d));
 
     make_hashable(py::class_<Term>(base, "Term", R"(A class providing information about terms.)"))
         .def_property_readonly("symbol", &Term::symbol, "Get the symbol of the term.")
         .def_property_readonly("condition", &Term::condition, "Get the condition of the term.");
 
     make_mapping(py::class_<TermBase>(base, "TermBase", R"(
-A base to inspect show term directives in a program.
+A class providing information about shown terms.
 
 The base is established by the show directives occurring in a program.
 
-Implements a map form symbols to terms.
+Implements `Mapping[Symbol, Term]`.
 )"_d));
 
     py::enum_<clingo_theory_term_type_e>(base, "TheoryTermType", "Enumeration of theory term types.")
@@ -421,15 +426,21 @@ Implements a map form symbols to terms.
         .def_property_readonly("guard", &TheoryAtom::guard, R"(Get optional guard of a theory atom.)");
 
     make_sequence(py::class_<TheoryBase>(base, "TheoryBase", R"(
-A base to inspect theory atoms.
+A class  prooviding information about theory atoms.
 
-Implements a sequences over theory atoms.
+Implements `Sequence[TheoryAtom]`.
 )"_d));
 
     make_mapping(py::class_<Base>(base, "Base", R"(
-The base provides information about atoms and show term directives occuring in a program.
+A class providing information about symbolic and theory atoms and shown terms.
 
-It implements a map from signatures to atom bases.
+Implements `Mapping[tuple[str, int, bool], AtomBase]` providing additional
+overloads to directly lookup symbols and short signatures (assuming a positive
+sign):
+- `__getitem__: Callable[[Symbol], Atom]`
+- `__contains__: Callable[[Symbol], bool]`
+- `__getitem__: Callable[[tuple[str, int]], AtomBase]`
+- `__contains__: Callable[[tuple[str, int]], bool]`
 )"))
         .def("__getitem__", &Base::lookup_symbol, py::arg("symbol"), R"(Get the atom with the given symbol.)")
         .def("__getitem__", &Base::lookup_short, py::arg("signature"), R"(

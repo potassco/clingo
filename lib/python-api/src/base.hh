@@ -4,7 +4,7 @@
 
 #include <pybind11/pybind11.h>
 
-#include "iterator.hh"
+#include "iterator.hh" // IWYU pragma: keep
 #include "symbol.hh"
 
 #include <span>
@@ -86,7 +86,7 @@ class TheoryTerm {
     auto type() -> clingo_theory_term_type_e;
     auto number() -> int;
     auto name() -> char const *;
-    auto arguments() -> TheoryTermVec;
+    auto arguments() -> TypeHint<"Sequence[TheoryTerm]">;
     auto str() -> char const *;
 
     [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
@@ -101,7 +101,7 @@ class TheoryTerm {
 class TheoryElement {
   public:
     TheoryElement(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
-    auto tuple() -> TheoryTermVec;
+    auto tuple() -> TypeHint<"Sequence[TheoryTerm]">;
     auto condition() -> LitSpan;
     auto condition_id() -> clingo_literal_t;
     auto str() -> char const *;
@@ -120,7 +120,7 @@ class TheoryAtom {
   public:
     TheoryAtom(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
     auto name() -> TheoryTerm;
-    auto elements() -> TheoryElementVec;
+    auto elements() -> TypeHint<"Sequence[TheoryElement]">;
     auto literal() -> clingo_literal_t;
     auto guard() -> std::optional<std::pair<char const *, TheoryTerm>>;
     auto str() -> char const *;
