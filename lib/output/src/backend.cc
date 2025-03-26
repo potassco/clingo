@@ -161,7 +161,8 @@ class BuilderBase {
     auto cond(lit_t const &lit) -> LitSpan {
         if (lit > 0) {
             if (auto &li = info(lit); li.clause != invalid_id) {
-                if (auto const &[clause, type] = clauses_.nth(li.clause).key(); type == ClauseType::conjunctive) {
+                auto it = clauses_.nth(li.clause);
+                if (auto const &[clause, type] = it.key(); type == ClauseType::conjunctive) {
                     return clause;
                 }
             }
@@ -1232,7 +1233,8 @@ class BuilderMinimize {
     //! @param bld the base builder
     void tr(BuilderBase &bld) {
         for (auto const &idx : delayed_) {
-            auto const &[weight, prio, terms] = tuples_.nth(idx).key();
+            auto it = tuples_.nth(idx);
+            auto const &[weight, prio, terms] = it.key();
             auto &[old, conds] = tuples_.nth(idx).value();
             assert(!conds.empty());
             old = bld.clause(conds, ClauseType::disjunctive);

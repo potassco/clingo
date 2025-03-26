@@ -112,7 +112,7 @@ class PyClingoError : public std::exception {
     [[nodiscard]] auto code() const noexcept -> clingo_result_t {
         unsigned char res = 0;
         std::from_chars(msg_.begin(), msg_.end(), res, code_base);
-        return res != 0 ? res : clingo_result_runtime;
+        return res != 0 ? res : static_cast<unsigned char>(clingo_result_runtime);
     }
 
   private:

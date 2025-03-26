@@ -235,7 +235,8 @@ extern "C" auto clingo_term_base_condition(clingo_term_base_t const *terms, size
         if (terms == nullptr || literals == nullptr || size == nullptr) {
             return clingo_result_invalid;
         }
-        auto const &[state, cond] = cpp_cast(terms)->nth(index).value();
+        auto it = cpp_cast(terms)->nth(index);
+        auto const &[state, cond] = it.value();
         // NOTE: this seems to be the (safe) easiest way to convert from 64bit to 32bit here
         static thread_local auto result = std::vector<clingo_literal_t>{};
         result.assign(cond.begin(), cond.end());
