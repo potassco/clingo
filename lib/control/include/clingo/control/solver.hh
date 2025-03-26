@@ -6,7 +6,6 @@
 
 #include <clasp/clasp_facade.h>
 #include <clasp/cli/clasp_options.h>
-#include <clasp/clingo.h>
 
 namespace Clingo::Control {
 
@@ -386,8 +385,6 @@ using UBackendHandle = std::unique_ptr<BackendHandle>;
 //! The propagator interface.
 class Propagator : public Potassco::AbstractPropagator, public Potassco::AbstractHeuristic {
   public:
-    //! Called before solving to initialize the propagator.
-    virtual void init(Clasp::ClingoPropagatorInit &init) = 0;
     //! Can return false to not also register the propagator as a heuristic.
     [[nodiscard]] virtual auto hasHeuristic() const -> bool = 0;
 };

@@ -1,165 +1,34 @@
 #include <clingo/propagate.h>
 
-#include <clasp/clause.h>
-#include <clasp/weight_constraint.h>
-
 #include <potassco/clingo.h>
 
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
-namespace {
-
-//! Class to initialize a propagator.
-class PropagateInit {
-  public:
-    using Lit_t = Potassco::Lit_t;
-
-    static_assert(static_cast<clingo_propagator_check_mode_t>(Clasp::ClingoPropagatorCheckType::fixpoint) ==
+using PotasscoCheckMode = Potassco::PropagatorCheckMode;
+using PotasscoUndoMode = Potassco::PropagatorUndoMode;
+struct clingo_propagate_init {
+    static_assert(static_cast<clingo_propagator_check_mode_t>(PotasscoCheckMode::fixpoint) ==
                   clingo_propagator_check_mode_fixpoint);
-    static_assert(static_cast<clingo_propagator_check_mode_t>(Clasp::ClingoPropagatorCheckType::both) ==
+    static_assert(static_cast<clingo_propagator_check_mode_t>(PotasscoCheckMode::both) ==
                   clingo_propagator_check_mode_both);
-    static_assert(static_cast<clingo_propagator_check_mode_t>(Clasp::ClingoPropagatorCheckType::no) ==
+    static_assert(static_cast<clingo_propagator_check_mode_t>(PotasscoCheckMode::no) ==
                   clingo_propagator_check_mode_none);
-    static_assert(static_cast<clingo_propagator_check_mode_t>(Clasp::ClingoPropagatorCheckType::total) ==
+    static_assert(static_cast<clingo_propagator_check_mode_t>(PotasscoCheckMode::total) ==
                   clingo_propagator_check_mode_total);
-
-    static_assert(static_cast<clingo_propagator_undo_mode_t>(Clasp::ClingoPropagatorUndoType::always) ==
+    static_assert(static_cast<clingo_propagator_undo_mode_t>(PotasscoUndoMode::always) ==
                   clingo_propagator_undo_mode_always);
-    static_assert(static_cast<clingo_propagator_undo_mode_t>(Clasp::ClingoPropagatorUndoType::def) ==
+    static_assert(static_cast<clingo_propagator_undo_mode_t>(PotasscoUndoMode::def) ==
                   clingo_propagator_undo_mode_default);
+    static_assert(clingo_weight_constraint_type_implication_left < 0);
+    static_assert(clingo_weight_constraint_type_implication_right > 0);
+    static_assert(clingo_weight_constraint_type_equivalence == 0);
 
-    PropagateInit(clingo_control_t *ctl, Clasp::ClingoPropagatorInit &init)
-        : ctl_{ctl}, init_{&init}, assignment_{*facade_().ctx.master()}, cc_{facade_().ctx.master()} {
-        init_->enableHistory(true);
-    }
-    [[nodiscard]] auto library() const -> clingo_lib_t * { return ctl_->lib; }
-    [[nodiscard]] auto base() const -> Clingo::Control::BaseView const & { return *ctl_->slv; }
-    [[nodiscard]] auto map_lit(Lit_t lit) const -> Potassco::Lit_t {
-        const auto &prg = ctl_->slv->clasp_program();
-        return Clasp::encodeLit(prg.getLiteral(lit, Clasp::Asp::MapLit::refined));
-    }
-    [[nodiscard]] auto threads() const -> uint32_t { return facade_().ctx.concurrency(); }
-    void add_watch(Lit_t lit) { init_->addWatch(Clasp::decodeLit(lit)); }
-    void add_watch(uint32_t thread_id, Lit_t lit) { init_->addWatch(thread_id, Clasp::decodeLit(lit)); }
-    void remove_watch(Lit_t lit) { init_->removeWatch(Clasp::decodeLit(lit)); }
-    void remove_watch(uint32_t thread_id, Lit_t lit) { init_->removeWatch(thread_id, Clasp::decodeLit(lit)); }
-    void freeze_literal(Lit_t lit) { init_->freezeLit(Clasp::decodeLit(lit)); }
-    void enable_history(bool enable) { init_->enableHistory(enable); }
-    [[nodiscard]] auto add_literal(bool freeze) -> Potassco::Lit_t {
-        auto &ctx = facade_().ctx;
-        auto var = ctx.addVar(Clasp::VarType::atom);
-        if (freeze) {
-            ctx.setFrozen(var, true);
-        }
-        return Clasp::encodeLit(Clasp::Literal(var, false));
-    }
-    [[nodiscard]] auto add_clause(Potassco::LitSpan lits) -> bool {
-        auto &ctx = facade_().ctx;
-        if (ctx.master()->hasConflict()) {
-            return false;
-        }
-        cc_.start();
-        for (const auto &lit : lits) {
-            cc_.add(Clasp::decodeLit(lit));
-        }
-        return cc_.end(Clasp::ClauseCreator::clause_force_simplify).ok();
-    }
-    [[nodiscard]] auto add_weight_constraint(Potassco::Lit_t lit, Potassco::WeightLitSpan lits,
-                                             Potassco::Weight_t bound, clingo_weight_constraint_type_t type, bool eq)
-        -> bool {
-        auto &ctx = facade_().ctx;
-        auto &master = *ctx.master();
-        if (master.hasConflict()) {
-            return false;
-        }
-        Clasp::WeightLitVec clits;
-        clits.reserve(lits.size());
-        for (const auto &x : lits) {
-            clits.push_back({Clasp::decodeLit(x.lit), x.weight});
-        }
-        auto flags = Clasp::WeightConstraint::CreateFlag{};
-        if (eq) {
-            flags |= Clasp::WeightConstraint::create_eq_bound;
-        }
-        switch (type) {
-            case clingo_weight_constraint_type_implication_left: {
-                flags |= Clasp::WeightConstraint::create_only_bfb;
-                break;
-            }
-            case clingo_weight_constraint_type_implication_right: {
-                flags |= Clasp::WeightConstraint::create_only_btb;
-                break;
-            }
-            default: {
-                break;
-            }
-        }
-        return Clasp::WeightConstraint::create(*ctx.master(), Clasp::decodeLit(lit), clits, bound, flags).ok();
-    }
-    void add_minimize(Potassco::Lit_t literal, Potassco::Weight_t weight, Potassco::Weight_t priority) {
-        auto &ctx = facade_().ctx;
-        if (ctx.master()->hasConflict()) {
-            return;
-        }
-        ctx.addMinimize({Clasp::decodeLit(literal), weight}, priority);
-    }
-    [[nodiscard]] auto propagate() -> bool {
-        auto &ctx = facade_().ctx;
-        if (ctx.master()->hasConflict()) {
-            return false;
-        }
-        return ctx.master()->propagate();
-    }
-    void set_check_mode(clingo_propagator_check_mode_t mode) {
-        static_assert(static_cast<Clasp::ClingoPropagatorCheckType>(clingo_propagator_check_mode_total) ==
-                      Clasp::ClingoPropagatorCheckType::total);
-        static_assert(static_cast<Clasp::ClingoPropagatorCheckType>(clingo_propagator_check_mode_both) ==
-                      Clasp::ClingoPropagatorCheckType::both);
-        static_assert(static_cast<Clasp::ClingoPropagatorCheckType>(clingo_propagator_check_mode_fixpoint) ==
-                      Clasp::ClingoPropagatorCheckType::fixpoint);
-        static_assert(static_cast<Clasp::ClingoPropagatorCheckType>(clingo_propagator_check_mode_none) ==
-                      Clasp::ClingoPropagatorCheckType::no);
-        init_->enableClingoPropagatorCheck(static_cast<Clasp::ClingoPropagatorCheckType>(mode));
-    }
-    void set_undo_mode(clingo_propagator_undo_mode_t mode) {
-        static_assert(static_cast<Clasp::ClingoPropagatorUndoType>(clingo_propagator_undo_mode_default) ==
-                      Clasp::ClingoPropagatorUndoType::def);
-        static_assert(static_cast<Clasp::ClingoPropagatorUndoType>(clingo_propagator_undo_mode_always) ==
-                      Clasp::ClingoPropagatorUndoType::always);
-        init_->enableClingoPropagatorUndo(static_cast<Clasp::ClingoPropagatorUndoType>(mode));
-    }
-    [[nodiscard]] auto assignment() const -> Potassco::AbstractAssignment const & { return assignment_; }
-    [[nodiscard]] auto check_mode() const -> clingo_propagator_check_mode_t {
-        return static_cast<clingo_propagator_undo_mode_t>(init_->checkMode());
-    }
-    [[nodiscard]] auto undo_mode() const -> clingo_propagator_undo_mode_t {
-        return static_cast<clingo_propagator_undo_mode_t>(init_->undoMode());
-    }
-
-  private:
-    [[nodiscard]] auto facade_() const -> Clasp::ClaspFacade & { return ctl_->slv->clasp_facade(); }
-
-    clingo_control_t *ctl_;
-    Clasp::ClingoPropagatorInit *init_;
-    Clasp::ClingoAssignment assignment_;
-    Clasp::ClauseCreator cc_;
+    clingo_control_t *ctl;
+    Potassco::AbstractPropagator::Init *init;
 };
 
-auto cpp_cast(clingo_propagate_init_t *init) -> PropagateInit * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<PropagateInit *>(init);
-}
-
-auto cpp_cast(clingo_propagate_init_t const *init) -> PropagateInit const * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<PropagateInit const *>(init);
-}
-
-auto c_cast(PropagateInit *init) -> clingo_propagate_init_t * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<clingo_propagate_init_t *>(init);
-}
+namespace {
 
 auto cpp_cast(clingo_assignment_t const *assignment) -> Potassco::AbstractAssignment const * {
     // NOLINTNEXTLINE
@@ -203,10 +72,10 @@ class ClingoPropagator : public Clingo::Control::Propagator {
     ClingoPropagator(clingo_control_t *ctl, clingo_propagator_t prop, void *data)
         : ctl_{ctl}, prop_(prop), data_(data) {}
 
-    void init(Clasp::ClingoPropagatorInit &init) override {
+    void init(Init &init) override {
         if (prop_.init != nullptr) {
-            auto cinit = PropagateInit{ctl_, init};
-            handle_error(prop_.init(c_cast(&cinit), data_));
+            auto cinit = clingo_propagate_init{ctl_, &init};
+            handle_error(prop_.init(&cinit, data_));
         }
     }
 
@@ -438,7 +307,7 @@ extern "C" auto clingo_propagate_init_solver_literal(clingo_propagate_init_t con
         if (init == nullptr || solver_literal == nullptr) {
             return clingo_result_invalid;
         }
-        *solver_literal = cpp_cast(init)->map_lit(aspif_literal);
+        *solver_literal = init->init->solverLiteral(aspif_literal);
     }
     CLINGO_CATCH;
 }
@@ -449,7 +318,7 @@ extern "C" auto clingo_propagate_init_add_watch(clingo_propagate_init_t *init, c
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        cpp_cast(init)->add_watch(solver_literal);
+        init->init->addWatch(solver_literal);
     }
     CLINGO_CATCH;
 }
@@ -461,7 +330,7 @@ extern "C" auto clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        cpp_cast(init)->add_watch(thread_id, solver_literal);
+        init->init->addWatch(solver_literal, thread_id);
     }
     CLINGO_CATCH;
 }
@@ -472,7 +341,7 @@ extern "C" auto clingo_propagate_init_remove_watch(clingo_propagate_init_t *init
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        cpp_cast(init)->remove_watch(solver_literal);
+        init->init->removeWatch(solver_literal);
     }
     CLINGO_CATCH;
 }
@@ -484,7 +353,7 @@ extern "C" auto clingo_propagate_init_remove_watch_from_thread(clingo_propagate_
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        cpp_cast(init)->remove_watch(thread_id, solver_literal);
+        init->init->removeWatch(solver_literal, thread_id);
     }
     CLINGO_CATCH;
 }
@@ -495,7 +364,7 @@ extern "C" auto clingo_propagate_init_freeze_literal(clingo_propagate_init_t *in
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        cpp_cast(init)->freeze_literal(solver_literal);
+        init->init->freezeLiteral(solver_literal);
     }
     CLINGO_CATCH;
 }
@@ -506,7 +375,7 @@ extern "C" auto clingo_propagate_init_library(clingo_propagate_init_t const *ini
         if (init == nullptr || lib == nullptr) {
             return clingo_result_invalid;
         }
-        *lib = cpp_cast(init)->library();
+        *lib = init->ctl->lib;
     }
     CLINGO_CATCH;
 }
@@ -518,7 +387,7 @@ extern "C" auto clingo_propagate_init_base(clingo_propagate_init_t const *init, 
             return clingo_result_invalid;
         }
         // NOLINTNEXTLINE
-        *base = reinterpret_cast<clingo_base_t const *>(&cpp_cast(init)->base());
+        *base = reinterpret_cast<clingo_base_t const *>(init->ctl->slv);
     }
     CLINGO_CATCH;
 }
@@ -529,7 +398,7 @@ extern "C" auto clingo_propagate_init_number_of_threads(clingo_propagate_init_t 
         if (init == nullptr || threads == nullptr) {
             return clingo_result_invalid;
         }
-        *threads = cpp_cast(init)->threads();
+        *threads = init->init->numSolver();
     }
     CLINGO_CATCH;
 }
@@ -540,7 +409,7 @@ extern "C" auto clingo_propagate_init_set_check_mode(clingo_propagate_init_t *in
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        cpp_cast(init)->set_check_mode(mode);
+        init->init->setCheckMode(static_cast<PotasscoCheckMode>(mode));
     }
     CLINGO_CATCH;
 }
@@ -551,7 +420,7 @@ extern "C" auto clingo_propagate_init_get_check_mode(clingo_propagate_init_t con
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        *mode = cpp_cast(init)->check_mode();
+        *mode = static_cast<clingo_propagator_check_mode_t>(init->init->checkMode());
     }
     CLINGO_CATCH;
 }
@@ -562,7 +431,7 @@ extern "C" auto clingo_propagate_init_set_undo_mode(clingo_propagate_init_t *ini
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        cpp_cast(init)->set_undo_mode(mode);
+        init->init->setUndoMode(static_cast<PotasscoUndoMode>(mode));
     }
     CLINGO_CATCH;
 }
@@ -573,7 +442,7 @@ extern "C" auto clingo_propagate_init_get_undo_mode(clingo_propagate_init_t cons
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        *mode = cpp_cast(init)->undo_mode();
+        *mode = static_cast<clingo_propagator_undo_mode_t>(init->init->undoMode());
     }
     CLINGO_CATCH;
 }
@@ -584,7 +453,7 @@ extern "C" auto clingo_propagate_init_assignment(clingo_propagate_init_t const *
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        *assignment = c_cast(&cpp_cast(init)->assignment());
+        *assignment = c_cast(&init->init->assignment());
     }
     CLINGO_CATCH;
 }
@@ -595,7 +464,7 @@ extern "C" auto clingo_propagate_init_add_literal(clingo_propagate_init_t *init,
         if (init == nullptr || solver_literal == nullptr) {
             return clingo_result_invalid;
         }
-        *solver_literal = cpp_cast(init)->add_literal(freeze);
+        *solver_literal = init->init->addLiteral(freeze);
     }
     CLINGO_CATCH;
 }
@@ -606,7 +475,7 @@ extern "C" auto clingo_propagate_init_add_clause(clingo_propagate_init_t *init, 
         if (init == nullptr || (literals == nullptr && size > 0) || result == nullptr) {
             return clingo_result_invalid;
         }
-        *result = cpp_cast(init)->add_clause(std::span{literals, size});
+        *result = init->init->addClause(std::span{literals, size});
     }
     CLINGO_CATCH;
 }
@@ -620,8 +489,7 @@ extern "C" auto clingo_propagate_init_add_weight_constraint(clingo_propagate_ini
         if (init == nullptr || (literals == nullptr && size > 0) || result == nullptr) {
             return clingo_result_invalid;
         }
-        *result =
-            cpp_cast(init)->add_weight_constraint(solver_literal, map(literals, size), bound, type, compare_equal);
+        *result = init->init->addWeightConstraint(solver_literal, map(literals, size), bound, type, compare_equal);
     }
     CLINGO_CATCH;
 }
@@ -633,7 +501,7 @@ extern "C" auto clingo_propagate_init_add_minimize(clingo_propagate_init_t *init
         if (init == nullptr) {
             return clingo_result_invalid;
         }
-        cpp_cast(init)->add_minimize(solver_literal, weight, priority);
+        init->init->addMinimize(priority, {solver_literal, weight});
     }
     CLINGO_CATCH;
 }
@@ -643,7 +511,7 @@ extern "C" auto clingo_propagate_init_propagate(clingo_propagate_init_t *init, b
         if (init == nullptr || result == nullptr) {
             return clingo_result_invalid;
         }
-        *result = cpp_cast(init)->propagate();
+        *result = init->init->propagate();
     }
     CLINGO_CATCH;
 }
