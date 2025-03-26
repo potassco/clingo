@@ -251,13 +251,13 @@ auto Base::at(size_t index) const -> value_type {
     clingo_atom_base_t const *atoms = nullptr;
     if (index < size()) {
         handle_error(clingo_base_atoms_at(base_, index, &sig, &atoms));
-        return std::pair{std::tuple{sig.name, sig.arity, sig.sign}, AtomBase{atoms}};
+        return std::pair{std::tuple{sig.name, sig.arity, sig.is_positive}, AtomBase{atoms}};
     }
     throw py::index_error{"index out of range"};
 }
 
 auto Base::contains_short(std::pair<char const *, size_t> const &sig) const -> bool {
-    return contains({std::get<0>(sig), std::get<1>(sig), false});
+    return contains({std::get<0>(sig), std::get<1>(sig), true});
 }
 
 auto Base::contains_symbol(Symbol const &sym) const -> bool {
@@ -293,7 +293,7 @@ auto Base::lookup(key_type const &sig) const -> mapped_type {
 }
 
 auto Base::lookup_short(std::pair<char const *, size_t> const &sig) const -> mapped_type {
-    return lookup({std::get<0>(sig), std::get<1>(sig), false});
+    return lookup({std::get<0>(sig), std::get<1>(sig), true});
 }
 
 auto Base::lookup_symbol(Symbol const &sym) const -> Atom {
@@ -446,7 +446,7 @@ sign):
         .def("__getitem__", &Base::lookup_short, py::arg("signature"), R"(
 Get the atom base with the given (short) signature.
 
-This function provides a shortcut assuming the sign is false.
+This function provides a shortcut assuming the sign is positive.
 )"_d)
         .def("__contains__", &Base::contains_short, py::arg("signature"),
              R"( Check if there is an atom base with the given (short) signature.)")

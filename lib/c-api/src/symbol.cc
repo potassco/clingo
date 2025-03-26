@@ -52,13 +52,13 @@ extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *strin
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool sign, clingo_symbol_t *symbol)
+extern "C" auto clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool is_positive, clingo_symbol_t *symbol)
     -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || name == nullptr || symbol == nullptr) {
             return clingo_result_invalid;
         }
-        *symbol = Clingo::SharedSymbol::to_rep(lib->store->fun(lib->store->string(name), {}, sign));
+        *symbol = Clingo::SharedSymbol::to_rep(lib->store->fun(lib->store->string(name), {}, !is_positive));
     }
     CLINGO_CATCH;
 }
@@ -77,7 +77,7 @@ extern "C" auto clingo_symbol_create_tuple(clingo_lib_t *lib, clingo_symbol_t co
 }
 
 extern "C" auto clingo_symbol_create_function(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments,
-                                              size_t arguments_size, bool sign, clingo_symbol_t *symbol)
+                                              size_t arguments_size, bool is_positive, clingo_symbol_t *symbol)
     -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || name == nullptr || symbol == nullptr) {
@@ -86,7 +86,7 @@ extern "C" auto clingo_symbol_create_function(clingo_lib_t *lib, char const *nam
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         auto const *c_args = reinterpret_cast<Clingo::Symbol const *>(arguments);
         *symbol = Clingo::SharedSymbol::to_rep(
-            lib->store->fun(*lib->store->string(name), Clingo::SymbolSpan{c_args, arguments_size}, sign));
+            lib->store->fun(*lib->store->string(name), Clingo::SymbolSpan{c_args, arguments_size}, !is_positive));
     }
     CLINGO_CATCH;
 }
@@ -122,13 +122,13 @@ extern "C" auto clingo_symbol_string(clingo_symbol_t symbol, char const **string
     return clingo_result_success;
 }
 
-extern "C" auto clingo_symbol_has_sign(clingo_symbol_t symbol, bool *has_sign) -> clingo_result_t {
+extern "C" auto clingo_symbol_is_positive(clingo_symbol_t symbol, bool *is_positive) -> clingo_result_t {
     auto sym = Clingo::Symbol::from_rep(symbol);
-    if (has_sign == nullptr ||
+    if (is_positive == nullptr ||
         (sym.type() != Clingo::SymbolType::function && sym.type() != Clingo::SymbolType::number)) {
         return clingo_result_invalid;
     }
-    *has_sign = sym.has_sign();
+    *is_positive = !sym.has_sign();
     return clingo_result_success;
 }
 

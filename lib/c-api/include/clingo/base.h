@@ -58,7 +58,7 @@ typedef struct clingo_control clingo_control_t;
 typedef struct clingo_signature {
     char const *name; //!< the name
     size_t arity;     //!< the arity
-    bool sign;        //!< the (classical) sign
+    bool is_positive; //!< whether the signature is positive
 } clingo_signature_t;
 
 //! Object to inspect symbolic atoms in a program---the relevant Herbrand base

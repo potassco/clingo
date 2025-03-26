@@ -28,8 +28,9 @@ class Symbol {
     [[nodiscard]] auto args() const -> TypeHint<"Sequence[Symbol]">;
     [[nodiscard]] auto str() const -> char const *;
     [[nodiscard]] auto repr() const -> std::string;
-    [[nodiscard]] auto sign() const -> bool;
-    [[nodiscard]] auto match_function(char const *name, size_t arity, bool sign) const -> bool;
+    [[nodiscard]] auto is_positive() const -> bool;
+    [[nodiscard]] auto is_negative() const -> bool;
+    [[nodiscard]] auto match_function(char const *name, size_t arity, bool is_positive) const -> bool;
     [[nodiscard]] auto match_tuple(size_t arity) const -> bool;
     [[nodiscard]] auto hash() const -> size_t;
     [[nodiscard]] auto signature() const -> std::optional<std::tuple<char const *, size_t, bool>>;

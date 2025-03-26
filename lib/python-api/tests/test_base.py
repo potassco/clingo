@@ -55,6 +55,7 @@ class TestBase:
         self.ctl.parse_string(
             dedent(
                 """\
+                -r(1).
                 p(1).
                 { p(3) }.
                 #external p(1..3).
@@ -65,7 +66,15 @@ class TestBase:
         self.ctl.ground()
 
         base = self.ctl.base
-        assert len(base) == 2
+        assert len(base) == 3
+
+        fun_r = Function(self.lib, "r", [Number(self.lib, 1)], False)
+        sig_r = fun_r.signature()
+        assert sig_r is not None
+        assert sig_r in base
+        assert (sig_r[0], sig_r[1]) not in base
+        assert base[fun_r].symbol == fun_r
+        assert base[sig_r][fun_r].symbol == fun_r
 
         fun_p = Function(self.lib, "p", [Number(self.lib, 2)])
         sig_p = fun_p.signature()
@@ -84,7 +93,7 @@ class TestBase:
         assert Function(self.lib, "p", [Number(self.lib, 4)]) not in base_p
         assert Function(self.lib, "p", [Number(self.lib, 4)]) not in base
 
-        assert sorted(base) == [("p", 1, False), ("q", 1, False)]
+        assert sorted(base) == [("p", 1, True), ("q", 1, True), ("r", 1, False)]
         assert sorted(
             [
                 (str(x.symbol), base.is_fact(x.literal), base.is_external(x.literal))

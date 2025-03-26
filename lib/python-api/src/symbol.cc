@@ -132,31 +132,35 @@ auto Symbol::repr() const -> std::string {
             break;
         }
         case clingo_symbol_type_function: {
-            oss << "Function(" << name() << ", " << args() << ", " << (sign() ? "True" : "False") << ")";
+            oss << "Function(" << name() << ", " << args() << ", " << (is_positive() ? "True" : "False") << ")";
             break;
         }
     }
     return oss.str();
 }
 
-auto Symbol::sign() const -> bool {
+auto Symbol::is_positive() const -> bool {
     auto t = type();
     if (t != clingo_symbol_type_number && t != clingo_symbol_type_function) {
         throw std::invalid_argument("symbol is not a number or function");
     }
-    bool sign = false;
-    handle_error(clingo_symbol_has_sign(sym_, &sign));
-    return sign;
+    bool is_positive = false;
+    handle_error(clingo_symbol_is_positive(sym_, &is_positive));
+    return is_positive;
 }
 
-auto Symbol::match_function(char const *name, size_t arity, bool sign) const -> bool {
+auto Symbol::is_negative() const -> bool {
+    return !is_positive();
+}
+
+auto Symbol::match_function(char const *name, size_t arity, bool is_positive) const -> bool {
     return type() == clingo_symbol_type_function && std::strcmp(name, this->name()) == 0 && arity == this->arity() &&
-           sign == this->sign();
+           is_positive == this->is_positive();
 }
 
 auto Symbol::signature() const -> std::optional<std::tuple<char const *, size_t, bool>> {
     return type() == clingo_symbol_type_function
-               ? std::make_optional<std::tuple<char const *, size_t, bool>>(name(), arity(), sign())
+               ? std::make_optional<std::tuple<char const *, size_t, bool>>(name(), arity(), is_positive())
                : std::nullopt;
 }
 
@@ -300,13 +304,14 @@ Get the signature of function symbols.
 Returns:
 	The signature or None.
 )"_d)
-        .def("match", &Symbol::match_function, py::arg("name"), py::arg("arity") = 0, py::arg("sign") = false, R"(
+        .def("match", &Symbol::match_function, py::arg("name"), py::arg("arity") = 0, py::arg("is_positive") = true,
+             R"(
 Check if this is a function symbol with the given signature.
 
 Args:
     name: The name of the function.
     arity: The arity of the function.
-    sign: Whether to match positive or negative signatures.
+    is_positive: Whether to match positive or negative signatures.
 
 Returns:
     Whether the function matches.
@@ -326,7 +331,10 @@ Returns:
         .def_property_readonly("name", &Symbol::name, R"(The name.)")
         .def_property_readonly("arguments", &Symbol::args, R"(The list of arguments.)")
         .def_property_readonly("arity", &Symbol::arity, R"(The arity of a function or tuple.)")
-        .def_property_readonly("sign", &Symbol::sign, R"(Whether the symbol has a sign.)");
+        .def_property_readonly("is_positive", &Symbol::is_positive,
+                               R"(Whether the symbol is positive, e.g., `1` or `p`.)")
+        .def_property_readonly("is_negative", &Symbol::is_negative,
+                               R"(Whether the symbol is negative, e.g, `-1` or `-p`.)");
 
     symbol.add_object("Infimum", py::cast(Infimum()));
     symbol.add_object("Supremum", py::cast(Supremum()));
@@ -352,7 +360,7 @@ Args:
     arguments: The arguments in form of a list of symbols.
 )"_d);
     symbol.def("Function", &Function, py::arg("lib"), py::arg("name"), py::arg("arguments") = std::span<Symbol>{},
-               py::arg("sign") = false, R"(
+               py::arg("is_positive") = true, R"(
 Construct a function symbol.
 
 This includes constants and tuples. Constants have an empty argument list and
@@ -363,7 +371,7 @@ Args:
     lib: A library object to store the function in.
     name: The name of the function.
     arguments: The arguments in form of a list of symbols.
-    sign: The sign of the function.
+    is_positive: Whether the symbol is positive.
 )"_d);
     symbol.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), R"(
 Parse the given string using clingo's term parser for ground terms.

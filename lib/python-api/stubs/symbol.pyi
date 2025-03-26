@@ -47,7 +47,7 @@ def Function(
     lib: clingo.core.Library,
     name: str,
     arguments: typing.Sequence[Symbol] = [],
-    sign: bool = False,
+    is_positive: bool = True,
 ) -> Symbol:
     """
     Construct a function symbol.
@@ -60,7 +60,7 @@ def Function(
         lib: A library object to store the function in.
         name: The name of the function.
         arguments: The arguments in form of a list of symbols.
-        sign: The sign of the function.
+        is_positive: Whether the symbol is positive.
     """
 
 def Number(lib: clingo.core.Library, number: int) -> Symbol:
@@ -177,14 +177,14 @@ class Symbol:
     def __repr__(self) -> str: ...
     def __str__(self) -> str: ...
     @typing.overload
-    def match(self, name: str, arity: int = 0, sign: bool = False) -> bool:
+    def match(self, name: str, arity: int = 0, is_positive: bool = True) -> bool:
         """
         Check if this is a function symbol with the given signature.
 
         Args:
             name: The name of the function.
             arity: The arity of the function.
-            sign: Whether to match positive or negative signatures.
+            is_positive: Whether to match positive or negative signatures.
 
         Returns:
             Whether the function matches.
@@ -223,6 +223,18 @@ class Symbol:
         """
 
     @property
+    def is_negative(self) -> bool:
+        """
+        Whether the symbol is negative, e.g, `-1` or `-p`.
+        """
+
+    @property
+    def is_positive(self) -> bool:
+        """
+        Whether the symbol is positive, e.g., `1` or `p`.
+        """
+
+    @property
     def name(self) -> str:
         """
         The name.
@@ -232,12 +244,6 @@ class Symbol:
     def number(self) -> int:
         """
         The numeric value.
-        """
-
-    @property
-    def sign(self) -> bool:
-        """
-        Whether the symbol has a sign.
         """
 
     @property

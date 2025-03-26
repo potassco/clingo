@@ -217,7 +217,7 @@ class Base:
         """
         Get the atom base with the given (short) signature.
 
-        This function provides a shortcut assuming the sign is false.
+        This function provides a shortcut assuming the sign is positive.
         """
 
     def __iter__(self) -> typing.Iterator[tuple[str, int, bool]]:

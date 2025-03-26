@@ -78,11 +78,12 @@ class TestSymbol:
         """
         name = "f"
         args = [Number(self.lib, 1), String(self.lib, "a")]
-        sign = True
-        f = Function(self.lib, name, args, sign)
-        assert f.name == name
-        assert f.arguments == args
-        assert f.sign == sign
+        for is_positive in [True, False]:
+            f = Function(self.lib, name, args, is_positive)
+            assert f.name == name
+            assert f.arguments == args
+            assert f.is_positive == is_positive
+            assert f.is_negative != is_positive
 
     def test_match(self):
         """

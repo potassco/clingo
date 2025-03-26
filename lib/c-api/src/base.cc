@@ -61,7 +61,7 @@ extern "C" auto clingo_base_atoms_at(clingo_base_t const *bases, size_t index, c
         if (signature != nullptr) {
             signature->name = get<0>(it.key()).c_str();
             signature->arity = get<1>(it.key());
-            signature->sign = get<2>(it.key());
+            signature->is_positive = !get<2>(it.key());
         }
     }
     CLINGO_CATCH;
@@ -74,7 +74,7 @@ extern "C" auto clingo_base_atoms_find(clingo_base_t const *bases, clingo_signat
             return clingo_result_invalid;
         }
         auto const &atms = get_base(bases).atoms();
-        auto sig = std::tuple{signature->name, signature->arity, signature->sign};
+        auto sig = std::tuple{signature->name, signature->arity, !signature->is_positive};
         auto it = atms.find(sig);
         if (found != nullptr) {
             *found = it != atms.end();

@@ -106,11 +106,11 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_string(clingo_lib
 //!
 //! @param[in] lib library object storing the symbol
 //! @param[in] name the name
-//! @param[in] sign whether the symbol has a classical negation sign
+//! @param[in] is_positive whether the symbol is positive
 //! @param[out] symbol the resulting symbol
 //! @return the result code; might return one of the following codes:
 //! - ::clingo_result_bad_alloc
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool sign,
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool is_positive,
                                                                   clingo_symbol_t *symbol);
 
 //! Construct a symbol representing a tuple.
@@ -131,13 +131,13 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_tuple(clingo_lib_
 //! @param[in] name the name of the function
 //! @param[in] arguments the arguments of the function
 //! @param[in] arguments_size the number of arguments
-//! @param[in] sign whether the symbol has a classical negation sign
+//! @param[in] is_positive whether the symbol is_positive
 //! @param[out] symbol the resulting symbol
 //! @return the result code; might return one of the following codes:
 //! - ::clingo_result_bad_alloc
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_function(clingo_lib_t *lib, char const *name,
                                                                         clingo_symbol_t const *arguments,
-                                                                        size_t arguments_size, bool sign,
+                                                                        size_t arguments_size, bool is_positive,
                                                                         clingo_symbol_t *symbol);
 
 //! Parse a term in string form.
@@ -201,15 +201,15 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_name(clingo_symbol_t sym
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
-//! @return whether the string has been set
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_string(clingo_symbol_t symbol, char const **string);
 
-//! Check whether a function or number has a sign.
+//! Check whether a function or number is positive.
 //!
 //! @param[in] symbol the target symbol
-//! @param[out] has_sign the result
-//! @return whether the sign has been set
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_has_sign(clingo_symbol_t symbol, bool *has_sign);
+//! @param[out] is_positive the result
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_is_positive(clingo_symbol_t symbol, bool *is_positive);
 
 //! Get the arguments of a symbol.
 //!
