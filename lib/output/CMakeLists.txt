@@ -1,4 +1,4 @@
-add_library(clingo_output
+add_library(clingo_output STATIC
     "src/text.cc"
     "src/backend.cc"
     )

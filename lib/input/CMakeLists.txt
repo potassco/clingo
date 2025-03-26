@@ -1,6 +1,6 @@
 re2c_target_or_gen("src/parse/lexer_impl.xch")
 
-add_library(clingo_input
+add_library(clingo_input STATIC
     ${RE2C_lexer_impl_OUTPUT}
     "src/rewrite/add_sign.cc"
     "src/rewrite/analyze.cc"

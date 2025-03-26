@@ -1,5 +1,5 @@
 # functionality shared between embedded library and standalone module
-add_library(clingo_python
+add_library(clingo_python STATIC
     src/app.cc
     src/ast.cc
     src/backend.cc
@@ -28,9 +28,12 @@ if (DEFINED SKBUILD)
     install(TARGETS clingo_python_module LIBRARY DESTINATION .)
     install(DIRECTORY stubs/ DESTINATION clingo-stubs)
 endif()
+if (PARSER_USE_VERSION_SCRIPT AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+    set_target_properties(clingo_python_module PROPERTIES LINK_FLAGS "-Wl,--version-script='${CMAKE_SOURCE_DIR}/cmake/pyclingo.map'")
+endif()
 
 # the embedded library
-add_library(clingo_python_embed src/embed.cc)
+add_library(clingo_python_embed STATIC src/embed.cc)
 add_library(clingo::python ALIAS clingo_python_embed)
 clingo_target_properties(clingo_python_embed "lib/pyclingo-embed")
 target_include_directories(clingo_python_embed PUBLIC "include")

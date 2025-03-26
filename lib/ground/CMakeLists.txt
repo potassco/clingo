@@ -1,4 +1,4 @@
-add_library(clingo_ground
+add_library(clingo_ground STATIC
     "src/assignment_aggregate.cc"
     "src/base.cc"
     "src/body_aggregate.cc"

@@ -1,4 +1,4 @@
-add_library(clingo_core
+add_library(clingo_core STATIC
     "src/core.cc"
     "src/number.cc"
     "src/symbol.cc"

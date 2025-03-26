@@ -1,4 +1,4 @@
-add_library(clingo_control
+add_library(clingo_control STATIC
     "src/grounder.cc"
     "src/solver.cc"
     "src/theory.cc"

@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project(CLINGO VERSION "1.0" LANGUAGES C CXX)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(macros)
+include(CMakeDependentOption)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -14,11 +18,17 @@ option(PARSER_PROFILE "configure profiling" OFF)
 option(PARSER_BUILD_TESTS "enable tests" ON)
 option(PARSER_BUILD_APP "build application" ON)
 option(PARSER_BUILD_EXAMPLES "build examples" ON)
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-include(macros)
+cmake_dependent_option(PARSER_BUILD_SHARED "build clingo as shared library" ON "NOT SKBUILD" OFF)
+cmake_dependent_option(PARSER_USE_VERSION_SCRIPT "use a version script to hide C++ symbols" ON "PARSER_BUILD_SHARED OR SKBUILD" OFF)
+cmake_dependent_option(PARSER_USE_VISIBILITY "enable visibility attributes" ON "SKBUILD OR PARSER_BUILD_SHARED" OFF)
 
 find_package(RE2C "2.0" REQUIRED)
+
+if (PARSER_USE_VISIBILITY)
+    set(CMAKE_C_VISIBILITY_PRESET hidden)
+    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+    set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+endif()
 
 if (PARSER_BUILD_WEB)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s DISABLE_EXCEPTION_CATCHING=0")
