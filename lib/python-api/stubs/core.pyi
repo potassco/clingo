@@ -27,7 +27,10 @@ __all__ = [
 
 def version() -> tuple[int, int, int]:
     """
-    Clingo's version as a tuple (major, minor, revision).
+    Get Clingo's version.
+
+    Returns:
+        A tuple (major, minor, revision) representing the Clingo version.
     """
 
 class LogLevel:
@@ -130,24 +133,22 @@ class MessageType:
 
 class ClingoError(Exception):
     """
-    This exception is used to forward internal errors.
+    Exception class for internal Clingo errors.
 
-    It should generally be forwarded. In the outer scope, it serves as an indicator
-    that there was an error that has been reported by the error logger. It's string
-    representation just contains an internal code that should not be reported to
-    the user.
+    This exception is typically used to propagate internal errors. It should
+    be forwarded to the outer scope, where it serves as an indicator that an
+    error has been logged. The string representation contains an internal
+    error code that is *not* meant to be displayed to the user.
     """
 
 class Library:
     """
-    Library objects are used to store the logger, symbols, strings, and scripts.
+    A library object that manages Clingo's core resources.
 
-    Any function/or class that needs to create symbols takes this object as a
-    parameter.
+    This object is responsible for storing the logger, symbols, strings, and scripts.
+    Functions and classes that need to create symbols require an instance of this class.
 
-    Destroying the library object frees the logger, the symbols, and the scripts.
-
-    This class implements the ContextManager interface.
+    This class implements the `ContextManager` interface.
     """
 
     def __enter__(self) -> Library:
@@ -184,7 +185,11 @@ class Library:
 
 class Location:
     """
-    Location tracking object.
+    Represents a range of positions in a source file.
+
+    The `Location` object tracks the start and end positions of a region in the
+    file. It is used for error reporting and debugging, providing information about
+    the source of the program elements.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -223,7 +228,10 @@ class Location:
 
 class Position:
     """
-    Position object tracking locations in files.
+    Represents a position in a source file.
+
+    A `Position` object tracks the location of a symbol or construct
+    within a source file, including its file name, line number, and column.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -239,10 +247,10 @@ class Position:
         Create a position object.
 
         Args:
-            lib: The library to object storing symbols.
-            file: The file name of the position.
-            line: The line number of the postion.
-            column: The column number of the postion.
+            lib: The library object managing symbols.
+            file: The file name where the position is located.
+            line: The line number in the file.
+            column: The column number in the line.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...

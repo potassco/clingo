@@ -127,11 +127,20 @@ class Control:
         """
         Ground the given program parts.
 
+        Non-ground logic programs must be added before calling this function.  Programs
+        can define named sections using `#program.` directives.  These sections can be
+        selectively grounded by specifying their name and binding parameters to
+        symbols.
+
         Args:
             parts:
-                A list of tuples of part names and their symbolic arguments.
+                        A sequence of tuples, each containing a section name and a sequence of
+                        symbols. The name identifies the program section to ground, and the
+                        symbols bind its parameters.  If `None`, the implicit base section
+                        without arguments is grounded.
             context:
-                An optional object with functions to call during grounding.
+                        An optional object providing functions that can be called during
+                        grounding.
         """
 
     def join(self, program: clingo.ast.Program) -> None:
@@ -153,17 +162,26 @@ class Control:
         ) = None,
     ) -> None:
         """
-        Ground and solver a logic program.
+        Ground and solve a logic program based on the current control mode.
 
-        This function proceeds as clingo calling the main function from a script if
-        there is any.
+        This function serves as a high-level entry point for the default
+        ground-and-solve process. It considers the current `ControlMode` and can
+        dispatch execution to a script's `main` function if defined.
 
-        If the optional parts member is given, each of its elements corresponds to one
-        incremental solving step where the elements' parts are grounded.
+        If solving, the function proceeds as follows:
+
+        1. Each set of program parts in `parts` is grounded sequentially.
+        2. After grounding each set, solving is performed immediately.
+
+        Before calling `main()`, the control object can be prepared by parsing
+        programs, registering propagators, or performing other setup steps.
 
         Args:
             parts:
-                A sequence of part sequences to ground and solve.
+                        A sequence of part sets to ground and solve. Each part set consists of
+                tuples containing a section name and symbolic arguments. If `None`,
+                the function defaults to grounding and solving the implicit `base`
+                program.
         """
 
     def observe(
@@ -174,7 +192,8 @@ class Control:
 
         Args:
             observer: The program observer to inspect the program.
-            preprocess: Whether the program should be preprocessed first (default: true).
+                preprocess:
+                        Whether the program should be preprocessed first (default: true).
         """
 
     def parse_files(self, files: typing.Sequence[str]) -> None:
@@ -183,7 +202,7 @@ class Control:
 
         Args:
             files:
-                The files to parse.
+                A list of file paths to parse.
         """
 
     def parse_string(self, program: str) -> None:
@@ -192,7 +211,7 @@ class Control:
 
         Args:
             program:
-                The logic program as string.
+                The logic program as a string.
         """
 
     def register_propagator(self, propagator: clingo.propagate.Propagator) -> None:
@@ -219,52 +238,52 @@ class Control:
         """
         Solve the current ground program.
 
+        This function runs the solver on the current ground program, optionally  using
+        assumptions, callbacks, or asynchronous execution. It returns a  `SolveHandle`,
+        allowing interaction with the solving process.
+
+        If asynchronous solving (`async_`) is enabled, the function returns
+        immediately, and solving runs in the background. Otherwise, the function
+        blocks until solving is complete.
+
         Args:
             assumptions:
-                List of `tuple[clingo.symbol.Symbol, bool]` or program literals (see
-                `clingo.base.Atom.literal`) that serve as assumptions for the solve
-                call, e.g., solving under assumptions
-                `[(clingo.symbol.Function(lib, "a"), True)]` only admits answer sets
-                that contain atom `a`.
+                        A list of assumptions that constrain this search. Each assumption is
+                        either a `tuple[clingo.symbol.Symbol, bool]` indicating an atom's truth
+                        value or a program literal (see `clingo.base.Atom.literal`). For
+                        example, using `[(clingo.symbol.Function(lib, "a"), True)]` only admits
+                        answer sets that contain atom `a`.
             on_model:
-                Optional callback for intercepting models. A `clingo.solve.Model`
-                object is passed to the callback. The search can be interruped from the
-                model callback by returning `False`.
+                Optional callback that receives a `clingo.solve.Model` object when
+                a model is found. Returning `False` from the callback stops solving.
             on_unsat:
                 Optional callback to intercept lower bounds during optimization.
             on_stats:
-                Optional callback to update stats.
-                The step and accumulated stats are passed as arguments.
+                Optional callback that receives statistics updates after each step.
+                Two `clingo.stats.Stats` objects are passed: step-specific and
+                accumulated stats.
             on_finish:
-                Optional callback called once search has finished. A
-                `clingo.solve.SolveResult` is passed to the callback.
+                        Optional callback called once search has finished. A
+                        `clingo.solve.SolveResult` is passed to the callback.
             on_core:
-                Optional callback called with the assumptions that made a problem
-                unsatisfiable.
+                Optional callback invoked when an unsatisfiable core is found.
+                It receives the subset of assumptions that caused unsatisfiability.
             yield_:
-                The resulting `clingo.solve.SolveHandle` is iterable yielding
-                `clingo.solve.Model` objects.
+                        If `True`, the returned `clingo.solve.SolveHandle` is iterable,
+                        yielding  `clingo.solve.Model` objects during solving.
             async_:
-                The solve call and the method `clingo.solve.SolveHandle.resume`
-                of the returned handle are non-blocking.
-
+                If `True`, solving runs asynchronously in a separate thread.
+                Note: Callbacks (`on_model`, `on_stats`, etc.) will also be called
+                from a separate thread.
         Returns:
-            A solve handle to control the search.
+            A `clingo.solve.SolveHandle` to control the search.
 
-        Note:
-            If this function is used in embedded Python code, you might want to start
-            clingo using the `--outf=3` option to disable all output from clingo.
-
-            Asynchronous solving is only available if thread support was enabled.
-            Furthermore, the `on_model` and `on_finish` callbacks are called from
-            another thread. To ensure that the methods can be called, make sure to not
-            use any functions that block Python's GIL indefinitely.
-
-            This function as well as blocking functions on the
-            `clingo.solve.SolveHandle` release the GIL but are not thread-safe.
+        Notes:
+                Asynchronous solving requires compiling clingo with thread support.
+                Blocking methods on `SolveHandle` release the GIL but are not thread-safe.
 
         See Also:
-            clingo.solve: For more examples how to use this method.
+            clingo.solve: Contains examples on using this function.
         """
 
     @property
@@ -348,7 +367,7 @@ class _ConstMap:
 
     def keys(self) -> typing.Iterator[str]:
         """
-        Get get an iterator over the keys in the map.
+        Get an iterator over the keys in the map.
         """
 
     def values(self) -> typing.Iterator[clingo.symbol.Symbol]:

@@ -1,7 +1,5 @@
 """
-
-Module containing functions to add custom scripts, which can be embedded into
-logic programs.
+Module to add custom scripts that can be embedded into logic programs.
 
 # Examples
 
@@ -102,7 +100,7 @@ class Script:
         lib: clingo.core.Library,
         name: str,
         arguments: typing.Sequence[clingo.symbol.Symbol],
-    ) -> typing.Sequence[Symbol]:
+    ) -> typing.Sequence[clingo.symbol.Symbol]:
         """
         Call the function with the given name and arguments.
 
@@ -120,7 +118,7 @@ class Script:
 
     def callable(self, name: str, arguments: int) -> bool:
         """
-        Check if the function with the given signature is callable.
+        Check if a function with the given signature is callable.
 
         Args:
             name:

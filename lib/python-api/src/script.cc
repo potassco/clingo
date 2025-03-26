@@ -360,8 +360,7 @@ auto register_python(clingo_lib_t *lib) -> clingo_result_t {
 
 void register_script(pybind11::module &m) {
     auto script = m.def_submodule("script", R"(
-Module containing functions to add custom scripts, which can be embedded into
-logic programs.
+Module to add custom scripts that can be embedded into logic programs.
 
 # Examples
 
@@ -415,7 +414,7 @@ q(8).
 #show.
 """
 ```
-)");
+)"_d);
     std::ignore = py::class_<MainScript>(script, "_MainScript");
 
     py::class_<Script>(script, "Script", R"(ABC for custom scripts.)")
@@ -442,7 +441,7 @@ Returns:
     A list of symbols.
 )")
         .def("callable", &Script::callable, py::arg("name"), py::arg("arguments"), R"(
-Check if the function with the given signature is callable.
+Check if a function with the given signature is callable.
 
 Args:
     name:

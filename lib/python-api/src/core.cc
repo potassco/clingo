@@ -356,15 +356,20 @@ Examples
 (6, 0, 0)
 ```
 )"_d);
-    core.def("version", &version, "Clingo's version as a tuple (major, minor, revision).");
+    core.def("version", &version, R"(
+Get Clingo's version.
+
+Returns:
+    A tuple (major, minor, revision) representing the Clingo version.
+)"_d);
 
     py::register_exception<PyClingoError>(core, "ClingoError").attr("__doc__") = R"(
-This exception is used to forward internal errors.
+Exception class for internal Clingo errors.
 
-It should generally be forwarded. In the outer scope, it serves as an indicator
-that there was an error that has been reported by the error logger. It's string
-representation just contains an internal code that should not be reported to
-the user.
+This exception is typically used to propagate internal errors. It should
+be forwarded to the outer scope, where it serves as an indicator that an
+error has been logged. The string representation contains an internal
+error code that is *not* meant to be displayed to the user.
 )"_d;
 
     py::enum_<clingo_log_level_e>(core, "LogLevel", "The available log levels.")
@@ -389,14 +394,12 @@ the user.
 
     py::class_<Library>(core, "Library", py::custom_type_setup(&Library::setup),
                         R"(
-Library objects are used to store the logger, symbols, strings, and scripts.
+A library object that manages Clingo's core resources.
 
-Any function/or class that needs to create symbols takes this object as a
-parameter.
+This object is responsible for storing the logger, symbols, strings, and scripts.
+Functions and classes that need to create symbols require an instance of this class.
 
-Destroying the library object frees the logger, the symbols, and the scripts.
-
-This class implements the ContextManager interface.
+This class implements the `ContextManager` interface.
 )"_d)
         .def(py::init<bool, bool, clingo_log_level_e, Annotation<std::optional<Logger>>, size_t>(),
              "Create a library object.", py::arg("shared") = true, py::arg("slotted") = true,
@@ -428,16 +431,21 @@ Return self.
             R"(
 Close the library object.
 )"_d);
-    make_comparable(py::class_<Position>(core, "Position", R"(Position object tracking locations in files.)"))
+    make_comparable(py::class_<Position>(core, "Position", R"(
+Represents a position in a source file.
+
+A `Position` object tracks the location of a symbol or construct
+within a source file, including its file name, line number, and column.
+)"_d))
         .def(py::init<Library &, char const *, size_t, size_t>(), py::arg("lib"), py::arg("file"), py::arg("line"),
              py::arg("column"), R"(
 Create a position object.
 
 Args:
-    lib: The library to object storing symbols.
-    file: The file name of the position.
-    line: The line number of the postion.
-    column: The column number of the postion.
+    lib: The library object managing symbols.
+    file: The file name where the position is located.
+    line: The line number in the file.
+    column: The column number in the line.
 )"_d)
         .def_property_readonly("file", &Position::file, "The file name.")
         .def_property_readonly("line", &Position::line, "The line number.")
@@ -445,14 +453,20 @@ Args:
         .def("__str__", &Position::str)
         .def("__repr__", &Position::repr);
 
-    make_comparable(py::class_<Location>(core, "Location", R"(Location tracking object.)")
-                        .def(py::init<Position const &, Position const &>(), py::arg("begin"), py::arg("end"), R"(
+    make_comparable(py::class_<Location>(core, "Location", R"(
+Represents a range of positions in a source file.
+
+The `Location` object tracks the start and end positions of a region in the
+file. It is used for error reporting and debugging, providing information about
+the source of the program elements.
+)"_d))
+        .def(py::init<Position const &, Position const &>(), py::arg("begin"), py::arg("end"), R"(
 Create a location object.
 
 Args:
     begin: The beginning of the location.
     end: The end of the location.
-)"_d))
+)"_d)
         .def_property_readonly("begin", &Location::begin, "The beginning of the location.")
         .def_property_readonly("end", &Location::end, "The end of the location.")
         .def("__str__", &Location::str)

@@ -193,7 +193,7 @@ class Model:
         atoms: bool = False,
         terms: bool = False,
         theory: bool = False,
-    ) -> SequenceSymbol:
+    ) -> typing.Sequence[clingo.symbol.Symbol]:
         """
         Get the symbols in the model.
 

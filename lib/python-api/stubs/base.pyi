@@ -160,7 +160,7 @@ class AtomBase:
 
     def keys(self) -> typing.Iterator[clingo.symbol.Symbol]:
         """
-        Get get an iterator over the keys in the map.
+        Get an iterator over the keys in the map.
         """
 
     def values(self) -> typing.Iterator[Atom]:
@@ -297,7 +297,7 @@ class Base:
 
     def keys(self) -> typing.Iterator[tuple[str, int, bool]]:
         """
-        Get get an iterator over the keys in the map.
+        Get an iterator over the keys in the map.
         """
 
     def values(self) -> typing.Iterator[AtomBase]:
@@ -384,7 +384,7 @@ class TermBase:
 
     def keys(self) -> typing.Iterator[clingo.symbol.Symbol]:
         """
-        Get get an iterator over the keys in the map.
+        Get an iterator over the keys in the map.
         """
 
     def values(self) -> typing.Iterator[Term]:
