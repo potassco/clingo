@@ -7,7 +7,7 @@ from textwrap import dedent
 from clingo import ast
 from clingo.control import Control
 from clingo.core import Library
-from clingo.symbol import Number
+from clingo.symbol import Function, Number
 from util import MCB
 
 
@@ -133,3 +133,36 @@ class TestControl:
         with ctl.solve(on_model=mcb) as hnd:
             assert hnd.get().satisfiable
         assert mcb.symbols == [["a", "b"]]
+
+    def test_incmode(self):
+        """
+        Test running the incremental mode from python.
+        """
+        ctl = Control(self.lib, ["0"])
+        ctl.parse_string(
+            dedent(
+                """\
+                #include <incmode>.
+
+                #program base.
+
+                {a;b;c}.
+
+                #program step(k).
+
+                { c(k) }.
+                q(k) :- c(k).
+
+                #program check(k).
+
+                :- not c(3), query(k).
+                """
+            )
+        )
+        # NOTE: we cannot intercept models here; the incmode is more
+        # interesting for clingo-based apps.
+        ctl.main()
+        mcb = MCB()
+        ctl.solve(on_model=mcb)
+        assert all("c(3)" in mdl for mdl in mcb.symbols)
+        assert len(mcb.symbols) == 32

@@ -239,6 +239,10 @@ auto operator<<(Util::OutputBuffer &out, ExternalType type) -> Util::OutputBuffe
             out << "free";
             break;
         }
+        case ExternalType::release: {
+            out << "release";
+            break;
+        }
     }
     return out;
 }

@@ -5,6 +5,8 @@
 
 #include <clingo/ground/script.hh>
 
+#include <clingo/util/enum.hh>
+
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -13,6 +15,9 @@ namespace Clingo::Control {
 
 //! @addtogroup control
 //! @{
+
+enum class BuiltinIncludes : uint8_t { empty = 0, incmode = 1 };
+CLINGO_ENABLE_BITSET_ENUM(BuiltinIncludes);
 
 //! A helper for parsing.
 //!
@@ -47,7 +52,8 @@ class ParseHelper {
     auto process_path(std::string_view path) -> bool { return process_path_(path, true); }
 
     //! Process includes encountered while parsing.
-    void process_includes() {
+    [[nodiscard]] auto process_includes() -> BuiltinIncludes {
+        auto includes = BuiltinIncludes::empty;
         for (; !includes_.empty(); includes_.pop_front()) {
             auto const &[parent, include] = includes_.front();
             if (include.type() == Input::IncludeType::system) {
@@ -58,8 +64,16 @@ class ParseHelper {
                     }
                 }
                 process_path_(path, true);
+            } else {
+                if (include.value().view() == "incmode") {
+                    includes |= BuiltinIncludes::incmode;
+                } else {
+                    parse_error_ = true;
+                    GRINGO_REPORT_LOC(*log_, error, include.loc()) << "unknown include: " << include.value();
+                }
             }
         }
+        return includes;
     }
 
     //! Throws if there was an error during parsing.

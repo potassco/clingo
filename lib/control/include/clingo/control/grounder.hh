@@ -25,9 +25,9 @@ class Grounder {
     //! Join with the given program.
     void join(Input::UnprocessedProgram const &prg);
     //! Parse a program from the given string.
-    void parse(std::string_view str, Ground::ScriptExec *code = nullptr);
+    auto parse(std::string_view str, Ground::ScriptExec *code = nullptr) -> BuiltinIncludes;
     //! Parse the given files.
-    void parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code = nullptr);
+    auto parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code = nullptr) -> BuiltinIncludes;
     //! Define a constant.
     void add_const(String name, Symbol value);
     //! Get the const map.

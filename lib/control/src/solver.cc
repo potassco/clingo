@@ -111,6 +111,9 @@ class ProgramBackendImpl : public Output::ProgramBackend {
                 case ExternalType::free: {
                     return Potassco::TruthValue::free;
                 }
+                case ExternalType::release: {
+                    return Potassco::TruthValue::release;
+                }
             }
             Util::unreachable();
         }();
@@ -717,6 +720,81 @@ void Solver::main(std::span<std::string_view const> const &files, std::optional<
     main(params);
 }
 
+void Solver::incmode_() {
+    // TODO: add options
+    auto const &map = const_map();
+    auto &store = grd_.store();
+    auto get = [&](char const *name, SharedSymbol def) {
+        auto it = map.find(name);
+        if (it != map.end()) {
+            return it->second.second;
+        }
+        return def;
+    };
+
+    auto imin = get("imin", SymbolStore::num(0));
+    auto imax = [&]() {
+        auto it = map.find("imax");
+        return it != map.end() ? std::make_optional(it->second.second) : std::nullopt;
+    }();
+    auto istop = get("istop", SymbolStore::str(store.string("SAT")));
+    auto stop_sat = SymbolStore::str(store.string("SAT"));
+    auto stop_unsat = SymbolStore::str(store.string("UNSAT"));
+    auto stop_unknown = SymbolStore::str(store.string("UNKNOWN"));
+    auto part_check = store.string("check");
+    auto part_step = store.string("step");
+    auto part_base = store.string("base");
+    auto part_query = store.string("query");
+
+    if (imin->type() != SymbolType::number) {
+        throw std::invalid_argument{"imin must be a number"};
+    }
+    if (imax && imax->get().type() != SymbolType::number) {
+        throw std::invalid_argument{"imin must be a number"};
+    }
+
+    parse(R"(#program check(t).
+#external query(t-1). [release]
+#external query(t). [true]
+)");
+
+    auto step = Number{0};
+    auto ret = SolveResult::empty;
+    auto cont = [&]() {
+        if (imax && step >= imax->get().num()) {
+            return false;
+        }
+        if (step == 0 || step < imin->num()) {
+            return true;
+        }
+        if (istop == stop_sat && intersects(ret, SolveResult::satisfiable)) {
+            return false;
+        }
+        if (istop == stop_unsat && intersects(ret, SolveResult::unsatisfiable)) {
+            return false;
+        }
+        if (istop == stop_unknown && !intersects(ret, SolveResult::satisfiable | SolveResult::unsatisfiable)) {
+            return false;
+        }
+        return true;
+    };
+    while (cont()) {
+        using Param = Clingo::Input::ProgramParam;
+        Clingo::Input::ProgramParamVec parts;
+        parts.emplace_back(Param{part_check, {store.num(step)}});
+        if (step > 0) {
+            parts.emplace_back(Param{part_step, {store.num(step)}});
+        } else {
+            parts.emplace_back(Param{part_base, {}});
+        }
+        ground(parts, nullptr);
+        if (mode_ == AppMode::solve) {
+            ret = solve()->get();
+        }
+        step += 1;
+    }
+}
+
 void Solver::main(std::optional<ProgramParamsVec> const &params) {
     if (!block_main_ && scripts_->callable("main", 0)) {
         if (mode_ == AppMode::solve) {
@@ -732,10 +810,13 @@ void Solver::main(std::optional<ProgramParamsVec> const &params) {
             output_program(std::cout);
             return;
         }
-        if (mode_ == AppMode::solve && params->size() >= 2) {
+        bool inc = intersects(includes_, BuiltinIncludes::incmode);
+        if (mode_ == AppMode::solve && (params->size() >= 2 || inc)) {
             clasp_->enableProgramUpdates();
         }
-        if (params) {
+        if (inc) {
+            incmode_();
+        } else if (params) {
             for (auto const &param : *params) {
                 ground(param, nullptr);
                 if (mode_ == AppMode::solve) {
@@ -784,11 +865,11 @@ void Solver::join(Input::UnprocessedProgram const &prg) {
 }
 
 void Solver::parse(std::string_view str) {
-    grd_.parse(str, scripts_);
+    includes_ |= grd_.parse(str, scripts_);
 }
 
 void Solver::parse(std::span<std::string_view const> const &files) {
-    grd_.parse(files, scripts_);
+    includes_ |= grd_.parse(files, scripts_);
 }
 
 void Solver::add_const(String name, Symbol value) {

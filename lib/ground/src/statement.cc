@@ -365,6 +365,8 @@ void StmExternal::init_() {
                         stm_->res_type_ = ExternalType::false_;
                     } else if (type->name() == "free") {
                         stm_->res_type_ = ExternalType::free;
+                    } else if (type->name() == "release") {
+                        stm_->res_type_ = ExternalType::release;
                     } else {
                         return expect(ctx, stm_->type_->first, logged_, "unexpected external type (got ", *type, ")");
                     }

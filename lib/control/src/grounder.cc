@@ -316,25 +316,29 @@ void Grounder::join(Input::UnprocessedProgram const &prg) {
     }
 }
 
-void Grounder::parse(std::string_view str, Ground::ScriptExec *code) {
+auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinIncludes {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
+    auto ret = BuiltinIncludes::empty;
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
         auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, code};
         prs.process_string(str);
-        prs.process_includes();
+        ret |= prs.process_includes();
         prs.check();
+        ret |= prs.process_includes();
     }
+    return ret;
 }
 
-void Grounder::parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code) {
+auto Grounder::parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code) -> BuiltinIncludes {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
+    auto ret = BuiltinIncludes::empty;
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
         auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, code};
         if (files.empty()) {
             prs.process_stdin();
-            prs.process_includes();
+            ret |= prs.process_includes();
         }
         for (auto const &file : files) {
             if (file == "-") {
@@ -342,10 +346,11 @@ void Grounder::parse(std::span<std::string_view const> const &files, Ground::Scr
             } else {
                 prs.process_path(file);
             }
-            prs.process_includes();
+            ret |= prs.process_includes();
         }
         prs.check();
     }
+    return ret;
 }
 
 void Grounder::prepare_() {

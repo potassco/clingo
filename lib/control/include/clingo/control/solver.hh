@@ -563,6 +563,8 @@ class Solver : public BaseView {
         return clasp_->asp() != nullptr ? *clasp_->asp() : throw std::runtime_error("not in solving mode");
     }
 
+    void incmode_();
+
     CallbackLock lock_;
     std::vector<UPropagator> propagators_;
     Clasp::ClaspFacade *clasp_;
@@ -576,6 +578,7 @@ class Solver : public BaseView {
     Scripts *scripts_;
     State state_ = State::initial;
     AppMode mode_;
+    BuiltinIncludes includes_ = BuiltinIncludes::empty;
     void *data_ = nullptr;
     bool block_main_ = false;
 };
