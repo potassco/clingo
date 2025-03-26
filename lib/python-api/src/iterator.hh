@@ -186,7 +186,7 @@ auto make_mapping(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
             R"(Get an iterator over the values in the map.)")
         .def(
             "keys", [](T const &map) { return pybind11::make_key_iterator(Detail::begin(map), Detail::end(map)); },
-            R"(Get get an iterator over the keys in the map.)");
+            R"(Get an iterator over the keys in the map.)");
     return cls;
 }
 
