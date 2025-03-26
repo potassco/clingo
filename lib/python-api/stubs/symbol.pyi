@@ -54,13 +54,13 @@ def Function(
 
     This includes constants and tuples. Constants have an empty argument list and
     tuples have an empty name. Functions can represent classically negated atoms.
-    Argument positive has to be set to false to represent such atoms.
+    Argument `is_positive` has to be set to `False` to represent such atoms.
 
     Args:
         lib: A library object to store the function in.
         name: The name of the function.
-        arguments: The arguments in form of a list of symbols.
-        is_positive: Whether the symbol is positive.
+        arguments: The arguments in the form of a list of symbols.
+        is_positive: Whether the function is positive.
     """
 
 def Number(lib: clingo.core.Library, number: int) -> Symbol:
@@ -68,7 +68,7 @@ def Number(lib: clingo.core.Library, number: int) -> Symbol:
     Construct a numeric symbol given a number.
 
     Args:
-        lib: A library object to store the function in.
+        lib: A library object to store the number in.
         number: The given number.
     """
 
@@ -77,7 +77,7 @@ def String(lib: clingo.core.Library, string: str) -> Symbol:
     Construct a string symbol given a string.
 
     Args:
-        lib: A library object to store the function in.
+        lib: A library object to store the string in.
         string: The given string.
     """
 
@@ -85,8 +85,10 @@ def Tuple_(lib: clingo.core.Library, arguments: typing.Sequence[Symbol]) -> Symb
     """
     Construct a tuple symbol.
 
+    This is a shortcut for `Function(lib, "", arguments)`.
+
     Args:
-        lib: A library object to store the function in.
+        lib: A library object to store the tuple in.
         arguments: The arguments in form of a list of symbols.
     """
 
@@ -205,6 +207,8 @@ class Symbol:
     def signature(self) -> tuple[str, int, bool] | None:
         """
         Get the signature of function symbols.
+
+        The Boolean in the signature is True if the associated symbol is positive.
 
         Returns:
                 The signature or None.

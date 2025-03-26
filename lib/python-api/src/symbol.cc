@@ -301,6 +301,8 @@ preconstructed symbols `Infimum` and `Supremum` and the functions `Number`,
         .def("signature", &Symbol::signature, R"(
 Get the signature of function symbols.
 
+The Boolean in the signature is True if the associated symbol is positive.
+
 Returns:
 	The signature or None.
 )"_d)
@@ -342,21 +344,23 @@ Returns:
 Construct a numeric symbol given a number.
 
 Args:
-    lib: A library object to store the function in.
+    lib: A library object to store the number in.
     number: The given number.
 )"_d);
     symbol.def("String", &String, py::arg("lib"), py::arg("string"), R"(
 Construct a string symbol given a string.
 
 Args:
-    lib: A library object to store the function in.
+    lib: A library object to store the string in.
     string: The given string.
 )"_d);
     symbol.def("Tuple_", &Tuple, py::arg("lib"), py::arg("arguments"), R"(
 Construct a tuple symbol.
 
+This is a shortcut for `Function(lib, "", arguments)`.
+
 Args:
-    lib: A library object to store the function in.
+    lib: A library object to store the tuple in.
     arguments: The arguments in form of a list of symbols.
 )"_d);
     symbol.def("Function", &Function, py::arg("lib"), py::arg("name"), py::arg("arguments") = std::span<Symbol>{},
@@ -365,13 +369,13 @@ Construct a function symbol.
 
 This includes constants and tuples. Constants have an empty argument list and
 tuples have an empty name. Functions can represent classically negated atoms.
-Argument positive has to be set to false to represent such atoms.
+Argument `is_positive` has to be set to `False` to represent such atoms.
 
 Args:
     lib: A library object to store the function in.
     name: The name of the function.
-    arguments: The arguments in form of a list of symbols.
-    is_positive: Whether the symbol is positive.
+    arguments: The arguments in the form of a list of symbols.
+    is_positive: Whether the function is positive.
 )"_d);
     symbol.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), R"(
 Parse the given string using clingo's term parser for ground terms.

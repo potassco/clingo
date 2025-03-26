@@ -80,7 +80,7 @@ def _evaluate_unary_op(lib: Library, term: TheoryTerm) -> Symbol:
         return Number(lib, -term_a.number)
 
     if term_a.type == SymbolType.Function and term_a.name:
-        return Function(lib, term_a.name, term_a.arguments, not term_a.sign)
+        return Function(lib, term_a.name, term_a.arguments, term_a.is_negative)
 
     raise RuntimeError(ErrorMessage.INVALID_UNARY_OP)
 
@@ -136,7 +136,7 @@ def rewrite(lib: Library, files: Sequence[str]) -> ast.Program:
             name = name.update(
                 lib,
                 symbol=Function(
-                    lib, f"__{symbol.name}_h", symbol.arguments, symbol.sign
+                    lib, f"__{symbol.name}_h", symbol.arguments, symbol.is_positive
                 ),
             )
         return atom.update(lib, name=name)
