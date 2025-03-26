@@ -264,6 +264,14 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_const_map(clingo_contro
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_buffer(clingo_control_t *control, char const **buffer);
 
+//! Interrupt the running search.
+//!
+//! It is generally better to use clingo_solve_handle_cancel(). This function
+//! is thread-safe.
+//!
+//! @param[in] control the target
+CLINGO_VISIBILITY_DEFAULT void clingo_control_interrupt(clingo_control_t *control);
+
 //! @}
 
 #ifdef __cplusplus

@@ -143,6 +143,14 @@ class Control:
                         grounding.
         """
 
+    def interrupt(self) -> None:
+        """
+        Interrupt the active solve call.
+
+        This function is thread-safe. Prefer using `clingo.solve.SolveHandle.cancel` if
+        possible.
+        """
+
     def join(self, program: clingo.ast.Program) -> None:
         """
         Join with the given non-ground logic program.

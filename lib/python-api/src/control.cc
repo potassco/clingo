@@ -188,6 +188,10 @@ void Control::main(std::optional<PartsSpan> parts) {
     handle_error(clingo_control_main(ctl_.get(), parts->data(), parts->size()), get_exception_ptr());
 }
 
+void Control::interrupt() {
+    clingo_control_interrupt(ctl_.get());
+}
+
 auto Control::buffer() -> char const * {
     char const *ret = nullptr;
     handle_error(clingo_control_buffer(ctl_.get(), &ret));
@@ -450,6 +454,12 @@ Args:
         tuples containing a section name and symbolic arguments. If `None`,
         the function defaults to grounding and solving the implicit `base`
         program.
+)"_d)
+        .def("interrupt", &Control::interrupt, R"(
+Interrupt the active solve call.
+
+This function is thread-safe. Prefer using `clingo.solve.SolveHandle.cancel` if
+possible.
 )"_d)
         .def("observe", &Control::observe, py::arg("observer"), py::arg("preprocess") = true, R"(
 Inspect the ground program of the current step.

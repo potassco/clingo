@@ -527,6 +527,9 @@ class Solver : public BaseView {
     //! Get user data for C integration.
     auto user_data() -> void *& { return data_; }
 
+    //! Interrupt the running (or next search).
+    void interrupt() noexcept;
+
   private:
     //! States for step transitions.
     //!
@@ -573,7 +576,7 @@ class Solver : public BaseView {
     Scripts *scripts_;
     State state_ = State::initial;
     AppMode mode_;
-    void *data_;
+    void *data_ = nullptr;
     bool block_main_ = false;
 };
 

@@ -266,8 +266,8 @@ The following example shows how to yield models:
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
     >>> with ctl.solve(yield_=True) as hnd:
-    ...     for m in hnd:
-    ...         print(m)
+    ...     for mdl in hnd:
+    ...         print(mdl)
     ...     print(hnd.get())
     ...
     a
@@ -301,6 +301,7 @@ This example shows how to solve both iteratively and asynchronously:
     >>> ctl.ground()
     >>> with ctl.solve(yield_=True, async_=True) as hnd:
     ...     while mdl := hnd.model():
+    ...         print(mdl)
     ...         hnd.resume()
     ...     print(hnd.get())
     ...
@@ -314,7 +315,7 @@ This example shows how to solve both iteratively and asynchronously:
 Add a clause that applies to the current solving step during the search.
 
 Args:
-  literals: The literals of the clause.
+  clause: The literals of the clause.
 )"_d)
         .def_property_readonly("base", &SolveControl::base, R"(Get the atom/term bases of the program.)");
 
@@ -331,10 +332,13 @@ Args:
 Get the symbols in the model.
 
 Args:
-  shown: Include shown atoms and terms.
-  atoms: Include all true atoms including hidden ones.
-  terms: Include shown terms.
-  theory: Include terms added by external theories.
+    shown: Include shown atoms and terms.
+    atoms: Include all true atoms, including hidden ones.
+    terms: Include shown terms.
+    theory: Include terms added by external theories.
+
+Returns:
+    A sequence of symbols present in the model.
 )"_d)
         .def("contains", &Model::contains, py::arg("atom"), R"(
 Check if the model contains the given atom.
@@ -363,14 +367,14 @@ consequence, respectively.
 While enumerating cautious or brave consequences, there is partial information
 about which literals are consequences. The current state of a literal can be
 requested using this function. If this function is used during normal model
-enumeration, the function just returns whether a literal is true of false in
-the current model.
+enumeration, it simply returns whether the literal is true or false in the
+current model.
 
 Args:
-	literal: The given program literal.
+    literal: The given program literal.
 
 Returns:
-	Whether the given program literal is a consequence.
+    Whether the given program literal is a consequence.
 )"_d)
         .def("extend", &Model::extend, py::arg("symbols"), R"(
 Extend a model with the given symbols.
@@ -393,7 +397,7 @@ Args:
 
     py::class_<SolveResult>(solve, "SolveResult", R"(A solve result captures information about a solve call.)")
         .def("__str__", &SolveResult::str, R"(Get a string representation of the solve result.)")
-        .def_property_readonly("satisfiable", &SolveResult::satisfiable, R"(Whether there was at least one model.)")
+        .def_property_readonly("satisfiable", &SolveResult::satisfiable, R"(Whether at least one model was found.)")
         .def_property_readonly("unsatisfiable", &SolveResult::unsatisfiable, R"(Whether there was no model.)")
         .def_property_readonly("unknown", &SolveResult::unknown, R"(Whether the satisfiablity could be determined.)")
         .def_property_readonly("exhausted", &SolveResult::exhausted, R"(Whether all models have been enumerated.)")
@@ -416,14 +420,14 @@ See also: `clingo.control.Control.solve`
         .def("get", &SolveHandle::get, R"(
 Get the solve result.
 
-This is always the last function that should be called on a handle to ensure
-that the search is properly terminated. It might be preceded by a call to
-cancel to stop a running search.
+This is always the last function to be called on a handle to ensure that the
+search is properly terminated. It might be preceded by a call to cancel to stop
+the search.
 )"_d)
         .def("core", &SolveHandle::core, R"(Get the subset of assumptions that made the problem unsatisfiable.)")
         .def("model", &SolveHandle::model, R"(Get the current model if there is any.)")
         .def("last", &SolveHandle::last, R"(
-Get the last computed model if there is any.
+Get the last computed model, if any.
 
 If the search is not completed yet or the problem is unsatisfiable, the
 function returns `None`.
@@ -435,21 +439,18 @@ If the search has been started asynchronously, this function starts the search
 in the background.
 )"_d)
         .def("wait", &SolveHandle::wait, py::arg("timeout") = std::nullopt, R"(
-Wait for solve call to finish or the next result with an optional timeout.
+Wait for the solve call to finish or the next result with an optional timeout.
 
-If a timeout is given, the behavior of the function changes depending on the
-sign of the timeout. If a postive timeout is given, the function blocks for the
-given amount time or until a result is ready. If the timeout is negative, the
-function will block until a result is ready, which also corresponds to the
-behavior of the function if no timeout is given. A timeout of zero can be used
-to poll if a result is ready.
+If a timeout is provided, the function blocks for the given duration or until a
+result is ready. A positive timeout blocks for that amount of time. A negative
+timeout blocks until a result is available, and a zero timeout allows polling
+for a result.
 
 Args:
-  timeout:
-    If a timeout is given, the function blocks for at most timeout seconds.
+    timeout: The maximum time to block in seconds.
 
 Returns:
-  Indicates whether the solve call has finished or the next result is ready.
+    Whether the solve call has finished or the next result is ready.
 )"_d)
         .def("cancel", &SolveHandle::cancel, R"(
 Cancel the running search.

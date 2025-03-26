@@ -58,6 +58,7 @@ class Control {
     void main(std::optional<PartsSpan> parts);
     auto buffer() -> char const *;
     auto const_map() -> HintConstMap;
+    void interrupt();
 
     void register_propagator(Annotation<Propagator> propagator);
 

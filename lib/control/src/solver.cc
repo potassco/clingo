@@ -576,6 +576,9 @@ auto convert(SolveMode mode) -> Clasp::SolveMode {
     return res;
 }
 
+constexpr int random_signal = 65;
+constexpr int kill_signal = 9;
+
 //! The solve handle implementation.
 class SolveHandleImpl : public SolveHandle {
   public:
@@ -587,12 +590,15 @@ class SolveHandleImpl : public SolveHandle {
   private:
     auto do_get() -> SolveResult override {
         auto guard = unlock_guard{eh_.get_lock()};
-        auto res = convert(hnd_.get());
-        if (intersects(res, SolveResult::unsatisfiable)) {
+        auto res = hnd_.get();
+        if (res.interrupted() && res.signal != 0 && res.signal != kill_signal && res.signal != random_signal) {
+            throw std::runtime_error("solving stopped by signal");
+        }
+        if (res.unsat()) {
             eh_.onCore(do_core());
         }
         eh_.onFinalize();
-        return res;
+        return convert(res);
     }
     void do_cancel() override {
         auto guard = unlock_guard{eh_.get_lock()};
@@ -695,6 +701,15 @@ auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
         }
     }
     Util::unreachable();
+}
+
+void Solver::interrupt() noexcept {
+    try {
+        clasp_facade().interrupt(random_signal);
+    } catch (std::exception const &e) {
+        printf("panic: %s\n", e.what());
+        std::abort();
+    }
 }
 
 void Solver::main(std::span<std::string_view const> const &files, std::optional<ProgramParamsVec> const &params) {

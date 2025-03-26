@@ -119,6 +119,10 @@ extern "C" auto clingo_control_join(clingo_control_t *control, clingo_program_t 
     CLINGO_CATCH;
 }
 
+extern "C" void clingo_control_interrupt(clingo_control_t *control) {
+    control->slv->interrupt();
+}
+
 namespace {
 
 class Context : public Clingo::Ground::ScriptCallback {

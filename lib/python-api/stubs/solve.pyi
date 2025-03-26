@@ -34,8 +34,8 @@ The following example shows how to yield models:
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
     >>> with ctl.solve(yield_=True) as hnd:
-    ...     for m in hnd:
-    ...         print(m)
+    ...     for mdl in hnd:
+    ...         print(mdl)
     ...     print(hnd.get())
     ...
     a
@@ -69,6 +69,7 @@ This example shows how to solve both iteratively and asynchronously:
     >>> ctl.ground()
     >>> with ctl.solve(yield_=True, async_=True) as hnd:
     ...     while mdl := hnd.model():
+    ...         print(mdl)
     ...         hnd.resume()
     ...     print(hnd.get())
     ...
@@ -166,14 +167,14 @@ class Model:
         While enumerating cautious or brave consequences, there is partial information
         about which literals are consequences. The current state of a literal can be
         requested using this function. If this function is used during normal model
-        enumeration, the function just returns whether a literal is true of false in
-        the current model.
+        enumeration, it simply returns whether the literal is true or false in the
+        current model.
 
         Args:
-                literal: The given program literal.
+            literal: The given program literal.
 
         Returns:
-                Whether the given program literal is a consequence.
+            Whether the given program literal is a consequence.
         """
 
     def is_true(self, literal: int) -> bool:
@@ -198,10 +199,13 @@ class Model:
         Get the symbols in the model.
 
         Args:
-          shown: Include shown atoms and terms.
-          atoms: Include all true atoms including hidden ones.
-          terms: Include shown terms.
-          theory: Include terms added by external theories.
+            shown: Include shown atoms and terms.
+            atoms: Include all true atoms, including hidden ones.
+            terms: Include shown terms.
+            theory: Include terms added by external theories.
+
+        Returns:
+            A sequence of symbols present in the model.
         """
 
     @property
@@ -258,7 +262,7 @@ class SolveControl:
         Add a clause that applies to the current solving step during the search.
 
         Args:
-          literals: The literals of the clause.
+          clause: The literals of the clause.
         """
 
     @property
@@ -316,14 +320,14 @@ class SolveHandle:
         """
         Get the solve result.
 
-        This is always the last function that should be called on a handle to ensure
-        that the search is properly terminated. It might be preceded by a call to
-        cancel to stop a running search.
+        This is always the last function to be called on a handle to ensure that the
+        search is properly terminated. It might be preceded by a call to cancel to stop
+        the search.
         """
 
     def last(self) -> Model | None:
         """
-        Get the last computed model if there is any.
+        Get the last computed model, if any.
 
         If the search is not completed yet or the problem is unsatisfiable, the
         function returns `None`.
@@ -344,21 +348,18 @@ class SolveHandle:
 
     def wait(self, timeout: float | None = None) -> bool:
         """
-        Wait for solve call to finish or the next result with an optional timeout.
+        Wait for the solve call to finish or the next result with an optional timeout.
 
-        If a timeout is given, the behavior of the function changes depending on the
-        sign of the timeout. If a postive timeout is given, the function blocks for the
-        given amount time or until a result is ready. If the timeout is negative, the
-        function will block until a result is ready, which also corresponds to the
-        behavior of the function if no timeout is given. A timeout of zero can be used
-        to poll if a result is ready.
+        If a timeout is provided, the function blocks for the given duration or until a
+        result is ready. A positive timeout blocks for that amount of time. A negative
+        timeout blocks until a result is available, and a zero timeout allows polling
+        for a result.
 
         Args:
-          timeout:
-            If a timeout is given, the function blocks for at most timeout seconds.
+            timeout: The maximum time to block in seconds.
 
         Returns:
-          Indicates whether the solve call has finished or the next result is ready.
+            Whether the solve call has finished or the next result is ready.
         """
 
 class SolveResult:
@@ -386,7 +387,7 @@ class SolveResult:
     @property
     def satisfiable(self) -> bool:
         """
-        Whether there was at least one model.
+        Whether at least one model was found.
         """
 
     @property
