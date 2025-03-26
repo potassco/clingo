@@ -236,8 +236,8 @@ class Script {
         CLINGO_CATCH(get_exception_ptr());
     }
 
-    auto call(const PyLibrary &lib, char const *name, SymbolSpan args) -> TypeHint<"Sequence[Symbol]"> {
-        PYBIND11_OVERRIDE_PURE(TypeHint<"Sequence[Symbol]">, Script, call, lib, name, args);
+    auto call(const PyLibrary &lib, char const *name, SymbolSpan args) -> TypeHint<"Sequence[clingo.symbol.Symbol]"> {
+        PYBIND11_OVERRIDE_PURE(TypeHint<"Sequence[clingo.symbol.Symbol]">, Script, call, lib, name, args);
     }
 
     static auto c_call(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,

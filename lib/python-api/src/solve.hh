@@ -50,7 +50,7 @@ class Model {
   public:
     Model(clingo_model_t const *mdl) : mdl_{mdl} {}
 
-    auto symbols(bool shown, bool atoms, bool terms, bool theory) -> TypeHint<"SequenceSymbol">;
+    auto symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVec;
     auto contains(Symbol atom) -> bool;
     auto control() -> SolveControl;
     auto type() -> clingo_model_type_e;

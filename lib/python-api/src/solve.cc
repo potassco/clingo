@@ -77,7 +77,7 @@ auto SolveControl::add_clause(MixedLitVec const &lits) {
     handle_error(clingo_solve_control_add_clause(ctl_, x.data(), x.size()));
 }
 
-auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> TypeHint<"SequenceSymbol"> {
+auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVec {
     auto res = SymbolVec{};
     clingo_show_type_bitset_t show = 0;
     if (shown) {
@@ -93,7 +93,7 @@ auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> TypeHint
         show |= clingo_show_type_theory;
     }
     handle_error(clingo_model_symbols(mdl_, show, symbol_callback, &res), get_exception_ptr());
-    return py::cast(std::move(res));
+    return res;
 }
 
 auto Model::contains(Symbol atom) -> bool {
@@ -114,7 +114,7 @@ auto Model::str() -> std::string {
     auto comma = false;
     for (auto const &sym : symbols(true, false, false, false)) {
         res += comma ? ", " : "";
-        res += py::str(sym);
+        res += sym.str();
         comma = true;
     }
     return res;
