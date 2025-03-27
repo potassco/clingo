@@ -74,6 +74,8 @@ extern "C" {
 
 //! @defgroup c_app Applications on top of Clingo
 
+//! @defgroup c_theory External Theory Support
+
 //! @}
 
 #ifdef __cplusplus
