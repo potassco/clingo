@@ -24,7 +24,7 @@
     VARIABLE   = [_']*[A-Z]['A-Za-z0-9_]*;
     STRING     = "\"" ([^\\"\n\000]|"\\\""|"\\\\"|"\\n")* "\"";
     INCSTRING  = "<" IDENTIFIER ">";
-    THEORYOP   = [/!<=>+\-*\\?&@|:;~\^\.]+;
+    THEORYOP   = [/!<=>+\-*\\?&@|:;~^.]+;
     KEYWORD    = "#" [a-zA-Z0-9_]*;
     SUP        = "#sup"("remum")?;
     INF        = "#inf"("imum")?;
