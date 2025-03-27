@@ -1,7 +1,6 @@
-#include <clingo/app.h>
-
 #include <utility>
 
+#include "app.hh"
 #include "control.hh"
 #include "util.hh"
 
@@ -39,6 +38,8 @@ class Options {
         auto &cflag = flag.cast<Flag &>();
         handle_error(clingo_options_add_flag(opts_, group, option, description, &cflag.value));
     }
+
+    auto c_ptr() -> clingo_options_t * { return opts_; }
 
   private:
     //! The C options object.
@@ -246,6 +247,10 @@ auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<
 }
 
 } // namespace
+
+auto convert_options(py::handle hnd) -> clingo_options_t * {
+    return hnd.cast<Options &>().c_ptr();
+}
 
 void register_app(pybind11::module &m) {
     using namespace Clingo::Python;
