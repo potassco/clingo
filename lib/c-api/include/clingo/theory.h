@@ -81,7 +81,7 @@ typedef struct clingo_theory {
     //! Configure the theory passing key value pairs.
     clingo_result_t (*configure)(void *self, char const *key, char const *value);
     //! Inform the theory that a model has been found.
-    clingo_result_t (*on_model)(void *self, clingo_model_t *model);
+    clingo_result_t (*on_model)(void *self, clingo_model_t const *model);
     //! Add the theory's statistics to the given maps.
     clingo_result_t (*on_statistics)(void *self, clingo_stats_t *step, clingo_stats_t *accu);
     //! Get the integer index of a symbol assigned by the theory when a model is found.

@@ -63,6 +63,7 @@ class Model {
     auto thread_id() -> clingo_id_t;
     auto extend(std::span<Symbol const> symbols);
     auto str() -> std::string;
+    auto c_ptr() -> clingo_model_t const * { return mdl_; }
 
   private:
     clingo_model_t const *mdl_;

@@ -1,6 +1,7 @@
 #include "app.hh"
 #include "ast.hh"
 #include "control.hh"
+#include "solve.hh"
 
 #include <clingo/theory.h>
 
@@ -60,6 +61,24 @@ class Theory {
     void register_options(TypeHint<"clingo.app.AppOptions"> const &opts) {
         if (theory_->register_options != nullptr) {
             handle_error(theory_->register_options(theory_->self, convert_options(opts)));
+        }
+    }
+
+    void validate_options() {
+        if (theory_->validate_options != nullptr) {
+            handle_error(theory_->validate_options(theory_->self));
+        }
+    }
+
+    void configure(std::string const &key, std::string const &value) {
+        if (theory_->configure != nullptr) {
+            handle_error(theory_->configure(theory_->self, key.c_str(), value.c_str()));
+        }
+    }
+
+    void on_model(Model &model) {
+        if (theory_->on_model != nullptr) {
+            handle_error(theory_->on_model(theory_->self, model.c_ptr()));
         }
     }
 
@@ -129,11 +148,29 @@ Args:
     statement: The statement to rewrite.
     callback: The callback receiving rewritten statements.
 )"_d)
+        .def("configure", &Theory::configure, py::arg("name"), py::arg("value"), R"(
+Configure the theory using its name/value interface.
+
+Args:
+    key: The name of the option.
+    key: The value of the option.
+)"_d)
         .def("register_options", &Theory::register_options, py::arg("options"), R"(
 Register theory related options.
 
 Args:
     options: The application options.
+)"_d)
+        .def("validate_options", &Theory::validate_options, R"(
+Check the registered options.
+)"_d)
+        .def("on_model", &Theory::on_model, py::arg("model"), R"(
+Notify the theory about the given model.
+
+Some theories extend the model here are set their internal assignments.
+
+Args:
+    model: The current model.
 )"_d)
         .def_property_readonly("version", &Theory::version, "Get the version of the theory (major, minor, revision).")
         .def_property_readonly("name", &Theory::name, "Get the name of the theory.");
