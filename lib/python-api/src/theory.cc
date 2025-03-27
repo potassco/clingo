@@ -1,3 +1,4 @@
+#include "ast.hh"
 #include "control.hh"
 
 #include <clingo/theory.h>
@@ -10,9 +11,22 @@ class Theory {
         if (std::strcmp(ptr_.name(), "clingo_theory_t") != 0) {
             throw std::invalid_argument("clingo_theory_t pointer expected");
         }
+        if (theory_ == nullptr) {
+            throw std::invalid_argument{"theory must not be null"};
+        }
+    }
+
+    ~Theory() noexcept {
+        if (theory_->destroy != nullptr) {
+            theory_->destroy(theory_->self);
+        }
     }
 
     auto version() {
+        if (theory_->info == nullptr) {
+            PyErr_SetString(PyExc_NotImplementedError, "info not implemented");
+            throw py::error_already_set();
+        }
         int major = 0;
         int minor = 0;
         int revision = 0;
@@ -21,12 +35,46 @@ class Theory {
     }
 
     auto name() -> auto const * {
+        if (theory_->info == nullptr) {
+            PyErr_SetString(PyExc_NotImplementedError, "info not implemented");
+            throw py::error_already_set();
+        }
         char const *name = nullptr;
         handle_error(theory_->info(theory_->self, &name, nullptr, nullptr, nullptr));
         return name;
     }
 
-    void register_theory(Control &ctl) { handle_error(theory_->register_theory(theory_->self, ctl.c_ptr())); }
+    void register_theory(Control &ctl) {
+        if (theory_->register_theory != nullptr) {
+            handle_error(theory_->register_theory(theory_->self, ctl.c_ptr()));
+        }
+    }
+
+    using PyStatement = TypeHint<
+        "clingo.ast.StatementRule | clingo.ast.StatementTheory | clingo.ast.StatementOptimize | "
+        "clingo.ast.StatementWeakConstraint | clingo.ast.StatementShow | clingo.ast.StatementShowNothing | "
+        "clingo.ast.StatementShowSignature | clingo.ast.StatementProject | clingo.ast.StatementProjectSignature | "
+        "clingo.ast.StatementDefined | clingo.ast.StatementExternal | clingo.ast.StatementEdge | "
+        "clingo.ast.StatementHeuristic | clingo.ast.StatementScript | clingo.ast.StatementInclude | "
+        "clingo.ast.StatementProgram | clingo.ast.StatementConst | clingo.ast.StatementComment">;
+
+    void rewrite(PyStatement const &stm, std::function<void(PyStatement const &)> fun) {
+        if (theory_->rewrite_ast != nullptr) {
+            handle_error(theory_->rewrite_ast(
+                             theory_->self, convert_stm(stm),
+                             [](clingo_ast *stm, void *data) -> clingo_result_t {
+                                 CLINGO_TRY {
+                                     auto &fun = *static_cast<std::function<void(py::handle)> *>(data);
+                                     fun(convert_stm(stm));
+                                 }
+                                 CLINGO_CATCH(get_exception_ptr());
+                             },
+                             &fun),
+                         get_exception_ptr());
+        } else {
+            fun(stm);
+        }
+    }
 
   private:
     py::capsule ptr_;
@@ -57,6 +105,16 @@ solving starts.
 
 Args:
     control: The control object to register the theory with.
+)"_d)
+        .def("rewrite", &Theory::rewrite, py::arg("statement"), py::arg("callback"), R"(
+Rewrite the given statement and pass the result to the callback.
+
+Some theories require rewriting prior to adding a non-ground program to the
+control object.
+
+Args:
+    statement: The statement to rewrite.
+    callback: The callback receiving rewritten statements.
 )"_d)
         .def_property_readonly("version", &Theory::version, "Get the version of the theory (major, minor, revision).")
         .def_property_readonly("name", &Theory::name, "Get the name of the theory.");

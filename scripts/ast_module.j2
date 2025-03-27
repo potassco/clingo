@@ -530,6 +530,14 @@ void add(Program &prg, Statement &stm) {
     handle_error(clingo_program_add(prg, c_cast(stm)));
 }
 
+auto convert_stm(py::handle hnd) -> clingo_ast_t * {
+    return c_cast(hnd.cast<ASTBase &>());
+}
+
+auto convert_stm(clingo_ast_t *ast) -> py::object {
+    return py::cast(construct_statement(ast));
+}
+
 void register_ast(pybind11::module &m) {
     auto ast = m.def_submodule("ast", R"doc(This module provides functions to work with Abstract Syntax Trees of logic programs.
 

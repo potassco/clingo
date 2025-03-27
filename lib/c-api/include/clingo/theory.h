@@ -54,7 +54,7 @@ typedef struct clingo_theory_value {
 } clingo_theory_value_t;
 
 //! A callback to rewrite asts.
-typedef bool (*clingo_theory_ast_callback_t)(clingo_ast_t *ast, void *data);
+typedef clingo_result_t (*clingo_theory_ast_callback_t)(clingo_ast_t *ast, void *data);
 
 //! A theory object to extend solving.
 typedef struct clingo_theory {

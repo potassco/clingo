@@ -61,7 +61,7 @@ introduce fresh symbolic atoms and program literals.
 
 Before solving, programs in aspif format are translated to an internal solver
 representation, where program literals are again mapped to non-zero integers,
-so called *solver literals*. The `clingo.propagator.PropagateInit.solver_literal`
+so called *solver literals*. The `clingo.propagate.PropagateInit.solver_literal`
 function can be used to map program literals to solver literals. Note that
 different program literals can share the same solver literal.
 
