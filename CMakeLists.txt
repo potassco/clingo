@@ -18,9 +18,9 @@ option(PARSER_PROFILE "configure profiling" OFF)
 option(PARSER_BUILD_TESTS "enable tests" ON)
 option(PARSER_BUILD_APP "build application" ON)
 option(PARSER_BUILD_EXAMPLES "build examples" ON)
-cmake_dependent_option(PARSER_BUILD_SHARED "build clingo as shared library" ON "NOT SKBUILD" OFF)
-cmake_dependent_option(PARSER_USE_VERSION_SCRIPT "use a version script to hide C++ symbols" ON "PARSER_BUILD_SHARED OR SKBUILD" OFF)
-cmake_dependent_option(PARSER_USE_VISIBILITY "enable visibility attributes" ON "SKBUILD OR PARSER_BUILD_SHARED" OFF)
+cmake_dependent_option(PARSER_BUILD_SHARED "build clingo as shared library" ON "NOT EMSCRIPTEN" OFF)
+cmake_dependent_option(PARSER_USE_VERSION_SCRIPT "use a version script to hide C++ symbols" ON "PARSER_BUILD_SHARED" OFF)
+cmake_dependent_option(PARSER_USE_VISIBILITY "enable visibility attributes" ON "PARSER_BUILD_SHARED" OFF)
 
 find_package(RE2C "2.0" REQUIRED)
 
