@@ -5051,16 +5051,6 @@ auto construct_statement(clingo_ast_t *ast) -> Statement {
     }
 }
 
-auto convert_stm(py::handle hnd) -> clingo_ast_t * {
-    return c_cast(hnd.cast<ASTBase &>());
-}
-
-auto convert_stm(clingo_ast_t *ast) -> py::object {
-    clingo_ast_t *copy = nullptr;
-    handle_error(clingo_ast_copy(ast, &copy));
-    return py::cast(construct_statement(copy));
-}
-
 auto StatementRule::location() -> Location {
     clingo_location_t const *ret = nullptr;
     handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
@@ -6284,6 +6274,16 @@ void Program::free(clingo_program_t *prg) noexcept {
 
 void add(Program &prg, Statement &stm) {
     handle_error(clingo_program_add(prg, c_cast(stm)));
+}
+
+auto convert_stm(py::handle hnd) -> clingo_ast_t * {
+    return c_cast(hnd.cast<ASTBase &>());
+}
+
+auto convert_stm(clingo_ast_t *ast) -> py::object {
+    clingo_ast_t *copy = nullptr;
+    handle_error(clingo_ast_copy(ast, &copy));
+    return py::cast(construct_statement(copy));
 }
 
 void register_ast(pybind11::module &m) {

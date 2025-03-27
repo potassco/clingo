@@ -535,7 +535,9 @@ auto convert_stm(py::handle hnd) -> clingo_ast_t * {
 }
 
 auto convert_stm(clingo_ast_t *ast) -> py::object {
-    return py::cast(construct_statement(ast));
+    clingo_ast_t *copy = nullptr;
+    handle_error(clingo_ast_copy(ast, &copy));
+    return py::cast(construct_statement(copy));
 }
 
 void register_ast(pybind11::module &m) {
