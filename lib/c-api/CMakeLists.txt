@@ -19,7 +19,6 @@ add_library(clingo ${libtype}
     "src/solve.cc"
     "src/stats.cc"
     "src/symbol.cc"
-    "src/theory.cc"
     )
 clingo_target_properties(clingo "lib/clingo")
 target_include_directories(clingo PUBLIC "include")

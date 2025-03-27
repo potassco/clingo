@@ -74,6 +74,8 @@ class Control {
     //! This function releases the wrapped control and the associated user
     //! data.
     static void release(clingo_control_t *ctl) noexcept;
+    //! Get the underlying C pointer.
+    auto c_ptr() -> clingo_control_t * { return ctl_.get(); }
 
   private:
     Control(clingo_control_t *ctl) : ctl_{ctl} {}

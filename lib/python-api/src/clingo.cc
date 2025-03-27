@@ -11,6 +11,7 @@
 #include "solve.hh"
 #include "stats.hh"
 #include "symbol.hh"
+#include "theory.hh"
 
 #include <pybind11/pybind11.h>
 
@@ -137,6 +138,7 @@ information.
     Clingo::Python::register_control(m);
     Clingo::Python::register_script(m);
     Clingo::Python::register_app(m);
+    Clingo::Python::register_theory(m);
 }
 
 } // namespace Clingo::Python
