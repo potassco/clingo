@@ -44,7 +44,7 @@ This module allows for using theories implemented in C from Python.
 Object to call functions from a C-library implementing a custom theory.
 )"_d)
         .def(py::init<py::capsule>(), py::arg("theory_pointer"), R"(
-Construct a theory object form the given pointer.
+Construct a theory object from the given pointer.
 
 Args:
     theory_pointer: A capsule object holding a clingo_theory_t pointer.
