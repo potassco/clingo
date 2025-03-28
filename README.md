@@ -17,7 +17,7 @@ This readme is a stub subject to future improvement!
 - ninja (recommended, optional)
 - python (recommended, optional)
 
-### 🏗️Building
+### 🏗️ Building
 
 The instructions below work for both single-config and multi-config generators.
 For faster builds, consider using the Ninja generator by adding `-G Ninja` to the
@@ -42,7 +42,7 @@ There is currently no install target configured. However, the binary
 - python
 - pipx (recommended)
 
-### 🏗️Building
+### 🏗️ Building
 
 Assuming pipx is installed, build the Python module with:
 
