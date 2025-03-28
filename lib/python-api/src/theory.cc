@@ -255,7 +255,7 @@ called.
 
 Args:
     key: The name of the option.
-    key: The value of the option.
+    value: The value of the option.
 )"_d)
         .def("register_options", &Theory::register_options, py::arg("options"), R"(
 Register theory related options.
