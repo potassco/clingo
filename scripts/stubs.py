@@ -22,7 +22,7 @@ class Rewriter:
     def __init__(self):
         self.python = False
 
-    def format(self, content: str):
+    def format(self, path: str, content: str):
         """
         Format the given code.
         """
@@ -31,8 +31,7 @@ class Rewriter:
             mode = black.FileMode(is_pyi=not self.python)
             return black.format_file_contents(content, fast=False, mode=mode)
         except:
-            print(content)
-            sys.exit(1)
+            sys.exit(f"failed to format: {path}")
 
     def simplify_comparisons(self, content: str) -> str:
         """
@@ -237,10 +236,14 @@ class Rewriter:
                     if self.python:
                         content = self.doc_enums(content)
                     else:
-                        content = self.format(content)
+                        content = self.format(path, content)
+                        gen_content = None
                         gen_path = os.path.join("lib", "python-api", "stubs", file)
-                        with open(gen_path, "r", encoding="utf8") as hnd:
-                            gen_content = hnd.read()
+                        try:
+                            with open(gen_path, "r", encoding="utf8") as hnd:
+                                gen_content = hnd.read()
+                        except IOError:
+                            pass
                         if content != gen_content:
                             with open(gen_path, "w", encoding="utf8") as hnd:
                                 hnd.write(content)
