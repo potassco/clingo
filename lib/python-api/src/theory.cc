@@ -262,9 +262,13 @@ Register theory related options.
 
 Args:
     options: The application options.
+
+See also: `clingo.app.App.register_options`
 )"_d)
         .def("validate_options", &Theory::validate_options, R"(
 Check the registered options.
+
+See also: `clingo.app.App.validate_options`
 )"_d)
         .def("on_model", &Theory::on_model, py::arg("model"), R"(
 Notify the theory about the given model.
