@@ -1,15 +1,15 @@
-# Quickstart
+# ⚡ Quickstart
 
 This readme is a stub subject to future improvement!
 
-## Resources
+## 📝 Resources
 
 - Online Demo: <https://rkaminsk.github.io/preprocessor/>
 - Python API Documentation: <https://rkaminsk.github.io/preprocessor/python-api/>
 
-## Building the Application
+## 🛠️ Building the Application
 
-### Requirements
+### 📋 Requirements
 
 - a C++20 compiler
 - re2c
@@ -17,7 +17,7 @@ This readme is a stub subject to future improvement!
 - ninja (recommended, optional)
 - python (recommended, optional)
 
-### Building
+### 🏗️Building
 
 The instructions below work for both single-config and multi-config generators.
 For faster builds, consider using the Ninja generator by adding `-G Ninja` to the
@@ -29,20 +29,20 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
-### Installation
+### 📦 Installation
 
 There is currently no install target configured. However, the binary
 `build/bin/clingo` is ready for use after building.
 
-## Building the Python Module
+## 🐍 Building the Python Module
 
-### Requirements
+### 📋 Requirements
 
 - a C++20 compiler
 - python
 - pipx (recommended)
 
-### Building
+### 🏗️Building
 
 Assuming pipx is installed, build the Python module with:
 
@@ -50,7 +50,7 @@ Assuming pipx is installed, build the Python module with:
 pipx run build .
 ```
 
-### Installation
+### 📦 Installation
 
 It is strongly recommended to install the package into a virtual environment to
 avoid potential conflicts with other packages or system-wide Python
