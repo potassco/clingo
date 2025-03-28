@@ -18,7 +18,7 @@ class Theory:
     Object to call functions from a C-library implementing a custom theory.
     """
 
-    def __init__(self, theory_pointer: capsule) -> None:
+    def __init__(self, theory_pointer: typing.Any) -> None:
         """
         Construct a theory object from the given pointer.
 

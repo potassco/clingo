@@ -56,7 +56,7 @@ class TheoryAssignment {
 
 class Theory {
   public:
-    Theory(py::capsule ptr) : ptr_{std::move(ptr)}, theory_{static_cast<clingo_theory_t *>(ptr_.get_pointer())} {
+    Theory(py::object ptr) : ptr_{std::move(ptr)}, theory_{static_cast<clingo_theory_t *>(ptr_.get_pointer())} {
         if (std::strcmp(ptr_.name(), "clingo_theory_t") != 0) {
             throw std::invalid_argument("clingo_theory_t pointer expected");
         }
@@ -222,7 +222,7 @@ This module allows for using theories implemented in C from Python.
     py::class_<Theory>(theory, "Theory", R"(
 Object to call functions from a C-library implementing a custom theory.
 )"_d)
-        .def(py::init<py::capsule>(), py::arg("theory_pointer"), R"(
+        .def(py::init<py::object>(), py::arg("theory_pointer"), R"(
 Construct a theory object from the given pointer.
 
 Args:
