@@ -33,13 +33,13 @@ extern "C" {
 #include <clingo/symbol.h>
 
 //! The available value types.
-enum clingo_theory_value_type {
+enum clingo_theory_value_type_e {
     //! An integer value.
-    clingo_thoery_value_type_int = 0,
+    clingo_theory_value_type_int = 0,
     //! A double value.
-    clingo_thoery_value_type_double = 1,
+    clingo_theory_value_type_double = 1,
     //! A symbol value.
-    clingo_thoery_value_type_symbol = 2
+    clingo_theory_value_type_symbol = 2
 };
 //! Corresponding type to clingo_theory_value_type.
 typedef int clingo_theory_value_type_t;
@@ -83,27 +83,22 @@ typedef struct clingo_theory {
     //! Inform the theory that a model has been found.
     clingo_result_t (*on_model)(void *self, clingo_model_t const *model);
     //! Add the theory's statistics to the given maps.
-    clingo_result_t (*on_statistics)(void *self, clingo_stats_t *step, clingo_stats_t *accu);
+    clingo_result_t (*on_stats)(void *self, clingo_stats_t *stats);
     //! Get the integer index of a symbol assigned by the theory when a model is found.
     //!
     //! Using indices allows for efficent retrieval of values.
-    clingo_result_t (*lookup_symbol)(void *self, clingo_symbol_t symbol, size_t *index);
-    //! Get the symbol associated with an index.
-    //!
-    //! The index must be valid.
-    clingo_symbol_t (*get_symbol)(void *self, size_t index);
-    //! Get an index that can be used with assignment_next to obain assignned values.
-    //!
-    //! The index itself does not have a value.
-    bool (*assignment_begin)(void *self, uint32_t thread_id, size_t *index);
+    clingo_result_t (*lookup_symbol)(void *self, clingo_symbol_t symbol, size_t *index, bool *found);
     //! Get the next index that has a value.
     //!
-    //! The returned index has a value if the function returns true.
-    bool (*assignment_next)(void *self, uint32_t thread_id, size_t *index);
-    //! Check if the given index has a value.
-    bool (*assignment_has_value)(void *self, uint32_t thread_id, size_t index);
+    //! If init is true, an index to the first value in the assignment is
+    //! returned and the value of init is set to false.
+    //!
+    //! The returned index has a value if has_value is true. Otherwise,
+    //! iteration must be stopped.
+    clingo_result_t (*assignment_next)(void *self, uint32_t thread_id, size_t *index, bool *init, bool *has_value);
     //! Get the value assigned to the given index.
-    void (*assignment_get_value)(void *self, uint32_t thread_id, size_t index, clingo_theory_value_t *value);
+    clingo_result_t (*assignment_get_value)(void *self, uint32_t thread_id, size_t index, clingo_symbol_t *symbol,
+                                            clingo_theory_value_t *value, bool *found);
 
     //! The userdata that has to be passed as the first value to the callabcks in this struct.
     void *self;

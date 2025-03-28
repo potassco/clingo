@@ -2,6 +2,7 @@
 #include "ast.hh"
 #include "control.hh"
 #include "solve.hh"
+#include "stats.hh"
 
 #include <clingo/theory.h>
 
@@ -81,6 +82,47 @@ class Theory {
             handle_error(theory_->on_model(theory_->self, model.c_ptr()));
         }
     }
+
+    void on_stats(Stats &accu, [[maybe_unused]] Stats &step) {
+        // NOTE: the accu and steps roots can be obtained from the stats object
+        // in C. Both objects contain the same base C pointer.
+        if (theory_->on_stats != nullptr) {
+            handle_error(theory_->on_stats(theory_->self, accu.c_ptr()));
+        }
+    }
+
+    auto value(uint32_t thread_id, Symbol &symbol) -> std::optional<std::variant<Symbol, int, double>> {
+        if (theory_->lookup_symbol != nullptr && theory_->assignment_get_value != nullptr) {
+            size_t index = 0;
+            bool found = false;
+            handle_error(theory_->lookup_symbol(theory_->self, symbol.handle(), &index, &found));
+            if (!found) {
+                return std::nullopt;
+            }
+            clingo_theory_value_t value;
+            handle_error(theory_->assignment_get_value(theory_->self, thread_id, index, nullptr, &value, &found));
+            if (!found) {
+                return std::nullopt;
+            }
+            // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
+            switch (static_cast<clingo_theory_value_type_e>(value.type)) {
+                case clingo_theory_value_type_int: {
+                    return value.int_number;
+                }
+                case clingo_theory_value_type_double: {
+                    return value.double_number;
+                }
+                case clingo_theory_value_type_symbol: {
+                    return Symbol{value.symbol, true};
+                }
+            }
+            // NOLINTEND(cppcoreguidelines-pro-type-union-access)
+        }
+        return std::nullopt;
+    }
+
+    // Python interface for assignments:
+    // - assignment(thread_id) -> iterable<tuple[Symbol, Symbol | int | float]>()
 
     using PyStatement = TypeHint<
         "clingo.ast.StatementRule | clingo.ast.StatementTheory | clingo.ast.StatementOptimize | "
@@ -171,6 +213,16 @@ Some theories extend the model here are set their internal assignments.
 
 Args:
     model: The current model.
+)"_d)
+        .def("value", &Theory::value, py::arg("thread_id"), py::arg("symbol"), R"(
+Get the value of the symbol in the assignment of the given thread.
+
+Args:
+    thread_id: The id of the thread to query.
+    symbol: The symbol to lookup.
+
+Returns:
+    The value or None if unnassigned.
 )"_d)
         .def_property_readonly("version", &Theory::version, "Get the version of the theory (major, minor, revision).")
         .def_property_readonly("name", &Theory::name, "Get the name of the theory.");
