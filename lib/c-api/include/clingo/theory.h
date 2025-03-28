@@ -45,10 +45,14 @@ enum clingo_theory_value_type_e {
 typedef int clingo_theory_value_type_t;
 //! A struct to hold values assigned by a theory.
 typedef struct clingo_theory_value {
+    //! The type of the value.
     clingo_theory_value_type_t type;
     union {
+        //! The integer value.
         int int_number;
+        //! The double value.
         double double_number;
+        //! The symbolic value.
         clingo_symbol_t symbol;
     };
 } clingo_theory_value_t;
@@ -59,34 +63,84 @@ typedef clingo_result_t (*clingo_theory_ast_callback_t)(clingo_ast_t *ast, void 
 //! A theory object to extend solving.
 typedef struct clingo_theory {
     //! Get the name and version of the theory.
-    clingo_result_t (*info)(void *self, char const **name, int *major, int *minor, int *patch);
+    //!
+    //! @param[in] self the self pointer
+    //! @param[out] name the name of the theory (optional)
+    //! @param[out] major the major version component (optional)
+    //! @param[out] minor the minor version component (optional)
+    //! @param[out] revision the revision version component (optional)
+    //! @return the result code
+    clingo_result_t (*info)(void *self, char const **name, int *major, int *minor, int *revision);
     //! Destroy the theory.
+    //!
+    //! @param[in] self the self pointer
     void (*destroy)(void *self);
     //! Register the theory with the given control object.
     //!
     //! A theory might register propagators or add theory definitions here.
+    //!
+    //! @param[in] self the self pointer
+    //! @param[in] control the control object
+    //! @return the result code
     clingo_result_t (*register_theory)(void *self, clingo_control_t *control);
     //! Rewrite the given ast for the theory.
     //!
     //! A theory might rewrite theory atoms.
-    clingo_result_t (*rewrite_ast)(void *self, clingo_ast_t *ast, clingo_theory_ast_callback_t add, void *data);
+    //!
+    //! @param[in] self the self pointer
+    //! @param[in] statement the statement to rewrite
+    //! @param[in] callback the callback to pass rewritten statements to
+    //! @param[in] data the user data for the callback
+    //! @return the result code
+    clingo_result_t (*rewrite_ast)(void *self, clingo_ast_t *statement, clingo_theory_ast_callback_t callback,
+                                   void *data);
     //! Prepare the theory.
     //!
     //! Must be called between ground and solve.
+    //!
+    //! @param[in] self the self pointer
+    //! @param[in] control the control object
+    //! @return the result code
     clingo_result_t (*prepare)(void *self, clingo_control_t *control);
     //! Register the theory's options with the given application options object.
+    //!
+    //! @param[in] self the self pointer
+    //! @param[in] control the options object
+    //! @return the result code
     clingo_result_t (*register_options)(void *self, clingo_options_t *options);
     //! Validate the options of the theory.
+    //!
+    //! @param[in] self the self pointer
+    //! @return the result code
     clingo_result_t (*validate_options)(void *self);
     //! Configure the theory passing key value pairs.
+    //!
+    //! @param[in] self the self pointer
+    //! @param[in] key the name of the option to set
+    //! @param[in] key the value to set
+    //! @return the result code
     clingo_result_t (*configure)(void *self, char const *key, char const *value);
     //! Inform the theory that a model has been found.
+    //!
+    //! @param[in] self the self pointer
+    //! @param[in] model the current model
+    //! @return the result code
     clingo_result_t (*on_model)(void *self, clingo_model_t const *model);
     //! Add the theory's statistics to the given maps.
+    //!
+    //! @param[in] self the self pointer
+    //! @param[in] stats the statistics object
+    //! @return the result code
     clingo_result_t (*on_stats)(void *self, clingo_stats_t *stats);
     //! Get the integer index of a symbol assigned by the theory when a model is found.
     //!
     //! Using indices allows for efficent retrieval of values.
+    //!
+    //! @param[in] self the self pointer
+    //! @param[in] symbol the symbol to lookup
+    //! @param[out] index the resulting index (optional)
+    //! @param[out] found whether the symbol has been found (optional)
+    //! @return the result code
     clingo_result_t (*lookup_symbol)(void *self, clingo_symbol_t symbol, size_t *index, bool *found);
     //! Get the next index that has a value.
     //!
@@ -95,12 +149,27 @@ typedef struct clingo_theory {
     //!
     //! The returned index has a value if has_value is true. Otherwise,
     //! iteration must be stopped.
-    clingo_result_t (*assignment_next)(void *self, uint32_t thread_id, size_t *index, bool *init, bool *has_value);
+    //!
+    //! @param[in] self the self pointer
+    //! @param[in] thread_id the thread that holds the assignment
+    //! @param[inout] init whether to advance or initialize the index
+    //! @param[out] index the resulting index (optional)
+    //! @param[out] has_value whether the index has a value (optional)
+    //! @return the result code
+    clingo_result_t (*assignment_next)(void *self, uint32_t thread_id, bool *init, size_t *index, bool *has_value);
     //! Get the value assigned to the given index.
+    //!
+    //! @param[in] self the self pointer
+    //! @param[in] thread_id the thread that holds the assignment
+    //! @param[in] index the index to lookup
+    //! @param[out] symbol the resulting symbol (optional)
+    //! @param[out] value the resulting value (optional)
+    //! @param[out] has_value whether the index has a value (optional)
+    //! @return the result code
     clingo_result_t (*assignment_get_value)(void *self, uint32_t thread_id, size_t index, clingo_symbol_t *symbol,
-                                            clingo_theory_value_t *value, bool *found);
+                                            clingo_theory_value_t *value, bool *has_value);
 
-    //! The userdata that has to be passed as the first value to the callabcks in this struct.
+    //! The userdata for the first value to the callabcks in this struct.
     void *self;
 } clingo_theory_t;
 

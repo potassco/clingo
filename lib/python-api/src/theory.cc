@@ -20,7 +20,7 @@ class TheoryAssignment {
     auto iter() -> AssignmentIterator { return py::cast(this); }
     auto next() -> std::pair<Symbol, Value> {
         if (has_value_) {
-            handle_error(theory_->assignment_next(theory_, thread_id_, &index_, &init_, nullptr));
+            handle_error(theory_->assignment_next(theory_, thread_id_, &init_, &index_, nullptr));
             clingo_theory_value_t value;
             clingo_symbol_t symbol = 0;
             handle_error(

@@ -16,7 +16,12 @@ namespace Clingo::Control {
 //! @addtogroup control
 //! @{
 
-enum class BuiltinIncludes : uint8_t { empty = 0, incmode = 1 };
+//! Bitset of enabled builtin includes.
+enum class BuiltinIncludes : uint8_t {
+    empty = 0,  //!< The empty set.
+    incmode = 1 //!< Enable the incremental mode.
+};
+//! Indicate that the builtin includes type is a bitset.
 CLINGO_ENABLE_BITSET_ENUM(BuiltinIncludes);
 
 //! A helper for parsing.
