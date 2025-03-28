@@ -8,6 +8,52 @@
 
 namespace Clingo::Python {
 
+namespace {
+
+using Value = std::variant<Symbol, int, double>;
+using AssignmentIterator = py::typing::Iterator<std::pair<Symbol, Value>>;
+class TheoryAssignment {
+  public:
+    TheoryAssignment(clingo_theory_t *theory, uint32_t thread_id) : theory_{theory}, thread_id_{thread_id} {
+        assert(theory_->assignment_next != nullptr || theory_->assignment_next != nullptr);
+    }
+    auto iter() -> AssignmentIterator { return py::cast(this); }
+    auto next() -> std::pair<Symbol, Value> {
+        if (has_value_) {
+            handle_error(theory_->assignment_next(theory_, thread_id_, &index_, &init_, nullptr));
+            clingo_theory_value_t value;
+            clingo_symbol_t symbol = 0;
+            handle_error(
+                theory_->assignment_get_value(theory_->self, thread_id_, index_, &symbol, &value, &has_value_));
+            if (has_value_) {
+                // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
+                switch (static_cast<clingo_theory_value_type_e>(value.type)) {
+                    case clingo_theory_value_type_int: {
+                        return {Symbol{symbol, true}, value.int_number};
+                    }
+                    case clingo_theory_value_type_double: {
+                        return {Symbol{symbol, true}, value.double_number};
+                    }
+                    case clingo_theory_value_type_symbol: {
+                        return {Symbol{symbol, true}, Symbol{value.symbol, true}};
+                    }
+                }
+            }
+        }
+        // NOLINTEND(cppcoreguidelines-pro-type-union-access)
+        throw py::stop_iteration{};
+    }
+
+  private:
+    clingo_theory_t *theory_;
+    uint32_t thread_id_;
+    bool init_ = true;
+    bool has_value_ = true;
+    size_t index_ = 0;
+};
+
+} // namespace
+
 class Theory {
   public:
     Theory(py::capsule ptr) : ptr_{std::move(ptr)}, theory_{static_cast<clingo_theory_t *>(ptr_.get_pointer())} {
@@ -91,7 +137,7 @@ class Theory {
         }
     }
 
-    auto value(uint32_t thread_id, Symbol &symbol) -> std::optional<std::variant<Symbol, int, double>> {
+    auto value(uint32_t thread_id, Symbol &symbol) -> std::optional<Value> {
         if (theory_->lookup_symbol != nullptr && theory_->assignment_get_value != nullptr) {
             size_t index = 0;
             bool found = false;
@@ -121,8 +167,15 @@ class Theory {
         return std::nullopt;
     }
 
-    // Python interface for assignments:
-    // - assignment(thread_id) -> iterable<tuple[Symbol, Symbol | int | float]>()
+    auto has_assignment() -> bool { return theory_->assignment_next != nullptr && theory_->assignment_next != nullptr; }
+
+    auto assignment(uint32_t thread_id) -> AssignmentIterator {
+        if (!has_assignment()) {
+            PyErr_SetString(PyExc_NotImplementedError, "info not implemented");
+            throw py::error_already_set();
+        }
+        return py::cast(TheoryAssignment{theory_, thread_id});
+    }
 
     using PyStatement = TypeHint<
         "clingo.ast.StatementRule | clingo.ast.StatementTheory | clingo.ast.StatementOptimize | "
@@ -162,6 +215,10 @@ void register_theory(pybind11::module &m) {
 This module allows for using theories implemented in C from Python.
 )"_d);
 
+    py::class_<TheoryAssignment>(theory, "_TheoryAssignment", "Internal class.")
+        .def("__iter__", &TheoryAssignment::iter, "Return self.")
+        .def("__next__", &TheoryAssignment::next, "Get the next symbol value pair.");
+
     py::class_<Theory>(theory, "Theory", R"(
 Object to call functions from a C-library implementing a custom theory.
 )"_d)
@@ -183,7 +240,7 @@ Args:
         .def("rewrite", &Theory::rewrite, py::arg("statement"), py::arg("callback"), R"(
 Rewrite the given statement and pass the result to the callback.
 
-Some theories require rewriting prior to adding a non-ground program to the
+Some theories require rewriting prior to adding a non-ground program to a
 control object.
 
 Args:
@@ -192,6 +249,9 @@ Args:
 )"_d)
         .def("configure", &Theory::configure, py::arg("name"), py::arg("value"), R"(
 Configure the theory using its name/value interface.
+
+It depends on the theory which keys are supported and when this function can be
+called.
 
 Args:
     key: The name of the option.
@@ -209,13 +269,18 @@ Check the registered options.
         .def("on_model", &Theory::on_model, py::arg("model"), R"(
 Notify the theory about the given model.
 
-Some theories extend the model here are set their internal assignments.
+Some theories extend the model here are set their internal assignments. This
+function should be called in the on_model callback of a control's solve
+function.
 
 Args:
     model: The current model.
 )"_d)
         .def("value", &Theory::value, py::arg("thread_id"), py::arg("symbol"), R"(
 Get the value of the symbol in the assignment of the given thread.
+
+It depends on the theory when this function can be called. Generally, it can be
+called after `on_model` while the solver is still holding its current model.
 
 Args:
     thread_id: The id of the thread to query.
@@ -224,8 +289,22 @@ Args:
 Returns:
     The value or None if unnassigned.
 )"_d)
+        .def("assignment", &Theory::assignment, py::arg("thread_id"), R"(
+Get the symbols and values currently assigned by the theory
+
+It depends on the theory when this function can be called. Generally, it can be
+called after `on_model` while the solver is still holding its current model.
+
+Args:
+    thread_id: The id of the thread to query.
+
+Returns:
+    An interable over symbol value pairs.
+)"_d)
         .def_property_readonly("version", &Theory::version, "Get the version of the theory (major, minor, revision).")
-        .def_property_readonly("name", &Theory::name, "Get the name of the theory.");
+        .def_property_readonly("name", &Theory::name, "Get the name of the theory.")
+        .def_property_readonly("has_assignment", &Theory::has_assignment,
+                               "Check whether the theory supports symbol value assigments.");
 }
 
 } // namespace Clingo::Python
