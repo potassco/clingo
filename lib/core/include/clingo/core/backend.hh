@@ -16,6 +16,8 @@ namespace Clingo {
 using prg_id_t = uint32_t;
 //! A span of ids.
 using PrgIdSpan = std::span<prg_id_t const>;
+//! A vector of ids.
+using PrgIdVec = std::vector<prg_id_t>;
 //! An signed version of `id_t`.
 using prg_sid_t = std::make_signed_t<prg_id_t>;
 //! A program literal.

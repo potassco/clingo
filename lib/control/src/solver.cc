@@ -251,6 +251,70 @@ class TheoryBackendImpl : public TheoryBackend {
     Clasp::Asp::LogicProgram *prg_;
 };
 
+//! Implementation of the theory backend interface.
+class TheoryBackendAdapter : public TheoryBackend {
+  public:
+    TheoryBackendAdapter(SymbolStore &store, Output::TheoryData &data) : store_{&store}, data_{&data} {}
+
+  private:
+    //! Get a remapped term.
+    auto term_(prg_id_t id) -> prg_id_t { return term_map_[id]; }
+
+    //! Get the remapped terms.
+    auto term_(PrgIdSpan span) {
+        Output::TheoryData::IdVec vec;
+        vec.reserve(span.size());
+        std::ranges::transform(span, std::back_inserter(vec), [this](auto id) { return term_(id); });
+        return vec;
+    }
+
+    //! Remap the old term to the new one.
+    void term_(prg_id_t id_old, prg_id_t id_new) { term_map_[id_old] = id_new; }
+
+    //! Get the remapped element.
+    auto elem_(prg_id_t id) -> prg_id_t { return elem_map_[id]; }
+
+    //! Get the remapped elements.
+    auto elem_(PrgIdSpan span) {
+        Output::TheoryData::IdVec vec;
+        vec.reserve(span.size());
+        std::ranges::transform(span, std::back_inserter(vec), [this](auto id) { return elem_(id); });
+        return vec;
+    }
+
+    //! Remap the old elem to the new one.
+    void elem_(prg_id_t id_old, prg_id_t id_new) { elem_map_[id_old] = id_new; }
+
+    void do_num(prg_id_t id, int32_t num) override { term_(id, data_->num(num)); }
+
+    void do_str(prg_id_t id, char const *str) override { term_(id, data_->str(*store_->string(str))); }
+
+    void do_fun(prg_id_t id, prg_id_t name, PrgIdSpan args) override {
+        assert(!args.empty());
+        term_(id, data_->fun(term_(name), term_(args)));
+    }
+
+    void do_tup(prg_id_t id, TheoryTermTupleType type, PrgIdSpan args) override {
+        term_(id, data_->tup(type, term_(args)));
+    }
+
+    void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) override { elem_(id, data_->elem(term_(terms), cond)); }
+
+    void do_atom(prg_lit_t lit_or_zero, prg_id_t name, PrgIdSpan elems,
+                 std::optional<std::pair<prg_id_t, prg_id_t>> guard) override {
+        if (guard) {
+            data_->atom(nullptr, name, elem_(elems), std::pair{term_(guard->first), term_(guard->second)});
+        } else {
+            data_->atom([lit_or_zero]() { return lit_or_zero; }, name, elem_(elems), std::nullopt);
+        }
+    }
+
+    SymbolStore *store_;
+    Output::TheoryData *data_;
+    Util::unordered_map<id_t, id_t> term_map_;
+    Util::unordered_map<id_t, id_t> elem_map_;
+};
+
 class ModelExtend : public Clasp::OutputTable::Theory {
   public:
     auto first([[maybe_unused]] const Clasp::Model &m) -> char const * override {

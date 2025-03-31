@@ -41,13 +41,21 @@ class TheoryData {
 
     //! Add a function term.
     //!
+    //! The given name must refer to a string.
+    //!
     //! @param name the name of the function
     //! @param args the arguments of the function
     //! @return the term id
-    auto fun(String name, IdVec args) -> prg_id_t;
+    auto fun(prg_id_t name, IdVec args) -> prg_id_t;
+    //! Overload for strings.
+    //!
+    //! @param name the name of the function
+    //! @param args the arguments of the function
+    //! @return the term id
+    auto fun(String name, IdVec args) -> prg_id_t { return fun(str(name), std::move(args)); }
 
-    //! Overload for spans.
-    auto fun(String name, PrgIdSpan args) -> prg_id_t { return fun(name, IdVec{args.begin(), args.end()}); }
+    //! Overload for strings and spans.
+    auto fun(String name, PrgIdSpan args) -> prg_id_t { return fun(str(name), IdVec{args.begin(), args.end()}); }
 
     //! Add a tuple term.
     //!
@@ -90,10 +98,14 @@ class TheoryData {
     //! @param elems the element ids
     //! @param guard the optional guard of the atom
     //! @return the literal of the theory atom
+    auto atom(std::function<prg_lit_t()> const &atom, prg_id_t name, IdVec elems,
+              std::optional<std::pair<prg_id_t, prg_id_t>> guard) -> prg_lit_t;
+
+    //! Overload for strings.
     auto atom(std::function<prg_lit_t()> const &atom, Symbol name, IdVec elems,
               std::optional<std::pair<String, prg_id_t>> guard) -> prg_lit_t;
 
-    //! Overload for spans.
+    //! Overload for strings and spans.
     auto atom(std::function<prg_lit_t()> const &atom, Symbol name, PrgIdSpan elems,
               std::optional<std::pair<String, prg_id_t>> guard) -> prg_lit_t {
         return this->atom(atom, name, IdVec{elems.begin(), elems.end()}, guard);

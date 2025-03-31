@@ -1634,11 +1634,11 @@ auto TheoryData::str(String str) -> prg_id_t {
     return it.value();
 }
 
-auto TheoryData::fun(String name, IdVec args) -> prg_id_t {
+auto TheoryData::fun(prg_id_t name, IdVec args) -> prg_id_t {
     if (args.empty()) {
-        return str(name);
+        return name;
     }
-    auto [it, ins] = insert_(funs_, std::pair{str(name), std::move(args)});
+    auto [it, ins] = insert_(funs_, std::pair{name, std::move(args)});
     if (ins) {
         backend_->fun(it.value(), it.key().first, it.key().second);
     }
@@ -1702,20 +1702,21 @@ auto TheoryData::elem(IdVec tuple, LitVec cond) -> prg_id_t {
     return it.value();
 }
 
-auto TheoryData::atom(std::function<prg_lit_t()> const &atom, Symbol name, IdVec elems,
-                      std::optional<std::pair<String, prg_id_t>> guard) -> prg_lit_t {
-    auto [it, ins] = atoms_.emplace(
-        std::tuple{sym(name), std::move(elems),
-                   Util::transform(guard,
-                                   [this](auto const &guard) {
-                                       return std::pair{str(guard.first), static_cast<prg_id_t>(guard.second)};
-                                   })},
-        0);
+auto TheoryData::atom(std::function<prg_lit_t()> const &atom, prg_id_t name, IdVec elems,
+                      std::optional<std::pair<prg_id_t, prg_id_t>> guard) -> prg_lit_t {
+    auto [it, ins] = atoms_.emplace(std::tuple{name, std::move(elems), guard}, 0);
     if (ins) {
         it.value() = atom();
         backend_->atom(it.value(), get<0>(it.key()), get<1>(it.key()), get<2>(it.key()));
     }
     return it.value();
+}
+auto TheoryData::atom(std::function<prg_lit_t()> const &atom, Symbol name, IdVec elems,
+                      std::optional<std::pair<String, prg_id_t>> guard) -> prg_lit_t {
+    auto name_id = sym(name);
+    auto guard_id = Util::transform(
+        guard, [this](auto const &guard) { return std::pair{str(guard.first), static_cast<prg_id_t>(guard.second)}; });
+    return this->atom(atom, name_id, std::move(elems), guard_id);
 }
 
 void TheoryData::reset() noexcept {
