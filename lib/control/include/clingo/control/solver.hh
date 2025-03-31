@@ -108,10 +108,10 @@ class BaseView {
 class SolveControl : public BaseView {
   public:
     //! Add a clause over the given literal.
-    void add_clause(Output::LitSpan lits) { do_add_clause(lits); }
+    void add_clause(PrgLitSpan lits) { do_add_clause(lits); }
 
   private:
-    virtual void do_add_clause(Output::LitSpan lits) = 0;
+    virtual void do_add_clause(PrgLitSpan lits) = 0;
 };
 
 //! The model class.
@@ -141,20 +141,20 @@ class Model {
     //!
     //! @param lit the program literal
     //! @return whether the literal is true
-    [[nodiscard]] auto is_true(Output::lit_t lit) const -> bool { return do_is_true(lit); }
+    [[nodiscard]] auto is_true(prg_lit_t lit) const -> bool { return do_is_true(lit); }
     //! Check whether the given literal is a consequence.
     //!
     //! @param lit the literal to check
     //! @return whether the literal is a consequence
-    [[nodiscard]] auto is_consequence(Output::lit_t lit) const -> ConsequenceType { return do_is_consequence(lit); }
+    [[nodiscard]] auto is_consequence(prg_lit_t lit) const -> ConsequenceType { return do_is_consequence(lit); }
     //! Get the costs associated with a model.
     //!
     //! @return the costs
-    [[nodiscard]] auto costs() const -> std::span<Output::sum_t const> { return do_costs(); }
+    [[nodiscard]] auto costs() const -> std::span<prg_sum_t const> { return do_costs(); }
     //! get the priorities of the costs.
     //!
     //! @return the priorities
-    [[nodiscard]] auto priorities() const -> std::span<Output::weight_t const> { return do_priorities(); }
+    [[nodiscard]] auto priorities() const -> std::span<prg_weight_t const> { return do_priorities(); }
     //! Check if the model corresponds to an optimal solution.
     //!
     //! @return whether the model is optimal
@@ -162,7 +162,7 @@ class Model {
     //! Get the solver/thread id the model was found in.
     //!
     //! @return the thread id
-    [[nodiscard]] auto thread_id() const -> Output::id_t { return do_thread_id(); }
+    [[nodiscard]] auto thread_id() const -> prg_id_t { return do_thread_id(); }
     //! Get the context object to control the search.
     //!
     //! @return the context object
@@ -177,12 +177,12 @@ class Model {
     [[nodiscard]] virtual auto do_type() const -> ModelType = 0;
     [[nodiscard]] virtual auto do_contains(Symbol sym) const -> bool = 0;
     virtual void do_extend(SymbolSpan symbols) = 0;
-    [[nodiscard]] virtual auto do_is_true(Output::lit_t lit) const -> bool = 0;
-    [[nodiscard]] virtual auto do_is_consequence(Output::lit_t lit) const -> ConsequenceType = 0;
-    [[nodiscard]] virtual auto do_costs() const -> std::span<Output::sum_t const> = 0;
-    [[nodiscard]] virtual auto do_priorities() const -> std::span<Output::weight_t const> = 0;
+    [[nodiscard]] virtual auto do_is_true(prg_lit_t lit) const -> bool = 0;
+    [[nodiscard]] virtual auto do_is_consequence(prg_lit_t lit) const -> ConsequenceType = 0;
+    [[nodiscard]] virtual auto do_costs() const -> std::span<prg_sum_t const> = 0;
+    [[nodiscard]] virtual auto do_priorities() const -> std::span<prg_weight_t const> = 0;
     [[nodiscard]] virtual auto do_optimality_proven() const -> bool = 0;
-    [[nodiscard]] virtual auto do_thread_id() const -> Output::id_t = 0;
+    [[nodiscard]] virtual auto do_thread_id() const -> prg_id_t = 0;
     [[nodiscard]] virtual auto do_control() -> SolveControl & = 0;
 };
 //! A unique pointer to a model.
@@ -246,7 +246,7 @@ class SolveHandle {
     //! subset minimal.
     //!
     //! @return the core
-    auto core() -> Output::LitSpan { return do_core(); }
+    auto core() -> PrgLitSpan { return do_core(); }
     //! Wait for the given amount of time or until the next result is ready.
     //!
     //! The next result is either a model (if yielding was enabled) or a solve
@@ -264,7 +264,7 @@ class SolveHandle {
     virtual void do_resume() = 0;
     virtual auto do_model() -> Model const * = 0;
     virtual auto do_last() -> Model const * = 0;
-    virtual auto do_core() -> Output::LitSpan = 0;
+    virtual auto do_core() -> PrgLitSpan = 0;
     virtual auto do_wait(double timeout) -> bool = 0;
 };
 //! A unique pointer for a solve handle.
@@ -363,7 +363,7 @@ class BackendHandle {
     //!
     //! @param atom the symbol
     //! @return the literal of the symbolic atom
-    [[nodiscard]] auto add_atom(Symbol atom) -> Output::lit_t { return do_add_atom(atom); }
+    [[nodiscard]] auto add_atom(Symbol atom) -> prg_lit_t { return do_add_atom(atom); }
     //! Close the handle.
     //!
     //! This functions must be called before continuing to use the associated
@@ -376,7 +376,7 @@ class BackendHandle {
     virtual auto do_program() -> Clasp::Asp::LogicProgram & = 0;
     virtual auto do_theory() -> Output::TheoryData & = 0;
     virtual auto do_store() -> SymbolStore & = 0;
-    virtual auto do_add_atom(Symbol atom) -> Output::lit_t = 0;
+    virtual auto do_add_atom(Symbol atom) -> prg_lit_t = 0;
     virtual void do_close() = 0;
 };
 //! A unique pointer to a backend handle.
@@ -469,7 +469,7 @@ class Solver : public BaseView {
     //! @param assumptions assumptions for solving
     //! @param mode mode for solving
     //! @return solve handle to control the search
-    auto solve(UEventHandler handler = {}, Output::LitSpan assumptions = {}, SolveMode mode = SolveMode::none)
+    auto solve(UEventHandler handler = {}, PrgLitSpan assumptions = {}, SolveMode mode = SolveMode::none)
         -> USolveHandle;
 
     //! Output the current unprocessed program.
@@ -570,7 +570,7 @@ class Solver : public BaseView {
     Clasp::ClaspFacade *clasp_;
     Clasp::Cli::ClaspCliConfig *clasp_config_;
     Util::OutputBuffer buf_;
-    Output::UProgramBackend backend_;
+    UProgramBackend backend_;
     std::unique_ptr<Output::TheoryData> theory_;
     UOutputStm out_;
     UModel mdl_;

@@ -18,19 +18,19 @@ namespace Clingo::Control {
 namespace {
 
 //! Implementation of the backend interface.
-class ProgramBackendImpl : public Output::ProgramBackend {
+class ProgramBackendImpl : public ProgramBackend {
   public:
     ProgramBackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
 
   private:
-    auto do_next_lit() -> Output::lit_t override {
-        if (auto lit = prg_->newAtom(); std::cmp_less_equal(lit, Output::lit_max)) {
-            return static_cast<Output::lit_t>(lit);
+    auto do_next_lit() -> prg_lit_t override {
+        if (auto lit = prg_->newAtom(); std::cmp_less_equal(lit, prg_lit_max)) {
+            return static_cast<prg_lit_t>(lit);
         }
         throw std::range_error("literals number of literals exhausted");
     }
 
-    void do_rule(Output::LitSpan head, Output::LitSpan body, bool choice) override {
+    void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
         bld_.clear();
         bld_.start(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive);
 #ifdef DEBUG_BACKEND
@@ -48,7 +48,7 @@ class ProgramBackendImpl : public Output::ProgramBackend {
         prg_->addRule(bld_);
     }
 
-    void do_bd_aggr(Output::lit_t head, Output::WeightedLitSpan body, Output::weight_t bound) override {
+    void do_bd_aggr(prg_lit_t head, WeightedPrgLitSpan body, prg_weight_t bound) override {
         assert(head > 0);
         assert(bound > 0);
         bld_.clear();
@@ -68,10 +68,9 @@ class ProgramBackendImpl : public Output::ProgramBackend {
 #endif
     }
 
-    void do_edge(Output::id_t u, Output::id_t v, Output::LitSpan body) override { prg_->addAcycEdge(u, v, body); }
+    void do_edge(prg_id_t u, prg_id_t v, PrgLitSpan body) override { prg_->addAcycEdge(u, v, body); }
 
-    void do_heuristic(Output::lit_t atom, int32_t weight, int32_t prio, HeuristicType type,
-                      Output::LitSpan body) override {
+    void do_heuristic(prg_lit_t atom, int32_t weight, int32_t prio, HeuristicType type, PrgLitSpan body) override {
         assert(atom > 0);
         auto dmod = [type] {
             switch (type) {
@@ -99,7 +98,7 @@ class ProgramBackendImpl : public Output::ProgramBackend {
         prg_->addDomHeuristic(atom, dmod, weight, prio, body);
     }
 
-    void do_external(Output::lit_t atom, ExternalType type) override {
+    void do_external(prg_lit_t atom, ExternalType type) override {
         auto value = [type] {
             switch (type) {
                 case ExternalType::true_: {
@@ -120,13 +119,13 @@ class ProgramBackendImpl : public Output::ProgramBackend {
         prg_->addExternal(atom, value);
     }
 
-    void do_project(Output::lit_t atom) override { prg_->addProject(std::array{static_cast<Potassco::Atom_t>(atom)}); }
+    void do_project(prg_lit_t atom) override { prg_->addProject(std::array{static_cast<Potassco::Atom_t>(atom)}); }
 
-    void do_minimize(Output::lit_t lit, Output::weight_t weight, Output::weight_t priority) override {
+    void do_minimize(prg_lit_t lit, prg_weight_t weight, prg_weight_t priority) override {
         prg_->addMinimize(priority, std::array{Potassco::WeightLit{lit, weight}});
     }
 
-    void do_show(Symbol sym, Output::LitSpan body) override {
+    void do_show(Symbol sym, PrgLitSpan body) override {
         buf_.reset();
         buf_ << sym;
         prg_->addOutput(buf_.c_str(), body);
@@ -135,7 +134,7 @@ class ProgramBackendImpl : public Output::ProgramBackend {
 #endif
     }
 
-    void do_show_atom(Symbol sym, Output::lit_t lit) override {
+    void do_show_atom(Symbol sym, prg_lit_t lit) override {
         assert(lit > 0);
         buf_.reset();
         buf_ << sym;
@@ -151,21 +150,21 @@ class ProgramBackendImpl : public Output::ProgramBackend {
 };
 
 //! Implementation of the theory backend interface.
-class TheoryBackendImpl : public Output::TheoryBackend {
+class TheoryBackendImpl : public TheoryBackend {
   public:
     TheoryBackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
 
   private:
-    void do_num(Output::id_t id, int32_t num) override { prg_->theoryData().addTerm(id, num); }
+    void do_num(prg_id_t id, int32_t num) override { prg_->theoryData().addTerm(id, num); }
 
-    void do_str(Output::id_t id, char const *str) override { prg_->theoryData().addTerm(id, str); }
+    void do_str(prg_id_t id, char const *str) override { prg_->theoryData().addTerm(id, str); }
 
-    void do_fun(Output::id_t id, Output::id_t name, Output::IdSpan args) override {
+    void do_fun(prg_id_t id, prg_id_t name, PrgIdSpan args) override {
         assert(!args.empty());
         prg_->theoryData().addTerm(id, name, args);
     }
 
-    void do_tup(Output::id_t id, TheoryTermTupleType type, Output::IdSpan args) override {
+    void do_tup(prg_id_t id, TheoryTermTupleType type, PrgIdSpan args) override {
         prg_->theoryData().addTerm(
             id,
             [type] {
@@ -185,7 +184,7 @@ class TheoryBackendImpl : public Output::TheoryBackend {
             args);
     }
 
-    void do_elem(Output::id_t id, Output::IdSpan terms, Output::LitSpan cond) override {
+    void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) override {
         prg_->theoryData().addElement(id, terms, prg_->newCondition(cond));
     }
 
@@ -235,8 +234,8 @@ class TheoryBackendImpl : public Output::TheoryBackend {
     }
 #endif
 
-    void do_atom(Output::lit_t lit_or_zero, Output::id_t name, Output::IdSpan elems,
-                 std::optional<std::pair<Output::id_t, Output::id_t>> guard) override {
+    void do_atom(prg_lit_t lit_or_zero, prg_id_t name, PrgIdSpan elems,
+                 std::optional<std::pair<prg_id_t, prg_id_t>> guard) override {
         if (guard) {
             prg_->theoryData().addAtom(lit_or_zero, name, elems, guard->first, guard->second);
         } else {
@@ -367,12 +366,12 @@ class ModelImpl : public Model, private SolveControl {
 
     void do_extend(SymbolSpan symbols) override { extend_.add(symbols); }
 
-    [[nodiscard]] auto do_is_true(Output::lit_t lit) const -> bool override {
+    [[nodiscard]] auto do_is_true(prg_lit_t lit) const -> bool override {
         assert(mdl_ != nullptr);
         return mdl_->isTrue(solver_literal(lit));
     }
 
-    [[nodiscard]] auto do_is_consequence(Output::lit_t lit) const -> ConsequenceType override {
+    [[nodiscard]] auto do_is_consequence(prg_lit_t lit) const -> ConsequenceType override {
         assert(mdl_ != nullptr);
         switch (Clasp::Asp::isConsequence(clasp_program(), lit, *mdl_)) {
             case Clasp::value_true: {
@@ -387,15 +386,15 @@ class ModelImpl : public Model, private SolveControl {
         }
     }
 
-    [[nodiscard]] auto do_costs() const -> std::span<Output::sum_t const> override {
+    [[nodiscard]] auto do_costs() const -> std::span<prg_sum_t const> override {
         assert(mdl_ != nullptr);
         return mdl_->costs;
     }
 
-    [[nodiscard]] auto do_priorities() const -> std::span<Output::weight_t const> override {
+    [[nodiscard]] auto do_priorities() const -> std::span<prg_weight_t const> override {
         assert(mdl_ != nullptr && mdl_->ctx != nullptr);
         auto const *m = mdl_->ctx->minimizer();
-        return m != nullptr ? m->prios : std::span<Output::weight_t const>{};
+        return m != nullptr ? m->prios : std::span<prg_weight_t const>{};
     }
 
     [[nodiscard]] auto do_optimality_proven() const -> bool override {
@@ -403,14 +402,14 @@ class ModelImpl : public Model, private SolveControl {
         return mdl_->opt;
     }
 
-    [[nodiscard]] auto do_thread_id() const -> Output::id_t override {
+    [[nodiscard]] auto do_thread_id() const -> prg_id_t override {
         assert(mdl_ != nullptr);
         return mdl_->sId;
     }
 
     [[nodiscard]] auto do_control() -> SolveControl & override { return *this; }
 
-    void do_add_clause(Output::LitSpan lits) override {
+    void do_add_clause(PrgLitSpan lits) override {
         assert(mdl_ != nullptr);
         lits_.clear();
         lits_.reserve(lits.size());
@@ -428,7 +427,7 @@ class ModelImpl : public Model, private SolveControl {
 
     //! Map the given program literal to its solver literal.
     [[nodiscard]] auto solver_literal(std::integral auto lit) const -> Clasp::Literal {
-        return Clasp::Asp::solverLiteral(clasp_program(), static_cast<Output::lit_t>(lit));
+        return Clasp::Asp::solverLiteral(clasp_program(), static_cast<prg_lit_t>(lit));
     }
 
     Ground::Bases const *bases_;
@@ -564,7 +563,7 @@ class SolveHandleFixed : public SolveHandle {
     void do_resume() override {}
     auto do_model() -> Model const * override { return nullptr; }
     auto do_last() -> Model const * override { return nullptr; }
-    auto do_core() -> Output::LitSpan override { return {}; }
+    auto do_core() -> PrgLitSpan override { return {}; }
     auto do_wait([[maybe_unused]] double timeout) -> bool override { return true; }
 };
 
@@ -616,7 +615,7 @@ class SolveHandleImpl : public SolveHandle {
         return eh_.model().set_model(hnd_.model()) ? &eh_.model() : nullptr;
     }
     auto do_last() -> Model const * override { return eh_.model().set_last() ? &eh_.model() : nullptr; }
-    auto do_core() -> Output::LitSpan override {
+    auto do_core() -> PrgLitSpan override {
         auto const &clasp = eh_.model().clasp();
         core_.clear();
         if (auto core = clasp.summary().unsatCore(); !core.empty()) {
@@ -839,7 +838,7 @@ auto Solver::map_model(Clasp::Model const &mdl) -> Model & {
     return *mdl_;
 }
 
-auto Solver::solve(UEventHandler handler, Output::LitSpan assumptions, SolveMode mode) -> USolveHandle {
+auto Solver::solve(UEventHandler handler, PrgLitSpan assumptions, SolveMode mode) -> USolveHandle {
     if (mode_ == AppMode::solve) {
         auto guard = unlock_guard{lock_};
         if (state_ == State::solved || state_ == State::initial) {
@@ -907,7 +906,7 @@ namespace {
 
 class BackendHandleImpl : public BackendHandle {
   public:
-    BackendHandleImpl(Grounder &grounder, Output::ProgramBackend &backend, Clasp::Asp::LogicProgram &prg,
+    BackendHandleImpl(Grounder &grounder, ProgramBackend &backend, Clasp::Asp::LogicProgram &prg,
                       Output::TheoryData &theory)
         : grounder_{&grounder}, backend_{&backend}, prg_{&prg}, theory_{&theory} {}
     ~BackendHandleImpl() override { close(); }
@@ -919,13 +918,13 @@ class BackendHandleImpl : public BackendHandle {
 
     auto do_store() -> SymbolStore & override { return grounder_->store(); }
 
-    auto do_add_atom(Symbol atom) -> Output::lit_t override {
+    auto do_add_atom(Symbol atom) -> prg_lit_t override {
         if (auto sig = atom.signature(); sig && grounder_ != nullptr) {
             auto &base = grounder_->base().add_base(*sig);
             auto ret = base.add(atom, Ground::StateAtom::derived,
                                 [this]() { return static_cast<size_t>(backend_->next_lit()); })
                            .first;
-            auto lit = static_cast<Output::lit_t>(ret.value().id);
+            auto lit = static_cast<prg_lit_t>(ret.value().id);
             if (ret.value().state != Ground::StateAtom::fact) {
                 added_.emplace_back(lit, ret.key());
             }
@@ -953,10 +952,10 @@ class BackendHandleImpl : public BackendHandle {
     }
 
     Grounder *grounder_;
-    Output::ProgramBackend *backend_;
+    ProgramBackend *backend_;
     Clasp::Asp::LogicProgram *prg_;
     Output::TheoryData *theory_;
-    std::vector<std::pair<Output::lit_t, Symbol>> added_;
+    std::vector<std::pair<prg_lit_t, Symbol>> added_;
 };
 
 } // namespace

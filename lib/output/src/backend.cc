@@ -40,7 +40,7 @@ constexpr auto invalid_id = std::numeric_limits<size_t>::max();
 struct LitInfo {
     size_t scc = 0;             //!< component number
     size_t clause = invalid_id; //!< associated clause index
-    lit_t neg = 0;              //!< associated negative literal
+    prg_lit_t neg = 0;          //!< associated negative literal
     EQType type = EQType::none; //!< equivalence type of the associated clause
 };
 
@@ -50,7 +50,7 @@ struct LitInfo {
 //!
 //! @param uid the uid to convert
 //! @return the resulting literal
-auto uid_to_lit(size_t uid) -> lit_t {
+auto uid_to_lit(size_t uid) -> prg_lit_t {
     assert(uid != 0);
     return static_cast<int32_t>(uid);
 }
@@ -61,7 +61,7 @@ auto uid_to_lit(size_t uid) -> lit_t {
 //!
 //! @param uid the uid to convert
 //! @return the resulting literal
-auto uid_to_atom(size_t uid) -> lit_t {
+auto uid_to_atom(size_t uid) -> prg_lit_t {
     assert(static_cast<int32_t>(uid) > 0);
     return static_cast<int32_t>(uid);
 }
@@ -122,7 +122,7 @@ class BuilderBase {
     //! Return a fresh literal.
     //!
     //! @return the fresh literal
-    auto next_lit() -> Output::lit_t { return backend_->next_lit(); }
+    auto next_lit() -> prg_lit_t { return backend_->next_lit(); }
 
     //! Negate the given literal.
     //!
@@ -132,8 +132,8 @@ class BuilderBase {
     //!
     //! @param lit the literal to negate
     //! @return the negated literal
-    auto negate(lit_t lit) -> lit_t {
-        assert(lit != 0 && lit >= lit_min);
+    auto negate(prg_lit_t lit) -> prg_lit_t {
+        assert(lit != 0 && lit >= prg_lit_min);
         if (lit > 0) {
             return -lit;
         }
@@ -149,7 +149,7 @@ class BuilderBase {
     //!
     //! @param lits the literals
     //! @return an equivalent literal
-    auto cond(LitSpan lits) -> lit_t { return clause(lits, ClauseType::conjunctive); }
+    auto cond(PrgLitSpan lits) -> prg_lit_t { return clause(lits, ClauseType::conjunctive); }
 
     //! Get the conjunction of literals equivalent to the given literal.
     //!
@@ -158,7 +158,7 @@ class BuilderBase {
     //!
     //! @param lit the literal
     //! @return the associated literals
-    auto cond(lit_t const &lit) -> LitSpan {
+    auto cond(prg_lit_t const &lit) -> PrgLitSpan {
         if (lit > 0) {
             if (auto &li = info(lit); li.clause != invalid_id) {
                 auto it = clauses_.nth(li.clause);
@@ -195,10 +195,10 @@ class BuilderBase {
     //! This function should be the last translation function called so that
     //! prior ones can add additional clauses if necessary.
     auto tr() {
-        auto todo = LitVec{};
-        auto hd = LitVec{};
-        auto bd = LitVec{};
-        auto mark = [&todo, this](lit_t lit) {
+        auto todo = PrgLitVec{};
+        auto hd = PrgLitVec{};
+        auto bd = PrgLitVec{};
+        auto mark = [&todo, this](prg_lit_t lit) {
             assert(lit > 0);
             if (auto &li = info(lit); li.type != EQType::none) {
                 for (auto const &clit : clauses_.nth(li.clause).key().first) {
@@ -281,7 +281,7 @@ class BuilderBase {
     //! @param lit the literal to mark
     //! @param type the type of the equivalence
     //! @return whether the literal has been marked with a stricter type
-    auto mark(lit_t lit, EQType type) -> bool {
+    auto mark(prg_lit_t lit, EQType type) -> bool {
         auto atm = std::abs(lit);
         if (lit < 0) {
             type = std::max(type, EQType::implication);
@@ -302,7 +302,7 @@ class BuilderBase {
     //! @param type the type of the clause
     //! @param add_edges whether to add dependency edges
     //! @return the Tseitin literal
-    auto clause(LitSpan lits, ClauseType type, bool add_edges = true) -> lit_t {
+    auto clause(PrgLitSpan lits, ClauseType type, bool add_edges = true) -> prg_lit_t {
         lits_.assign(lits.begin(), lits.end());
         std::ranges::sort(lits_);
         lits_.erase(std::ranges::unique(lits_).begin(), lits_.end());
@@ -326,7 +326,7 @@ class BuilderBase {
     //!
     //! @param name the name
     //! @return the id of the vertex
-    auto vertex(Symbol name) -> id_t {
+    auto vertex(Symbol name) -> prg_id_t {
         auto [it, ins] = vertices_.emplace(name, vertices_.size());
         if (ins && vertices_.size() > 1 && it.value() == 0) {
             throw std::range_error("maximum number of vertices exceeded");
@@ -346,9 +346,9 @@ class BuilderBase {
     //!
     //! @param lit the literal
     //! @return a reference to the info
-    [[nodiscard]] auto info(lit_t lit) -> LitInfo & {
+    [[nodiscard]] auto info(prg_lit_t lit) -> LitInfo & {
         assert(lit > 0);
-        while (static_cast<lit_t>(infos_.size()) < lit) {
+        while (static_cast<prg_lit_t>(infos_.size()) < lit) {
             infos_.emplace_back();
         }
         return infos_[lit - 1];
@@ -359,7 +359,7 @@ class BuilderBase {
     //! Returns false if one of the literals is negativ.
     //!
     //! @return the Boolean result
-    [[nodiscard]] auto in_cycle(lit_t a, lit_t b) -> bool {
+    [[nodiscard]] auto in_cycle(prg_lit_t a, prg_lit_t b) -> bool {
         if (a > 0 && b > 0) {
             auto scc = info(a).scc;
             return scc > 0 && scc == info(b).scc;
@@ -369,12 +369,12 @@ class BuilderBase {
 
   private:
     using LitInfoVec = std::vector<LitInfo>;
-    using ClauseLitMap = Util::ordered_map<std::pair<Output::LitVec, ClauseType>, lit_t>;
-    using VertexMap = Util::unordered_map<SharedSymbol, Output::id_t>;
+    using ClauseLitMap = Util::ordered_map<std::pair<PrgLitVec, ClauseType>, prg_lit_t>;
+    using VertexMap = Util::unordered_map<SharedSymbol, prg_id_t>;
 
     SymbolStore *store_;
     ProgramBackend *backend_;
-    Output::LitVec lits_;
+    PrgLitVec lits_;
     Util::Graph graph_;
     LitInfoVec infos_;
     ClauseLitMap clauses_;
@@ -392,7 +392,7 @@ class BuilderRule {
     //! @param head the literals forming the head
     //! @param body the literals forming the body
     //! @param choice whether the rule is a choice or disjunctive rule
-    void add(BuilderBase &bld, LitSpan head, LitSpan body, bool choice) {
+    void add(BuilderBase &bld, PrgLitSpan head, PrgLitSpan body, bool choice) {
         hd_.clear();
         hd_.reserve(head.size());
         bd_.clear();
@@ -414,8 +414,8 @@ class BuilderRule {
     }
 
   private:
-    Output::LitVec hd_;
-    Output::LitVec bd_;
+    PrgLitVec hd_;
+    PrgLitVec bd_;
 };
 
 //! Builder for min and max aggregates.
@@ -448,7 +448,7 @@ template <class Sym> class BuilderMinMax {
     //! @param lit the Tseitin literal of the aggregate
     //! @param elems the aggregates elements
     //! @param guards the guards of the aggregate
-    void add(BuilderBase &bld, lit_t lit, OutputStm::BdElemSpan elems, OutputStm::GuardSpan guards) {
+    void add(BuilderBase &bld, prg_lit_t lit, OutputStm::BdElemSpan elems, OutputStm::GuardSpan guards) {
         assert(lit > 0);
         auto [lower, upper, bounds] = analyze_(bld, elems, guards);
         lits_.clear();
@@ -506,7 +506,7 @@ template <class Sym> class BuilderMinMax {
 
   private:
     //! A vector of sum aggregates.
-    using DelayedVec = std::vector<std::tuple<lit_t, bool, LitVec, IndexVec>>;
+    using DelayedVec = std::vector<std::tuple<prg_lit_t, bool, PrgLitVec, IndexVec>>;
 
     //! Simplify and analyze min and max aggregates.
     //!
@@ -613,7 +613,7 @@ template <class Sym> class BuilderMinMax {
     //! @param lits the literals in the sequence
     //! @param ids the start indices of the alternating T/F in the sequence
     //! @param delayed whether translation was delayed
-    void tr_(BuilderBase &bld, lit_t lit, bool start, LitVec const &lits, IndexVec const &ids, bool delayed) {
+    void tr_(BuilderBase &bld, prg_lit_t lit, bool start, PrgLitVec const &lits, IndexVec const &ids, bool delayed) {
         assert(!ids.empty() && lits.size() == ids.back() && lit > 0);
         auto get_span = [&lits = lits](auto it) {
             return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
@@ -663,15 +663,15 @@ template <class Sym> class BuilderMinMax {
     //! Aggregates for translation once dependency info is available.
     DelayedVec delayed_;
     //! Vector produced as a side-effect by analyze_ to avoid allocations.
-    std::vector<std::pair<Sym, lit_t>> elems_;
+    std::vector<std::pair<Sym, prg_lit_t>> elems_;
     //! Map used by `analyze_` to avoid allocations.
     Util::unordered_map<IndexSpan, size_t> cond_map_;
     //! Vector used by `add` and `analyze_` to avoid allocations.
-    LitVec lits_;
+    PrgLitVec lits_;
     //! Vector used by `add` to avoid allocations.
     IndexVec ids_;
     //! Vector used by `tr_` to avoid allocations.
-    LitVec tr_lits_;
+    PrgLitVec tr_lits_;
 };
 
 //! A builder for sum aggregates taking dependency info into account.
@@ -683,7 +683,7 @@ class BuilderSum {
     //! @param lit the Tseitin literal of the aggregate
     //! @param elems the elements of the aggregate
     //! @param guards the guards of the aggregate
-    void add(BuilderBase &bld, lit_t lit, OutputStm::BdElemSpan elems, OutputStm::GuardSpan guards) {
+    void add(BuilderBase &bld, prg_lit_t lit, OutputStm::BdElemSpan elems, OutputStm::GuardSpan guards) {
         auto [range, bounds, type] = analyze_(bld, elems, guards);
         if (bounds.contains(range)) {
             rule_.add(bld, std::array{lit}, {}, false);
@@ -735,14 +735,14 @@ class BuilderSum {
     //!
     //! @param bld the base builder
     void tr(BuilderBase &bld) {
-        auto nlits = std::vector<lit_t>{};
-        auto wlits = std::vector<std::pair<lit_t, weight_t>>{};
+        auto nlits = std::vector<prg_lit_t>{};
+        auto wlits = std::vector<std::pair<prg_lit_t, prg_weight_t>>{};
         auto flits = SumElemVec{};
 
         for (auto &[lit, elems, range, bounds] : delayed_) {
             assert(lit > 0);
             // check which kind of literals are cyclic
-            auto is_recursive = [lit, &bld](lit_t clit) { return bld.in_cycle(lit, clit); };
+            auto is_recursive = [lit, &bld](prg_lit_t clit) { return bld.in_cycle(lit, clit); };
             auto has_pos_cycle = false; // cycle through atom with *positive* weight
             auto has_neg_cycle = false; // cycle through atom with *negative* weight
             if (bld.info(lit).scc > 0) {
@@ -767,7 +767,7 @@ class BuilderSum {
                 return flits;
             };
             nlits.assign(elems.size(), 0);
-            auto translate = [&](lit_t lit, SumElemVec const &elems, Number bound) {
+            auto translate = [&](prg_lit_t lit, SumElemVec const &elems, Number bound) {
                 assert(lit > 0);
                 wlits.clear();
                 wlits.reserve(elems.size());
@@ -852,11 +852,11 @@ class BuilderSum {
   private:
     using NumberSet = Util::interval_set<Number>;
     //! A sum aggregate element.
-    using SumElem = std::pair<Number, lit_t>;
+    using SumElem = std::pair<Number, prg_lit_t>;
     //! A vector of sum aggregate elements.
     using SumElemVec = std::vector<SumElem>;
     //! A vector of sum aggregates.
-    using SumVec = std::vector<std::tuple<lit_t, SumElemVec, NumberSet::interval, NumberSet>>;
+    using SumVec = std::vector<std::tuple<prg_lit_t, SumElemVec, NumberSet::interval, NumberSet>>;
 
     //! Which weights have to be considered for cycle computation.
     enum class CycleType : uint8_t { none, positive, negative, both };
@@ -979,7 +979,7 @@ class BuilderSum {
     BuilderRule rule_;
     SumElemVec elems_;
     Util::unordered_map<IndexSpan, size_t> cond_map_;
-    LitVec lits_;
+    PrgLitVec lits_;
 };
 
 //! Builder for conditional literals in rule bodies.
@@ -994,7 +994,7 @@ class BuilderCondLit {
     //! @param bld the base builder
     //! @param lit the Tseitin literal of the conditional literal
     //! @param elems the elements forming the conditional literal
-    void add(BuilderBase &bld, lit_t lit, OutputStm::CondLitSpan elems) {
+    void add(BuilderBase &bld, prg_lit_t lit, OutputStm::CondLitSpan elems) {
         assert(lit > 0);
         elems_.clear();
         bool simple = true;
@@ -1023,16 +1023,16 @@ class BuilderCondLit {
     }
 
   private:
-    using CondLitElem = std::pair<std::optional<lit_t>, lit_t>;
+    using CondLitElem = std::pair<std::optional<prg_lit_t>, prg_lit_t>;
     using CondLitElemVec = std::vector<CondLitElem>;
-    using CondLitVec = std::vector<std::pair<lit_t, CondLitElemVec>>;
+    using CondLitVec = std::vector<std::pair<prg_lit_t, CondLitElemVec>>;
 
     //! Translate a single conditional literal.
     //!
     //! @param bld the base builder
     //! @param lit the Tseitin literal of the conditional literal
     //! @param elems the elements of the conditional literal
-    void tr_(BuilderBase &bld, lit_t lit, CondLitElemVec const &elems) {
+    void tr_(BuilderBase &bld, prg_lit_t lit, CondLitElemVec const &elems) {
         lits_.clear();
         lits_.reserve(elems.size());
         // Below, we us the following variable names:
@@ -1065,7 +1065,7 @@ class BuilderCondLit {
     }
 
     CondLitVec delayed_;
-    Output::LitVec lits_;
+    PrgLitVec lits_;
     CondLitElemVec elems_;
 };
 
@@ -1084,7 +1084,7 @@ class BuilderDisjunction {
     //! @param bld the base builder
     //! @param lit the Tseitin literal of the rule body
     //! @param elems the literals to derive
-    void add(BuilderBase &bld, lit_t lit, DisjElemSpan elems) {
+    void add(BuilderBase &bld, prg_lit_t lit, DisjElemSpan elems) {
         // example:
         //   a : c | b :- B.
         // shift:
@@ -1167,11 +1167,11 @@ class BuilderDisjunction {
     //! @param bld the base builder
     void tr(BuilderBase &bld) {
         auto hd_counts = Util::unordered_map<size_t, size_t>{};
-        auto in_head_cycle = [&hd_counts, &bld](lit_t lit) {
+        auto in_head_cycle = [&hd_counts, &bld](prg_lit_t lit) {
             auto scc = bld.info(lit).scc;
             return scc > 0 && hd_counts.find(scc).value() > 0;
         };
-        auto init_head_cycle = [&hd_counts, &bld](LitVec const &hd) {
+        auto init_head_cycle = [&hd_counts, &bld](PrgLitVec const &hd) {
             hd_counts.clear();
             for (auto lit : hd) {
                 if (auto scc = bld.info(lit).scc; scc > 0) {
@@ -1194,14 +1194,14 @@ class BuilderDisjunction {
     }
 
   private:
-    using DisjVec = std::vector<std::tuple<LitVec, std::vector<std::tuple<lit_t, lit_t, lit_t>>>>;
+    using DisjVec = std::vector<std::tuple<PrgLitVec, std::vector<std::tuple<prg_lit_t, prg_lit_t, prg_lit_t>>>>;
 
     DisjVec delayed_;
     BuilderRule rule_;
-    std::vector<std::tuple<lit_t, lit_t, lit_t>> elems_;
-    Output::LitVec lits_;
-    LitVec hd_;
-    LitVec bd_;
+    std::vector<std::tuple<prg_lit_t, prg_lit_t, prg_lit_t>> elems_;
+    PrgLitVec lits_;
+    PrgLitVec hd_;
+    PrgLitVec bd_;
 };
 
 //! Builder incrementally extending a minimize constraint.
@@ -1214,7 +1214,7 @@ class BuilderMinimize {
     //! @param weight the weight
     //! @param prio the priority
     //! @param terms the tuple (without weight and priority)
-    void add(BuilderBase &bld, LitSpan lits, weight_t weight, weight_t prio, SymbolSpan terms) {
+    void add(BuilderBase &bld, PrgLitSpan lits, prg_weight_t weight, prg_weight_t prio, SymbolSpan terms) {
         auto [it, ins] = tuples_.try_emplace(std::tuple(weight, prio, SharedSymbolVec{terms.begin(), terms.end()}));
         auto &[old, conds] = it.value();
         lits_.assign(lits.begin(), lits.end());
@@ -1247,8 +1247,8 @@ class BuilderMinimize {
 
   private:
     IndexVec delayed_;
-    Util::ordered_map<std::tuple<weight_t, weight_t, SharedSymbolVec>, std::pair<lit_t, LitVec>> tuples_;
-    LitVec lits_;
+    Util::ordered_map<std::tuple<prg_weight_t, prg_weight_t, SharedSymbolVec>, std::pair<prg_lit_t, PrgLitVec>> tuples_;
+    PrgLitVec lits_;
 };
 
 //! Output handling conditions.
@@ -1269,7 +1269,7 @@ class OutputCond : public OutputLit {
     //! Literals are added via the OutputLit interface.
     //!
     //! @return the literals
-    [[nodiscard]] auto literals() const -> LitVec const & { return body_; }
+    [[nodiscard]] auto literals() const -> PrgLitVec const & { return body_; }
 
     //! Get the base builder of the output.
     //!
@@ -1325,7 +1325,7 @@ class OutputCond : public OutputLit {
     }
 
     BuilderBase *bld_;
-    LitVec body_;
+    PrgLitVec body_;
 };
 
 //! Output handling rule bodies.
@@ -1383,7 +1383,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     void do_fact([[maybe_unused]] Symbol sym, size_t uid) override {
-        rule_.add(bld_, std::array{uid_to_lit(uid)}, LitSpan{}, false);
+        rule_.add(bld_, std::array{uid_to_lit(uid)}, PrgLitSpan{}, false);
     }
 
     void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) override {
@@ -1399,7 +1399,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     void do_show_atom(Symbol atom, size_t uid) override { bld_.backend().show_atom(atom, uid_to_atom(uid)); }
     auto do_show_term([[maybe_unused]] Symbol term) -> size_t override { return bld_.cond(body_.literals()); }
     void do_show_term(Symbol term, size_t done, IndexSpan conds) override {
-        auto body = LitVec{};
+        auto body = PrgLitVec{};
         // none of the previous conditions under which the term is shown must hold
         if (done > 0) {
             body.reserve(done);
@@ -1411,7 +1411,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         // one of the new new conditions under which the term is show must hold
         // if done equals conds.size(), the condition is assumed to be true
         if (done < conds.size()) {
-            auto clause = LitVec{conds.begin() + static_cast<ssize_t>(done), conds.end()};
+            auto clause = PrgLitVec{conds.begin() + static_cast<ssize_t>(done), conds.end()};
             body.emplace_back(bld_.clause(clause, ClauseType::disjunctive));
             bld_.mark(body.back(), EQType::implication);
         }
@@ -1585,10 +1585,10 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     void do_atom(OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
-        auto new_lit = type != OutputTheory::AtomType::directive ? static_cast<lit_t>(atom_uid) : 0;
-        auto old_lit = theory_->atom([atom_uid]() { return static_cast<lit_t>(atom_uid); }, name,
+        auto new_lit = type != OutputTheory::AtomType::directive ? static_cast<prg_lit_t>(atom_uid) : 0;
+        auto old_lit = theory_->atom([atom_uid]() { return static_cast<prg_lit_t>(atom_uid); }, name,
                                      {elems.begin(), elems.end()}, Util::transform(guard, [](auto const &guard) {
-                                         return std::pair{guard.first, static_cast<id_t>(guard.second)};
+                                         return std::pair{guard.first, static_cast<prg_id_t>(guard.second)};
                                      }));
         // handle directives
         if (new_lit == 0 || old_lit == 0) {
@@ -1602,7 +1602,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         }
     }
 
-    LitVec lits_;
+    PrgLitVec lits_;
     BuilderBase bld_;
     BuilderRule rule_;
     BuilderMinMax<FwdSym> min_;
@@ -1618,7 +1618,7 @@ class OutputBackend : public OutputStm, OutputTheory {
 
 } // namespace
 
-auto TheoryData::num(weight_t num) -> id_t {
+auto TheoryData::num(prg_weight_t num) -> prg_id_t {
     auto [it, ins] = insert_(nums_, num);
     if (ins) {
         backend_->num(it.value(), it.key());
@@ -1626,7 +1626,7 @@ auto TheoryData::num(weight_t num) -> id_t {
     return it.value();
 }
 
-auto TheoryData::str(String str) -> id_t {
+auto TheoryData::str(String str) -> prg_id_t {
     auto [it, ins] = insert_(strings_, str);
     if (ins) {
         backend_->str(it.value(), it.key()->c_str());
@@ -1634,7 +1634,7 @@ auto TheoryData::str(String str) -> id_t {
     return it.value();
 }
 
-auto TheoryData::fun(String name, IdVec args) -> id_t {
+auto TheoryData::fun(String name, IdVec args) -> prg_id_t {
     if (args.empty()) {
         return str(name);
     }
@@ -1645,7 +1645,7 @@ auto TheoryData::fun(String name, IdVec args) -> id_t {
     return it.value();
 }
 
-auto TheoryData::tup(TheoryTermTupleType type, IdVec args) -> id_t {
+auto TheoryData::tup(TheoryTermTupleType type, IdVec args) -> prg_id_t {
     auto [it, ins] = insert_(tups_, std::pair{type, std::move(args)});
     if (ins) {
         backend_->tup(it.value(), it.key().first, it.key().second);
@@ -1653,7 +1653,7 @@ auto TheoryData::tup(TheoryTermTupleType type, IdVec args) -> id_t {
     return it.value();
 }
 
-auto TheoryData::sym(Symbol sym) -> id_t {
+auto TheoryData::sym(Symbol sym) -> prg_id_t {
     switch (sym.type()) {
         case SymbolType::inf: {
             return str(*store_->string("#inf"));
@@ -1694,7 +1694,7 @@ auto TheoryData::sym(Symbol sym) -> id_t {
     Util::unreachable();
 }
 
-auto TheoryData::elem(IdVec tuple, LitVec cond) -> id_t {
+auto TheoryData::elem(IdVec tuple, LitVec cond) -> prg_id_t {
     auto [it, ins] = insert_(elems_, std::pair{std::move(tuple), std::move(cond)});
     if (ins) {
         backend_->elem(it.value(), it.key().first, it.key().second);
@@ -1702,15 +1702,15 @@ auto TheoryData::elem(IdVec tuple, LitVec cond) -> id_t {
     return it.value();
 }
 
-auto TheoryData::atom(std::function<lit_t()> const &atom, Symbol name, IdVec elems,
-                      std::optional<std::pair<String, id_t>> guard) -> lit_t {
-    auto [it, ins] = atoms_.emplace(std::tuple{sym(name), std::move(elems),
-                                               Util::transform(guard,
-                                                               [this](auto const &guard) {
-                                                                   return std::pair{str(guard.first),
-                                                                                    static_cast<id_t>(guard.second)};
-                                                               })},
-                                    0);
+auto TheoryData::atom(std::function<prg_lit_t()> const &atom, Symbol name, IdVec elems,
+                      std::optional<std::pair<String, prg_id_t>> guard) -> prg_lit_t {
+    auto [it, ins] = atoms_.emplace(
+        std::tuple{sym(name), std::move(elems),
+                   Util::transform(guard,
+                                   [this](auto const &guard) {
+                                       return std::pair{str(guard.first), static_cast<prg_id_t>(guard.second)};
+                                   })},
+        0);
     if (ins) {
         it.value() = atom();
         backend_->atom(it.value(), get<0>(it.key()), get<1>(it.key()), get<2>(it.key()));
@@ -1732,7 +1732,7 @@ template <class M, class V> auto TheoryData::insert_(M &map, V &&val) -> std::pa
     auto [it, ins] = map.try_emplace(std::forward<V>(val), ids_);
     if (ins) {
         ++ids_;
-        if (ids_ == std::numeric_limits<id_t>::max()) {
+        if (ids_ == std::numeric_limits<prg_id_t>::max()) {
             throw std::range_error("theory ids exhausted");
         }
     }
