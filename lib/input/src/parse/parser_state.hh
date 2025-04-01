@@ -89,6 +89,8 @@ enum class TokenType : uint8_t {
 
 //! The list of lexer conditions for stateful lexing.
 enum class Condition : uint8_t {
+    program = yycprogram,
+    aspif = yycaspif,
     normal = yycnormal,
     theory = yyctheory,
     script = yycscript,

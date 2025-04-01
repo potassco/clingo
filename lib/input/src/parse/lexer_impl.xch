@@ -14,7 +14,8 @@
     re2c:define:YYSETCONDITION = "cond_ = @@;";
     re2c:cond:goto             = "continue;";
 
-    DEC        = [0]|([1-9][0-9]*)|([1-9][0-9]{0,2}(['][0-9]{3})+);
+    POS        = [0]|([1-9][0-9]*);
+    DEC        = POS|([1-9][0-9]{0,2}(['][0-9]{3})+);
     HEX        = "0x"([0-9A-Fa-f]+);
     OCT        = "0o"([1-7]+);
     BIN        = "0b"([0-1]+);
@@ -35,6 +36,7 @@
     ANY        = [^\000];
     DOT        = [^\000\n];
     COMMENT    = "%"[^*\n\000][^\000\n]*;
+    PREAMBLE   = "asp" WS POS;
 */
 
 /*!header:re2c:on*/
@@ -46,6 +48,8 @@ auto ParserState::lex_() -> TokenType {
     state_.start();
     for (;;) {
     /*!re2c
+        <program> "" / PREAMBLE        :=> aspif
+        <program> ""                   :=> normal
         <normal,theory> "not"          { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
         <normal,theory> "_"            { return TokenType::anon; }
         <normal,theory> ":"            { return TokenType::colon; }
@@ -128,6 +132,7 @@ auto ParserState::lex_() -> TokenType {
         <blockcomment> COMMENT         { continue; }
         <blockcomment> NULL            { return TokenType::error_bc; }
         <blockcomment> *               { continue; }
+        <aspif> *                      { throw std::logic_error("implement me: aspif parsing!"); }
         <*> NULL                       { return state_.token() == state_.limit() - YYMAXFILL ? TokenType::end : TokenType::error; }
         <*> *                          { return TokenType::error; }
     */
