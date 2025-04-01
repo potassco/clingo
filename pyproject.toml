@@ -27,3 +27,6 @@ testpaths = ["lib"]
 
 [tool.ruff]
 ignore = ["E741"]
+
+[tool.pylint.design]
+min-public-methods = 1
