@@ -353,28 +353,17 @@ class _Parser:
         args = []
         trail = bool(name)
 
-        while not self._tokenizer.match("PUN", ")"):
-            # comma after argument or opening parentheses
-            comma = None
-            if args:
-                comma = self._tokenizer.expect("PUN", ",")
-            elif not trail:
-                comma = self._tokenizer.match("PUN", ",")
-
-            # closing parentheses after comma
-            paren = None
-            if not trail and comma:
+        if not trail and self._tokenizer.match("PUN", ","):
+            self._tokenizer.expect("PUN", ")")
+            trail = True
+        else:
+            while not self._tokenizer.match("PUN", ")"):
                 if args:
-                    paren = self._tokenizer.match("PUN", ")")
-                else:
-                    paren = self._tokenizer.expect("PUN", ")")
-
-            # exit if there is a trailing comma
-            if paren:
-                trail = True
-                break
-
-            args.append(self._parse_matcher())
+                    self._tokenizer.expect("PUN", ",")
+                    if not trail and self._tokenizer.match("PUN", ")"):
+                        trail = True
+                        break
+                args.append(self._parse_matcher())
 
         if not trail and len(args) == 1:
             return args[0]
@@ -417,7 +406,7 @@ def match(expression: str, symbol: Symbol) -> Match | None:
         symbol: The symbol to match against.
 
     Returns:
-        Match or None: A Match object with the variable assignment if the symbol matches,
+        A Match object with the variable assignment if the symbol matches,
         or None if it does not.
     """
     return compile_matcher(expression)(symbol)
