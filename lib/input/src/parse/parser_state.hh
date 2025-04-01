@@ -83,6 +83,18 @@ enum class TokenType : uint8_t {
     true_,
     var,
     wif,
+    aspif,
+};
+
+enum class AspifToken : uint8_t {
+    space,
+    newline,
+    end,
+    error,
+    str,
+    num_pos,
+    num_neg,
+    incremental,
 };
 
 #include "parse/lexer_impl_h.hh"
@@ -90,7 +102,6 @@ enum class TokenType : uint8_t {
 //! The list of lexer conditions for stateful lexing.
 enum class Condition : uint8_t {
     program = yycprogram,
-    aspif = yycaspif,
     normal = yycnormal,
     theory = yyctheory,
     script = yycscript,
@@ -300,6 +311,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::wif: {
             return out << "':-'";
+        }
+        case TokenType::aspif: {
+            return out << "asp";
         }
     }
     return out;
@@ -744,6 +758,10 @@ class ParserState {
 
     //! Compute the next token.
     auto lex_() -> TokenType;
+    //! Compute the next aspif token (excluding strings).
+    auto lex_aspif_() -> AspifToken;
+    //! Try to lex an aspif string.
+    auto lex_aspif_str_() -> AspifToken;
 
     LexerState state_;
     Logger *log_;

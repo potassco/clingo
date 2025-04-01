@@ -36,7 +36,8 @@
     ANY        = [^\000];
     DOT        = [^\000\n];
     COMMENT    = "%"[^*\n\000][^\000\n]*;
-    PREAMBLE   = "asp" WS POS;
+    SP         = [\t ];
+    NL         = [\r\n]+;
 */
 
 /*!header:re2c:on*/
@@ -48,8 +49,8 @@ auto ParserState::lex_() -> TokenType {
     state_.start();
     for (;;) {
     /*!re2c
-        <program> "" / PREAMBLE        :=> aspif
-        <program> ""                   :=> normal
+        <program> "asp" / SP POS       { return TokenType::aspif; }
+        <program> "" / ANY             :=> normal
         <normal,theory> "not"          { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
         <normal,theory> "_"            { return TokenType::anon; }
         <normal,theory> ":"            { return TokenType::colon; }
@@ -132,9 +133,36 @@ auto ParserState::lex_() -> TokenType {
         <blockcomment> COMMENT         { continue; }
         <blockcomment> NULL            { return TokenType::error_bc; }
         <blockcomment> *               { continue; }
-        <aspif> *                      { throw std::logic_error("implement me: aspif parsing!"); }
-        <*> NULL                       { return state_.token() == state_.limit() - YYMAXFILL ? TokenType::end : TokenType::error; }
-        <*> *                          { return TokenType::error; }
+        <program,normal,theory,include,script> NULL
+                                       { return state_.token() == state_.limit() - YYMAXFILL ? TokenType::end : TokenType::error; }
+        <program,normal,theory,include,script> *
+                                       { return TokenType::error; }
     */
+    }
+}
+
+auto ParserState::lex_aspif_str_() -> AspifToken {
+    state_.start();
+    for (;;) {
+        /*!re2c
+        <program> [^\r\n\000]*         { return AspifToken::str; }
+        <program> NULL                 { return state_.token() == state_.limit() - YYMAXFILL ? AspifToken::end : AspifToken::error; }
+        <program> *                    { return AspifToken::error; }
+        */
+    }
+}
+
+auto ParserState::lex_aspif_() -> AspifToken {
+    state_.start();
+    for (;;) {
+        /*!re2c
+        <program> DEC                  { return AspifToken::num_pos; }
+        <program> "-" SP* DEC          { return AspifToken::num_neg; }
+        <program> SP                   { return AspifToken::space; }
+        <program> "incremental"        { return AspifToken::incremental; }
+        <program> NL                   { return AspifToken::newline; }
+        <program> NULL                 { return state_.token() == state_.limit() - YYMAXFILL ? AspifToken::end : AspifToken::error; }
+        <program> *                    { return AspifToken::error; }
+        */
     }
 }
