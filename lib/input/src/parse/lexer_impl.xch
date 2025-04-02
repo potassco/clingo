@@ -141,6 +141,18 @@ auto ParserState::lex_() -> TokenType {
     }
 }
 
+auto ParserState::lex_aspif_str_(size_t n) -> AspifToken {
+    state_.start();
+    for (; n > 0; --n) {
+        /*!re2c
+        <program> [^\r\n\000]          { continue; }
+        <program> NULL                 { return state_.token() == state_.limit() - YYMAXFILL ? AspifToken::end : AspifToken::error; }
+        <program> *                    { return AspifToken::error; }
+        */
+    }
+    return AspifToken::str;
+}
+
 auto ParserState::lex_aspif_str_() -> AspifToken {
     state_.start();
     for (;;) {

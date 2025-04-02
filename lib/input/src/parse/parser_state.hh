@@ -653,6 +653,21 @@ class ParserState {
     //! Compute the next token discarding the last one.
     void consume() { token_ = lex_(); }
 
+    //! Compute the next aspif token (excluding strings).
+    //!
+    //! Requires the parser to be in aspif mode.
+    auto lex_aspif() -> AspifToken;
+
+    //! Try to lex a newline-terminated string.
+    //!
+    //! Requires the parser to be in aspif mode.
+    auto lex_str() -> AspifToken;
+
+    //! Try to lex a string with the give size.
+    //!
+    //! Requires the parser to be in aspif mode.
+    auto lex_str(size_t n) -> AspifToken;
+
     //! Compute the next token discarding the last one.
     void consume(Condition cond) {
         auto old = cond_;
@@ -758,10 +773,6 @@ class ParserState {
 
     //! Compute the next token.
     auto lex_() -> TokenType;
-    //! Compute the next aspif token (excluding strings).
-    auto lex_aspif_() -> AspifToken;
-    //! Try to lex an aspif string.
-    auto lex_aspif_str_() -> AspifToken;
 
     LexerState state_;
     Logger *log_;
