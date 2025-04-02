@@ -36,7 +36,7 @@
     ANY        = [^\000];
     DOT        = [^\000\n];
     COMMENT    = "%"[^*\n\000][^\000\n]*;
-    SP         = [\t ];
+    SP         = [ ];
     NL         = [\r\n]+;
 */
 
@@ -134,46 +134,46 @@ auto ParserState::lex_() -> TokenType {
         <blockcomment> NULL            { return TokenType::error_bc; }
         <blockcomment> *               { continue; }
         <program,normal,theory,include,script> NULL
-                                       { return state_.token() == state_.limit() - YYMAXFILL ? TokenType::end : TokenType::error; }
+                                       { return state_.end(YYMAXFILL) ? TokenType::end : TokenType::error; }
         <program,normal,theory,include,script> *
                                        { return TokenType::error; }
     */
     }
 }
 
-auto ParserState::lex_aspif_str_(size_t n) -> AspifToken {
+auto ParserState::lex_str(size_t n) -> AspifToken {
     state_.start();
     for (; n > 0; --n) {
         /*!re2c
         <program> [^\r\n\000]          { continue; }
-        <program> NULL                 { return state_.token() == state_.limit() - YYMAXFILL ? AspifToken::end : AspifToken::error; }
+        <program> NULL                 { return state_.end(YYMAXFILL) ? AspifToken::end : AspifToken::error; }
         <program> *                    { return AspifToken::error; }
         */
     }
     return AspifToken::str;
 }
 
-auto ParserState::lex_aspif_str_() -> AspifToken {
+auto ParserState::lex_str() -> AspifToken {
     state_.start();
     for (;;) {
         /*!re2c
         <program> [^\r\n\000]*         { return AspifToken::str; }
-        <program> NULL                 { return state_.token() == state_.limit() - YYMAXFILL ? AspifToken::end : AspifToken::error; }
+        <program> NULL                 { return state_.end(YYMAXFILL) ? AspifToken::end : AspifToken::error; }
         <program> *                    { return AspifToken::error; }
         */
     }
 }
 
-auto ParserState::lex_aspif_() -> AspifToken {
+auto ParserState::lex_aspif() -> AspifToken {
     state_.start();
     for (;;) {
         /*!re2c
         <program> DEC                  { return AspifToken::num_pos; }
-        <program> "-" SP* DEC          { return AspifToken::num_neg; }
+        <program> "-" DEC              { return AspifToken::num_neg; }
         <program> SP                   { return AspifToken::space; }
         <program> "incremental"        { return AspifToken::incremental; }
         <program> NL                   { return AspifToken::newline; }
-        <program> NULL                 { return state_.token() == state_.limit() - YYMAXFILL ? AspifToken::end : AspifToken::error; }
+        <program> NULL                 { return state_.end(YYMAXFILL) ? AspifToken::end : AspifToken::error; }
         <program> *                    { return AspifToken::error; }
         */
     }

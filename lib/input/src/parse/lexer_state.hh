@@ -122,6 +122,12 @@ class LexerState {
     //! unless the end of input has been reached.
     auto fill(size_t n, size_t padding) -> bool;
 
+    //! Check if the current token points to the terminating zero byte.
+    [[nodiscard]] auto end(size_t padding) const -> bool {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        return token() == limit() - padding;
+    }
+
   private:
     std::istream *in_ = nullptr;
     std::vector<char> buffer_;
