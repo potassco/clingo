@@ -15,7 +15,7 @@ from functools import lru_cache
 from typing import Iterator, Sequence
 
 from clingo.core import Library
-from clingo.symbol import Number, Symbol, parse_term
+from clingo.symbol import Infimum, Number, Supremum, Symbol, parse_term
 
 
 @dataclass
@@ -161,6 +161,9 @@ class VariableMatcher(Matcher):
         Attempt to match a variable. If the variable is already bound in the assignment,
         then the symbol must be equal to the bound symbol. Otherwise, bind the variable.
 
+        Anonymous variables with name "_" are handled specially, they do not
+        interact with the assignment and always match.
+
         Args:
             symbol: The symbol to bind or compare.
             assignment: The variable assignment mapping.
@@ -168,9 +171,10 @@ class VariableMatcher(Matcher):
         Returns:
             bool: True if the variable matches or is successfully bound.
         """
-        if self.name in assignment:
-            return assignment[self.name] == symbol
-        assignment[self.name] = symbol
+        if self.name != "_":
+            if self.name in assignment:
+                return assignment[self.name] == symbol
+            assignment[self.name] = symbol
         return True
 
 
@@ -280,6 +284,36 @@ class _Tokenizer:
         return None
 
 
+def unquote(quoted: str) -> str:
+    """
+    Unquote the given string as clingo would.
+
+    Args:
+        quoted: The quoted string.
+
+    Returns:
+        The unquoted string.
+    """
+    result = []
+    slash = False
+    for c in quoted[1:-1]:
+        if slash:
+            if c == "n":
+                result.append("\n")
+            elif c == "\\":
+                result.append("\\")
+            elif c == '"':
+                result.append('"')
+            else:
+                raise ValueError(f"invalid escape sequence: \\{c}")
+            slash = False
+        elif c == "\\":
+            slash = True
+        else:
+            result.append(c)
+    return "".join(result)
+
+
 class _Parser:
     """
     A recursive descent parser that tokenizes and parses matcher expressions.
@@ -290,10 +324,12 @@ class _Parser:
 
     TOKEN_PATTERNS = {
         "NEG": r"-",
-        "STR": r'"[^"]*"',
+        "SUP": "#sup",
+        "INF": "#inf",
+        "STR": r'"([^\\"\n\000]|\\"|\\\\|\\n)*"',
         "NUM": r"\d+",
-        "VAR": r"[A-Z][A-Za-z0-9_]*",
-        "ID": r"[a-z][A-Za-z0-9_]*",
+        "VAR": r"_|[A-Z][a-zA-Z_']*",
+        "IDF": r"[_']*[a-z]['A-Za-z0-9_]*",
         "PUN": r"[(),]",
     }
 
@@ -315,20 +351,24 @@ class _Parser:
         Returns:
             The parsed matcher object.
         """
+        if token := self._tokenizer.match("SUP"):
+            return ValueMatcher(Supremum)
+        if token := self._tokenizer.match("INF"):
+            return ValueMatcher(Infimum)
         if token := self._tokenizer.match("NUM"):
             return ValueMatcher(int(token.value))
         if token := self._tokenizer.match("STR"):
-            return ValueMatcher(token.value[1:-1])
+            return ValueMatcher(unquote(token.value))
         if token := self._tokenizer.match("VAR"):
             return VariableMatcher(token.value)
         if self._tokenizer.peek("PUN", "("):
             return self._parse_function("", True)
         if self._tokenizer.match("NEG"):
-            if token := self._tokenizer.match("ID"):
+            if token := self._tokenizer.match("IDF"):
                 return self._parse_function(token.value, False)
             token = self._tokenizer.expect("NUM")
             return ValueMatcher(-int(token.value))
-        token = self._tokenizer.expect("ID")
+        token = self._tokenizer.expect("IDF")
         return self._parse_function(token.value, True)
 
     def _parse_function(self, name: str, positive: bool) -> Matcher:
@@ -412,11 +452,15 @@ def match(expression: str, symbol: Symbol) -> Match | None:
     return compile_matcher(expression)(symbol)
 
 
-def test():
+def main():
     """
-    Some unit tests that don't belong here.
+    Some tests for exposition.
     """
     with Library() as lib:
+        m = match("(_,_)", parse_term(lib, "(1,2)"))
+        assert m and not m.assignment
+        m = match("(#sup,#inf)", parse_term(lib, "(#sup,#inf)"))
+        assert m
         m = match("f(X,(a))", parse_term(lib, "f(1,(a))"))
         assert m and m.assignment == {"X": Number(lib, 1)}
         m = match("f(X,(a,))", parse_term(lib, "f(1,(a,))"))
@@ -441,4 +485,5 @@ def test():
         )
 
 
-test()
+if __name__ == "__main__":
+    main()
