@@ -186,6 +186,11 @@ if(NOT CLINGO_BUILD_WITH_PYTHON STREQUAL "pip" AND (CMAKE_VERSION VERSION_GREATE
     endif()
     find_package(Python ${CLINGO_PYTHON_VERSION} COMPONENTS ${_args})
 else()
+    # NOTE: This is set to old behavior for now; switching to scikit-build-core
+    # should simply the config below.
+    if (POLICY CMP0148)
+        cmake_policy(SET CMP0148 OLD)
+    endif()
     if (CLINGO_BUILD_WITH_PYTHON STREQUAL "pip")
         find_package(PythonExtensions REQUIRED)
     else()
