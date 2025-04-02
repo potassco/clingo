@@ -1,12 +1,9 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.10)
 
 file(READ "libclingo/clingo.h" clingoh)
 string(REGEX MATCH "#define CLINGO_VERSION \"([^\"]*)\"" clingov ${clingoh})
 
 project(CLINGO VERSION "${CMAKE_MATCH_1}" LANGUAGES C CXX)
-if (POLICY CMP0063)
-    cmake_policy(SET CMP0063 NEW)
-endif()
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "No build type selected - using 'Release'")
     set(CMAKE_BUILD_TYPE "Release")
@@ -248,7 +245,7 @@ if (CLINGO_PROFILE)
 endif()
 
 
-if (POLICY CMP0063 AND (CLINGO_BUILD_SHARED OR Python_Development_FOUND OR LUA_FOUND))
+if (CLINGO_BUILD_SHARED OR Python_Development_FOUND OR LUA_FOUND)
     set(CMAKE_CXX_VISIBILITY_PRESET hidden)
     set(CMAKE_C_VISIBILITY_PRESET hidden)
 endif()

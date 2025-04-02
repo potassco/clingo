@@ -26,7 +26,7 @@ precompiled packages for various package managers:
   - other compilers might work
 - the [cmake](https://www.cmake.org/) build system
   - at least version 3.18 is recommended
-  - at least version 3.1 is *required*
+  - at least version 3.10 is *required*
 
 ## Development Dependencies
 
@@ -96,6 +96,7 @@ and Lua scripting support.
 Clingo uses [libpotassco](https://github.com/potassco/libpotassco) and
 [clasp](https://github.com/potassco/potassco).  Both components have their own
 sets of configuration variables:
+
 - [building libpotassco](https://github.com/potassco/libpotassco#installation)
 - [building clasp](https://github.com/potassco/clasp#building--installing)
 
@@ -200,6 +201,7 @@ about pointing clingo to a custom Lua installation.
 
 For examples how to use the resulting JavaScript code, check out one of the
 following:
+
 - [webclingo example by Lucas Bourneuf](https://github.com/Aluriak/webclingo-example), or
 - [the source of our website](https://github.com/potassco/potassco.github.io)
 
@@ -209,6 +211,7 @@ After installing the required packages clingo should compile on most \*nixes.
 If a dependency is missing or a software version too old, then there are
 typically community repositories that provide the necessary packages. To list a
 few:
+
 - the [ToolChain](https://wiki.ubuntu.com/ToolChain) repository for Ubuntu
   versions before 18.04.
 - the [Developer
