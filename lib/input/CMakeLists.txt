@@ -28,6 +28,7 @@ add_library(clingo_input STATIC
     "src/parse/statement.cc"
     "src/parse/term.cc"
     "src/parse/theory.cc"
+    "src/parse/aspif.cc"
     "src/parser.cc"
     "src/print.cc"
     "src/program.cc"
