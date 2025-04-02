@@ -473,7 +473,7 @@ def main():
         assert m and m.assignment == {"X": Number(lib, 1)}
         m = match("f(X,())", parse_term(lib, "f(1,())"))
         assert m and m.assignment == {"X": Number(lib, 1)}
-        m = match('f(X,"abc")', parse_term(lib, 'f(1,"abc")'))
+        m = match(r'f(X,"a\n\"bc\\")', parse_term(lib, r'f(1,"a\n\"bc\\")'))
         assert m and m.assignment == {"X": Number(lib, 1)}
         m = match("f(X,10)", parse_term(lib, "f(1,10)"))
         assert m and m.assignment == {"X": Number(lib, 1)}
