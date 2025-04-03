@@ -8,7 +8,7 @@ if not site.ENABLE_USER_SITE and "--user" in sys.argv[1:]:
     site.ENABLE_USER_SITE = True
 
 setup(
-    version="5.7.1",
+    version="5.8.0",
     name="clingo",
     description="CFFI-based bindings to the clingo solver.",
     long_description=dedent(
