@@ -311,8 +311,8 @@ class TheoryBackendAdapter : public TheoryBackend {
 
     SymbolStore *store_;
     Output::TheoryData *data_;
-    Util::unordered_map<id_t, id_t> term_map_;
-    Util::unordered_map<id_t, id_t> elem_map_;
+    Util::unordered_map<prg_id_t, prg_id_t> term_map_;
+    Util::unordered_map<prg_id_t, prg_id_t> elem_map_;
 };
 
 class ModelExtend : public Clasp::OutputTable::Theory {
