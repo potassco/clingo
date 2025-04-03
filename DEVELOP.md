@@ -40,3 +40,13 @@ export LIBRARY_PATH="${CONDA_PREFIX}/lib"
 export RUSTFLAGS="-C link-args=-Wl,-rpath,${LIBRARY_PATH}"
 cargo install --git https://github.com/neovide/neovide.git
 ```
+
+## Building Python Extensions
+
+The commands below show how to build wheels for the current platform and for
+pyodide.
+
+```bash
+pipx run build .
+pipx run cibuildwheel --platform pyodide
+```
