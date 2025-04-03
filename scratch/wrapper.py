@@ -1,7 +1,10 @@
-import clingo
-import yaml
-import threading
 import os
+import threading
+
+import yaml
+
+import clingo
+
 
 class WrappedPropagateControl(object):
     def __init__(self, control, calls):
@@ -63,7 +66,9 @@ class WrappedBackend:
         return self
 
     def add_atom(self, symbol=None):
-        self.script.write("    b.add_atom(clingo.parse_term({}))".format(repr(str(symbol))))
+        self.script.write(
+            "    b.add_atom(clingo.parse_term({}))".format(repr(str(symbol)))
+        )
         self.script.flush()
         ret = self.backend.add_atom(symbol)
         self.script.write(" # {}\n".format(ret))
@@ -106,7 +111,9 @@ class WrappedControl:
         self.script.flush()
         self.ctl.ground(parts, context)
 
-    def solve(self, assumptions=[], on_model=None, on_finish=None, yield_=False, async_=False):
+    def solve(
+        self, assumptions=[], on_model=None, on_finish=None, yield_=False, async_=False
+    ):
         self.script.write("ctl.solve({}).get()\n".format(repr(assumptions)))
         self.script.flush()
         return self.ctl.solve(assumptions, on_model, on_finish, yield_, async_)
@@ -160,7 +167,7 @@ class Retracer:
     def init(self, init):
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
         self.run_trace(init, 0, "init")
-        '''
+        """
         for trace in self.trace:
             print('trace.emplace_back("{}", {}, CallVec{{}});'.format(trace["state"], trace["thread_id"]))
             for call in trace["calls"]:
@@ -169,7 +176,7 @@ class Retracer:
                 else:
                     args = map(str, call["args"])
                 print('std::get<2>(trace.back()).emplace_back("{}",LitVec{{{}}});'.format(call["name"], ",".join(args)))
-        '''
+        """
 
     def match(self, thread_id, where):
         if not self.trace:
@@ -190,7 +197,12 @@ class Retracer:
 
             for call in top["calls"]:
                 if call["name"] == "propagate" or call["name"] == "add_clause":
-                    print("    CALL", "{}({})".format(call["name"], ",".join(map(str, call["args"]))), "EXPECTING", call["ret"])
+                    print(
+                        "    CALL",
+                        "{}({})".format(call["name"], ",".join(map(str, call["args"]))),
+                        "EXPECTING",
+                        call["ret"],
+                    )
                     ret = getattr(control, call["name"])(*call["args"])
                     print("      RESULT", ret)
                 else:
@@ -217,14 +229,18 @@ if __name__ == "__main__":
     ctl.register_propagator(Retracer())
 
     print("============ STEP 1 ============")
-    ctl.add("step1", [], """\
+    ctl.add(
+        "step1",
+        [],
+        """\
 #theory cp {
     sum_term { };
     &minimize/0 : sum_term, directive
 }.
 
 &minimize { x }.
-""")
+""",
+    )
     ctl.ground([("step1", [])])
     n = 0
     for m in ctl.solve(yield_=True):

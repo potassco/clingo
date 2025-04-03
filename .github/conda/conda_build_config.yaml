@@ -7,4 +7,5 @@ python:
 
 # from https://github.com/phracker/MacOSX-SDKs
 CONDA_BUILD_SYSROOT:
-- /opt/MacOSX10.9.sdk # [osx]
+- /opt/MacOSX10.9.sdk # [osx and not arm64]
+- /opt/MacOSX11.3.sdk # [osx and arm64]

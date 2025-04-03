@@ -1,5 +1,6 @@
 # {{{ class NumVal
 
+
 class NumVal:
     def __init__(self, num):
         self.num = num
@@ -19,8 +20,10 @@ class NumVal:
     def __repr__(self):
         return str(self.num)
 
+
 # }}}
 # {{{ class FunVal
+
 
 class FunVal:
     def __init__(self, name, args):
@@ -37,14 +40,20 @@ class FunVal:
         return hash((NumVal, self.name, tuple(self.args)))
 
     def __eq__(self, other):
-        return isinstance(other, FunVal) and self.name == other.name and self.args == other.args
+        return (
+            isinstance(other, FunVal)
+            and self.name == other.name
+            and self.args == other.args
+        )
 
     def __repr__(self):
         return self.name + "(" + ",".join([str(x) for x in self.args]) + ")"
 
+
 # }}}
 
 # {{{ class ValTerm
+
 
 class ValTerm:
     def __init__(self, val):
@@ -80,8 +89,10 @@ class ValTerm:
     def __repr__(self):
         return str(self.val)
 
+
 # }}}
 # {{{ class FunTerm
+
 
 class FunTerm:
     def __init__(self, name, args):
@@ -143,12 +154,14 @@ class FunTerm:
     def __repr__(self):
         return self.name + "(" + ",".join([str(x) for x in self.args]) + ")"
 
+
 # }}}
 # {{{ class VarTerm
 
+
 class ValRef:
     def __init__(self):
-        self.__val  = None
+        self.__val = None
         self.__term = None
 
     def __nonzero__(self):
@@ -166,11 +179,11 @@ class ValRef:
 
     def setTerm(self, x):
         self.__term = x
-        self.__val  = None
+        self.__val = None
 
     def clear(self):
         self.__term = None
-        self.__val  = None
+        self.__val = None
 
     def unifyVar(self, x):
         if self.__val:
@@ -190,10 +203,11 @@ class ValRef:
         else:
             return x.match(self.__term)
 
+
 class VarTerm:
     def __init__(self, name):
         self.name = name
-        self.ref  = None
+        self.ref = None
 
     def getSig(self):
         raise Exception("can only happen if used wrongly!!!")
@@ -247,15 +261,17 @@ class VarTerm:
     def __repr__(self):
         return self.name
 
+
 # }}}
 # {{{ class LinearTerm
+
 
 class LinearTerm:
     def __init__(self, name, m, n):
         self.name = name
-        self.m    = m
-        self.n    = n
-        self.ref  = None
+        self.m = m
+        self.n = n
+        self.ref = None
 
     def getSig(self):
         raise Exception("can only happen if used wrongly!!!")
@@ -270,7 +286,7 @@ class LinearTerm:
         return self.name == name
 
     def matchNum(self, num):
-        n  = num.num
+        n = num.num
         n -= self.n
         if n % self.m != 0:
             return False
@@ -300,13 +316,15 @@ class LinearTerm:
     def __repr__(self):
         return "(" + str(self.m) + "*" + self.name + "+" + str(self.n) + ")"
 
+
 # }}}
 
 # {{{ class Occurrence
 
+
 class Occurrence:
     def __init__(self, term):
-        self.term  = term
+        self.term = term
         self.subst = []
         varMap = {}
         self.term.init(varMap)
@@ -327,7 +345,8 @@ class Occurrence:
                     ref.clear()
             return subst
         else:
-            for _, ref in self.subst: ref.clear()
+            for _, ref in self.subst:
+                ref.clear()
             return None
 
     def unify(self, x):
@@ -339,15 +358,18 @@ class Occurrence:
                     ref.clear()
             return subst
         else:
-            for _, ref in self.subst + x.subst: ref.clear()
+            for _, ref in self.subst + x.subst:
+                ref.clear()
             return None
 
     def __repr__(self):
         return str(self.term)
 
+
 # }}}
 
 # {{{ class Lookup
+
 
 class Lookup:
     def __init__(self):
@@ -358,7 +380,8 @@ class Lookup:
         sig = x.getSig()
         y = self.funs.setdefault(sig, ({}, []))
         z = x.eval()
-        if z: y[0].setdefault(z, []).append(x)
+        if z:
+            y[0].setdefault(z, []).append(x)
         else:
             # Note: one could make a difference between term to match and occurrence here too!!!
             y[1].append(x)
@@ -377,7 +400,8 @@ class Lookup:
     def unify(self, x):
         print("unifying: " + str(x))
         z = x.eval()
-        if z: self.match(z)
+        if z:
+            self.match(z)
         else:
             y = self.funs.get(x.getSig())
             if y:
@@ -388,29 +412,41 @@ class Lookup:
                 for term in y[1]:
                     subst = x.unify(term)
                     if subst != None:
-                        print("  unified with " + str(term) + " with subst: " + str(subst))
+                        print(
+                            "  unified with " + str(term) + " with subst: " + str(subst)
+                        )
 
     def __repr__(self):
         return str(self.funs)
+
 
 # }}}
 # {{{ tests
 
 l = Lookup()
-l.add(Occurrence(FunTerm("p", [FunTerm("f", [VarTerm("X"), VarTerm("Y")]), VarTerm("Z")])))
-l.add(Occurrence(FunTerm("p", [FunTerm("g", [VarTerm("X"), VarTerm("Y")]), VarTerm("Z")])))
+l.add(
+    Occurrence(FunTerm("p", [FunTerm("f", [VarTerm("X"), VarTerm("Y")]), VarTerm("Z")]))
+)
+l.add(
+    Occurrence(FunTerm("p", [FunTerm("g", [VarTerm("X"), VarTerm("Y")]), VarTerm("Z")]))
+)
 l.add(Occurrence(FunTerm("p", [VarTerm("X"), VarTerm("Y")])))
 l.add(Occurrence(FunTerm("p", [VarTerm("X"), VarTerm("X")])))
 l.add(Occurrence(FunTerm("p", [LinearTerm("X", 3, 7)])))
 print(l)
 
 l.match(FunVal("p", [FunVal("f", [NumVal(1), NumVal(2)]), NumVal(3)]))
-l.match(FunVal("p", [FunVal("f", [NumVal(1), NumVal(2)]), FunVal("f", [NumVal(1), NumVal(2)])]))
+l.match(
+    FunVal(
+        "p", [FunVal("f", [NumVal(1), NumVal(2)]), FunVal("f", [NumVal(1), NumVal(2)])]
+    )
+)
 l.match(FunVal("p", [NumVal(4)]))
 
-l.unify(Occurrence(FunTerm("p", [FunTerm("g", [VarTerm("A"), VarTerm("B")]), VarTerm("C")])))
+l.unify(
+    Occurrence(FunTerm("p", [FunTerm("g", [VarTerm("A"), VarTerm("B")]), VarTerm("C")]))
+)
 l.unify(Occurrence(FunTerm("p", [VarTerm("A"), VarTerm("B")])))
 l.unify(Occurrence(FunTerm("p", [VarTerm("A")])))
 
 # }}}
-

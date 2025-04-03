@@ -13,9 +13,10 @@ conda:
     os: 
         - 'ubuntu-latest'
         - 'macos-latest'
-        - 'windows-latest'
+        - 'windows-2019'
     macosx-sdk:
-      'MacOSX10.9.sdk.tar.xz'
+      - 'MacOSX10.9.sdk.tar.xz'
+      - 'MacOSX11.3.sdk.tar.xz'
     channels_release:
       - 'potassco'
     channels_dev:
@@ -121,7 +122,8 @@ conda:
 
       # from https://github.com/phracker/MacOSX-SDKs
       CONDA_BUILD_SYSROOT:
-      - /opt/MacOSX10.9.sdk # [osx]
+      - /opt/MacOSX10.9.sdk # [osx and not arm64]
+      - /opt/MacOSX11.3.sdk # [osx and arm64]
 
 ppa:
     package_name:
@@ -140,6 +142,7 @@ ppa:
         $(sed -n '/#define CLINGO_VERSION "/s/.*"\([0-9]\+\.[0-9\+]\.[0-9]\+\)".*/\1/p' ../../libclingo/clingo.h)
     build_depends:
         - 'dh-python'
+        - 'dh-lua'
     create_depends: []
     exclude_patterns:
         - 'third_party/catch'
@@ -157,6 +160,12 @@ ppa:
     sync_script: |
         sed -i "s/export CLINGO_BUILD_REVISION =.*/export CLINGO_BUILD_REVISION = $(git rev-parse --short HEAD)/" ${rep}/debian/rules
     distributions:
+        noble:
+            source:
+                Build-Depends: 'debhelper-compat (= 13), dh-python, dh-lua, cmake, python3-dev, python3-cffi, bison, re2c'
+            packages:
+                clingo:
+                    Depends: '${shlibs:Depends}, ${misc:Depends}, libclingo (= ${binary:Version}), python3-clingo'
         jammy:
         focal:
         bionic:

@@ -32,12 +32,12 @@ jobs:
             env_file: '.github/tests/windows-env.yml'
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
 
     - name: setup miniconda
-      uses: conda-incubator/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
         activate-environment: clingo
@@ -52,11 +52,18 @@ jobs:
         conda list
         python -m site
 
+    - name: fix cffi
+      if: runner.os == 'macOS'
+      shell: bash -l {0}
+      run: |
+        pip install cffi --force
+
     - name: build and test
       shell: bash -l {0}
       run: >
         PYTHONHOME=$CONDA_PREFIX
         ctest
+        --output-on-failure
         --build-config "${{ matrix.build_type }}"
         --build-generator "${{ matrix.generator }}"
         --build-and-test . build

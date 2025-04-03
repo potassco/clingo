@@ -17,4 +17,3 @@ end
 
 #program step(t).
 :- not t { p(X) }.
-

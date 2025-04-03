@@ -18,7 +18,7 @@ jobs:
         os:
         - ubuntu-latest
         - macos-latest
-        - windows-latest
+        - windows-2019
         python-version: ['3.8']
 
     steps:
@@ -28,7 +28,7 @@ jobs:
         submodules: recursive
 
     - name: setup miniconda
-      uses: conda-incubator/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
@@ -44,8 +44,10 @@ jobs:
       if: ${{ matrix.os == 'macos-latest' }}
       shell: pwsh
       run: |
-        Invoke-WebRequest -Uri 'https://github.com/phracker/MacOSX-SDKs/releases/download/10.15/MacOSX10.9.sdk.tar.xz' -OutFile 'MacOSX10.9.sdk.tar.xz'
+        Invoke-WebRequest -Uri 'https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX10.9.sdk.tar.xz' -OutFile 'MacOSX10.9.sdk.tar.xz'
         sudo tar xf MacOSX10.9.sdk.tar.xz -C /opt
+        Invoke-WebRequest -Uri 'https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz' -OutFile 'MacOSX11.3.sdk.tar.xz'
+        sudo tar xf MacOSX11.3.sdk.tar.xz -C /opt
 
     - name: print info
       shell: pwsh
@@ -67,4 +69,22 @@ jobs:
       run: |
         python .github/conda.py --release
       env:
+        ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+
+    - name: publish conda package (wip; osx-64)
+      if: ${{ github.event.inputs.wip == 'true' && matrix.os == 'macos-latest' }}
+      shell: pwsh
+      run: |
+        python .github/conda.py
+      env:
+        CONDA_SUBDIR: osx-64
+        ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+
+    - name: publish conda package (release; osx-64)
+      if: ${{ github.event.inputs.wip == 'false' && matrix.os == 'macos-latest' }}
+      shell: pwsh
+      run: |
+        python .github/conda.py --release
+      env:
+        CONDA_SUBDIR: osx-64
         ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}

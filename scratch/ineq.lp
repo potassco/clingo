@@ -1,4 +1,4 @@
-%%% translating 
+%%% translating
 %p :- { a; b; c } != 2.
 
 %% using a conditional literal and not existent gringo syntax :) it is equivalent to

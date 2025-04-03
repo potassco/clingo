@@ -1,5 +1,6 @@
 # {{{ class FunVal
 
+
 class FunVal:
     def __init__(self, name, args):
         self.name = name
@@ -12,13 +13,19 @@ class FunVal:
         return (self.name, len(self.args))
 
     def __eq__(self, other):
-        return isinstance(other, FunVal) and self.name == other.name and self.args == other.args
+        return (
+            isinstance(other, FunVal)
+            and self.name == other.name
+            and self.args == other.args
+        )
 
     def __repr__(self):
-        return self.name + "("+ ",".join([str(arg) for arg in self.args]) + ")"
+        return self.name + "(" + ",".join([str(arg) for arg in self.args]) + ")"
+
 
 # }}}
 # {{{ class NumVal
+
 
 class NumVal:
     def __init__(self, num):
@@ -33,9 +40,11 @@ class NumVal:
     def __repr__(self):
         return str(self.num)
 
+
 # }}}
 
 # {{{ class SigTerm
+
 
 class SigTerm:
     def __init__(self, name, n):
@@ -58,16 +67,20 @@ class SigTerm:
         return False
 
     def apply(self, subst):
-        return [ self ]
+        return [self]
 
     def __eq__(self, other):
-        return isinstance(other, SigTerm) and self.name == other.name and self.n == other.n
+        return (
+            isinstance(other, SigTerm) and self.name == other.name and self.n == other.n
+        )
 
     def __hash__(self):
         return hash((SigTerm, self.name, self.n))
 
+
 # }}}
 # {{{ class VarTerm
+
 
 class VarTerm:
     def __init__(self, name):
@@ -95,9 +108,11 @@ class VarTerm:
         t = subst.get(self)
         if t:
             ret = []
-            for x in t: ret += x.apply(subst)
+            for x in t:
+                ret += x.apply(subst)
             return ret
-        else: return [ self ]
+        else:
+            return [self]
 
     def __hash__(self):
         return hash((VarTerm, self.name))
@@ -105,8 +120,10 @@ class VarTerm:
     def __eq__(self, other):
         return isinstance(other, VarTerm) and self.name == other.name
 
+
 # }}}
 # {{{ class VarTerm
+
 
 class ValTerm:
     def __init__(self, val):
@@ -118,8 +135,10 @@ class ValTerm:
     def __repr__(self):
         return str(self.val)
 
+
 # }}}
 # {{{ functions on terms
+
 
 def split(args):
     n = 1
@@ -131,11 +150,13 @@ def split(args):
             return (args[:m], args[m:])
     return None
 
+
 def occur(x, subst, var):
     for t in x:
         if t.occur(subst, var):
             return True
     return False
+
 
 def unifyTerm(x, y, subst):
     if x[0] == y[0]:
@@ -144,36 +165,45 @@ def unifyTerm(x, y, subst):
         if not occur(y, subst, x[0]):
             subst[x[0]] = y
             return True
-        else: return False
+        else:
+            return False
     elif isinstance(y[0], VarTerm):
         if not occur(x, subst, y[0]):
             subst[y[0]] = x
             return True
-        else: return False
+        else:
+            return False
     else:
         return False
+
 
 def unify(x, y, subst):
     if x:
         xx, xxx = split(x)
         yy, yyy = split(y)
-        xx = [ u for z in xx for u in z.apply(subst) ]
-        yy = [ u for z in yy for u in z.apply(subst) ]
+        xx = [u for z in xx for u in z.apply(subst)]
+        yy = [u for z in yy for u in z.apply(subst)]
         return unifyTerm(xx, yy, subst) and unify(xxx, yyy, subst)
-    else: return True
+    else:
+        return True
+
 
 def funTerm(name, args):
     return [SigTerm(name, len(args))] + [x for y in args for x in y]
 
+
 def varTerm(name):
     return [VarTerm(name)]
+
 
 def valTerm(name):
     return [ValTerm(name)]
 
+
 # }}}
 
 # {{{ class Node
+
 
 class Node:
     def __init__(self):
@@ -210,14 +240,14 @@ class Node:
                 self.unify(x[1:], substB)
         else:
             for funB, nodeB in self.fun.items():
-                nodeB.unifySkip(var, x, t+[funB], n+funB.skip()-1, subst)
+                nodeB.unifySkip(var, x, t + [funB], n + funB.skip() - 1, subst)
             for varB, nodeB in self.var.items():
-                nodeB.unifySkip(var, x, t+[varB], n+varB.skip()-1, subst)
+                nodeB.unifySkip(var, x, t + [varB], n + varB.skip() - 1, subst)
 
     def unifyVar(self, var, x, subst):
         t = subst.get(var)
         if t:
-            self.unify(t+x[1:], subst)
+            self.unify(t + x[1:], subst)
         else:
             for fun, nodeB in self.fun.items():
                 nodeB.unifySkip(var, x, [fun], fun.skip(), subst)
@@ -229,8 +259,10 @@ class Node:
     def __repr__(self):
         return str(self.fun.items() + self.var.items())
 
+
 # }}}
 # {{{ class Lookup
+
 
 class Lookup:
     def __init__(self):
@@ -248,6 +280,7 @@ class Lookup:
 
     def __repr__(self):
         return str(self.root)
+
 
 # }}}
 

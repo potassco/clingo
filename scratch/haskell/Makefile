@@ -31,4 +31,3 @@ Clingo:
 .PHONY: clean
 clean:
 	rm -rf test Main.o Clingo
-

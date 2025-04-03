@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage {
-    echo "./$(basename $0) {stable,wip} {jammy,focal,bionic} {create,sync,changes,build,put,clean}*"
+    echo "./$(basename $0) {stable,wip} {noble,jammy,focal,bionic} {create,sync,changes,build,put,clean}*"
 }
 
 if [[ $# < 1 ]]; then
@@ -24,7 +24,7 @@ rep="${1}"
 shift
 
 case "${rep}" in
-    jammy|focal|bionic)
+    noble|jammy|focal|bionic)
         ;;
     *)
         usage
