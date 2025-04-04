@@ -133,7 +133,7 @@ class ProgramBackend {
     //! @param lit the literal to minimize
     //! @param weight the weight of the literal
     //! @param priority the priority of the literal
-    void minimize(prg_lit_t lit, prg_weight_t weight, prg_weight_t priority) { do_minimize(lit, weight, priority); }
+    void minimize(prg_weight_t priority, WeightedPrgLitSpan body) { do_minimize(priority, body); }
 
   private:
     virtual auto do_next_lit() -> prg_lit_t = 0;
@@ -146,7 +146,7 @@ class ProgramBackend {
                               PrgLitSpan body) = 0;
     virtual void do_external(prg_lit_t atom, ExternalType type) = 0;
     virtual void do_project(prg_lit_t atom) = 0;
-    virtual void do_minimize(prg_lit_t lit, prg_weight_t weight, prg_weight_t priority) = 0;
+    virtual void do_minimize(prg_weight_t priority, WeightedPrgLitSpan body) = 0;
 };
 //! A unique pointer for a program backend.
 using UProgramBackend = std::unique_ptr<ProgramBackend>;

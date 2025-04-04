@@ -123,8 +123,13 @@ class ProgramBackendImpl : public ProgramBackend {
 
     void do_project(prg_lit_t atom) override { prg_->addProject(std::array{static_cast<Potassco::Atom_t>(atom)}); }
 
-    void do_minimize(prg_lit_t lit, prg_weight_t weight, prg_weight_t priority) override {
-        prg_->addMinimize(priority, std::array{Potassco::WeightLit{lit, weight}});
+    void do_minimize(prg_weight_t priority, WeightedPrgLitSpan body) override {
+        auto wlits = Util::small_vector<Potassco::WeightLit>{};
+        wlits.reserve(body.size());
+        for (auto const &[lit, weight] : body) {
+            wlits.emplace_back(lit, weight);
+        }
+        prg_->addMinimize(priority, wlits);
     }
 
     void do_show(Symbol sym, PrgLitSpan body) override {

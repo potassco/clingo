@@ -77,6 +77,7 @@ class AspifParser {
     // NOLINTNEXTLINE(performance-enum-size)
     enum class StatementType : unsigned {
         rule = 1,
+        minimize = 2,
     };
     // NOLINTNEXTLINE(performance-enum-size)
     enum class RuleType : unsigned {
@@ -148,10 +149,19 @@ class AspifParser {
         }
     }
 
+    void minimize_() {
+        auto p = expect_signed_();
+        backend_->minimize(p, expect_wlits_());
+    }
+
     void statement_(unsigned type) {
         switch (static_cast<StatementType>(type)) {
             case StatementType::rule: {
                 rule_();
+                break;
+            }
+            case StatementType::minimize: {
+                minimize_();
                 break;
             }
             default: {

@@ -1239,7 +1239,7 @@ class BuilderMinimize {
             assert(!conds.empty());
             old = bld.clause(conds, ClauseType::disjunctive);
             bld.mark(old, EQType::implication);
-            bld.backend().minimize(old, weight, prio);
+            bld.backend().minimize(prio, std::array{std::pair{old, weight}});
             conds.clear();
         }
         delayed_.clear();
