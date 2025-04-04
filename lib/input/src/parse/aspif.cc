@@ -47,7 +47,6 @@ class AspifParser {
                         // after the terminating directive
                         static_cast<void>(e);
                     }
-
                 } else {
                     statement_(type);
                 }
@@ -62,11 +61,28 @@ class AspifParser {
     }
 
   private:
+    // NOLINTNEXTLINE(performance-enum-size)
+    enum class StatementType : unsigned {
+        rule = 1,
+    };
+    // NOLINTNEXTLINE(performance-enum-size)
+    enum class RuleType : unsigned {
+        disjunctive = 0,
+        choice = 1,
+    };
+
     void statement_(unsigned type) {
-        switch (type) {
-            case 1: {
-                static_cast<void>(this);
+        switch (static_cast<StatementType>(type)) {
+            case StatementType::rule: {
+                expect_(AspifToken::space);
+                auto type = static_cast<RuleType>(expect_unsigned_());
+                expect_(AspifToken::space);
+                // TODO: read head
+                // - read m
+                // - read m atoms
                 throw std::logic_error{"implement me!!!"};
+                // TODO: report rule
+                static_cast<void>(type);
             }
             default: {
                 throw std::logic_error{"handle me gracefully"};
@@ -79,9 +95,10 @@ class AspifParser {
         auto minor = expect_unsigned_();
         expect_(AspifToken::space);
         auto revision = expect_unsigned_();
-        expect_(AspifToken::space);
-        expect_(AspifToken::newline);
-        // TODO: parse tags
+        if (expect_(AspifToken::newline, AspifToken::space) == AspifToken::space) {
+            expect_(AspifToken::incremental);
+            expect_(AspifToken::newline);
+        }
         // TODO: report preamble
         static_cast<void>(major);
         static_cast<void>(minor);
@@ -127,6 +144,15 @@ class AspifParser {
             has_error_ = true;
             throw token_error{token};
         }
+    }
+
+    template <class... T> auto expect_(T... tokens) -> AspifToken {
+        auto token = state_->lex_aspif();
+        if (((token != tokens) && ...)) {
+            has_error_ = true;
+            throw token_error{token};
+        }
+        return token;
     }
 
     ParserState *state_;
