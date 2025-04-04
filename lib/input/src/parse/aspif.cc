@@ -1,3 +1,4 @@
+#include <clingo/core/backend.hh>
 #include <clingo/util/string.hh>
 
 #include "parser_state.hh"
@@ -23,7 +24,11 @@ class value_error : public std::exception {
 
 class AspifParser {
   public:
-    AspifParser(ParserState &state) : state_{&state} {}
+    AspifParser(ParserState &state, ProgramBackend &backend, TheoryBackend &theory)
+        : state_{&state}, backend_{&backend}, theory_{&theory} {
+        // TODO: implement theory
+        static_cast<void>(theory_);
+    }
 
     //! Parses a program in aspif format assuming that the lexer currently sits
     //! on the the "asp" token.
@@ -70,19 +75,55 @@ class AspifParser {
         disjunctive = 0,
         choice = 1,
     };
+    // NOLINTNEXTLINE(performance-enum-size)
+    enum class BodyType : unsigned {
+        normal = 0,
+        weight = 1,
+    };
 
     void statement_(unsigned type) {
         switch (static_cast<StatementType>(type)) {
             case StatementType::rule: {
                 expect_(AspifToken::space);
-                auto type = static_cast<RuleType>(expect_unsigned_());
+                auto rule_type = static_cast<RuleType>(expect_unsigned_());
                 expect_(AspifToken::space);
-                // TODO: read head
-                // - read m
-                // - read m atoms
-                throw std::logic_error{"implement me!!!"};
-                // TODO: report rule
-                static_cast<void>(type);
+                auto m = expect_unsigned_();
+                auto head = std::vector<prg_lit_t>{};
+                head.reserve(m);
+                for (unsigned i = 0; i < m; ++i) {
+                    head.emplace_back(expect_unsigned_());
+                }
+                auto body_type = static_cast<BodyType>(expect_unsigned_());
+                switch (body_type) {
+                    case BodyType::normal: {
+                        auto m = expect_unsigned_();
+                        auto body = std::vector<prg_lit_t>{};
+                        body.reserve(m);
+                        for (unsigned i = 0; i < m; ++i) {
+                            body.emplace_back(expect_signed_());
+                        }
+                        backend_->rule(head, body, rule_type == RuleType::choice);
+                        break;
+                    }
+                    case BodyType::weight: {
+                        auto l = expect_signed_(); // TODO: check signed/unsigned
+                        auto m = expect_unsigned_();
+                        auto body = WeightedPrgLitVec{};
+                        body.reserve(m);
+                        for (unsigned i = 0; i < m; ++i) {
+                            auto lit = expect_signed_();
+                            body.emplace_back(lit, expect_signed_());
+                        }
+                        if (head.size() != 0 || rule_type == RuleType::choice) {
+                            throw std::logic_error{"the backend has to be extended to support the full aspif syntax"};
+                        }
+                        backend_->bd_aggr(head[0], body, l);
+                        break;
+                    }
+                    default: {
+                        throw std::logic_error{"handle me gracefully"};
+                    }
+                }
             }
             default: {
                 throw std::logic_error{"handle me gracefully"};
@@ -99,7 +140,7 @@ class AspifParser {
             expect_(AspifToken::incremental);
             expect_(AspifToken::newline);
         }
-        // TODO: report preamble
+        // TODO: extend backend to report preamble
         static_cast<void>(major);
         static_cast<void>(minor);
         static_cast<void>(revision);
@@ -156,12 +197,14 @@ class AspifParser {
     }
 
     ParserState *state_;
+    ProgramBackend *backend_;
+    TheoryBackend *theory_;
     bool has_error_ = false;
 };
 
 } // namespace
 
-auto parse_aspif(ParserState &state) {
+auto parse_aspif(ParserState &state, ProgramBackend &backend, TheoryBackend &theory) {
     // TODO: this most likely has to be called manually befor scan statement.
     // We simply set the parse mode to program; if the parser encounters an
     // aspif preamble it switches to aspif parsing mode and, otherwise, goes
@@ -173,7 +216,7 @@ auto parse_aspif(ParserState &state) {
     // TODO: This function should return some code indicating whether parsing
     // was successfull, failed, or was not even attempted because the file is
     // not in aspif format.
-    AspifParser{state}.parse();
+    AspifParser{state, backend, theory}.parse();
 }
 
 } // namespace Clingo::Input::Parse
