@@ -48,12 +48,14 @@ class ProgramBackendImpl : public ProgramBackend {
         prg_->addRule(bld_);
     }
 
-    void do_bd_aggr(prg_lit_t head, WeightedPrgLitSpan body, prg_weight_t bound) override {
-        assert(head > 0);
+    void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, prg_weight_t bound, bool choice) override {
         assert(bound > 0);
         bld_.clear();
-        bld_.start();
-        bld_.addHead(head);
+        bld_.start(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive);
+        for (auto const &atom : head) {
+            assert(atom > 0);
+            bld_.addHead(atom);
+        }
         bld_.startSum(bound);
         for (auto const &[lit, weight] : body) {
             assert(weight > 0);

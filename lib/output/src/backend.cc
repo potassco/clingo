@@ -789,7 +789,7 @@ class BuilderSum {
                         bound -= weight;
                     }
                 }
-                bld.backend().bd_aggr(lit, wlits, bound.as_int().value());
+                bld.backend().bd_aggr(std::array{lit}, wlits, bound.as_int().value(), false);
             };
 
             // translate all bounds of an aggregate

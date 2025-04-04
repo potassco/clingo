@@ -7,17 +7,37 @@ namespace Clingo::Input::Parse {
 
 namespace {
 
-class token_error : public std::exception {
-  public:
-    token_error(AspifToken expected) : expected_{expected} {}
-    [[nodiscard]] auto what() const noexcept -> char const * override { return "unexpected aspif token"; }
-    [[nodiscard]] auto expected() const -> AspifToken { return expected_; }
+auto operator<<(std::ostream &out, AspifToken token) -> std::ostream & {
+    switch (token) {
+        case AspifToken::str: {
+            return out << "<string>";
+        }
+        case AspifToken::end: {
+            return out << "<end>";
+        }
+        case AspifToken::error: {
+            return out << "<error>";
+        }
+        case AspifToken::incremental: {
+            return out << "<incremental>";
+        }
+        case AspifToken::newline: {
+            return out << "<newline>";
+        }
+        case AspifToken::space: {
+            return out << "<space>";
+        }
+        case AspifToken::num_neg: {
+            return out << "<non-positive number>";
+        }
+        case AspifToken::num_pos: {
+            return out << "<non-negative number>";
+        }
+    }
+    return out;
+}
 
-  private:
-    AspifToken expected_;
-};
-
-class value_error : public std::exception {
+class aspif_error : public std::exception {
   public:
     [[nodiscard]] auto what() const noexcept -> char const * override { return "unexpected aspif value"; }
 };
@@ -35,31 +55,19 @@ class AspifParser {
     void parse() {
         try {
             preamble_();
-        } catch (token_error const &e) {
-            // TODO: report the preamble parsing failed
+        } catch ([[maybe_unused]] aspif_error const &e) {
             recover_();
         }
         while (true) {
             try {
                 auto type = expect_unsigned_();
                 if (type == 0) {
-                    try {
-                        expect_(AspifToken::newline);
-                        expect_(AspifToken::end);
-
-                    } catch (token_error const &e) {
-                        // TODO: report that there are unexpected characters
-                        // after the terminating directive
-                        static_cast<void>(e);
-                    }
+                    expect_(AspifToken::newline);
+                    expect_(AspifToken::end);
                 } else {
                     statement_(type);
                 }
-            } catch (token_error const &e) {
-                // TODO: report the statement parsing failed
-                recover_();
-            } catch ([[maybe_unused]] value_error const &e) {
-                // NOTE: value errors are reported where they occur
+            } catch ([[maybe_unused]] aspif_error const &e) {
                 recover_();
             }
         }
@@ -81,55 +89,78 @@ class AspifParser {
         weight = 1,
     };
 
-    void statement_(unsigned type) {
-        switch (static_cast<StatementType>(type)) {
-            case StatementType::rule: {
-                expect_(AspifToken::space);
-                auto rule_type = static_cast<RuleType>(expect_unsigned_());
-                expect_(AspifToken::space);
-                auto m = expect_unsigned_();
-                auto head = std::vector<prg_lit_t>{};
-                head.reserve(m);
-                for (unsigned i = 0; i < m; ++i) {
-                    head.emplace_back(expect_unsigned_());
-                }
-                auto body_type = static_cast<BodyType>(expect_unsigned_());
-                switch (body_type) {
-                    case BodyType::normal: {
-                        auto m = expect_unsigned_();
-                        auto body = std::vector<prg_lit_t>{};
-                        body.reserve(m);
-                        for (unsigned i = 0; i < m; ++i) {
-                            body.emplace_back(expect_signed_());
-                        }
-                        backend_->rule(head, body, rule_type == RuleType::choice);
-                        break;
-                    }
-                    case BodyType::weight: {
-                        auto l = expect_signed_(); // TODO: check signed/unsigned
-                        auto m = expect_unsigned_();
-                        auto body = WeightedPrgLitVec{};
-                        body.reserve(m);
-                        for (unsigned i = 0; i < m; ++i) {
-                            auto lit = expect_signed_();
-                            body.emplace_back(lit, expect_signed_());
-                        }
-                        if (head.size() != 0 || rule_type == RuleType::choice) {
-                            throw std::logic_error{"the backend has to be extended to support the full aspif syntax"};
-                        }
-                        backend_->bd_aggr(head[0], body, l);
-                        break;
-                    }
-                    default: {
-                        throw std::logic_error{"handle me gracefully"};
-                    }
-                }
+    auto expect_atoms_() -> PrgLitVec {
+        auto m = expect_unsigned_();
+        auto body = PrgLitVec{};
+        body.reserve(m);
+        for (unsigned i = 0; i < m; ++i) {
+            body.emplace_back(expect_unsigned_());
+        }
+        return body;
+    }
+
+    auto expect_lits_() -> PrgLitVec {
+        auto m = expect_unsigned_();
+        auto body = PrgLitVec{};
+        body.reserve(m);
+        for (unsigned i = 0; i < m; ++i) {
+            body.emplace_back(expect_signed_());
+        }
+        return body;
+    }
+
+    auto expect_wlits_() -> WeightedPrgLitVec {
+        auto m = expect_unsigned_();
+        auto body = WeightedPrgLitVec{};
+        body.reserve(m);
+        for (unsigned i = 0; i < m; ++i) {
+            auto lit = expect_signed_();
+            body.emplace_back(lit, expect_signed_());
+        }
+        return body;
+    }
+
+    void rule_() {
+        expect_(AspifToken::space);
+        auto rule_type = static_cast<RuleType>(expect_unsigned_());
+        if (rule_type != RuleType::choice && rule_type != RuleType::disjunctive) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc())
+                << "unexpected rule type `" << static_cast<unsigned>(rule_type) << "`";
+            throw aspif_error{};
+        }
+        expect_(AspifToken::space);
+        auto head = expect_atoms_();
+        auto body_type = expect_unsigned_();
+        switch (static_cast<BodyType>(body_type)) {
+            case BodyType::normal: {
+                backend_->rule(head, expect_lits_(), rule_type == RuleType::choice);
+                break;
+            }
+            case BodyType::weight: {
+                auto l = expect_signed_();
+                backend_->bd_aggr(head, expect_wlits_(), l, rule_type == RuleType::choice);
+                break;
             }
             default: {
-                throw std::logic_error{"handle me gracefully"};
+                GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected body type `" << body_type << "`";
+                throw aspif_error{};
             }
         }
     }
+
+    void statement_(unsigned type) {
+        switch (static_cast<StatementType>(type)) {
+            case StatementType::rule: {
+                rule_();
+                break;
+            }
+            default: {
+                GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected statement type `" << type << "`";
+                throw aspif_error{};
+            }
+        }
+    }
+
     void preamble_() {
         auto major = expect_unsigned_();
         expect_(AspifToken::space);
@@ -147,29 +178,26 @@ class AspifParser {
     }
 
     void recover_() {
+        // TODO: check which error to throw or value to return to best indicate failure
         auto gobble = state_->lex_str();
         if (gobble == AspifToken::str) {
+            // NOTE: only newlines can follow
             state_->lex_aspif();
         } else {
             if (gobble == AspifToken::end) {
-                // TODO: report
-                throw std::runtime_error("unexpected end of file");
+                GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected end of file";
             }
-            // TODO: report
-            throw std::runtime_error("unexpected token");
+            // NOTE: only a null byte is possible
+            throw std::runtime_error("parsing failed");
         }
     }
 
     auto expect_signed_() -> int {
-        auto token = state_->lex_aspif();
-        if (token == AspifToken::num_pos || token == AspifToken::num_neg) {
-            auto str = state_->view();
-            int res = 0;
-            std::from_chars(str.begin(), str.end(), res);
-            return res;
-        }
-        has_error_ = true;
-        throw token_error{AspifToken::num_neg};
+        expect_(AspifToken::num_pos, AspifToken::num_neg);
+        auto str = state_->view();
+        int res = 0;
+        std::from_chars(str.begin(), str.end(), res);
+        return res;
     }
 
     auto expect_unsigned_() -> unsigned {
@@ -180,18 +208,12 @@ class AspifParser {
         return res;
     }
 
-    void expect_(AspifToken token) {
-        if (state_->lex_aspif() != token) {
-            has_error_ = true;
-            throw token_error{token};
-        }
-    }
-
     template <class... T> auto expect_(T... tokens) -> AspifToken {
         auto token = state_->lex_aspif();
         if (((token != tokens) && ...)) {
             has_error_ = true;
-            throw token_error{token};
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
+            throw aspif_error{};
         }
         return token;
     }

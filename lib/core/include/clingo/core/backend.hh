@@ -38,7 +38,7 @@ using PrgLitSpan = std::span<prg_lit_t const>;
 //! A vector of literals.
 using PrgLitVec = std::vector<prg_lit_t>;
 //! A span of program literals.
-using WeightedPrgLitSpan = std::span<std::pair<prg_lit_t, prg_weight_t>>;
+using WeightedPrgLitSpan = std::span<std::pair<prg_lit_t, prg_weight_t> const>;
 //! A vector of program literals.
 using WeightedPrgLitVec = std::vector<std::pair<prg_lit_t, prg_weight_t>>;
 
@@ -68,7 +68,9 @@ class ProgramBackend {
     //! @param head the literal that is derived
     //! @param body the weighted body literals
     //! @param bound the lower bound of the constraint
-    void bd_aggr(prg_lit_t head, WeightedPrgLitSpan body, int32_t bound) { do_bd_aggr(head, body, bound); }
+    void bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, int32_t bound, bool choice) {
+        do_bd_aggr(head, body, bound, choice);
+    }
 
     //! Add a disjunctive or choice rule.
     //!
@@ -136,7 +138,7 @@ class ProgramBackend {
   private:
     virtual auto do_next_lit() -> prg_lit_t = 0;
     virtual void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) = 0;
-    virtual void do_bd_aggr(prg_lit_t head, WeightedPrgLitSpan body, int32_t bound) = 0;
+    virtual void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, int32_t bound, bool choice) = 0;
     virtual void do_show(Symbol sym, PrgLitSpan body) = 0;
     virtual void do_show_atom(Symbol sym, prg_lit_t lit) = 0;
     virtual void do_edge(prg_id_t u, prg_id_t v, PrgLitSpan body) = 0;
