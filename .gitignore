@@ -27,3 +27,5 @@ MANIFEST
 .cache
 .gdb_history
 libpyclingo/env/
+.envrc
+.venv
