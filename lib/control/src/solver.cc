@@ -23,6 +23,9 @@ class ProgramBackendImpl : public ProgramBackend {
     ProgramBackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
 
   private:
+    //! Hook before adding atoms.
+    virtual void do_pre_show_atom([[maybe_unused]] Symbol sym, [[maybe_unused]] prg_lit_t lit) {}
+
     void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
                      [[maybe_unused]] unsigned revision, [[maybe_unused]] bool incremental) override {
         // TODO: maybe assert that program updates are enabled
@@ -133,6 +136,7 @@ class ProgramBackendImpl : public ProgramBackend {
 
     void do_show_atom(Symbol sym, prg_lit_t lit) override {
         assert(lit > 0);
+        do_pre_show_atom(sym, lit);
         buf_.reset();
         buf_ << sym;
         prg_->addOutput(buf_.c_str(), lit);
@@ -248,7 +252,26 @@ class TheoryBackendImpl : public TheoryBackend {
     Clasp::Asp::LogicProgram *prg_;
 };
 
-//! Implementation of the theory backend interface.
+//! Implementation of the program backend for aspif parser.
+class ProgramBackendAdapter : public ProgramBackendImpl {
+  public:
+    ProgramBackendAdapter(Ground::Bases &bases, Clasp::Asp::LogicProgram &prg)
+        : ProgramBackendImpl{prg}, bases_{&bases} {}
+
+  private:
+    void do_pre_show_atom(Symbol sym, prg_lit_t lit) override {
+        auto sig = sym.signature();
+        if (!sig) {
+            throw std::runtime_error{"unexpected symbol for atom"};
+        }
+        auto &base = bases_->add_base(*sig);
+        base.add(sym, Ground::StateAtom::unknown, [lit]() { return lit; });
+    }
+
+    Ground::Bases *bases_;
+};
+
+//! Implementation of the theory backend for aspif parser.
 class TheoryBackendAdapter : public TheoryBackend {
   public:
     TheoryBackendAdapter(SymbolStore &store, Output::TheoryData &data) : store_{&store}, data_{&data} {}
