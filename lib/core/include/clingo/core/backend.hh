@@ -122,10 +122,10 @@ class ProgramBackend {
 
     //! Project the given atom.
     //!
-    //! @param atom the atom to project
-    void project(prg_lit_t atom) {
-        assert(atom > 0);
-        do_project(atom);
+    //! @param atoms the atoms to project
+    void project(PrgLitSpan atoms) {
+        assert(std::ranges::all_of(atoms, [](auto const &x) { return x > 0; }));
+        do_project(atoms);
     }
 
     //! Project the given atom.
@@ -145,7 +145,7 @@ class ProgramBackend {
     virtual void do_heuristic(prg_lit_t atom, prg_weight_t weight, prg_weight_t prio, HeuristicType type,
                               PrgLitSpan body) = 0;
     virtual void do_external(prg_lit_t atom, ExternalType type) = 0;
-    virtual void do_project(prg_lit_t atom) = 0;
+    virtual void do_project(PrgLitSpan atoms) = 0;
     virtual void do_minimize(prg_weight_t priority, WeightedPrgLitSpan body) = 0;
 };
 //! A unique pointer for a program backend.

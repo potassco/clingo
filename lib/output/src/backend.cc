@@ -1422,7 +1422,9 @@ class OutputBackend : public OutputStm, OutputTheory {
         bld_.backend().external(uid_to_atom(uid), type);
     }
 
-    void do_project([[maybe_unused]] Symbol atom, size_t uid) override { bld_.backend().project(uid_to_atom(uid)); }
+    void do_project([[maybe_unused]] Symbol atom, size_t uid) override {
+        bld_.backend().project(std::array{uid_to_atom(uid)});
+    }
 
     auto do_aggr_rule(std::optional<size_t> uid) -> size_t override {
         if (!uid) {

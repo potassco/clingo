@@ -78,6 +78,8 @@ class AspifParser {
     enum class StatementType : unsigned {
         rule = 1,
         minimize = 2,
+        project = 3,
+        output = 4,
     };
     // NOLINTNEXTLINE(performance-enum-size)
     enum class RuleType : unsigned {
@@ -154,6 +156,28 @@ class AspifParser {
         backend_->minimize(p, expect_wlits_());
     }
 
+    void project_() { backend_->project(expect_atoms_()); }
+
+    void output_() {
+        auto m = expect_unsigned_();
+        if (auto token = state_->lex_str(m); token != AspifToken::str) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
+            throw aspif_error{};
+        }
+        auto s = state_->view();
+        state_term_.init(s, *state_->store().string("symbol"));
+        auto sym = parse_symbol(state_term_);
+        if (!sym) {
+            throw aspif_error{};
+        }
+        auto body = expect_lits_();
+        if (body.size() == 1 && body.front() > 0) {
+            backend_->show_atom(*sym.value(), body.front());
+        } else {
+            backend_->show(*sym.value(), body);
+        }
+    }
+
     void statement_(unsigned type) {
         switch (static_cast<StatementType>(type)) {
             case StatementType::rule: {
@@ -162,6 +186,14 @@ class AspifParser {
             }
             case StatementType::minimize: {
                 minimize_();
+                break;
+            }
+            case StatementType::project: {
+                project_();
+                break;
+            }
+            case StatementType::output: {
+                output_();
                 break;
             }
             default: {
@@ -229,6 +261,7 @@ class AspifParser {
     }
 
     ParserState *state_;
+    ParserState state_term_{state_->log(), state_->store()};
     ProgramBackend *backend_;
     TheoryBackend *theory_;
     bool has_error_ = false;

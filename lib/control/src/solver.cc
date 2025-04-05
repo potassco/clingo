@@ -121,7 +121,11 @@ class ProgramBackendImpl : public ProgramBackend {
         prg_->addExternal(atom, value);
     }
 
-    void do_project(prg_lit_t atom) override { prg_->addProject(std::array{static_cast<Potassco::Atom_t>(atom)}); }
+    void do_project(PrgLitSpan atoms) override {
+        for (auto const &atom : atoms) {
+            prg_->addProject(std::array{static_cast<Potassco::Atom_t>(atom)});
+        }
+    }
 
     void do_minimize(prg_weight_t priority, WeightedPrgLitSpan body) override {
         auto wlits = Util::small_vector<Potassco::WeightLit>{};
