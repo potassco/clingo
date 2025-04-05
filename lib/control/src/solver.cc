@@ -948,11 +948,25 @@ void Solver::join(Input::UnprocessedProgram const &prg) {
 }
 
 void Solver::parse(std::string_view str) {
-    includes_ |= grd_.parse(str, scripts_);
+    if (mode_ == AppMode::solve) {
+        auto bck = ProgramBackendAdapter{grd_.base(), *clasp_->asp()};
+        auto thy = TheoryBackendAdapter{grd_.store(), *theory_};
+        // TODO : pass bck and thy to parse
+        includes_ |= grd_.parse(str, scripts_);
+    } else {
+        includes_ |= grd_.parse(str, scripts_);
+    }
 }
 
 void Solver::parse(std::span<std::string_view const> const &files) {
-    includes_ |= grd_.parse(files, scripts_);
+    if (mode_ == AppMode::solve) {
+        auto bck = ProgramBackendAdapter{grd_.base(), *clasp_->asp()};
+        auto thy = TheoryBackendAdapter{grd_.store(), *theory_};
+        // TODO : pass bck and thy to parse
+        includes_ |= grd_.parse(files, scripts_);
+    } else {
+        includes_ |= grd_.parse(files, scripts_);
+    }
 }
 
 void Solver::add_const(String name, Symbol value) {
