@@ -45,10 +45,7 @@ class aspif_error : public std::exception {
 class AspifParser {
   public:
     AspifParser(ParserState &state, ProgramBackend &backend, TheoryBackend &theory)
-        : state_{&state}, backend_{&backend}, theory_{&theory} {
-        // TODO: implement theory
-        static_cast<void>(theory_);
-    }
+        : state_{&state}, backend_{&backend}, theory_backend_{&theory} {}
 
     //! Parses a program in aspif format assuming that the lexer currently sits
     //! on the the "asp" token.
@@ -82,19 +79,35 @@ class AspifParser {
         output = 4,
         external = 5,
         assume = 6,
+        heuristic = 7,
+        edge = 8,
+        theory = 9,
+        comment = 10,
     };
-    static constexpr auto max_statement_type = 10;
     enum class RuleType : uint8_t {
         disjunctive = 0,
         choice = 1,
     };
-    static constexpr auto max_rule_type = 1;
+    static constexpr unsigned max_rule_type = 1;
     enum class BodyType : uint8_t {
         normal = 0,
         weight = 1,
     };
-    static constexpr auto max_body_type = 1;
-    static constexpr auto max_external_type = 4;
+    static constexpr unsigned max_body_type = 1;
+    static constexpr unsigned max_heuristic_type = 5;
+    static constexpr unsigned max_external_type = 4;
+    enum class TheoryType : uint8_t {
+        number = 0,
+        symbol = 1,
+        compound = 2,
+        element = 4,
+        atom = 5,
+        atom_with_guard = 6,
+    };
+    static constexpr unsigned theory_type_reserved = 3;
+    static constexpr unsigned max_theory_type = 6;
+    static constexpr int max_theory_compound_type = 3;
+    static constexpr unsigned max_statement_type = 10;
 
     template <class... T> auto expect_(T... tokens) -> AspifToken {
         auto token = state_->lex_aspif();
@@ -151,6 +164,17 @@ class AspifParser {
         return body;
     }
 
+    auto expect_ids_() -> PrgIdVec {
+        auto m = expect_unsigned_();
+        auto ids = PrgIdVec{};
+        ids.reserve(m);
+        for (unsigned i = 0; i < m; ++i) {
+            expect_(AspifToken::space);
+            ids.emplace_back(expect_unsigned_());
+        }
+        return ids;
+    }
+
     auto expect_lits_() -> PrgLitVec {
         auto m = expect_unsigned_();
         auto body = PrgLitVec{};
@@ -176,16 +200,11 @@ class AspifParser {
     }
 
     void recover_() {
-        // TODO: check which error to throw or value to return to best indicate failure
-        auto gobble = state_->lex_str();
-        if (gobble == AspifToken::str) {
-            // NOTE: only newlines can follow
-            state_->lex_aspif();
+        auto token = state_->lex_str();
+        if (token == AspifToken::str) {
+            state_->lex_aspif(); // gobble newline
         } else {
-            if (gobble == AspifToken::end) {
-                GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected end of file";
-            }
-            // NOTE: only a null byte is possible
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token `" << token << "`";
             throw std::runtime_error("parsing failed");
         }
     }
@@ -224,7 +243,6 @@ class AspifParser {
     }
 
     void rule_() {
-        expect_(AspifToken::space);
         auto rule_type = rule_type_();
         expect_(AspifToken::space);
         auto head = expect_atoms_();
@@ -243,25 +261,17 @@ class AspifParser {
                 break;
             }
         }
-        expect_(AspifToken::newline);
     }
 
     void minimize_() {
-        expect_(AspifToken::space);
         auto p = expect_signed_();
         expect_(AspifToken::space);
         backend_->minimize(p, expect_wlits_());
-        expect_(AspifToken::newline);
     }
 
-    void project_() {
-        expect_(AspifToken::space);
-        backend_->project(expect_atoms_());
-        expect_(AspifToken::newline);
-    }
+    void project_() { backend_->project(expect_atoms_()); }
 
     void output_() {
-        expect_(AspifToken::space);
         state_term_.init(expect_nstr_(), *str_symbol_);
         auto sym = parse_symbol(state_term_);
         if (!sym) {
@@ -274,7 +284,6 @@ class AspifParser {
         } else {
             backend_->show(*sym.value(), body);
         }
-        expect_(AspifToken::newline);
     }
 
     auto external_type_() -> Clingo::ExternalType {
@@ -287,18 +296,141 @@ class AspifParser {
     }
 
     void external_() {
-        expect_(AspifToken::space);
         auto a = expect_unsigned_();
         expect_(AspifToken::space);
         backend_->external(static_cast<prg_lit_t>(a), external_type_());
-        expect_(AspifToken::newline);
     }
 
-    void assume_() {
-        expect_(AspifToken::space);
-        backend_->assume(expect_lits_());
-        expect_(AspifToken::newline);
+    void assume_() { backend_->assume(expect_lits_()); }
+
+    auto heuristic_type_() -> HeuristicType {
+        auto type = expect_unsigned_();
+        if (type > max_heuristic_type) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected heuristic type `" << type << "`";
+            throw aspif_error{};
+        }
+        return static_cast<HeuristicType>(type);
     }
+
+    void heuristic_() {
+        auto type = heuristic_type_();
+        expect_(AspifToken::space);
+        auto atom = expect_unsigned_();
+        expect_(AspifToken::space);
+        auto weight = expect_signed_();
+        expect_(AspifToken::space);
+        auto priority = expect_signed_();
+        expect_(AspifToken::space);
+        backend_->heuristic(static_cast<prg_lit_t>(atom), weight, priority, type, expect_lits_());
+    }
+
+    void edge_() {
+        auto u = expect_unsigned_();
+        expect_(AspifToken::space);
+        auto v = expect_unsigned_();
+        expect_(AspifToken::space);
+        backend_->edge(u, v, expect_lits_());
+    }
+
+    auto theory_type_() -> TheoryType {
+        auto type = expect_unsigned_();
+        if (type == theory_type_reserved || type > max_theory_type) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected theory type `" << type << "`";
+            throw aspif_error{};
+        }
+        return static_cast<TheoryType>(type);
+    }
+
+    void theory_number_() {
+        auto id = expect_unsigned_();
+        expect_(AspifToken::space);
+        auto num = expect_signed_();
+        theory_backend_->num(id, num);
+    }
+    void theory_symbol_() {
+        auto id = expect_unsigned_();
+        expect_(AspifToken::space);
+        auto num = expect_nstr_();
+        theory_backend_->str(id, num);
+    }
+
+    auto theory_compound_type_(int type) -> TheoryTermTupleType {
+        if (type >= 0 || type <= -max_theory_compound_type) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected compound type `" << type << "`";
+        }
+        return static_cast<TheoryTermTupleType>(-type);
+    }
+
+    void theory_compound_() {
+        auto id = expect_unsigned_();
+        expect_(AspifToken::space);
+        auto type = expect_signed_();
+        expect_(AspifToken::space);
+        auto terms = expect_ids_();
+        if (type >= 0) {
+            theory_backend_->fun(id, type, terms);
+        } else {
+            theory_backend_->tup(id, theory_compound_type_(type), terms);
+        }
+    }
+    void theory_element_() {
+        auto id = expect_unsigned_();
+        expect_(AspifToken::space);
+        auto tuple = expect_ids_();
+        expect_(AspifToken::space);
+        auto cond = expect_lits_();
+        theory_backend_->elem(id, tuple, cond);
+    }
+
+    void theory_atom_(bool parse_guard) {
+        auto atom = expect_signed_();
+        expect_(AspifToken::space);
+        auto name = expect_unsigned_();
+        expect_(AspifToken::space);
+        auto elems = expect_ids_();
+        auto guard = std::optional<std::pair<prg_id_t, prg_id_t>>{};
+        if (parse_guard) {
+            expect_(AspifToken::space);
+            auto op = expect_unsigned_();
+            expect_(AspifToken::space);
+            auto term = expect_unsigned_();
+            guard.emplace(op, term);
+        }
+        theory_backend_->atom(atom, name, elems, guard);
+    }
+
+    void theory_() {
+        auto type = theory_type_();
+        expect_(AspifToken::space);
+        switch (type) {
+            case TheoryType::number: {
+                theory_number_();
+                break;
+            }
+            case TheoryType::symbol: {
+                theory_symbol_();
+                break;
+            }
+            case TheoryType::compound: {
+                theory_compound_();
+                break;
+            }
+            case TheoryType::element: {
+                theory_element_();
+                break;
+            }
+            case TheoryType::atom: {
+                theory_atom_(false);
+                break;
+            }
+            case TheoryType::atom_with_guard: {
+                theory_atom_(true);
+                break;
+            }
+        }
+    }
+
+    void comment_() { expect_str_(); }
 
     auto statement_type_(unsigned st) -> StatementType {
         if (st > max_statement_type) {
@@ -309,6 +441,7 @@ class AspifParser {
     }
 
     void statement_(StatementType type) {
+        expect_(AspifToken::space);
         switch (type) {
             case StatementType::rule: {
                 rule_();
@@ -334,14 +467,31 @@ class AspifParser {
                 assume_();
                 break;
             }
+            case StatementType::heuristic: {
+                heuristic_();
+                break;
+            }
+            case StatementType::edge: {
+                edge_();
+                break;
+            }
+            case StatementType::theory: {
+                theory_();
+                break;
+            }
+            case StatementType::comment: {
+                comment_();
+                break;
+            }
         }
+        expect_(AspifToken::newline);
     }
 
     ParserState *state_;
     ParserState state_term_{state_->log(), state_->store()};
     SharedString str_symbol_{*state_->store().string("symbol")};
     ProgramBackend *backend_;
-    TheoryBackend *theory_;
+    TheoryBackend *theory_backend_;
     bool has_error_ = false;
 };
 

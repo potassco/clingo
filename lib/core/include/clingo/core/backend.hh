@@ -191,7 +191,7 @@ class TheoryBackend {
     //!
     //! @param id the unique term id
     //! @param str the string
-    void str(prg_id_t id, char const *str) { do_str(id, str); }
+    void str(prg_id_t id, std::string_view str) { do_str(id, str); }
     //! Add a theory function.
     //!
     //! @note The caller is responsible to assign unique ids.
@@ -234,7 +234,7 @@ class TheoryBackend {
 
   private:
     virtual void do_num(prg_id_t id, prg_weight_t num) = 0;
-    virtual void do_str(prg_id_t id, char const *str) = 0;
+    virtual void do_str(prg_id_t id, std::string_view str) = 0;
     virtual void do_fun(prg_id_t id, prg_id_t name, PrgIdSpan args) = 0;
     virtual void do_tup(prg_id_t id, TheoryTermTupleType type, PrgIdSpan args) = 0;
     virtual void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) = 0;

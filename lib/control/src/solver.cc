@@ -80,30 +80,19 @@ class ProgramBackendImpl : public ProgramBackend {
 
     void do_heuristic(prg_lit_t atom, int32_t weight, int32_t prio, HeuristicType type, PrgLitSpan body) override {
         assert(atom > 0);
-        auto dmod = [type] {
-            switch (type) {
-                case Clingo::HeuristicType::init: {
-                    return Clasp::DomModType::init;
-                }
-                case Clingo::HeuristicType::factor: {
-                    return Clasp::DomModType::factor;
-                }
-                case Clingo::HeuristicType::false_: {
-                    return Clasp::DomModType::false_;
-                }
-                case Clingo::HeuristicType::level: {
-                    return Clasp::DomModType::level;
-                }
-                case Clingo::HeuristicType::sign: {
-                    return Clasp::DomModType::sign;
-                }
-                case Clingo::HeuristicType::true_: {
-                    return Clasp::DomModType::true_;
-                }
-            }
-            Util::unreachable();
-        }();
-        prg_->addDomHeuristic(atom, dmod, weight, prio, body);
+        static_assert(static_cast<unsigned>(Clingo::HeuristicType::init) ==
+                      static_cast<unsigned>(Clasp::DomModType::init));
+        static_assert(static_cast<unsigned>(Clingo::HeuristicType::factor) ==
+                      static_cast<unsigned>(Clasp::DomModType::factor));
+        static_assert(static_cast<unsigned>(Clingo::HeuristicType::false_) ==
+                      static_cast<unsigned>(Clasp::DomModType::false_));
+        static_assert(static_cast<unsigned>(Clingo::HeuristicType::level) ==
+                      static_cast<unsigned>(Clasp::DomModType::level));
+        static_assert(static_cast<unsigned>(Clingo::HeuristicType::sign) ==
+                      static_cast<unsigned>(Clasp::DomModType::sign));
+        static_assert(static_cast<unsigned>(Clingo::HeuristicType::true_) ==
+                      static_cast<unsigned>(Clasp::DomModType::true_));
+        prg_->addDomHeuristic(atom, static_cast<Clasp::DomModType>(type), weight, prio, body);
     }
 
     void do_external(prg_lit_t atom, ExternalType type) override {
@@ -165,7 +154,7 @@ class TheoryBackendImpl : public TheoryBackend {
   private:
     void do_num(prg_id_t id, int32_t num) override { prg_->theoryData().addTerm(id, num); }
 
-    void do_str(prg_id_t id, char const *str) override { prg_->theoryData().addTerm(id, str); }
+    void do_str(prg_id_t id, std::string_view str) override { prg_->theoryData().addTerm(id, str); }
 
     void do_fun(prg_id_t id, prg_id_t name, PrgIdSpan args) override {
         assert(!args.empty());
@@ -295,7 +284,7 @@ class TheoryBackendAdapter : public TheoryBackend {
 
     void do_num(prg_id_t id, int32_t num) override { term_(id, data_->num(num)); }
 
-    void do_str(prg_id_t id, char const *str) override { term_(id, data_->str(*store_->string(str))); }
+    void do_str(prg_id_t id, std::string_view str) override { term_(id, data_->str(*store_->string(str))); }
 
     void do_fun(prg_id_t id, prg_id_t name, PrgIdSpan args) override {
         assert(!args.empty());
