@@ -92,6 +92,49 @@ class AspifParser {
         weight = 1,
     };
 
+    template <class... T> auto expect_(T... tokens) -> AspifToken {
+        auto token = state_->lex_aspif();
+        if (((token != tokens) && ...)) {
+            has_error_ = true;
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
+            throw aspif_error{};
+        }
+        return token;
+    }
+
+    auto expect_str_() -> std::string_view {
+        if (auto token = state_->lex_str(); token != AspifToken::str) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
+            throw aspif_error{};
+        }
+        return state_->view();
+    }
+
+    auto expect_nstr_() -> std::string_view {
+        auto m = expect_unsigned_();
+        if (auto token = state_->lex_str(m); token != AspifToken::str) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
+            throw aspif_error{};
+        }
+        return state_->view();
+    }
+
+    auto expect_signed_() -> int {
+        expect_(AspifToken::num_pos, AspifToken::num_neg);
+        auto str = state_->view();
+        int res = 0;
+        std::from_chars(str.begin(), str.end(), res);
+        return res;
+    }
+
+    auto expect_unsigned_() -> unsigned {
+        expect_(AspifToken::num_pos);
+        auto str = state_->view();
+        unsigned res = 0;
+        std::from_chars(str.begin(), str.end(), res);
+        return res;
+    }
+
     auto expect_atoms_() -> PrgLitVec {
         auto m = expect_unsigned_();
         auto body = PrgLitVec{};
@@ -121,6 +164,37 @@ class AspifParser {
             body.emplace_back(lit, expect_signed_());
         }
         return body;
+    }
+
+    void recover_() {
+        // TODO: check which error to throw or value to return to best indicate failure
+        auto gobble = state_->lex_str();
+        if (gobble == AspifToken::str) {
+            // NOTE: only newlines can follow
+            state_->lex_aspif();
+        } else {
+            if (gobble == AspifToken::end) {
+                GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected end of file";
+            }
+            // NOTE: only a null byte is possible
+            throw std::runtime_error("parsing failed");
+        }
+    }
+
+    void preamble_() {
+        auto major = expect_unsigned_();
+        expect_(AspifToken::space);
+        auto minor = expect_unsigned_();
+        expect_(AspifToken::space);
+        auto revision = expect_unsigned_();
+        if (expect_(AspifToken::newline, AspifToken::space) == AspifToken::space) {
+            expect_(AspifToken::incremental);
+            expect_(AspifToken::newline);
+        }
+        // TODO: extend backend to report preamble
+        static_cast<void>(major);
+        static_cast<void>(minor);
+        static_cast<void>(revision);
     }
 
     void rule_() {
@@ -164,8 +238,8 @@ class AspifParser {
             GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
             throw aspif_error{};
         }
-        auto s = state_->view();
-        state_term_.init(s, *state_->store().string("symbol"));
+        auto s = expect_nstr_();
+        state_term_.init(s, *str_symbol_);
         auto sym = parse_symbol(state_term_);
         if (!sym) {
             throw aspif_error{};
@@ -203,65 +277,9 @@ class AspifParser {
         }
     }
 
-    void preamble_() {
-        auto major = expect_unsigned_();
-        expect_(AspifToken::space);
-        auto minor = expect_unsigned_();
-        expect_(AspifToken::space);
-        auto revision = expect_unsigned_();
-        if (expect_(AspifToken::newline, AspifToken::space) == AspifToken::space) {
-            expect_(AspifToken::incremental);
-            expect_(AspifToken::newline);
-        }
-        // TODO: extend backend to report preamble
-        static_cast<void>(major);
-        static_cast<void>(minor);
-        static_cast<void>(revision);
-    }
-
-    void recover_() {
-        // TODO: check which error to throw or value to return to best indicate failure
-        auto gobble = state_->lex_str();
-        if (gobble == AspifToken::str) {
-            // NOTE: only newlines can follow
-            state_->lex_aspif();
-        } else {
-            if (gobble == AspifToken::end) {
-                GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected end of file";
-            }
-            // NOTE: only a null byte is possible
-            throw std::runtime_error("parsing failed");
-        }
-    }
-
-    auto expect_signed_() -> int {
-        expect_(AspifToken::num_pos, AspifToken::num_neg);
-        auto str = state_->view();
-        int res = 0;
-        std::from_chars(str.begin(), str.end(), res);
-        return res;
-    }
-
-    auto expect_unsigned_() -> unsigned {
-        expect_(AspifToken::num_pos);
-        auto str = state_->view();
-        unsigned res = 0;
-        std::from_chars(str.begin(), str.end(), res);
-        return res;
-    }
-
-    template <class... T> auto expect_(T... tokens) -> AspifToken {
-        auto token = state_->lex_aspif();
-        if (((token != tokens) && ...)) {
-            has_error_ = true;
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
-            throw aspif_error{};
-        }
-        return token;
-    }
-
     ParserState *state_;
     ParserState state_term_{state_->log(), state_->store()};
+    SharedString str_symbol_{*state_->store().string("symbol")};
     ProgramBackend *backend_;
     TheoryBackend *theory_;
     bool has_error_ = false;
