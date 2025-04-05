@@ -64,9 +64,10 @@ class AspifParser {
                 if (type == 0) {
                     expect_(AspifToken::newline);
                     expect_(AspifToken::end);
-                } else {
-                    statement_(type);
+                    backend_->end();
+                    return;
                 }
+                statement_(statement_type_(type));
             } catch ([[maybe_unused]] aspif_error const &e) {
                 recover_();
             }
@@ -74,23 +75,26 @@ class AspifParser {
     }
 
   private:
-    // NOLINTNEXTLINE(performance-enum-size)
-    enum class StatementType : unsigned {
+    enum class StatementType : uint8_t {
         rule = 1,
         minimize = 2,
         project = 3,
         output = 4,
+        external = 5,
+        assume = 6,
     };
-    // NOLINTNEXTLINE(performance-enum-size)
-    enum class RuleType : unsigned {
+    static constexpr auto max_statement_type = 10;
+    enum class RuleType : uint8_t {
         disjunctive = 0,
         choice = 1,
     };
-    // NOLINTNEXTLINE(performance-enum-size)
-    enum class BodyType : unsigned {
+    static constexpr auto max_rule_type = 1;
+    enum class BodyType : uint8_t {
         normal = 0,
         weight = 1,
     };
+    static constexpr auto max_body_type = 1;
+    static constexpr auto max_external_type = 4;
 
     template <class... T> auto expect_(T... tokens) -> AspifToken {
         auto token = state_->lex_aspif();
@@ -112,6 +116,7 @@ class AspifParser {
 
     auto expect_nstr_() -> std::string_view {
         auto m = expect_unsigned_();
+        expect_(AspifToken::space);
         if (auto token = state_->lex_str(m); token != AspifToken::str) {
             GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
             throw aspif_error{};
@@ -140,6 +145,7 @@ class AspifParser {
         auto body = PrgLitVec{};
         body.reserve(m);
         for (unsigned i = 0; i < m; ++i) {
+            expect_(AspifToken::space);
             body.emplace_back(expect_unsigned_());
         }
         return body;
@@ -150,6 +156,7 @@ class AspifParser {
         auto body = PrgLitVec{};
         body.reserve(m);
         for (unsigned i = 0; i < m; ++i) {
+            expect_(AspifToken::space);
             body.emplace_back(expect_signed_());
         }
         return body;
@@ -160,7 +167,9 @@ class AspifParser {
         auto body = WeightedPrgLitVec{};
         body.reserve(m);
         for (unsigned i = 0; i < m; ++i) {
+            expect_(AspifToken::space);
             auto lit = expect_signed_();
+            expect_(AspifToken::space);
             body.emplace_back(lit, expect_signed_());
         }
         return body;
@@ -187,73 +196,120 @@ class AspifParser {
         auto minor = expect_unsigned_();
         expect_(AspifToken::space);
         auto revision = expect_unsigned_();
+        bool incremental = false;
         if (expect_(AspifToken::newline, AspifToken::space) == AspifToken::space) {
+            incremental = true;
             expect_(AspifToken::incremental);
             expect_(AspifToken::newline);
         }
-        // TODO: extend backend to report preamble
-        static_cast<void>(major);
-        static_cast<void>(minor);
-        static_cast<void>(revision);
+        backend_->preamble(major, minor, revision, incremental);
+    }
+
+    auto rule_type_() -> RuleType {
+        auto rt = expect_unsigned_();
+        if (rt > max_rule_type) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected rule type `" << rt << "`";
+            throw aspif_error{};
+        }
+        return static_cast<RuleType>(rt);
+    }
+
+    auto body_type_() -> BodyType {
+        auto bt = expect_unsigned_();
+        if (bt > max_body_type) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected body type `" << bt << "`";
+            throw aspif_error{};
+        }
+        return static_cast<BodyType>(bt);
     }
 
     void rule_() {
         expect_(AspifToken::space);
-        auto rule_type = static_cast<RuleType>(expect_unsigned_());
-        if (rule_type != RuleType::choice && rule_type != RuleType::disjunctive) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc())
-                << "unexpected rule type `" << static_cast<unsigned>(rule_type) << "`";
-            throw aspif_error{};
-        }
+        auto rule_type = rule_type_();
         expect_(AspifToken::space);
         auto head = expect_atoms_();
-        auto body_type = expect_unsigned_();
-        switch (static_cast<BodyType>(body_type)) {
+        expect_(AspifToken::space);
+        auto body_type = body_type_();
+        expect_(AspifToken::space);
+        switch (body_type) {
             case BodyType::normal: {
                 backend_->rule(head, expect_lits_(), rule_type == RuleType::choice);
                 break;
             }
             case BodyType::weight: {
                 auto l = expect_signed_();
+                expect_(AspifToken::space);
                 backend_->bd_aggr(head, expect_wlits_(), l, rule_type == RuleType::choice);
                 break;
             }
-            default: {
-                GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected body type `" << body_type << "`";
-                throw aspif_error{};
-            }
         }
+        expect_(AspifToken::newline);
     }
 
     void minimize_() {
+        expect_(AspifToken::space);
         auto p = expect_signed_();
+        expect_(AspifToken::space);
         backend_->minimize(p, expect_wlits_());
+        expect_(AspifToken::newline);
     }
 
-    void project_() { backend_->project(expect_atoms_()); }
+    void project_() {
+        expect_(AspifToken::space);
+        backend_->project(expect_atoms_());
+        expect_(AspifToken::newline);
+    }
 
     void output_() {
-        auto m = expect_unsigned_();
-        if (auto token = state_->lex_str(m); token != AspifToken::str) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
-            throw aspif_error{};
-        }
-        auto s = expect_nstr_();
-        state_term_.init(s, *str_symbol_);
+        expect_(AspifToken::space);
+        state_term_.init(expect_nstr_(), *str_symbol_);
         auto sym = parse_symbol(state_term_);
         if (!sym) {
             throw aspif_error{};
         }
+        expect_(AspifToken::space);
         auto body = expect_lits_();
         if (body.size() == 1 && body.front() > 0) {
             backend_->show_atom(*sym.value(), body.front());
         } else {
             backend_->show(*sym.value(), body);
         }
+        expect_(AspifToken::newline);
     }
 
-    void statement_(unsigned type) {
-        switch (static_cast<StatementType>(type)) {
+    auto external_type_() -> Clingo::ExternalType {
+        auto v = expect_unsigned_();
+        if (v > max_external_type) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected external type `" << v << "`";
+            throw aspif_error{};
+        }
+        return static_cast<ExternalType>(v);
+    }
+
+    void external_() {
+        expect_(AspifToken::space);
+        auto a = expect_unsigned_();
+        expect_(AspifToken::space);
+        backend_->external(static_cast<prg_lit_t>(a), external_type_());
+        expect_(AspifToken::newline);
+    }
+
+    void assume_() {
+        expect_(AspifToken::space);
+        backend_->assume(expect_lits_());
+        expect_(AspifToken::newline);
+    }
+
+    auto statement_type_(unsigned st) -> StatementType {
+        if (st > max_statement_type) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected statment type `" << st << "`";
+            throw aspif_error{};
+        }
+        return static_cast<StatementType>(st);
+    }
+
+    void statement_(StatementType type) {
+        switch (type) {
             case StatementType::rule: {
                 rule_();
                 break;
@@ -270,9 +326,13 @@ class AspifParser {
                 output_();
                 break;
             }
-            default: {
-                GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected statement type `" << type << "`";
-                throw aspif_error{};
+            case StatementType::external: {
+                external_();
+                break;
+            }
+            case StatementType::assume: {
+                assume_();
+                break;
             }
         }
     }

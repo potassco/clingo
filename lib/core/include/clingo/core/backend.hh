@@ -56,6 +56,19 @@ class ProgramBackend {
     //! Destroy the backend.
     virtual ~ProgramBackend() = default;
 
+    //! Initialize the backend.
+    //!
+    //! @param major the major version component
+    //! @param minor the major version component
+    //! @param revision the major version component
+    //! @param incremental whether program updates have to be enabled
+    void preamble(unsigned major, unsigned minor, unsigned revision, bool incremental) {
+        do_preamble(major, minor, revision, incremental);
+    }
+
+    //! Finalize the current grounding step.
+    void end() { do_end(); }
+
     //! Return a fresh literal.
     //!
     //! All literals should be created using this function.
@@ -130,12 +143,19 @@ class ProgramBackend {
 
     //! Project the given atom.
     //!
+    //! @param literals the literals to assume
+    void assume(PrgLitSpan literals) { do_assume(literals); }
+
+    //! Project the given atom.
+    //!
     //! @param lit the literal to minimize
     //! @param weight the weight of the literal
     //! @param priority the priority of the literal
     void minimize(prg_weight_t priority, WeightedPrgLitSpan body) { do_minimize(priority, body); }
 
   private:
+    virtual void do_preamble(unsigned major, unsigned minor, unsigned revision, bool incremental) = 0;
+    virtual void do_end() = 0;
     virtual auto do_next_lit() -> prg_lit_t = 0;
     virtual void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) = 0;
     virtual void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, int32_t bound, bool choice) = 0;
@@ -146,6 +166,7 @@ class ProgramBackend {
                               PrgLitSpan body) = 0;
     virtual void do_external(prg_lit_t atom, ExternalType type) = 0;
     virtual void do_project(PrgLitSpan atoms) = 0;
+    virtual void do_assume(PrgLitSpan literals) = 0;
     virtual void do_minimize(prg_weight_t priority, WeightedPrgLitSpan body) = 0;
 };
 //! A unique pointer for a program backend.

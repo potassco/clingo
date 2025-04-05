@@ -23,6 +23,12 @@ class ProgramBackendImpl : public ProgramBackend {
     ProgramBackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
 
   private:
+    void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
+                     [[maybe_unused]] unsigned revision, [[maybe_unused]] bool incremental) override {
+        // TODO: maybe assert that program updates are enabled
+    }
+    void do_end() override {}
+
     auto do_next_lit() -> prg_lit_t override {
         if (auto lit = prg_->newAtom(); std::cmp_less_equal(lit, prg_lit_max)) {
             return static_cast<prg_lit_t>(lit);
@@ -101,24 +107,13 @@ class ProgramBackendImpl : public ProgramBackend {
     }
 
     void do_external(prg_lit_t atom, ExternalType type) override {
-        auto value = [type] {
-            switch (type) {
-                case ExternalType::true_: {
-                    return Potassco::TruthValue::true_;
-                }
-                case ExternalType::false_: {
-                    return Potassco::TruthValue::false_;
-                }
-                case ExternalType::free: {
-                    return Potassco::TruthValue::free;
-                }
-                case ExternalType::release: {
-                    return Potassco::TruthValue::release;
-                }
-            }
-            Util::unreachable();
-        }();
-        prg_->addExternal(atom, value);
+        static_assert(static_cast<unsigned>(ExternalType::free) == static_cast<unsigned>(Potassco::TruthValue::free));
+        static_assert(static_cast<unsigned>(ExternalType::true_) == static_cast<unsigned>(Potassco::TruthValue::true_));
+        static_assert(static_cast<unsigned>(ExternalType::false_) ==
+                      static_cast<unsigned>(Potassco::TruthValue::false_));
+        static_assert(static_cast<unsigned>(ExternalType::release) ==
+                      static_cast<unsigned>(Potassco::TruthValue::release));
+        prg_->addExternal(atom, static_cast<Potassco::TruthValue>(type));
     }
 
     void do_project(PrgLitSpan atoms) override {
@@ -126,6 +121,8 @@ class ProgramBackendImpl : public ProgramBackend {
             prg_->addProject(std::array{static_cast<Potassco::Atom_t>(atom)});
         }
     }
+
+    void do_assume(PrgLitSpan literals) override { prg_->addAssumption(literals); }
 
     void do_minimize(prg_weight_t priority, WeightedPrgLitSpan body) override {
         auto wlits = Util::small_vector<Potassco::WeightLit>{};

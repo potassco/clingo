@@ -440,7 +440,7 @@ class ParserState {
     ParserState(Logger &log, SymbolStore &store) : log_{&log}, store_{&store} {}
 
     //! Initialize the parser state with the given string.
-    void init(std::string_view &in, String file) {
+    void init(std::string_view in, String file) {
         mark_ = 0;
         stms_.clear();
         token_ = TokenType::begin;

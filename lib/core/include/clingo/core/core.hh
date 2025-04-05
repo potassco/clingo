@@ -174,7 +174,7 @@ enum class HeuristicType : uint8_t { level = 0, sign = 1, factor = 2, init = 3, 
 auto operator<<(Util::OutputBuffer &out, HeuristicType type) -> Util::OutputBuffer &;
 
 //! Available external types.
-enum class ExternalType : uint8_t { true_ = 0, false_ = 1, free = 2, release = 3 };
+enum class ExternalType : uint8_t { free = 0, true_ = 1, false_ = 2, release = 3 };
 //! Output the given external type.
 auto operator<<(Util::OutputBuffer &out, ExternalType type) -> Util::OutputBuffer &;
 
