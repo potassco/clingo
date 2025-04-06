@@ -531,6 +531,8 @@ class Solver : public BaseView {
     void interrupt() noexcept;
 
   private:
+    class ProgramBackendAdapter;
+
     //! States for step transitions.
     //!
     //! The initial state is special and is only entered initially. The prepared

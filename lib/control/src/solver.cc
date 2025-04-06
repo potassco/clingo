@@ -23,9 +23,6 @@ class ProgramBackendImpl : public ProgramBackend {
     ProgramBackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
 
   private:
-    //! Hook before adding atoms.
-    virtual void do_pre_show_atom([[maybe_unused]] Symbol sym, [[maybe_unused]] prg_lit_t lit) {}
-
     void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
                      [[maybe_unused]] unsigned revision, [[maybe_unused]] bool incremental) override {
         // TODO: maybe assert that program updates are enabled
@@ -136,7 +133,6 @@ class ProgramBackendImpl : public ProgramBackend {
 
     void do_show_atom(Symbol sym, prg_lit_t lit) override {
         assert(lit > 0);
-        do_pre_show_atom(sym, lit);
         buf_.reset();
         buf_ << sym;
         prg_->addOutput(buf_.c_str(), lit);
@@ -250,34 +246,6 @@ class TheoryBackendImpl : public TheoryBackend {
     }
 
     Clasp::Asp::LogicProgram *prg_;
-};
-
-//! Implementation of the program backend for aspif parser.
-class ProgramBackendAdapter : public ProgramBackendImpl {
-  public:
-    ProgramBackendAdapter(Ground::Bases &bases, Clasp::Asp::LogicProgram &prg)
-        : ProgramBackendImpl{prg}, bases_{&bases} {}
-
-  private:
-    void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
-                     [[maybe_unused]] unsigned revision, [[maybe_unused]] bool incremental) override {
-        // TODO: enable program updates here if incremental
-    }
-    void do_end() override {
-        // TODO: not yet sure if required
-        // - it might be worth thinking about to support reading incremental aspif
-    }
-
-    void do_pre_show_atom(Symbol sym, prg_lit_t lit) override {
-        auto sig = sym.signature();
-        if (!sig) {
-            throw std::runtime_error{"unexpected symbol for atom"};
-        }
-        auto &base = bases_->add_base(*sig);
-        base.add(sym, Ground::StateAtom::unknown, [lit]() { return lit; });
-    }
-
-    Ground::Bases *bases_;
 };
 
 //! Implementation of the theory backend for aspif parser.
@@ -732,7 +700,111 @@ class SolveHandleImpl : public SolveHandle {
     Potassco::LitVec mutable core_;
 };
 
+//! Integrate facts and inform the grounder about updated domains.
+void end_step(std::vector<std::pair<prg_lit_t, SharedSymbol>> &added, Clasp::Asp::LogicProgram &prg, Grounder *grd) {
+    for (auto const &[lit, sym] : added) {
+        assert(lit > 0);
+        if (prg.isFact(lit)) {
+            auto sig = sym->signature();
+            assert(sig.has_value());
+            auto *base = grd->base().get_base(*sig);
+            assert(base != nullptr);
+            auto it = base->find(*sym);
+            assert(it.has_value() && it->value().state != Ground::StateAtom::unknown);
+            it->value().state = Ground::StateAtom::fact;
+        }
+    }
+    if (grd != nullptr) {
+        std::ignore = grd->ground({});
+    }
+}
+
+class BackendHandleImpl : public BackendHandle {
+  public:
+    BackendHandleImpl(Grounder &grounder, ProgramBackend &backend, Clasp::Asp::LogicProgram &prg,
+                      Output::TheoryData &theory)
+        : grd_{&grounder}, backend_{&backend}, prg_{&prg}, theory_{&theory} {}
+    ~BackendHandleImpl() override { close(); }
+
+  private:
+    auto do_program() -> Clasp::Asp::LogicProgram & override { return *prg_; }
+
+    auto do_theory() -> Output::TheoryData & override { return *theory_; }
+
+    auto do_store() -> SymbolStore & override { return grd_->store(); }
+
+    auto do_add_atom(Symbol atom) -> prg_lit_t override {
+        if (auto sig = atom.signature(); sig && grd_ != nullptr) {
+            auto &base = grd_->base().add_base(*sig);
+            auto ret = base.add(atom, Ground::StateAtom::derived,
+                                [this]() { return static_cast<size_t>(backend_->next_lit()); })
+                           .first;
+            auto lit = static_cast<prg_lit_t>(ret.value().id);
+            if (ret.value().state != Ground::StateAtom::fact) {
+                added_.emplace_back(lit, ret.key());
+            }
+            return lit;
+        }
+        throw std::runtime_error("invalid atom");
+    }
+
+    void do_close() override { end_step(added_, *prg_, std::exchange(grd_, nullptr)); }
+
+    Grounder *grd_;
+    ProgramBackend *backend_;
+    Clasp::Asp::LogicProgram *prg_;
+    Output::TheoryData *theory_;
+    std::vector<std::pair<prg_lit_t, SharedSymbol>> added_;
+};
+
 } // namespace
+
+//! Implementation of the program backend for aspif parser.
+//!
+//! Note the similarity to the backend adapter.
+class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
+  public:
+    ProgramBackendAdapter(Solver &solver) : ProgramBackendImpl{*solver.clasp_facade().asp()}, solver_{&solver} {}
+
+  private:
+    //! Prepare the program to add aspif statements.
+    void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
+                     [[maybe_unused]] unsigned revision, bool incremental) override {
+        if (incremental) {
+            solver_->clasp_->enableProgramUpdates();
+        }
+        solver_->prepare_();
+    }
+
+    //! Integrate facts and inform the grounder about updated domains.
+    void do_end() override {
+        end_step(added_, *solver_->clasp_->asp(), &solver_->grd_);
+        added_.clear();
+    }
+
+    //! Show the atom with the given symbol and literal.
+    //!
+    //! Shown atoms are not passed through to the backend here. Instead, they
+    //! are are added to the grounder's domain in a similar way as the backend
+    //! does. However, for the aspif reader, we check that the atom has indeed
+    //! just been added and received the same literal as the one given in the
+    //! aspif output.
+    void do_show_atom(Symbol sym, prg_lit_t lit) override {
+        auto sig = sym.signature();
+        if (!sig) {
+            throw std::runtime_error{"unexpected symbol for atom in aspif file"};
+        }
+        auto &base = solver_->grd_.base().add_base(*sig);
+        auto it = base.add(sym, Ground::StateAtom::derived, [lit]() { return lit; }).first;
+        if (it->second.id != lit) {
+            throw std::runtime_error{"redefinition of atom in aspif file"};
+        }
+        added_.emplace_back(lit, sym);
+    }
+
+    std::vector<std::pair<prg_lit_t, SharedSymbol>> added_;
+    Solver *solver_;
+};
 
 void Scripts::register_script(std::string_view name, UScript script) {
     scripts_.emplace_back(name, std::move(script));
@@ -962,7 +1034,7 @@ void Solver::parse(std::string_view str) {
 
 void Solver::parse(std::span<std::string_view const> const &files) {
     if (mode_ == AppMode::solve) {
-        auto bck = ProgramBackendAdapter{grd_.base(), *clasp_->asp()};
+        auto bck = ProgramBackendAdapter{*this};
         auto thy = TheoryBackendAdapter{grd_.store(), *theory_};
         includes_ |= grd_.parse(files, scripts_, &bck, &thy);
     } else {
@@ -1000,64 +1072,6 @@ void Solver::register_propagator(UPropagator propagator) {
         propagators_.emplace_back(std::move(propagator));
     }
 }
-
-namespace {
-
-class BackendHandleImpl : public BackendHandle {
-  public:
-    BackendHandleImpl(Grounder &grounder, ProgramBackend &backend, Clasp::Asp::LogicProgram &prg,
-                      Output::TheoryData &theory)
-        : grounder_{&grounder}, backend_{&backend}, prg_{&prg}, theory_{&theory} {}
-    ~BackendHandleImpl() override { close(); }
-
-  private:
-    auto do_program() -> Clasp::Asp::LogicProgram & override { return *prg_; }
-
-    auto do_theory() -> Output::TheoryData & override { return *theory_; }
-
-    auto do_store() -> SymbolStore & override { return grounder_->store(); }
-
-    auto do_add_atom(Symbol atom) -> prg_lit_t override {
-        if (auto sig = atom.signature(); sig && grounder_ != nullptr) {
-            auto &base = grounder_->base().add_base(*sig);
-            auto ret = base.add(atom, Ground::StateAtom::derived,
-                                [this]() { return static_cast<size_t>(backend_->next_lit()); })
-                           .first;
-            auto lit = static_cast<prg_lit_t>(ret.value().id);
-            if (ret.value().state != Ground::StateAtom::fact) {
-                added_.emplace_back(lit, ret.key());
-            }
-            return lit;
-        }
-        throw std::runtime_error("invalid atom");
-    }
-
-    void do_close() override {
-        for (auto const &[lit, sym] : added_) {
-            assert(lit > 0);
-            if (prg_->isFact(lit)) {
-                auto sig = sym.signature();
-                assert(sig.has_value());
-                auto *base = grounder_->base().get_base(*sig);
-                assert(base != nullptr);
-                auto it = base->find(sym);
-                assert(it.has_value() && it->value().state != Ground::StateAtom::unknown);
-                it->value().state = Ground::StateAtom::fact;
-            }
-        }
-        if (grounder_ != nullptr) {
-            std::ignore = std::exchange(grounder_, nullptr)->ground({});
-        }
-    }
-
-    Grounder *grounder_;
-    ProgramBackend *backend_;
-    Clasp::Asp::LogicProgram *prg_;
-    Output::TheoryData *theory_;
-    std::vector<std::pair<prg_lit_t, Symbol>> added_;
-};
-
-} // namespace
 
 auto Solver::backend() -> UBackendHandle {
     if (backend_ != nullptr && clasp_->asp() != nullptr && theory_ != nullptr) {
