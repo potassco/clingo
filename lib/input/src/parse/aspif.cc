@@ -48,7 +48,7 @@ class AspifParser {
 
     //! Parses a program in aspif format assuming that the lexer currently sits
     //! on the the "asp" token.
-    bool parse() {
+    auto parse() -> bool {
         bool res = true;
         try {
             preamble_();
@@ -59,11 +59,14 @@ class AspifParser {
         while (true) {
             try {
                 auto type = expect_unsigned_();
-                if (type == 0) {
-                    expect_(AspifToken::newline);
-                    expect_(AspifToken::end);
+                while (type == 0) {
                     state_->prg_backend()->end();
-                    return res;
+                    expect_(AspifToken::newline);
+                    if (expect_(AspifToken::end, AspifToken::num_pos) == AspifToken::end) {
+                        return res;
+                    }
+                    auto str = state_->view();
+                    std::from_chars(str.begin(), str.end(), type);
                 }
                 statement_(statement_type_(type));
             } catch ([[maybe_unused]] aspif_error const &e) {
@@ -108,7 +111,7 @@ class AspifParser {
     };
     static constexpr unsigned theory_type_reserved = 3;
     static constexpr unsigned max_theory_type = 6;
-    static constexpr int max_theory_compound_type = 3;
+    static constexpr int max_theory_compound_type = 2;
     static constexpr unsigned max_statement_type = 10;
 
     template <class... T> auto expect_(T... tokens) -> AspifToken {
@@ -360,8 +363,9 @@ class AspifParser {
     }
 
     auto theory_compound_type_(int type) -> TheoryTermTupleType {
-        if (type >= 0 || type <= -max_theory_compound_type) {
+        if (type >= 0 || type < -max_theory_compound_type) {
             GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected compound type `" << type << "`";
+            throw aspif_error{};
         }
         return static_cast<TheoryTermTupleType>(-type);
     }
@@ -437,12 +441,12 @@ class AspifParser {
 
     void comment_() { expect_str_(); }
 
-    auto statement_type_(unsigned st) -> StatementType {
-        if (st > max_statement_type) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected statment type `" << st << "`";
+    auto statement_type_(unsigned type) -> StatementType {
+        if (type == 0 || type > max_statement_type) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected statment type `" << type << "`";
             throw aspif_error{};
         }
-        return static_cast<StatementType>(st);
+        return static_cast<StatementType>(type);
     }
 
     void statement_(StatementType type) {
