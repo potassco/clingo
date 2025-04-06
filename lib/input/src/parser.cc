@@ -29,7 +29,8 @@ auto parse_expr(Parse::ParserState &state, Parse::Condition cond, P parse, C che
 
 } // namespace
 
-Parser::Parser(Logger &log, SymbolStore &store) : impl_{std::make_unique<Parse::ParserState>(log, store)} {
+Parser::Parser(Logger &log, SymbolStore &store, ProgramBackend *prg_backend, TheoryBackend *thy_backend)
+    : impl_{std::make_unique<Parse::ParserState>(log, store, prg_backend, thy_backend)} {
 }
 
 Parser::Parser(Parser &&other) noexcept = default;
@@ -87,6 +88,10 @@ auto Parser::parse_statement() -> std::optional<Stm> {
 auto Parser::scan() -> std::pair<std::optional<Stm>, bool> {
     if (impl_->token() == Parse::TokenType::begin) {
         impl_->consume();
+        if (impl_->token() == Parse::TokenType::aspif) {
+            // TODO: error handling here!!!
+            parse_aspif(*impl_);
+        }
     }
     if (impl_->has_stms()) {
         return {impl_->pop_stm(), true};

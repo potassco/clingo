@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <clingo/input/statement.hh>
 
+#include <clingo/core/backend.hh>
 #include <clingo/core/logger.hh>
 
 #include <clingo/util/macro.hh>
@@ -437,7 +438,11 @@ struct SymTup {
 class ParserState {
   public:
     //! Contstructor.
-    ParserState(Logger &log, SymbolStore &store) : log_{&log}, store_{&store} {}
+    //!
+    //! The optional backends should be given for aspif parsing.
+    ParserState(Logger &log, SymbolStore &store, ProgramBackend *prg_backend = nullptr,
+                TheoryBackend *thy_backend = nullptr)
+        : log_{&log}, store_{&store}, prg_backend_{prg_backend}, thy_backend_{thy_backend} {}
 
     //! Initialize the parser state with the given string.
     void init(std::string_view in, String file) {
@@ -447,6 +452,8 @@ class ParserState {
         file_ = SharedString{file};
         cond_ = yycnormal;
         state_.init(in, YYMAXFILL);
+        prg_backend_ = nullptr;
+        thy_backend_ = nullptr;
     }
 
     //! Initialize the parser state with the given stream.
@@ -455,7 +462,7 @@ class ParserState {
         stms_.clear();
         token_ = TokenType::begin;
         file_ = SharedString{file};
-        cond_ = yycnormal;
+        cond_ = prg_backend_ != nullptr && thy_backend_ != nullptr ? yycprogram : yycnormal;
         state_.init(in, YYMAXFILL);
     }
 
@@ -668,6 +675,12 @@ class ParserState {
     //! Requires the parser to be in aspif mode.
     auto lex_str(size_t n) -> AspifToken;
 
+    //! Get the associated program backend.
+    auto prg_backend() -> ProgramBackend * { return prg_backend_; }
+
+    //! Get the associated theory backend.
+    auto thy_backend() -> TheoryBackend * { return thy_backend_; }
+
     //! Compute the next token discarding the last one.
     void consume(Condition cond) {
         auto old = cond_;
@@ -777,6 +790,8 @@ class ParserState {
     LexerState state_;
     Logger *log_;
     SymbolStore *store_;
+    ProgramBackend *prg_backend_ = nullptr;
+    TheoryBackend *thy_backend_ = nullptr;
     SharedString file_;
     std::vector<Prod> stack_;
     std::vector<Value> values_;
@@ -869,6 +884,9 @@ auto parse_head_literal(ParserState &state) -> std::optional<HdLit>;
 
 //! Parse a statement.
 auto parse_statement(ParserState &state) -> std::optional<Stm>;
+
+//! Scan next statement.
+void parse_aspif(ParserState &state);
 
 //! Scan next statement.
 auto scan_statement(ParserState &state) -> std::pair<std::optional<Stm>, bool>;

@@ -44,8 +44,7 @@ class aspif_error : public std::exception {
 
 class AspifParser {
   public:
-    AspifParser(ParserState &state, ProgramBackend &backend, TheoryBackend &theory)
-        : state_{&state}, backend_{&backend}, theory_backend_{&theory} {}
+    AspifParser(ParserState &state) : state_{&state} {}
 
     //! Parses a program in aspif format assuming that the lexer currently sits
     //! on the the "asp" token.
@@ -61,7 +60,7 @@ class AspifParser {
                 if (type == 0) {
                     expect_(AspifToken::newline);
                     expect_(AspifToken::end);
-                    backend_->end();
+                    state_->prg_backend()->end();
                     return;
                 }
                 statement_(statement_type_(type));
@@ -221,7 +220,7 @@ class AspifParser {
             expect_(AspifToken::incremental);
             expect_(AspifToken::newline);
         }
-        backend_->preamble(major, minor, revision, incremental);
+        state_->prg_backend()->preamble(major, minor, revision, incremental);
     }
 
     auto rule_type_() -> RuleType {
@@ -251,13 +250,13 @@ class AspifParser {
         expect_(AspifToken::space);
         switch (body_type) {
             case BodyType::normal: {
-                backend_->rule(head, expect_lits_(), rule_type == RuleType::choice);
+                state_->prg_backend()->rule(head, expect_lits_(), rule_type == RuleType::choice);
                 break;
             }
             case BodyType::weight: {
                 auto l = expect_signed_();
                 expect_(AspifToken::space);
-                backend_->bd_aggr(head, expect_wlits_(), l, rule_type == RuleType::choice);
+                state_->prg_backend()->bd_aggr(head, expect_wlits_(), l, rule_type == RuleType::choice);
                 break;
             }
         }
@@ -266,10 +265,10 @@ class AspifParser {
     void minimize_() {
         auto p = expect_signed_();
         expect_(AspifToken::space);
-        backend_->minimize(p, expect_wlits_());
+        state_->prg_backend()->minimize(p, expect_wlits_());
     }
 
-    void project_() { backend_->project(expect_atoms_()); }
+    void project_() { state_->prg_backend()->project(expect_atoms_()); }
 
     void output_() {
         state_term_.init(expect_nstr_(), *str_symbol_);
@@ -280,9 +279,9 @@ class AspifParser {
         expect_(AspifToken::space);
         auto body = expect_lits_();
         if (body.size() == 1 && body.front() > 0) {
-            backend_->show_atom(*sym.value(), body.front());
+            state_->prg_backend()->show_atom(*sym.value(), body.front());
         } else {
-            backend_->show(*sym.value(), body);
+            state_->prg_backend()->show(*sym.value(), body);
         }
     }
 
@@ -298,10 +297,10 @@ class AspifParser {
     void external_() {
         auto a = expect_unsigned_();
         expect_(AspifToken::space);
-        backend_->external(static_cast<prg_lit_t>(a), external_type_());
+        state_->prg_backend()->external(static_cast<prg_lit_t>(a), external_type_());
     }
 
-    void assume_() { backend_->assume(expect_lits_()); }
+    void assume_() { state_->prg_backend()->assume(expect_lits_()); }
 
     auto heuristic_type_() -> HeuristicType {
         auto type = expect_unsigned_();
@@ -321,7 +320,7 @@ class AspifParser {
         expect_(AspifToken::space);
         auto priority = expect_signed_();
         expect_(AspifToken::space);
-        backend_->heuristic(static_cast<prg_lit_t>(atom), weight, priority, type, expect_lits_());
+        state_->prg_backend()->heuristic(static_cast<prg_lit_t>(atom), weight, priority, type, expect_lits_());
     }
 
     void edge_() {
@@ -329,7 +328,7 @@ class AspifParser {
         expect_(AspifToken::space);
         auto v = expect_unsigned_();
         expect_(AspifToken::space);
-        backend_->edge(u, v, expect_lits_());
+        state_->prg_backend()->edge(u, v, expect_lits_());
     }
 
     auto theory_type_() -> TheoryType {
@@ -345,13 +344,13 @@ class AspifParser {
         auto id = expect_unsigned_();
         expect_(AspifToken::space);
         auto num = expect_signed_();
-        theory_backend_->num(id, num);
+        state_->thy_backend()->num(id, num);
     }
     void theory_symbol_() {
         auto id = expect_unsigned_();
         expect_(AspifToken::space);
         auto num = expect_nstr_();
-        theory_backend_->str(id, num);
+        state_->thy_backend()->str(id, num);
     }
 
     auto theory_compound_type_(int type) -> TheoryTermTupleType {
@@ -368,9 +367,9 @@ class AspifParser {
         expect_(AspifToken::space);
         auto terms = expect_ids_();
         if (type >= 0) {
-            theory_backend_->fun(id, type, terms);
+            state_->thy_backend()->fun(id, type, terms);
         } else {
-            theory_backend_->tup(id, theory_compound_type_(type), terms);
+            state_->thy_backend()->tup(id, theory_compound_type_(type), terms);
         }
     }
     void theory_element_() {
@@ -379,7 +378,7 @@ class AspifParser {
         auto tuple = expect_ids_();
         expect_(AspifToken::space);
         auto cond = expect_lits_();
-        theory_backend_->elem(id, tuple, cond);
+        state_->thy_backend()->elem(id, tuple, cond);
     }
 
     void theory_atom_(bool parse_guard) {
@@ -396,7 +395,7 @@ class AspifParser {
             auto term = expect_unsigned_();
             guard.emplace(op, term);
         }
-        theory_backend_->atom(atom, name, elems, guard);
+        state_->thy_backend()->atom(atom, name, elems, guard);
     }
 
     void theory_() {
@@ -490,14 +489,12 @@ class AspifParser {
     ParserState *state_;
     ParserState state_term_{state_->log(), state_->store()};
     SharedString str_symbol_{*state_->store().string("symbol")};
-    ProgramBackend *backend_;
-    TheoryBackend *theory_backend_;
     bool has_error_ = false;
 };
 
 } // namespace
 
-auto parse_aspif(ParserState &state, ProgramBackend &backend, TheoryBackend &theory) {
+void parse_aspif(ParserState &state) {
     // TODO: this most likely has to be called manually befor scan statement.
     // We simply set the parse mode to program; if the parser encounters an
     // aspif preamble it switches to aspif parsing mode and, otherwise, goes
@@ -509,7 +506,7 @@ auto parse_aspif(ParserState &state, ProgramBackend &backend, TheoryBackend &the
     // TODO: This function should return some code indicating whether parsing
     // was successfull, failed, or was not even attempted because the file is
     // not in aspif format.
-    AspifParser{state, backend, theory}.parse();
+    AspifParser{state}.parse();
 }
 
 } // namespace Clingo::Input::Parse

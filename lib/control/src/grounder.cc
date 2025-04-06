@@ -330,7 +330,8 @@ auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinI
     return ret;
 }
 
-auto Grounder::parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code) -> BuiltinIncludes {
+auto Grounder::parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code, ProgramBackend *prg,
+                     TheoryBackend *thy) -> BuiltinIncludes {
     // TODO:
     // - this function should also be able to parse aspif
     // - for this, the function has to take a program backend and theory backend as argument
@@ -346,7 +347,7 @@ auto Grounder::parse(std::span<std::string_view const> const &files, Ground::Scr
     auto ret = BuiltinIncludes::empty;
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
-        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, code};
+        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, code, prg, thy};
         if (files.empty()) {
             prs.process_stdin();
             ret |= prs.process_includes();

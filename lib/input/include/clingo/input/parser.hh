@@ -2,6 +2,7 @@
 
 #include <clingo/input/statement.hh>
 
+#include <clingo/core/backend.hh>
 #include <clingo/core/logger.hh>
 
 #include <istream>
@@ -23,7 +24,8 @@ class Parser {
     //! Construct the parser.
     //!
     //! The parser is in an invalid state and must be initialized first.
-    Parser(Logger &log, SymbolStore &store);
+    Parser(Logger &log, SymbolStore &store, ProgramBackend *prg_backend = nullptr,
+           TheoryBackend *thy_backend = nullptr);
     //! Copy construct the parser.
     Parser(Parser const &other) = delete;
     //! Move construct the parser.

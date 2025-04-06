@@ -259,6 +259,15 @@ class ProgramBackendAdapter : public ProgramBackendImpl {
         : ProgramBackendImpl{prg}, bases_{&bases} {}
 
   private:
+    void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
+                     [[maybe_unused]] unsigned revision, [[maybe_unused]] bool incremental) override {
+        // TODO: enable program updates here if incremental
+    }
+    void do_end() override {
+        // TODO: not yet sure if required
+        // - it might be worth thinking about to support reading incremental aspif
+    }
+
     void do_pre_show_atom(Symbol sym, prg_lit_t lit) override {
         auto sig = sym.signature();
         if (!sig) {
@@ -948,22 +957,14 @@ void Solver::join(Input::UnprocessedProgram const &prg) {
 }
 
 void Solver::parse(std::string_view str) {
-    if (mode_ == AppMode::solve) {
-        auto bck = ProgramBackendAdapter{grd_.base(), *clasp_->asp()};
-        auto thy = TheoryBackendAdapter{grd_.store(), *theory_};
-        // TODO : pass bck and thy to parse
-        includes_ |= grd_.parse(str, scripts_);
-    } else {
-        includes_ |= grd_.parse(str, scripts_);
-    }
+    includes_ |= grd_.parse(str, scripts_);
 }
 
 void Solver::parse(std::span<std::string_view const> const &files) {
     if (mode_ == AppMode::solve) {
         auto bck = ProgramBackendAdapter{grd_.base(), *clasp_->asp()};
         auto thy = TheoryBackendAdapter{grd_.store(), *theory_};
-        // TODO : pass bck and thy to parse
-        includes_ |= grd_.parse(files, scripts_);
+        includes_ |= grd_.parse(files, scripts_, &bck, &thy);
     } else {
         includes_ |= grd_.parse(files, scripts_);
     }

@@ -30,8 +30,9 @@ CLINGO_ENABLE_BITSET_ENUM(BuiltinIncludes);
 class ParseHelper {
   public:
     //! Construct the helper.
-    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg, Ground::ScriptExec *exec = nullptr)
-        : log_{&log}, store_{&store}, exec_{exec}, parser_{log, store}, prg_{&prg} {}
+    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg, Ground::ScriptExec *exec = nullptr,
+                ProgramBackend *prg_backend = nullptr, TheoryBackend *thy_backend = nullptr)
+        : log_{&log}, store_{&store}, exec_{exec}, parser_{log, store, prg_backend, thy_backend}, prg_{&prg} {}
 
     //! Parse a program from the given string.
     void process_string(std::string_view str) {
