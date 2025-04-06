@@ -48,10 +48,12 @@ class AspifParser {
 
     //! Parses a program in aspif format assuming that the lexer currently sits
     //! on the the "asp" token.
-    void parse() {
+    bool parse() {
+        bool res = true;
         try {
             preamble_();
         } catch ([[maybe_unused]] aspif_error const &e) {
+            res = false;
             recover_();
         }
         while (true) {
@@ -61,10 +63,11 @@ class AspifParser {
                     expect_(AspifToken::newline);
                     expect_(AspifToken::end);
                     state_->prg_backend()->end();
-                    return;
+                    return res;
                 }
                 statement_(statement_type_(type));
             } catch ([[maybe_unused]] aspif_error const &e) {
+                res = false;
                 recover_();
             }
         }
@@ -111,7 +114,6 @@ class AspifParser {
     template <class... T> auto expect_(T... tokens) -> AspifToken {
         auto token = state_->lex_aspif();
         if (((token != tokens) && ...)) {
-            has_error_ = true;
             GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
             throw aspif_error{};
         }
@@ -209,6 +211,7 @@ class AspifParser {
     }
 
     void preamble_() {
+        expect_(AspifToken::space);
         auto major = expect_unsigned_();
         expect_(AspifToken::space);
         auto minor = expect_unsigned_();
@@ -271,9 +274,12 @@ class AspifParser {
     void project_() { state_->prg_backend()->project(expect_atoms_()); }
 
     void output_() {
-        state_term_.init(expect_nstr_(), *str_symbol_);
-        auto sym = parse_symbol(state_term_);
-        if (!sym) {
+        state_symbol_.init(expect_nstr_(), *str_symbol_);
+        state_symbol_.consume();
+        auto sym = parse_symbol(state_symbol_);
+        if (!sym || !state_symbol_.branch(Parse::TokenType::end)) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc())
+                << "parsing symbol failed: `" << state_->view() << "`";
             throw aspif_error{};
         }
         expect_(AspifToken::space);
@@ -487,26 +493,14 @@ class AspifParser {
     }
 
     ParserState *state_;
-    ParserState state_term_{state_->log(), state_->store()};
+    ParserState state_symbol_{state_->log(), state_->store()};
     SharedString str_symbol_{*state_->store().string("symbol")};
-    bool has_error_ = false;
 };
 
 } // namespace
 
-void parse_aspif(ParserState &state) {
-    // TODO: this most likely has to be called manually befor scan statement.
-    // We simply set the parse mode to program; if the parser encounters an
-    // aspif preamble it switches to aspif parsing mode and, otherwise, goes
-    // into normal mode after which scan statement can be called as usual.
-    //
-    // TODO: To get aspif parsing into clingo. The ParseHelper::process method
-    // should handle aspif parsing.
-    //
-    // TODO: This function should return some code indicating whether parsing
-    // was successfull, failed, or was not even attempted because the file is
-    // not in aspif format.
-    AspifParser{state}.parse();
+auto parse_aspif(ParserState &state) -> bool {
+    return AspifParser{state}.parse();
 }
 
 } // namespace Clingo::Input::Parse

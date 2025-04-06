@@ -89,8 +89,7 @@ auto Parser::scan() -> std::pair<std::optional<Stm>, bool> {
     if (impl_->token() == Parse::TokenType::begin) {
         impl_->consume();
         if (impl_->token() == Parse::TokenType::aspif) {
-            // TODO: error handling here!!!
-            parse_aspif(*impl_);
+            return {std::nullopt, parse_aspif(*impl_)};
         }
     }
     if (impl_->has_stms()) {

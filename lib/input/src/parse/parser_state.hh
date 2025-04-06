@@ -885,8 +885,8 @@ auto parse_head_literal(ParserState &state) -> std::optional<HdLit>;
 //! Parse a statement.
 auto parse_statement(ParserState &state) -> std::optional<Stm>;
 
-//! Scan next statement.
-void parse_aspif(ParserState &state);
+//! Parse aspif.
+auto parse_aspif(ParserState &state) -> bool;
 
 //! Scan next statement.
 auto scan_statement(ParserState &state) -> std::pair<std::optional<Stm>, bool>;
