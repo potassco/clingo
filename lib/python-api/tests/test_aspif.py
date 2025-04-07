@@ -83,7 +83,7 @@ class TestAspif:
 
     def test_rule(self):
         """
-        Test adding aspif rules.
+        Test adding normal rules.
         """
         self.parse(
             """\
@@ -133,3 +133,46 @@ class TestAspif:
             ["p(3)", "q(1)", "q(2)"],
             ["q(1)", "q(2)", "q(3)"],
         ]
+
+    def test_choice(self):
+        """
+        Test adding choice rules.
+        """
+        self.parse(
+            """\
+            asp 1 0 0
+            1 1 3 1 2 3 0 0
+            1 0 0 1 2 3 1 1 2 1 3 1
+            4 1 a 1 1
+            4 1 b 1 2
+            4 1 c 1 3
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [[], ["a"], ["b"], ["c"]]
+
+    def test_disjunction(self):
+        """
+        Test adding disjunctive rules.
+        """
+        self.parse(
+            """\
+            asp 1 0 0
+            1 0 1 4 0 1 3
+            1 0 1 3 0 1 4
+            1 0 1 1 0 1 2
+            1 0 1 2 0 1 1
+            1 0 2 1 2 0 2 -3 -4
+            1 0 2 3 4 0 2 -1 -2
+            4 1 a 1 1
+            4 1 b 1 2
+            4 1 c 1 3
+            4 1 d 1 4
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [["a", "b"], ["c", "d"]]
