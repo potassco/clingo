@@ -24,17 +24,16 @@ def make_file(content: str):
         with tempfile.NamedTemporaryFile(
             mode="w", delete=False, encoding="utf-8"
         ) as temp_file:
-            # Write content immediately
             temp_file.write(content)
             temp_name = temp_file.name
         yield temp_name
 
     finally:
-        if temp_name is not None and os.path.exists(temp_name):
-            try:
+        try:
+            if temp_name is not None and os.path.exists(temp_name):
                 os.remove(temp_name)
-            except (OSError, PermissionError):
-                pass
+        except (OSError, PermissionError):
+            pass
 
 
 class TestAspif:
@@ -116,6 +115,21 @@ class TestAspif:
             ["p(1)", "q(2)", "q(3)"],
             ["p(2)", "p(3)", "q(1)"],
             ["p(2)", "q(1)", "q(3)"],
+            ["p(3)", "q(1)", "q(2)"],
+            ["q(1)", "q(2)", "q(3)"],
+        ]
+
+        self.ctl.parse_string("r(X) :- q(X-1), p(X), q(X+1).")
+        self.ctl.ground()
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [
+            ["p(1)", "p(2)", "p(3)"],
+            ["p(1)", "p(2)", "q(3)"],
+            ["p(1)", "p(3)", "q(2)"],
+            ["p(1)", "q(2)", "q(3)"],
+            ["p(2)", "p(3)", "q(1)"],
+            ["p(2)", "q(1)", "q(3)", "r(2)"],
             ["p(3)", "q(1)", "q(2)"],
             ["q(1)", "q(2)", "q(3)"],
         ]
