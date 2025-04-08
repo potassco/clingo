@@ -48,7 +48,7 @@ class TestAspif:
         """
         assert method is not None
         self._lib = Library()
-        self._ctl = Control(self._lib, ["0"])
+        self._ctl = Control(self._lib, ["0", "--opt-mode=optN"])
 
     def teardown_method(self, method):
         """
@@ -176,3 +176,28 @@ class TestAspif:
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["a", "b"], ["c", "d"]]
+
+    def test_minimize(self):
+        """
+        Test adding minimize constraints.
+        """
+        self.parse(
+            """\
+            asp 1 0 0
+            1 0 1 4 0 0
+            1 0 0 0 1 -5
+            1 1 3 1 2 3 0 0
+            1 0 0 0 2 1 -3
+            1 0 1 5 0 2 1 2
+            1 0 1 5 0 2 1 3
+            1 0 1 5 0 2 2 3
+            2 0 3 3 3 2 2 1 1
+            4 1 a 1 1
+            4 1 b 1 2
+            4 1 c 1 3
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [["a", "c"]]
