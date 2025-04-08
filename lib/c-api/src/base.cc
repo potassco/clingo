@@ -8,39 +8,40 @@
 #include "core.hh"
 #include "lib.hh"
 
-auto get_base(clingo_base_t const *base) -> Clingo::Ground::Bases const & {
+auto cpp_cast(clingo_base_t const *base) {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(base)->bases();
+    return reinterpret_cast<Clingo::Control::BaseView const *>(base);
 }
 
-auto get_term_base(clingo_base_t const *base) -> Clingo::Control::TermBaseMap const & {
+auto cpp_cast(clingo_atom_base_t const *base) {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(base)->term_base();
+    return reinterpret_cast<Clingo::Ground::AtomBase const *>(base);
+}
+
+auto cpp_cast(clingo_term_base_t const *base) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Clingo::Control::BaseView const *>(base);
+}
+
+auto cpp_cast(clingo_theory_base_t const *base) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Clingo::Control::BaseView const *>(base);
+}
+
+auto get_base(clingo_base_t const *base) -> Clingo::Ground::Bases const & {
+    return cpp_cast(base)->bases();
 }
 
 auto get_program(clingo_base_t const *base) -> Clasp::Asp::LogicProgram const & {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(base)->clasp_program();
-}
-
-auto cpp_cast(clingo_atom_base_t const *atoms) {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Ground::AtomBase const *>(atoms);
-}
-
-auto cpp_cast(clingo_term_base_t const *terms) {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(terms);
+    return cpp_cast(base)->clasp_program();
 }
 
 auto get_theory(clingo_theory_base_t const *theory) -> Potassco::TheoryData const & {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(theory)->clasp_theory();
+    return cpp_cast(theory)->clasp_theory();
 }
 
 auto get_program(clingo_theory_base_t const *theory) -> Clasp::Asp::LogicProgram const & {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(theory)->clasp_program();
+    return cpp_cast(theory)->clasp_program();
 }
 
 extern "C" auto clingo_base_atoms_size(clingo_base_t const *base, size_t *size) -> clingo_result_t {
