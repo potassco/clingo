@@ -1135,7 +1135,7 @@ auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optiona
         return static_cast<int>(cast<Type>().value);                                                                   \
     }
 
-auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<int> {
+auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<int>{
     // clang-format off
     SWITCH(
         TYPE(term_variable, TermVariable,
@@ -1202,7 +1202,7 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
         return static_cast<clingo_symbol_t>(Clingo::Symbol::to_rep(cast<Type>().value));                               \
     }
 
-[[nodiscard]] auto clingo_ast::get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t> {
+[[nodiscard]] auto clingo_ast::get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t>{
     // clang-format off
     SWITCH(
         TYPE(term_symbolic, TermSymbol,
@@ -1218,7 +1218,7 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
         return cast<Type>().value.c_str();                                                                             \
     }
 
-auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *> {
+auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *>{
     // clang-format off
     SWITCH(
         TYPE(term_variable, TermVariable,
@@ -1268,7 +1268,7 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
         return cast<Type>().value;                                                                                     \
     }
 
-auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<Clingo::StringSpan> {
+auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<Clingo::StringSpan>{
     // clang-format off
     SWITCH(
         TYPE(unparsed_element, UnparsedElement,
@@ -1286,7 +1286,7 @@ auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optio
         return make_ast(ptr_, cast<Type>().value);                                                                     \
     }
 
-auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
+auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>>{
     // clang-format off
     SWITCH(
         TYPE(term_unary_operation, TermUnary,

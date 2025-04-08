@@ -3,7 +3,6 @@
 #include <clingo/ground/instantiator.hh>
 #include <clingo/ground/term.hh>
 
-#include <clingo/core/backend.hh>
 #include <clingo/core/symbol.hh>
 
 #include <clingo/util/index_sequence.hh>
