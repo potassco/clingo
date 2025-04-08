@@ -814,10 +814,9 @@ void StmShow::init_() {
         [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override {
             if (auto term = stm_->term_->eval(ctx)) {
                 stm_->res_term_ = *term;
-            } else {
-                return false;
+                return true;
             }
-            return true;
+            return false;
         }
         void do_vars(VariableSet &vars, VarSelectMode mode) const override {
             if (mode != VarSelectMode::provide) {
@@ -857,19 +856,10 @@ void StmShow::do_init([[maybe_unused]] size_t gen) {
 
 auto StmShow::do_report(EvalContext const &ctx) -> bool {
     auto &out = ctx.out().body();
-    bool fact = true;
     for (auto const &lit : body_) {
-        fact = !lit->output(ctx, out) && fact;
+        std::ignore = lit->output(ctx, out);
     }
-    auto &[state, conds] = base_->try_emplace(res_term_, ShowTermState{}, Util::small_vector<size_t>{}).first.value();
-    if (state.state == ShowTermState::none) {
-        size_t cond = ctx.out().show_term(res_term_);
-        if (fact) {
-            state.state = ShowTermState::fact;
-            conds.resize(state.offset);
-        }
-        conds.emplace_back(cond);
-    }
+    ctx.out().show_term(res_term_);
     return true;
 }
 

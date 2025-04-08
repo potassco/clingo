@@ -34,9 +34,7 @@ class NullOutputStm : public OutputStm {
                      [[maybe_unused]] ExternalType type) override {}
     void do_project([[maybe_unused]] Symbol atom, [[maybe_unused]] size_t uid) override {}
     void do_show_atom([[maybe_unused]] Symbol atom, [[maybe_unused]] size_t uid) override {}
-    auto do_show_term([[maybe_unused]] Symbol term) -> size_t override { return 0; }
-    void do_show_term([[maybe_unused]] Symbol term, [[maybe_unused]] size_t done,
-                      [[maybe_unused]] IndexSpan conds) override {}
+    void do_show_term([[maybe_unused]] Symbol term) override {}
     auto do_aggr_rule([[maybe_unused]] std::optional<size_t> head) -> size_t override { return 0; }
     auto do_disjunctive_rule([[maybe_unused]] std::optional<size_t> head) -> size_t override { return 0; }
     auto do_theory_rule([[maybe_unused]] std::optional<size_t> head) -> size_t override { return 0; }

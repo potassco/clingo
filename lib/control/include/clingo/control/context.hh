@@ -28,9 +28,6 @@ using ProjectMap = Clingo::Ground::ProjectMap;
 //! A map from signatures to atom bases.
 using BaseMap = Clingo::Ground::BaseMap;
 
-//! A map from terms to their condition ids.
-using TermBaseMap = Clingo::Ground::TermBaseMap;
-
 //! A map from variable names (input) to their indices (ground).
 using VarMap = Util::unordered_map<String, size_t>;
 
@@ -91,9 +88,6 @@ class BuildContext {
         -> std::pair<Ground::UTerm, Ground::ProjectState *> {
         return base_->add_project(*store_, term, base);
     }
-
-    //! Get the term base map.
-    [[nodiscard]] auto terms() -> Ground::TermBaseMap & { return base_->terms(); }
 
     //! Get the component type.
     [[nodiscard]] auto type() const -> Input::ComponentType { return comp_->type; };

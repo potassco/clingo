@@ -3,6 +3,7 @@
 #include <clingo/ground/instantiator.hh>
 #include <clingo/ground/term.hh>
 
+#include <clingo/core/backend.hh>
 #include <clingo/core/symbol.hh>
 
 #include <clingo/util/index_sequence.hh>
@@ -363,35 +364,6 @@ using ProjectMap = Util::ordered_map<Ground::UTerm, UProjectState>;
 //! A map from signatures to atom bases.
 using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, UAtomBase>;
 
-//! A state plus an offset to track which conditions have been passed to the output.
-//!
-//! Since the backend does not permit updating previous conditions, extra logic
-//! is required to handle incremental extensions of show term directives. An
-//! internal translation ensures that a term is shown if one of the previously
-//! added conditions is true or one of the newly added conditions but not one
-//! of the old ones.
-//!
-//! Special attention to not add any further directives once there was a
-//! factual conditions is taken.
-//!
-//! @note: This could be simplified if clasp would hold a map from symbols to
-//! conditions.
-struct ShowTermState {
-    //! The available states of a term directive.
-    enum State : size_t { // NOLINT
-        none = 0,         //!< The term does not (yet) have a factual condition.
-        fact = 1,         //!< The term has a factual condition but not all conditions have been processed.
-        done = 2,         //!< The term has a factual condition and all conditions have been processed.
-    }
-    //! The state of the associated directive.
-    state : 2 = none;
-    //! Conditions up to this offset have been processed.
-    size_t offset : sizeof(size_t) - 2 = 0;
-};
-
-//! A map from terms to their condition ids.
-using TermBaseMap = Util::ordered_map<Symbol, std::tuple<ShowTermState, Util::small_vector<size_t>>>;
-
 //! The base for all atoms and terms.
 class Bases {
   public:
@@ -413,10 +385,6 @@ class Bases {
     [[nodiscard]] auto atoms() const -> BaseMap const & { return atoms_; }
     //! Get the map of projected atoms.
     [[nodiscard]] auto projected() const -> ProjectMap const & { return projected_; }
-    //! Get the term map.
-    [[nodiscard]] auto terms() const -> TermBaseMap const & { return terms_; }
-    //! Get the term map.
-    [[nodiscard]] auto terms() -> TermBaseMap & { return terms_; }
 
     //! Clear auxiliary atom bases.
     void clear_aux();
@@ -425,7 +393,6 @@ class Bases {
     BaseMap atoms_;
     BaseMap aux_;
     ProjectMap projected_;
-    TermBaseMap terms_;
 };
 
 //! Class to store state for grounding.

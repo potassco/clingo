@@ -121,7 +121,7 @@ class BuilderStm {
     void operator()(Input::StmShow const &stm) const {
         build_body_(stm.body());
         auto term = build_term_(stm.term());
-        ctx_->gcomp().add(std::make_unique<Ground::StmShow>(ctx_->terms(), std::move(term), std::move(ctx_->body())));
+        ctx_->gcomp().add(std::make_unique<Ground::StmShow>(std::move(term), std::move(ctx_->body())));
     }
 
     void operator()(Input::StmProject const &stm) const {

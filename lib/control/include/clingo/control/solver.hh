@@ -87,13 +87,18 @@ enum class ConsequenceType : uint8_t {
     unknown = 2 //!< The literal might or might not be a consequence.
 };
 
+//! A map from terms to their id.
+using TermBaseMap = Util::ordered_map<SharedSymbol, prg_id_t>;
+
 //! Interface providing the necessary data to inspect atom, term, and theory bases.
 class BaseView {
   public:
     //! The default destructor.
     virtual ~BaseView() = default;
-    //! Get a reference to the underlying atom/term bases.
+    //! Get a reference to the underlying atom bases.
     [[nodiscard]] auto bases() const -> Ground::Bases const & { return do_bases(); }
+    //! Get a reference to the underlying term bases.
+    [[nodiscard]] auto term_base() const -> TermBaseMap const & { return do_term_base(); }
     //! Get a reference to the underlying facade.
     [[nodiscard]] auto clasp_program() const -> Clasp::Asp::LogicProgram const & { return do_clasp_program(); }
     //! Get a reference to the underlying facade.
@@ -101,6 +106,7 @@ class BaseView {
 
   private:
     [[nodiscard]] virtual auto do_bases() const -> Ground::Bases const & = 0;
+    [[nodiscard]] virtual auto do_term_base() const -> TermBaseMap const & = 0;
     [[nodiscard]] virtual auto do_clasp_program() const -> Clasp::Asp::LogicProgram const & = 0;
 };
 
@@ -561,6 +567,8 @@ class Solver : public BaseView {
 
     [[nodiscard]] auto do_bases() const -> Ground::Bases const & override { return grd_.base(); }
 
+    [[nodiscard]] auto do_term_base() const -> TermBaseMap const & override { return terms_; }
+
     [[nodiscard]] auto do_clasp_program() const -> Clasp::Asp::LogicProgram const & override {
         return clasp_->asp() != nullptr ? *clasp_->asp() : throw std::runtime_error("not in solving mode");
     }
@@ -569,6 +577,7 @@ class Solver : public BaseView {
 
     CallbackLock lock_;
     std::vector<UPropagator> propagators_;
+    TermBaseMap terms_;
     Clasp::ClaspFacade *clasp_;
     Clasp::Cli::ClaspCliConfig *clasp_config_;
     Util::OutputBuffer buf_;
