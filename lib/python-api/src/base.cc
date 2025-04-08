@@ -54,14 +54,17 @@ auto Term::symbol() -> Symbol {
     return *cpp_cast(&sym);
 }
 
-auto Term::condition() -> std::optional<std::span<clingo_literal_t const>> {
-    clingo_literal_t *lits = nullptr;
+auto Term::condition() -> TypeHint<"Sequence[Sequence[int]]"> {
+    size_t const *sizes = nullptr;
+    clingo_literal_t const *const *lits = nullptr;
     size_t size = 0;
-    handle_error(clingo_term_base_condition(base_, index_, &lits, &size));
-    if (lits == nullptr) {
-        return std::nullopt;
+    auto res = std::vector<std::span<clingo_literal_t const>>{};
+    handle_error(clingo_term_base_condition(base_, index_, &sizes, &lits, &size));
+    for (size_t i = 0; i < size; ++i) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        res.emplace_back(lits[i], sizes[i]);
     }
-    return std::make_optional<std::span<clingo_literal_t const>>(lits, size);
+    return py::cast(res);
 }
 
 // TermBase

@@ -8,34 +8,40 @@
 #include "core.hh"
 #include "lib.hh"
 
-auto get_base(clingo_base_t const *base) -> Clingo::Ground::Bases const & {
+auto cpp_cast(clingo_base_t const *base) {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(base)->bases();
+    return reinterpret_cast<Clingo::Control::BaseView const *>(base);
+}
+
+auto cpp_cast(clingo_atom_base_t const *base) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Clingo::Ground::AtomBase const *>(base);
+}
+
+auto cpp_cast(clingo_term_base_t const *base) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Clingo::Control::BaseView const *>(base);
+}
+
+auto cpp_cast(clingo_theory_base_t const *base) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Clingo::Control::BaseView const *>(base);
+}
+
+auto get_base(clingo_base_t const *base) -> Clingo::Ground::Bases const & {
+    return cpp_cast(base)->bases();
 }
 
 auto get_program(clingo_base_t const *base) -> Clasp::Asp::LogicProgram const & {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(base)->clasp_program();
-}
-
-auto cpp_cast(clingo_atom_base_t const *atoms) {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Ground::AtomBase const *>(atoms);
-}
-
-auto cpp_cast(clingo_term_base_t const *terms) {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Ground::TermBaseMap const *>(terms);
+    return cpp_cast(base)->clasp_program();
 }
 
 auto get_theory(clingo_theory_base_t const *theory) -> Potassco::TheoryData const & {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(theory)->clasp_theory();
+    return cpp_cast(theory)->clasp_theory();
 }
 
 auto get_program(clingo_theory_base_t const *theory) -> Clasp::Asp::LogicProgram const & {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(theory)->clasp_program();
+    return cpp_cast(theory)->clasp_program();
 }
 
 extern "C" auto clingo_base_atoms_size(clingo_base_t const *base, size_t *size) -> clingo_result_t {
@@ -199,7 +205,7 @@ extern "C" auto clingo_base_terms(clingo_base_t const *base, clingo_term_base_t 
             return clingo_result_invalid;
         }
         // NOLINTNEXTLINE
-        *terms = reinterpret_cast<clingo_term_base_t const *>(&get_base(base).terms());
+        *terms = reinterpret_cast<clingo_term_base_t const *>(base);
     }
     CLINGO_CATCH;
 }
@@ -209,7 +215,7 @@ extern "C" auto clingo_term_base_size(clingo_term_base_t const *terms, size_t *s
         if (terms == nullptr || size == nullptr) {
             return clingo_result_invalid;
         }
-        *size = cpp_cast(terms)->size();
+        *size = cpp_cast(terms)->term_base().size();
     }
     CLINGO_CATCH;
 }
@@ -220,8 +226,8 @@ extern "C" auto clingo_term_base_symbol(clingo_term_base_t const *terms, size_t 
         if (terms == nullptr || term == nullptr) {
             return clingo_result_invalid;
         }
-        if (index < cpp_cast(terms)->size()) {
-            *term = *c_cast(&cpp_cast(terms)->nth(index)->first);
+        if (index < cpp_cast(terms)->term_base().size()) {
+            *term = *c_cast(&cpp_cast(terms)->term_base().nth(index)->first);
         } else {
             return clingo_result_range;
         }
@@ -229,19 +235,27 @@ extern "C" auto clingo_term_base_symbol(clingo_term_base_t const *terms, size_t 
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_term_base_condition(clingo_term_base_t const *terms, size_t index, clingo_literal_t **literals,
-                                           size_t *size) -> clingo_result_t {
+extern "C" auto clingo_term_base_condition(clingo_term_base_t const *terms, size_t index, size_t const **sizes,
+                                           clingo_literal_t const *const **literals, size_t *size) -> clingo_result_t {
     CLINGO_TRY {
         if (terms == nullptr || literals == nullptr || size == nullptr) {
             return clingo_result_invalid;
         }
-        auto it = cpp_cast(terms)->nth(index);
-        auto const &[state, cond] = it.value();
-        // NOTE: this seems to be the (safe) easiest way to convert from 64bit to 32bit here
-        static thread_local auto result = std::vector<clingo_literal_t>{};
-        result.assign(cond.begin(), cond.end());
-        *literals = result.data();
-        *size = cond.size();
+        auto it = cpp_cast(terms)->term_base().nth(index);
+        auto const &term_id = it.value();
+        thread_local auto res_lits = std::vector<clingo_literal_t const *>{};
+        thread_local auto res_sizes = std::vector<size_t>{};
+        res_lits.clear();
+        res_sizes.clear();
+        uint32_t sz = 0;
+        for (auto cond : cpp_cast(terms)->clasp_program().getShowTerm(term_id).conditions()) {
+            res_lits.emplace_back(std::bit_cast<clingo_literal_t const *>(cond.data()));
+            res_sizes.emplace_back(cond.size());
+            ++sz;
+        }
+        *literals = res_lits.data();
+        *sizes = res_sizes.data();
+        *size = sz;
     }
     CLINGO_CATCH;
 }
@@ -252,8 +266,8 @@ extern "C" auto clingo_term_base_find(clingo_term_base_t const *terms, clingo_sy
         if (terms == nullptr || index == nullptr) {
             return clingo_result_invalid;
         }
-        auto it = cpp_cast(terms)->find(cpp_cast(symbol));
-        *index = std::distance(cpp_cast(terms)->begin(), it);
+        auto it = cpp_cast(terms)->term_base().find(cpp_cast(symbol));
+        *index = std::distance(cpp_cast(terms)->term_base().begin(), it);
     }
     CLINGO_CATCH;
 }

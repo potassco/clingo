@@ -205,22 +205,6 @@ struct Grounder::Impl : Clingo::SymbolOwner {
                 show_base(*base);
             }
         }
-        for (auto it = bases.terms().begin(), ie = bases.terms().end(); it != ie; ++it) {
-            auto sym = it.key();
-            auto &[state, conds] = it.value();
-            if (state.offset < conds.size()) {
-                bool fact = state.state == Ground::ShowTermState::fact;
-                if (fact) {
-                    state.state = Ground::ShowTermState::done;
-                    conds.erase(conds.begin() + state.offset, conds.end() - 1);
-                }
-                out->show_term(sym, state.offset, conds);
-                if (fact) {
-                    conds.erase(conds.begin(), conds.end() - 1);
-                }
-                state.offset = conds.size();
-            }
-        }
         // handle classical negation
         for (auto const &[neg_sig, neg_base] : bases.atoms()) {
             if (get<2>(neg_sig)) {

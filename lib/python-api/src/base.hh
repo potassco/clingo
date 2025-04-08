@@ -49,7 +49,7 @@ class Term {
     Term(clingo_term_base_t const &base, size_t index) : base_{&base}, index_{index} {}
 
     auto symbol() -> Symbol;
-    auto condition() -> std::optional<std::span<clingo_literal_t const>>;
+    auto condition() -> TypeHint<"Sequence[Sequence[int]]">;
 
     [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
     friend auto operator==(Term const &a, Term const &b) -> bool { return a.index_ == b.index_; }

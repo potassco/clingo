@@ -277,16 +277,19 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_symbol(clingo_term_ba
 
 //! Get the conditions of a show directive.
 //!
-//! This returns the list of all conditions under which a term is shown. It is
-//! not a disjunction of literals.
+//! Returns the conditions under which a term is shown in form of a disjunction
+//! of conjunctions.
 //!
 //! @param[in] terms the term base
 //! @param[in] index the index of the show diriective
+//! @param[out] sizes the sizes of the conjunctions
 //! @param[out] literals the target literals
-//! @param[out] size the target size
+//! @param[out] size the size of the disjunction
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_condition(clingo_term_base_t const *terms, size_t index,
-                                                                     clingo_literal_t **literals, size_t *size);
+                                                                     size_t const **sizes,
+                                                                     clingo_literal_t const *const **literals,
+                                                                     size_t *size);
 
 //! Get the index of the given symbol.
 //!

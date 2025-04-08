@@ -20,7 +20,7 @@ namespace {
 //! Implementation of the backend interface.
 class ProgramBackendImpl : public ProgramBackend {
   public:
-    ProgramBackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
+    ProgramBackendImpl(Clasp::Asp::LogicProgram &prg, TermBaseMap &terms) : prg_{&prg}, terms_{&terms} {}
 
   private:
     void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
@@ -125,7 +125,11 @@ class ProgramBackendImpl : public ProgramBackend {
     void do_show(Symbol sym, PrgLitSpan body) override {
         buf_.reset();
         buf_ << sym;
-        prg_->addOutput(buf_.c_str(), body);
+        auto [pos, added] = terms_->try_emplace(SharedSymbol{sym}, 0);
+        if (added) {
+            pos.value() = prg_->newShowTerm(buf_.view());
+        }
+        prg_->addShowTerm(pos->second, body);
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << Util::p_range(body, ", ") << ".\n";
 #endif
@@ -135,7 +139,7 @@ class ProgramBackendImpl : public ProgramBackend {
         assert(lit > 0);
         buf_.reset();
         buf_ << sym;
-        prg_->addOutput(buf_.c_str(), lit);
+        prg_->addAtomOutput(lit, buf_.view());
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << lit << ".\n";
 #endif
@@ -144,6 +148,7 @@ class ProgramBackendImpl : public ProgramBackend {
     Util::OutputBuffer buf_;
     Potassco::RuleBuilder bld_;
     Clasp::Asp::LogicProgram *prg_;
+    TermBaseMap *terms_;
 };
 
 //! Implementation of the theory backend interface.
@@ -339,10 +344,11 @@ class ModelExtend : public Clasp::OutputTable::Theory {
 //! Implementation of the model interface.
 class ModelImpl : public Model, private SolveControl {
   public:
-    ModelImpl(Ground::Bases const &bases, Clasp::ClaspFacade &clasp) : bases_{&bases}, clasp_{&clasp} {
-        clasp_->ctx.output.theory = &extend_;
+    ModelImpl(Ground::Bases const &bases, TermBaseMap &terms, Clasp::ClaspFacade &clasp)
+        : bases_{&bases}, terms_{&terms}, clasp_{&clasp} {
+        clasp_->ctx.output.add(extend_);
     }
-    ~ModelImpl() override { clasp_->ctx.output.theory = nullptr; }
+    ~ModelImpl() override { clasp_->ctx.output.remove(extend_); }
 
     //! Sets the given model returning true if it is not null.
     auto set_model(Clasp::Model const *mdl, bool clear_extend = true) -> bool {
@@ -379,11 +385,9 @@ class ModelImpl : public Model, private SolveControl {
             }
         }
         if (intersects(type, SymbolSelectFlags::terms | SymbolSelectFlags::shown)) {
-            for (auto const &[term, state] : bases_->terms()) {
-                auto const &[flags, conds] = state;
-                if (flags.state == Ground::ShowTermState::done ||
-                    std::ranges::any_of(conds, [this](auto const &uid) { return mdl_->isTrue(solver_literal(uid)); })) {
-                    res.emplace_back(term);
+            for (auto const &[term, term_id] : *terms_) {
+                if (clasp_program().isShowTermTrue(*mdl_, term_id)) {
+                    res.emplace_back(*term);
                 }
             }
         }
@@ -482,6 +486,8 @@ class ModelImpl : public Model, private SolveControl {
 
     [[nodiscard]] auto do_bases() const -> Ground::Bases const & override { return *bases_; }
 
+    [[nodiscard]] auto do_term_base() const -> TermBaseMap const & override { return *terms_; }
+
     [[nodiscard]] auto do_clasp_program() const -> Clasp::Asp::LogicProgram const & override {
         return clasp_->asp() != nullptr ? *clasp_->asp() : throw std::runtime_error("not in solving mode");
     }
@@ -492,6 +498,7 @@ class ModelImpl : public Model, private SolveControl {
     }
 
     Ground::Bases const *bases_;
+    TermBaseMap *terms_;
     Clasp::ClaspFacade *clasp_;
     Clasp::Model const *mdl_ = nullptr;
     std::vector<Clasp::Literal> lits_;
@@ -764,7 +771,8 @@ class BackendHandleImpl : public BackendHandle {
 //! Note the similarity to the backend adapter.
 class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
   public:
-    ProgramBackendAdapter(Solver &solver) : ProgramBackendImpl{*solver.clasp_facade().asp()}, solver_{&solver} {}
+    ProgramBackendAdapter(Solver &solver)
+        : ProgramBackendImpl{*solver.clasp_facade().asp(), solver.terms_}, solver_{&solver} {}
 
   private:
     //! Prepare the program to add aspif statements.
@@ -785,7 +793,7 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
     //! Show the atom with the given symbol and literal.
     //!
     //! Shown atoms are not passed through to the backend here. Instead, they
-    //! are are added to the grounder's domain in a similar way as the backend
+    //! are added to the grounder's domain in a similar way as the backend
     //! does. However, for the aspif reader, we check that the atom has indeed
     //! just been added and received the same literal as the one given in the
     //! aspif output.
@@ -859,7 +867,7 @@ Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_conf
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
     switch (mode) {
         case AppMode::solve: {
-            backend_ = std::make_unique<ProgramBackendImpl>(*clasp_->asp());
+            backend_ = std::make_unique<ProgramBackendImpl>(*clasp_->asp(), terms_);
             theory_ = std::make_unique<Output::TheoryData>(store, std::make_unique<TheoryBackendImpl>(*clasp_->asp()));
             return Output::make_backend_output(store, *backend_, *theory_);
         }
@@ -975,7 +983,7 @@ void Solver::main(std::optional<ProgramParamsVec> const &params) {
             return;
         }
         bool inc = intersects(includes_, BuiltinIncludes::incmode);
-        if (mode_ == AppMode::solve && (params->size() >= 2 || inc)) {
+        if (mode_ == AppMode::solve && ((params && params->size() >= 2) || inc)) {
             clasp_->enableProgramUpdates();
         }
         if (inc) {
@@ -1015,7 +1023,7 @@ auto Solver::solve(UEventHandler handler, PrgLitSpan assumptions, SolveMode mode
         clasp_->prepare();
         theory_->reset();
         if (mdl_ == nullptr) {
-            mdl_ = std::make_unique<ModelImpl>(grd_.base(), *clasp_);
+            mdl_ = std::make_unique<ModelImpl>(grd_.base(), terms_, *clasp_);
         }
         // NOLINTNEXTLINE
         return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), static_cast<ModelImpl &>(*mdl_), mode,
