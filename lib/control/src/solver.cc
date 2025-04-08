@@ -125,7 +125,7 @@ class ProgramBackendImpl : public ProgramBackend {
     void do_show(Symbol sym, PrgLitSpan body) override {
         buf_.reset();
         buf_ << sym;
-        prg_->addOutput(buf_.c_str(), body);
+        prg_->addShowTerm(prg_->newShowTerm(buf_.view()), body);
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << Util::p_range(body, ", ") << ".\n";
 #endif
@@ -135,7 +135,7 @@ class ProgramBackendImpl : public ProgramBackend {
         assert(lit > 0);
         buf_.reset();
         buf_ << sym;
-        prg_->addOutput(buf_.c_str(), lit);
+        prg_->addAtomOutput(lit, buf_.view());
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << lit << ".\n";
 #endif
@@ -340,9 +340,9 @@ class ModelExtend : public Clasp::OutputTable::Theory {
 class ModelImpl : public Model, private SolveControl {
   public:
     ModelImpl(Ground::Bases const &bases, Clasp::ClaspFacade &clasp) : bases_{&bases}, clasp_{&clasp} {
-        clasp_->ctx.output.theory = &extend_;
+        clasp_->ctx.output.add(extend_);
     }
-    ~ModelImpl() override { clasp_->ctx.output.theory = nullptr; }
+    ~ModelImpl() override { clasp_->ctx.output.remove(extend_); }
 
     //! Sets the given model returning true if it is not null.
     auto set_model(Clasp::Model const *mdl, bool clear_extend = true) -> bool {
