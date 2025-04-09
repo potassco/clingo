@@ -201,3 +201,27 @@ class TestAspif:
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["a", "c"]]
+
+    def test_project(self):
+        """
+        Test adding project directives.
+        """
+        self._ctl = Control(self.lib, ["--project", "0"])
+        self.parse(
+            """\
+            asp 1 0 0
+            1 0 1 1 0 0
+            1 0 0 0 1 -4
+            1 0 1 6 0 1 4
+            1 1 2 2 3 0 0
+            1 0 1 4 0 1 3
+            1 0 1 4 0 1 2
+            1 0 0 0 2 3 2
+            4 1 a 1 3
+            3 2 2 3
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [[], ["a"]]
