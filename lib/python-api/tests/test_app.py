@@ -8,6 +8,7 @@ from multiprocessing import Process, Queue
 from tempfile import NamedTemporaryFile
 from typing import Any, Callable, List, Sequence, Tuple
 
+import pytest
 from clingo.app import App, AppOptions, Flag, clingo_main
 from clingo.control import Control
 from clingo.core import Library, MessageType
@@ -128,6 +129,7 @@ class TestApplication:
     Tests for clingo's application class.
     """
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_app(self):
         """
         Test application.

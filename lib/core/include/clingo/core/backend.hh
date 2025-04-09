@@ -69,7 +69,7 @@ class ProgramBackend {
     //! Finalize the current grounding step.
     //!
     //! @param last indicate that this is the last step in series of steps to be merged
-    void end(bool last) { do_end(last); }
+    void end() { do_end(); }
 
     //! Return a fresh literal.
     //!
@@ -157,7 +157,7 @@ class ProgramBackend {
 
   private:
     virtual void do_preamble(unsigned major, unsigned minor, unsigned revision, bool incremental) = 0;
-    virtual void do_end(bool last) = 0;
+    virtual void do_end() = 0;
     virtual auto do_next_lit() -> prg_lit_t = 0;
     virtual void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) = 0;
     virtual void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, int32_t bound, bool choice) = 0;

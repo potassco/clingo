@@ -61,12 +61,11 @@ class AspifParser {
                 auto type = expect_unsigned_();
                 while (type == 0) {
                     state_->thy_backend()->end();
+                    state_->prg_backend()->end();
                     expect_(AspifToken::newline);
                     if (expect_(AspifToken::end, AspifToken::num_pos) == AspifToken::end) {
-                        state_->prg_backend()->end(true);
                         return res;
                     }
-                    state_->prg_backend()->end(false);
                     auto str = state_->view();
                     std::from_chars(str.begin(), str.end(), type);
                 }

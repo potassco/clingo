@@ -27,7 +27,7 @@ class ProgramBackendImpl : public ProgramBackend {
                      [[maybe_unused]] unsigned revision, [[maybe_unused]] bool incremental) override {
         // TODO: maybe assert that program updates are enabled
     }
-    void do_end([[maybe_unused]] bool last) override {}
+    void do_end() override {}
 
     auto do_next_lit() -> prg_lit_t override {
         if (auto lit = prg_->newAtom(); std::cmp_less_equal(lit, prg_lit_max)) {
@@ -811,11 +811,9 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
     }
 
     //! Integrate facts and inform the grounder about updated domains.
-    void do_end(bool last) override {
-        if (last) {
-            // only add assumptions of the last step
-            solver_->clasp_facade().asp()->addAssumption(assumptions_);
-        }
+    void do_end() override {
+        solver_->clasp_facade().asp()->removeAssumption();
+        solver_->clasp_facade().asp()->addAssumption(assumptions_);
         end_step(added_, *solver_->clasp_->asp(), &solver_->grd_);
         added_.clear();
         assumptions_.clear();
