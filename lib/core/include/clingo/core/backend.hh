@@ -67,7 +67,9 @@ class ProgramBackend {
     }
 
     //! Finalize the current grounding step.
-    void end() { do_end(); }
+    //!
+    //! @param last indicate that this is the last step in series of steps to be merged
+    void end(bool last) { do_end(last); }
 
     //! Return a fresh literal.
     //!
@@ -155,7 +157,7 @@ class ProgramBackend {
 
   private:
     virtual void do_preamble(unsigned major, unsigned minor, unsigned revision, bool incremental) = 0;
-    virtual void do_end() = 0;
+    virtual void do_end(bool last) = 0;
     virtual auto do_next_lit() -> prg_lit_t = 0;
     virtual void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) = 0;
     virtual void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, int32_t bound, bool choice) = 0;
@@ -232,6 +234,9 @@ class TheoryBackend {
         do_atom(atom_or_zero, name, elems, guard);
     }
 
+    //! Finalize the theory.
+    void end() { do_end(); }
+
   private:
     virtual void do_num(prg_id_t id, prg_weight_t num) = 0;
     virtual void do_str(prg_id_t id, std::string_view str) = 0;
@@ -240,6 +245,7 @@ class TheoryBackend {
     virtual void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) = 0;
     virtual void do_atom(prg_lit_t atom_or_zero, prg_id_t name, PrgIdSpan elems,
                          std::optional<std::pair<prg_id_t, prg_id_t>> guard) = 0;
+    virtual void do_end() = 0;
 };
 //! A unique pointer for a theory backend.
 using UTheoryBackend = std::unique_ptr<TheoryBackend>;

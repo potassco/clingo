@@ -27,7 +27,7 @@ class ProgramBackendImpl : public ProgramBackend {
                      [[maybe_unused]] unsigned revision, [[maybe_unused]] bool incremental) override {
         // TODO: maybe assert that program updates are enabled
     }
-    void do_end() override {}
+    void do_end([[maybe_unused]] bool last) override {}
 
     auto do_next_lit() -> prg_lit_t override {
         if (auto lit = prg_->newAtom(); std::cmp_less_equal(lit, prg_lit_max)) {
@@ -250,6 +250,8 @@ class TheoryBackendImpl : public TheoryBackend {
 #endif
     }
 
+    void do_end() override {}
+
     Clasp::Asp::LogicProgram *prg_;
 };
 
@@ -322,6 +324,12 @@ class TheoryBackendAdapter : public TheoryBackend {
         } else {
             data_->atom(lit, term_(name), elem_(elems), std::nullopt);
         }
+    }
+
+    void do_end() override {
+        // clear the mappings but not the theory data
+        term_map_.clear();
+        elem_map_.clear();
     }
 
     SymbolStore *store_;
@@ -797,10 +805,20 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
         solver_->prepare_();
     }
 
+    //! Add delayed assumptions.
+    void do_assume(PrgLitSpan literals) override {
+        assumptions_.insert(assumptions_.end(), literals.begin(), literals.end());
+    }
+
     //! Integrate facts and inform the grounder about updated domains.
-    void do_end() override {
+    void do_end(bool last) override {
+        if (last) {
+            // only add assumptions of the last step
+            solver_->clasp_facade().asp()->addAssumption(assumptions_);
+        }
         end_step(added_, *solver_->clasp_->asp(), &solver_->grd_);
         added_.clear();
+        assumptions_.clear();
     }
 
     //! Show the atom with the given symbol and literal.
@@ -824,6 +842,7 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
     }
 
     std::vector<std::pair<prg_lit_t, SharedSymbol>> added_;
+    PrgLitVec assumptions_;
     Solver *solver_;
 };
 

@@ -327,8 +327,8 @@ class TestAspif:
         """
         Test adding theory statements.
         """
-        # NOTE: the parser currently expects theory atoms to be output read in
-        # in depth-first order.
+        # NOTE: the parser currently expects theory atoms to be read in in
+        # depth-first order.
         self.parse(
             """\
             asp 1 0 0
@@ -391,3 +391,71 @@ class TestAspif:
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [[], ["a"]]
+
+    def test_incremental(self):
+        """
+        Test incremental parsing.
+        """
+        self.parse(
+            """\
+            asp 1 0 0 incremental
+            1 1 1 1 0 0
+            4 1 a 1 1
+            0
+            1 1 1 2 0 0
+            4 1 b 1 2
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [[], ["a"], ["a", "b"], ["b"]]
+
+    def test_incremental_theory(self):
+        """
+        Test incremental theory parsing.
+        """
+        # NOTE: Since the parser does not support interleaved parsing and
+        # solving, it simply merges theories.
+        self.parse(
+            """\
+            asp 1 0 0 incremental
+            1 0 1 1 0 0
+            9 1 2 1 p
+            9 1 0 1 a
+            9 4 1 1 0 0
+            9 5 1 2 1 1
+            0
+            1 0 1 3 0 0
+            9 1 2 1 p
+            9 1 0 1 b
+            9 4 1 1 0 0
+            9 5 3 2 1 1
+            0
+            """
+        )
+        assert sorted(str(atom) for atom in self.ctl.base.theory) == [
+            "&p { a }",
+            "&p { b }",
+        ]
+
+    def test_incremental_assume(self):
+        """
+        Test incremental assumptions.
+        """
+        self.parse(
+            """\
+            asp 1 0 0 incremental
+            1 1 1 1 0 0
+            6 1 1
+            4 1 a 1 1
+            0
+            1 1 1 2 0 0
+            6 1 2
+            4 1 b 1 2
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [["a", "b"], ["b"]]
