@@ -225,3 +225,8 @@ class TestAspif:
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [[], ["a"]]
+
+    def test_output(self):
+        """
+        Test output statements.
+        """
