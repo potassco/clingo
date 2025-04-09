@@ -14,11 +14,12 @@ namespace Clingo::Python {
 
 namespace {
 
-class Interpreter {
+class Scope {
   public:
-    Interpreter() {
+    Scope() {
         if (Py_IsInitialized() == 0) {
-            py_ = std::make_unique<py::scoped_interpreter>();
+            // make sure that the python interpreter is finalized after the main code
+            static auto si = std::make_unique<py::scoped_interpreter>();
             py::module::import("clingo");
         }
         auto gil = py::gil_scoped_acquire{};
@@ -40,7 +41,6 @@ class Interpreter {
     auto version() -> char const * { return version_.c_str(); }
 
   private:
-    std::unique_ptr<py::scoped_interpreter> py_;
     py::object scope_;
     py::object callable_;
     std::string version_;
@@ -199,7 +199,7 @@ class MainScript {
   private:
     void init_() {
         if (!py_) {
-            py_ = std::make_unique<Interpreter>();
+            py_ = std::make_unique<Scope>();
         }
     }
 
@@ -215,7 +215,7 @@ class MainScript {
 
     static auto get_ctl(clingo_control_t *ctl) -> PyControl { return Control::cast(ctl, true); }
 
-    std::unique_ptr<Interpreter> py_;
+    std::unique_ptr<Scope> py_;
     //! Stores lib pointer when embedded.
     PyLibrary lib_;
     //! Whether to store or report errors.
