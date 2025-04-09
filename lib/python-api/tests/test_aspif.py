@@ -230,3 +230,164 @@ class TestAspif:
         """
         Test output statements.
         """
+        # TODO: adjust once the upcoming aspif change is implemented
+        self.parse(
+            """\
+            asp 1 0 0
+            1 1 2 1 2 0 0
+            4 1 a 1 1
+            4 1 b 1 2
+            4 1 c 2 1 2
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [[], ["a"], ["a", "b", "c"], ["b"]]
+
+    def test_external(self):
+        """
+        Test external statements.
+        """
+        self.parse(
+            """\
+            asp 1 0 0
+            5 1 1
+            5 2 2
+            5 3 0
+            4 1 a 1 1
+            4 1 b 1 2
+            4 1 c 1 3
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [["a"], ["a", "c"]]
+
+    def test_assume(self):
+        """
+        Test assumption statements.
+        """
+        self.parse(
+            """\
+            asp 1 0 0
+            1 1 3 1 2 3 0 0
+            6 2 1 -2
+            4 1 a 1 1
+            4 1 b 1 2
+            4 1 c 1 3
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [["a"], ["a", "c"]]
+
+    def test_heuristic(self):
+        """
+        Test heuristic statements.
+        """
+        self._ctl = Control(self.lib, ["--heuristic", "domain"])
+        self.parse(
+            """\
+            asp 1 0 0
+            1 1 2 1 2 0 0
+            4 1 a 1 1
+            4 1 b 1 2
+            7 4 1 1 0 0
+            7 5 2 0 0 0
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [["a"]]
+
+    def test_edge(self):
+        """
+        Test edge statements.
+        """
+        self.parse(
+            """\
+            asp 1 0 0
+            1 1 2 1 2 0 0
+            4 1 a 1 1
+            4 1 b 1 2
+            8 0 1 1 2
+            8 1 0 1 1
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [[], ["a"], ["b"]]
+
+    def test_theory(self):
+        """
+        Test adding theory statements.
+        """
+        # NOTE: the parser currently expects theory atoms to be output read in
+        # in depth-first order.
+        self.parse(
+            """\
+            asp 1 0 0
+            1 0 1 2 0 0
+            1 0 1 3 0 0
+            1 0 1 5 0 0
+            1 0 1 6 0 0
+            1 0 1 7 0 1 1
+            1 1 1 1 0 0
+            4 1 a 1 1
+            9 1 9 1 p
+            9 1 1 1 f
+            9 0 2 1
+            9 0 3 2
+            9 1 4 1 +
+            9 2 5 4 2 2 3
+            9 1 6 1 g
+            9 2 7 6 1 5
+            9 4 8 2 1 7 1 1
+            9 1 10 1 <
+            9 0 0 5
+            9 6 2 9 1 8 10 0
+            9 0 11 3
+            9 2 12 -1 3 2 3 11
+            9 4 13 1 12 0
+            9 5 3 9 1 13
+            9 2 14 -3 3 2 3 11
+            9 4 15 1 14 0
+            9 5 5 9 1 15
+            9 2 16 -2 3 2 3 11
+            9 4 17 1 16 0
+            9 5 6 9 1 17
+            9 4 18 1 2 0
+            9 5 7 9 1 18
+            0
+            """
+        )
+        assert sorted(str(atom) for atom in self.ctl.base.theory) == [
+            "&p { (1,2,3) }",
+            "&p { 1 }",
+            "&p { [1,2,3] }",
+            "&p { f,g((1+2)): <literal: 1> } < 5",
+            "&p { {1,2,3} }",
+        ]
+
+    def test_comment(self):
+        """
+        Test aspif comments.
+        """
+        self.parse(
+            """\
+            asp 1 0 0
+            10 123
+            1 1 1 1 0 0
+            10 abc
+            4 1 a 1 1
+            0
+            """
+        )
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [[], ["a"]]

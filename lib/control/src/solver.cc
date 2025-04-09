@@ -260,7 +260,13 @@ class TheoryBackendAdapter : public TheoryBackend {
 
   private:
     //! Get a remapped term.
-    auto term_(prg_id_t id) -> prg_id_t { return term_map_[id]; }
+    auto term_(prg_id_t id) -> prg_id_t {
+        auto it = term_map_.find(id);
+        if (it != term_map_.end()) {
+            return it->second;
+        }
+        throw std::runtime_error{"unknown term id"};
+    }
 
     //! Get the remapped terms.
     auto term_(PrgIdSpan span) {
@@ -274,7 +280,13 @@ class TheoryBackendAdapter : public TheoryBackend {
     void term_(prg_id_t id_old, prg_id_t id_new) { term_map_[id_old] = id_new; }
 
     //! Get the remapped element.
-    auto elem_(prg_id_t id) -> prg_id_t { return elem_map_[id]; }
+    auto elem_(prg_id_t id) -> prg_id_t {
+        auto it = elem_map_.find(id);
+        if (it != elem_map_.end()) {
+            return it->second;
+        }
+        throw std::runtime_error{"unknown element id"};
+    }
 
     //! Get the remapped elements.
     auto elem_(PrgIdSpan span) {
@@ -304,10 +316,11 @@ class TheoryBackendAdapter : public TheoryBackend {
 
     void do_atom(prg_lit_t lit_or_zero, prg_id_t name, PrgIdSpan elems,
                  std::optional<std::pair<prg_id_t, prg_id_t>> guard) override {
+        auto lit = [lit_or_zero]() { return lit_or_zero; };
         if (guard) {
-            data_->atom(nullptr, name, elem_(elems), std::pair{term_(guard->first), term_(guard->second)});
+            data_->atom(lit, term_(name), elem_(elems), std::pair{term_(guard->first), term_(guard->second)});
         } else {
-            data_->atom([lit_or_zero]() { return lit_or_zero; }, name, elem_(elems), std::nullopt);
+            data_->atom(lit, term_(name), elem_(elems), std::nullopt);
         }
     }
 

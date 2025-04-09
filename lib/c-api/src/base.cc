@@ -436,7 +436,7 @@ class TheoryPrinter {
         *out_ << p_range(x.terms(), [this]([[maybe_unused]] auto &out, auto const &y) { term(y); });
         auto cond = element_condition(theory_, id);
         if (!cond.empty()) {
-            *out_ << ": " << p_range(x.terms(), [](auto &out, auto const &y) {
+            *out_ << ": " << p_range(cond, ", ", [](auto &out, auto const &y) {
                 // NOTE: the previous clingo version made more effort here
                 // a straight-forward implementation would have to loop over the atom base
                 out << "<literal: " << y << ">";

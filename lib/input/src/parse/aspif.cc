@@ -111,7 +111,7 @@ class AspifParser {
     };
     static constexpr unsigned theory_type_reserved = 3;
     static constexpr unsigned max_theory_type = 6;
-    static constexpr int max_theory_compound_type = 2;
+    static constexpr int max_theory_compound_type = 3;
     static constexpr unsigned max_statement_type = 10;
 
     template <class... T> auto expect_(T... tokens) -> AspifToken {
@@ -367,7 +367,7 @@ class AspifParser {
             GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected compound type `" << type << "`";
             throw aspif_error{};
         }
-        return static_cast<TheoryTermTupleType>(-type);
+        return static_cast<TheoryTermTupleType>(-type - 1);
     }
 
     void theory_compound_() {
