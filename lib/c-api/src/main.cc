@@ -259,16 +259,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         return mode_ == Mode::solve || mode_ == Mode::clasp ? BaseType::createTextOutput(options) : nullptr;
     }
 
-    auto prepare(Clasp::ClaspFacade &clasp) -> bool {
-        if (clasp_->summary().step == 0) {
-            handleStartOptions(*clasp_);
-        }
-        handlePostGroundOptions(*clasp_);
-        clasp.prepare();
-        handlePreSolveOptions(clasp);
-        return claspAppOpts_.onlyPre == 0;
-    }
-
     void run(Clasp::ClaspFacade &clasp) override {
         if (mode_ != Mode::clasp) {
             if (mode_ == Mode::solve) {
@@ -281,8 +271,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                                                ctl_->lib->scripts,
                                                rewrite_opts_,
                                                static_cast<AppMode>(mode_),
-                                               stdout,
-                                               [this](Clasp::ClaspFacade &clasp) { return this->prepare(clasp); }};
+                                               stdout};
             for (auto const &[name, value] : const_defs_) {
                 slv.add_const(*name, *value);
             }

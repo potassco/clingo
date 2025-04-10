@@ -448,15 +448,9 @@ template <class M> class unlock_guard {
 //! Takes care of parsing, grounding, and solving.
 class Solver : public BaseView {
   public:
-    using PrepareFunction = std::function<bool(Clasp::ClaspFacade &)>;
-    static constexpr auto default_prepare = [](Clasp::ClaspFacade &clasp) {
-        clasp.prepare();
-        return true;
-    };
     //! Create a solver object.
     Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &config, Logger &log, SymbolStore &store,
-           Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out = stdout,
-           PrepareFunction prepare = default_prepare);
+           Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out = stdout);
 
     //! Parse, ground, and solve a program.
     void main(std::span<std::string_view const> const &files, std::optional<ProgramParamsVec> const &params);
@@ -597,7 +591,6 @@ class Solver : public BaseView {
     AppMode mode_;
     BuiltinIncludes includes_ = BuiltinIncludes::empty;
     void *data_ = nullptr;
-    PrepareFunction prepare_facade_;
     bool block_main_ = false;
 };
 

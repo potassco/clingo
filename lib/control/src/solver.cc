@@ -889,9 +889,9 @@ void Scripts::do_call(Location const &loc, std::string_view name, SymbolSpan arg
 }
 
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
-               Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out, PrepareFunction prepare)
+               Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
     : clasp_{&clasp}, clasp_config_{&clasp_config}, buf_{out}, out_{make_output_(store, mode)},
-      grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode}, prepare_facade_{std::move(prepare)} {
+      grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {
 }
 
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
@@ -1050,7 +1050,7 @@ auto Solver::solve(UEventHandler handler, PrgLitSpan assumptions, SolveMode mode
         }
         state_ = State::solved;
         clasp_->asp()->addAssumption(assumptions);
-        if (prepare_facade_(*clasp_)) {
+        if (clasp_->prepare()) {
             theory_->reset();
             if (mdl_ == nullptr) {
                 mdl_ = std::make_unique<ModelImpl>(grd_.base(), terms_, *clasp_);
