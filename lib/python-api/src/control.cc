@@ -60,6 +60,22 @@ void Control::parse_string(char const *str) {
     handle_error(clingo_control_parse_string(ctl_.get(), str), get_exception_ptr());
 }
 
+void Control::write_aspif(char const *path, bool append, std::optional<bool> preamble, bool preprocess) {
+    clingo_write_aspif_mode_t mode = 0;
+    if (append) {
+        mode |= clingo_write_aspif_mode_append;
+    }
+    if (!preamble) {
+        mode |= clingo_write_aspif_mode_preamble_auto;
+    } else if (*preamble) {
+        mode |= clingo_write_aspif_mode_preamble;
+    }
+    if (preprocess) {
+        mode |= clingo_write_aspif_mode_preprocess;
+    }
+    handle_error(clingo_control_write_aspif(ctl_.get(), path, mode), get_exception_ptr());
+}
+
 void Control::parse_files(std::span<std::string const> files) {
     auto cfiles = transform(files, [](auto const &x) { return x.c_str(); });
     handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()), get_exception_ptr());
@@ -363,6 +379,24 @@ Parses the logic programs in the given files
 Args:
     files:
         A list of file paths to parse.
+)"_d)
+        .def("write_aspif", &Control::write_aspif, py::arg("path"), py::arg("append") = false,
+             py::arg("preamble") = std::nullopt, py::arg("preprocess") = true, R"(
+Write the current logic programs to the given file.
+
+If append is true, a file will be created if none exists yet. If preamble is
+None, then the aspif preamble is written for newly created files and omitted
+for existing files.
+
+Args:
+    path:
+        The path to write the program to.
+    append:
+        Whether to append to an existing file.
+    preamble:
+        Whether to write the aspif preamble.
+    preprocess:
+        Whether to preprocess the program before writing.
 )"_d)
         .def("ground", &Control::ground, py::arg("parts") = std::nullopt, py::arg("context") = py::none(), R"(
 Ground the given program parts.

@@ -3,6 +3,8 @@
 
 #include <clingo/control/solver.hh>
 
+#include <potassco/aspif.h>
+
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
@@ -168,6 +170,35 @@ extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observe
         auto const &base = reinterpret_cast<clingo_base_t const &>(*control->slv);
         Observer obs{base, *observer, data};
         prg.accept(obs, true);
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const *path, clingo_write_aspif_mode_t mode)
+    -> clingo_result_t {
+    CLINGO_TRY {
+        if (control == nullptr || path == nullptr) {
+            return clingo_result_invalid;
+        }
+        // NOLINTNEXTLINE
+        auto &prg = const_cast<Clasp::Asp::LogicProgram &>(control->slv->clasp_program());
+        if ((mode & clingo_write_aspif_mode_preprocess) != 0) {
+            prg.endProgram();
+        }
+        auto app = (mode & clingo_write_aspif_mode_append) != 0 && std::filesystem::exists(path);
+        auto pre = (mode & clingo_write_aspif_mode_preamble) != 0;
+        if ((mode & clingo_write_aspif_mode_preamble_auto) != 0) {
+            pre = !app;
+        }
+        auto out = std::ofstream{path, app ? std::ios::app : std::ios::out};
+        out.exceptions(std::ios::failbit | std::ios::badbit);
+        auto obs = Potassco::AspifOutput{out};
+        prg.accept(obs, pre);
+        // Clingo's aspif reader requires all programs to be zero terminated.
+        // Thus, we call endStep here.
+        if (!pre) {
+            obs.endStep();
+        }
     }
     CLINGO_CATCH;
 }

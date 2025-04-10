@@ -16,6 +16,18 @@ typedef struct clingo_control clingo_control_t;
 //! Functions and data structures to inspect ground programs.
 //! @{
 
+//! Available write modes for aspif files (bitset).
+//!
+//! Note that the preamble flag preamble_auto toggles the
+enum clingo_write_aspif_mode_e {
+    clingo_write_aspif_mode_preamble = 1,      //!< Write preamble.
+    clingo_write_aspif_mode_preamble_auto = 2, //!< Write preamble for newly created files.
+    clingo_write_aspif_mode_append = 4,        //!< Append to an existing file (or create it).
+    clingo_write_aspif_mode_preprocess = 8,    //!< Whether to preprocess the program before writing.
+};
+//! Corresponding type to ::clingo_write_aspif_mode_e.
+using clingo_write_aspif_mode_t = unsigned;
+
 //! An instance of this struct has to be registered with a solver to observe
 //! ground directives as they are passed to the solver.
 //!
@@ -145,6 +157,15 @@ typedef struct clingo_observer {
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_observe(clingo_control_t *control,
                                                                  clingo_observer_t const *observer, void *data,
                                                                  bool preprocess);
+
+//! Write the current logic program in aspif format to a file.
+//!
+//! @param control the target control
+//! @param path the path to the file to write to
+//! @param mode control how to write
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_write_aspif(clingo_control_t *control, char const *path,
+                                                                     clingo_write_aspif_mode_t mode);
 
 //! @}
 

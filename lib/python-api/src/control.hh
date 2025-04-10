@@ -46,6 +46,7 @@ class Control {
     auto mode() -> clingo_mode_e;
     void parse_files(std::span<std::string const> files);
     void parse_string(char const *str);
+    void write_aspif(char const *path, bool append, std::optional<bool> preamble, bool preprocess);
     void join(Program &prg);
     void ground(std::optional<PartSpan> parts, py::handle ctx);
     auto solve(MixedLitVec const &assumptions, std::optional<ModelCallback> on_model,
