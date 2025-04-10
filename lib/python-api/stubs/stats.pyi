@@ -64,6 +64,8 @@ class StatsType:
     __members__: typing.ClassVar[
         dict[str, StatsType]
     ]  # value = {'Map': <StatsType.Map: 2>, 'Array': <StatsType.Array: 1>, 'Value': <StatsType.Value: 0>}
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
@@ -84,6 +86,8 @@ class Stats:
     Class representing solver stats.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def nestify(self) -> typing.Any:
         """
         Convert the statistics object into a nested structure consisting of sequencens,
@@ -144,6 +148,8 @@ class StatsArray:
     top-level statistics object.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __getitem__(self, arg0: int) -> Stats:
         """
         Get the element at the given index.
@@ -179,6 +185,8 @@ class StatsMap:
     top-level statistics object.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __getitem__(self, key: str) -> Stats:
         """
         Lookup the value with the given key.

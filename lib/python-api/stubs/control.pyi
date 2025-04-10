@@ -86,6 +86,8 @@ class ControlMode:
     __members__: typing.ClassVar[
         dict[str, ControlMode]
     ]  # value = {'Parse': <ControlMode.Parse: 0>, 'Rewrite': <ControlMode.Rewrite: 1>, 'Ground': <ControlMode.Ground: 2>, 'Solve': <ControlMode.Solve: 3>}
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
@@ -106,6 +108,8 @@ class Control:
     A control object for grounding and solving.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(
         self, lib: clingo.core.Library, options: typing.Sequence[str] = []
     ) -> None:
@@ -294,6 +298,31 @@ class Control:
             clingo.solve: Contains examples on using this function.
         """
 
+    def write_aspif(
+        self,
+        path: str,
+        append: bool = False,
+        preamble: bool | None = None,
+        preprocess: bool = True,
+    ) -> None:
+        """
+        Write the current logic programs to the given file.
+
+        If append is true, a file will be created if none exists yet. If preamble is
+        None, then the aspif preamble is written for newly created files and omitted
+        for existing files.
+
+        Args:
+            path:
+                The path to write the program to.
+            append:
+                Whether to append to an existing file.
+            preamble:
+                Whether to write the aspif preamble.
+            preprocess:
+                Whether to preprocess the program before writing.
+        """
+
     @property
     def backend(self) -> clingo.backend.BackendManager:
         """
@@ -341,6 +370,8 @@ class _ConstMap:
     The map from constants defined by #const directives.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, key: str) -> bool:
         """
         Check if the map contains the given key.

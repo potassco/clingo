@@ -95,6 +95,8 @@ class CheckMode:
     __members__: typing.ClassVar[
         dict[str, CheckMode]
     ]  # value = {'Off': <CheckMode.Off: 0>, 'Fixpoint': <CheckMode.Fixpoint: 2>, 'Total': <CheckMode.Total: 1>, 'Both': <CheckMode.Both: 3>}
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
@@ -126,6 +128,8 @@ class UndoMode:
     __members__: typing.ClassVar[
         dict[str, UndoMode]
     ]  # value = {'Default': <UndoMode.Default: 0>, 'Always': <UndoMode.Always: 1>}
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
@@ -166,6 +170,8 @@ class WeightConstraintType:
     __members__: typing.ClassVar[
         dict[str, WeightConstraintType]
     ]  # value = {'Equivalence': <WeightConstraintType.Equivalence: 0>, 'LeftImplication': <WeightConstraintType.LeftImplication: -1>, 'RightImplication': <WeightConstraintType.RightImplication: 1>}
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
@@ -200,6 +206,8 @@ class Assignment:
     Implements `Sequence[int]` to access the solver literals in the assignment.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, value: int) -> bool:
         """
         Get a reverse iterator for the sequence.
@@ -353,6 +361,8 @@ class PropagateControl:
     as managing watches and performing propagation.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def add_clause(
         self, literals: typing.Sequence[int], tag: bool = False, lock: bool = False
     ) -> bool:
@@ -466,6 +476,8 @@ class PropagateInit:
     clauses, literals, watches, and constraints.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def add_clause(self, literals: typing.Sequence[int]) -> bool:
         """
         Add a clause to the solver.
@@ -645,6 +657,8 @@ class Propagator:
     implementation.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(self) -> None: ...
     def check(self, control: PropagateControl) -> None:
         """
@@ -744,6 +758,8 @@ class Trail:
     Implements `Sequence[int]` to access the solver literals in the trail.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, value: int) -> bool:
         """
         Get a reverse iterator for the sequence.
@@ -828,6 +844,8 @@ class _TrailView:
     Implements `Sequence[int]` to access the solver literals in the view.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, value: int) -> bool:
         """
         Get a reverse iterator for the sequence.

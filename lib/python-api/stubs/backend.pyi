@@ -84,6 +84,8 @@ class ExternalType:
     __members__: typing.ClassVar[
         dict[str, ExternalType]
     ]  # value = {'True_': <ExternalType.True_: 1>, 'False_': <ExternalType.False_: 2>, 'Free': <ExternalType.Free: 0>, 'Release': <ExternalType.Release: 3>}
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
@@ -127,6 +129,8 @@ class HeuristicType:
     __members__: typing.ClassVar[
         dict[str, HeuristicType]
     ]  # value = {'Level': <HeuristicType.Level: 0>, 'Factor': <HeuristicType.Factor: 2>, 'True_': <HeuristicType.True_: 4>, 'False_': <HeuristicType.False_: 5>, 'Init': <HeuristicType.Init: 3>, 'Sign': <HeuristicType.Sign: 1>}
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
@@ -161,6 +165,8 @@ class TheorySequenceType:
     __members__: typing.ClassVar[
         dict[str, TheorySequenceType]
     ]  # value = {'Tuple': <TheorySequenceType.Tuple: 0>, 'List': <TheorySequenceType.List: 2>, 'Set': <TheorySequenceType.Set: 1>}
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
@@ -188,6 +194,8 @@ class Backend:
         clingo.control.Control.backend
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def assume(self, literals: typing.Sequence[int]) -> None:
         """
         Add an assumption directive to the solver.
@@ -466,6 +474,8 @@ class BackendManager:
     A context manager to initialize and finalize a backend.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __enter__(self) -> Backend:
         """
         Initialize backend the backend.
@@ -490,6 +500,8 @@ class Observer:
         `clingo.control.Control.observe`
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(self) -> None: ...
     def assume(self, literals: typing.Sequence[int]) -> None:
         """

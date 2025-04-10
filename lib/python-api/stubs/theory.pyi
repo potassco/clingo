@@ -18,6 +18,8 @@ class Theory:
     Object to call functions from a C-library implementing a custom theory.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(self, theory_pointer: typing.Any) -> None:
         """
         Construct a theory object from the given pointer.
@@ -193,6 +195,8 @@ class _TheoryAssignment:
     Internal class.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __iter__(
         self,
     ) -> typing.Iterator[

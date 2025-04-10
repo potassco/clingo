@@ -90,6 +90,8 @@ class Script:
     ABC for custom scripts.
     """
 
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(self) -> None:
         """
         Construct a script object.
@@ -170,4 +172,5 @@ class Script:
         """
 
 class _MainScript:
-    pass
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
