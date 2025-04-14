@@ -1151,7 +1151,7 @@ statement_const:
       doc: The term of the statement.
     precedence:
       type: precedence
-      doc: The type of the statement.
+      doc: The precedence of the statement.
 statement_comment:
   type: record
   doc: A comment.

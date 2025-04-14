@@ -49,7 +49,6 @@ __all__ = [
     "BodySimpleLiteral",
     "BodyTheoryAtom",
     "CommentType",
-    "ConstType",
     "Edge",
     "HeadAggregate",
     "HeadAggregateElement",
@@ -66,6 +65,7 @@ __all__ = [
     "OptimizeElement",
     "OptimizeTuple",
     "OptimizeType",
+    "Precedence",
     "Program",
     "Projection",
     "ProjectionMode",
@@ -445,39 +445,6 @@ class CommentType:
     @property
     def value(self) -> int: ...
 
-class ConstType:
-    """
-    Enumeration of const types.
-
-    Members:
-
-      Default : For default const statements.
-
-      Override : For overriding const statements.
-    """
-
-    Default: typing.ClassVar[ConstType]  # value = <ConstType.Default: 0>
-    Override: typing.ClassVar[ConstType]  # value = <ConstType.Override: 1>
-    __members__: typing.ClassVar[
-        dict[str, ConstType]
-    ]  # value = {'Default': <ConstType.Default: 0>, 'Override': <ConstType.Override: 1>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
-
 class IncludeType:
     """
     Enumeration of include types.
@@ -527,6 +494,39 @@ class OptimizeType:
     __members__: typing.ClassVar[
         dict[str, OptimizeType]
     ]  # value = {'Minimize': <OptimizeType.Minimize: 0>, 'Maximize': <OptimizeType.Maximize: 1>}
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __getstate__(self) -> int: ...
+    def __hash__(self) -> int: ...
+    def __index__(self) -> int: ...
+    def __init__(self, value: int) -> None: ...
+    def __int__(self) -> int: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __repr__(self) -> str: ...
+    def __setstate__(self, state: int) -> None: ...
+    def __str__(self) -> str: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def value(self) -> int: ...
+
+class Precedence:
+    """
+    Enumeration of precedences values.
+
+    Members:
+
+      Default : The default precedence.
+
+      Override : Override values with default precedence.
+    """
+
+    Default: typing.ClassVar[Precedence]  # value = <Precedence.Default: 0>
+    Override: typing.ClassVar[Precedence]  # value = <Precedence.Override: 1>
+    __members__: typing.ClassVar[
+        dict[str, Precedence]
+    ]  # value = {'Default': <Precedence.Default: 0>, 'Override': <Precedence.Override: 1>}
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -3501,7 +3501,7 @@ class StatementConst:
             | TermTuple
             | TermFunction
         ),
-        const_type: ConstType,
+        precedence: Precedence,
     ) -> None:
         """
         Construct a StatementConst object.
@@ -3511,7 +3511,7 @@ class StatementConst:
             location:     The location of the statement.
             name:     The name of the statement.
             value:     The term of the statement.
-            const_type:     The type of the statement.
+            precedence:     The type of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -3554,12 +3554,6 @@ class StatementConst:
         """
 
     @property
-    def const_type(self) -> ConstType:
-        """
-        The type of the statement.
-        """
-
-    @property
     def location(self) -> clingo.core.Location:
         """
         The location of the statement.
@@ -3569,6 +3563,12 @@ class StatementConst:
     def name(self) -> str:
         """
         The name of the statement.
+        """
+
+    @property
+    def precedence(self) -> Precedence:
+        """
+        The type of the statement.
         """
 
     @property

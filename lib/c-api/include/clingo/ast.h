@@ -120,7 +120,7 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_body,
     clingo_ast_attribute_comment_type,
     clingo_ast_attribute_condition,
-    clingo_ast_attribute_const_type,
+    clingo_ast_attribute_precedence,
     clingo_ast_attribute_elements,
     clingo_ast_attribute_external,
     clingo_ast_attribute_external_type,

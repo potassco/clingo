@@ -1190,7 +1190,7 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(statement_include, StmInclude,
             ATTR(include_type, type()))
         TYPE(statement_const, StmConst,
-            ATTR(const_type, type()))
+            ATTR(precedence, type()))
         TYPE(statement_comment, StmComment,
             ATTR(comment_type, type())))
     // clang-format on
@@ -2239,9 +2239,9 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 auto const *name = va_arg(args, char const *);
                 auto const *term = va_arg(args, clingo_ast_t const *);
-                auto const_type = va_arg(args, int);
+                auto prec = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmConst>(type, convert(loc), static_cast<Precedence>(const_type),
+                *ast = construct_ast<Clingo::Input::StmConst>(type, convert(loc), static_cast<Precedence>(prec),
                                                               *lib->store->string(name), convert<Term>(term));
                 break;
             }

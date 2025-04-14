@@ -211,7 +211,7 @@ enum class IncludeType {
     Inbuild = 1,
 };
 
-enum class ConstType {
+enum class Precedence {
     Default = 0,
     Override = 1,
 };
@@ -2191,7 +2191,7 @@ class StatementConst : public ASTBase {
     auto location() -> Location;
     auto name() -> char const *;
     auto value() -> Term;
-    auto const_type() -> ConstType;
+    auto precedence() -> Precedence;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
@@ -2199,7 +2199,7 @@ class StatementConst : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementConst;
 
     static auto construct(Library &lib, Location const &location, char const *name, Term const &value,
-                          ConstType const &const_type) -> StatementConst;
+                          Precedence const &precedence) -> StatementConst;
     static auto acquire(clingo_ast_t *ast) -> StatementConst { return {ast}; }
 
     friend auto operator==(StatementConst const &a, StatementConst const &b) -> bool = default;
@@ -5910,18 +5910,18 @@ auto StatementConst::value() -> Term {
     return construct_term(ast);
 }
 
-auto StatementConst::const_type() -> ConstType {
+auto StatementConst::precedence() -> Precedence {
     int ret = 0;
-    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_const_type, &ret));
-    return static_cast<ConstType>(ret);
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_precedence, &ret));
+    return static_cast<Precedence>(ret);
 }
 
 auto StatementConst::construct(Library &lib, Location const &location, char const *name, Term const &value,
-                               ConstType const &const_type) -> StatementConst {
+                               Precedence const &precedence) -> StatementConst {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_const, &res_,
                                       static_cast<clingo_location_t const *>(location), name, c_cast(value),
-                                      static_cast<int>(const_type)));
+                                      static_cast<int>(precedence)));
     return StatementConst::acquire(res_);
 }
 
@@ -5935,7 +5935,7 @@ auto StatementConst::transform([[maybe_unused]] Library &lib, [[maybe_unused]] p
     -> std::optional<StatementConst> {
     auto [value_value, value_changed] = transform_value(value(), transform, args, kwargs);
     if (value_changed) {
-        return StatementConst::construct(lib, location(), name(), value_value, const_type());
+        return StatementConst::construct(lib, location(), name(), value_value, precedence());
     }
     return std::nullopt;
 }
@@ -5944,7 +5944,7 @@ auto StatementConst::update(Library &lib, py::kwargs const &kwargs) -> Statement
     return StatementConst::construct(lib, update_value<Location>(this, &StatementConst::location, kwargs, "location"),
                                      update_value<char const *>(this, &StatementConst::name, kwargs, "name"),
                                      update_value<Term>(this, &StatementConst::value, kwargs, "value"),
-                                     update_value<ConstType>(this, &StatementConst::const_type, kwargs, "const_type"));
+                                     update_value<Precedence>(this, &StatementConst::precedence, kwargs, "precedence"));
 }
 
 auto StatementComment::location() -> Location {
@@ -6354,7 +6354,7 @@ This can be used to auto-generate most of the binding.)doc");
 
     auto py_include_type = py::enum_<IncludeType>(ast, "IncludeType", R"doc(Enumeration of include types.)doc");
 
-    auto py_const_type = py::enum_<ConstType>(ast, "ConstType", R"doc(Enumeration of const types.)doc");
+    auto py_precedence = py::enum_<Precedence>(ast, "Precedence", R"doc(Enumeration of precedences values.)doc");
 
     auto py_comment_type = py::enum_<CommentType>(ast, "CommentType", R"doc(Enumeration of comment types.)doc");
 
@@ -6568,8 +6568,8 @@ term.)doc");
     py_include_type.value("System", IncludeType::System, R"doc(For file includes.)doc")
         .value("Inbuild", IncludeType::Inbuild, R"doc(For inbuild includes.)doc");
 
-    py_const_type.value("Default", ConstType::Default, R"doc(For default const statements.)doc")
-        .value("Override", ConstType::Override, R"doc(For overriding const statements.)doc");
+    py_precedence.value("Default", Precedence::Default, R"doc(The default precedence.)doc")
+        .value("Override", Precedence::Override, R"doc(Override values with default precedence.)doc");
 
     py_comment_type.value("Line", CommentType::Line, R"doc(For line comments.)doc")
         .value("Block", CommentType::Block, R"doc(For block comments.)doc");
@@ -8918,19 +8918,19 @@ Returns:
 
     make_comparable_base<Statement>(py_statement_const)
         .def(py::init(&StatementConst::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
-             py::arg("value"), py::arg("const_type"), R"doc(Construct a StatementConst object.
+             py::arg("value"), py::arg("precedence"), R"doc(Construct a StatementConst object.
 
 Args:
     lib: The library object for storing symbols.
     location:     The location of the statement.
     name:     The name of the statement.
     value:     The term of the statement.
-    const_type:     The type of the statement.)doc")
+    precedence:     The type of the statement.)doc")
         .def("__str__", &StatementConst::to_string)
         .def_property_readonly("location", &StatementConst::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementConst::name, R"doc(The name of the statement.)doc")
         .def_property_readonly("value", &StatementConst::value, R"doc(The term of the statement.)doc")
-        .def_property_readonly("const_type", &StatementConst::const_type, R"doc(The type of the statement.)doc")
+        .def_property_readonly("precedence", &StatementConst::precedence, R"doc(The type of the statement.)doc")
         .def("visit", &StatementConst::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
 Args:

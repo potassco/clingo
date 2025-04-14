@@ -877,11 +877,11 @@ class TestAST:
         Test const statements.
         """
         t1 = ast.parse_term(self.lib, "f(2+3)")
-        s1 = ast.StatementConst(self.lib, self.loc, "x", t1, ast.ConstType.Override)
+        s1 = ast.StatementConst(self.lib, self.loc, "x", t1, ast.Precedence.Override)
         assert s1.location == self.loc
         assert s1.name == "x"
         assert s1.value == t1
-        assert s1.const_type == ast.ConstType.Override
+        assert s1.precedence == ast.Precedence.Override
         assert str(s1) == "#const x=f(2+3). [override]"
 
     def test_statement_comment(self):
