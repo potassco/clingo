@@ -158,16 +158,16 @@ include_type:
     inbuild:
       value: 1
       doc: For inbuild includes.
-const_type:
+precedence:
   type: enum
-  doc: Enumeration of const types.
+  doc: Enumeration of precedences values.
   values:
     default:
       value: 0
-      doc: For default const statements.
+      doc: The default precedence.
     override:
       value: 1
-      doc: For overriding const statements.
+      doc: Override values with default precedence.
 comment_type:
   type: enum
   doc: Enumeration of comment types.
@@ -1149,8 +1149,8 @@ statement_const:
     value:
       type: term
       doc: The term of the statement.
-    const_type:
-      type: const_type
+    precedence:
+      type: precedence
       doc: The type of the statement.
 statement_comment:
   type: record

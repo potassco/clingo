@@ -57,8 +57,10 @@ auto Parser::parse_const_def() -> std::optional<std::pair<SharedString, SharedSy
 }
 
 auto Parser::parse_program_parts() -> std::optional<std::vector<ProgramParamVec>> {
-    return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_program_parts,
-                      check_true<std::vector<ProgramParamVec>>);
+    return parse_expr(
+        *impl_, Parse::Condition::normal,
+        [](Parse::ParserState &state) { return Parse::parse_program_parts(state, Parse::TokenType::end); },
+        check_true<std::vector<ProgramParamVec>>);
 }
 
 auto Parser::parse_term() -> std::optional<Term> {

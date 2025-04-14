@@ -724,7 +724,7 @@ using ProgramParamVec = std::vector<ProgramParam>;
 //! Enumeration of constant statement types.
 //!
 //! @see StatementConst
-enum class ConstType : uint8_t {
+enum class Precedence : uint8_t {
     default_, //! A statement providing default value.
     override_ //! A statement overriding a default value.
 };
@@ -741,13 +741,13 @@ class StmConst : public Expression<StmConst> {
     }
 
     //! Construct a const statement.
-    explicit StmConst(Location loc, ConstType type, String name, Term value)
+    explicit StmConst(Location loc, Precedence type, String name, Term value)
         : loc_{std::move(loc)}, type_(type), name_(name), value_(std::move(value)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The type of the statement.
-    [[nodiscard]] auto type() const -> ConstType const & { return type_; }
+    [[nodiscard]] auto type() const -> Precedence const & { return type_; }
     //! The name of the constant.
     [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The value of the constant
@@ -755,7 +755,7 @@ class StmConst : public Expression<StmConst> {
 
   private:
     Location loc_;
-    ConstType type_;
+    Precedence type_;
     SharedString name_;
     Term value_;
 };

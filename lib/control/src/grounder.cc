@@ -290,7 +290,7 @@ void Grounder::add_const(String name, Symbol value) {
         auto loc = Location(Position{str, 1, 1}, Position{str, 1, 1});
         auto val = Input::TermSymbol{loc, value};
         impl_->unprocessed_prg.add(*impl_->store,
-                                   Input::StmConst{std::move(loc), Input::ConstType::override_, name, std::move(val)});
+                                   Input::StmConst{std::move(loc), Input::Precedence::override_, name, std::move(val)});
     }
 }
 

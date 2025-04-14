@@ -515,7 +515,7 @@ auto parse_script(ParserState &state) -> std::optional<Stm> {
     return std::nullopt;
 }
 
-//! Parse a include statement.
+//! Parse an include statement.
 auto parse_include(ParserState &state) -> std::optional<Stm> {
     assert(state.token() == TokenType::include);
     auto loc = state.loc();
@@ -578,12 +578,12 @@ auto parse_program(ParserState &state) -> std::optional<Stm> {
 //! Parse the const type.
 //!
 //! Advances the location to the end of the tuple.
-auto parse_const_type(ParserState &state, Location &loc) -> std::optional<ConstType> {
+auto parse_option_value_type(ParserState &state, Location &loc) -> std::optional<Precedence> {
     if (state.token() == TokenType::lbrack) {
         state.consume();
-        auto type = ConstType::default_;
+        auto type = Precedence::default_;
         if (state.token() == TokenType::id && state.view() == "override") {
-            type = ConstType::override_;
+            type = Precedence::override_;
         } else if (state.token() != TokenType::id || state.view() != "default") {
             return state.expected<std::nullopt>("default", "override");
         }
@@ -595,7 +595,7 @@ auto parse_const_type(ParserState &state, Location &loc) -> std::optional<ConstT
             return type;
         }
     }
-    return ConstType::default_;
+    return Precedence::default_;
 }
 
 //! Parse a const statement.
@@ -613,10 +613,28 @@ auto parse_const(ParserState &state) -> std::optional<Stm> {
                     loc += state.cursor_pos();
                     state.mark_stms();
                     state.consume();
-                    if (auto type = parse_const_type(state, loc)) {
+                    if (auto type = parse_option_value_type(state, loc)) {
                         return StmConst{std::move(loc), *type, name, *std::move(term)};
                     }
                 }
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+//! Parse a parts statement.
+auto parse_parts(ParserState &state) -> std::optional<Stm> {
+    assert(state.token() == TokenType::parts);
+    auto loc = state.loc();
+    state.consume();
+    if (auto parts = parse_program_parts(state, TokenType::dot)) {
+        if (state.expect(TokenType::dot)) {
+            loc += state.cursor_pos();
+            state.mark_stms();
+            state.consume();
+            if (auto type = parse_option_value_type(state, loc)) {
+                GRINGO_REPORT_LOC(state.log(), error, loc) << "construct a parts directive";
             }
         }
     }
@@ -890,6 +908,9 @@ auto parse_statement(ParserState &state) -> std::optional<Stm> {
         }
         case TokenType::const_: {
             return parse_const(state);
+        }
+        case TokenType::parts: {
+            return parse_parts(state);
         }
         case TokenType::defined: {
             return parse_defined(state);

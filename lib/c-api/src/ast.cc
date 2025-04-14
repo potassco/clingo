@@ -2241,7 +2241,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *term = va_arg(args, clingo_ast_t const *);
                 auto const_type = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmConst>(type, convert(loc), static_cast<ConstType>(const_type),
+                *ast = construct_ast<Clingo::Input::StmConst>(type, convert(loc), static_cast<Precedence>(const_type),
                                                               *lib->store->string(name), convert<Term>(term));
                 break;
             }

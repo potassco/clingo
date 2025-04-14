@@ -109,13 +109,13 @@ template <class T> auto operator<<(T &out, OptimizeType type) -> T & {
     return out;
 }
 
-template <class T> auto operator<<(T &out, ConstType type) -> T & {
+template <class T> auto operator<<(T &out, Precedence type) -> T & {
     switch (type) {
-        case ConstType::default_: {
+        case Precedence::default_: {
             out << "default";
             break;
         }
-        case ConstType::override_: {
+        case Precedence::override_: {
             out << "override";
             break;
         }

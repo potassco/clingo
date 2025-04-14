@@ -59,6 +59,7 @@ enum class TokenType : uint8_t {
     ne,
     not_,
     num,
+    parts,
     plus,
     program,
     project,
@@ -207,6 +208,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::num: {
             return out << "<number>";
+        }
+        case TokenType::parts: {
+            return out << "#parts";
         }
         case TokenType::plus: {
             return out << "'+'";
@@ -829,8 +833,8 @@ auto parse_term(ParserState &state) -> std::optional<Term>;
 //! Parse a symbol.
 auto parse_symbol(ParserState &state) -> std::optional<SharedSymbol>;
 
-//! Parse a program parames to ground.
-auto parse_program_parts(ParserState &state) -> std::optional<std::vector<ProgramParamVec>>;
+//! Parse the program params to ground.
+auto parse_program_parts(ParserState &state, TokenType end) -> std::optional<std::vector<ProgramParamVec>>;
 
 //! Parse a constant definition.
 auto parse_const_def(ParserState &state) -> std::optional<std::pair<SharedString, SharedSymbol>>;

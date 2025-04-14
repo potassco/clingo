@@ -87,6 +87,7 @@ auto ParserState::lex_() -> TokenType {
         <normal> "~"                   { return TokenType::tilde; }
         <normal> ":~"                  { return TokenType::wif; }
         <normal> "#const"              { return TokenType::const_; }
+        <normal> "#parts"              { return TokenType::parts; }
         <normal> "#count"              { return TokenType::count; }
         <normal> "#defined"            { return TokenType::defined; }
         <normal> "#edge"               { return TokenType::edge; }
