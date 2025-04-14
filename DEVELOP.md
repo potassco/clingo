@@ -21,7 +21,11 @@ cmake -G Ninja -S llvm -B build \
   -DCMAKE_FIND_ROOT_PATH="$CONDA_PREFIX" \
   -DCLANG_DEFAULT_CXX_STDLIB='libc++' \
   -DCLANG_DEFAULT_LINKER='lld' \
-  -DCLANG_DEFAULT_RTLIB='compiler-rt'
+  -DCLANG_DEFAULT_RTLIB='compiler-rt' \
+  -DLLVM_ENABLE_LIBCXX=ON \
+  -DLLVM_ENABLE_LIBCXXABI=ON \
+  -DCLANG_DEFAULT_CXX_STDLIB=libc++ \
+  -DCLANG_DEFAULT_RTLIB=compiler-rt
 cmake --build build
 cmake --build build --target install
 # configure clang to find libraries in the right places

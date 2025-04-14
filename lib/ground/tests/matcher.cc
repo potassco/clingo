@@ -56,6 +56,7 @@ class NullOutputStm : public OutputStm {
     void do_classical_negation([[maybe_unused]] size_t atom_a, [[maybe_unused]] size_t atom_b) override {}
     void do_end_step() override {}
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
+    void do_simplify([[maybe_unused]] std::function<TruthValue(prg_lit_t)> const &pred) override {}
 
     NullOutputLit lout;
 };

@@ -565,6 +565,9 @@ class Solver : public BaseView {
     //! Prepare the solver for grounding.
     void prepare_();
 
+    //! Simplify the grounder's domain with the solvers assignment.
+    void simplify_();
+
     [[nodiscard]] auto do_bases() const -> Ground::Bases const & override { return grd_.base(); }
 
     [[nodiscard]] auto do_term_base() const -> TermBaseMap const & override { return terms_; }

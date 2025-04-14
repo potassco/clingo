@@ -308,6 +308,38 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
     //! Returns the index of the first atom not previously projected.
     [[nodiscard]] auto mark_projected() -> size_t { return std::exchange(project_offset_, size()); }
 
+    template <class Pred> void simplify(Pred const &pred, size_t &rem, size_t &fact) {
+        assert(show_offset_ == size());
+        assert(negate_offset_ == 0 || negate_offset_ == size());
+        assert(project_offset_ == 0 || project_offset_ == size());
+        auto true_atoms = SymbolVec{};
+        erase_if(atoms_, [&](SymbolicAtom const &item) {
+            if (item.second.state == StateAtom::unknown) {
+                ++rem;
+                return true;
+            }
+            auto tv = pred(item.second.id);
+            if (tv == TruthValue::bot) {
+                ++rem;
+                return true;
+            }
+            if (tv == TruthValue::top && item.second.state != StateAtom::fact) {
+                ++fact;
+                true_atoms.emplace_back(item.first);
+            }
+            return false;
+        });
+        for (auto const &sym : true_atoms) {
+            atoms_.find(sym).value().state = StateAtom::fact;
+        }
+        derived_.assign(0, atoms_.size());
+        assert(derived_.size() == atoms_.size());
+        domain_offset_ = 0;
+        show_offset_ = size();
+        negate_offset_ = negate_offset_ > 0 ? size() : 0;
+        project_offset_ = project_offset_ > 0 ? size() : 0;
+    }
+
   private:
     [[nodiscard]] auto atom_index_(MapAtom::const_iterator it) const -> size_t {
         return static_cast<size_t>(std::distance(atoms_.cbegin(), it));

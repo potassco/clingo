@@ -7,14 +7,15 @@
 /examples/js/parser.js
 /examples/js/parser.wasm
 /*.lp
-/pdoc
 /*.py
+/*.aspif
+/*.prof
 /test*
+/pdoc
 /.venv
 .cache
 compile_commands.json
 .gdb_history
 .nfs*
-*.prof
 __pycache__
 wheelhouse

@@ -1205,6 +1205,13 @@ class BuilderDisjunction {
 };
 
 //! Builder incrementally extending a minimize constraint.
+//!
+//! The builder stores a map from tuples to a disjunction of literals, which is
+//! incrementally exended by literals representing conjunctive clauses. An
+//! optional is used for the disjunctive clause, which is not engaged if the
+//! clause is true. Furthermore, a literal is stored for the disjunctive
+//! clause, which is set at the end of a step when the disjunctive clause is
+//! complete.
 class BuilderMinimize {
   public:
     //! Extend the current minimize constraint.
@@ -1216,16 +1223,35 @@ class BuilderMinimize {
     //! @param terms the tuple (without weight and priority)
     void add(BuilderBase &bld, PrgLitSpan lits, prg_weight_t weight, prg_weight_t prio, SymbolSpan terms) {
         auto [it, ins] = tuples_.try_emplace(std::tuple(weight, prio, SharedSymbolVec{terms.begin(), terms.end()}));
-        auto &[old, conds] = it.value();
+        if (!it.value()) {
+            if (!ins) {
+                // skip factual tuples marked below
+                return;
+            }
+            it.value().emplace();
+        }
+        auto &[old, conds] = *it.value(); // NOLINT
+        if (lits.empty()) {
+            if (old != 0) {
+                auto lit = bld.negate(old);
+                bld.backend().minimize(prio, std::array{std::pair{lit, weight}});
+            } else {
+                auto lit = bld.clause({}, ClauseType::conjunctive);
+                bld.mark(lit, EQType::implication);
+                bld.backend().minimize(prio, std::array{std::pair{lit, weight}});
+            }
+            // mark tuple as fact (ignored if enqueued)
+            it.value().reset();
+            return;
+        }
         lits_.assign(lits.begin(), lits.end());
         if (old != 0) {
             lits_.emplace_back(bld.negate(old));
         }
-        if (ins) {
+        if (ins || conds.empty()) {
             delayed_.emplace_back(std::distance(tuples_.begin(), it));
         }
         conds.emplace_back(bld.clause(lits_, ClauseType::conjunctive));
-        bld.mark(conds.back(), EQType::implication);
     }
 
     //! Translate tuples from the current step.
@@ -1234,20 +1260,44 @@ class BuilderMinimize {
     void tr(BuilderBase &bld) {
         for (auto const &idx : delayed_) {
             auto it = tuples_.nth(idx);
-            auto const &[weight, prio, terms] = it.key();
-            auto &[old, conds] = tuples_.nth(idx).value();
-            assert(!conds.empty());
-            old = bld.clause(conds, ClauseType::disjunctive);
-            bld.mark(old, EQType::implication);
-            bld.backend().minimize(prio, std::array{std::pair{old, weight}});
-            conds.clear();
+            if (it.value()) {
+                auto const &[weight, prio, terms] = it.key();
+                auto &[old, conds] = *it.value(); // NOLINT
+                assert(!conds.empty());
+                for (auto const &lit : conds) {
+                    bld.mark(lit, EQType::implication);
+                }
+                old = bld.clause(conds, ClauseType::disjunctive);
+                conds.clear();
+                bld.mark(old, EQType::implication);
+                bld.backend().minimize(prio, std::array{std::pair{old, weight}});
+            }
         }
         delayed_.clear();
     }
 
+    //! Simplify (disjunctive) clauses of stored tuples.
+    void simplify(std::function<TruthValue(prg_lit_t)> const &pred) {
+        // remove tuple with false DNF
+        erase_if(tuples_, [&](auto const &item) { return item.second && pred(item.second->first) == TruthValue::bot; });
+        for (auto it = tuples_.begin(), ie = tuples_.end(); it != ie; ++it) {
+            if (auto &cond = it.value(); cond) {
+                if (pred(cond->first) == TruthValue::top) {
+                    // mark tuple with true disjunctive clause
+                    cond.reset();
+                } else {
+                    // remove false literals from disjunctive clause
+                    erase_if(cond->second, [&](prg_lit_t const &lit) { return pred(lit) == TruthValue::bot; });
+                }
+            }
+        }
+    }
+
   private:
     IndexVec delayed_;
-    Util::ordered_map<std::tuple<prg_weight_t, prg_weight_t, SharedSymbolVec>, std::pair<prg_lit_t, PrgLitVec>> tuples_;
+    Util::ordered_map<std::tuple<prg_weight_t, prg_weight_t, SharedSymbolVec>,
+                      std::optional<std::pair<prg_lit_t, PrgLitVec>>>
+        tuples_;
     PrgLitVec lits_;
 };
 
@@ -1585,6 +1635,8 @@ class OutputBackend : public OutputStm, OutputTheory {
             }
         }
     }
+
+    void do_simplify(std::function<TruthValue(prg_lit_t)> const &pred) override { minimize_.simplify(pred); }
 
     PrgLitVec lits_;
     BuilderBase bld_;

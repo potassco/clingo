@@ -132,7 +132,7 @@ class Observer : public Potassco::AbstractProgram {
     // NOTE: the functions below are currently not used because there are other
     // means to inspect atoms and theory data.
     void output([[maybe_unused]] std::string_view str, [[maybe_unused]] Potassco::LitSpan condition) override {}
-    void outputAtom([[maybe_unused]] Potassco::Atom_t a, [[maybe_unused]] Potassco::ConstString const &str) override {}
+    void outputAtom([[maybe_unused]] Potassco::Atom_t a, [[maybe_unused]] std::string_view str) override {}
 
     void theoryTerm([[maybe_unused]] Potassco::Id_t termId, [[maybe_unused]] int number) override {}
     void theoryTerm([[maybe_unused]] Potassco::Id_t termId, [[maybe_unused]] std::string_view name) override {}

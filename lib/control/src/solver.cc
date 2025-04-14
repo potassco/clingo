@@ -673,8 +673,10 @@ constexpr int kill_signal = 9;
 //! The solve handle implementation.
 class SolveHandleImpl : public SolveHandle {
   public:
-    SolveHandleImpl(CallbackLock &lock, Logger &log, ModelImpl &mdl, SolveMode mode, UEventHandler eh)
-        : eh_{lock, log, mdl, std::move(eh)}, hnd_{mdl.clasp().solve(convert(mode), {}, &eh_)} {}
+    SolveHandleImpl(CallbackLock &lock, Logger &log, ModelImpl &mdl, SolveMode mode, UEventHandler eh,
+                    std::function<void()> simplify)
+        : eh_{lock, log, mdl, std::move(eh)}, hnd_{mdl.clasp().solve(convert(mode), {}, &eh_)},
+          simplify_{std::move(simplify)} {}
 
     ~SolveHandleImpl() override { cancel(); }
 
@@ -694,6 +696,7 @@ class SolveHandleImpl : public SolveHandle {
     void do_cancel() override {
         auto guard = unlock_guard{eh_.get_lock()};
         hnd_.cancel();
+        simplify_();
     }
     void do_resume() override {
         auto guard = unlock_guard{eh_.get_lock()};
@@ -725,6 +728,7 @@ class SolveHandleImpl : public SolveHandle {
 
     EventHandlerAdapter eh_;
     Clasp::ClaspFacade::SolveHandle hnd_;
+    std::function<void()> simplify_;
     Potassco::LitVec mutable core_;
 };
 
@@ -1057,7 +1061,7 @@ auto Solver::solve(UEventHandler handler, PrgLitSpan assumptions, SolveMode mode
             }
             // NOLINTNEXTLINE
             return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), static_cast<ModelImpl &>(*mdl_), mode,
-                                                     std::move(handler));
+                                                     std::move(handler), [this]() { simplify_(); });
         }
     }
     theory_->reset();
@@ -1119,6 +1123,32 @@ auto Solver::backend() -> UBackendHandle {
         return std::make_unique<BackendHandleImpl>(grd_, *backend_, *clasp_->asp(), *theory_);
     }
     throw std::runtime_error("not in solving mode");
+}
+
+void Solver::simplify_() {
+    if (mode_ != AppMode::solve) {
+        return;
+    }
+    auto value = [clasp = clasp_](prg_lit_t lit) {
+        auto slit = Clasp::Asp::solverLiteral(*clasp->asp(), lit);
+        auto val = clasp->ctx.master()->topValue(slit.var());
+        if (val == Clasp::value_free) {
+            return TruthValue::unknown;
+        }
+        return val == trueValue(slit) ? TruthValue::top : TruthValue::bot;
+    };
+    GRINGO_REPORT(grd_.log(), debug) << "simplify...";
+    size_t rem = 0;
+    size_t fact = 0;
+    for (auto const &base : grd_.base().atoms()) {
+        base.second->simplify(value, rem, fact);
+    }
+    for (auto const &base : grd_.base().projected()) {
+        base.second->p_base().simplify(value, rem, fact);
+    }
+    GRINGO_REPORT(grd_.log(), debug) << "  removed: " << rem;
+    GRINGO_REPORT(grd_.log(), debug) << "  fact: " << fact;
+    out_->simplify(value);
 }
 
 void Solver::prepare_() {

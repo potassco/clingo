@@ -1,5 +1,6 @@
 #pragma once
 
+#include <clingo/core/backend.hh>
 #include <clingo/core/core.hh>
 #include <clingo/core/symbol.hh>
 
@@ -203,6 +204,9 @@ class OutputStm {
     //! Mark owned symbols.
     void mark(SymbolCollector &gc) { do_mark(gc); }
 
+    //! Simplify stored state in the output.
+    void simplify(std::function<TruthValue(prg_lit_t)> const &pred) { do_simplify(pred); }
+
   private:
     virtual auto do_uid() -> size_t = 0;
 
@@ -240,6 +244,7 @@ class OutputStm {
     virtual void do_end_step() = 0;
 
     virtual void do_mark(SymbolCollector &gc) = 0;
+    virtual void do_simplify(std::function<TruthValue(prg_lit_t)> const &pred) = 0;
 };
 
 //! Unique pointer for statement output.
