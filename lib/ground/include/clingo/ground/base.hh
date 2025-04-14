@@ -309,7 +309,8 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
     [[nodiscard]] auto mark_projected() -> size_t { return std::exchange(project_offset_, size()); }
 
     template <class Pred> void simplify(Pred const &pred, size_t &rem, size_t &fact) {
-        assert(show_offset_ == size());
+        // NOTE: the show offset can be zero for auxiliary domains
+        assert(show_offset_ == 0 || show_offset_ == size());
         assert(negate_offset_ == 0 || negate_offset_ == size());
         assert(project_offset_ == 0 || project_offset_ == size());
         auto true_atoms = SymbolVec{};
@@ -335,7 +336,7 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
         derived_.assign(0, atoms_.size());
         assert(derived_.size() == atoms_.size());
         domain_offset_ = 0;
-        show_offset_ = size();
+        show_offset_ = show_offset_ > 0 ? size() : 0;
         negate_offset_ = negate_offset_ > 0 ? size() : 0;
         project_offset_ = project_offset_ > 0 ? size() : 0;
     }

@@ -1130,7 +1130,11 @@ void Solver::simplify_() {
         return;
     }
     auto value = [clasp = clasp_](prg_lit_t lit) {
-        auto slit = Clasp::Asp::solverLiteral(*clasp->asp(), lit);
+        auto const &prg = *clasp->asp();
+        if (prg.isExternal(std::abs(lit))) {
+            return TruthValue::unknown;
+        }
+        auto slit = Clasp::Asp::solverLiteral(prg, lit);
         auto val = clasp->ctx.master()->topValue(slit.var());
         if (val == Clasp::value_free) {
             return TruthValue::unknown;

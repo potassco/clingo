@@ -7,7 +7,7 @@ from textwrap import dedent
 from clingo import ast
 from clingo.control import Control
 from clingo.core import Library
-from clingo.symbol import Function, Number
+from clingo.symbol import Number
 from util import MCB
 
 

@@ -211,6 +211,9 @@ class TestObserve:
         assert len(obs.symbols) == 0
 
     def test_observe_preprocessing(self):
+        """
+        Test program observation with preprocessing enabled.
+        """
         self.ctl.parse_string("{a;c}. b :- a. :- a.")
         self.ctl.ground()
 
@@ -229,11 +232,11 @@ class TestObserve:
         assert len(obs.rules) == 1
         assert obs.rules[0][0] == [2]
         assert obs.rules[0][1] == []
-        assert obs.rules[0][2] == True
+        assert obs.rules[0][2]
 
         self.ctl.solve()
         obs = ExampleObserver()
         self.ctl.observe(obs)
         assert obs.begin_steps == obs.end_steps == 1
-        assert obs.symbols == ["a", "b", "c"]
+        assert obs.symbols == ["c"]
         assert len(obs.rules) == 0
