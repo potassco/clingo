@@ -1131,6 +1131,8 @@ void Solver::simplify_() {
     }
     auto value = [clasp = clasp_](prg_lit_t lit) {
         auto const &prg = *clasp->asp();
+        // NOTE: externals are not simplified because they must be available in
+        // domains until released.
         if (prg.isExternal(std::abs(lit))) {
             return TruthValue::unknown;
         }
