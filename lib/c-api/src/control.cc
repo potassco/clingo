@@ -184,7 +184,7 @@ extern "C" auto clingo_control_buffer(clingo_control_t *control, char const **bu
 extern "C" auto clingo_control_get_parts(clingo_control_t *control, clingo_part_t const **parts, size_t *size,
                                          bool *has_value) -> clingo_result_t {
     CLINGO_TRY {
-        auto &x = control->slv->parts();
+        auto const &x = control->slv->get_parts();
         if (has_value != nullptr) {
             *has_value = x.has_value();
         }
@@ -200,6 +200,18 @@ extern "C" auto clingo_control_get_parts(clingo_control_t *control, clingo_part_
             if (size != nullptr) {
                 *size = x->size();
             }
+        }
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_control_set_parts(clingo_control_t *control, clingo_part_t const *parts, size_t size,
+                                         bool has_value) -> clingo_result_t {
+    CLINGO_TRY {
+        if (has_value) {
+            control->slv->set_parts(convert(control, parts, size));
+        } else {
+            control->slv->set_parts(std::nullopt);
         }
     }
     CLINGO_CATCH;

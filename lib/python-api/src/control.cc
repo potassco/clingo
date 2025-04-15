@@ -226,6 +226,14 @@ auto Control::parts() -> std::optional<PartSpan> {
     return PartSpan{parts, size};
 }
 
+void Control::set_parts(std::optional<PartSpan> parts) {
+    if (parts) {
+        handle_error(clingo_control_set_parts(ctl_.get(), parts->data(), parts->size(), true));
+    } else {
+        handle_error(clingo_control_set_parts(ctl_.get(), nullptr, 0, true));
+    }
+}
+
 void Control::register_propagator(Annotation<Propagator> propagator) {
     auto &prop = propagator.cast<Propagator &>();
     user_data().append(std::move(propagator));
@@ -510,7 +518,7 @@ Args:
         .def_property_readonly("mode", &Control::mode, R"(Get the application mode.)")
         .def_property_readonly("const_map", &Control::const_map,
                                R"(Get the map of constants defined by `#const` directives.)")
-        .def_property_readonly("parts", &Control::parts, R"(Get the program parts to ground.)");
+        .def_property("parts", &Control::parts, &Control::set_parts, R"(Get/set the program parts to ground.)");
 }
 
 } // namespace Clingo::Python

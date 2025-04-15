@@ -411,8 +411,13 @@ void Grounder::output_program(std::ostream &out) {
     out.flush();
 }
 
-auto Grounder::parts() -> std::optional<Input::ProgramParamVec> & {
+auto Grounder::get_parts() const -> std::optional<Input::ProgramParamVec> const & {
     return impl_->parts.second;
+}
+
+void Grounder::set_parts(std::optional<ProgramParamVec> parts, Input::Precedence prec) {
+    impl_->parts.first = prec;
+    impl_->parts.second = std::move(parts);
 }
 
 auto Grounder::base() -> Ground::Bases & {

@@ -42,7 +42,9 @@ class Grounder {
     void output_program(std::ostream &out);
 
     //! Get the program parts to ground.
-    [[nodiscard]] auto parts() -> std::optional<ProgramParamVec> &;
+    [[nodiscard]] auto get_parts() const -> std::optional<ProgramParamVec> const &;
+    //! Set the program parts to ground.
+    void set_parts(std::optional<ProgramParamVec> parts, Input::Precedence prec = Input::Precedence::override_);
     //! Get the associated base.
     [[nodiscard]] auto base() -> Ground::Bases &;
     //! Get the associated base.

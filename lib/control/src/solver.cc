@@ -1024,7 +1024,7 @@ void Solver::main() {
             incmode_();
         } else {
             auto base = ProgramParamVec{{grd_.store().string("base"), {}}};
-            ground(grd_.parts().value_or(base), nullptr);
+            ground(grd_.get_parts().value_or(base), nullptr);
             if (mode_ == AppMode::solve) {
                 solve(nullptr);
             }

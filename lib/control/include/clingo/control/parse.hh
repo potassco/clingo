@@ -145,8 +145,9 @@ class ParseHelper {
                 if (!parts_->second || parts_->first < parts->type()) {
                     parts_->second.emplace(parts->elems());
                     parts_->first = parts->type();
-                } else {
-                    GRINGO_REPORT_LOC(*log_, error, parts->loc()) << "multiple parts directives: " << *stm;
+                } else if (parts_->first == parts->type()) {
+                    GRINGO_REPORT_LOC(*log_, error, parts->loc())
+                        << "multiple parts directives with the same precedence: " << *stm;
                     parse_error_ = true;
                 }
             } else if (auto *include = std::get_if<Input::StmInclude>(&*stm); include != nullptr) {

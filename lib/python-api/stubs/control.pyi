@@ -349,9 +349,14 @@ class Control:
         self,
     ) -> typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None:
         """
-        Get the program parts to ground.
+        Get/set the program parts to ground.
         """
 
+    @parts.setter
+    def parts(
+        self,
+        arg1: typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None,
+    ) -> None: ...
     @property
     def stats(self) -> dict:
         """

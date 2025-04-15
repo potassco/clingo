@@ -273,7 +273,9 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             for (auto const &[name, value] : const_defs_) {
                 slv.add_const(*name, *value);
             }
-            slv.parts() = std::move(parts_);
+            if (parts_) {
+                slv.set_parts(std::move(parts_), Precedence::override_);
+            }
             // NOTE: member for createTextOutput
             ctl_->bind(&slv, &slv.clasp_config(), &slv.clasp_facade());
             if (app_.has_main()) {

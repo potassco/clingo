@@ -263,6 +263,16 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_get_parts(clingo_contro
                                                                    clingo_part_t const **parts, size_t *size,
                                                                    bool *has_value);
 
+//! Set the program parts to ground.
+//!
+//! @param[in] control the target
+//! @param[in] parts the parts to set
+//! @param[in] size the size of the parts
+//! @param[in] has_value whether parts are available
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_set_parts(clingo_control_t *control,
+                                                                   clingo_part_t const *parts, size_t size,
+                                                                   bool has_value);
 //! Interrupt the running search.
 //!
 //! It is generally better to use clingo_solve_handle_cancel(). This function

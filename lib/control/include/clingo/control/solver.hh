@@ -534,7 +534,12 @@ class Solver : public BaseView {
     void interrupt() noexcept;
 
     //! Get the program parts to ground.
-    [[nodiscard]] auto parts() -> std::optional<ProgramParamVec> & { return grd_.parts(); }
+    [[nodiscard]] auto get_parts() const -> std::optional<ProgramParamVec> const & { return grd_.get_parts(); }
+
+    //! Set the program parts to ground.
+    void set_parts(std::optional<ProgramParamVec> parts, Input::Precedence prec = Input::Precedence::override_) {
+        grd_.set_parts(std::move(parts), prec);
+    }
 
   private:
     class ProgramBackendAdapter;
