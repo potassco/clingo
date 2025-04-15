@@ -595,11 +595,6 @@ auto parse_program_param(ParserState &state) -> std::optional<ProgramParam> {
     return std::nullopt;
 }
 
-//! Parse a list of program params.
-auto parse_program_params(ParserState &state, TokenType end) -> std::optional<ProgramParamVec> {
-    return state.separated_until(parse_program_param, TokenType::comma, TokenType::sem, end);
-}
-
 } // namespace
 
 auto check_term(TokenType token) -> bool {
@@ -895,14 +890,8 @@ auto parse_const_def(ParserState &state) -> std::optional<std::pair<SharedString
     return std::nullopt;
 }
 
-auto parse_program_parts(ParserState &state, TokenType end) -> std::optional<std::vector<ProgramParamVec>> {
-    // Note: probably not terribly useful but an empty string corresponds to
-    // one step where nothing shall be grounded.
-    if (state.token() == end) {
-        return Util::make_vec<ProgramParamVec>(ProgramParamVec{});
-    }
-    return state.separated_until([end](ParserState &state) { return parse_program_params(state, end); }, TokenType::sem,
-                                 end);
+auto parse_program_parts(ParserState &state, TokenType end) -> std::optional<ProgramParamVec> {
+    return state.separated_until(parse_program_param, TokenType::comma, end);
 }
 
 } // namespace Clingo::Input::Parse

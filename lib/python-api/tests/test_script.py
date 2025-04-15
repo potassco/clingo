@@ -33,7 +33,9 @@ class MyScript(Script):
         """
         exec(code, self._scope, self._scope)  # pylint: disable=exec-used
 
-    def call(self, lib: Library, name: str, arguments: list[Symbol]) -> list[Symbol]:
+    def call(
+        self, lib: Library, name: str, arguments: Sequence[Symbol]
+    ) -> Sequence[Symbol]:
         """
         Call the function with the given name and arguments.
         """
@@ -51,7 +53,7 @@ class MyScript(Script):
         self,
         lib: Library,
         control: Control,
-        parts: Sequence[Sequence[tuple[str, Sequence[Symbol]]]],
+        parts: Sequence[tuple[str, Sequence[Symbol]]],
     ) -> None:
         """
         Run the main function from the main scope.

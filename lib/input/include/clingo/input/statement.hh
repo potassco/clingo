@@ -759,8 +759,6 @@ class StmConst : public Expression<StmConst> {
 using ProgramParam = std::pair<SharedString, std::vector<SharedSymbol>>;
 //! A list of program params.
 using ProgramParamVec = std::vector<ProgramParam>;
-//! A list of program params.
-using ProgramParamVecVec = std::vector<ProgramParamVec>;
 
 //! A parts statement.
 //!
@@ -773,7 +771,7 @@ class StmParts : public Expression<StmParts> {
     }
 
     //! Construct a const statement.
-    explicit StmParts(Location loc, Precedence type, ProgramParamVecVec elems)
+    explicit StmParts(Location loc, Precedence type, ProgramParamVec elems)
         : loc_{std::move(loc)}, type_(type), elems_(std::move(elems)) {}
 
     //! The location of the statement.
@@ -781,12 +779,12 @@ class StmParts : public Expression<StmParts> {
     //! The type of the statement.
     [[nodiscard]] auto type() const -> Precedence const & { return type_; }
     //! The program parts to ground and solve.
-    [[nodiscard]] auto elems() const -> ProgramParamVecVec const & { return elems_; }
+    [[nodiscard]] auto elems() const -> ProgramParamVec const & { return elems_; }
 
   private:
     Location loc_;
     Precedence type_;
-    ProgramParamVecVec elems_;
+    ProgramParamVec elems_;
 };
 
 //! Enumeration of comment types.

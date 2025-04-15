@@ -57,18 +57,17 @@ class AppTest(App):
         self,
         control: Control,
         files: Sequence[str],
-        parts: Sequence[Sequence[tuple[str, Sequence[Symbol]]]],
+        parts: Sequence[tuple[str, Sequence[Symbol]]],
     ) -> None:
         """
         Run the main loop.
         """
         self._queue.put("main")
         control.parse_files(files)
-        for part in parts:
-            control.ground(part)
-            mcb = MCB()
-            control.solve(on_model=mcb)
-            self._queue.put(("models", mcb.symbols))
+        control.ground(parts)
+        mcb = MCB()
+        control.solve(on_model=mcb)
+        self._queue.put(("models", mcb.symbols))
 
 
 def _run_process(

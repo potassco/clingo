@@ -167,10 +167,7 @@ class Control:
     def main(
         self,
         parts: (
-            typing.Sequence[
-                typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]]
-            ]
-            | None
+            typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None
         ) = None,
     ) -> None:
         """

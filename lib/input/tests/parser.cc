@@ -51,11 +51,10 @@ TEST_CASE("parsev2") {
             parser.init(str, store->string_ref("<input>"));
             return to_str(parser.parse_program_parts());
         };
-        REQUIRE(parse("") == "[[]]");
-        REQUIRE(parse("p") == "[[(p, [])]]");
-        REQUIRE(parse(";p(1)") == "[[], [(p, [1])]]");
-        REQUIRE(parse(";") == "[[], []]");
-        REQUIRE(parse("p(1),p(2);q(3)") == "[[(p, [1]), (p, [2])], [(q, [3])]]");
+        REQUIRE(parse("") == "[]");
+        REQUIRE(parse("p") == "[(p, [])]");
+        REQUIRE(parse("p(1)") == "[(p, [1])]");
+        REQUIRE(parse("p(1),p(2),q(3)") == "[(p, [1]), (p, [2]), (q, [3])]");
     }
     SECTION("term") {
         auto parse = [&](char const *str) -> std::string {

@@ -834,7 +834,7 @@ auto parse_term(ParserState &state) -> std::optional<Term>;
 auto parse_symbol(ParserState &state) -> std::optional<SharedSymbol>;
 
 //! Parse the program params to ground.
-auto parse_program_parts(ParserState &state, TokenType end) -> std::optional<std::vector<ProgramParamVec>>;
+auto parse_program_parts(ParserState &state, TokenType end) -> std::optional<ProgramParamVec>;
 
 //! Parse a constant definition.
 auto parse_const_def(ParserState &state) -> std::optional<std::pair<SharedString, SharedSymbol>>;

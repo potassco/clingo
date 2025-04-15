@@ -194,12 +194,11 @@ auto Control::solve(MixedLitVec const &assumptions, std::optional<ModelCallback>
     return res;
 }
 
-void Control::main(std::optional<PartsSpan> parts) {
+void Control::main(std::optional<PartSpan> parts) {
     auto release = py::gil_scoped_release{};
     if (!parts) {
         static constexpr clingo_part_t part = {"base", nullptr, 0};
-        static constexpr clingo_parts_array_t part_array = {&part, 1};
-        parts.emplace(&part_array, 1);
+        parts.emplace(&part, 1);
     }
     handle_error(clingo_control_main(ctl_.get(), parts->data(), parts->size()), get_exception_ptr());
 }

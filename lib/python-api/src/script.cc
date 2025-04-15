@@ -36,7 +36,7 @@ class Scope {
         return scope_[name](lib, *py::cast(args)).cast<std::variant<SymbolVec, Symbol>>();
     }
 
-    auto main(PyLibrary const &lib, PyControl const &ctl, PartsSpan parts) { scope_["main"](lib, ctl, parts); }
+    auto main(PyLibrary const &lib, PyControl const &ctl, PartSpan parts) { scope_["main"](lib, ctl, parts); }
 
     auto version() -> char const * { return version_.c_str(); }
 
@@ -172,8 +172,8 @@ class MainScript {
         return clingo_result_success;
     }
 
-    static auto main(clingo_lib_t *lib, clingo_control_t *control, clingo_parts_array_t const *parts, size_t size,
-                     void *data) -> clingo_result_t {
+    static auto main(clingo_lib_t *lib, clingo_control_t *control, clingo_part_t const *parts, size_t size, void *data)
+        -> clingo_result_t {
         auto *self = cast(data);
         try {
             if (self->py_) {
@@ -280,11 +280,11 @@ class Script {
         CLINGO_CATCH(get_exception_ptr());
     }
 
-    void main(const PyLibrary &lib, const PyControl &ctl, PartsSpan parts) {
+    void main(const PyLibrary &lib, const PyControl &ctl, PartSpan parts) {
         PYBIND11_OVERRIDE_PURE(void, Script, main, lib, ctl, parts);
     }
 
-    static auto c_main(clingo_lib_t *lib, clingo_control_t *control, clingo_parts_array_t const *parts, size_t size,
+    static auto c_main(clingo_lib_t *lib, clingo_control_t *control, clingo_part_t const *parts, size_t size,
                        void *data) -> clingo_result_t {
         CLINGO_TRY {
             auto gil = py::gil_scoped_acquire{};

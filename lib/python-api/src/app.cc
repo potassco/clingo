@@ -57,7 +57,7 @@ class App {
     auto operator=(App const &other) -> App & = delete;
     auto operator=(App const &&) -> App & = delete;
 
-    void main(Annotation<Control> const &control, std::span<std::string const> files, PartsSpan parts) {
+    void main(Annotation<Control> const &control, std::span<std::string const> files, PartSpan parts) {
         PYBIND11_OVERRIDE_NAME(void, App, "main", no_op_, control, files, parts);
     }
 
@@ -129,8 +129,8 @@ class App {
         }
     }
 
-    static auto main_(clingo_control_t *ctl, char const *const *files, size_t files_size,
-                      clingo_parts_array_t const *parts, size_t parts_size, void *data) -> clingo_result_t {
+    static auto main_(clingo_control_t *ctl, char const *const *files, size_t files_size, clingo_part_t const *parts,
+                      size_t parts_size, void *data) -> clingo_result_t {
         auto &app = *static_cast<App *>(data);
         // NOTE: safe guard if main is called in another thread than the app
         // was created. Ensures that print_model, called after main, always

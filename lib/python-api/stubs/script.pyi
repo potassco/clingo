@@ -145,9 +145,7 @@ class Script:
         self,
         lib: clingo.core.Library,
         control: clingo.control.Control,
-        parts: typing.Sequence[
-            typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]]
-        ],
+        parts: typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]],
     ) -> None:
         """
         Run the main function.

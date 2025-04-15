@@ -866,7 +866,7 @@ void Scripts::do_exec(Location const &loc, Logger &log, std::string_view name, s
     }
 }
 
-void Scripts::main(Solver &slv, std::optional<ProgramParamsVec> const &params) {
+void Scripts::main(Solver &slv, std::optional<ProgramParamVec> const &params) {
     for (auto const &script : scripts_) {
         if (script.second->callable("main", 0)) {
             script.second->main(slv, params);
@@ -921,7 +921,7 @@ void Solver::interrupt() noexcept {
     }
 }
 
-void Solver::main(std::span<std::string_view const> const &files, std::optional<ProgramParamsVec> const &params) {
+void Solver::main(std::span<std::string_view const> const &files, std::optional<ProgramParamVec> const &params) {
     parse(files);
     main(params);
 }
@@ -1001,7 +1001,7 @@ void Solver::incmode_() {
     }
 }
 
-void Solver::main(std::optional<ProgramParamsVec> const &params) {
+void Solver::main(std::optional<ProgramParamVec> const &params) {
     if (!block_main_ && scripts_->callable("main", 0)) {
         if (mode_ == AppMode::solve) {
             clasp_->enableProgramUpdates();
@@ -1022,17 +1022,11 @@ void Solver::main(std::optional<ProgramParamsVec> const &params) {
         }
         if (inc) {
             incmode_();
-        } else if (params) {
-            for (auto const &param : *params) {
-                ground(param, nullptr);
-                if (mode_ == AppMode::solve) {
-                    solve(nullptr);
-                }
-            }
         } else {
-            ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}}, nullptr);
+            auto base = ProgramParamVec{{grd_.store().string("base"), {}}};
+            ground(params.value_or(base), nullptr);
             if (mode_ == AppMode::solve) {
-                solve(nullptr)->get();
+                solve(nullptr);
             }
         }
     }
@@ -1126,7 +1120,7 @@ auto Solver::backend() -> UBackendHandle {
 }
 
 void Solver::simplify_() {
-    if (mode_ != AppMode::solve || clasp_->ctx.solveMode() == Clasp::SharedContext::SolveMode::solve_once) {
+    if (mode_ != AppMode::solve || !clasp_->incremental()) {
         return;
     }
     auto value = [clasp = clasp_](prg_lit_t lit) {

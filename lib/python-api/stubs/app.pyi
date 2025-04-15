@@ -131,9 +131,7 @@ class App:
         self,
         control: clingo.control.Control,
         files: typing.Sequence[str],
-        parts: typing.Sequence[
-            typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]]
-        ],
+        parts: typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]],
     ) -> None:
         """
         Run the main execution flow of the application.

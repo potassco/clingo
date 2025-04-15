@@ -47,7 +47,7 @@ class Parser {
     //! Parse a symbol.
     auto parse_symbol() -> std::optional<SharedSymbol>;
     //! Parse program params to ground.
-    auto parse_program_parts() -> std::optional<std::vector<ProgramParamVec>>;
+    auto parse_program_parts() -> std::optional<ProgramParamVec>;
     //! Parse a const definition of form name=symbol.
     auto parse_const_def() -> std::optional<std::pair<SharedString, SharedSymbol>>;
     //! Parse a term.

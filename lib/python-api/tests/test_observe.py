@@ -8,7 +8,7 @@ from clingo.backend import ExternalType, HeuristicType, Observer
 from clingo.base import Base
 from clingo.control import Control
 from clingo.core import Library
-from clingo.symbol import Function
+from clingo.symbol import Function, Symbol
 
 
 class ExampleObserver(Observer):
@@ -16,6 +16,18 @@ class ExampleObserver(Observer):
     """
     Example observer for testing that tracks function calls.
     """
+
+    assumptions: list[Sequence[int]]
+    begin_steps: int
+    edges: list[tuple[int, int, Sequence[int]]]
+    externals: list[tuple[int, ExternalType]]
+    heuristics: list[tuple[int, HeuristicType, int, int, Sequence[int]]]
+    incremental: bool | None
+    minimizes: list[tuple[Sequence[tuple[int, int]], int]]
+    projections: list[Sequence[int]]
+    rules: list[tuple[Sequence[int], Sequence[int], bool]]
+    weight_rules: list[tuple[Sequence[int], int, Sequence[tuple[int, int]], bool]]
+    symbols: list[str]
 
     def __init__(self) -> None:
         super().__init__()
@@ -41,7 +53,7 @@ class ExampleObserver(Observer):
         self.begin_steps += 1
 
     def end_step(self, base: Base) -> None:
-        symbols = []
+        symbols: list[Symbol] = []
         for atoms in base.values():
             symbols.extend(
                 atom.symbol for atom in atoms.values() if base.is_current(atom.literal)

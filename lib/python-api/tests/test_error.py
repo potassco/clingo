@@ -75,7 +75,7 @@ class ErrorApp(App):
         self,
         control: Control,
         files: Sequence[str],
-        parts: Sequence[Sequence[tuple[str, Sequence[Symbol]]]],
+        parts: Sequence[tuple[str, Sequence[Symbol]]],
     ) -> None:
         """
         Test throwing errors in main.
@@ -155,7 +155,9 @@ class MyScript(Script):
         """
         return "myScript"
 
-    def call(self, lib: Library, name: str, arguments: list[Symbol]) -> list[Symbol]:
+    def call(
+        self, lib: Library, name: str, arguments: Sequence[Symbol]
+    ) -> Sequence[Symbol]:
         """
         Call the function with the given name and arguments.
         """

@@ -55,8 +55,8 @@ typedef struct clingo_options clingo_options_t;
 //! @param[in] data user data for the callback
 //! @return the result code
 typedef clingo_result_t (*clingo_main_function_t)(clingo_control_t *control, char const *const *files,
-                                                  size_t files_size, clingo_parts_array_t const *parts,
-                                                  size_t parts_size, void *data);
+                                                  size_t files_size, clingo_part_t const *parts, size_t parts_size,
+                                                  void *data);
 
 //! Callback to print a model in default format.
 //!

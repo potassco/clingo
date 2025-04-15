@@ -20,7 +20,7 @@ int run(std::string input, std::vector<std::string> const &args) {
         nullptr,
         nullptr,
         [](clingo_control_t *control, [[maybe_unused]] char const *const *files, [[maybe_unused]] size_t files_size,
-           clingo_parts_array_t const *parts, size_t parts_size, void *data) -> clingo_result_t {
+           clingo_part_t const *parts, size_t parts_size, void *data) -> clingo_result_t {
             auto res = clingo_control_parse_string(control, static_cast<char const *>(data));
             if (res != clingo_result_success) {
                 return res;

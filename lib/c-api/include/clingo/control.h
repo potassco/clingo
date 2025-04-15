@@ -60,15 +60,6 @@ typedef struct clingo_part {
     size_t size;                   //!< number of parameters
 } clingo_part_t;
 
-//! Struct used to specify a list of program parts that have to be grounded and
-//! solved.
-//!
-//! Each part group is grounded together and solved afterward.
-typedef struct clingo_parts_array {
-    clingo_part_t const *parts; //!< array of part groups
-    size_t size;                //!< number of part groups
-} clingo_parts_array_t;
-
 //! Callback function to implement external functions.
 //!
 //! If an external function of form <tt>\@name(parameters)</tt> occurs in a logic program,
@@ -244,8 +235,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_ground(clingo_control_t
 //! @param[in] parts the parts to ground and solve
 //! @param[in] size the number of parts in the array
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_main(clingo_control_t *control,
-                                                              clingo_parts_array_t const *parts, size_t size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_main(clingo_control_t *control, clingo_part_t const *parts,
+                                                              size_t size);
 
 //! Get the map of constants.
 //!

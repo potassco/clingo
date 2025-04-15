@@ -130,10 +130,10 @@ class AppAdapter {
     [[nodiscard]] auto has_main() const -> bool { return app_ != nullptr && app_->main != nullptr; }
 
     void main(clingo_control_t *ctl, std::span<std::string const> const &input,
-              std::optional<Clingo::Control::ProgramParamsVec> const &parts) {
+              std::optional<Clingo::Control::ProgramParamVec> const &parts) {
         assert(has_main());
         auto vec = Clingo::Util::transform(input, [](auto const &str) { return str.c_str(); });
-        auto [cparts, vecs] = convert(parts);
+        auto cparts = convert(parts);
         handle_error(app_->main(ctl, vec.data(), vec.size(), cparts.data(), cparts.size(), data_));
     }
 
@@ -297,7 +297,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 
     RewriteOptions rewrite_opts_;
     Clingo::LogLevel log_level_ = Clingo::LogLevel::info;
-    std::optional<Clingo::Control::ProgramParamsVec> parts_;
+    std::optional<Clingo::Control::ProgramParamVec> parts_;
     std::vector<std::pair<Clingo::SharedString, Clingo::SharedSymbol>> const_defs_;
     Mode mode_ = Mode::solve;
     std::unique_ptr<clingo_control_t, release_control> ctl_;

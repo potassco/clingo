@@ -2259,7 +2259,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 // FIXME: come up with a representation for the parts
-                auto elems = Clingo::Input::ProgramParamVecVec{};
+                auto elems = Clingo::Input::ProgramParamVec{};
                 auto prec = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmParts>(type, convert(loc), static_cast<Precedence>(prec), elems);

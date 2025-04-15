@@ -167,7 +167,7 @@ extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t c
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_control_main(clingo_control_t *control, clingo_parts_array_t const *parts, size_t size)
+extern "C" auto clingo_control_main(clingo_control_t *control, clingo_part_t const *parts, size_t size)
     -> clingo_result_t {
     CLINGO_TRY {
         control->slv->main(convert(control, parts, size));

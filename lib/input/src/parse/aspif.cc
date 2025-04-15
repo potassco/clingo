@@ -67,7 +67,7 @@ class AspifParser {
                         return res;
                     }
                     auto str = state_->view();
-                    std::from_chars(str.begin(), str.end(), type);
+                    std::from_chars(str.data(), str.data() + str.size(), type);
                 }
                 statement_(statement_type_(type));
             } catch ([[maybe_unused]] aspif_error const &e) {
@@ -146,7 +146,7 @@ class AspifParser {
         expect_(AspifToken::num_pos, AspifToken::num_neg);
         auto str = state_->view();
         int res = 0;
-        std::from_chars(str.begin(), str.end(), res);
+        std::from_chars(str.data(), str.data() + str.size(), res);
         return res;
     }
 
@@ -154,7 +154,7 @@ class AspifParser {
         expect_(AspifToken::num_pos);
         auto str = state_->view();
         unsigned res = 0;
-        std::from_chars(str.begin(), str.end(), res);
+        std::from_chars(str.data(), str.data() + str.size(), res);
         return res;
     }
 

@@ -15,8 +15,6 @@ namespace Clingo::Python {
 
 using Part = clingo_part_t;
 using PartSpan = std::span<Part const>;
-using Parts = clingo_parts_array_t;
-using PartsSpan = std::span<Parts const>;
 
 class ConstMap {
   public:
@@ -56,7 +54,7 @@ class Control {
     auto backend() -> BackendManager;
     auto config() -> Config;
     auto stats() -> py::dict;
-    void main(std::optional<PartsSpan> parts);
+    void main(std::optional<PartSpan> parts);
     auto buffer() -> char const *;
     auto const_map() -> HintConstMap;
     void interrupt();
@@ -126,71 +124,13 @@ struct part_span_holder {
     std::vector<Clingo::Python::Part> parts;
 };
 
-struct parts_span_holder {
-    using type = Clingo::Python::PartsSpan;
-
-    auto load(handle src, bool convert) -> bool {
-        if (!isinstance<iterable>(src)) {
-            return false;
-        }
-        size_t n = len(src);
-        parts.reserve(n);
-        arrays.reserve(n);
-        // NOLINTNEXTLINE(readability-use-anyofallof)
-        for (auto const &elem : src) {
-            parts.emplace_back();
-            if (!parts.back().load(elem, convert)) {
-                return false;
-            }
-            auto span = parts.back().cast();
-            arrays.emplace_back(span.data(), span.size());
-        }
-        return true;
-    }
-
-    [[nodiscard]] auto cast() const -> type { return arrays; }
-
-    std::vector<part_span_holder> parts;
-    std::vector<clingo_parts_array_t> arrays;
-};
-
-template <> struct type_caster<std::optional<Clingo::Python::PartSpan>> {
+template <> struct type_caster<Clingo::Python::PartSpan> {
   public:
     using name_conv = make_caster<std::string>;
     using params_conv = make_caster<Clingo::Python::SymbolVec>;
-    using type = std::optional<Clingo::Python::PartSpan>;
+    using type = Clingo::Python::PartSpan;
 
-    PYBIND11_TYPE_CASTER(type, _("Optional[Sequence[Tuple[str, Sequence[clingo.symbol.Symbol]]]]"));
-
-    auto load(handle src, bool convert) -> bool {
-        if (src.is_none()) {
-            value = std::nullopt;
-            return true;
-        }
-        if (!isinstance<iterable>(src)) {
-            return false;
-        }
-        if (!holder_.load(src, convert)) {
-            return false;
-        }
-        value = holder_.cast();
-        return true;
-    }
-
-  private:
-    part_span_holder holder_;
-    std::vector<std::string> names_;
-    std::vector<Clingo::Python::SymbolVec> args_;
-    std::vector<Clingo::Python::Part> parts_;
-};
-
-template <> struct type_caster<Clingo::Python::PartsSpan> {
-  public:
-    using name_conv = make_caster<std::string>;
-    using params_conv = make_caster<Clingo::Python::SymbolVec>;
-    using type = Clingo::Python::PartsSpan;
-
-    PYBIND11_TYPE_CASTER(type, _("Sequence[Sequence[Tuple[str, Sequence[clingo.symbol.Symbol]]]]"));
+    PYBIND11_TYPE_CASTER(type, _("Sequence[Tuple[str, Sequence[clingo.symbol.Symbol]]]"));
 
     auto load(handle src, bool convert) -> bool {
         if (!holder_.load(src, convert)) {
@@ -202,27 +142,23 @@ template <> struct type_caster<Clingo::Python::PartsSpan> {
 
     static auto cast(const type &src, return_value_policy policy, handle parent) -> handle {
         list res;
-        for (auto const &parts : src) {
-            list pyparts;
-            for (auto const &part : std::span{parts.parts, parts.size}) {
-                pyparts.append(make_tuple(
-                    name_conv::cast(part.name, policy, parent),
-                    params_conv::cast(std::span{Clingo::Python::cpp_cast(part.params), part.size}, policy, parent)));
-            }
-            res.append(std::move(pyparts));
+        for (auto const &part : src) {
+            res.append(make_tuple(
+                name_conv::cast(part.name, policy, parent),
+                params_conv::cast(std::span{Clingo::Python::cpp_cast(part.params), part.size}, policy, parent)));
         }
         return res.release();
     }
 
   private:
-    parts_span_holder holder_;
+    part_span_holder holder_;
 };
 
-template <> struct type_caster<std::optional<Clingo::Python::PartsSpan>> {
+template <> struct type_caster<std::optional<Clingo::Python::PartSpan>> {
   public:
-    using type = std::optional<Clingo::Python::PartsSpan>;
+    using type = std::optional<Clingo::Python::PartSpan>;
 
-    PYBIND11_TYPE_CASTER(type, _("Optional[Sequence[Sequence[Tuple[str, Sequence[clingo.symbol.Symbol]]]]]"));
+    PYBIND11_TYPE_CASTER(type, _("Optional[Sequence[Tuple[str, Sequence[clingo.symbol.Symbol]]]]"));
 
     auto load(handle src, bool convert) -> bool {
         if (src.is_none()) {
@@ -237,7 +173,7 @@ template <> struct type_caster<std::optional<Clingo::Python::PartsSpan>> {
     }
 
   private:
-    parts_span_holder holder_;
+    part_span_holder holder_;
 };
 
 } // namespace pybind11::detail

@@ -3,12 +3,15 @@ Utilities for testing.
 """
 
 from clingo.solve import Model
+from clingo.symbol import Symbol
 
 
 class MCB:
     """
     Helper to intercept symbols while solving.
     """
+
+    _syms: list[list[Symbol]]
 
     def __init__(self) -> None:
         self._syms = []
