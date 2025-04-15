@@ -697,6 +697,21 @@ template <class O> class Print {
         *out_ << ". [" << stm.type() << "]";
     }
 
+    void operator()(StmParts const &stm) const {
+        *out_ << "#parts ";
+        apply_to_range_with(stm.elems(), ";", [this](auto const &elem) {
+            apply_to_range_with(elem, ",", [this](ProgramParam const &part) {
+                *out_ << *part.first;
+                if (!part.second.empty()) {
+                    *out_ << "(";
+                    apply_to_range_with(part.second, ",", [this](auto const &x) { *out_ << *x; });
+                    *out_ << ")";
+                }
+            });
+        });
+        *out_ << ". [" << stm.type() << "]";
+    }
+
     void operator()(StmComment const &stm) const { *out_ << stm.value(); }
 
   private:

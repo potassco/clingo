@@ -131,7 +131,7 @@ class AddDepend {
 
     template <class T>
         requires Util::is_among_v<T, StmTheory, StmOptimize, StmShowNothing, StmShowSig, StmProjectSig, StmDefined,
-                                  StmScript, StmInclude, StmProgram, StmConst, StmComment>
+                                  StmScript, StmInclude, StmProgram, StmConst, StmParts, StmComment>
     void operator()([[maybe_unused]] T const &stm) const {}
 
     template <class T>
@@ -171,10 +171,10 @@ class AddProvide {
                 operator()(elem.lit());
             }
         } else {
-            static_assert(
-                Util::is_among_v<T, LitComparison, LitBool, HdLitTheoryAtom, StmWeakConstraint, StmShow, StmProject,
-                                 StmEdge, StmHeuristic, StmTheory, StmOptimize, StmShowNothing, StmShowSig,
-                                 StmProjectSig, StmDefined, StmScript, StmInclude, StmProgram, StmConst, StmComment>);
+            static_assert(Util::is_among_v<T, LitComparison, LitBool, HdLitTheoryAtom, StmWeakConstraint, StmShow,
+                                           StmProject, StmEdge, StmHeuristic, StmTheory, StmOptimize, StmShowNothing,
+                                           StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude, StmProgram,
+                                           StmConst, StmParts, StmComment>);
         }
     }
 
@@ -811,6 +811,7 @@ class AnalyzeVisitor {
     void visit([[maybe_unused]] StmInclude const &stm) {}
     void visit([[maybe_unused]] StmProgram const &stm) {}
     void visit([[maybe_unused]] StmConst const &stm) {}
+    void visit([[maybe_unused]] StmParts const &stm) {}
     void visit([[maybe_unused]] StmComment const &stm) {}
 
     template <class... T, class... A> void visit(std::variant<T...> const &expr, A... args) {

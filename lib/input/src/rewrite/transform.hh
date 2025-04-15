@@ -280,7 +280,7 @@ template <class T> class Transformer {
 
     template <class E>
         requires Util::is_among_v<E, StmTheory, StmShowNothing, StmShowSig, StmProjectSig, StmDefined, StmScript,
-                                  StmInclude, StmProgram, StmConst, StmComment>
+                                  StmInclude, StmProgram, StmConst, StmParts, StmComment>
     [[nodiscard]] auto accept_([[maybe_unused]] E const &stm) const -> std::optional<Stm> {
         return std::nullopt;
     }

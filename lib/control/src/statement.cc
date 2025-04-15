@@ -55,9 +55,9 @@ class BuilderStm {
   public:
     BuilderStm(BuildContext &ctx) : ctx_{&ctx} {}
     template <class T> void operator()(T const &stm) const {
-        static_assert(Util::matches<T, Input::StmComment, Input::StmConst, Input::StmDefined, Input::StmInclude,
-                                    Input::StmOptimize, Input::StmProgram, Input::StmProjectSig, Input::StmScript,
-                                    Input::StmShowNothing, Input::StmShowSig, Input::StmTheory>);
+        static_assert(Util::matches<T, Input::StmComment, Input::StmConst, Input::StmParts, Input::StmDefined,
+                                    Input::StmInclude, Input::StmOptimize, Input::StmProgram, Input::StmProjectSig,
+                                    Input::StmScript, Input::StmShowNothing, Input::StmShowSig, Input::StmTheory>);
         GRINGO_REPORT(ctx_->logger(), error) << "unexpected statement: " << stm;
         throw std::logic_error("unexpected statement");
     }

@@ -463,7 +463,7 @@ class CheckGlobal {
             return handle_body(stm, &stm.atom());
         } else {
             static_assert(Util::is_among_v<T, StmTheory, StmShowNothing, StmShowSig, StmProjectSig, StmDefined,
-                                           StmScript, StmInclude, StmProgram, StmConst, StmComment>);
+                                           StmScript, StmInclude, StmProgram, StmConst, StmParts, StmComment>);
             return {true};
         }
     }

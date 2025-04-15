@@ -627,7 +627,7 @@ class ComputeBounds {
                 stm, [&](auto res_body) -> std::optional<Stm> { return stm.rewrite(a_body = std::move(res_body)); });
         } else {
             static_assert(Util::is_among_v<T, StmTheory, StmProjectSig, StmDefined, StmShowNothing, StmShowSig,
-                                           StmScript, StmInclude, StmProgram, StmConst, StmComment>);
+                                           StmScript, StmInclude, StmProgram, StmConst, StmParts, StmComment>);
             return {true};
         }
     }

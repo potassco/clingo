@@ -79,7 +79,7 @@ template <class T> class Visitor {
     template <class U>
         requires Util::is_among_v<U, Projection, String, SharedString, Relation, TermSymbol, TermVariable,
                                   TheoryTermSymbol, TheoryTermVariable, LitBool, StmTheory, StmShowNothing, StmShowSig,
-                                  StmProjectSig, StmDefined, StmScript, StmInclude, StmProgram, StmComment>
+                                  StmProjectSig, StmDefined, StmScript, StmInclude, StmProgram, StmParts, StmComment>
     void accept_([[maybe_unused]] U const &x) const {}
 
     // terms

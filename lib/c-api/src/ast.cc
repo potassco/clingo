@@ -434,6 +434,9 @@ auto make_ast(std::shared_ptr<U> owner, Clingo::Input::Stm const &term) -> std::
             if constexpr (std::is_same_v<T, Clingo::Input::StmConst>) {
                 return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_statement_const, &x);
             }
+            if constexpr (std::is_same_v<T, Clingo::Input::StmParts>) {
+                return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_statement_parts, &x);
+            }
             if constexpr (std::is_same_v<T, Clingo::Input::StmComment>) {
                 return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_statement_comment, &x);
             }
@@ -849,6 +852,9 @@ auto convert(clingo_ast_t const *ast) -> T {
         case clingo_ast_type_statement_const: {
             return ast->cast<Clingo::Input::StmConst>();
         }
+        case clingo_ast_type_statement_parts: {
+            return ast->cast<Clingo::Input::StmParts>();
+        }
         case clingo_ast_type_statement_comment: {
             return ast->cast<Clingo::Input::StmComment>();
         }
@@ -1087,6 +1093,9 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Clingo::Input
         }
         case clingo_ast_type_statement_const: {
             return std::invoke(std::forward<V>(visit), cast<StmConst>());
+        }
+        case clingo_ast_type_statement_parts: {
+            return std::invoke(std::forward<V>(visit), cast<StmParts>());
         }
         case clingo_ast_type_statement_comment: {
             return std::invoke(std::forward<V>(visit), cast<StmComment>());
@@ -2243,6 +2252,17 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmConst>(type, convert(loc), static_cast<Precedence>(prec),
                                                               *lib->store->string(name), convert<Term>(term));
+                break;
+            }
+            case clingo_ast_type_statement_parts: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                // FIXME: come up with a representation for the parts
+                auto elems = Clingo::Input::ProgramParamVecVec{};
+                auto prec = va_arg(args, int);
+                va_end(args);
+                *ast = construct_ast<Clingo::Input::StmParts>(type, convert(loc), static_cast<Precedence>(prec), elems);
                 break;
             }
             case clingo_ast_type_statement_comment: {

@@ -714,13 +714,6 @@ class StmProgram : public Expression<StmProgram> {
     SharedStringArray args_;
 };
 
-//! Concrete symbols for a program statement.
-//!
-//! @see StmProgram
-using ProgramParam = std::pair<SharedString, std::vector<SharedSymbol>>;
-//! A list of program params.
-using ProgramParamVec = std::vector<ProgramParam>;
-
 //! Enumeration of constant statement types.
 //!
 //! @see StatementConst
@@ -758,6 +751,42 @@ class StmConst : public Expression<StmConst> {
     Precedence type_;
     SharedString name_;
     Term value_;
+};
+
+//! Concrete symbols for a program statement.
+//!
+//! @see StmProgram
+using ProgramParam = std::pair<SharedString, std::vector<SharedSymbol>>;
+//! A list of program params.
+using ProgramParamVec = std::vector<ProgramParam>;
+//! A list of program params.
+using ProgramParamVecVec = std::vector<ProgramParamVec>;
+
+//! A parts statement.
+//!
+//! For example: <tt>\#parts base;check.</tt>.
+class StmParts : public Expression<StmParts> {
+  public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmParts::loc_, a_type = &StmParts::type_, a_elems = &StmParts::elems_};
+    }
+
+    //! Construct a const statement.
+    explicit StmParts(Location loc, Precedence type, ProgramParamVecVec elems)
+        : loc_{std::move(loc)}, type_(type), elems_(std::move(elems)) {}
+
+    //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The type of the statement.
+    [[nodiscard]] auto type() const -> Precedence const & { return type_; }
+    //! The program parts to ground and solve.
+    [[nodiscard]] auto elems() const -> ProgramParamVecVec const & { return elems_; }
+
+  private:
+    Location loc_;
+    Precedence type_;
+    ProgramParamVecVec elems_;
 };
 
 //! Enumeration of comment types.
@@ -798,7 +827,7 @@ class StmComment : public Expression<StmComment> {
 //! Variant of available statements.
 using Stm = std::variant<StmRule, StmTheory, StmOptimize, StmWeakConstraint, StmShow, StmShowNothing, StmShowSig,
                          StmProject, StmProjectSig, StmDefined, StmExternal, StmEdge, StmHeuristic, StmScript,
-                         StmInclude, StmProgram, StmConst, StmComment>;
+                         StmInclude, StmProgram, StmConst, StmParts, StmComment>;
 //! A vector of statements.
 using StmVec = std::vector<Stm>;
 

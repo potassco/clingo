@@ -357,7 +357,7 @@ struct UnpoolStatement {
             return rewrite_with_body(stm);
         } else {
             static_assert(Util::is_among_v<S, StmTheory, StmShowNothing, StmShowSig, StmProjectSig, StmDefined,
-                                           StmScript, StmInclude, StmProgram, StmConst, StmComment>);
+                                           StmScript, StmInclude, StmProgram, StmConst, StmParts, StmComment>);
             return std::nullopt;
         }
     }

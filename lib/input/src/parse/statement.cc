@@ -634,7 +634,7 @@ auto parse_parts(ParserState &state) -> std::optional<Stm> {
             state.mark_stms();
             state.consume();
             if (auto type = parse_option_value_type(state, loc)) {
-                GRINGO_REPORT_LOC(state.log(), error, loc) << "construct a parts directive";
+                return StmParts{loc, *type, *std::move(parts)};
             }
         }
     }
