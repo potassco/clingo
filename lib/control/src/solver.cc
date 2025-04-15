@@ -1126,7 +1126,7 @@ auto Solver::backend() -> UBackendHandle {
 }
 
 void Solver::simplify_() {
-    if (mode_ != AppMode::solve) {
+    if (mode_ != AppMode::solve || clasp_->ctx.solveMode() == Clasp::SharedContext::SolveMode::solve_once) {
         return;
     }
     auto value = [clasp = clasp_](prg_lit_t lit) {
