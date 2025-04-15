@@ -54,9 +54,10 @@ class Control {
     auto backend() -> BackendManager;
     auto config() -> Config;
     auto stats() -> py::dict;
-    void main(std::optional<PartSpan> parts);
+    void main();
     auto buffer() -> char const *;
     auto const_map() -> HintConstMap;
+    auto parts() -> std::optional<PartSpan>;
     void interrupt();
 
     void register_propagator(Annotation<Propagator> propagator);
@@ -170,6 +171,13 @@ template <> struct type_caster<std::optional<Clingo::Python::PartSpan>> {
         }
         value = holder_.cast();
         return true;
+    }
+
+    static auto cast(const type &src, return_value_policy policy, handle parent) -> handle {
+        if (!src) {
+            return none{};
+        }
+        return type_caster<Clingo::Python::PartSpan>::cast(*src, policy, parent);
     }
 
   private:

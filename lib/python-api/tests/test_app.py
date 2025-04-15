@@ -57,14 +57,13 @@ class AppTest(App):
         self,
         control: Control,
         files: Sequence[str],
-        parts: Sequence[tuple[str, Sequence[Symbol]]],
     ) -> None:
         """
         Run the main loop.
         """
         self._queue.put("main")
         control.parse_files(files)
-        control.ground(parts)
+        control.ground(control.parts)
         mcb = MCB()
         control.solve(on_model=mcb)
         self._queue.put(("models", mcb.symbols))

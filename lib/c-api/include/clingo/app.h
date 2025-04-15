@@ -50,13 +50,10 @@ typedef struct clingo_options clingo_options_t;
 //! @param[in] control corresponding control object
 //! @param[in] files files passed via command line arguments
 //! @param[in] files_size number of files
-//! @param[in] parts the parts to ground and solve
-//! @param[in] parts_size number of parts
 //! @param[in] data user data for the callback
 //! @return the result code
 typedef clingo_result_t (*clingo_main_function_t)(clingo_control_t *control, char const *const *files,
-                                                  size_t files_size, clingo_part_t const *parts, size_t parts_size,
-                                                  void *data);
+                                                  size_t files_size, void *data);
 
 //! Callback to print a model in default format.
 //!

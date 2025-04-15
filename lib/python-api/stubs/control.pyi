@@ -164,12 +164,7 @@ class Control:
                 A non-ground logic program.
         """
 
-    def main(
-        self,
-        parts: (
-            typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None
-        ) = None,
-    ) -> None:
+    def main(self) -> None:
         """
         Ground and solve a logic program based on the current control mode.
 
@@ -184,13 +179,6 @@ class Control:
 
         Before calling `main()`, the control object can be prepared by parsing
         programs, registering propagators, or performing other setup steps.
-
-        Args:
-            parts:
-                        A sequence of part sets to ground and solve. Each part set consists of
-                tuples containing a section name and symbolic arguments. If `None`,
-                the function defaults to grounding and solving the implicit `base`
-                program.
         """
 
     def observe(
@@ -354,6 +342,14 @@ class Control:
     def mode(self) -> ControlMode:
         """
         Get the application mode.
+        """
+
+    @property
+    def parts(
+        self,
+    ) -> typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None:
+        """
+        Get the program parts to ground.
         """
 
     @property

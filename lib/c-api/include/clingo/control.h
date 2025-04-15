@@ -232,11 +232,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_ground(clingo_control_t
 //! Execute the default ground and solve flow after parsing.
 //!
 //! @param[in] control the target
-//! @param[in] parts the parts to ground and solve
-//! @param[in] size the number of parts in the array
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_main(clingo_control_t *control, clingo_part_t const *parts,
-                                                              size_t size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_main(clingo_control_t *control);
 
 //! Get the map of constants.
 //!
@@ -254,6 +251,17 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_const_map(clingo_contro
 //! @param[out] buffer the resulting string
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_buffer(clingo_control_t *control, char const **buffer);
+
+//! Get the program parts to ground.
+//!
+//! @param[in] control the target
+//! @param[out] parts the resulting parts
+//! @param[out] size the resulting parts
+//! @param[out] has_value the resulting parts
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_get_parts(clingo_control_t *control,
+                                                                   clingo_part_t const **parts, size_t *size,
+                                                                   bool *has_value);
 
 //! Interrupt the running search.
 //!

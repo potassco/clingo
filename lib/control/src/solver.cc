@@ -866,10 +866,10 @@ void Scripts::do_exec(Location const &loc, Logger &log, std::string_view name, s
     }
 }
 
-void Scripts::main(Solver &slv, std::optional<ProgramParamVec> const &params) {
+void Scripts::main(Solver &slv) {
     for (auto const &script : scripts_) {
         if (script.second->callable("main", 0)) {
-            script.second->main(slv, params);
+            script.second->main(slv);
         }
     }
 }
@@ -921,9 +921,9 @@ void Solver::interrupt() noexcept {
     }
 }
 
-void Solver::main(std::span<std::string_view const> const &files, std::optional<ProgramParamVec> const &params) {
+void Solver::main(std::span<std::string_view const> const &files) {
     parse(files);
-    main(params);
+    main();
 }
 
 void Solver::incmode_() {
@@ -1001,12 +1001,12 @@ void Solver::incmode_() {
     }
 }
 
-void Solver::main(std::optional<ProgramParamVec> const &params) {
+void Solver::main() {
     if (!block_main_ && scripts_->callable("main", 0)) {
         if (mode_ == AppMode::solve) {
             clasp_->enableProgramUpdates();
         }
-        scripts_->main(*this, params);
+        scripts_->main(*this);
     } else {
         if (mode_ == AppMode::parse) {
             output_unprocessed_program(std::cout);
@@ -1017,14 +1017,14 @@ void Solver::main(std::optional<ProgramParamVec> const &params) {
             return;
         }
         bool inc = intersects(includes_, BuiltinIncludes::incmode);
-        if (mode_ == AppMode::solve && ((params && params->size() >= 2) || inc)) {
+        if (mode_ == AppMode::solve && inc) {
             clasp_->enableProgramUpdates();
         }
         if (inc) {
             incmode_();
         } else {
             auto base = ProgramParamVec{{grd_.store().string("base"), {}}};
-            ground(params.value_or(base), nullptr);
+            ground(grd_.parts().value_or(base), nullptr);
             if (mode_ == AppMode::solve) {
                 solve(nullptr);
             }

@@ -273,6 +273,8 @@ struct Grounder::Impl : Clingo::SymbolOwner {
     Ground::Bases bases;
     //! The output.
     OutputStm *out;
+    //! The parts to ground.
+    ProgramParams parts;
     //! Indicate that the logic program might still be satisfiable.
     bool is_sat = true;
 };
@@ -305,7 +307,7 @@ auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinI
     auto ret = BuiltinIncludes::empty;
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
-        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, code};
+        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, impl_->parts, code};
         prs.process_string(str);
         ret |= prs.process_includes();
         prs.check();
@@ -331,7 +333,7 @@ auto Grounder::parse(std::span<std::string_view const> const &files, Ground::Scr
     auto ret = BuiltinIncludes::empty;
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
-        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, code, prg, thy};
+        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, impl_->parts, code, prg, thy};
         if (files.empty()) {
             prs.process_stdin();
             ret |= prs.process_includes();
@@ -407,6 +409,10 @@ void Grounder::output_program(std::ostream &out) {
     GCLock lock{*impl_->store};
     impl_->prg.visit_stms(*impl_->store, [&out](auto const &stm) { out << stm << "\n"; });
     out.flush();
+}
+
+auto Grounder::parts() -> std::optional<Input::ProgramParamVec> & {
+    return impl_->parts.second;
 }
 
 auto Grounder::base() -> Ground::Bases & {

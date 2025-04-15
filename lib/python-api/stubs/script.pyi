@@ -141,12 +141,7 @@ class Script:
                 The code to execute.
         """
 
-    def main(
-        self,
-        lib: clingo.core.Library,
-        control: clingo.control.Control,
-        parts: typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]],
-    ) -> None:
+    def main(self, lib: clingo.core.Library, control: clingo.control.Control) -> None:
         """
         Run the main function.
 
@@ -155,8 +150,6 @@ class Script:
                 The (main) library object.
             control:
                 The (main) control object.
-            parts:
-                The parts to ground and solve.
         """
 
     def name(self) -> str:

@@ -194,13 +194,9 @@ auto Control::solve(MixedLitVec const &assumptions, std::optional<ModelCallback>
     return res;
 }
 
-void Control::main(std::optional<PartSpan> parts) {
+void Control::main() {
     auto release = py::gil_scoped_release{};
-    if (!parts) {
-        static constexpr clingo_part_t part = {"base", nullptr, 0};
-        parts.emplace(&part, 1);
-    }
-    handle_error(clingo_control_main(ctl_.get(), parts->data(), parts->size()), get_exception_ptr());
+    handle_error(clingo_control_main(ctl_.get()), get_exception_ptr());
 }
 
 void Control::interrupt() {
@@ -217,6 +213,17 @@ auto Control::const_map() -> HintConstMap {
     clingo_const_map_t const *map = nullptr;
     handle_error(clingo_control_const_map(ctl_.get(), &map));
     return py::cast(ConstMap{map});
+}
+
+auto Control::parts() -> std::optional<PartSpan> {
+    clingo_part_t const *parts = nullptr;
+    size_t size = 0;
+    bool has_value = false;
+    handle_error(clingo_control_get_parts(ctl_.get(), &parts, &size, &has_value));
+    if (!has_value) {
+        return std::nullopt;
+    }
+    return PartSpan{parts, size};
 }
 
 void Control::register_propagator(Annotation<Propagator> propagator) {
@@ -466,7 +473,7 @@ Notes:
 See Also:
     clingo.solve: Contains examples on using this function.
 )"_d)
-        .def("main", &Control::main, py::arg("parts") = std::nullopt, R"(
+        .def("main", &Control::main, R"(
 Ground and solve a logic program based on the current control mode.
 
 This function serves as a high-level entry point for the default
@@ -480,13 +487,6 @@ If solving, the function proceeds as follows:
 
 Before calling `main()`, the control object can be prepared by parsing
 programs, registering propagators, or performing other setup steps.
-
-Args:
-    parts:
-		A sequence of part sets to ground and solve. Each part set consists of
-        tuples containing a section name and symbolic arguments. If `None`,
-        the function defaults to grounding and solving the implicit `base`
-        program.
 )"_d)
         .def("interrupt", &Control::interrupt, R"(
 Interrupt the active solve call.
@@ -509,7 +509,8 @@ Args:
         .def_property_readonly("stats", &Control::stats, R"(Get the solver stats.)")
         .def_property_readonly("mode", &Control::mode, R"(Get the application mode.)")
         .def_property_readonly("const_map", &Control::const_map,
-                               R"(Get the map of constants defined by `#const` directives.)");
+                               R"(Get the map of constants defined by `#const` directives.)")
+        .def_property_readonly("parts", &Control::parts, R"(Get the program parts to ground.)");
 }
 
 } // namespace Clingo::Python

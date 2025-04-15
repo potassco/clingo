@@ -482,7 +482,6 @@ class DLApp(App):
         self,
         control: Control,
         files: Sequence[str],
-        parts: Sequence[Sequence[tuple[str, Sequence[Symbol]]]],
     ) -> None:
         """
         Register the difference constraint propagator, and then ground and
@@ -492,16 +491,13 @@ class DLApp(App):
         control.join(rewrite(self._lib, files))
 
         if control.mode in (ControlMode.Parse, ControlMode.Rewrite):
-            control.main(parts)
+            control.main()
         elif self._minimize is None:
-            for part in parts:
-                control.ground(part)
-                with control.solve(on_model=self._on_model) as hnd:
-                    hnd.get()
+            control.ground(control.parts)
+            with control.solve(on_model=self._on_model) as hnd:
+                hnd.get()
         else:
-            if len(parts) != 1:
-                raise ValueError("minimization supports only one solving step")
-            control.ground(parts[0])
+            control.ground(control.parts)
             control.parse_string("#program bound(b, v). &__diff_h { v-0 } <= b.")
             while True:
                 with control.solve(on_model=self._on_model) as hnd:

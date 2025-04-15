@@ -57,8 +57,8 @@ class App {
     auto operator=(App const &other) -> App & = delete;
     auto operator=(App const &&) -> App & = delete;
 
-    void main(Annotation<Control> const &control, std::span<std::string const> files, PartSpan parts) {
-        PYBIND11_OVERRIDE_NAME(void, App, "main", no_op_, control, files, parts);
+    void main(Annotation<Control> const &control, std::span<std::string const> files) {
+        PYBIND11_OVERRIDE_NAME(void, App, "main", no_op_, control, files);
     }
 
     void print_model(Model model, std::function<void()> printer) {
@@ -129,8 +129,8 @@ class App {
         }
     }
 
-    static auto main_(clingo_control_t *ctl, char const *const *files, size_t files_size, clingo_part_t const *parts,
-                      size_t parts_size, void *data) -> clingo_result_t {
+    static auto main_(clingo_control_t *ctl, char const *const *files, size_t files_size, void *data)
+        -> clingo_result_t {
         auto &app = *static_cast<App *>(data);
         // NOTE: safe guard if main is called in another thread than the app
         // was created. Ensures that print_model, called after main, always
@@ -139,7 +139,7 @@ class App {
         CLINGO_TRY {
             auto pyctl = Control::cast(ctl, true);
             auto cfiles = std::span{files, files_size};
-            app.main(pyctl, std::vector<std::string>{cfiles.begin(), cfiles.end()}, std::span{parts, parts_size});
+            app.main(pyctl, std::vector<std::string>{cfiles.begin(), cfiles.end()});
         }
         CLINGO_CATCH(*app.ptr_);
     }
@@ -424,7 +424,7 @@ Args:
 	default_printer:
 		A callable that prints the model in default format.
 )"_d)
-        .def("main", &App::main, py::arg("control"), py::arg("files"), py::arg("parts"), R"(
+        .def("main", &App::main, py::arg("control"), py::arg("files"), R"(
 Run the main execution flow of the application.
 
 This method is invoked after Clingo's control object has been configured. It
@@ -435,8 +435,6 @@ Args:
         The Clingo control object for managing grounding and solving.
     files:
         A list of filenames representing the input logic programs.
-    parts:
-        The program parts to ground and solve.
 )"_d);
 
     app.def("clingo_main", &pymain, py::arg("lib"), py::arg("arguments"), py::arg("app") = std::nullopt,

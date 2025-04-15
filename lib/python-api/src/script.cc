@@ -36,7 +36,7 @@ class Scope {
         return scope_[name](lib, *py::cast(args)).cast<std::variant<SymbolVec, Symbol>>();
     }
 
-    auto main(PyLibrary const &lib, PyControl const &ctl, PartSpan parts) { scope_["main"](lib, ctl, parts); }
+    auto main(PyLibrary const &lib, PyControl const &ctl) { scope_["main"](lib, ctl); }
 
     auto version() -> char const * { return version_.c_str(); }
 
@@ -172,13 +172,12 @@ class MainScript {
         return clingo_result_success;
     }
 
-    static auto main(clingo_lib_t *lib, clingo_control_t *control, clingo_part_t const *parts, size_t size, void *data)
-        -> clingo_result_t {
+    static auto main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
         auto *self = cast(data);
         try {
             if (self->py_) {
                 auto gil = py::gil_scoped_acquire{};
-                self->py_->main(self->get_lib(lib), get_ctl(control), std::span{parts, size});
+                self->py_->main(self->get_lib(lib), get_ctl(control));
             }
         } catch (...) {
             return self->handle_error();
@@ -280,16 +279,13 @@ class Script {
         CLINGO_CATCH(get_exception_ptr());
     }
 
-    void main(const PyLibrary &lib, const PyControl &ctl, PartSpan parts) {
-        PYBIND11_OVERRIDE_PURE(void, Script, main, lib, ctl, parts);
-    }
+    void main(const PyLibrary &lib, const PyControl &ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, lib, ctl); }
 
-    static auto c_main(clingo_lib_t *lib, clingo_control_t *control, clingo_part_t const *parts, size_t size,
-                       void *data) -> clingo_result_t {
+    static auto c_main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
         CLINGO_TRY {
             auto gil = py::gil_scoped_acquire{};
             auto &self = get_self(data);
-            self.main(get_lib(lib), get_ctl(control), std::span{parts, size});
+            self.main(get_lib(lib), get_ctl(control));
         }
         CLINGO_CATCH(get_exception_ptr());
     }
@@ -452,7 +448,7 @@ Args:
 Returns:
     Whether the function is callable.
 )")
-        .def("main", &Script::main, py::arg("lib"), py::arg("control"), py::arg("parts"), R"(
+        .def("main", &Script::main, py::arg("lib"), py::arg("control"), R"(
 Run the main function.
 
 Args:
@@ -460,8 +456,6 @@ Args:
         The (main) library object.
     control:
         The (main) control object.
-    parts:
-        The parts to ground and solve.
 )")
         .def("name", &Script::name, R"(Get the name of the script.)")
         .def("version", &Script::version, R"(Get the version of the script.)");

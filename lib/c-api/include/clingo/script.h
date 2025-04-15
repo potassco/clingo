@@ -44,8 +44,7 @@ typedef struct clingo_script {
     //! @param[in] control the control object to pass to the main function
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    clingo_result_t (*main)(clingo_lib_t *lib, clingo_control_t *control, clingo_part_t const *parts, size_t size,
-                            void *data);
+    clingo_result_t (*main)(clingo_lib_t *lib, clingo_control_t *control, void *data);
     //! Get the name of the script.
     //! @return the name of the script.
     char const *(*name)(void *data);

@@ -129,12 +129,10 @@ class AppAdapter {
 
     [[nodiscard]] auto has_main() const -> bool { return app_ != nullptr && app_->main != nullptr; }
 
-    void main(clingo_control_t *ctl, std::span<std::string const> const &input,
-              std::optional<Clingo::Control::ProgramParamVec> const &parts) {
+    void main(clingo_control_t *ctl, std::span<std::string const> const &input) {
         assert(has_main());
         auto vec = Clingo::Util::transform(input, [](auto const &str) { return str.c_str(); });
-        auto cparts = convert(parts);
-        handle_error(app_->main(ctl, vec.data(), vec.size(), cparts.data(), cparts.size(), data_));
+        handle_error(app_->main(ctl, vec.data(), vec.size(), data_));
     }
 
   private:
@@ -275,16 +273,16 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             for (auto const &[name, value] : const_defs_) {
                 slv.add_const(*name, *value);
             }
+            slv.parts() = std::move(parts_);
             // NOTE: member for createTextOutput
             ctl_->bind(&slv, &slv.clasp_config(), &slv.clasp_facade());
             if (app_.has_main()) {
                 if (mode_ == Mode::solve) {
                     ctl_->clasp->enableProgramUpdates();
                 }
-                app_.main(ctl_.get(), claspAppOpts_.input, parts_);
+                app_.main(ctl_.get(), claspAppOpts_.input);
             } else {
-                ctl_->slv->main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()},
-                                parts_);
+                ctl_->slv->main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()});
             }
         } else {
             BaseType::run(clasp);

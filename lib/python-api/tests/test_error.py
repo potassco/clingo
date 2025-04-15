@@ -75,7 +75,6 @@ class ErrorApp(App):
         self,
         control: Control,
         files: Sequence[str],
-        parts: Sequence[tuple[str, Sequence[Symbol]]],
     ) -> None:
         """
         Test throwing errors in main.
@@ -84,7 +83,7 @@ class ErrorApp(App):
         if "m" in self._mode:
             raise RuntimeError("main")
         control.parse_string("a.")
-        control.main(parts)
+        control.main()
 
 
 class Prop(Propagator):

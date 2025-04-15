@@ -1,6 +1,7 @@
 #pragma once
 
 #include <clingo/input/parser.hh>
+#include <clingo/input/print.hh>
 #include <clingo/input/program.hh>
 
 #include <clingo/ground/script.hh>
@@ -24,15 +25,22 @@ enum class BuiltinIncludes : uint8_t {
 //! Indicate that the builtin includes type is a bitset.
 CLINGO_ENABLE_BITSET_ENUM(BuiltinIncludes);
 
+//! A sequences of program parameter vectors to ground and solve incrementally.
+using Clingo::Input::ProgramParamVec;
+
+using ProgramParams = std::pair<Clingo::Input::Precedence, std::optional<ProgramParamVec>>;
+
 //! A helper for parsing.
 //!
 //! This class manages include directives.
 class ParseHelper {
   public:
     //! Construct the helper.
-    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg, Ground::ScriptExec *exec = nullptr,
-                ProgramBackend *prg_backend = nullptr, TheoryBackend *thy_backend = nullptr)
-        : log_{&log}, store_{&store}, exec_{exec}, parser_{log, store, prg_backend, thy_backend}, prg_{&prg} {}
+    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg, ProgramParams &parts,
+                Ground::ScriptExec *exec = nullptr, ProgramBackend *prg_backend = nullptr,
+                TheoryBackend *thy_backend = nullptr)
+        : log_{&log}, store_{&store}, parts_{&parts}, exec_{exec}, parser_{log, store, prg_backend, thy_backend},
+          prg_{&prg} {}
 
     //! Parse a program from the given string.
     void process_string(std::string_view str) {
@@ -133,8 +141,16 @@ class ParseHelper {
                 fin_.close();
                 break;
             }
-            if (auto *include = std::get_if<Input::StmInclude>(&*stm); include != nullptr) {
-                includes_.emplace_back(dir, *include);
+            if (auto *parts = std::get_if<Input::StmParts>(&*stm); parts != nullptr) {
+                if (!parts_->second || parts_->first < parts->type()) {
+                    parts_->second.emplace(parts->elems());
+                    parts_->first = parts->type();
+                } else {
+                    GRINGO_REPORT_LOC(*log_, error, parts->loc()) << "multiple parts directives: " << *stm;
+                    parse_error_ = true;
+                }
+            } else if (auto *include = std::get_if<Input::StmInclude>(&*stm); include != nullptr) {
+                includes_.emplace_back(dir, std::move(*include));
             } else {
                 if (auto *script = std::get_if<Input::StmScript>(&*stm); exec_ != nullptr && script != nullptr) {
                     exec_->exec(script->loc(), *log_, script->type().view(), script->value().view());
@@ -147,6 +163,7 @@ class ParseHelper {
 
     Logger *log_;
     SymbolStore *store_;
+    ProgramParams *parts_;
     Ground::ScriptExec *exec_;
     std::ifstream fin_;
     Input::Parser parser_;

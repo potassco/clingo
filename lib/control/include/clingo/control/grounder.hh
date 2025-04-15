@@ -34,13 +34,15 @@ class Grounder {
     //! Get the const map.
     auto const_map() -> Input::ConstMap const &;
     //! Ground the program.
-    [[nodiscard]] auto ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context = nullptr) -> bool;
+    [[nodiscard]] auto ground(ProgramParamVec const &params, Ground::ScriptCallback *context = nullptr) -> bool;
 
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);
     //! Output the current program.
     void output_program(std::ostream &out);
 
+    //! Get the program parts to ground.
+    [[nodiscard]] auto parts() -> std::optional<ProgramParamVec> &;
     //! Get the associated base.
     [[nodiscard]] auto base() -> Ground::Bases &;
     //! Get the associated base.

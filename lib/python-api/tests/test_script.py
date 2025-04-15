@@ -53,12 +53,11 @@ class MyScript(Script):
         self,
         lib: Library,
         control: Control,
-        parts: Sequence[tuple[str, Sequence[Symbol]]],
     ) -> None:
         """
         Run the main function from the main scope.
         """
-        self._scope["main"](lib, control, parts)
+        self._scope["main"](lib, control)
 
 
 class TestScript:
@@ -105,7 +104,7 @@ class TestScript:
                         * 242357902759023475928437592438759234752049375294375293457902759247590275902745,
                     )
 
-                def main(lib, ctl, parts):
+                def main(lib, ctl):
                     ctl.parse_string("#program one(k). p(k).")
                     ctl.ground([("one", [Number(lib, 1)])])
                     ctl.parse_string("#program ext(k). p(@fun(k)).")

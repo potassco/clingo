@@ -65,7 +65,6 @@ import typing
 import clingo.control
 import clingo.core
 import clingo.solve
-import clingo.symbol
 
 __all__ = ["App", "AppOptions", "Flag", "clingo_main"]
 
@@ -128,10 +127,7 @@ class App:
         """
 
     def main(
-        self,
-        control: clingo.control.Control,
-        files: typing.Sequence[str],
-        parts: typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]],
+        self, control: clingo.control.Control, files: typing.Sequence[str]
     ) -> None:
         """
         Run the main execution flow of the application.
@@ -144,8 +140,6 @@ class App:
                 The Clingo control object for managing grounding and solving.
             files:
                 A list of filenames representing the input logic programs.
-            parts:
-                The program parts to ground and solve.
         """
 
     def print_model(

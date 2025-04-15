@@ -14,22 +14,19 @@ namespace Clingo::Control {
 
 class Solver;
 
-//! A sequences of program parameter vectors to ground and solve incrementally.
-using Clingo::Input::ProgramParamVec;
-
 //! Script providing code execution, main, and callbacks.
 //!
 //! This interface should be implemented by custom scripts.
 class Script : public Ground::ScriptCallback {
   public:
     //! Run the main function.
-    void main(Solver &slv, std::optional<ProgramParamVec> const &params) { do_main(slv, params); }
+    void main(Solver &slv) { do_main(slv); }
     //! Execute the given code.
     void exec(std::string_view code) { do_exec(code); }
 
   private:
     virtual void do_exec(std::string_view code) = 0;
-    virtual void do_main(Solver &slv, std::optional<ProgramParamVec> const &params) = 0;
+    virtual void do_main(Solver &slv) = 0;
 };
 //! A unique pointer to a script.
 using UScript = std::unique_ptr<Script>;
@@ -43,7 +40,7 @@ class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
     //! Register the given script.
     void register_script(std::string_view name, UScript script);
     //! Run the main function.
-    void main(Solver &slv, std::optional<ProgramParamVec> const &params);
+    void main(Solver &slv);
 
   private:
     void do_exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) override;
@@ -453,9 +450,9 @@ class Solver : public BaseView {
            Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out = stdout);
 
     //! Parse, ground, and solve a program.
-    void main(std::span<std::string_view const> const &files, std::optional<ProgramParamVec> const &params);
+    void main(std::span<std::string_view const> const &files);
     //! Ground and solve a program.
-    void main(std::optional<ProgramParamVec> const &params);
+    void main();
 
     //! Parse a program from the given string.
     void join(Input::UnprocessedProgram const &prg);
@@ -468,7 +465,7 @@ class Solver : public BaseView {
     //! Get the const map.
     [[nodiscard]] auto const_map() -> Input::ConstMap const &;
     //! Ground the program.
-    void ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx);
+    void ground(ProgramParamVec const &params, Ground::ScriptCallback *ctx);
     //! Solve the program.
     //!
     //! @param handler optional event handler
@@ -535,6 +532,9 @@ class Solver : public BaseView {
 
     //! Interrupt the running (or next search).
     void interrupt() noexcept;
+
+    //! Get the program parts to ground.
+    [[nodiscard]] auto parts() -> std::optional<ProgramParamVec> & { return grd_.parts(); }
 
   private:
     class ProgramBackendAdapter;

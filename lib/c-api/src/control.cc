@@ -167,10 +167,9 @@ extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t c
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_control_main(clingo_control_t *control, clingo_part_t const *parts, size_t size)
-    -> clingo_result_t {
+extern "C" auto clingo_control_main(clingo_control_t *control) -> clingo_result_t {
     CLINGO_TRY {
-        control->slv->main(convert(control, parts, size));
+        control->slv->main();
     }
     CLINGO_CATCH;
 }
@@ -178,6 +177,30 @@ extern "C" auto clingo_control_main(clingo_control_t *control, clingo_part_t con
 extern "C" auto clingo_control_buffer(clingo_control_t *control, char const **buffer) -> clingo_result_t {
     CLINGO_TRY {
         *buffer = control->slv->buf().c_str();
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_control_get_parts(clingo_control_t *control, clingo_part_t const **parts, size_t *size,
+                                         bool *has_value) -> clingo_result_t {
+    CLINGO_TRY {
+        auto &x = control->slv->parts();
+        if (has_value != nullptr) {
+            *has_value = x.has_value();
+        }
+        if (x.has_value()) {
+            if (parts != nullptr) {
+                thread_local std::vector<clingo_part_t> res;
+                res.clear();
+                for (auto const &part : *x) {
+                    res.emplace_back(part.first->c_str(), c_cast(part.second.data()), part.second.size());
+                }
+                *parts = res.data();
+            }
+            if (size != nullptr) {
+                *size = x->size();
+            }
+        }
     }
     CLINGO_CATCH;
 }
