@@ -2259,6 +2259,10 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 // FIXME: come up with a representation for the parts
+                // - introduce clingo_ast_type_part
+                //   - a part has a name
+                //   - a part has a symbol_array (managed like a string array)
+                // - the parts statement can then be constructed from an ast array and a prec
                 auto elems = Clingo::Input::ProgramParamVec{};
                 auto prec = va_arg(args, int);
                 va_end(args);
@@ -2742,68 +2746,5 @@ extern "C" auto clingo_program_add(clingo_program_t *program, clingo_ast_t *stat
     }
     CLINGO_CATCH;
 }
-
-// Note: idea to do this without variadic arguments
-/*
-template <class T> auto convert2(clingo_lib_t *lib, void *arg) {
-    if constexpr (std::is_same_v<T, char const *>) {
-        return lib->store->string(static_cast<T>(arg));
-    } else if constexpr (std::is_same_v<T, clingo_location_t const *>) {
-        return convert(lib, static_cast<T>(arg));
-    } else if constexpr (std::is_same_v<T, clingo_symbol_t const *>) {
-        return Clingo::Symbol::from_rep(*static_cast<T>(arg));
-    } else if constexpr (std::is_same_v<T, bool>) {
-        return *static_cast<int *>(arg) != 0;
-    } else {
-        static_assert(std::is_same_v<T, void>);
-    }
-}
-
-template <class T> auto to_ref(T arg) {
-    if constexpr (std::is_same_v<T, Clingo::SharedSymbol> || std::is_same_v<T, Clingo::SharedString>) {
-        return *arg;
-    } else {
-        return arg;
-    }
-}
-
-template <class T, class... A>
-auto construct_ast2(clingo_lib_t *lib, clingo_ast_type_t type, void **args, clingo_ast_t **ast) -> bool {
-    *ast = [&]<std::size_t... I>(std::index_sequence<I...>) {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        auto owner = std::make_shared<T>(to_ref(convert2<A>(lib, args[I]))...);
-        auto *ptr = owner.get();
-        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-        return new clingo_ast{std::move(owner), static_cast<clingo_ast_type_e>(type), ptr};
-    }(std::index_sequence_for<A...>{});
-    return true;
-}
-
-extern "C" auto clingo_ast_construct2(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast,
-                                      void **args) -> bool {
-    using namespace Clingo::Input;
-    CLINGO_TRY {
-        if (lib == nullptr || ast == nullptr) {
-            throw std::invalid_argument("invalid arguments");
-        }
-        *ast = nullptr;
-        // NOLINTNEXTLINE
-        switch (static_cast<clingo_ast_type_e>(type)) {
-            case clingo_ast_type_projection: {
-                return construct_ast2<Clingo::Input::Projection, clingo_location_t const *>(lib, type, args, ast);
-            }
-            case clingo_ast_type_term_variable: {
-                return construct_ast2<Clingo::Input::TermVariable, clingo_location_t const *, char const *, bool>(
-                    lib, type, args, ast);
-            }
-            case clingo_ast_type_term_symbolic: {
-                return construct_ast2<Clingo::Input::TermSymbol, clingo_location_t const *, clingo_symbol_t const *>(
-                    lib, type, args, ast);
-            }
-        }
-    }
-    CLINGO_CATCH;
-}
-*/
 
 // NOLINTEND(cppcoreguidelines-macro-usage)
