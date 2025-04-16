@@ -883,6 +883,19 @@ edge:
 edge_array:
   type: array
   value_type: edge
+program_part:
+  type: record
+  doc: A program part to ground.
+  arguments:
+    name:
+      type: string
+      doc: The name of the program part.
+    arguments:
+      type: symbol_array
+      doc: The arguments of the program part.
+program_part_array:
+  type: array
+  value_type: program_part
 statement:
   type: union
   doc: The available statements.
@@ -1136,6 +1149,19 @@ statement_program:
     arguments:
       type: string_array
       doc: The arguments of the program.
+statement_parts:
+  type: record
+  doc: A program parts statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    elements:
+      type: program_part_array
+      doc: The program parts to ground.
+    precedence:
+      type: precedence
+      doc: The precedence of the statement.
 statement_const:
   type: record
   doc: A const statement.

@@ -86,6 +86,7 @@ enum clingo_ast_type_e {
     clingo_ast_type_optimize_tuple,
     clingo_ast_type_optimize_element,
     clingo_ast_type_edge,
+    clingo_ast_type_program_part,
     // statements
     clingo_ast_type_statement_rule,
     clingo_ast_type_statement_theory,
@@ -325,11 +326,23 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string(clingo
 //! @param[in] attribute the target attribute
 //! @param[out] value the resulting value
 //! @param[out] size the size of the array
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_runtime
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string_array(clingo_ast_t *ast,
                                                                                 clingo_ast_attribute_t attribute,
                                                                                 char const **value, size_t *size);
+
+//! Get the value of a symbol array attribute.
+//!
+//! @note The the required size of the array can be queried setting value to NULL.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @param[out] size the size of the array
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_symbol_array(clingo_ast_t *ast,
+                                                                                clingo_ast_attribute_t attribute,
+                                                                                clingo_symbol_t *value, size_t *size);
 
 //! Get the value of an ast attribute.
 //!

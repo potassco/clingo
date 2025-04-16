@@ -46,6 +46,8 @@ struct clingo_ast {
     [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t const *>;
     [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *>;
     [[nodiscard]] auto get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<Clingo::StringSpan>;
+    [[nodiscard]] auto get_symbol_vec(clingo_ast_attribute_t attr) const -> std::optional<Clingo::SymbolSpan>;
+
     [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>>;
     [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec>;
 
@@ -371,6 +373,11 @@ auto make_ast(std::shared_ptr<U> owner, Clingo::Input::OptimizeTuple const &tupl
 template <class U>
 auto make_ast(std::shared_ptr<U> owner, Clingo::Input::OptimizeElement const &elem) -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_optimize_element, &elem);
+}
+
+template <class U>
+auto make_ast(std::shared_ptr<U> owner, Clingo::Input::ProgramParam const &part) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_program_part, &part);
 }
 
 template <class U>
@@ -786,6 +793,15 @@ auto convert(clingo_ast_t const *ast) -> T {
 }
 
 template <typename T>
+    requires std::is_same_v<T, Clingo::Input::ProgramParam>
+auto convert(clingo_ast_t const *ast) -> T const & {
+    if (ast->get_type() == clingo_ast_type_program_part) {
+        return ast->cast<Clingo::Input::ProgramParam>();
+    }
+    throw std::runtime_error("program part expected");
+}
+
+template <typename T>
     requires std::is_same_v<T, Clingo::Input::Edge>
 auto convert(clingo_ast_t const *ast) -> T {
     if (ast->get_type() == clingo_ast_type_edge) {
@@ -892,6 +908,12 @@ template <class T> auto convert(clingo_ast_t const **ast, size_t size) -> std::v
 
 auto convert(clingo_location_t const *loc) -> Clingo::Location const & {
     return *cpp_cast(loc);
+}
+
+auto convert(clingo_symbol_t const *symbols, size_t size) -> Clingo::SharedSymbolVec {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    return Clingo::Util::transform(symbols, symbols + size,
+                                   [](auto sym) { return Clingo::SharedSymbol{Clingo::Symbol::from_rep(sym)}; });
 }
 
 auto convert(clingo_lib_t *lib, char const **array, size_t size) -> Clingo::SharedStringArray {
@@ -1052,6 +1074,9 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Clingo::Input
         case clingo_ast_type_statement_weak_constraint: {
             return std::invoke(std::forward<V>(visit), cast<StmWeakConstraint>());
         }
+        case clingo_ast_type_program_part: {
+            return std::invoke(std::forward<V>(visit), cast<ProgramParam>());
+        }
         case clingo_ast_type_edge: {
             return std::invoke(std::forward<V>(visit), cast<Edge>());
         }
@@ -1200,6 +1225,8 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
             ATTR(include_type, type()))
         TYPE(statement_const, StmConst,
             ATTR(precedence, type()))
+        TYPE(statement_parts, StmParts,
+            ATTR(precedence, type()))
         TYPE(statement_comment, StmComment,
             ATTR(comment_type, type())))
     // clang-format on
@@ -1266,6 +1293,8 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
             ATTR(value, value()))
         TYPE(statement_const, StmConst,
             ATTR(name, name()))
+        TYPE(program_part, ProgramParam,
+            ATTR(name, first.get()))
         TYPE(statement_comment, StmComment,
             ATTR(value, value())))
     // clang-format on
@@ -1286,6 +1315,20 @@ auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optio
             ATTR(operators, ops()))
         TYPE(statement_program, StmProgram,
             ATTR(arguments, args())))
+    // clang-format on
+}
+
+#undef ATTR
+#define ATTR(attr, value)                                                                                              \
+    case clingo_ast_attribute_##attr: {                                                                                \
+        return as_symbol_span(cast<Type>().value);                                                                     \
+    }
+
+auto clingo_ast::get_symbol_vec(clingo_ast_attribute_t attr) const -> std::optional<Clingo::SymbolSpan>{
+    // clang-format off
+    SWITCH(
+        TYPE(program_part, ProgramParam,
+            ATTR(arguments, second)))
     // clang-format on
 }
 
@@ -1455,7 +1498,9 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
             ATTR(pool, edges())
             ATTR(body, body()))
         TYPE(statement_heuristic, StmHeuristic,
-            ATTR(body, body())))
+            ATTR(body, body()))
+        TYPE(statement_parts, StmParts,
+            ATTR(body, elems())))
     // clang-format on
 }
 
@@ -1491,6 +1536,15 @@ template <class T> void clingo_ast::print(T &out) const {
             }
         } else if constexpr (std::is_same_v<U, LGuard::value_type>) {
             out << x.first << " " << x.second << " ";
+        } else if constexpr (std::is_same_v<U, ProgramParam>) {
+            out << *x.first;
+            if (!x.second.empty()) {
+                out << "(" << *x.second.front();
+                for (auto it = x.second.begin() + 1, ie = x.second.end(); it != ie; ++it) {
+                    out << **it;
+                }
+                out << ")";
+            }
         } else {
             out << x;
         }
@@ -2088,6 +2142,16 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                     type, convert(loc), convert<BdLit>(body, body_size), convert<OptimizeTuple>(tuple));
                 break;
             }
+            case clingo_ast_type_program_part: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *name = va_arg(args, char const *);
+                const auto *syms = va_arg(args, clingo_symbol_t const *);
+                auto size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Clingo::Input::ProgramParam>(type, *lib->store->string(name), convert(syms, size));
+                break;
+            }
             case clingo_ast_type_edge: {
                 std::va_list args;
                 va_start(args, ast);
@@ -2258,15 +2322,13 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 std::va_list args;
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
-                // FIXME: come up with a representation for the parts
-                // - introduce clingo_ast_type_part
-                //   - a part has a name
-                //   - a part has a symbol_array (managed like a string array)
-                // - the parts statement can then be constructed from an ast array and a prec
-                auto elems = Clingo::Input::ProgramParamVec{};
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto size = va_arg(args, size_t);
+                // auto elems = Clingo::Input::ProgramParamVec{};
                 auto prec = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmParts>(type, convert(loc), static_cast<Precedence>(prec), elems);
+                *ast = construct_ast<Clingo::Input::StmParts>(type, convert(loc), static_cast<Precedence>(prec),
+                                                              convert<Clingo::Input::ProgramParam>(elems, size));
                 break;
             }
             case clingo_ast_type_statement_comment: {
@@ -2409,6 +2471,25 @@ extern "C" auto clingo_ast_attribute_get_string_array(clingo_ast_t *ast, clingo_
             *size = vec->size();
             if (value != nullptr) {
                 std::transform(vec->begin(), vec->end(), value, [](auto const &str) { return str.c_str(); });
+            }
+            return clingo_result_success;
+        }
+        return clingo_result_runtime;
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_ast_attribute_get_symbol_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                      clingo_symbol_t *value, size_t *size) -> clingo_result_t {
+    CLINGO_TRY {
+        if (ast == nullptr || size == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        if (auto vec = ast->get_symbol_vec(attribute); vec) {
+            *size = vec->size();
+            if (value != nullptr) {
+                std::transform(vec->begin(), vec->end(), value,
+                               [](auto const &sym) { return Clingo::Symbol::to_rep(sym); });
             }
             return clingo_result_success;
         }
