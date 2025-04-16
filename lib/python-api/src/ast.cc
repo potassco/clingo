@@ -18,6 +18,9 @@ namespace py = pybind11;
 using StringArray = std::vector<std::string>;
 using StringIterable = Iterable<std::string>;
 
+using SymbolArray = std::vector<Symbol>;
+using SymbolIterable = Iterable<Symbol>;
+
 auto to_string_array(std::vector<char const *> arr) -> StringArray {
     auto res = StringArray();
     res.insert(res.end(), arr.begin(), arr.end());
@@ -35,6 +38,15 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
     ret.reserve(arr.size());
     for (auto const &str : arr) {
         ret.emplace_back(str.c_str());
+    }
+    return ret;
+}
+
+auto c_cast(SymbolArray const &arr) -> std::vector<clingo_symbol_t> {
+    std::vector<clingo_symbol_t> ret;
+    ret.reserve(arr.size());
+    for (auto const &sym : arr) {
+        ret.emplace_back(sym.handle());
     }
     return ret;
 }
@@ -1661,6 +1673,38 @@ using EdgeIterable = Iterable<Edge>;
 
 auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray;
 
+class ProgramPart : public ASTBase {
+  public:
+    ProgramPart() = default;
+    ProgramPart(ProgramPart const &x) = default;
+    ProgramPart(ProgramPart &&x) noexcept = default;
+    auto operator=(ProgramPart const &x) -> ProgramPart & = default;
+    auto operator=(ProgramPart &&x) noexcept -> ProgramPart & = default;
+    ~ProgramPart() noexcept = default;
+
+    auto name() -> char const *;
+    auto arguments() -> SymbolArray;
+
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<ProgramPart>;
+    auto update(Library &lib, py::kwargs const &kwargs) -> ProgramPart;
+
+    static auto construct(Library &lib, char const *name, SymbolIterable const &arguments) -> ProgramPart;
+    static auto acquire(clingo_ast_t *ast) -> ProgramPart { return {ast}; }
+
+    friend auto operator==(ProgramPart const &a, ProgramPart const &b) -> bool = default;
+    friend auto operator<=>(ProgramPart const &a, ProgramPart const &b) -> std::strong_ordering = default;
+
+  private:
+    ProgramPart(clingo_ast_t *ast) : ASTBase{ast} {}
+};
+
+using ProgramPartArray = std::vector<ProgramPart>;
+using ProgramPartIterable = Iterable<ProgramPart>;
+
+auto construct_program_part_array(clingo_ast_t **ast, size_t size) -> ProgramPartArray;
+
 class StatementRule;
 
 class StatementTheory;
@@ -1693,6 +1737,8 @@ class StatementInclude;
 
 class StatementProgram;
 
+class StatementParts;
+
 class StatementConst;
 
 class StatementComment;
@@ -1701,7 +1747,7 @@ using Statement =
     std::variant<StatementRule, StatementTheory, StatementOptimize, StatementWeakConstraint, StatementShow,
                  StatementShowNothing, StatementShowSignature, StatementProject, StatementProjectSignature,
                  StatementDefined, StatementExternal, StatementEdge, StatementHeuristic, StatementScript,
-                 StatementInclude, StatementProgram, StatementConst, StatementComment>;
+                 StatementInclude, StatementProgram, StatementParts, StatementConst, StatementComment>;
 
 auto construct_statement(clingo_ast_t *ast) -> Statement;
 
@@ -2177,6 +2223,35 @@ class StatementProgram : public ASTBase {
 
   private:
     StatementProgram(clingo_ast_t *ast) : ASTBase{ast} {}
+};
+
+class StatementParts : public ASTBase {
+  public:
+    StatementParts() = default;
+    StatementParts(StatementParts const &x) = default;
+    StatementParts(StatementParts &&x) noexcept = default;
+    auto operator=(StatementParts const &x) -> StatementParts & = default;
+    auto operator=(StatementParts &&x) noexcept -> StatementParts & = default;
+    ~StatementParts() noexcept = default;
+
+    auto location() -> Location;
+    auto elements() -> ProgramPartArray;
+    auto precedence() -> Precedence;
+
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<StatementParts>;
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementParts;
+
+    static auto construct(Library &lib, Location const &location, ProgramPartIterable const &elements,
+                          Precedence const &precedence) -> StatementParts;
+    static auto acquire(clingo_ast_t *ast) -> StatementParts { return {ast}; }
+
+    friend auto operator==(StatementParts const &a, StatementParts const &b) -> bool = default;
+    friend auto operator<=>(StatementParts const &a, StatementParts const &b) -> std::strong_ordering = default;
+
+  private:
+    StatementParts(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementConst : public ASTBase {
@@ -4983,6 +5058,65 @@ auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray {
     return ret;
 }
 
+auto ProgramPart::name() -> char const * {
+    char const *ret = nullptr;
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
+    return ret;
+}
+
+auto ProgramPart::arguments() -> SymbolArray {
+    size_t size = 0;
+    handle_error(clingo_ast_attribute_get_symbol_array(ast_, clingo_ast_attribute_arguments, nullptr, &size));
+    std::vector<clingo_symbol_t> syms;
+    syms.resize(size);
+    handle_error(clingo_ast_attribute_get_symbol_array(ast_, clingo_ast_attribute_arguments, syms.data(), &size));
+    auto ret = SymbolArray{};
+    ret.reserve(size);
+    for (auto const &sym : syms) {
+        ret.emplace_back(sym, true);
+    }
+    return ret;
+}
+
+auto ProgramPart::construct(Library &lib, char const *name, SymbolIterable const &arguments) -> ProgramPart {
+    clingo_ast_t *res_ = nullptr;
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_program_part, &res_, name, c_cast(arguments).data(),
+                                      arguments.size()));
+    return ProgramPart::acquire(res_);
+}
+
+void ProgramPart::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                        [[maybe_unused]] py::kwargs const &kwargs) {
+}
+
+auto ProgramPart::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                            [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<ProgramPart> {
+    return std::nullopt;
+}
+
+auto ProgramPart::update(Library &lib, py::kwargs const &kwargs) -> ProgramPart {
+    return ProgramPart::construct(lib, update_value<char const *>(this, &ProgramPart::name, kwargs, "name"),
+                                  update_value<SymbolArray>(this, &ProgramPart::arguments, kwargs, "arguments"));
+}
+
+auto construct_program_part_array(clingo_ast_t **ast, size_t size) -> ProgramPartArray {
+    ProgramPartArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(ProgramPart::acquire(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
 auto construct_statement(clingo_ast_t *ast) -> Statement {
     clingo_ast_type_t type = 0;
     if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
@@ -5037,6 +5171,9 @@ auto construct_statement(clingo_ast_t *ast) -> Statement {
         }
         case clingo_ast_type_statement_program: {
             return StatementProgram::acquire(ast);
+        }
+        case clingo_ast_type_statement_parts: {
+            return StatementParts::acquire(ast);
         }
         case clingo_ast_type_statement_const: {
             return StatementConst::acquire(ast);
@@ -5892,6 +6029,56 @@ auto StatementProgram::update(Library &lib, py::kwargs const &kwargs) -> Stateme
         update_value<StringArray>(this, &StatementProgram::arguments, kwargs, "arguments"));
 }
 
+auto StatementParts::location() -> Location {
+    clingo_location_t const *ret = nullptr;
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
+    return Location{ret};
+}
+
+auto StatementParts::elements() -> ProgramPartArray {
+    clingo_ast_t **ast = nullptr;
+    size_t size = 0;
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size));
+    return construct_program_part_array(ast, size);
+}
+
+auto StatementParts::precedence() -> Precedence {
+    int ret = 0;
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_precedence, &ret));
+    return static_cast<Precedence>(ret);
+}
+
+auto StatementParts::construct(Library &lib, Location const &location, ProgramPartIterable const &elements,
+                               Precedence const &precedence) -> StatementParts {
+    clingo_ast_t *res_ = nullptr;
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_parts, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
+                                      elements.size(), static_cast<int>(precedence)));
+    return StatementParts::acquire(res_);
+}
+
+void StatementParts::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                           [[maybe_unused]] py::kwargs const &kwargs) {
+    visit_array(ast_, clingo_ast_attribute_elements, visitor, args, kwargs, ProgramPart::acquire);
+}
+
+auto StatementParts::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                               [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementParts> {
+    auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
+    if (elements_changed) {
+        return StatementParts::construct(lib, location(), elements_value, precedence());
+    }
+    return std::nullopt;
+}
+
+auto StatementParts::update(Library &lib, py::kwargs const &kwargs) -> StatementParts {
+    return StatementParts::construct(
+        lib, update_value<Location>(this, &StatementParts::location, kwargs, "location"),
+        update_value<ProgramPartArray>(this, &StatementParts::elements, kwargs, "elements"),
+        update_value<Precedence>(this, &StatementParts::precedence, kwargs, "precedence"));
+}
+
 auto StatementConst::location() -> Location {
     clingo_location_t const *ret = nullptr;
     handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
@@ -6476,6 +6663,8 @@ term.)doc");
 
     auto py_edge = py::class_<Edge>(ast, "Edge", R"doc(An edge of an edge statement.)doc");
 
+    auto py_program_part = py::class_<ProgramPart>(ast, "ProgramPart", R"doc(A program part to ground.)doc");
+
     auto py_statement_rule = py::class_<StatementRule>(ast, "StatementRule", R"doc(A rule.)doc");
 
     auto py_statement_theory = py::class_<StatementTheory>(ast, "StatementTheory", R"doc(A theory definition.)doc");
@@ -6514,6 +6703,8 @@ term.)doc");
     auto py_statement_include = py::class_<StatementInclude>(ast, "StatementInclude", R"doc(An include statement.)doc");
 
     auto py_statement_program = py::class_<StatementProgram>(ast, "StatementProgram", R"doc(A program statement.)doc");
+
+    auto py_statement_parts = py::class_<StatementParts>(ast, "StatementParts", R"doc(A program parts statement.)doc");
 
     auto py_statement_const = py::class_<StatementConst>(ast, "StatementConst", R"doc(A const statement.)doc");
 
@@ -8275,6 +8466,43 @@ Returns:
     The updated object.
 )doc");
 
+    make_comparable(py_program_part)
+        .def(py::init(&ProgramPart::construct), py::arg("lib"), py::arg("name"), py::arg("arguments"),
+             R"doc(Construct a ProgramPart object.
+
+Args:
+    lib: The library object for storing symbols.
+    name:     The name of the program part.
+    arguments:     The arguments of the program part.)doc")
+        .def("__str__", &ProgramPart::to_string)
+        .def_property_readonly("name", &ProgramPart::name, R"doc(The name of the program part.)doc")
+        .def_property_readonly("arguments", &ProgramPart::arguments, R"doc(The arguments of the program part.)doc")
+        .def("visit", &ProgramPart::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Args:
+    visitor: The visitor accepting the sub expressions.
+)doc")
+        .def("transform", &ProgramPart::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
+
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
+)doc")
+        .def("update", &ProgramPart::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
+)doc");
+
     make_comparable_base<Statement>(py_statement_rule)
         .def(py::init(&StatementRule::construct), py::arg("lib"), py::arg("location"), py::arg("head"), py::arg("body"),
              R"doc(Construct a StatementRule object.
@@ -8916,6 +9144,45 @@ Returns:
     The updated object.
 )doc");
 
+    make_comparable_base<Statement>(py_statement_parts)
+        .def(py::init(&StatementParts::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
+             py::arg("precedence"), R"doc(Construct a StatementParts object.
+
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    elements:     The program parts to ground.
+    precedence:     The precedence of the statement.)doc")
+        .def("__str__", &StatementParts::to_string)
+        .def_property_readonly("location", &StatementParts::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("elements", &StatementParts::elements, R"doc(The program parts to ground.)doc")
+        .def_property_readonly("precedence", &StatementParts::precedence, R"doc(The precedence of the statement.)doc")
+        .def("visit", &StatementParts::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Args:
+    visitor: The visitor accepting the sub expressions.
+)doc")
+        .def("transform", &StatementParts::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
+
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
+)doc")
+        .def("update", &StatementParts::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
+)doc");
+
     make_comparable_base<Statement>(py_statement_const)
         .def(py::init(&StatementConst::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("value"), py::arg("precedence"), R"doc(Construct a StatementConst object.
@@ -8925,12 +9192,12 @@ Args:
     location:     The location of the statement.
     name:     The name of the statement.
     value:     The term of the statement.
-    precedence:     The type of the statement.)doc")
+    precedence:     The precedence of the statement.)doc")
         .def("__str__", &StatementConst::to_string)
         .def_property_readonly("location", &StatementConst::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementConst::name, R"doc(The name of the statement.)doc")
         .def_property_readonly("value", &StatementConst::value, R"doc(The term of the statement.)doc")
-        .def_property_readonly("precedence", &StatementConst::precedence, R"doc(The type of the statement.)doc")
+        .def_property_readonly("precedence", &StatementConst::precedence, R"doc(The precedence of the statement.)doc")
         .def("visit", &StatementConst::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
 Args:

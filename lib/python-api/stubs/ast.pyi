@@ -67,6 +67,7 @@ __all__ = [
     "OptimizeType",
     "Precedence",
     "Program",
+    "ProgramPart",
     "Projection",
     "ProjectionMode",
     "Relation",
@@ -83,6 +84,7 @@ __all__ = [
     "StatementHeuristic",
     "StatementInclude",
     "StatementOptimize",
+    "StatementParts",
     "StatementProgram",
     "StatementProject",
     "StatementProjectSignature",
@@ -205,6 +207,7 @@ def parse_statement(
     | StatementScript
     | StatementInclude
     | StatementProgram
+    | StatementParts
     | StatementConst
     | StatementComment
 ):
@@ -280,6 +283,7 @@ def rewrite_statement(
         | StatementScript
         | StatementInclude
         | StatementProgram
+        | StatementParts
         | StatementConst
         | StatementComment
     ),
@@ -300,6 +304,7 @@ def rewrite_statement(
     | StatementScript
     | StatementInclude
     | StatementProgram
+    | StatementParts
     | StatementConst
     | StatementComment
 ]:
@@ -3006,6 +3011,7 @@ class Program:
             | StatementScript
             | StatementInclude
             | StatementProgram
+            | StatementParts
             | StatementConst
             | StatementComment
         ),
@@ -3015,6 +3021,87 @@ class Program:
 
         Args:
             statement: The statement to add.
+        """
+
+class ProgramPart:
+    """
+    A program part to ground.
+    """
+
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        name: str,
+        arguments: typing.Iterable[clingo.symbol.Symbol],
+    ) -> None:
+        """
+        Construct a ProgramPart object.
+
+        Args:
+            lib: The library object for storing symbols.
+            name:     The name of the program part.
+            arguments:     The arguments of the program part.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> ProgramPart | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> ProgramPart:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def arguments(self) -> typing.Sequence[clingo.symbol.Symbol]:
+        """
+        The arguments of the program part.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the program part.
         """
 
 class Projection:
@@ -3511,7 +3598,7 @@ class StatementConst:
             location:     The location of the statement.
             name:     The name of the statement.
             value:     The term of the statement.
-            precedence:     The type of the statement.
+            precedence:     The precedence of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -3568,7 +3655,7 @@ class StatementConst:
     @property
     def precedence(self) -> Precedence:
         """
-        The type of the statement.
+        The precedence of the statement.
         """
 
     @property
@@ -4313,6 +4400,95 @@ class StatementOptimize:
     def optimize_type(self) -> OptimizeType:
         """
         The type of the statement.
+        """
+
+class StatementParts:
+    """
+    A program parts statement.
+    """
+
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        elements: typing.Iterable[ProgramPart],
+        precedence: Precedence,
+    ) -> None:
+        """
+        Construct a StatementParts object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location:     The location of the statement.
+            elements:     The program parts to ground.
+            precedence:     The precedence of the statement.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> StatementParts | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementParts:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[ProgramPart]:
+        """
+        The program parts to ground.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the statement.
+        """
+
+    @property
+    def precedence(self) -> Precedence:
+        """
+        The precedence of the statement.
         """
 
 class StatementProgram:

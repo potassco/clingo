@@ -39,6 +39,20 @@ auto {{ c_type_name }}::{{ argument_name }}() -> std::vector<char const *> {
     handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_{{ argument_name }}, ret.data(), &size));
     return ret;
 }
+{%    elif argument.type == 'symbol_array' %}
+auto {{ c_type_name }}::{{ argument_name }}() -> SymbolArray {
+    size_t size = 0;
+    handle_error(clingo_ast_attribute_get_symbol_array(ast_, clingo_ast_attribute_{{ argument_name }}, nullptr, &size));
+    std::vector<clingo_symbol_t> syms;
+    syms.resize(size);
+    handle_error(clingo_ast_attribute_get_symbol_array(ast_, clingo_ast_attribute_{{ argument_name }}, syms.data(), &size));
+    auto ret = SymbolArray{};
+    ret.reserve(size);
+    for (auto const &sym : syms) {
+        ret.emplace_back(sym, true);
+    }
+    return ret;
+}
 {%    elif types[argument.type].type == 'optional' %}
 auto {{ c_type_name }}::{{ argument_name }}() -> {{ argument_type }} {
     clingo_ast_t *ast = nullptr;

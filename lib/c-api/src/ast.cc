@@ -1500,7 +1500,7 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(statement_heuristic, StmHeuristic,
             ATTR(body, body()))
         TYPE(statement_parts, StmParts,
-            ATTR(body, elems())))
+            ATTR(elements, elems())))
     // clang-format on
 }
 

@@ -916,6 +916,7 @@ statement:
   - statement_script
   - statement_include
   - statement_program
+  - statement_parts
   - statement_const
   - statement_comment
 statement_rule:

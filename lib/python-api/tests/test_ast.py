@@ -884,6 +884,23 @@ class TestAST:
         assert s1.precedence == ast.Precedence.Override
         assert str(s1) == "#const x=f(2+3). [override]"
 
+    def test_statement_parts(self):
+        """
+        Test parts statements.
+        """
+        a1 = [parse_term(self.lib, "1"), parse_term(self.lib, "2")]
+        e1 = ast.ProgramPart(self.lib, "base", [])
+        e2 = ast.ProgramPart(self.lib, "step", a1)
+        s1 = ast.StatementParts(self.lib, self.loc, [e1, e2], ast.Precedence.Override)
+        assert s1.location == self.loc
+        assert e1.name == "base"
+        assert not e1.arguments
+        assert e2.name == "step"
+        assert e2.arguments == a1
+        assert s1.precedence == ast.Precedence.Override
+        assert s1.elements == [e1, e2]
+        assert str(s1) == "#parts base,step(1,2). [override]"
+
     def test_statement_comment(self):
         """
         Test const statements.

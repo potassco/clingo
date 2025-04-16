@@ -18,6 +18,9 @@ namespace py = pybind11;
 using StringArray = std::vector<std::string>;
 using StringIterable = Iterable<std::string>;
 
+using SymbolArray = std::vector<Symbol>;
+using SymbolIterable = Iterable<Symbol>;
+
 auto to_string_array(std::vector<char const *> arr) -> StringArray {
     auto res = StringArray();
     res.insert(res.end(), arr.begin(), arr.end());
@@ -38,6 +41,15 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
     ret.reserve(arr.size());
     for (auto const &str : arr) {
         ret.emplace_back(str.c_str());
+    }
+    return ret;
+}
+
+auto c_cast(SymbolArray const &arr) -> std::vector<clingo_symbol_t> {
+    std::vector<clingo_symbol_t> ret;
+    ret.reserve(arr.size());
+    for (auto const &sym : arr) {
+        ret.emplace_back(sym.handle());
     }
     return ret;
 }
