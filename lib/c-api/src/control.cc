@@ -11,12 +11,14 @@
 #include "ast.hh" // IWYU pragma: keep
 #include "control.hh"
 #include "lib.hh"
+#include "opts.hh"
 
 extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *arguments, size_t arguments_size,
                                    clingo_control_t **control) -> clingo_result_t {
     CLINGO_TRY {
         using namespace Potassco::ProgramOptions;
 
+        auto opts = Clingo::CAPI::ClingoOptions{lib->log, *lib->store};
         auto mode = Clingo::Control::AppMode::solve;
         auto grd_cfg = Clingo::Input::RewriteOptions{};
         auto slv_cfg = std::make_unique<Clasp::Cli::ClaspCliConfig>();
@@ -24,6 +26,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
 
         // parse options
         auto ctx = OptionContext{"<libclingo>"};
+        opts.init(ctx);
         auto group_basic = OptionGroup{"Basic Options"};
         group_basic.addOptions() //
             ("mode",
@@ -57,6 +60,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
         }
         auto slv = std::make_unique<Clingo::Control::Solver>(*clasp, *slv_cfg, lib->log, *lib->store, lib->scripts,
                                                              grd_cfg, mode, nullptr);
+        opts.apply(*slv);
         *control = new clingo_control{lib, std::move(slv), std::move(slv_cfg), std::move(clasp)};
     }
     CLINGO_CATCH;

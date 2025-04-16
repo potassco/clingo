@@ -1,5 +1,6 @@
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"     // IWYU pragma: keep
+#include "opts.hh"
 
 #include <clingo/app.h>
 
@@ -144,7 +145,7 @@ class AppAdapter {
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
   public:
     ClingoApp(clingo_lib_t &lib, clingo_application_t *app = nullptr, void *data = nullptr)
-        : ctl_{new clingo_control_t{&lib}}, app_{app, data} {}
+        : ctl_{new clingo_control_t{&lib}}, app_{app, data}, opts_{ctl_->lib->log, *ctl_->lib->store} {}
 
     [[nodiscard]] auto getName() const -> char const * override { return app_.get_name(); }
     [[nodiscard]] auto getVersion() const -> char const * override { return app_.get_version(); }
@@ -171,36 +172,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     void initOptions(Potassco::ProgramOptions::OptionContext &root) override {
         using namespace Potassco::ProgramOptions;
         BaseType::initOptions(root);
-        auto group_grounder = OptionGroup{"Grounder Options"};
-        auto parse_const = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
-            // NOTE: this might use the logger.
-            parser_.init(value, *ctl_->lib->store->string("<const>"));
-            auto def = parser_.parse_const_def();
-            if (def) {
-                const_defs_.emplace_back(*def);
-            }
-            return static_cast<bool>(def);
-        };
-        auto parse_parts = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
-            // NOTE: this might use the logger.
-            parser_.init(value, *ctl_->lib->store->string("<parts>"));
-            parts_ = parser_.parse_program_parts();
-            return static_cast<bool>(parts_);
-        };
-
-        group_grounder.addOptions() //
-            ("const,c", parse(parse_const)->arg("<id>=<term>")->composing(),
-             "Replace term occurrences of <id> with <term>")               //
-            ("parts", parse(parse_parts), "Parse program parts to ground") //
-            ("projection-mode,@1",
-             storeTo(rewrite_opts_.project_mode = ProjectionMode::pure, values<ProjectionMode>({
-                                                                            {"none", ProjectionMode::disabled},
-                                                                            {"anonymous", ProjectionMode::anonymous},
-                                                                            {"pure", ProjectionMode::pure},
-                                                                        })),
-             "Select which variables to project") //
-            ("project-anonymous,@1", flag(rewrite_opts_.project_anonymous = false), "Project anonymous variables");
-        root.add(group_grounder);
+        opts_.init(root);
         auto group_basic = OptionGroup{"Basic Options"};
         group_basic.addOptions() //
             ("mode",
@@ -267,15 +239,10 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                                                ctl_->lib->log,
                                                *ctl_->lib->store,
                                                ctl_->lib->scripts,
-                                               rewrite_opts_,
+                                               opts_.rewrite_options(),
                                                static_cast<AppMode>(mode_),
                                                stdout};
-            for (auto const &[name, value] : const_defs_) {
-                slv.add_const(*name, *value);
-            }
-            if (parts_) {
-                slv.set_parts(std::move(parts_), Precedence::override_);
-            }
+            opts_.apply(slv);
             // NOTE: member for createTextOutput
             ctl_->bind(&slv, &slv.clasp_config(), &slv.clasp_facade());
             if (app_.has_main()) {
@@ -295,14 +262,11 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         void operator()(clingo_control_t *ctl) const { clingo_control_release(ctl); }
     };
 
-    RewriteOptions rewrite_opts_;
     Clingo::LogLevel log_level_ = Clingo::LogLevel::info;
-    std::optional<Clingo::Control::ProgramParamVec> parts_;
-    std::vector<std::pair<Clingo::SharedString, Clingo::SharedSymbol>> const_defs_;
     Mode mode_ = Mode::solve;
     std::unique_ptr<clingo_control_t, release_control> ctl_;
-    Parser parser_{ctl_->lib->log, *ctl_->lib->store};
     AppAdapter app_;
+    Clingo::CAPI::ClingoOptions opts_;
 };
 
 auto map(char const *name, char const *const *args, size_t size) {
