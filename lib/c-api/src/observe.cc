@@ -181,6 +181,7 @@ namespace {
 class SymbolTable {
   public:
     void init(Clingo::Control::BaseView &view, std::ostream &out) {
+        buf_.clear();
         view_ = &view;
         out_ = &out;
     }
@@ -232,7 +233,7 @@ class SymbolTable {
                 }
                 case Clingo::SymbolType::tuple: {
                     auto args = sym.args();
-                    buf_.clear();
+                    auto size = static_cast<ssize_t>(buf_.size());
                     for (auto const &arg : args) {
                         buf_.push_back(output(arg).index);
                     }
@@ -240,15 +241,16 @@ class SymbolTable {
                     it = done_.find(sym);
                     auto id = it.value().index = ids_++;
                     *out_ << "4 4 " << id << " " << buf_.size();
-                    for (auto const &arg : buf_) {
+                    for (auto const &arg : std::span{buf_.begin() + size, buf_.end()}) {
                         *out_ << " " << arg;
                     }
+                    buf_.resize(size);
                     *out_ << "\n";
                     break;
                 }
                 case Clingo::SymbolType::function: {
                     auto args = sym.args();
-                    buf_.clear();
+                    auto size = static_cast<ssize_t>(buf_.size());
                     // NOTE: conversion from string to symbol is fast
                     size_t name = output(Clingo::SymbolStore::str_ref(sym.name())).index;
                     for (auto const &arg : args) {
@@ -262,6 +264,7 @@ class SymbolTable {
                     for (auto const &arg : buf_) {
                         *out_ << " " << arg;
                     }
+                    buf_.resize(size);
                     *out_ << "\n";
                     break;
                 }
