@@ -24,6 +24,7 @@ enum clingo_write_aspif_mode_e {
     clingo_write_aspif_mode_preamble_auto = 2, //!< Write preamble for newly created files.
     clingo_write_aspif_mode_append = 4,        //!< Append to an existing file (or create it).
     clingo_write_aspif_mode_preprocess = 8,    //!< Whether to preprocess the program before writing.
+    clingo_write_aspif_mode_symbols = 16,      //!< Whether to write symbols in a structured format.
 };
 //! Corresponding type to ::clingo_write_aspif_mode_e.
 using clingo_write_aspif_mode_t = unsigned;

@@ -174,6 +174,129 @@ extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observe
     CLINGO_CATCH;
 }
 
+namespace {
+
+// TODO: this is most likely going to be stored in the control object and created on demand
+
+class SymbolTable {
+  public:
+    void init(Clingo::Control::BaseView &view, std::ostream &out) {
+        view_ = &view;
+        out_ = &out;
+    }
+    void output() {
+        for (auto const &[sig, base] : view_->bases().atoms()) {
+            for (size_t i = 0, e = base->size(); i != e; ++i) {
+                auto it = base->nth(i);
+                auto &state = output(it.key());
+                if (state.atom == 0) {
+                    state.atom = true;
+                    *out_ << "4 0 " << state.index << " " << it.value().id << "\n";
+                }
+            }
+        }
+        // TODO: the term base must be output as well
+    }
+
+  private:
+    struct State {
+        State() = default;
+        size_t atom : 1 = 0;
+        size_t index : sizeof(size_t) - 1 = 0;
+    };
+
+    auto output(Clingo::Symbol const &sym) -> State & {
+        auto [it, ins] = done_.try_emplace(sym);
+        if (ins) {
+            switch (sym.type()) {
+                case Clingo::SymbolType::inf: {
+                    auto id = it.value().index = ids_++;
+                    *out_ << "4 1 " << id << " 0\n";
+                    break;
+                }
+                case Clingo::SymbolType::sup: {
+                    auto id = it.value().index = ids_++;
+                    *out_ << "4 1 " << id << " 1" << "\n";
+                    break;
+                }
+                case Clingo::SymbolType::number: {
+                    auto id = it.value().index = ids_++;
+                    *out_ << "4 2 " << id << " " << sym.num() << "\n";
+                    break;
+                }
+                case Clingo::SymbolType::string: {
+                    auto id = it.value().index = ids_++;
+                    auto str = sym.str().view();
+                    *out_ << "4 3 " << id << " " << str.size() << " " << str << "\n";
+                    break;
+                }
+                case Clingo::SymbolType::tuple: {
+                    auto args = sym.args();
+                    buf_.clear();
+                    for (auto const &arg : args) {
+                        buf_.push_back(output(arg).index);
+                    }
+                    // NOTE: the iterator might have been invalidated above
+                    it = done_.find(sym);
+                    auto id = it.value().index = ids_++;
+                    *out_ << "4 4 " << id << " " << buf_.size();
+                    for (auto const &arg : buf_) {
+                        *out_ << " " << arg;
+                    }
+                    *out_ << "\n";
+                    break;
+                }
+                case Clingo::SymbolType::function: {
+                    auto args = sym.args();
+                    buf_.clear();
+                    // NOTE: conversion from string to symbol is fast
+                    size_t name = output(Clingo::SymbolStore::str_ref(sym.name())).index;
+                    for (auto const &arg : args) {
+                        buf_.push_back(output(arg).index);
+                    }
+                    // NOTE: the iterator might have been invalidated above
+                    it = done_.find(sym);
+                    auto id = it.value().index = ids_++;
+                    *out_ << "4 5 " << id << " " << (sym.has_classical_sign() ? 1 : 0) << " " << name << " "
+                          << buf_.size();
+                    for (auto const &arg : buf_) {
+                        *out_ << " " << arg;
+                    }
+                    *out_ << "\n";
+                    break;
+                }
+            }
+        }
+        return it.value();
+    }
+
+    Clingo::Control::BaseView *view_ = nullptr;
+    std::ostream *out_ = nullptr;
+    size_t ids_ = 0;
+    std::vector<size_t> buf_;
+    Clingo::Util::unordered_map<Clingo::SharedSymbol, State> done_;
+};
+
+class ExtendedAspifWriter : public Potassco::AspifOutput {
+  public:
+    ExtendedAspifWriter(SymbolTable &sym_tab, Clingo::Control::BaseView &view, std::ostream &out)
+        : Potassco::AspifOutput{out}, sym_tab_{&sym_tab} {
+        sym_tab_->init(view, out);
+    }
+    //! Disable output table.
+    void output([[maybe_unused]] std::string_view str, [[maybe_unused]] Potassco::LitSpan cond) override {}
+    //! Write output table before the end step directive.
+    void endStep() override {
+        sym_tab_->output();
+        Potassco::AspifOutput::endStep();
+    }
+
+  private:
+    SymbolTable *sym_tab_;
+};
+
+} // namespace
+
 extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const *path, clingo_write_aspif_mode_t mode)
     -> clingo_result_t {
     CLINGO_TRY {
@@ -192,12 +315,21 @@ extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const
         }
         auto out = std::ofstream{path, app ? std::ios::app : std::ios::out};
         out.exceptions(std::ios::failbit | std::ios::badbit);
-        auto obs = Potassco::AspifOutput{out};
-        prg.accept(obs, pre);
-        // Clingo's aspif reader requires all programs to be zero terminated.
-        // Thus, we call endStep here.
-        if (!pre) {
-            obs.endStep();
+        if ((mode & clingo_write_aspif_mode_symbols) != 0) {
+            auto sym_tab = SymbolTable{};
+            auto obs = ExtendedAspifWriter{sym_tab, *control->slv, out};
+            prg.accept(obs, pre);
+            if (!pre) {
+                obs.endStep();
+            }
+        } else {
+            auto obs = Potassco::AspifOutput{out};
+            prg.accept(obs, pre);
+            // Clingo's aspif reader requires all programs to be zero terminated.
+            // Thus, we call endStep here.
+            if (!pre) {
+                obs.endStep();
+            }
         }
     }
     CLINGO_CATCH;

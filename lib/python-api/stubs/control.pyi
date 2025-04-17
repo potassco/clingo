@@ -286,6 +286,7 @@ class Control:
     def write_aspif(
         self,
         path: str,
+        symbols: bool = False,
         append: bool = False,
         preamble: bool | None = None,
         preprocess: bool = True,
