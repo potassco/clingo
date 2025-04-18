@@ -20,7 +20,6 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
 
         auto opts = Clingo::CAPI::ClingoOptions{lib->log, *lib->store};
         auto mode = Clingo::Control::AppMode::solve;
-        auto grd_cfg = Clingo::Input::RewriteOptions{};
         auto slv_cfg = std::make_unique<Clasp::Cli::ClaspCliConfig>();
         auto clasp = std::make_unique<Clasp::ClaspFacade>();
 
@@ -59,7 +58,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
             clasp->startAsp(*slv_cfg, true);
         }
         auto slv = std::make_unique<Clingo::Control::Solver>(*clasp, *slv_cfg, lib->log, *lib->store, lib->scripts,
-                                                             grd_cfg, mode, nullptr);
+                                                             opts.rewrite_options(), mode, nullptr);
         opts.apply(*slv);
         *control = new clingo_control{lib, std::move(slv), std::move(slv_cfg), std::move(clasp)};
     }
