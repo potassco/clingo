@@ -117,6 +117,17 @@ class AspifParser {
     static constexpr unsigned max_theory_type = 6;
     static constexpr int max_theory_compound_type = 3;
     static constexpr unsigned max_statement_type = 10;
+    enum class OutputType : uint8_t {
+        atom = 0,
+        term = 1,
+        term_inf = 2,
+        term_sup = 3,
+        term_num = 4,
+        term_str = 5,
+        term_tup = 6,
+        term_fun = 7,
+    };
+    static constexpr unsigned max_output_type = 8;
 
     template <class... T> auto expect_(T... tokens) -> AspifToken {
         auto token = state_->lex_aspif();
@@ -163,13 +174,13 @@ class AspifParser {
 
     auto expect_atoms_() -> PrgLitVec {
         auto m = expect_unsigned_();
-        auto body = PrgLitVec{};
-        body.reserve(m);
+        auto atoms = PrgLitVec{};
+        atoms.reserve(m);
         for (unsigned i = 0; i < m; ++i) {
             expect_(AspifToken::space);
-            body.emplace_back(expect_unsigned_());
+            atoms.emplace_back(expect_unsigned_());
         }
-        return body;
+        return atoms;
     }
 
     auto expect_ids_() -> PrgIdVec {
@@ -308,6 +319,68 @@ class AspifParser {
             state_->prg_backend()->show_atom(*sym.value(), body.front());
         } else {
             state_->prg_backend()->show(*sym.value(), body);
+        }
+    }
+
+    auto output_type_() -> OutputType {
+        auto ot = expect_unsigned_();
+        if (ot > max_output_type) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected output type `" << ot << "`";
+            throw aspif_error{};
+        }
+        return static_cast<OutputType>(ot);
+    }
+
+    void output_symbols_() {
+        auto type = output_type_();
+        expect_(AspifToken::space);
+        auto sym_id = expect_unsigned_();
+        expect_(AspifToken::space);
+        auto add = [this, sym_id]<class T>(T &&sym) {
+            if (sym_id < symbols_.size()) {
+                symbols_[sym_id] = SharedSymbol{std::forward<T>(sym)};
+            } else {
+                while (symbols_.size() <= sym_id) {
+                    symbols_.emplace_back();
+                }
+                symbols_.emplace_back(std::forward<T>(sym));
+            }
+        };
+        switch (type) {
+            case OutputType::atom: {
+                auto sym = symbols_.at(sym_id);
+                auto lit = expect_unsigned_();
+                state_->prg_backend()->show_atom(*sym, static_cast<prg_lit_t>(lit));
+                break;
+            }
+            case OutputType::term: {
+                auto sym = symbols_.at(sym_id);
+                auto body = expect_lits_();
+                state_->prg_backend()->show(*sym, body);
+                break;
+            }
+            case OutputType::term_inf: {
+                add(SymbolStore::inf());
+                break;
+            }
+            case OutputType::term_sup: {
+                add(SymbolStore::sup());
+                break;
+            }
+            case OutputType::term_str: {
+                auto str = expect_nstr_();
+                add(SymbolStore::str(state_->store().string(str)));
+                break;
+            }
+            case OutputType::term_num: {
+                throw std::logic_error("implement me: term num");
+            }
+            case OutputType::term_tup: {
+                throw std::logic_error("implement me: turm tup");
+            }
+            case OutputType::term_fun: {
+                throw std::logic_error("implement me: term fun");
+            }
         }
     }
 
@@ -482,7 +555,11 @@ class AspifParser {
                 break;
             }
             case StatementType::output: {
-                output_();
+                if (symbol_) {
+                    output_symbols_();
+                } else {
+                    output_();
+                }
                 break;
             }
             case StatementType::external: {
@@ -516,6 +593,7 @@ class AspifParser {
     ParserState *state_;
     ParserState state_symbol_{state_->log(), state_->store()};
     SharedString str_symbol_{*state_->store().string("symbol")};
+    SharedSymbolVec symbols_;
     bool symbol_ = false;
 };
 

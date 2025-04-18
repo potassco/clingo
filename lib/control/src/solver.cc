@@ -912,7 +912,8 @@ void SymbolTable::output() {
     auto terms = view_->term_base();
     for (auto it = terms.nth(terms_done_), ie = terms.end(); it != ie; ++it) {
         auto id = output(*it.key()).index;
-        *out_ << "4 1 " << id << " " << it.value() << "\n";
+        static_cast<void>(id);
+        throw std::runtime_error("need id condition mapping here!!!");
     }
     terms_done_ = terms.size();
 }
@@ -923,23 +924,23 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
         switch (sym.type()) {
             case Clingo::SymbolType::inf: {
                 auto id = it.value().index = ids_++;
-                *out_ << "4 3 " << id << " 0\n";
+                *out_ << "4 2 " << id << " 0\n";
                 break;
             }
             case Clingo::SymbolType::sup: {
                 auto id = it.value().index = ids_++;
-                *out_ << "4 4 " << id << " 1" << "\n";
+                *out_ << "4 3 " << id << " 1" << "\n";
                 break;
             }
             case Clingo::SymbolType::number: {
                 auto id = it.value().index = ids_++;
-                *out_ << "4 5 " << id << " " << sym.num() << "\n";
+                *out_ << "4 4 " << id << " " << sym.num() << "\n";
                 break;
             }
             case Clingo::SymbolType::string: {
                 auto id = it.value().index = ids_++;
                 auto str = sym.str().view();
-                *out_ << "4 6 " << id << " " << str.size() << " " << str << "\n";
+                *out_ << "4 5 " << id << " " << str.size() << " " << str << "\n";
                 break;
             }
             case Clingo::SymbolType::tuple: {
@@ -951,7 +952,7 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
                 // NOTE: the iterator might have been invalidated above
                 it = done_.find(sym);
                 auto id = it.value().index = ids_++;
-                *out_ << "4 7 " << id << " " << buf_.size();
+                *out_ << "4 6 " << id << " " << buf_.size();
                 for (auto const &arg : std::span{buf_.begin() + size, buf_.end()}) {
                     *out_ << " " << arg;
                 }
@@ -970,7 +971,7 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
                 // NOTE: the iterator might have been invalidated above
                 it = done_.find(sym);
                 auto id = it.value().index = ids_++;
-                *out_ << "4 8 " << id << " " << (sym.has_classical_sign() ? 1 : 0) << " " << name << " " << buf_.size();
+                *out_ << "4 7 " << id << " " << (sym.has_classical_sign() ? 1 : 0) << " " << name << " " << buf_.size();
                 for (auto const &arg : buf_) {
                     *out_ << " " << arg;
                 }
