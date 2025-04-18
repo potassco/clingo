@@ -8,8 +8,6 @@
 
 #include <clingo/control.h>
 
-#include <forward_list>
-
 struct clingo_control {
     //! Construct a control object that is bound later.
     //!

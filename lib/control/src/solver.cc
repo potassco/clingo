@@ -892,6 +892,92 @@ void Scripts::do_call(Location const &loc, std::string_view name, SymbolSpan arg
     }
 }
 
+void SymbolTable::init(Clingo::Control::BaseView &view, std::ostream &out) {
+    buf_.clear();
+    view_ = &view;
+    out_ = &out;
+}
+
+void SymbolTable::output() {
+    for (auto const &[sig, base] : view_->bases().atoms()) {
+        for (size_t i = 0, e = base->size(); i != e; ++i) {
+            auto it = base->nth(i);
+            auto &state = output(it.key());
+            if (state.atom == 0) {
+                state.atom = true;
+                *out_ << "4 0 " << state.index << " " << it.value().id << "\n";
+            }
+        }
+    }
+    // TODO: the term base must be output as well
+}
+
+auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
+    auto [it, ins] = done_.try_emplace(sym);
+    if (ins) {
+        switch (sym.type()) {
+            case Clingo::SymbolType::inf: {
+                auto id = it.value().index = ids_++;
+                *out_ << "4 1 " << id << " 0\n";
+                break;
+            }
+            case Clingo::SymbolType::sup: {
+                auto id = it.value().index = ids_++;
+                *out_ << "4 1 " << id << " 1" << "\n";
+                break;
+            }
+            case Clingo::SymbolType::number: {
+                auto id = it.value().index = ids_++;
+                *out_ << "4 2 " << id << " " << sym.num() << "\n";
+                break;
+            }
+            case Clingo::SymbolType::string: {
+                auto id = it.value().index = ids_++;
+                auto str = sym.str().view();
+                *out_ << "4 3 " << id << " " << str.size() << " " << str << "\n";
+                break;
+            }
+            case Clingo::SymbolType::tuple: {
+                auto args = sym.args();
+                auto size = static_cast<ssize_t>(buf_.size());
+                for (auto const &arg : args) {
+                    buf_.push_back(output(arg).index);
+                }
+                // NOTE: the iterator might have been invalidated above
+                it = done_.find(sym);
+                auto id = it.value().index = ids_++;
+                *out_ << "4 4 " << id << " " << buf_.size();
+                for (auto const &arg : std::span{buf_.begin() + size, buf_.end()}) {
+                    *out_ << " " << arg;
+                }
+                buf_.resize(size);
+                *out_ << "\n";
+                break;
+            }
+            case Clingo::SymbolType::function: {
+                auto args = sym.args();
+                auto size = static_cast<ssize_t>(buf_.size());
+                // NOTE: conversion from string to symbol is fast
+                size_t name = output(Clingo::SymbolStore::str_ref(sym.name())).index;
+                for (auto const &arg : args) {
+                    buf_.push_back(output(arg).index);
+                }
+                // NOTE: the iterator might have been invalidated above
+                it = done_.find(sym);
+                auto id = it.value().index = ids_++;
+                *out_ << "4 5 " << id << " " << (sym.has_classical_sign() ? 1 : 0) << " " << name << " " << buf_.size();
+                for (auto const &arg : buf_) {
+                    *out_ << " " << arg;
+                }
+                buf_.resize(size);
+                *out_ << "\n";
+                break;
+            }
+        }
+    }
+    return it.value();
+}
+
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
                Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
     : clasp_{&clasp}, clasp_config_{&clasp_config}, buf_{out}, out_{make_output_(store, mode)},

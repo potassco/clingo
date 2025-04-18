@@ -440,6 +440,34 @@ template <class M> class unlock_guard {
     M *mut_;
 };
 
+//! Helper to output symbols.
+class SymbolTable {
+  public:
+    //! Initialize the table before output.
+    void init(Clingo::Control::BaseView &view, std::ostream &out);
+    //! Output symbols in aspif format.
+    void output();
+    //! Get the underlying output stream.
+    auto out() -> std::ostream & { return *out_; }
+
+  private:
+    struct State {
+        State() = default;
+        size_t atom : 1 = 0;
+        size_t index : sizeof(size_t) - 1 = 0;
+    };
+
+    auto output(Clingo::Symbol const &sym) -> State &;
+
+    Clingo::Control::BaseView *view_ = nullptr;
+    std::ostream *out_ = nullptr;
+    size_t ids_ = 0;
+    std::vector<size_t> buf_;
+    Clingo::Util::unordered_map<Clingo::SharedSymbol, State> done_;
+};
+//! A unique pointer to a symbol table.
+using USymbolTable = std::unique_ptr<SymbolTable>;
+
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
@@ -541,6 +569,14 @@ class Solver : public BaseView {
         grd_.set_parts(std::move(parts), prec);
     }
 
+    //! Get the symbol table.
+    auto sym_tab() -> SymbolTable & {
+        if (!sym_tab_) {
+            sym_tab_ = std::make_unique<SymbolTable>();
+        }
+        return *sym_tab_;
+    }
+
   private:
     class ProgramBackendAdapter;
 
@@ -593,6 +629,7 @@ class Solver : public BaseView {
     std::unique_ptr<Output::TheoryData> theory_;
     UOutputStm out_;
     UModel mdl_;
+    USymbolTable sym_tab_;
     Grounder grd_;
     Scripts *scripts_;
     State state_ = State::initial;
