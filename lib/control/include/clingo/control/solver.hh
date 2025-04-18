@@ -462,6 +462,7 @@ class SymbolTable {
     Clingo::Control::BaseView *view_ = nullptr;
     std::ostream *out_ = nullptr;
     size_t ids_ = 0;
+    size_t terms_done_ = 0;
     std::vector<size_t> buf_;
     Clingo::Util::unordered_map<Clingo::SharedSymbol, State> done_;
 };

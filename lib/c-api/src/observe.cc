@@ -190,6 +190,10 @@ class ExtendedAspifWriter : public Potassco::AspifOutput {
         sym_tab_->out() << " symbols\n";
     }
 
+    // TODO: The symbol -> id mapping is handled by the symbol table. The
+    // conditions should be handled here, once the abstract program provides
+    // the necessary interfaces.
+
     //! Disable output table.
     void output([[maybe_unused]] std::string_view str, [[maybe_unused]] Potassco::LitSpan cond) override {}
     //! Write output table before the end step directive.
@@ -223,7 +227,6 @@ extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const
         auto out = std::ofstream{path, app ? std::ios::app : std::ios::out};
         out.exceptions(std::ios::failbit | std::ios::badbit);
         if ((mode & clingo_write_aspif_mode_symbols) != 0) {
-            // TODO: the symbol table has to persist
             auto obs = ExtendedAspifWriter{control->slv->sym_tab(), *control->slv, out};
             prg.accept(obs, pre);
             if (!pre) {
