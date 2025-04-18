@@ -340,7 +340,7 @@ class AspifParser {
             if (sym_id < symbols_.size()) {
                 symbols_[sym_id] = SharedSymbol{std::forward<T>(sym)};
             } else {
-                while (symbols_.size() <= sym_id) {
+                while (symbols_.size() < sym_id) {
                     symbols_.emplace_back();
                 }
                 symbols_.emplace_back(std::forward<T>(sym));
@@ -373,13 +373,33 @@ class AspifParser {
                 break;
             }
             case OutputType::term_num: {
-                throw std::logic_error("implement me: term num");
+                expect_(AspifToken::num_pos, AspifToken::num_neg);
+                // NOTE: add a string_view constructor to number
+                add(state_->store().num(Number(std::string{state_->view()}.c_str())));
+                break;
             }
             case OutputType::term_tup: {
-                throw std::logic_error("implement me: turm tup");
+                auto ids = expect_ids_();
+                // NOTE: allocation avoidable
+                auto args = SymbolVec{};
+                for (auto id : ids) {
+                    args.emplace_back(*symbols_.at(id));
+                }
+                add(state_->store().tup(args));
             }
             case OutputType::term_fun: {
-                throw std::logic_error("implement me: term fun");
+                auto sign = expect_unsigned_();
+                expect_(AspifToken::space);
+                auto name = symbols_.at(expect_unsigned_());
+                expect_(AspifToken::space);
+                auto ids = expect_ids_();
+                // NOTE: allocation avoidable
+                auto args = SymbolVec{};
+                for (auto id : ids) {
+                    args.emplace_back(*symbols_.at(id));
+                }
+                add(state_->store().fun(name->str(), args, sign == 1));
+                break;
             }
         }
     }
