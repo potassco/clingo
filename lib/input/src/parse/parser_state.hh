@@ -97,6 +97,7 @@ enum class AspifToken : uint8_t {
     num_pos,
     num_neg,
     incremental,
+    symbols,
 };
 
 #include "parse/lexer_impl_h.hh"

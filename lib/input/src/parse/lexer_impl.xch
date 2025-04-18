@@ -173,6 +173,7 @@ auto ParserState::lex_aspif() -> AspifToken {
         <program> "-" DEC              { return AspifToken::num_neg; }
         <program> SP                   { return AspifToken::space; }
         <program> "incremental"        { return AspifToken::incremental; }
+        <program> "symbols"            { return AspifToken::symbols; }
         <program> NL                   { return AspifToken::newline; }
         <program> NULL                 { return state_.end(YYMAXFILL) ? AspifToken::end : AspifToken::error; }
         <program> *                    { return AspifToken::error; }

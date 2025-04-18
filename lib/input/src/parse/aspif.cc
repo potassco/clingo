@@ -21,6 +21,9 @@ auto operator<<(std::ostream &out, AspifToken token) -> std::ostream & {
         case AspifToken::incremental: {
             return out << "<incremental>";
         }
+        case AspifToken::symbols: {
+            return out << "<symbols>";
+        }
         case AspifToken::newline: {
             return out << "<newline>";
         }
@@ -222,10 +225,20 @@ class AspifParser {
         expect_(AspifToken::space);
         auto revision = expect_unsigned_();
         bool incremental = false;
-        if (expect_(AspifToken::newline, AspifToken::space) == AspifToken::space) {
-            incremental = true;
-            expect_(AspifToken::incremental);
-            expect_(AspifToken::newline);
+        while (expect_(AspifToken::newline, AspifToken::space) == AspifToken::space) {
+            switch (expect_(AspifToken::incremental, AspifToken::symbols)) {
+                case AspifToken::incremental: {
+                    incremental = true;
+                    break;
+                }
+                case AspifToken::symbols: {
+                    symbol_ = true;
+                    break;
+                }
+                default: {
+                    Util::unreachable();
+                }
+            }
         }
         state_->prg_backend()->preamble(major, minor, revision, incremental);
     }
@@ -278,6 +291,9 @@ class AspifParser {
     void project_() { state_->prg_backend()->project(expect_atoms_()); }
 
     void output_() {
+        if (symbol_) {
+            throw std::logic_error("implement me: extended output");
+        }
         state_symbol_.init(expect_nstr_(), *str_symbol_);
         state_symbol_.consume();
         auto sym = parse_symbol(state_symbol_);
@@ -500,6 +516,7 @@ class AspifParser {
     ParserState *state_;
     ParserState state_symbol_{state_->log(), state_->store()};
     SharedString str_symbol_{*state_->store().string("symbol")};
+    bool symbol_ = false;
 };
 
 } // namespace
