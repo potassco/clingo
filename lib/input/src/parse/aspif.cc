@@ -120,12 +120,11 @@ class AspifParser {
     enum class OutputType : uint8_t {
         atom = 0,
         term = 1,
-        term_inf = 2,
-        term_sup = 3,
-        term_num = 4,
-        term_str = 5,
-        term_tup = 6,
-        term_fun = 7,
+        term_ext = 2,
+        term_num = 3,
+        term_str = 4,
+        term_tup = 5,
+        term_fun = 6,
     };
     static constexpr unsigned max_output_type = 8;
 
@@ -359,12 +358,10 @@ class AspifParser {
                 state_->prg_backend()->show(*sym, body);
                 break;
             }
-            case OutputType::term_inf: {
-                add(SymbolStore::inf());
-                break;
-            }
-            case OutputType::term_sup: {
-                add(SymbolStore::sup());
+            case OutputType::term_ext: {
+                // TODO: check!
+                auto type = expect_unsigned_();
+                add(type == 0 ? SymbolStore::inf() : SymbolStore::sup());
                 break;
             }
             case OutputType::term_str: {
@@ -386,8 +383,10 @@ class AspifParser {
                     args.emplace_back(*symbols_.at(id));
                 }
                 add(state_->store().tup(args));
+                break;
             }
             case OutputType::term_fun: {
+                // TODO: check!
                 auto sign = expect_unsigned_();
                 expect_(AspifToken::space);
                 auto name = symbols_.at(expect_unsigned_());

@@ -929,18 +929,18 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
             }
             case Clingo::SymbolType::sup: {
                 auto id = it.value().index = ids_++;
-                *out_ << "4 3 " << id << " 1" << "\n";
+                *out_ << "4 2 " << id << " 1" << "\n";
                 break;
             }
             case Clingo::SymbolType::number: {
                 auto id = it.value().index = ids_++;
-                *out_ << "4 4 " << id << " " << sym.num() << "\n";
+                *out_ << "4 3 " << id << " " << sym.num() << "\n";
                 break;
             }
             case Clingo::SymbolType::string: {
                 auto id = it.value().index = ids_++;
                 auto str = sym.str().view();
-                *out_ << "4 5 " << id << " " << str.size() << " " << str << "\n";
+                *out_ << "4 4 " << id << " " << str.size() << " " << str << "\n";
                 break;
             }
             case Clingo::SymbolType::tuple: {
@@ -952,7 +952,7 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
                 // NOTE: the iterator might have been invalidated above
                 it = done_.find(sym);
                 auto id = it.value().index = ids_++;
-                *out_ << "4 6 " << id << " " << buf_.size();
+                *out_ << "4 5 " << id << " " << args.size();
                 for (auto const &arg : std::span{buf_.begin() + size, buf_.end()}) {
                     *out_ << " " << arg;
                 }
@@ -971,8 +971,8 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
                 // NOTE: the iterator might have been invalidated above
                 it = done_.find(sym);
                 auto id = it.value().index = ids_++;
-                *out_ << "4 7 " << id << " " << (sym.has_classical_sign() ? 1 : 0) << " " << name << " " << buf_.size();
-                for (auto const &arg : buf_) {
+                *out_ << "4 6 " << id << " " << (sym.has_classical_sign() ? 1 : 0) << " " << name << " " << args.size();
+                for (auto const &arg : std::span{buf_.begin() + size, buf_.end()}) {
                     *out_ << " " << arg;
                 }
                 buf_.resize(size);

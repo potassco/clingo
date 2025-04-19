@@ -146,7 +146,7 @@ auto ParserState::lex_str(size_t n) -> AspifToken {
     state_.start();
     for (; n > 0; --n) {
         /*!re2c
-        <program> [^\r\n\000]          { continue; }
+        <program> [^\000]              { continue; }
         <program> NULL                 { return state_.end(YYMAXFILL) ? AspifToken::end : AspifToken::error; }
         <program> *                    { return AspifToken::error; }
         */

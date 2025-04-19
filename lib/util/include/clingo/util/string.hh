@@ -13,6 +13,11 @@ void quote(std::string_view in, auto out) {
                 *out++ = 'n';
                 break;
             }
+            case '\t': {
+                *out++ = '\\';
+                *out++ = 't';
+                break;
+            }
             case '\\': {
                 *out++ = '\\';
                 *out++ = '\\';
@@ -37,6 +42,10 @@ void unquote(std::string_view in, auto out) {
             switch (c) {
                 case 'n': {
                     *out++ = '\n';
+                    break;
+                }
+                case 't': {
+                    *out++ = '\t';
                     break;
                 }
                 case '\\': {

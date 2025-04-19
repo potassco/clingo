@@ -62,8 +62,9 @@ class TestSymbol:
         """
         Test string symbols.
         """
-        val = "sh2354nshoeuinsh"
+        val = 'sh2354n\nshoeu"insh'
         assert String(self.lib, val).string == val
+        assert str(String(self.lib, val)) == '"sh2354n\\nshoeu\\"insh"'
 
     def test_tuple(self):
         """
