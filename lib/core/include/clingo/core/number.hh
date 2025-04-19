@@ -30,6 +30,8 @@ class Number {
     Number(int32_t value) noexcept;
     //! Construct a number from a string.
     Number(char const *str, Base base = Base::dec);
+    //! Construct a number from a string.
+    Number(std::string_view str, Base base = Base::dec);
 
     //! Copy construct a number.
     Number(Number const &other);

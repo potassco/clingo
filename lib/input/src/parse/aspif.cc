@@ -334,7 +334,6 @@ class AspifParser {
         auto type = output_type_();
         expect_(AspifToken::space);
         auto sym_id = expect_unsigned_();
-        expect_(AspifToken::space);
         auto add = [this, sym_id]<class T>(T &&sym) {
             if (sym_id < symbols_.size()) {
                 symbols_[sym_id] = SharedSymbol{std::forward<T>(sym)};
@@ -342,62 +341,86 @@ class AspifParser {
                 while (symbols_.size() < sym_id) {
                     symbols_.emplace_back();
                 }
+                assert(symbols_.size() == sym_id);
                 symbols_.emplace_back(std::forward<T>(sym));
             }
         };
+        auto get = [this](unsigned id) {
+            if (id < symbols_.size()) {
+                return symbols_.at(id);
+            }
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unknown symbol id `" << id << "`";
+            throw aspif_error{};
+        };
         switch (type) {
             case OutputType::atom: {
-                auto sym = symbols_.at(sym_id);
+                auto sym = get(sym_id);
+                expect_(AspifToken::space);
                 auto lit = expect_unsigned_();
                 state_->prg_backend()->show_atom(*sym, static_cast<prg_lit_t>(lit));
                 break;
             }
             case OutputType::term: {
-                auto sym = symbols_.at(sym_id);
+                auto sym = get(sym_id);
+                expect_(AspifToken::space);
                 auto body = expect_lits_();
                 state_->prg_backend()->show(*sym, body);
                 break;
             }
             case OutputType::term_ext: {
-                // TODO: check!
+                expect_(AspifToken::space);
                 auto type = expect_unsigned_();
+                if (type > 1) {
+                    GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "expected inf or sup `" << type << "`";
+                    throw aspif_error{};
+                }
                 add(type == 0 ? SymbolStore::inf() : SymbolStore::sup());
                 break;
             }
             case OutputType::term_str: {
+                expect_(AspifToken::space);
                 auto str = expect_nstr_();
                 add(SymbolStore::str(state_->store().string(str)));
                 break;
             }
             case OutputType::term_num: {
+                expect_(AspifToken::space);
                 expect_(AspifToken::num_pos, AspifToken::num_neg);
-                // NOTE: add a string_view constructor to number
-                add(state_->store().num(Number(std::string{state_->view()}.c_str())));
+                add(state_->store().num(Number(state_->view())));
                 break;
             }
             case OutputType::term_tup: {
+                expect_(AspifToken::space);
                 auto ids = expect_ids_();
-                // NOTE: allocation avoidable
-                auto args = SymbolVec{};
+                buf_.clear();
                 for (auto id : ids) {
-                    args.emplace_back(*symbols_.at(id));
+                    buf_.emplace_back(*get(id));
                 }
-                add(state_->store().tup(args));
+                add(state_->store().tup(buf_));
                 break;
             }
             case OutputType::term_fun: {
-                // TODO: check!
-                auto sign = expect_unsigned_();
                 expect_(AspifToken::space);
-                auto name = symbols_.at(expect_unsigned_());
+                auto sign = expect_unsigned_();
+                if (sign > 1) {
+                    GRINGO_REPORT_LOC(state_->log(), error, state_->loc())
+                        << "expected classical sign `" << sign << "`";
+                    throw aspif_error{};
+                }
+                expect_(AspifToken::space);
+                auto name = get(expect_unsigned_());
+                if (name->type() != SymbolType::string) {
+                    GRINGO_REPORT_LOC(state_->log(), error, state_->loc())
+                        << "expected string instead of `" << *name << "`";
+                    throw aspif_error{};
+                }
                 expect_(AspifToken::space);
                 auto ids = expect_ids_();
-                // NOTE: allocation avoidable
-                auto args = SymbolVec{};
+                buf_.clear();
                 for (auto id : ids) {
-                    args.emplace_back(*symbols_.at(id));
+                    buf_.emplace_back(*get(id));
                 }
-                add(state_->store().fun(name->str(), args, sign == 1));
+                add(state_->store().fun(name->str(), buf_, sign == 1));
                 break;
             }
         }
@@ -613,6 +636,7 @@ class AspifParser {
     ParserState state_symbol_{state_->log(), state_->store()};
     SharedString str_symbol_{*state_->store().string("symbol")};
     SharedSymbolVec symbols_;
+    SymbolVec buf_;
     bool symbol_ = false;
 };
 

@@ -454,7 +454,7 @@ class SymbolTable {
     struct State {
         State() = default;
         size_t atom : 1 = 0;
-        size_t index : sizeof(size_t) - 1 = 0;
+        size_t index : (8 * sizeof(size_t)) - 1 = 0;
     };
 
     auto output(Clingo::Symbol const &sym) -> State &;

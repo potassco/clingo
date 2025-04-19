@@ -39,7 +39,7 @@ auto repr_to_bigint(uint64_t repr) -> mp_int_ref {
     return reinterpret_cast<mp_int_ref>(static_cast<uintptr_t>(repr & ~BIGINT_MASK));
 }
 
-auto int_to_repr(int num) -> uint64_t {
+auto int_to_repr(int32_t num) -> uint64_t {
     return static_cast<uint64_t>(num) << 32;
 }
 
@@ -549,13 +549,50 @@ Number::Number(uint64_t repr) : repr_{repr} {
 Number::Number(int32_t value) noexcept : repr_{int_to_repr(value)} {
 }
 
-Number::Number(char const *str, Base base) : repr_{0} {
+namespace {
+
+auto parse_big(char const *str, Base base) {
     mp_int_ptr z;
     auto res = mp_int_read_string(z, static_cast<mp_size>(base), str);
     if (res != MP_OK) {
         throw std::runtime_error(mp_error_string(res));
     }
-    repr_ = z.release_repr();
+    return z.release_repr();
+}
+
+auto parse_small(char const *str, char const *end, int32_t &num, Base base) {
+    auto [ptr, ec] = std::from_chars(str, end, num, static_cast<int>(base));
+    return ec == std::errc() && ptr == end;
+}
+
+auto parse_num(char const *str, Base base) {
+    int32_t num = 0;
+    // NOLINTBEGIN
+    auto const *end = str + strlen(str);
+    if (parse_small(str, end, num, base)) {
+        return int_to_repr(num);
+    }
+    // NOLINTEND
+    return parse_big(std::string{str}.c_str(), base);
+}
+
+auto parse_num(std::string_view str, Base base) {
+    int32_t num = 0;
+    // NOLINTBEGIN
+    auto const *end = str.data() + str.size();
+    if (parse_small(str.data(), end, num, base)) {
+        return int_to_repr(num);
+    }
+    // NOLINTEND
+    return parse_big(std::string{str}.c_str(), base);
+}
+
+} // namespace
+
+Number::Number(char const *str, Base base) : repr_{parse_num(str, base)} {
+}
+
+Number::Number(std::string_view str, Base base) : repr_{parse_num(str, base)} {
 }
 
 Number::Number(Number const &other) : repr_{0} {
