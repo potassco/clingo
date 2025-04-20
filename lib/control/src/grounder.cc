@@ -304,6 +304,9 @@ void Grounder::join(Input::UnprocessedProgram const &prg) {
 
 auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinIncludes {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
+#ifdef PARSER_PROFILE
+    auto prof = Profiler{"clingo-parse.prof"};
+#endif
     auto ret = BuiltinIncludes::empty;
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
@@ -318,18 +321,10 @@ auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinI
 
 auto Grounder::parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code, ProgramBackend *prg,
                      TheoryBackend *thy) -> BuiltinIncludes {
-    // TODO:
-    // - this function should also be able to parse aspif
-    // - for this, the function has to take a program backend and theory backend as argument
-    // - these two interfaces would have to be moved into the core module
-    // - this is no issue as this are pure interfaces
-    // - while the program backend can be used as is,
-    //   the theory backend needs to remap theory ids
-    //   (efficient using using simple id vectors)
-    // - this is possible by implementing a wrapper around the theory data
-    // - the theory data itself should not be moved into the core module
-    // - a parser can then use these interfaces to pass on aspif statements
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
+#ifdef PARSER_PROFILE
+    auto prof = Profiler{"clingo-parse.prof"};
+#endif
     auto ret = BuiltinIncludes::empty;
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
