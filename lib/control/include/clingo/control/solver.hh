@@ -462,8 +462,8 @@ class SymbolTable {
     Clingo::Control::BaseView *view_ = nullptr;
     std::ostream *out_ = nullptr;
     size_t ids_ = 0;
-    size_t terms_done_ = 0;
     std::vector<size_t> buf_;
+    std::vector<size_t> conds_done_;
     Clingo::Util::unordered_map<Clingo::SharedSymbol, State> done_;
 };
 //! A unique pointer to a symbol table.

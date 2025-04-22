@@ -909,13 +909,25 @@ void SymbolTable::output() {
             }
         }
     }
-    auto terms = view_->term_base();
-    for (auto it = terms.nth(terms_done_), ie = terms.end(); it != ie; ++it) {
-        auto id = output(*it.key()).index;
-        static_cast<void>(id);
-        throw std::runtime_error("need id condition mapping here!!!");
+    // TODO: maybe there is a better way to track output conditions
+    auto const &prg = view_->clasp_program();
+    auto const &terms = view_->term_base();
+    conds_done_.resize(terms.size());
+    for (auto const &[sym, id] : terms) {
+        auto sym_id = output(*sym).index;
+        size_t i = 0;
+        for (auto const &cond : prg.getShowTerm(id).conditions()) {
+            if (i >= conds_done_[id]) {
+                *out_ << "4 1 " << sym_id << " " << cond.size();
+                for (auto const &lit : cond) {
+                    *out_ << " " << lit;
+                }
+                *out_ << "\n";
+            }
+            ++i;
+        }
+        conds_done_[id] = i;
     }
-    terms_done_ = terms.size();
 }
 
 auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
