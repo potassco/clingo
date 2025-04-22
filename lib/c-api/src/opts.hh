@@ -32,8 +32,8 @@ class ClingoOptions {
 
         group_grounder.addOptions() //
             ("const,c", parse(parse_const)->arg("<id>=<term>")->composing(),
-             "Replace term occurrences of <id> with <term>")               //
-            ("parts", parse(parse_parts), "Parse program parts to ground") //
+             "Replace term occurrences of <id> with <term>")                               //
+            ("parts", parse(parse_parts), "Parse comma-separated program parts to ground") //
             ("projection-mode,@1",
              storeTo(rewrite_opts_.project_mode = Input::ProjectionMode::pure,
                      values<Input::ProjectionMode>({
@@ -41,8 +41,9 @@ class ClingoOptions {
                          {"anonymous", Input::ProjectionMode::anonymous},
                          {"pure", Input::ProjectionMode::pure},
                      })),
-             "Select which variables to project") //
-            ("project-anonymous,@1", flag(rewrite_opts_.project_anonymous = false), "Project anonymous variables");
+             "Project {none|anonymous|pure} variables") //
+            ("project-anonymous,@1", flag(rewrite_opts_.project_anonymous = false),
+             "Project anonymous variables in negative literals");
         root.add(group_grounder);
     }
 
