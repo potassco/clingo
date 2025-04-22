@@ -1038,8 +1038,9 @@ void Solver::incmode_() {
     auto part_query = store.string("query");
 
     parse(R"(#program check(t).
-#external query(t-1). [release]
 #external query(t). [true]
+#program step(t).
+#external query(t-1). [release]
 )");
 
     size_t step = 0;
@@ -1065,9 +1066,10 @@ void Solver::incmode_() {
     while (cont()) {
         using Param = Clingo::Input::ProgramParam;
         Clingo::Input::ProgramParamVec parts;
-        parts.emplace_back(Param{part_check, {Clingo::SymbolStore::num(Util::safe_cast<int32_t>(step))}});
+        auto num = Clingo::SymbolStore::num(Util::safe_cast<int32_t>(step));
+        parts.emplace_back(Param{part_check, {num}});
         if (step > 0) {
-            parts.emplace_back(Param{part_step, {Clingo::SymbolStore::num(Util::safe_cast<int32_t>(step))}});
+            parts.emplace_back(Param{part_step, {num}});
         } else {
             parts.emplace_back(Param{part_base, {}});
         }
