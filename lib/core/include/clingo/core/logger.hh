@@ -41,7 +41,7 @@ enum class MessageCode : uint8_t {
     error = 8,                    //! An error.
 };
 
-//! Log levels for course grain configuration of logging.
+//! Log levels for coarse-grained configuration of logging.
 enum class LogLevel : uint8_t {
     trace = static_cast<uint8_t>(MessageCode::trace), //!< Trace as much as possible.
     debug = static_cast<uint8_t>(MessageCode::debug), //!< Output debug messages.
