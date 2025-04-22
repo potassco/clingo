@@ -240,6 +240,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                                                *ctl_->lib->store,
                                                ctl_->lib->scripts,
                                                opts_.rewrite_options(),
+                                               opts_.ioptions(),
                                                static_cast<AppMode>(mode_),
                                                stdout};
             opts_.apply(slv);

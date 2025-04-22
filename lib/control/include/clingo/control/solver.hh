@@ -50,6 +50,24 @@ class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
     std::vector<std::pair<std::string, UScript>> scripts_;
 };
 
+// Stop condition for incremental mode.
+enum class IStop : uint8_t {
+    none,   //!< Do not consider solve result.
+    sat,    //!< Stop when satisfiable.
+    unsat,  //!< Stop when unsat.
+    unknown //!< Stop when interrupted.
+};
+
+//! Options for the incremental mode.
+struct IOptions {
+    //! The minimum number of incremental steps.
+    size_t imin = 0;
+    //! The maximum number of incremental steps.
+    std::optional<size_t> imax = std::nullopt;
+    //! The stop condition for the incremental mode.
+    IStop istop = IStop::sat;
+};
+
 //! Enumeration of available application modes.
 enum class AppMode : uint8_t {
     parse,   //!< Stop processing after parsing.
@@ -476,7 +494,7 @@ class Solver : public BaseView {
   public:
     //! Create a solver object.
     Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &config, Logger &log, SymbolStore &store,
-           Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out = stdout);
+           Scripts &scripts, Input::RewriteOptions opts, IOptions iopts, AppMode mode, FILE *out = stdout);
 
     //! Parse, ground, and solve a program.
     void main(std::span<std::string_view const> const &files);
@@ -634,6 +652,7 @@ class Solver : public BaseView {
     Grounder grd_;
     Scripts *scripts_;
     State state_ = State::initial;
+    IOptions iopts_;
     AppMode mode_;
     BuiltinIncludes includes_ = BuiltinIncludes::empty;
     void *data_ = nullptr;

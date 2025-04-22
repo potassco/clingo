@@ -997,9 +997,9 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
 }
 
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
-               Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
+               Scripts &scripts, Input::RewriteOptions opts, IOptions iopts, AppMode mode, FILE *out)
     : clasp_{&clasp}, clasp_config_{&clasp_config}, buf_{out}, out_{make_output_(store, mode)},
-      grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {
+      grd_{log, store, opts, *out_}, scripts_{&scripts}, iopts_{iopts}, mode_{mode} {
 }
 
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
@@ -1031,59 +1031,33 @@ void Solver::main(std::span<std::string_view const> const &files) {
 }
 
 void Solver::incmode_() {
-    // TODO: add options
-    auto const &map = const_map();
     auto &store = grd_.store();
-    auto get = [&](char const *name, SharedSymbol def) {
-        auto it = map.find(name);
-        if (it != map.end()) {
-            return it->second.second;
-        }
-        return def;
-    };
-
-    auto imin = get("imin", SymbolStore::num(0));
-    auto imax = [&]() {
-        auto it = map.find("imax");
-        return it != map.end() ? std::make_optional(it->second.second) : std::nullopt;
-    }();
-    auto istop = get("istop", SymbolStore::str(store.string("SAT")));
-    auto stop_sat = SymbolStore::str(store.string("SAT"));
-    auto stop_unsat = SymbolStore::str(store.string("UNSAT"));
-    auto stop_unknown = SymbolStore::str(store.string("UNKNOWN"));
     auto part_check = store.string("check");
     auto part_step = store.string("step");
     auto part_base = store.string("base");
     auto part_query = store.string("query");
-
-    if (imin->type() != SymbolType::number) {
-        throw std::invalid_argument{"imin must be a number"};
-    }
-    if (imax && imax->get().type() != SymbolType::number) {
-        throw std::invalid_argument{"imin must be a number"};
-    }
 
     parse(R"(#program check(t).
 #external query(t-1). [release]
 #external query(t). [true]
 )");
 
-    auto step = Number{0};
+    size_t step = 0;
     auto ret = SolveResult::empty;
     auto cont = [&]() {
-        if (imax && step >= imax->get().num()) {
+        if (iopts_.imax && step >= *iopts_.imax) {
             return false;
         }
-        if (step == 0 || step < imin->num()) {
+        if (step == 0 || step < iopts_.imin) {
             return true;
         }
-        if (istop == stop_sat && intersects(ret, SolveResult::satisfiable)) {
+        if (iopts_.istop == IStop::sat && intersects(ret, SolveResult::satisfiable)) {
             return false;
         }
-        if (istop == stop_unsat && intersects(ret, SolveResult::unsatisfiable)) {
+        if (iopts_.istop == IStop::unsat && intersects(ret, SolveResult::unsatisfiable)) {
             return false;
         }
-        if (istop == stop_unknown && !intersects(ret, SolveResult::satisfiable | SolveResult::unsatisfiable)) {
+        if (iopts_.istop == IStop::unknown && !intersects(ret, SolveResult::satisfiable | SolveResult::unsatisfiable)) {
             return false;
         }
         return true;
@@ -1091,9 +1065,9 @@ void Solver::incmode_() {
     while (cont()) {
         using Param = Clingo::Input::ProgramParam;
         Clingo::Input::ProgramParamVec parts;
-        parts.emplace_back(Param{part_check, {store.num(step)}});
+        parts.emplace_back(Param{part_check, {Clingo::SymbolStore::num(Util::safe_cast<int32_t>(step))}});
         if (step > 0) {
-            parts.emplace_back(Param{part_step, {store.num(step)}});
+            parts.emplace_back(Param{part_step, {Clingo::SymbolStore::num(Util::safe_cast<int32_t>(step))}});
         } else {
             parts.emplace_back(Param{part_base, {}});
         }
