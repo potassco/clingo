@@ -40,6 +40,8 @@ class Grounder {
     void output_unprocessed_program(std::ostream &out);
     //! Output the current program.
     void output_program(std::ostream &out);
+    //! Show the given signature.
+    void show(Input::SharedSig const &sig);
 
     //! Get the program parts to ground.
     [[nodiscard]] auto get_parts() const -> std::optional<ProgramParamVec> const &;

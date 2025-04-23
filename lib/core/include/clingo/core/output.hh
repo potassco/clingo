@@ -146,7 +146,7 @@ class OutputStm {
     auto aggr_rule(std::optional<size_t> uid) -> size_t { return do_aggr_rule(uid); }
     //! Output a theory atom rule.
     auto theory_rule(std::optional<size_t> uid) -> size_t { return do_theory_rule(uid); }
-    //! Output a head aggregate rule.
+    //! Output a disjunctive rule.
     auto disjunctive_rule(std::optional<size_t> uid) -> size_t { return do_disjunctive_rule(uid); }
     //! Output the given weak constraint.
     //!

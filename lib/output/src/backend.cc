@@ -1433,14 +1433,18 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     void do_fact([[maybe_unused]] Symbol sym, size_t uid) override {
-        rule_.add(bld_, std::array{uid_to_lit(uid)}, PrgLitSpan{}, false);
+        if (uid_to_lit(uid) != fact_) {
+            rule_.add(bld_, std::array{uid_to_lit(uid)}, PrgLitSpan{}, false);
+        }
     }
 
     void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) override {
         if (head) {
             auto choice = get<2>(*head);
             auto lit = uid_to_lit(get<1>(*head));
-            rule_.add(bld_, std::array{lit}, body_.literals(), choice);
+            if (lit != fact_) {
+                rule_.add(bld_, std::array{lit}, body_.literals(), choice);
+            }
         } else {
             rule_.add(bld_, {}, body_.literals(), false);
         }

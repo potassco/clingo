@@ -63,7 +63,7 @@ class Builder : public Input::DependencyBuilder {
     void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
             auto &base = bases_->add_base(std::make_tuple(fact.name(), fact.args().size(), fact.has_sign()));
-            auto it = base.add(fact, Ground::StateAtom::fact, [this]() { return out_->uid(true); }).first;
+            auto [it, state] = base.add(fact, Ground::StateAtom::fact, [this]() { return out_->uid(true); });
             out_->fact(fact, it->second.id);
         }
     }
@@ -404,6 +404,15 @@ void Grounder::output_program(std::ostream &out) {
     GCLock lock{*impl_->store};
     impl_->prg.visit_stms(*impl_->store, [&out](auto const &stm) { out << stm << "\n"; });
     out.flush();
+}
+
+void Grounder::show(Input::SharedSig const &sig) {
+    GCLock lock{*impl_->store};
+    auto prg = Input::UnprocessedProgram{};
+    auto pos = Position{*impl_->store->string("<cmd>"), 1, 1};
+    auto loc = Location{pos, pos};
+    prg.add(*impl_->store, Input::StmShowSig{loc, get<2>(sig), *get<0>(sig), static_cast<int>(get<1>(sig))});
+    impl_->prg.join(*impl_->log, *impl_->store, prg);
 }
 
 auto Grounder::get_parts() const -> std::optional<Input::ProgramParamVec> const & {

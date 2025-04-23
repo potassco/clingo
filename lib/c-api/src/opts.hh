@@ -14,6 +14,22 @@ auto ieq(auto const &a, char const *b) -> bool {
                               [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
 }
 
+auto split(std::string_view const &source, char const *delimiter = " ") -> std::vector<std::string_view> {
+    std::vector<std::string_view> results;
+    size_t prev = 0;
+    size_t next = 0;
+    while ((next = source.find_first_of(delimiter, prev)) != std::string::npos) {
+        if (next - prev != 0) {
+            results.push_back(source.substr(prev, next - prev));
+        }
+        prev = next + 1;
+    }
+    if (prev < source.size()) {
+        results.push_back(source.substr(prev));
+    }
+    return results;
+}
+
 } // namespace
 
 class ClingoOptions {
@@ -22,7 +38,7 @@ class ClingoOptions {
 
     void init(Potassco::ProgramOptions::OptionContext &root) {
         using namespace Potassco::ProgramOptions;
-        auto parse_const = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
+        auto parse_const = [this](std::string const &value) {
             // NOTE: this might use the logger.
             parser_.init(value, *store_->string("<const>"));
             auto def = parser_.parse_const_def();
@@ -31,18 +47,18 @@ class ClingoOptions {
             }
             return static_cast<bool>(def);
         };
-        auto parse_parts = [&, this]([[maybe_unused]] std::string const &name, std::string const &value) {
+        auto parse_parts = [&, this](std::string const &value) {
             // NOTE: this might use the logger.
             parser_.init(value, *store_->string("<parts>"));
             parts_ = parser_.parse_program_parts();
             return static_cast<bool>(parts_);
         };
-        auto parse_imin = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
+        auto parse_imin = [this](std::string const &value) {
             const auto *end = value.data() + value.size();
             auto ret = std::from_chars(value.data(), end, solver_opts_.imin);
             return ret.ec == std::errc{} && ret.ptr == end;
         };
-        auto parse_imax = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
+        auto parse_imax = [this](std::string const &value) {
             if (ieq(value, "none")) {
                 solver_opts_.imax = std::nullopt;
                 return true;
@@ -52,7 +68,7 @@ class ClingoOptions {
             auto ret = std::from_chars(value.data(), end, *solver_opts_.imax);
             return ret.ec == std::errc{} && ret.ptr == end;
         };
-        auto parse_level = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
+        auto parse_level = [this](std::string const &value) {
             if (auto lvl = LogLevel::info; parseValue(values<LogLevel>({{"error", LogLevel::error},
                                                                         {"warn", LogLevel::warn},
                                                                         {"info", LogLevel::info},
@@ -64,7 +80,7 @@ class ClingoOptions {
             }
             return false;
         };
-        auto parse_info = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
+        auto parse_info = [this](std::string const &value) {
             auto vals = values<std::pair<MessageCode, bool>>({
                 {"all", std::pair{MessageCode::info, true}},
                 {"none", std::pair{MessageCode::info, false}},
@@ -91,6 +107,26 @@ class ClingoOptions {
             }
             return false;
         };
+        auto parse_sigs = [this](const std::string &str) {
+            for (auto &sig : split(str, ",")) {
+                auto x = split(sig, "/");
+                if (x.size() != 2) {
+                    return false;
+                }
+                size_t arity = 0;
+                const auto *end = x[1].data() + x[1].size();
+                auto [ptr, ec] = std::from_chars(x[1].begin(), end, arity);
+                if (ec != std::errc{} || ptr != end) {
+                    return false;
+                }
+                bool sign = !x[0].empty() && x[0][0] == '-';
+                if (sign) {
+                    x[0] = x[0].substr(1);
+                }
+                show_.emplace_back(store_->string(x[0]), arity, sign);
+            }
+            return true;
+        };
 
         auto group_grounder = OptionGroup{"Grounder Options"};
         group_grounder.addOptions() //
@@ -115,14 +151,15 @@ class ClingoOptions {
                      })),
              "Project {none|anonymous|pure} variables") //
             ("project-anonymous,@1", flag(rewrite_opts_.project_anonymous = false),
-             "Project anonymous variables in negative literals");
+             "Project anonymous variables in negative literals") //
+            ("show", parse(parse_sigs), "Comma-separated list of predicates to show");
         root.add(group_grounder);
 
         auto group_basic = OptionGroup{"Basic Options"};
         group_basic.addOptions()                                                                   //
             ("single-shot", flag(solver_opts_.single_shot = false), "Force single shot solving")   //
             ("log-level,@1", parse(parse_level), "Select log level {error|warn|info|debug|trace}") //
-            ("info,W,@1", parse(parse_info), R"(Enable/disable specific info messages:
+            ("info,W,@1", parse(parse_info)->composing(), R"(Enable/disable specific info messages:
       none                    : disable all
       all                     : enable all
       [no-]atom-undefined     : a :- b.
@@ -135,6 +172,9 @@ class ClingoOptions {
     void apply(Control::Solver &slv) {
         for (auto const &[name, value] : const_defs_) {
             slv.add_const(*name, *value);
+        }
+        for (auto const &sig : show_) {
+            slv.show(sig);
         }
         if (parts_) {
             slv.set_parts(parts_, Input::Precedence::override_);
@@ -152,6 +192,7 @@ class ClingoOptions {
     Input::Parser parser_;
     Input::RewriteOptions rewrite_opts_;
     Control::SolverOptions solver_opts_;
+    std::vector<Clingo::Input::SharedSig> show_;
     std::optional<Control::ProgramParamVec> parts_;
     std::vector<std::pair<SharedString, SharedSymbol>> const_defs_;
 };

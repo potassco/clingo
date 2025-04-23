@@ -70,14 +70,14 @@ enum class AppMode : uint8_t {
 struct SolverOptions {
     //! Operation mode of the solver.
     AppMode mode = AppMode::solve;
-    //! Restrict to single shot-solving.
-    bool single_shot = false;
     //! The minimum number of incremental steps.
     size_t imin = 0;
     //! The maximum number of incremental steps.
     std::optional<size_t> imax = std::nullopt;
     //! The stop condition for the incremental mode.
     IStop istop = IStop::sat;
+    //! Restrict to single shot-solving.
+    bool single_shot = false;
 };
 
 //! A bit set of symbol selection flags.
@@ -591,6 +591,9 @@ class Solver : public BaseView {
     void set_parts(std::optional<ProgramParamVec> parts, Input::Precedence prec = Input::Precedence::override_) {
         grd_.set_parts(std::move(parts), prec);
     }
+
+    //! Show the given signature.
+    void show(Input::SharedSig const &sig) { grd_.show(sig); }
 
     //! Get the symbol table.
     auto sym_tab() -> SymbolTable & {

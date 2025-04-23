@@ -54,7 +54,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
 
         // setup control
         if (opts.mode() == Clingo::Control::AppMode::solve) {
-            clasp->startAsp(*slv_cfg, true);
+            clasp->startAsp(*slv_cfg, !opts.solver_options().single_shot);
         }
         auto slv = std::make_unique<Clingo::Control::Solver>(*clasp, *slv_cfg, lib->log, *lib->store, lib->scripts,
                                                              opts.rewrite_options(), opts.solver_options(), nullptr);
