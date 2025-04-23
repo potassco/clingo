@@ -415,6 +415,10 @@ void Grounder::show(Input::SharedSig const &sig) {
     impl_->prg.join(*impl_->log, *impl_->store, prg);
 }
 
+void Grounder::mark_sig(Input::Sig const &sig) {
+    impl_->prg.mark_sig(sig);
+}
+
 auto Grounder::get_parts() const -> std::optional<Input::ProgramParamVec> const & {
     return impl_->parts.second;
 }

@@ -265,4 +265,10 @@ void Program::mark(SymbolCollector &gc) const {
     }
 }
 
+void Program::mark_sig(Input::Sig const &sig) {
+    if (provide_.empty() || provide_.back() != sig) {
+        provide_.emplace(sig);
+    }
+}
+
 } // namespace Clingo::Input

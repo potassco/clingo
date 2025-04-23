@@ -42,6 +42,8 @@ class Grounder {
     void output_program(std::ostream &out);
     //! Show the given signature.
     void show(Input::SharedSig const &sig);
+    //! Mark the given signature as defined.
+    void mark_sig(Input::Sig const &sig);
 
     //! Get the program parts to ground.
     [[nodiscard]] auto get_parts() const -> std::optional<ProgramParamVec> const &;

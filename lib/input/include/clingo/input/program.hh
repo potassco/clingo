@@ -201,6 +201,9 @@ class Program {
     //! Get the constants in the program.
     [[nodiscard]] auto const_map() const -> ConstMap const & { return const_map_; };
 
+    //! Mark the given signature as provided.
+    void mark_sig(Input::Sig const &sig);
+
   private:
     //! The signature of a program part.
     //!

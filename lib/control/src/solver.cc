@@ -736,9 +736,10 @@ class SolveHandleImpl : public SolveHandle {
 void end_step(std::vector<std::pair<prg_lit_t, SharedSymbol>> &added, Clasp::Asp::LogicProgram &prg, Grounder *grd) {
     for (auto const &[lit, sym] : added) {
         assert(lit > 0);
+        auto sig = sym->signature();
+        assert(sig.has_value());
+        grd->mark_sig(*sig);
         if (prg.isFact(lit)) {
-            auto sig = sym->signature();
-            assert(sig.has_value());
             auto *base = grd->base().get_base(*sig);
             assert(base != nullptr);
             auto it = base->find(*sym);
