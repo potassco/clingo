@@ -171,13 +171,22 @@ class AspifParser {
         return res;
     }
 
+    auto expect_atom_() -> prg_lit_t {
+        auto m = static_cast<prg_lit_t>(expect_unsigned_());
+        if (m <= 0) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "invalid program atom";
+            throw aspif_error{};
+        }
+        return m;
+    }
+
     auto expect_atoms_() -> PrgLitVec {
         auto m = expect_unsigned_();
         auto atoms = PrgLitVec{};
         atoms.reserve(m);
         for (unsigned i = 0; i < m; ++i) {
             expect_(AspifToken::space);
-            atoms.emplace_back(expect_unsigned_());
+            atoms.emplace_back(expect_atom_());
         }
         return atoms;
     }
@@ -193,13 +202,22 @@ class AspifParser {
         return ids;
     }
 
+    auto expect_lit_() -> prg_lit_t {
+        auto lit = expect_signed_();
+        if (lit == 0) {
+            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "invalid program literal";
+            throw aspif_error{};
+        }
+        return lit;
+    }
+
     auto expect_lits_() -> PrgLitVec {
         auto m = expect_unsigned_();
         auto body = PrgLitVec{};
         body.reserve(m);
         for (unsigned i = 0; i < m; ++i) {
             expect_(AspifToken::space);
-            body.emplace_back(expect_signed_());
+            body.emplace_back(expect_lit_());
         }
         return body;
     }
@@ -356,8 +374,8 @@ class AspifParser {
             case OutputType::atom: {
                 auto sym = get(sym_id);
                 expect_(AspifToken::space);
-                auto lit = expect_unsigned_();
-                state_->prg_backend()->show_atom(*sym, static_cast<prg_lit_t>(lit));
+                auto atom = expect_atom_();
+                state_->prg_backend()->show_atom(*sym, atom);
                 break;
             }
             case OutputType::term: {
@@ -436,9 +454,9 @@ class AspifParser {
     }
 
     void external_() {
-        auto a = expect_unsigned_();
+        auto a = expect_atom_();
         expect_(AspifToken::space);
-        state_->prg_backend()->external(static_cast<prg_lit_t>(a), external_type_());
+        state_->prg_backend()->external(a, external_type_());
     }
 
     void assume_() { state_->prg_backend()->assume(expect_lits_()); }
@@ -455,13 +473,13 @@ class AspifParser {
     void heuristic_() {
         auto type = heuristic_type_();
         expect_(AspifToken::space);
-        auto atom = expect_unsigned_();
+        auto atom = expect_atom_();
         expect_(AspifToken::space);
         auto weight = expect_signed_();
         expect_(AspifToken::space);
         auto priority = expect_signed_();
         expect_(AspifToken::space);
-        state_->prg_backend()->heuristic(static_cast<prg_lit_t>(atom), weight, priority, type, expect_lits_());
+        state_->prg_backend()->heuristic(atom, weight, priority, type, expect_lits_());
     }
 
     void edge_() {
