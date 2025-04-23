@@ -18,7 +18,7 @@ auto ieq(auto const &a, char const *b) -> bool {
 
 class ClingoOptions {
   public:
-    ClingoOptions(Logger &log, SymbolStore &store) : store_{&store}, parser_{log, store} {}
+    ClingoOptions(Logger &log, SymbolStore &store) : log_{&log}, store_{&store}, parser_{log, store} {}
 
     void init(Potassco::ProgramOptions::OptionContext &root) {
         using namespace Potassco::ProgramOptions;
@@ -52,6 +52,19 @@ class ClingoOptions {
             auto ret = std::from_chars(value.data(), end, *solver_opts_.imax);
             return ret.ec == std::errc{} && ret.ptr == end;
         };
+        auto parse_level = [this]([[maybe_unused]] std::string const &name, std::string const &value) {
+            auto lvl = LogLevel::info;
+            if (parseValue(values<LogLevel>({{"error", Clingo::LogLevel::error},
+                                             {"warn", Clingo::LogLevel::warn},
+                                             {"info", Clingo::LogLevel::info},
+                                             {"debug", Clingo::LogLevel::debug},
+                                             {"trace", Clingo::LogLevel::trace}}),
+                           value, lvl)) {
+                log_->set_level(lvl);
+                return true;
+            }
+            return false;
+        };
 
         auto group_grounder = OptionGroup{"Grounder Options"};
         group_grounder.addOptions() //
@@ -82,8 +95,9 @@ class ClingoOptions {
         auto group_basic = OptionGroup{"Basic Options"};
         group_basic.addOptions()                                                                 //
             ("single-shot", flag(solver_opts_.single_shot = false), "Force single shot solving") //
-            ;
-        // TODO: log-level + warning options
+            ("log-level,@1", parse(parse_level), "Select log level {error|warn|info|debug|trace}");
+        ;
+        // TODO: warning options
         // - it's a bit odd to do this here because it affects the lib,
         //   which is created beforehand
         // - a clean alternative would require two main functions
@@ -109,6 +123,7 @@ class ClingoOptions {
     auto solver_options() -> Control::SolverOptions const & { return solver_opts_; }
 
   private:
+    Logger *log_;
     SymbolStore *store_;
     Input::Parser parser_;
     Input::RewriteOptions rewrite_opts_;

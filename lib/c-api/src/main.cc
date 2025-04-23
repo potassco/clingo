@@ -183,16 +183,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                                               {"solve", Mode::solve},
                                               {"clasp", Mode::clasp},
                                           })),
-             "Run in {parse|rewrite|ground|solve|clasp} mode") //
-            ("log-level,@2",
-             storeTo(log_level_ = Clingo::LogLevel::info, values<Clingo::LogLevel>({
-                                                              {"error", Clingo::LogLevel::error},
-                                                              {"warn", Clingo::LogLevel::warn},
-                                                              {"info", Clingo::LogLevel::info},
-                                                              {"debug", Clingo::LogLevel::debug},
-                                                              {"trace", Clingo::LogLevel::trace},
-                                                          })),
-             "Select log level {error|warn|info|debug|trace}");
+             "Run in {parse|rewrite|ground|solve|clasp} mode");
         root.add(group_basic);
         app_.register_options(root);
     }
