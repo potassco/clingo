@@ -19,7 +19,6 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
         using namespace Potassco::ProgramOptions;
 
         auto opts = Clingo::CAPI::ClingoOptions{lib->log, *lib->store};
-        auto mode = Clingo::Control::AppMode::solve;
         auto slv_cfg = std::make_unique<Clasp::Cli::ClaspCliConfig>();
         auto clasp = std::make_unique<Clasp::ClaspFacade>();
 
@@ -29,12 +28,12 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
         auto group_basic = OptionGroup{"Basic Options"};
         group_basic.addOptions() //
             ("mode",
-             storeTo(mode = Clingo::Control::AppMode::solve, values<Clingo::Control::AppMode>({
-                                                                 {"parse", Clingo::Control::AppMode::parse},
-                                                                 {"rewrite", Clingo::Control::AppMode::rewrite},
-                                                                 {"ground", Clingo::Control::AppMode::ground},
-                                                                 {"solve", Clingo::Control::AppMode::solve},
-                                                             })),
+             storeTo(opts.mode() = Clingo::Control::AppMode::solve, values<Clingo::Control::AppMode>({
+                                                                        {"parse", Clingo::Control::AppMode::parse},
+                                                                        {"rewrite", Clingo::Control::AppMode::rewrite},
+                                                                        {"ground", Clingo::Control::AppMode::ground},
+                                                                        {"solve", Clingo::Control::AppMode::solve},
+                                                                    })),
              "Run in {parse|rewrite|ground|solve} mode");
         ctx.add(group_basic);
         slv_cfg->addOptions(ctx);
@@ -54,11 +53,11 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
         slv_cfg->finalize(parsed, Clasp::ProblemType::asp, true);
 
         // setup control
-        if (mode == Clingo::Control::AppMode::solve) {
+        if (opts.mode() == Clingo::Control::AppMode::solve) {
             clasp->startAsp(*slv_cfg, true);
         }
         auto slv = std::make_unique<Clingo::Control::Solver>(*clasp, *slv_cfg, lib->log, *lib->store, lib->scripts,
-                                                             opts.rewrite_options(), opts.ioptions(), mode, nullptr);
+                                                             opts.rewrite_options(), opts.solver_options(), nullptr);
         opts.apply(*slv);
         *control = new clingo_control{lib, std::move(slv), std::move(slv_cfg), std::move(clasp)};
     }

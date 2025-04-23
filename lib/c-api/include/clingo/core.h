@@ -116,7 +116,7 @@ enum clingo_message_e {
     clingo_message_trace = 0,               //!< a trace message
     clingo_message_debug = 1,               //!< a debug message
     clingo_message_info = 2,                //!< an info message
-    clingo_message_operation_undefined = 3, //!< undefined atom in program
+    clingo_message_operation_undefined = 3, //!< undefined operation in program
     clingo_message_atom_undefined = 4,      //!< undefined atom in program
     clingo_message_file_included = 5,       //!< same file included multiple times
     clingo_message_global_variable = 6,     //!< global variable in tuple of aggregate element

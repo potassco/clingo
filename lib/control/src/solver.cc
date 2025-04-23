@@ -804,7 +804,7 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
     void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
                      [[maybe_unused]] unsigned revision, bool incremental) override {
         if (incremental) {
-            solver_->clasp_->enableProgramUpdates();
+            solver_->enable_updates_();
         }
         solver_->prepare_();
     }
@@ -997,9 +997,9 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
 }
 
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
-               Scripts &scripts, Input::RewriteOptions opts, IOptions iopts, AppMode mode, FILE *out)
-    : clasp_{&clasp}, clasp_config_{&clasp_config}, buf_{out}, out_{make_output_(store, mode)},
-      grd_{log, store, opts, *out_}, scripts_{&scripts}, iopts_{iopts}, mode_{mode} {
+               Scripts &scripts, Input::RewriteOptions ropts, SolverOptions sopts, FILE *out)
+    : clasp_{&clasp}, clasp_config_{&clasp_config}, buf_{out}, out_{make_output_(store, sopts.mode)},
+      grd_{log, store, ropts, *out_}, scripts_{&scripts}, opts_{sopts} {
 }
 
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
@@ -1046,19 +1046,19 @@ void Solver::incmode_() {
     size_t step = 0;
     auto ret = SolveResult::empty;
     auto cont = [&]() {
-        if (iopts_.imax && step >= *iopts_.imax) {
+        if (opts_.imax && step >= *opts_.imax) {
             return false;
         }
-        if (step == 0 || step < iopts_.imin) {
+        if (step == 0 || step < opts_.imin) {
             return true;
         }
-        if (iopts_.istop == IStop::sat && intersects(ret, SolveResult::satisfiable)) {
+        if (opts_.istop == IStop::sat && intersects(ret, SolveResult::satisfiable)) {
             return false;
         }
-        if (iopts_.istop == IStop::unsat && intersects(ret, SolveResult::unsatisfiable)) {
+        if (opts_.istop == IStop::unsat && intersects(ret, SolveResult::unsatisfiable)) {
             return false;
         }
-        if (iopts_.istop == IStop::unknown && !intersects(ret, SolveResult::satisfiable | SolveResult::unsatisfiable)) {
+        if (opts_.istop == IStop::unknown && !intersects(ret, SolveResult::satisfiable | SolveResult::unsatisfiable)) {
             return false;
         }
         return true;
@@ -1074,38 +1074,46 @@ void Solver::incmode_() {
             parts.emplace_back(Param{part_base, {}});
         }
         ground(parts, nullptr);
-        if (mode_ == AppMode::solve) {
+        if (opts_.mode == AppMode::solve) {
             ret = solve()->get();
         }
         step += 1;
     }
 }
 
-void Solver::main() {
-    if (!block_main_ && scripts_->callable("main", 0)) {
-        if (mode_ == AppMode::solve) {
+void Solver::enable_updates_() {
+    if (opts_.mode == AppMode::solve) {
+        if (opts_.single_shot) {
+            clasp_->keepProgram();
+        } else {
             clasp_->enableProgramUpdates();
         }
+    }
+}
+
+void Solver::main() {
+    if (!block_main_ && scripts_->callable("main", 0)) {
+        enable_updates_();
         scripts_->main(*this);
     } else {
-        if (mode_ == AppMode::parse) {
+        if (opts_.mode == AppMode::parse) {
             output_unprocessed_program(std::cout);
             return;
         }
-        if (mode_ == AppMode::rewrite) {
+        if (opts_.mode == AppMode::rewrite) {
             output_program(std::cout);
             return;
         }
         bool inc = intersects(includes_, BuiltinIncludes::incmode);
-        if (mode_ == AppMode::solve && inc) {
-            clasp_->enableProgramUpdates();
+        if (opts_.mode == AppMode::solve && inc) {
+            enable_updates_();
         }
         if (inc) {
             incmode_();
         } else {
             auto base = ProgramParamVec{{grd_.store().string("base"), {}}};
             ground(grd_.get_parts().value_or(base), nullptr);
-            if (mode_ == AppMode::solve) {
+            if (opts_.mode == AppMode::solve) {
                 solve(nullptr);
             }
         }
@@ -1120,7 +1128,7 @@ auto Solver::map_model(Clasp::Model const &mdl) -> Model & {
 }
 
 auto Solver::solve(UEventHandler handler, PrgLitSpan assumptions, SolveMode mode) -> USolveHandle {
-    if (mode_ == AppMode::solve) {
+    if (opts_.mode == AppMode::solve) {
         auto guard = unlock_guard{lock_};
         if (state_ == State::solved || state_ == State::initial) {
             // we inject an emtpy ground
@@ -1151,7 +1159,7 @@ void Solver::parse(std::string_view str) {
 }
 
 void Solver::parse(std::span<std::string_view const> const &files) {
-    if (mode_ == AppMode::solve) {
+    if (opts_.mode == AppMode::solve) {
         auto bck = ProgramBackendAdapter{*this};
         auto thy = TheoryBackendAdapter{grd_.store(), *theory_};
         includes_ |= grd_.parse(files, scripts_, &bck, &thy);
@@ -1182,7 +1190,7 @@ void Solver::output_program(std::ostream &out) {
 }
 
 void Solver::register_propagator(UPropagator propagator) {
-    if (mode_ == AppMode::solve) {
+    if (opts_.mode == AppMode::solve) {
         clasp_facade().registerPropagator(*propagator, true);
         if (propagator->hasHeuristic()) {
             clasp_facade().registerHeuristic(*propagator.get());
@@ -1200,7 +1208,7 @@ auto Solver::backend() -> UBackendHandle {
 }
 
 void Solver::simplify_() {
-    if (mode_ != AppMode::solve || !clasp_->incremental()) {
+    if (opts_.mode != AppMode::solve || !clasp_->incremental()) {
         return;
     }
     auto value = [clasp = clasp_](prg_lit_t lit) {
@@ -1232,7 +1240,7 @@ void Solver::simplify_() {
 }
 
 void Solver::prepare_() {
-    if (mode_ == AppMode::solve) {
+    if (opts_.mode == AppMode::solve) {
         clasp_->update();
     }
     state_ = State::grounded;

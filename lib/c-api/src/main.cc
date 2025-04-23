@@ -234,14 +234,14 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             if (mode_ == Mode::solve) {
                 clasp.startAsp(claspConfig_, false);
             }
+            opts_.mode() = static_cast<AppMode>(mode_);
             auto slv = Clingo::Control::Solver{clasp,
                                                claspConfig_,
                                                ctl_->lib->log,
                                                *ctl_->lib->store,
                                                ctl_->lib->scripts,
                                                opts_.rewrite_options(),
-                                               opts_.ioptions(),
-                                               static_cast<AppMode>(mode_),
+                                               opts_.solver_options(),
                                                stdout};
             opts_.apply(slv);
             // NOTE: member for createTextOutput

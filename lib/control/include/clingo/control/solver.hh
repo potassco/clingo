@@ -58,22 +58,26 @@ enum class IStop : uint8_t {
     unknown //!< Stop when interrupted.
 };
 
-//! Options for the incremental mode.
-struct IOptions {
-    //! The minimum number of incremental steps.
-    size_t imin = 0;
-    //! The maximum number of incremental steps.
-    std::optional<size_t> imax = std::nullopt;
-    //! The stop condition for the incremental mode.
-    IStop istop = IStop::sat;
-};
-
 //! Enumeration of available application modes.
 enum class AppMode : uint8_t {
     parse,   //!< Stop processing after parsing.
     rewrite, //!< Stop processing after rewriting.
     ground,  //!< Stop processing after grounding.
     solve    //!< Stop processing after solving.
+};
+
+//! Options for the incremental mode.
+struct SolverOptions {
+    //! Operation mode of the solver.
+    AppMode mode = AppMode::solve;
+    //! Restrict to single shot-solving.
+    bool single_shot = false;
+    //! The minimum number of incremental steps.
+    size_t imin = 0;
+    //! The maximum number of incremental steps.
+    std::optional<size_t> imax = std::nullopt;
+    //! The stop condition for the incremental mode.
+    IStop istop = IStop::sat;
 };
 
 //! A bit set of symbol selection flags.
@@ -494,7 +498,7 @@ class Solver : public BaseView {
   public:
     //! Create a solver object.
     Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &config, Logger &log, SymbolStore &store,
-           Scripts &scripts, Input::RewriteOptions opts, IOptions iopts, AppMode mode, FILE *out = stdout);
+           Scripts &scripts, Input::RewriteOptions ropts, SolverOptions sopts, FILE *out = stdout);
 
     //! Parse, ground, and solve a program.
     void main(std::span<std::string_view const> const &files);
@@ -572,7 +576,7 @@ class Solver : public BaseView {
     void block_main(bool block) { block_main_ = block; }
 
     //! Get the application mode.
-    [[nodiscard]] auto get_mode() const -> AppMode { return mode_; }
+    [[nodiscard]] auto get_mode() const -> AppMode { return opts_.mode; }
 
     //! Get user data for C integration.
     auto user_data() -> void *& { return data_; }
@@ -628,6 +632,9 @@ class Solver : public BaseView {
     //! Simplify the grounder's domain with the solvers assignment.
     void simplify_();
 
+    //! Enable program updates for incremental solving.
+    void enable_updates_();
+
     [[nodiscard]] auto do_bases() const -> Ground::Bases const & override { return grd_.base(); }
 
     [[nodiscard]] auto do_term_base() const -> TermBaseMap const & override { return terms_; }
@@ -652,8 +659,7 @@ class Solver : public BaseView {
     Grounder grd_;
     Scripts *scripts_;
     State state_ = State::initial;
-    IOptions iopts_;
-    AppMode mode_;
+    SolverOptions opts_;
     BuiltinIncludes includes_ = BuiltinIncludes::empty;
     void *data_ = nullptr;
     bool block_main_ = false;
