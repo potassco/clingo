@@ -339,7 +339,7 @@ class OutputText : public OutputStm, OutputTheory {
 
     auto do_cond_id() -> size_t override { return str_id_(cond_.end()); }
 
-    auto do_uid() -> size_t override { return ++uids_; }
+    auto do_uid([[maybe_unused]] bool fact) -> size_t override { return ++uids_; }
 
     void do_cond_lit(size_t uid, CondLitSpan elems) override {
         if (elems.empty()) {

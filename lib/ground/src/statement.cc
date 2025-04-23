@@ -324,8 +324,10 @@ auto StmRule::do_report(EvalContext const &ctx) -> bool {
         }
     }
     if (head_ != nullptr) {
-        auto it =
-            base_->add(atom_, fact ? StateAtom::fact : StateAtom::derived, [&ctx]() { return ctx.out().uid(); }).first;
+        auto it = base_
+                      ->add(atom_, fact ? StateAtom::fact : StateAtom::derived,
+                            [&ctx, fact]() { return ctx.out().uid(fact); })
+                      .first;
         ctx.out().rule(std::tuple{atom_, static_cast<size_t>(it.value().id), type_ == RuleType::choice});
     } else if (type_ == RuleType::normal) {
         ctx.out().rule(std::nullopt);

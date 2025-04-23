@@ -25,7 +25,7 @@ class NullOutputLit : public OutputLit {
 
 class NullOutputStm : public OutputStm {
   private:
-    auto do_uid() -> size_t override { return 0; }
+    auto do_uid([[maybe_unused]] bool fact) -> size_t override { return 0; }
     void do_fact([[maybe_unused]] Symbol sym, [[maybe_unused]] size_t uid) override {}
     void do_project_atom([[maybe_unused]] size_t p_atom, [[maybe_unused]] size_t atom) override {}
     auto do_body() -> OutputLit & override { return lout; }

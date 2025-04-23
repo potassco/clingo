@@ -1505,7 +1505,16 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     auto do_cond_id() -> size_t override { return bld_.cond(cond_.literals()); }
 
-    auto do_uid() -> size_t override { return bld_.next_lit(); }
+    auto do_uid(bool fact) -> size_t override {
+        if (fact) {
+            if (fact_ == 0) {
+                fact_ = bld_.next_lit();
+                bld_.backend().rule(std::array{fact_}, {}, false);
+            }
+            return fact_;
+        }
+        return bld_.next_lit();
+    }
 
     void do_cond_lit(size_t uid, CondLitSpan elems) override { cond_lit_.add(bld_, uid_to_lit(uid), elems); }
 
@@ -1650,6 +1659,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     TheoryData *theory_;
     OutputBody body_{bld_};
     OutputCond cond_{bld_};
+    prg_lit_t fact_ = 0;
 };
 
 } // namespace

@@ -122,7 +122,9 @@ class OutputStm {
     virtual ~OutputStm() = default;
 
     //! Generate a new unique id for a literal.
-    auto uid() -> size_t { return do_uid(); }
+    //!
+    //! Parameter fact can be set to true. The output is free to map all facts to the same id.
+    auto uid(bool fact = false) -> size_t { return do_uid(fact); }
 
     //! Output the given fact.
     void fact(Symbol sym, size_t uid) { do_fact(sym, uid); }
@@ -208,7 +210,7 @@ class OutputStm {
     void simplify(std::function<TruthValue(prg_lit_t)> const &pred) { do_simplify(pred); }
 
   private:
-    virtual auto do_uid() -> size_t = 0;
+    virtual auto do_uid(bool fact) -> size_t = 0;
 
     virtual void do_fact(Symbol sym, size_t uid) = 0;
 
