@@ -319,9 +319,6 @@ class AspifParser {
     void project_() { state_->prg_backend()->project(expect_atoms_()); }
 
     void output_() {
-        if (symbol_) {
-            throw std::logic_error("implement me: extended output");
-        }
         state_symbol_.init(expect_nstr_(), *str_symbol_);
         state_symbol_.consume();
         auto sym = parse_symbol(state_symbol_);
