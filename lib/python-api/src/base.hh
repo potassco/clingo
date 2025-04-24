@@ -175,9 +175,9 @@ class Base {
     clingo_base_t const *base_;
 };
 
-using MixedLitVec = std::span<std::variant<std::pair<Symbol, bool>, Lit_t>>;
+using MixedLitSpan = std::span<std::variant<std::pair<Symbol, bool>, Lit_t>>;
 
-auto convert(Base base, MixedLitVec const &lits) -> LitVec;
+auto convert(Base base, MixedLitSpan const &lits, bool flip) -> LitVec;
 
 void register_base(pybind11::module &m);
 

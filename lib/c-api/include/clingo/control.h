@@ -273,6 +273,21 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_get_parts(clingo_contro
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_set_parts(clingo_control_t *control,
                                                                    clingo_part_t const *parts, size_t size,
                                                                    bool has_value);
+
+//! Enumeration of discardable statements.
+enum clingo_discard_type_e {
+    minimize = 1,
+    project = 2,
+};
+//! Corresponding type to clingo_discard_type_e.
+typedef unsigned clingo_discard_type_t;
+
+//! Discard the statements of the given types.
+//!
+//! @param[in] control the target control
+//! @param[in] type what to discard
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_discard(clingo_control_t *ctl, clingo_discard_type_t type);
+
 //! Interrupt the running search.
 //!
 //! It is generally better to use clingo_solve_handle_cancel(). This function

@@ -320,16 +320,16 @@ auto Base::theory() const -> TheoryBase {
     return TheoryBase{*base};
 }
 
-auto convert(Base base, MixedLitVec const &lits) -> LitVec {
+auto convert(Base base, MixedLitSpan const &lits, bool flip) -> LitVec {
     return transform_vec(lits, [&](auto const &x) {
         return std::visit(
             [&]<typename T>(T const &x) {
                 if constexpr (std::is_same_v<T, Lit_t>) {
-                    return x;
+                    return flip ? -x : x;
                 } else {
                     auto const &[sym, positive] = x;
                     if (auto atom = base.lookup(sym.signature().value()).get(sym, std::nullopt)) {
-                        return positive ? atom->literal() : -atom->literal();
+                        return (positive != flip) ? atom->literal() : -atom->literal();
                     }
                     throw pybind11::key_error{"key not found"};
                 }

@@ -179,7 +179,7 @@ auto Control::stats() -> py::dict {
     return Stats{const_cast<clingo_stats_t *>(stats), key}.nestify();
 }
 
-auto Control::solve(MixedLitVec const &assumptions, std::optional<ModelCallback> on_model,
+auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback> on_model,
                     std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
     auto release = py::gil_scoped_release{};
     auto res = std::make_shared<SolveHandle>(std::move(on_model), std::move(on_stats));
@@ -190,7 +190,7 @@ auto Control::solve(MixedLitVec const &assumptions, std::optional<ModelCallback>
     if (async) {
         mode |= clingo_solve_mode_async;
     }
-    auto ass = convert(base(), assumptions);
+    auto ass = convert(base(), assumptions, false);
     handle_error(clingo_control_solve(ctl_.get(), mode, ass.data(), assumptions.size(), &SolveHandle::c_event_handler,
                                       res.get(), &res->handle()),
                  get_exception_ptr());
@@ -204,6 +204,17 @@ void Control::main() {
 
 void Control::interrupt() {
     clingo_control_interrupt(ctl_.get());
+}
+
+void Control::discard(bool minimize, bool project) {
+    clingo_discard_type_t type = 0;
+    if (minimize) {
+        type |= clingo_discard_type_e::minimize;
+    }
+    if (project) {
+        type |= clingo_discard_type_e::project;
+    }
+    handle_error(clingo_control_discard(ctl_.get(), type));
 }
 
 auto Control::buffer() -> char const * {
@@ -433,7 +444,7 @@ Args:
 		An optional object providing functions that can be called during
 		grounding.
 )"_d)
-        .def("solve", &Control::solve, py::arg("assumptions") = MixedLitVec{}, py::arg("on_model") = std::nullopt,
+        .def("solve", &Control::solve, py::arg("assumptions") = MixedLitSpan{}, py::arg("on_model") = std::nullopt,
              py::arg("on_stats") = std::nullopt, py::arg("yield_") = false, py::arg("async_") = false, R"(
 Solve the current ground program.
 
@@ -511,7 +522,14 @@ Inspect the ground program of the current step.
 Args:
     observer: The program observer to inspect the program.
 	preprocess:
-		Whether the program should be preprocessed first (default: true).
+		Whether the program should be preprocessed first (default: True).
+)"_d)
+        .def("discard", &Control::discard, py::arg("minimize") = false, py::arg("project") = false, R"(
+Discard statements of the selected types.
+
+Args:
+    minimize: Discard all minimize and weak constraints (default: False).
+    project: Discard all previously added project  statements (default: False).
 )"_d)
         .def_property_readonly("buffer", &Control::buffer, R"(The content of the output buffer.)")
         .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)")

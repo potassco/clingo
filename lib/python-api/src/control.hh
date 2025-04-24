@@ -47,7 +47,7 @@ class Control {
     void write_aspif(char const *path, bool symbols, bool append, std::optional<bool> preamble, bool preprocess);
     void join(Program &prg);
     void ground(std::optional<PartSpan> parts, py::handle ctx);
-    auto solve(MixedLitVec const &assumptions, std::optional<ModelCallback> on_model,
+    auto solve(MixedLitSpan const &assumptions, std::optional<ModelCallback> on_model,
                std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle;
     auto base() -> Base;
     void observe(Observer &obs, bool preprocess);
@@ -60,6 +60,7 @@ class Control {
     auto parts() -> std::optional<PartSpan>;
     void set_parts(std::optional<PartSpan> parts);
     void interrupt();
+    void discard(bool minimize, bool project);
 
     void register_propagator(Annotation<Propagator> propagator);
 

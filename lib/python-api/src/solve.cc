@@ -72,8 +72,13 @@ auto SolveControl::base() -> Base {
     return {base};
 }
 
-auto SolveControl::add_clause(MixedLitVec const &lits) {
-    auto x = convert(base(), lits);
+auto SolveControl::add_clause(MixedLitSpan const &lits) {
+    auto x = convert(base(), lits, false);
+    handle_error(clingo_solve_control_add_clause(ctl_, x.data(), x.size()));
+}
+
+auto SolveControl::add_nogood(MixedLitSpan const &lits) {
+    auto x = convert(base(), lits, true);
     handle_error(clingo_solve_control_add_clause(ctl_, x.data(), x.size()));
 }
 
@@ -316,6 +321,12 @@ Add a clause that applies to the current solving step during the search.
 
 Args:
   clause: The literals of the clause.
+)"_d)
+        .def("add_nogood", &SolveControl::add_nogood, py::arg("nogood"), R"(
+Add a nogood that applies to the current solving step during the search.
+
+Args:
+  nogood: The literals of the nogood.
 )"_d)
         .def_property_readonly("base", &SolveControl::base, R"(Get the atom/term bases of the program.)");
 
