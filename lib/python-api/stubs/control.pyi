@@ -121,6 +121,15 @@ class Control:
           options: The command line options to initialize the control object.
         """
 
+    def discard(self, minimize: bool = False, project: bool = False) -> None:
+        """
+        Discard statements of the selected types.
+
+        Args:
+            minimize: Discard all minimize and weak constraints (default: False).
+            project: Discard all previously added project  statements (default: False).
+        """
+
     def ground(
         self,
         parts: (
@@ -190,7 +199,7 @@ class Control:
         Args:
             observer: The program observer to inspect the program.
                 preprocess:
-                        Whether the program should be preprocessed first (default: true).
+                        Whether the program should be preprocessed first (default: True).
         """
 
     def parse_files(self, files: typing.Sequence[str]) -> None:

@@ -271,6 +271,16 @@ class SolveControl:
           clause: The literals of the clause.
         """
 
+    def add_nogood(
+        self, nogood: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
+    ) -> None:
+        """
+        Add a nogood that applies to the current solving step during the search.
+
+        Args:
+          nogood: The literals of the nogood.
+        """
+
     @property
     def base(self) -> clingo.base.Base:
         """

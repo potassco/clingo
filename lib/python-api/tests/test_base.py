@@ -69,7 +69,7 @@ class TestBase:
         assert len(base) == 3
 
         fun_r = Function(self.lib, "r", [Number(self.lib, 1)], False)
-        sig_r = fun_r.signature()
+        sig_r = fun_r.signature
         assert sig_r is not None
         assert sig_r in base
         assert (sig_r[0], sig_r[1]) not in base
@@ -77,7 +77,7 @@ class TestBase:
         assert base[sig_r][fun_r].symbol == fun_r
 
         fun_p = Function(self.lib, "p", [Number(self.lib, 2)])
-        sig_p = fun_p.signature()
+        sig_p = fun_p.signature
         assert sig_p is not None
 
         assert sig_p in base

@@ -208,16 +208,6 @@ class Symbol:
             Whether the tuple matches.
         """
 
-    def signature(self) -> tuple[str, int, bool] | None:
-        """
-        Get the signature of function symbols.
-
-        The Boolean in the signature is True if the associated symbol is positive.
-
-        Returns:
-                The signature or None.
-        """
-
     @property
     def arguments(self) -> typing.Sequence[Symbol]:
         """
@@ -252,6 +242,14 @@ class Symbol:
     def number(self) -> int:
         """
         The numeric value.
+        """
+
+    @property
+    def signature(self) -> tuple[str, int, bool] | None:
+        """
+        Get the signature of function symbols.
+
+        The Boolean in the signature is True if the associated symbol is positive.
         """
 
     @property

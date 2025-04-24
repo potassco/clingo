@@ -298,14 +298,6 @@ preconstructed symbols `Infimum` and `Supremum` and the functions `Number`,
 )"_d))
         .def("__str__", &Symbol::str)
         .def("__repr__", &Symbol::repr)
-        .def("signature", &Symbol::signature, R"(
-Get the signature of function symbols.
-
-The Boolean in the signature is True if the associated symbol is positive.
-
-Returns:
-	The signature or None.
-)"_d)
         .def("match", &Symbol::match_function, py::arg("name"), py::arg("arity") = 0, py::arg("is_positive") = true,
              R"(
 Check if this is a function symbol with the given signature.
@@ -326,6 +318,11 @@ Args:
 
 Returns:
     Whether the tuple matches.
+)"_d)
+        .def_property_readonly("signature", &Symbol::signature, R"(
+Get the signature of function symbols.
+
+The Boolean in the signature is True if the associated symbol is positive.
 )"_d)
         .def_property_readonly("type", &Symbol::type, R"(The type of the symbol.)")
         .def_property_readonly("number", &Symbol::number, R"(The numeric value.)")
