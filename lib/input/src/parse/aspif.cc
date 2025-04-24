@@ -50,7 +50,7 @@ class AspifParser {
     AspifParser(ParserState &state) : state_{&state} {}
 
     //! Parses a program in aspif format assuming that the lexer currently sits
-    //! on the the "asp" token.
+    //! on the "asp" token.
     auto parse() -> bool {
         bool res = true;
         try {
@@ -247,7 +247,7 @@ class AspifParser {
 
     void preamble_() {
         expect_(AspifToken::space);
-        auto major = expect_unsigned_();
+        version_ = expect_unsigned_();
         expect_(AspifToken::space);
         auto minor = expect_unsigned_();
         expect_(AspifToken::space);
@@ -268,7 +268,7 @@ class AspifParser {
                 }
             }
         }
-        state_->prg_backend()->preamble(major, minor, revision, incremental);
+        state_->prg_backend()->preamble(version_, minor, revision, incremental);
     }
 
     auto rule_type_() -> RuleType {
@@ -319,6 +319,17 @@ class AspifParser {
     void project_() { state_->prg_backend()->project(expect_atoms_()); }
 
     void output_() {
+        auto sym = output_symbol_();
+        expect_(AspifToken::space);
+        auto body = expect_lits_();
+        if (body.size() == 1 && body.front() > 0) {
+            state_->prg_backend()->show_atom(*sym, body.front());
+        } else {
+            state_->prg_backend()->show(*sym, body);
+        }
+    }
+
+    auto output_symbol_() -> SharedSymbol {
         state_symbol_.init(expect_nstr_(), *str_symbol_);
         state_symbol_.consume();
         auto sym = parse_symbol(state_symbol_);
@@ -327,13 +338,7 @@ class AspifParser {
                 << "parsing symbol failed: `" << state_->view() << "`";
             throw aspif_error{};
         }
-        expect_(AspifToken::space);
-        auto body = expect_lits_();
-        if (body.size() == 1 && body.front() > 0) {
-            state_->prg_backend()->show_atom(*sym.value(), body.front());
-        } else {
-            state_->prg_backend()->show(*sym.value(), body);
-        }
+        return *sym;
     }
 
     auto output_type_() -> OutputType {
@@ -344,7 +349,39 @@ class AspifParser {
         }
         return static_cast<OutputType>(ot);
     }
-
+    void output_term_or_atom_() {
+        auto ot = output_type_();
+        expect_(AspifToken::space);
+        switch (ot) {
+            case OutputType::atom: {
+                auto atom = expect_atom_();
+                expect_(AspifToken::space);
+                auto sym = output_symbol_();
+                state_->prg_backend()->show_atom(*sym, atom);
+                break;
+            }
+            case OutputType::term: {
+                auto term = expect_unsigned_();
+                expect_(AspifToken::space);
+                auto sym = output_symbol_();
+                (void)term;
+                (void)sym;
+                throw std::logic_error("TODO: aspif v2 output term not yet supported");
+            }
+            case OutputType::term_ext: {
+                auto term = expect_unsigned_();
+                expect_(AspifToken::space);
+                auto body = expect_lits_();
+                (void)term;
+                (void)body;
+                throw std::logic_error("TODO: aspif v2 output term condition not yet supported");
+            }
+            default:
+                GRINGO_REPORT_LOC(state_->log(), error, state_->loc())
+                    << "unexpected output type `" << static_cast<uint32_t>(ot) << "`";
+                throw aspif_error{};
+        }
+    }
     void output_symbols_() {
         auto type = output_type_();
         expect_(AspifToken::space);
@@ -614,8 +651,10 @@ class AspifParser {
             case StatementType::output: {
                 if (symbol_) {
                     output_symbols_();
-                } else {
+                } else if (version_ == 1) {
                     output_();
+                } else {
+                    output_term_or_atom_();
                 }
                 break;
             }
@@ -652,6 +691,7 @@ class AspifParser {
     SharedString str_symbol_{*state_->store().string("symbol")};
     SharedSymbolVec symbols_;
     SymbolVec buf_;
+    uint32_t version_ = 0;
     bool symbol_ = false;
 };
 

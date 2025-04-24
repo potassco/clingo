@@ -131,8 +131,9 @@ class Observer : public Potassco::AbstractProgram {
 
     // NOTE: the functions below are currently not used because there are other
     // means to inspect atoms and theory data.
-    void output([[maybe_unused]] std::string_view str, [[maybe_unused]] Potassco::LitSpan condition) override {}
     void outputAtom([[maybe_unused]] Potassco::Atom_t a, [[maybe_unused]] std::string_view str) override {}
+    void outputTerm([[maybe_unused]] Potassco::Id_t termId, [[maybe_unused]] std::string_view str) override {}
+    void output([[maybe_unused]] Potassco::Id_t termId, [[maybe_unused]] Potassco::LitSpan condition) override {}
 
     void theoryTerm([[maybe_unused]] Potassco::Id_t termId, [[maybe_unused]] int number) override {}
     void theoryTerm([[maybe_unused]] Potassco::Id_t termId, [[maybe_unused]] std::string_view name) override {}
@@ -195,7 +196,9 @@ class ExtendedAspifWriter : public Potassco::AspifOutput {
     // the necessary interfaces.
 
     //! Disable output table.
-    void output([[maybe_unused]] std::string_view str, [[maybe_unused]] Potassco::LitSpan cond) override {}
+    void outputAtom([[maybe_unused]] Potassco::Atom_t a, [[maybe_unused]] std::string_view str) override {}
+    void outputTerm([[maybe_unused]] Potassco::Id_t termId, [[maybe_unused]] std::string_view str) override {}
+    void output([[maybe_unused]] Potassco::Id_t termId, [[maybe_unused]] Potassco::LitSpan condition) override {}
     //! Write output table before the end step directive.
     void endStep() override {
         sym_tab_->output();
