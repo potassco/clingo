@@ -9,6 +9,7 @@ from textwrap import dedent
 
 from clingo.control import Control
 from clingo.core import Library
+from clingo.symbol import Function
 from util import MCB
 
 
@@ -226,11 +227,29 @@ class TestAspif:
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [[], ["a"]]
 
-    def test_output(self):
+    def test_output_v1_fact(self):
+        """
+        Test output fact.
+        """
+        self.parse(
+            """\
+            asp 1 0 0
+            1 0 1 1 0 0
+            4 1 a 0
+            0
+            """
+        )
+        sym = Function(self.lib, "a", [])
+        assert sym not in self.ctl.base.terms
+        assert sym in self.ctl.base
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [["a"]]
+
+    def test_output_v1_cond(self):
         """
         Test output statements.
         """
-        # TODO: adjust once the upcoming aspif change is implemented
         self.parse(
             """\
             asp 1 0 0
@@ -238,12 +257,63 @@ class TestAspif:
             4 1 a 1 1
             4 1 b 1 2
             4 1 c 2 1 2
+            4 1 d 0
             0
             """
         )
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
-        assert mcb.symbols == [[], ["a"], ["a", "b", "c"], ["b"]]
+        assert mcb.symbols == [["a", "b", "c", "d"], ["a", "d"], ["b", "d"], ["d"]]
+        sym = Function(self.lib, "d", [])
+        assert sym in self.ctl.base.terms
+        assert sym not in self.ctl.base
+
+    def test_output_v2_fact(self):
+        """
+        Test output fact.
+        """
+        self.parse(
+            """\
+            asp 2 0 0
+            1 0 1 1 0 0
+            4 0 1 1 a
+            4 0 1 1 b
+            0
+            """
+        )
+        sym = Function(self.lib, "a", [])
+        assert sym not in self.ctl.base.terms
+        assert sym in self.ctl.base
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [["a", "b"]]
+
+    def test_output_v2_cond(self):
+        """
+        Test output fact.
+        """
+        self.parse(
+            """\
+            asp 2 0 0
+            1 1 2 1 2 0 0
+            4 1 0 1 a
+            4 2 0 0
+            4 1 1 1 b
+            4 2 1 1 1
+            4 1 2 1 c
+            4 2 2 2 1 2
+            0
+            """
+        )
+        a = Function(self.lib, "a", [])
+        b = Function(self.lib, "b", [])
+        c = Function(self.lib, "c", [])
+        assert a in self.ctl.base.terms
+        assert b in self.ctl.base.terms
+        assert c in self.ctl.base.terms
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [["a"], ["a"], ["a", "b"], ["a", "b", "c"]]
 
     def test_output_symbols(self):
         """

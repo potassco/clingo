@@ -36,6 +36,22 @@ class ProgramBackendImpl : public ProgramBackend {
         throw std::range_error("literals number of literals exhausted");
     }
 
+    auto do_fact_lit() -> std::optional<prg_lit_t> override {
+        // return the cached fact literal
+        if (fact_lit_ != 0) {
+            return fact_lit_;
+        }
+        // try to find a fact literal
+        for (auto lit : Clasp::irange(1, static_cast<prg_lit_t>(prg_->numAtoms() + 1))) {
+            if (prg_->isFact(lit)) {
+                fact_lit_ = lit;
+                return lit;
+            }
+        }
+        // report that there is no fact literal (very unlikely)
+        return std::nullopt;
+    }
+
     void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
         bld_.clear();
         bld_.start(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive);
@@ -157,6 +173,7 @@ class ProgramBackendImpl : public ProgramBackend {
     Potassco::RuleBuilder bld_;
     Clasp::Asp::LogicProgram *prg_;
     TermBaseMap *terms_;
+    prg_lit_t fact_lit_ = 0;
 };
 
 //! Implementation of the theory backend interface.

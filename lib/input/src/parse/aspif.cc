@@ -246,11 +246,17 @@ class AspifParser {
 
     void preamble_() {
         expect_(AspifToken::space);
+        auto loc = state_->loc();
         version_ = expect_unsigned_();
         expect_(AspifToken::space);
         auto minor = expect_unsigned_();
         expect_(AspifToken::space);
         auto revision = expect_unsigned_();
+        if ((version_ != 1 && version_ != 2) || minor != 0) {
+            GRINGO_REPORT_LOC(state_->log(), error, loc + state_->loc())
+                << "unsupported aspif version `" << version_ << "." << minor << "." << revision << "`";
+            throw aspif_error{};
+        }
         bool incremental = false;
         while (expect_(AspifToken::newline, AspifToken::space) == AspifToken::space) {
             switch (expect_(AspifToken::incremental, AspifToken::symbols)) {
@@ -259,6 +265,10 @@ class AspifParser {
                     break;
                 }
                 case AspifToken::symbols: {
+                    if (version_ == 1) {
+                        GRINGO_REPORT_LOC(state_->log(), error, loc + state_->loc()) << "unsupported tag `symbols`";
+                        throw aspif_error{};
+                    }
                     symbol_ = true;
                     break;
                 }
@@ -323,6 +333,8 @@ class AspifParser {
         auto body = expect_lits_();
         if (body.size() == 1 && body.front() > 0) {
             state_->prg_backend()->show_atom(*sym, body.front());
+        } else if (auto fact = body.empty() ? state_->prg_backend()->fact_lit() : std::nullopt) {
+            state_->prg_backend()->show_atom(*sym, *fact);
         } else {
             state_->prg_backend()->show_term(*sym, body);
         }
