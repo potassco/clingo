@@ -6,7 +6,6 @@ import os
 import tempfile
 from contextlib import contextmanager
 
-import pytest
 from clingo.control import Control
 from clingo.core import Library
 from util import MCB
@@ -76,7 +75,7 @@ class TestWriteAspif:
         return self._ctl
 
     @contextmanager
-    def parse(self, content: str):
+    def parse(self, content: str, symbols: bool = False):
         """
         Parse the given program and return a file with its aspif grounding.
         """
@@ -84,16 +83,15 @@ class TestWriteAspif:
         ctl.parse_string(content)
         ctl.ground()
         with make_file() as path:
-            ctl.write_aspif(path)
+            ctl.write_aspif(path, symbols=symbols)
             yield path
 
     def test_rule(self):
         """
-        Test incremental assumptions.
+        Test rules.
         """
         with self.parse("a. {b}. c :- b.") as path:
             self.ctl.parse_files([path])
-            self.ctl.ground()
             mcb = MCB()
             self.ctl.solve(on_model=mcb)
             assert mcb.symbols == [["a"], ["a", "b", "c"]]
@@ -105,7 +103,6 @@ class TestWriteAspif:
         self._ctl = Control(self.lib, ["0", "--trans-ext", "no"])
         with self.parse("{a;b;c}. :- 2 {a;b;c} 2.") as path:
             self.ctl.parse_files([path])
-            self.ctl.ground()
             mcb = MCB()
             self.ctl.solve(on_model=mcb)
             assert mcb.symbols == [[], ["a"], ["a", "b", "c"], ["b"], ["c"]]
@@ -116,7 +113,6 @@ class TestWriteAspif:
         """
         with self.parse("a | b | c. a :- b. b :- a.") as path:
             self.ctl.parse_files([path])
-            self.ctl.ground()
             mcb = MCB()
             self.ctl.solve(on_model=mcb)
             assert mcb.symbols == [["a", "b"], ["c"]]
@@ -129,7 +125,6 @@ class TestWriteAspif:
             "#minimize { 1:a; 2:b; 3:c }. 1 {a; b; c}. :- a, not b, not c. :- b, not a, not c."
         ) as path:
             self.ctl.parse_files([path])
-            self.ctl.ground()
             mcb = MCB()
             self.ctl.solve(on_model=mcb)
             assert mcb.symbols == [["a", "b"], ["c"]]
@@ -141,17 +136,23 @@ class TestWriteAspif:
         self._ctl = Control(self.lib, ["0", "--project"])
         with self.parse("1 {a; b; c}. #show a/0. #project a/0. #project b/0.") as path:
             self.ctl.parse_files([path])
-            self.ctl.ground()
             mcb = MCB()
             self.ctl.solve(on_model=mcb)
             assert mcb.symbols == [[], [], ["a"], ["a"]]
 
-    @pytest.mark.xfail
     def test_output(self):
         """
         Test output.
         """
-        assert False
+        for symbols in (True, False):
+            with self.parse(
+                "1 {a; x}. #show a/0. #show b : x. #show c : a, x.", symbols=symbols
+            ) as path:
+                self._ctl = Control(self.lib, ["0", "--opt-mode=optN"])
+                self.ctl.parse_files([path])
+                mcb = MCB()
+                self.ctl.solve(on_model=mcb)
+                assert mcb.symbols == [["a"], ["a", "b", "c"], ["b"]]
 
     def test_external(self):
         """
@@ -162,7 +163,6 @@ class TestWriteAspif:
             "#external a. [true] #external b. [false] #external c. [free]"
         ) as path:
             self.ctl.parse_files([path])
-            self.ctl.ground()
             mcb = MCB()
             self.ctl.solve(on_model=mcb)
             assert mcb.symbols == [["a"], ["a", "c"]]
@@ -180,7 +180,6 @@ class TestWriteAspif:
             """
         ) as path:
             self.ctl.parse_files([path])
-            self.ctl.ground()
             mcb = MCB()
             self.ctl.solve(on_model=mcb)
             assert mcb.symbols == [["a"]]
@@ -197,7 +196,6 @@ class TestWriteAspif:
             """
         ) as path:
             self.ctl.parse_files([path])
-            self.ctl.ground()
             mcb = MCB()
             self.ctl.solve(on_model=mcb)
             assert mcb.symbols == [[], ["a"], ["b"]]
@@ -217,7 +215,6 @@ class TestWriteAspif:
             """
         ) as path:
             self.ctl.parse_files([path])
-            self.ctl.ground()
             assert sorted(str(atom) for atom in self.ctl.base.theory) == [
                 "&p { 1,f((1+2)),[1],{2},(3),4 }",
                 "&p { } < 2",

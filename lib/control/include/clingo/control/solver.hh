@@ -568,8 +568,8 @@ class SymbolTable {
     std::ostream *out_ = nullptr;
     size_t ids_ = 0;
     std::vector<size_t> buf_;
-    std::vector<size_t> conds_done_;
     Clingo::Util::unordered_map<Clingo::SharedSymbol, State> done_;
+    Clingo::Util::unordered_set<Util::small_vector<size_t>> conds_done_;
 };
 //! A unique pointer to a symbol table.
 using USymbolTable = std::unique_ptr<SymbolTable>;

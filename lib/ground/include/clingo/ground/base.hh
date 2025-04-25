@@ -268,7 +268,7 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
 
     //! Get the number of derived atoms.
     [[nodiscard]] auto size() const -> size_t { return derived_.size(); }
-    //! Get the number of derived atoms.
+    //! Get the number of shown atoms.
     [[nodiscard]] auto num_shown() const -> size_t { return show_offset_; }
 
     //! Get the atom index of the given symbol.

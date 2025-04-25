@@ -925,7 +925,12 @@ void SymbolTable::init(Clingo::Control::BaseView &view, std::ostream &out) {
 }
 
 void SymbolTable::output() {
+    // do not output not shown.
     for (auto const &[sig, base] : view_->bases().atoms()) {
+        // NOTE: at this point non-empty bases should be either shown or not.
+        if (base->num_shown() == 0) {
+            continue;
+        }
         for (size_t i = 0, e = base->size(); i != e; ++i) {
             auto it = base->nth(i);
             auto &state = output(it.key());
@@ -935,24 +940,22 @@ void SymbolTable::output() {
             }
         }
     }
-    // TODO: maybe there is a better way to track output conditions
     auto const &prg = view_->clasp_program();
     auto const &terms = view_->term_base();
-    conds_done_.resize(terms.size());
     for (auto const &[sym, id] : terms) {
         auto sym_id = output(*sym).index;
-        size_t i = 0;
         for (auto const &cond : prg.getShowTerm(id).conditions()) {
-            if (i >= conds_done_[id]) {
+            auto mark = Util::small_vector<size_t>{};
+            mark.reserve(cond.size() + 1);
+            std::ranges::copy(cond, std::back_inserter(mark));
+            if (conds_done_.emplace(std::move(mark)).second) {
                 *out_ << "4 1 " << sym_id << " " << cond.size();
                 for (auto const &lit : cond) {
                     *out_ << " " << lit;
                 }
                 *out_ << "\n";
             }
-            ++i;
         }
-        conds_done_[id] = i;
     }
 }
 
@@ -1111,7 +1114,7 @@ void Solver::enable_updates_() {
     if (opts_.mode == AppMode::solve) {
         if (opts_.single_shot) {
             clasp_->keepProgram();
-        } else {
+        } else if (!clasp_->incremental()) {
             clasp_->enableProgramUpdates();
         }
     }
