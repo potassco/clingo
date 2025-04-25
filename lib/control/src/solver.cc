@@ -20,8 +20,7 @@ namespace {
 //! Implementation of the backend interface.
 class ProgramBackendImpl : public ProgramBackend {
   public:
-    ProgramBackendImpl(Clasp::Asp::LogicProgram &prg, TermBaseMap &terms, TermBaseRemap &reterms)
-        : prg_{&prg}, terms_{&terms}, reterms_{&reterms} {}
+    ProgramBackendImpl(Clasp::Asp::LogicProgram &prg, TermBaseMap &terms) : prg_{&prg}, terms_{&terms} {}
 
   private:
     void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
@@ -124,38 +123,25 @@ class ProgramBackendImpl : public ProgramBackend {
     }
 
     void do_show_term(Symbol sym, PrgLitSpan body) override {
-        buf_.reset();
-        buf_ << sym;
-        auto [pos, added] = terms_->try_emplace(SharedSymbol{sym}, 0);
-        if (added) {
-            pos.value() = prg_->newShowTerm(buf_.view());
-        }
-        prg_->addShowTerm(pos->second, body);
+        auto id = terms_->add(sym, [&, this]() {
+            buf_.reset();
+            buf_ << sym;
+            return prg_->newShowTerm(buf_.view());
+        });
+        prg_->addShowTerm(id, body);
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << Util::p_range(body, ", ") << ".\n";
 #endif
     }
 
-    //! Adds the given symbol to the set of output terms.
-    //!
-    //! The given id is remapped to an internal one.
     void do_show_term(Symbol sym, prg_id_t id) override {
         buf_.reset();
         buf_ << sym;
-        auto [pos, added] = terms_->try_emplace(SharedSymbol{sym}, 0);
-        if (added) {
-            pos.value() = prg_->newShowTerm(buf_.view());
-        }
-        reterms_->emplace(id, pos.value());
+        terms_->add(sym, id);
+        prg_->newShowTerm(buf_.view(), id);
     }
 
-    void do_show_term(prg_id_t id, PrgLitSpan body) override {
-        auto it = reterms_->find(id);
-        if (it == reterms_->end()) {
-            throw std::runtime_error{"unknown term id"};
-        }
-        prg_->addShowTerm(it.value(), body);
-    }
+    void do_show_term(prg_id_t id, PrgLitSpan body) override { prg_->addShowTerm(id, body); }
 
     void do_show_atom(Symbol sym, prg_lit_t lit) override {
         assert(lit > 0);
@@ -171,7 +157,6 @@ class ProgramBackendImpl : public ProgramBackend {
     Potassco::RuleBuilder bld_;
     Clasp::Asp::LogicProgram *prg_;
     TermBaseMap *terms_;
-    TermBaseRemap *reterms_;
 };
 
 //! Implementation of the theory backend interface.
@@ -821,7 +806,7 @@ class BackendHandleImpl : public BackendHandle {
 class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
   public:
     ProgramBackendAdapter(Solver &solver)
-        : ProgramBackendImpl{*solver.clasp_facade().asp(), solver.terms_, solver.reterms_}, solver_{&solver} {}
+        : ProgramBackendImpl{*solver.clasp_facade().asp(), solver.terms_}, solver_{&solver} {}
 
   private:
     //! Prepare the program to add aspif statements.
@@ -1029,7 +1014,7 @@ Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_conf
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
     switch (mode) {
         case AppMode::solve: {
-            backend_ = std::make_unique<ProgramBackendImpl>(*clasp_->asp(), terms_, reterms_);
+            backend_ = std::make_unique<ProgramBackendImpl>(*clasp_->asp(), terms_);
             theory_ = std::make_unique<Output::TheoryData>(store, std::make_unique<TheoryBackendImpl>(*clasp_->asp()));
             return Output::make_backend_output(store, *backend_, *theory_);
         }
