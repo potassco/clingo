@@ -126,7 +126,6 @@ class AspifParser {
         term_tup = 5,
         term_fun = 6,
     };
-    static constexpr unsigned max_output_type = 8;
 
     template <class... T> auto expect_(T... tokens) -> AspifToken {
         auto token = state_->lex_aspif();
@@ -325,7 +324,7 @@ class AspifParser {
         if (body.size() == 1 && body.front() > 0) {
             state_->prg_backend()->show_atom(*sym, body.front());
         } else {
-            state_->prg_backend()->show(*sym, body);
+            state_->prg_backend()->show_term(*sym, body);
         }
     }
 
@@ -341,16 +340,16 @@ class AspifParser {
         return *sym;
     }
 
-    auto output_type_() -> OutputType {
+    auto output_type_(OutputType max_type) -> OutputType {
         auto ot = expect_unsigned_();
-        if (ot > max_output_type) {
+        if (ot > static_cast<unsigned>(max_type)) {
             GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected output type `" << ot << "`";
             throw aspif_error{};
         }
         return static_cast<OutputType>(ot);
     }
     void output_term_or_atom_() {
-        auto ot = output_type_();
+        auto ot = output_type_(OutputType::term_ext);
         expect_(AspifToken::space);
         switch (ot) {
             case OutputType::atom: {
@@ -364,26 +363,23 @@ class AspifParser {
                 auto term = expect_unsigned_();
                 expect_(AspifToken::space);
                 auto sym = output_symbol_();
-                (void)term;
-                (void)sym;
-                throw std::logic_error("TODO: aspif v2 output term not yet supported");
+                state_->prg_backend()->show_term(*sym, term);
+                break;
             }
             case OutputType::term_ext: {
                 auto term = expect_unsigned_();
                 expect_(AspifToken::space);
                 auto body = expect_lits_();
-                (void)term;
-                (void)body;
-                throw std::logic_error("TODO: aspif v2 output term condition not yet supported");
+                state_->prg_backend()->show_term(term, body);
+                break;
             }
-            default:
-                GRINGO_REPORT_LOC(state_->log(), error, state_->loc())
-                    << "unexpected output type `" << static_cast<uint32_t>(ot) << "`";
-                throw aspif_error{};
+            default: {
+                Util::unreachable();
+            }
         }
     }
     void output_symbols_() {
-        auto type = output_type_();
+        auto type = output_type_(OutputType::term_fun);
         expect_(AspifToken::space);
         auto sym_id = expect_unsigned_();
         auto add = [this, sym_id]<class T>(T &&sym) {
@@ -416,7 +412,7 @@ class AspifParser {
                 auto sym = get(sym_id);
                 expect_(AspifToken::space);
                 auto body = expect_lits_();
-                state_->prg_backend()->show(*sym, body);
+                state_->prg_backend()->show_term(*sym, body);
                 break;
             }
             case OutputType::term_ext: {

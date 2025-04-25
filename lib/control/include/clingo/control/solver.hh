@@ -108,6 +108,8 @@ enum class ConsequenceType : uint8_t {
 
 //! A map from terms to their id.
 using TermBaseMap = Util::ordered_map<SharedSymbol, prg_id_t>;
+//! A map from auxiliary term ids to actual term ids.
+using TermBaseRemap = Util::unordered_map<prg_id_t, prg_id_t>;
 
 //! Interface providing the necessary data to inspect atom, term, and theory bases.
 class BaseView {
@@ -651,6 +653,7 @@ class Solver : public BaseView {
     CallbackLock lock_;
     std::vector<UPropagator> propagators_;
     TermBaseMap terms_;
+    TermBaseRemap reterms_;
     Clasp::ClaspFacade *clasp_;
     Clasp::Cli::ClaspCliConfig *clasp_config_;
     Util::OutputBuffer buf_;

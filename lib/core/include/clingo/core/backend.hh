@@ -100,7 +100,19 @@ class ProgramBackend {
     //!
     //! @param sym the symbol to show
     //! @param body the condition when to show the symbol
-    void show(Symbol sym, PrgLitSpan body) { do_show(sym, body); }
+    void show_term(Symbol sym, PrgLitSpan body) { do_show_term(sym, body); }
+
+    //! Associate the given symbol with an id.
+    //!
+    //! @param sym the symbol
+    //! @param id the id
+    void show_term(Symbol sym, prg_id_t id) { do_show_term(sym, id); }
+
+    //! Show the symbol with the given id if the given condition is true.
+    //!
+    //! @param id the symbol to show
+    //! @param body the condition when to show the symbol
+    void show_term(prg_id_t id, PrgLitSpan body) { do_show_term(id, body); }
 
     //! Show the atom with the given symbol and program literal.
     //!
@@ -161,7 +173,9 @@ class ProgramBackend {
     virtual auto do_next_lit() -> prg_lit_t = 0;
     virtual void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) = 0;
     virtual void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, int32_t bound, bool choice) = 0;
-    virtual void do_show(Symbol sym, PrgLitSpan body) = 0;
+    virtual void do_show_term(Symbol sym, PrgLitSpan body) = 0;
+    virtual void do_show_term(Symbol sym, prg_id_t id) = 0;
+    virtual void do_show_term(prg_id_t id, PrgLitSpan body) = 0;
     virtual void do_show_atom(Symbol sym, prg_lit_t lit) = 0;
     virtual void do_edge(prg_id_t u, prg_id_t v, PrgLitSpan body) = 0;
     virtual void do_heuristic(prg_lit_t atom, prg_weight_t weight, prg_weight_t prio, HeuristicType type,
