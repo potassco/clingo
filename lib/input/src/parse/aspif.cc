@@ -247,14 +247,14 @@ class AspifParser {
     void preamble_() {
         expect_(AspifToken::space);
         auto loc = state_->loc();
-        version_ = expect_unsigned_();
+        auto major = expect_unsigned_();
         expect_(AspifToken::space);
         auto minor = expect_unsigned_();
         expect_(AspifToken::space);
         auto revision = expect_unsigned_();
-        if ((version_ != 1 && version_ != 2) || minor != 0) {
+        if ((major != 1 && major != 2) || minor != 0) {
             GRINGO_REPORT_LOC(state_->log(), error, loc + state_->loc())
-                << "unsupported aspif version `" << version_ << "." << minor << "." << revision << "`";
+                << "unsupported aspif version `" << major << "." << minor << "." << revision << "`";
             throw aspif_error{};
         }
         bool incremental = false;
@@ -265,7 +265,7 @@ class AspifParser {
                     break;
                 }
                 case AspifToken::symbols: {
-                    if (version_ == 1) {
+                    if (major == 1) {
                         GRINGO_REPORT_LOC(state_->log(), error, loc + state_->loc()) << "unsupported tag `symbols`";
                         throw aspif_error{};
                     }
@@ -277,7 +277,8 @@ class AspifParser {
                 }
             }
         }
-        state_->prg_backend()->preamble(version_, minor, revision, incremental);
+        version_ = major;
+        state_->prg_backend()->preamble(major, minor, revision, incremental);
     }
 
     auto rule_type_() -> RuleType {
@@ -699,7 +700,7 @@ class AspifParser {
     SharedString str_symbol_{*state_->store().string("symbol")};
     SharedSymbolVec symbols_;
     SymbolVec buf_;
-    uint32_t version_ = 0;
+    uint32_t version_ = 2;
     bool symbol_ = false;
 };
 
