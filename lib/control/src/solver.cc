@@ -42,11 +42,9 @@ class ProgramBackendImpl : public ProgramBackend {
             return fact_lit_;
         }
         // try to find a fact literal
-        for (auto lit : Clasp::irange(1, static_cast<prg_lit_t>(prg_->numAtoms() + 1))) {
-            if (prg_->isFact(lit)) {
-                fact_lit_ = lit;
-                return lit;
-            }
+        if (auto atom = prg_->factAtom(); atom) {
+            fact_lit_ = Potassco::lit(atom);
+            return fact_lit_;
         }
         // report that there is no fact literal (very unlikely)
         return std::nullopt;
