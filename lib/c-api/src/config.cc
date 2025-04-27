@@ -61,10 +61,11 @@ extern "C" auto clingo_config_description(clingo_config_t const *config, clingo_
         if (config == nullptr || description == nullptr) {
             return clingo_result_invalid;
         }
-        cpp_cast(config)->getKeyInfo(key, nullptr, nullptr, description, nullptr);
-        if (*description == nullptr) {
+        thread_local auto val = std::string{};
+        if (cpp_cast(config)->getKeyInfo(key, nullptr, nullptr, &val, nullptr) != 1) {
             return clingo_result_invalid;
         }
+        *description = val.c_str();
     }
     CLINGO_CATCH;
 }
@@ -133,7 +134,7 @@ extern "C" auto clingo_config_map_subkey_name(clingo_config_t const *config, cli
             return clingo_result_invalid;
         }
         *name = cpp_cast(config)->getSubkey(key, offset);
-        if (name == nullptr) {
+        if (*name == nullptr) {
             return clingo_result_invalid;
         }
     }
@@ -176,8 +177,7 @@ extern "C" auto clingo_config_value_get(clingo_config_t const *config, clingo_id
         if (config == nullptr || value == nullptr) {
             return clingo_result_invalid;
         }
-        static thread_local auto val = std::string{};
-        val.clear();
+        thread_local auto val = std::string{};
         if (cpp_cast(config)->getValue(key, val) < 0) {
             return clingo_result_invalid;
         }
