@@ -49,6 +49,7 @@ class TestConfig:
         assert cfg.solve.models.is_value
         assert not cfg.solve.models.is_sequence
         assert cfg.solve.models.description.startswith("Compute")
+        assert "%A" not in cfg.solve.models.description
         cfg.solve.models.value = -1
         assert str(cfg.solve.models) == '"-1"'
         assert cfg.solve.models.value == "-1"
