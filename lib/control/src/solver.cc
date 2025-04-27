@@ -861,7 +861,7 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
         }
         auto &base = solver_->grd_.base().add_base(*sig);
         auto it = base.add(sym, Ground::StateAtom::derived, [lit]() { return lit; }).first;
-        if (it->second.id != lit) {
+        if (static_cast<prg_lit_t>(it->second.id) != lit) {
             throw std::runtime_error{"redefinition of atom in aspif file"};
         }
         added_.emplace_back(lit, sym);
