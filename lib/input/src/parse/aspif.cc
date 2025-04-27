@@ -120,11 +120,12 @@ class AspifParser {
     enum class OutputType : uint8_t {
         atom = 0,
         term = 1,
-        term_ext = 2,
-        term_num = 3,
-        term_str = 4,
-        term_tup = 5,
-        term_fun = 6,
+        term_cnd = 2,
+        term_ext = 3,
+        term_num = 4,
+        term_str = 5,
+        term_tup = 6,
+        term_fun = 7,
     };
 
     template <class... T> auto expect_(T... tokens) -> AspifToken {
@@ -362,7 +363,7 @@ class AspifParser {
         return static_cast<OutputType>(ot);
     }
     void output_term_or_atom_() {
-        auto ot = output_type_(OutputType::term_ext);
+        auto ot = output_type_(OutputType::term_cnd);
         expect_(AspifToken::space);
         switch (ot) {
             case OutputType::atom: {
@@ -379,7 +380,7 @@ class AspifParser {
                 state_->prg_backend()->show_term(*sym, term);
                 break;
             }
-            case OutputType::term_ext: {
+            case OutputType::term_cnd: {
                 auto term = expect_unsigned_();
                 expect_(AspifToken::space);
                 auto body = expect_lits_();
@@ -424,8 +425,14 @@ class AspifParser {
             case OutputType::term: {
                 auto sym = get(sym_id);
                 expect_(AspifToken::space);
+                auto id = expect_unsigned_();
+                state_->prg_backend()->show_term(*sym, id);
+                break;
+            }
+            case OutputType::term_cnd: {
+                expect_(AspifToken::space);
                 auto body = expect_lits_();
-                state_->prg_backend()->show_term(*sym, body);
+                state_->prg_backend()->show_term(sym_id, body);
                 break;
             }
             case OutputType::term_ext: {

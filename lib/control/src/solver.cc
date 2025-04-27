@@ -922,8 +922,17 @@ void SymbolTable::init(Clingo::Control::BaseView &view, std::ostream &out) {
     out_ = &out;
 }
 
-void SymbolTable::output() {
-    // do not output not shown.
+void SymbolTable::begin_step() {
+    for (auto const &[sym, id] : view_->term_base()) {
+        auto &state = output(*sym);
+        if (state.term == 0) {
+            state.term = 1;
+            *out_ << "4 1 " << state.index << " " << id << "\n";
+        }
+    }
+}
+
+void SymbolTable::end_step() {
     for (auto const &[sig, base] : view_->bases().atoms()) {
         // NOTE: at this point non-empty bases should be either shown or not.
         if (base->num_shown() == 0) {
@@ -933,25 +942,8 @@ void SymbolTable::output() {
             auto it = base->nth(i);
             auto &state = output(it.key());
             if (state.atom == 0) {
-                state.atom = true;
+                state.atom = 1;
                 *out_ << "4 0 " << state.index << " " << it.value().id << "\n";
-            }
-        }
-    }
-    auto const &prg = view_->clasp_program();
-    auto const &terms = view_->term_base();
-    for (auto const &[sym, id] : terms) {
-        auto sym_id = output(*sym).index;
-        for (auto const &cond : prg.getShowTerm(id).conditions()) {
-            auto mark = Util::small_vector<size_t>{};
-            mark.reserve(cond.size() + 1);
-            std::ranges::copy(cond, std::back_inserter(mark));
-            if (conds_done_.emplace(std::move(mark)).second) {
-                *out_ << "4 1 " << sym_id << " " << cond.size();
-                for (auto const &lit : cond) {
-                    *out_ << " " << lit;
-                }
-                *out_ << "\n";
             }
         }
     }
@@ -963,23 +955,23 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
         switch (sym.type()) {
             case Clingo::SymbolType::inf: {
                 auto id = it.value().index = ids_++;
-                *out_ << "4 2 " << id << " 0\n";
+                *out_ << "4 3 " << id << " 0\n";
                 break;
             }
             case Clingo::SymbolType::sup: {
                 auto id = it.value().index = ids_++;
-                *out_ << "4 2 " << id << " 1" << "\n";
+                *out_ << "4 3 " << id << " 1" << "\n";
                 break;
             }
             case Clingo::SymbolType::number: {
                 auto id = it.value().index = ids_++;
-                *out_ << "4 3 " << id << " " << sym.num() << "\n";
+                *out_ << "4 4 " << id << " " << sym.num() << "\n";
                 break;
             }
             case Clingo::SymbolType::string: {
                 auto id = it.value().index = ids_++;
                 auto str = sym.str().view();
-                *out_ << "4 4 " << id << " " << str.size() << " " << str << "\n";
+                *out_ << "4 5 " << id << " " << str.size() << " " << str << "\n";
                 break;
             }
             case Clingo::SymbolType::tuple: {
@@ -991,7 +983,7 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
                 // NOTE: the iterator might have been invalidated above
                 it = done_.find(sym);
                 auto id = it.value().index = ids_++;
-                *out_ << "4 5 " << id << " " << args.size();
+                *out_ << "4 6 " << id << " " << args.size();
                 for (auto const &arg : std::span{buf_.begin() + size, buf_.end()}) {
                     *out_ << " " << arg;
                 }
@@ -1010,7 +1002,7 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
                 // NOTE: the iterator might have been invalidated above
                 it = done_.find(sym);
                 auto id = it.value().index = ids_++;
-                *out_ << "4 6 " << id << " " << (sym.has_classical_sign() ? 1 : 0) << " " << name << " " << args.size();
+                *out_ << "4 7 " << id << " " << (sym.has_classical_sign() ? 1 : 0) << " " << name << " " << args.size();
                 for (auto const &arg : std::span{buf_.begin() + size, buf_.end()}) {
                     *out_ << " " << arg;
                 }

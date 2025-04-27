@@ -550,8 +550,10 @@ class SymbolTable {
   public:
     //! Initialize the table before output.
     void init(Clingo::Control::BaseView &view, std::ostream &out);
-    //! Output symbols in aspif format.
-    void output();
+    //! Output atoms in extended aspif format.
+    void begin_step();
+    //! Output terms in extended aspif format.
+    void end_step();
     //! Get the underlying output stream.
     auto out() -> std::ostream & { return *out_; }
 
@@ -559,7 +561,8 @@ class SymbolTable {
     struct State {
         State() = default;
         size_t atom : 1 = 0;
-        size_t index : (8 * sizeof(size_t)) - 1 = 0;
+        size_t term : 1 = 0;
+        size_t index : (8 * sizeof(size_t)) - 2 = 0;
     };
 
     auto output(Clingo::Symbol const &sym) -> State &;
@@ -569,7 +572,6 @@ class SymbolTable {
     size_t ids_ = 0;
     std::vector<size_t> buf_;
     Clingo::Util::unordered_map<Clingo::SharedSymbol, State> done_;
-    Clingo::Util::unordered_set<Util::small_vector<size_t>> conds_done_;
 };
 //! A unique pointer to a symbol table.
 using USymbolTable = std::unique_ptr<SymbolTable>;
