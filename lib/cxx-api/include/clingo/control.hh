@@ -23,6 +23,8 @@ using PartSpan = std::span<Part const>;
 
 class Control {
   public:
+    using Context = std::function<SymbolVector(char const *, SymbolSpan)>;
+
     ~Control() { clingo_control_release(rep_); }
 
     Control(Control const &other) noexcept : rep_{other.rep_} { clingo_control_acquire(rep_); }
@@ -57,9 +59,7 @@ class Control {
 
     void parse_string(char const *program) { Detail::handle_error(clingo_control_parse_string(rep_, program)); }
 
-    void ground(std::optional<PartSpan> parts = std::nullopt) {
-        // TODO:
-        // - need context
+    void ground(std::optional<PartSpan> parts = std::nullopt, Context ctx = nullptr) {
         std::vector<clingo_part_t> c_parts;
         if (parts) {
             c_parts.reserve(parts->size());
@@ -70,10 +70,22 @@ class Control {
             c_parts.reserve(1);
             c_parts.emplace_back("base", nullptr, 0);
         }
-        Detail::handle_error(clingo_control_ground(rep_, c_parts.data(), c_parts.size(), nullptr, nullptr));
+        Detail::handle_error(clingo_control_ground(rep_, c_parts.data(), c_parts.size(), ctx ? &ctx_ : nullptr, &ctx));
     }
 
   private:
+    static auto ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
+                     char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data,
+                     clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t {
+        CLINGO_TRY {
+            auto &cb = *static_cast<std::function<SymbolVector(char const *, SymbolSpan)> *>(data);
+            auto syms = cb(name, {cpp_cast(arguments), arguments_size});
+            auto const *c_syms = c_cast(syms.data());
+            return symbol_callback(c_syms, syms.size(), symbol_callback_data);
+        }
+        CLINGO_CATCH(Detail::get_exception_ptr());
+    }
+
     clingo_control_t *rep_ = nullptr;
 };
 

@@ -46,6 +46,27 @@ namespace Detail {
 
 #define CLINGO_ENUM_OP(op, arg, ...) [[maybe_unused]] inline __VA_ARGS__ constexpr auto operator op arg noexcept
 
+#define CLINGO_TRY try
+#define CLINGO_CATCH(x)                                                                                                \
+    catch (...) {                                                                                                      \
+        return Detail::handle_error(x);                                                                                \
+    }                                                                                                                  \
+    return clingo_result_success
+
+inline auto get_exception_ptr() -> std::exception_ptr & {
+    thread_local std::exception_ptr ptr;
+    return ptr;
+}
+
+inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
+    try {
+        throw;
+    } catch (...) {
+        ptr = std::current_exception();
+    }
+    return clingo_result_unknown;
+}
+
 inline void handle_error(clingo_result_t res) {
     switch (res) {
         case clingo_result_success: {
