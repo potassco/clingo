@@ -25,7 +25,7 @@ class ProgramBackendImpl : public ProgramBackend {
   private:
     void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
                      [[maybe_unused]] unsigned revision, [[maybe_unused]] bool incremental) override {
-        // TODO: maybe assert that program updates are enabled
+        assert(incremental == prg_->isIncremental());
     }
     void do_end() override {}
 
@@ -34,6 +34,20 @@ class ProgramBackendImpl : public ProgramBackend {
             return static_cast<prg_lit_t>(lit);
         }
         throw std::range_error("literals number of literals exhausted");
+    }
+
+    auto do_fact_lit() -> std::optional<prg_lit_t> override {
+        // return the cached fact literal
+        if (fact_lit_ != 0) {
+            return fact_lit_;
+        }
+        // try to find a fact literal
+        if (auto atom = prg_->factAtom(); atom) {
+            fact_lit_ = Potassco::lit(atom);
+            return fact_lit_;
+        }
+        // report that there is no fact literal (very unlikely)
+        return std::nullopt;
     }
 
     void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
@@ -122,18 +136,26 @@ class ProgramBackendImpl : public ProgramBackend {
         prg_->addMinimize(priority, wlits);
     }
 
-    void do_show(Symbol sym, PrgLitSpan body) override {
-        buf_.reset();
-        buf_ << sym;
-        auto [pos, added] = terms_->try_emplace(SharedSymbol{sym}, 0);
-        if (added) {
-            pos.value() = prg_->newShowTerm(buf_.view());
-        }
-        prg_->addShowTerm(pos->second, body);
+    void do_show_term(Symbol sym, PrgLitSpan body) override {
+        auto id = terms_->add(sym, [&, this]() {
+            buf_.reset();
+            buf_ << sym;
+            return prg_->newShowTerm(buf_.view());
+        });
+        prg_->addShowTerm(id, body);
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << Util::p_range(body, ", ") << ".\n";
 #endif
     }
+
+    void do_show_term(Symbol sym, prg_id_t id) override {
+        buf_.reset();
+        buf_ << sym;
+        terms_->add(sym, id);
+        prg_->newShowTerm(buf_.view(), id);
+    }
+
+    void do_show_term(prg_id_t id, PrgLitSpan body) override { prg_->addShowTerm(id, body); }
 
     void do_show_atom(Symbol sym, prg_lit_t lit) override {
         assert(lit > 0);
@@ -149,6 +171,7 @@ class ProgramBackendImpl : public ProgramBackend {
     Potassco::RuleBuilder bld_;
     Clasp::Asp::LogicProgram *prg_;
     TermBaseMap *terms_;
+    prg_lit_t fact_lit_ = 0;
 };
 
 //! Implementation of the theory backend interface.
@@ -838,7 +861,7 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
         }
         auto &base = solver_->grd_.base().add_base(*sig);
         auto it = base.add(sym, Ground::StateAtom::derived, [lit]() { return lit; }).first;
-        if (it->second.id != lit) {
+        if (static_cast<prg_lit_t>(it->second.id) != lit) {
             throw std::runtime_error{"redefinition of atom in aspif file"};
         }
         added_.emplace_back(lit, sym);
@@ -899,35 +922,30 @@ void SymbolTable::init(Clingo::Control::BaseView &view, std::ostream &out) {
     out_ = &out;
 }
 
-void SymbolTable::output() {
+void SymbolTable::begin_step() {
+    for (auto const &[sym, id] : view_->term_base()) {
+        auto &state = output(*sym);
+        if (state.term == 0) {
+            state.term = 1;
+            *out_ << "4 1 " << state.index << " " << id << "\n";
+        }
+    }
+}
+
+void SymbolTable::end_step() {
     for (auto const &[sig, base] : view_->bases().atoms()) {
+        // NOTE: at this point non-empty bases should be either shown or not.
+        if (base->num_shown() == 0) {
+            continue;
+        }
         for (size_t i = 0, e = base->size(); i != e; ++i) {
             auto it = base->nth(i);
             auto &state = output(it.key());
             if (state.atom == 0) {
-                state.atom = true;
+                state.atom = 1;
                 *out_ << "4 0 " << state.index << " " << it.value().id << "\n";
             }
         }
-    }
-    // TODO: maybe there is a better way to track output conditions
-    auto const &prg = view_->clasp_program();
-    auto const &terms = view_->term_base();
-    conds_done_.resize(terms.size());
-    for (auto const &[sym, id] : terms) {
-        auto sym_id = output(*sym).index;
-        size_t i = 0;
-        for (auto const &cond : prg.getShowTerm(id).conditions()) {
-            if (i >= conds_done_[id]) {
-                *out_ << "4 1 " << sym_id << " " << cond.size();
-                for (auto const &lit : cond) {
-                    *out_ << " " << lit;
-                }
-                *out_ << "\n";
-            }
-            ++i;
-        }
-        conds_done_[id] = i;
     }
 }
 
@@ -937,23 +955,23 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
         switch (sym.type()) {
             case Clingo::SymbolType::inf: {
                 auto id = it.value().index = ids_++;
-                *out_ << "4 2 " << id << " 0\n";
+                *out_ << "4 3 " << id << " 0\n";
                 break;
             }
             case Clingo::SymbolType::sup: {
                 auto id = it.value().index = ids_++;
-                *out_ << "4 2 " << id << " 1" << "\n";
+                *out_ << "4 3 " << id << " 1" << "\n";
                 break;
             }
             case Clingo::SymbolType::number: {
                 auto id = it.value().index = ids_++;
-                *out_ << "4 3 " << id << " " << sym.num() << "\n";
+                *out_ << "4 4 " << id << " " << sym.num() << "\n";
                 break;
             }
             case Clingo::SymbolType::string: {
                 auto id = it.value().index = ids_++;
                 auto str = sym.str().view();
-                *out_ << "4 4 " << id << " " << str.size() << " " << str << "\n";
+                *out_ << "4 5 " << id << " " << str.size() << " " << str << "\n";
                 break;
             }
             case Clingo::SymbolType::tuple: {
@@ -965,7 +983,7 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
                 // NOTE: the iterator might have been invalidated above
                 it = done_.find(sym);
                 auto id = it.value().index = ids_++;
-                *out_ << "4 5 " << id << " " << args.size();
+                *out_ << "4 6 " << id << " " << args.size();
                 for (auto const &arg : std::span{buf_.begin() + size, buf_.end()}) {
                     *out_ << " " << arg;
                 }
@@ -984,7 +1002,7 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
                 // NOTE: the iterator might have been invalidated above
                 it = done_.find(sym);
                 auto id = it.value().index = ids_++;
-                *out_ << "4 6 " << id << " " << (sym.has_classical_sign() ? 1 : 0) << " " << name << " " << args.size();
+                *out_ << "4 7 " << id << " " << (sym.has_classical_sign() ? 1 : 0) << " " << name << " " << args.size();
                 for (auto const &arg : std::span{buf_.begin() + size, buf_.end()}) {
                     *out_ << " " << arg;
                 }
@@ -1086,7 +1104,7 @@ void Solver::enable_updates_() {
     if (opts_.mode == AppMode::solve) {
         if (opts_.single_shot) {
             clasp_->keepProgram();
-        } else {
+        } else if (!clasp_->incremental()) {
             clasp_->enableProgramUpdates();
         }
     }

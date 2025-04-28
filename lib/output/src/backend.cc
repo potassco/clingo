@@ -1452,7 +1452,7 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_show_atom(Symbol atom, size_t uid) override { bld_.backend().show_atom(atom, uid_to_atom(uid)); }
 
-    void do_show_term(Symbol term) override { bld_.backend().show(term, body_.literals()); }
+    void do_show_term(Symbol term) override { bld_.backend().show_term(term, body_.literals()); }
 
     void do_external([[maybe_unused]] Symbol atom, size_t uid, ExternalType type) override {
         bld_.backend().external(uid_to_atom(uid), type);

@@ -66,7 +66,7 @@ enum class AppMode : uint8_t {
     solve    //!< Stop processing after solving.
 };
 
-//! Options for the incremental mode.
+//! Options for the solver.
 struct SolverOptions {
     //! Operation mode of the solver.
     AppMode mode = AppMode::solve;
@@ -106,8 +106,91 @@ enum class ConsequenceType : uint8_t {
     unknown = 2 //!< The literal might or might not be a consequence.
 };
 
-//! A map from terms to their id.
-using TermBaseMap = Util::ordered_map<SharedSymbol, prg_id_t>;
+//! Map from symbols to show term ids.
+class TermBaseMap {
+  public:
+    //! The container storing the mapping (internal).
+    using Map = Util::ordered_map<SharedSymbol, prg_id_t>;
+
+    //! Add a new symbol to the map.
+    //!
+    //! The given function is used to generate an id if the symbol is not
+    //! contained in the map yet.
+    //!
+    //! @param sym the symbol
+    //! @param fun the id generator
+    //! @return the existing or new id
+    template <class F> auto add(Symbol sym, F &&fun) -> prg_id_t {
+        auto [it, ins] = map_.emplace(sym, 0);
+        if (ins) {
+            it.value() = std::invoke(std::forward<F>(fun));
+        }
+        return it.value();
+    }
+
+    //! Add a symbol with the given id.
+    //!
+    //! Throws a runtime error if such an id already exists.
+    //!
+    //! @param sym the symbol
+    //! @param id the id
+    void add(Symbol sym, prg_id_t id) {
+        if (!map_.emplace(sym, id).second) {
+            throw std::runtime_error("collision of term ids");
+        }
+    }
+
+    //! Get the id at the given index.
+    //!
+    //! @param i the index
+    //! @return the term id
+    [[nodiscard]] auto term_id(size_t i) const -> prg_id_t {
+        if (i < size()) {
+            return map_.nth(i).value();
+        }
+        throw std::range_error{"index out of range"};
+    }
+
+    //! Get the symbol at the given index.
+    //!
+    //! @param i the index
+    //! @return the symbol
+    [[nodiscard]] auto symbol(size_t i) const -> Symbol {
+        if (i < size()) {
+            return *map_.nth(i).key();
+        }
+        throw std::range_error{"index out of range"};
+    }
+
+    //! Get the index of the symbol.
+    //!
+    //! This resulting index can be used to obtain the symbol and its id. The
+    //! index itself is not the id of the symbol.
+    //!
+    //! @param sym the symbol
+    //! @return the index
+    [[nodiscard]] auto index(Symbol sym) const -> size_t { return map_.find(sym) - map_.begin(); }
+
+    //! Get the number of mapped symbols.
+    //!
+    //! @return the number of mapped symbols
+    [[nodiscard]] auto size() const -> size_t { return map_.size(); }
+
+    //! Get an iterator over the symbol id pairs in the map pointing to the
+    //! beginning of the sequence.
+    //!
+    //! @return the iterator
+    [[nodiscard]] auto begin() const -> Map::const_iterator { return map_.cbegin(); }
+
+    //! Get an iterator over the symbol id pairs in the map pointing to the end
+    //! of the sequence.
+    //!
+    //! @return the iterator
+    [[nodiscard]] auto end() const -> Map::const_iterator { return map_.cend(); }
+
+  private:
+    Util::ordered_map<SharedSymbol, prg_id_t> map_;
+};
 
 //! Interface providing the necessary data to inspect atom, term, and theory bases.
 class BaseView {
@@ -467,8 +550,10 @@ class SymbolTable {
   public:
     //! Initialize the table before output.
     void init(Clingo::Control::BaseView &view, std::ostream &out);
-    //! Output symbols in aspif format.
-    void output();
+    //! Output ids of shown terms in extended aspif format.
+    void begin_step();
+    //! Output atoms in extended aspif format.
+    void end_step();
     //! Get the underlying output stream.
     auto out() -> std::ostream & { return *out_; }
 
@@ -476,7 +561,8 @@ class SymbolTable {
     struct State {
         State() = default;
         size_t atom : 1 = 0;
-        size_t index : (8 * sizeof(size_t)) - 1 = 0;
+        size_t term : 1 = 0;
+        size_t index : (8 * sizeof(size_t)) - 2 = 0;
     };
 
     auto output(Clingo::Symbol const &sym) -> State &;
@@ -485,7 +571,6 @@ class SymbolTable {
     std::ostream *out_ = nullptr;
     size_t ids_ = 0;
     std::vector<size_t> buf_;
-    std::vector<size_t> conds_done_;
     Clingo::Util::unordered_map<Clingo::SharedSymbol, State> done_;
 };
 //! A unique pointer to a symbol table.

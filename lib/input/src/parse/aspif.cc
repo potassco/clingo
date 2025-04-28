@@ -50,7 +50,7 @@ class AspifParser {
     AspifParser(ParserState &state) : state_{&state} {}
 
     //! Parses a program in aspif format assuming that the lexer currently sits
-    //! on the the "asp" token.
+    //! on the "asp" token.
     auto parse() -> bool {
         bool res = true;
         try {
@@ -120,13 +120,13 @@ class AspifParser {
     enum class OutputType : uint8_t {
         atom = 0,
         term = 1,
-        term_ext = 2,
-        term_num = 3,
-        term_str = 4,
-        term_tup = 5,
-        term_fun = 6,
+        term_cnd = 2,
+        term_ext = 3,
+        term_num = 4,
+        term_str = 5,
+        term_tup = 6,
+        term_fun = 7,
     };
-    static constexpr unsigned max_output_type = 8;
 
     template <class... T> auto expect_(T... tokens) -> AspifToken {
         auto token = state_->lex_aspif();
@@ -247,11 +247,17 @@ class AspifParser {
 
     void preamble_() {
         expect_(AspifToken::space);
+        auto loc = state_->loc();
         auto major = expect_unsigned_();
         expect_(AspifToken::space);
         auto minor = expect_unsigned_();
         expect_(AspifToken::space);
         auto revision = expect_unsigned_();
+        if ((major != 1 && major != 2) || minor != 0) {
+            GRINGO_REPORT_LOC(state_->log(), error, loc + state_->loc())
+                << "unsupported aspif version `" << major << "." << minor << "." << revision << "`";
+            throw aspif_error{};
+        }
         bool incremental = false;
         while (expect_(AspifToken::newline, AspifToken::space) == AspifToken::space) {
             switch (expect_(AspifToken::incremental, AspifToken::symbols)) {
@@ -260,6 +266,10 @@ class AspifParser {
                     break;
                 }
                 case AspifToken::symbols: {
+                    if (major == 1) {
+                        GRINGO_REPORT_LOC(state_->log(), error, loc + state_->loc()) << "unsupported tag `symbols`";
+                        throw aspif_error{};
+                    }
                     symbol_ = true;
                     break;
                 }
@@ -268,6 +278,7 @@ class AspifParser {
                 }
             }
         }
+        version_ = major;
         state_->prg_backend()->preamble(major, minor, revision, incremental);
     }
 
@@ -319,6 +330,19 @@ class AspifParser {
     void project_() { state_->prg_backend()->project(expect_atoms_()); }
 
     void output_() {
+        auto sym = output_symbol_();
+        expect_(AspifToken::space);
+        auto body = expect_lits_();
+        if (body.size() == 1 && body.front() > 0) {
+            state_->prg_backend()->show_atom(*sym, body.front());
+        } else if (auto fact = body.empty() ? state_->prg_backend()->fact_lit() : std::nullopt) {
+            state_->prg_backend()->show_atom(*sym, *fact);
+        } else {
+            state_->prg_backend()->show_term(*sym, body);
+        }
+    }
+
+    auto output_symbol_() -> SharedSymbol {
         state_symbol_.init(expect_nstr_(), *str_symbol_);
         state_symbol_.consume();
         auto sym = parse_symbol(state_symbol_);
@@ -327,26 +351,49 @@ class AspifParser {
                 << "parsing symbol failed: `" << state_->view() << "`";
             throw aspif_error{};
         }
-        expect_(AspifToken::space);
-        auto body = expect_lits_();
-        if (body.size() == 1 && body.front() > 0) {
-            state_->prg_backend()->show_atom(*sym.value(), body.front());
-        } else {
-            state_->prg_backend()->show(*sym.value(), body);
-        }
+        return *sym;
     }
 
-    auto output_type_() -> OutputType {
+    auto output_type_(OutputType max_type) -> OutputType {
         auto ot = expect_unsigned_();
-        if (ot > max_output_type) {
+        if (ot > static_cast<unsigned>(max_type)) {
             GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected output type `" << ot << "`";
             throw aspif_error{};
         }
         return static_cast<OutputType>(ot);
     }
-
+    void output_term_or_atom_() {
+        auto ot = output_type_(OutputType::term_cnd);
+        expect_(AspifToken::space);
+        switch (ot) {
+            case OutputType::atom: {
+                auto atom = expect_atom_();
+                expect_(AspifToken::space);
+                auto sym = output_symbol_();
+                state_->prg_backend()->show_atom(*sym, atom);
+                break;
+            }
+            case OutputType::term: {
+                auto term = expect_unsigned_();
+                expect_(AspifToken::space);
+                auto sym = output_symbol_();
+                state_->prg_backend()->show_term(*sym, term);
+                break;
+            }
+            case OutputType::term_cnd: {
+                auto term = expect_unsigned_();
+                expect_(AspifToken::space);
+                auto body = expect_lits_();
+                state_->prg_backend()->show_term(term, body);
+                break;
+            }
+            default: {
+                Util::unreachable();
+            }
+        }
+    }
     void output_symbols_() {
-        auto type = output_type_();
+        auto type = output_type_(OutputType::term_fun);
         expect_(AspifToken::space);
         auto sym_id = expect_unsigned_();
         auto add = [this, sym_id]<class T>(T &&sym) {
@@ -378,8 +425,14 @@ class AspifParser {
             case OutputType::term: {
                 auto sym = get(sym_id);
                 expect_(AspifToken::space);
+                auto id = expect_unsigned_();
+                state_->prg_backend()->show_term(*sym, id);
+                break;
+            }
+            case OutputType::term_cnd: {
+                expect_(AspifToken::space);
                 auto body = expect_lits_();
-                state_->prg_backend()->show(*sym, body);
+                state_->prg_backend()->show_term(sym_id, body);
                 break;
             }
             case OutputType::term_ext: {
@@ -614,8 +667,10 @@ class AspifParser {
             case StatementType::output: {
                 if (symbol_) {
                     output_symbols_();
-                } else {
+                } else if (version_ == 1) {
                     output_();
+                } else {
+                    output_term_or_atom_();
                 }
                 break;
             }
@@ -652,6 +707,7 @@ class AspifParser {
     SharedString str_symbol_{*state_->store().string("symbol")};
     SharedSymbolVec symbols_;
     SymbolVec buf_;
+    uint32_t version_ = 2;
     bool symbol_ = false;
 };
 

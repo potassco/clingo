@@ -227,7 +227,7 @@ extern "C" auto clingo_term_base_symbol(clingo_term_base_t const *terms, size_t 
             return clingo_result_invalid;
         }
         if (index < cpp_cast(terms)->term_base().size()) {
-            *term = *c_cast(&cpp_cast(terms)->term_base().nth(index)->first);
+            *term = Clingo::Symbol::to_rep(cpp_cast(terms)->term_base().symbol(index));
         } else {
             return clingo_result_range;
         }
@@ -241,8 +241,7 @@ extern "C" auto clingo_term_base_condition(clingo_term_base_t const *terms, size
         if (terms == nullptr || literals == nullptr || size == nullptr) {
             return clingo_result_invalid;
         }
-        auto it = cpp_cast(terms)->term_base().nth(index);
-        auto const &term_id = it.value();
+        auto term_id = cpp_cast(terms)->term_base().term_id(index);
         thread_local auto res_lits = std::vector<clingo_literal_t const *>{};
         thread_local auto res_sizes = std::vector<size_t>{};
         res_lits.clear();
@@ -266,8 +265,7 @@ extern "C" auto clingo_term_base_find(clingo_term_base_t const *terms, clingo_sy
         if (terms == nullptr || index == nullptr) {
             return clingo_result_invalid;
         }
-        auto it = cpp_cast(terms)->term_base().find(cpp_cast(symbol));
-        *index = std::distance(cpp_cast(terms)->term_base().begin(), it);
+        *index = cpp_cast(terms)->term_base().index(cpp_cast(symbol));
     }
     CLINGO_CATCH;
 }

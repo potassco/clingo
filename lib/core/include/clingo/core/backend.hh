@@ -71,38 +71,65 @@ class ProgramBackend {
     //! @param last indicate that this is the last step in series of steps to be merged
     void end() { do_end(); }
 
-    //! Return a fresh literal.
+    //! Return a fresh (positive) literal.
     //!
     //! All literals should be created using this function.
     //!
     //! @return the fresh literal
     auto next_lit() -> prg_lit_t { return do_next_lit(); }
 
+    //! Get a factual literal if one existis.
+    //!
+    //! @return the literal
+    auto fact_lit() -> std::optional<prg_lit_t> { return do_fact_lit(); }
+
     //! Define a weight constraint.
+    //!
+    //! @pre Literals in the head must be positive.
     //!
     //! @param head the literal that is derived
     //! @param body the weighted body literals
     //! @param bound the lower bound of the constraint
     void bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, int32_t bound, bool choice) {
+        assert(std::ranges::all_of(head, [](auto const &x) { return x > 0; }));
         do_bd_aggr(head, body, bound, choice);
     }
 
     //! Add a disjunctive or choice rule.
     //!
-    //! Note that negative literals in the head are supported.
+    //! @pre Literals in the head must be positive.
     //!
     //! @param head the literals forming the head
     //! @param body the literals forming the body
     //! @param choice whether the rule is a choice or disjunctive rule
-    void rule(PrgLitSpan head, PrgLitSpan body, bool choice) { do_rule(head, body, choice); }
+    void rule(PrgLitSpan head, PrgLitSpan body, bool choice) {
+        assert(std::ranges::all_of(head, [](auto const &x) { return x > 0; }));
+        do_rule(head, body, choice);
+    }
 
     //! Show the given symbol if the given condition is true.
     //!
     //! @param sym the symbol to show
     //! @param body the condition when to show the symbol
-    void show(Symbol sym, PrgLitSpan body) { do_show(sym, body); }
+    void show_term(Symbol sym, PrgLitSpan body) { do_show_term(sym, body); }
+
+    //! Associate the given symbol with an id.
+    //!
+    //! @note Raises an exception if the given symbol already has an id.
+    //!
+    //! @param sym the symbol
+    //! @param id the id
+    void show_term(Symbol sym, prg_id_t id) { do_show_term(sym, id); }
+
+    //! Show the symbol with the given id if the given condition is true.
+    //!
+    //! @param id the symbol to show
+    //! @param body the condition when to show the symbol
+    void show_term(prg_id_t id, PrgLitSpan body) { do_show_term(id, body); }
 
     //! Show the atom with the given symbol and program literal.
+    //!
+    //! @pre The literal must be positive.
     //!
     //! @param sym the symbol to show
     //! @param lit the literal when to show the symbol
@@ -117,6 +144,8 @@ class ProgramBackend {
 
     //! Add a heuristic directive.
     //!
+    //! @pre The atom must be positive.
+    //!
     //! @param atom the atom to modify heuristically
     //! @param weight the weight of the modification
     //! @param prio the priority of the modification
@@ -128,6 +157,8 @@ class ProgramBackend {
     }
     //! Declare the given atom as external.
     //!
+    //! @pre The atom must be positive.
+    //!
     //! @param atom the atom to declare external
     //! @param type the truth value of the atom
     void external(prg_lit_t atom, ExternalType type) {
@@ -135,7 +166,9 @@ class ProgramBackend {
         do_external(atom, type);
     }
 
-    //! Project the given atom.
+    //! Project the given atoms.
+    //!
+    //! @pre The literals atoms must be positive.
     //!
     //! @param atoms the atoms to project
     void project(PrgLitSpan atoms) {
@@ -143,12 +176,12 @@ class ProgramBackend {
         do_project(atoms);
     }
 
-    //! Project the given atom.
+    //! Assume the given literals.
     //!
     //! @param literals the literals to assume
     void assume(PrgLitSpan literals) { do_assume(literals); }
 
-    //! Project the given atom.
+    //! Minimize the given weighted literals.
     //!
     //! @param lit the literal to minimize
     //! @param weight the weight of the literal
@@ -159,9 +192,13 @@ class ProgramBackend {
     virtual void do_preamble(unsigned major, unsigned minor, unsigned revision, bool incremental) = 0;
     virtual void do_end() = 0;
     virtual auto do_next_lit() -> prg_lit_t = 0;
+    virtual auto do_fact_lit() -> std::optional<prg_lit_t> = 0;
+
     virtual void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) = 0;
     virtual void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, int32_t bound, bool choice) = 0;
-    virtual void do_show(Symbol sym, PrgLitSpan body) = 0;
+    virtual void do_show_term(Symbol sym, PrgLitSpan body) = 0;
+    virtual void do_show_term(Symbol sym, prg_id_t id) = 0;
+    virtual void do_show_term(prg_id_t id, PrgLitSpan body) = 0;
     virtual void do_show_atom(Symbol sym, prg_lit_t lit) = 0;
     virtual void do_edge(prg_id_t u, prg_id_t v, PrgLitSpan body) = 0;
     virtual void do_heuristic(prg_lit_t atom, prg_weight_t weight, prg_weight_t prio, HeuristicType type,

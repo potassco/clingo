@@ -59,9 +59,8 @@ class AppOptions {
     void add_option_value_(char const *group, char const *option,
                            std::unique_ptr<Potassco::ProgramOptions::Value> value, char const *description) {
         auto init = add_option_group_(group).addOptions();
-        auto const *copt = add_string_(option);
         auto const *cdesc = add_string_(description);
-        init(copt, value.release(), cdesc);
+        init(option, value.release(), cdesc);
     }
 
     auto add_option_group_(char const *group) -> Potassco::ProgramOptions::OptionGroup & {
