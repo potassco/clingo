@@ -20,6 +20,7 @@ enum class SymbolType : clingo_symbol_type_t {
 
 class Symbol;
 using SymbolSpan = std::span<Symbol const>;
+using SymbolVector = std::vector<Symbol>;
 
 [[nodiscard]] auto cpp_cast(clingo_symbol_t const *sym) -> Symbol const *;
 
@@ -45,7 +46,7 @@ class Symbol {
         return *this;
     }
 
-    explicit Symbol(clingo_symbol_t rep, bool acquire = true) : rep_{rep} {
+    explicit Symbol(clingo_symbol_t rep, bool acquire) : rep_{rep} {
         if (acquire) {
             clingo_symbol_acquire(rep_);
         }
