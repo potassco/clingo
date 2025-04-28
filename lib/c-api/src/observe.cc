@@ -195,12 +195,12 @@ class ExtendedAspifWriter : public Potassco::AspifOutput {
     void outputAtom([[maybe_unused]] Potassco::Atom_t a, [[maybe_unused]] std::string_view str) override {}
     //! Disable output table.
     void outputTerm([[maybe_unused]] Potassco::Id_t termId, [[maybe_unused]] std::string_view str) override {}
-    //! Output show term ids before outputting their conditions.
+    //! Output shown term ids before outputting their conditions.
     void beginStep() override {
         AspifOutput::beginStep();
         sym_tab_->begin_step();
     }
-    //! Output show atoms before the end step directive.
+    //! Output shown atoms before the end step directive.
     void endStep() override {
         sym_tab_->end_step();
         AspifOutput::endStep();

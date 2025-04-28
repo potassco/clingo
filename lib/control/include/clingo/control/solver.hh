@@ -66,7 +66,7 @@ enum class AppMode : uint8_t {
     solve    //!< Stop processing after solving.
 };
 
-//! Options for the incremental mode.
+//! Options for the solver.
 struct SolverOptions {
     //! Operation mode of the solver.
     AppMode mode = AppMode::solve;
@@ -550,9 +550,9 @@ class SymbolTable {
   public:
     //! Initialize the table before output.
     void init(Clingo::Control::BaseView &view, std::ostream &out);
-    //! Output atoms in extended aspif format.
+    //! Output ids of shown terms in extended aspif format.
     void begin_step();
-    //! Output terms in extended aspif format.
+    //! Output atoms in extended aspif format.
     void end_step();
     //! Get the underlying output stream.
     auto out() -> std::ostream & { return *out_; }

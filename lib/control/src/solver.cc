@@ -25,7 +25,7 @@ class ProgramBackendImpl : public ProgramBackend {
   private:
     void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
                      [[maybe_unused]] unsigned revision, [[maybe_unused]] bool incremental) override {
-        // TODO: maybe assert that program updates are enabled
+        assert(incremental == prg_->isIncremental());
     }
     void do_end() override {}
 
