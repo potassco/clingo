@@ -1,3 +1,5 @@
+#pragma once
+
 #include <clingo/core.h>
 
 #include <functional>

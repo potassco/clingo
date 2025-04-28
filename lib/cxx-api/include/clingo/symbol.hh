@@ -1,3 +1,5 @@
+#pragma once
+
 #include <clingo/core.hh>
 
 #include <clingo/symbol.h>
