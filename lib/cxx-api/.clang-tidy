@@ -1,0 +1,37 @@
+---
+Checks: >
+  bugprone-*,
+  clang-analyzer-*,
+  clang-diagnostic-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -performance-enum-size,
+  -modernize-use-designated-initializers,
+  -bugprone-chained-comparison,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-macro-parentheses,
+  -bugprone-unhandled-self-assignment,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-special-member-functions,
+  -cppcoreguidelines-macro-usage,
+  -readability-function-cognitive-complexity,
+  -readability-function-size,
+  -readability-identifier-length,
+  -readability-suspicious-call-argument,
+WarningsAsErrors: ""
+HeaderFilterRegex: ""
+FormatStyle: none
+CheckOptions:
+  - {
+      key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor,
+      value: true,
+    }
+  - {
+      key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted,
+      value: true,
+    }

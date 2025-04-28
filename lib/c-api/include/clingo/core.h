@@ -126,7 +126,7 @@ enum clingo_message_e {
 //! Corresponding type to ::clingo_message_e.
 typedef int clingo_message_t;
 
-//! Enumeration of message codes.
+//! Enumeration of log levels.
 enum clingo_log_level_e {
     clingo_log_level_trace = clingo_message_trace, //!< the trace level (most verbose)
     clingo_log_level_debug = clingo_message_debug, //!< the debug level
