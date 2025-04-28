@@ -10,12 +10,12 @@ namespace Clingo {
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class SymbolType : clingo_symbol_type_t {
-    Infimum = clingo_symbol_type_infimum,
-    Number = clingo_symbol_type_number,
-    String = clingo_symbol_type_string,
-    Tuple = clingo_symbol_type_tuple,
-    Function = clingo_symbol_type_function,
-    Supremum = clingo_symbol_type_supremum
+    infimum = clingo_symbol_type_infimum,
+    number = clingo_symbol_type_number,
+    string = clingo_symbol_type_string,
+    tuple = clingo_symbol_type_tuple,
+    function = clingo_symbol_type_function,
+    supremum = clingo_symbol_type_supremum
 };
 
 class Symbol;
@@ -95,7 +95,7 @@ class Symbol {
         return bld.str();
     }
     [[nodiscard]] auto match(char const *name, size_t arity, bool positive = true) const -> bool {
-        return type() == SymbolType::Function && std::strcmp(this->name(), name) == 0 && arguments().size() == arity &&
+        return type() == SymbolType::function && std::strcmp(this->name(), name) == 0 && arguments().size() == arity &&
                positive == is_positive();
     }
     [[nodiscard]] auto hash() const noexcept -> size_t { return clingo_symbol_hash(rep_); }

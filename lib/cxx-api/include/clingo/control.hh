@@ -83,7 +83,7 @@ class Control {
             auto const *c_syms = c_cast(syms.data());
             return symbol_callback(c_syms, syms.size(), symbol_callback_data);
         }
-        CLINGO_CATCH(Detail::get_exception_ptr());
+        CLINGO_CATCH;
     }
 
     clingo_control_t *rep_ = nullptr;
