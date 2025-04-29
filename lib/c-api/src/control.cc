@@ -13,7 +13,7 @@
 #include "lib.hh"
 #include "opts.hh"
 
-extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *arguments, size_t arguments_size,
+extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *arguments, size_t const *sizes, size_t size,
                                    clingo_control_t **control) -> clingo_result_t {
     CLINGO_TRY {
         using namespace Potassco::ProgramOptions;
@@ -46,7 +46,16 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
             }
             return false;
         };
-        auto values = parseCommandArray(arguments, static_cast<int>(arguments_size), ctx, false, pos_parser);
+        std::vector<std::string> bargs;
+        std::vector<char const *> cargs;
+        bargs.reserve(size);
+        cargs.reserve(size + 1);
+        for (size_t i = 0; i < size; ++i) {
+            bargs.emplace_back(std::string_view{arguments[i], sizes[i]});
+            cargs.emplace_back(bargs.back().c_str());
+        }
+        cargs.emplace_back(nullptr);
+        auto values = parseCommandArray(cargs.data(), static_cast<int>(size), ctx, false, pos_parser);
         auto parsed = ParsedOptions{};
         parsed.assign(values);
         ctx.assignDefaults(parsed);
@@ -99,7 +108,7 @@ extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mo
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_control_parse_files(clingo_control_t *control, char const **files, size_t files_size)
+extern "C" auto clingo_control_parse_files(clingo_control_t *control, char const *const *files, size_t files_size)
     -> clingo_result_t {
     CLINGO_TRY {
         control->slv->parse(std::vector<std::string_view>{files, files + files_size});

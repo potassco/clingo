@@ -57,6 +57,7 @@ typedef struct clingo_control clingo_control_t;
 //! represent classical negation).
 typedef struct clingo_signature {
     char const *name; //!< the name
+    size_t size;      //!< the size of the name
     size_t arity;     //!< the arity
     bool is_positive; //!< whether the signature is positive
 } clingo_signature_t;

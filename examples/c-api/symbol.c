@@ -70,11 +70,11 @@ int main(int argc, char *argv[]) {
     // create a number, identifier (function without arguments), and a function symbol
     symbols[0] = clingo_symbol_create_number(example_number);
 
-    res = clingo_symbol_create_id(lib, "x", true, &symbols[1]);
+    res = clingo_symbol_create_id(lib, "x", 1, true, &symbols[1]);
     if (!handle_result(res)) {
         goto out;
     }
-    res = clingo_symbol_create_function(lib, "x", symbols, 2, true, &symbols[2]);
+    res = clingo_symbol_create_function(lib, "x", 1, symbols, 2, true, &symbols[2]);
     if (!handle_result(res)) {
         goto out;
     }

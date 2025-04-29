@@ -51,7 +51,7 @@ auto Symbol::number() const -> py::int_ {
     if (clingo_symbol_number(sym_, &num) == clingo_result_success) {
         return num;
     }
-    return py::reinterpret_steal<py::int_>(PyLong_FromString(str(), nullptr, decimal_base));
+    return py::reinterpret_steal<py::int_>(PyLong_FromString(std::string{str()}.c_str(), nullptr, decimal_base));
 }
 
 auto Symbol::string() const -> py::str {
@@ -60,18 +60,20 @@ auto Symbol::string() const -> py::str {
         throw std::invalid_argument("symbol is not a string");
     }
     char const *name = nullptr;
-    handle_error(clingo_symbol_string(sym_, &name));
-    return name;
+    size_t size = 0;
+    handle_error(clingo_symbol_string(sym_, &name, &size));
+    return {name, size};
 }
 
-auto Symbol::name() const -> char const * {
+auto Symbol::name() const -> std::string_view {
     auto t = type();
     if (t != clingo_symbol_type_function) {
         throw std::invalid_argument("symbol is not a function");
     }
     char const *name = nullptr;
-    handle_error(clingo_symbol_name(sym_, &name));
-    return name;
+    size_t size = 0;
+    handle_error(clingo_symbol_name(sym_, &name, &size));
+    return {name, size};
 }
 
 auto Symbol::arity() const -> size_t {
@@ -101,7 +103,7 @@ auto Symbol::args() const -> TypeHint<"Sequence[Symbol]"> {
     return ret;
 }
 
-auto Symbol::str() const -> char const * {
+auto Symbol::str() const -> std::string_view {
     auto *bld = string_builder();
     handle_error(clingo_symbol_to_string(sym_, bld));
     char const *str = nullptr;
@@ -153,14 +155,15 @@ auto Symbol::is_negative() const -> bool {
     return !is_positive();
 }
 
-auto Symbol::match_function(char const *name, size_t arity, bool is_positive) const -> bool {
-    return type() == clingo_symbol_type_function && std::strcmp(name, this->name()) == 0 && arity == this->arity() &&
+auto Symbol::match_function(std::string_view name, size_t arity, bool is_positive) const -> bool {
+
+    return type() == clingo_symbol_type_function && this->name() == name && arity == this->arity() &&
            is_positive == this->is_positive();
 }
 
-auto Symbol::signature() const -> std::optional<std::tuple<char const *, size_t, bool>> {
+auto Symbol::signature() const -> std::optional<std::tuple<std::string_view, size_t, bool>> {
     return type() == clingo_symbol_type_function
-               ? std::make_optional<std::tuple<char const *, size_t, bool>>(name(), arity(), is_positive())
+               ? std::make_optional<std::tuple<std::string_view, size_t, bool>>(name(), arity(), is_positive())
                : std::nullopt;
 }
 
@@ -203,7 +206,7 @@ auto Number(Library &lib, py::int_ num) -> Symbol {
     }
     auto sym = clingo_symbol_t{0};
     auto str = static_cast<std::string>(py::str(num));
-    handle_error(clingo_symbol_create_number_str(lib, str.c_str(), &sym));
+    handle_error(clingo_symbol_create_number_str(lib, str.c_str(), str.size(), &sym));
     return Symbol{sym, false};
     /*
     try {
@@ -220,7 +223,7 @@ auto Number(Library &lib, py::int_ num) -> Symbol {
 
 auto String(Library &lib, std::string const &str) -> Symbol {
     clingo_symbol_t sym = 0;
-    handle_error(clingo_symbol_create_string(lib, str.data(), &sym));
+    handle_error(clingo_symbol_create_string(lib, str.data(), str.size(), &sym));
     return Symbol{sym, false};
 }
 
@@ -236,13 +239,13 @@ auto Function(Library &lib, std::string const &name, std::span<Symbol> const &ar
     clingo_symbol_t sym = 0;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
-    handle_error(clingo_symbol_create_function(lib, name.data(), syms, args.size(), positive, &sym));
+    handle_error(clingo_symbol_create_function(lib, name.data(), name.size(), syms, args.size(), positive, &sym));
     return Symbol{sym, false};
 }
 
 auto parse_term(Library &lib, std::string str) -> Symbol {
     clingo_symbol_t sym = 0;
-    handle_error(clingo_parse_term(lib, str.data(), &sym));
+    handle_error(clingo_parse_term(lib, str.data(), str.size(), &sym));
     return Symbol{sym, false};
 }
 

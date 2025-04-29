@@ -4,10 +4,12 @@ clingo_target_properties(clingo_cxx lib/cxx)
 target_include_directories(clingo_cxx INTERFACE "include")
 target_link_libraries(clingo_cxx INTERFACE clingo)
 
-if (PARSER_BUILD_TESTS)
+if(PARSER_BUILD_TESTS)
     add_executable(test_cxx
+        "tests/base.cc"
+        "tests/control.cc"
         "tests/symbol.cc"
-        "tests/control.cc")
+    )
     clingo_target_properties(clingo_cxx test/cxx)
     target_include_directories(test_cxx PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_cxx PRIVATE clingo::cxx Catch2::Catch2WithMain)

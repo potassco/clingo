@@ -85,9 +85,9 @@ class TheoryTerm {
     TheoryTerm(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
     auto type() -> clingo_theory_term_type_e;
     auto number() -> int;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto arguments() -> TypeHint<"Sequence[TheoryTerm]">;
-    auto str() -> char const *;
+    auto str() -> std::string_view;
 
     [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
     friend auto operator==(TheoryTerm const &a, TheoryTerm const &b) -> bool { return a.index_ == b.index_; }
@@ -104,7 +104,7 @@ class TheoryElement {
     auto tuple() -> TypeHint<"Sequence[TheoryTerm]">;
     auto condition() -> LitSpan;
     auto condition_id() -> clingo_literal_t;
-    auto str() -> char const *;
+    auto str() -> std::string_view;
 
     [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
     friend auto operator==(TheoryElement const &a, TheoryElement const &b) -> bool { return a.index_ == b.index_; }
@@ -122,8 +122,8 @@ class TheoryAtom {
     auto name() -> TheoryTerm;
     auto elements() -> TypeHint<"Sequence[TheoryElement]">;
     auto literal() -> clingo_literal_t;
-    auto guard() -> std::optional<std::pair<char const *, TheoryTerm>>;
-    auto str() -> char const *;
+    auto guard() -> std::optional<std::pair<std::string_view, TheoryTerm>>;
+    auto str() -> std::string_view;
 
     [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
     friend auto operator==(TheoryAtom const &a, TheoryAtom const &b) -> bool { return a.index_ == b.index_; }
@@ -148,7 +148,7 @@ class TheoryBase {
 
 class Base {
   public:
-    using key_type = std::tuple<char const *, size_t, bool>;
+    using key_type = std::tuple<std::string_view, size_t, bool>;
     using mapped_type = AtomBase;
     using value_type = std::pair<key_type, mapped_type>;
 
@@ -162,11 +162,11 @@ class Base {
     [[nodiscard]] auto size() const -> size_t;
     [[nodiscard]] auto at(size_t index) const -> value_type;
     [[nodiscard]] auto contains(key_type const &sig) const -> bool;
-    [[nodiscard]] auto contains_short(std::pair<char const *, size_t> const &sig) const -> bool;
+    [[nodiscard]] auto contains_short(std::pair<std::string_view, size_t> const &sig) const -> bool;
     [[nodiscard]] auto contains_symbol(Symbol const &sym) const -> bool;
     [[nodiscard]] auto get(key_type const &sig, std::optional<mapped_type> def) const -> std::optional<mapped_type>;
     [[nodiscard]] auto lookup(key_type const &sig) const -> mapped_type;
-    [[nodiscard]] auto lookup_short(std::pair<char const *, size_t> const &sig) const -> mapped_type;
+    [[nodiscard]] auto lookup_short(std::pair<std::string_view, size_t> const &sig) const -> mapped_type;
     [[nodiscard]] auto lookup_symbol(Symbol const &sym) const -> Atom;
     [[nodiscard]] auto terms() const -> TermBase;
     [[nodiscard]] auto theory() const -> TheoryBase;

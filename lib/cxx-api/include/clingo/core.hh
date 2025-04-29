@@ -2,11 +2,12 @@
 
 #include <clingo/core.h>
 
+#include <algorithm>
 #include <functional>
 #include <iterator>
-#include <memory>
 #include <stdexcept>
 #include <utility>
+#include <variant>
 
 namespace Clingo {
 
@@ -116,6 +117,97 @@ template <class Rng, class Pred> auto transform(Rng const &rng, Pred pred) {
     return transform(begin(rng), end(rng), pred);
 }
 
+//! Compute the hash for the given type.
+//!
+//! This is a convenience wrapper around the std::hash struct.
+template <class T> auto hash_value(T const &x) {
+    return std::hash<T>{}(x);
+}
+
+//! Combine the given hash values.
+inline auto hash_combine(size_t a, size_t b) -> size_t {
+    // NOLINTBEGIN
+    auto p = std::make_pair(a, b);
+    return std::hash<std::string_view>{}(std::string_view(reinterpret_cast<char const *>(&p), sizeof(decltype(p))));
+    // NOLINTEND
+}
+
+template <class T, class P> class ManagedPtr {
+  public:
+    ManagedPtr() = default;
+    explicit ManagedPtr(P *ptr, bool inc = true) : ptr_{ptr} {
+        if (inc) {
+            T::acquire(ptr);
+        }
+    }
+    ManagedPtr(ManagedPtr const &other) : ManagedPtr{other.ptr_} {}
+    ManagedPtr(ManagedPtr &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {}
+    ~ManagedPtr() noexcept { T::release(ptr_); }
+    auto operator=(ManagedPtr const &other) -> ManagedPtr & {
+        T::acquire(other.ptr_);
+        T::release(ptr_);
+        ptr_ = other.ptr_;
+        return *this;
+    }
+    auto operator=(ManagedPtr &&other) noexcept -> ManagedPtr & {
+        T::release(ptr_);
+        ptr_ = std::exchange(other.ptr_, nullptr);
+        return *this;
+    }
+    [[nodiscard]] auto get() const noexcept -> P * { return ptr_; }
+    void reset(std::nullptr_t = nullptr) noexcept {
+        T::release(ptr_);
+        ptr_ = nullptr;
+    }
+    void reset(P *ptr, bool inc = true) {
+        T::release(ptr_);
+        ptr_ = ptr;
+        if (inc) {
+            T::acquire(ptr_);
+        }
+    }
+    friend auto operator==(ManagedPtr const &p, std::nullptr_t) noexcept -> bool { return p.ptr_ == nullptr; }
+    friend auto operator!=(ManagedPtr const &p, std::nullptr_t) noexcept -> bool { return p.ptr_ != nullptr; }
+    friend auto operator==(std::nullptr_t, ManagedPtr const &p) noexcept -> bool { return p.ptr_ == nullptr; }
+    friend auto operator!=(std::nullptr_t, ManagedPtr const &p) noexcept -> bool { return p.ptr_ != nullptr; }
+
+  private:
+    P *ptr_ = nullptr;
+};
+
+class StringBuffer {
+  public:
+    explicit StringBuffer(std::string_view sv) {
+        if (sv.size() < BUFFER_SIZE) {
+            auto &arr = storage_.emplace<StaticArray>();
+            *std::ranges::copy_n(sv.data(), std::ssize(sv), arr.data()).out = '\0';
+        } else {
+            auto &arr = storage_.emplace<DynamicArray>(std::make_unique_for_overwrite<char[]>(sv.size() + 1)); // NOLINT
+            *std::ranges::copy_n(sv.data(), std::ssize(sv), arr.get()).out = '\0';
+        }
+    }
+    [[nodiscard]] auto c_str() const -> char const * {
+        return std::visit(
+            []<class T>(T const &buf) -> char const * {
+                if constexpr (std::is_same_v<T, DynamicArray>) {
+                    return buf.get();
+                } else {
+                    return buf.data();
+                }
+            },
+            storage_);
+    }
+
+    operator const char *() const { return c_str(); }
+
+  private:
+    static constexpr size_t BUFFER_SIZE = 256;
+    using DynamicArray = std::unique_ptr<char[]>; // NOLINT
+    using StaticArray = std::array<char, BUFFER_SIZE>;
+
+    std::variant<DynamicArray, StaticArray> storage_;
+};
+
 } // namespace Detail
 
 //! Enumeration of message codes.
@@ -155,51 +247,34 @@ using Logger = std::function<void(MessageCode, char const *)>;
 
 class Library {
   public:
-    ~Library() { clingo_lib_release(rep_); }
-
-    Library(Library const &other) noexcept : rep_{other.rep_} { clingo_lib_acquire(rep_); }
-    auto operator=(Library const &other) noexcept -> Library & {
-        clingo_lib_acquire(other.rep_);
-        clingo_lib_release(rep_);
-        rep_ = other.rep_;
-        return *this;
-    }
-
-    Library(Library &&other) noexcept : rep_{std::exchange(other.rep_, nullptr)} {}
-    auto operator=(Library &&other) noexcept -> Library & {
-        if (rep_ != other.rep_) {
-            clingo_lib_release(rep_);
-            rep_ = std::exchange(other.rep_, nullptr);
-        }
-        return *this;
-    }
-
     Library(LibraryFlags flags = LibraryFlags::none, Logger logger = nullptr, LogLevel level = LogLevel::info,
             size_t limit = default_message_limit) {
+        clingo_lib_t *ptr = nullptr;
         auto log = std::make_unique<Logger>(logger ? std::move(logger) : nullptr);
         Detail::handle_error(clingo_lib_new(static_cast<clingo_lib_flags_t>(flags),
                                             static_cast<clingo_log_level_t>(level), log ? &logger_ : nullptr, log.get(),
-                                            limit, &rep_));
+                                            limit, &ptr));
+        rep_.reset(ptr, false);
         if (log) {
             Detail::handle_error(
-                clingo_lib_set_user_data(rep_, Detail::user_data_slot(), log.release(), &free_logger_));
+                clingo_lib_set_user_data(rep_.get(), Detail::user_data_slot(), log.release(), &free_logger_));
         }
     }
-    explicit Library(clingo_lib_t *rep, bool acquire) : rep_{rep} {
-        if (acquire) {
-            clingo_lib_acquire(rep_);
-        }
-    }
+    explicit Library(clingo_lib_t *rep, bool acquire) : rep_{rep, acquire} {}
 
-    [[nodiscard]] friend auto c_cast(Library const &lib) -> clingo_lib_t * { return lib.rep_; }
+    [[nodiscard]] friend auto c_cast(Library const &lib) -> clingo_lib_t * { return lib.rep_.get(); }
 
   private:
+    friend class Detail::ManagedPtr<Library, clingo_lib_t>;
+
     static void free_logger_(void *data) noexcept { std::unique_ptr<Logger>(static_cast<Logger *>(data)); }
     static void logger_(clingo_message_t code, char const *message, void *data) {
         (*static_cast<Logger *>(data))(static_cast<MessageCode>(code), message);
     }
+    static auto acquire(clingo_lib_t *ptr) { clingo_lib_acquire(ptr); }
+    static auto release(clingo_lib_t *ptr) { clingo_lib_release(ptr); }
 
-    clingo_lib_t *rep_ = nullptr;
+    Detail::ManagedPtr<Library, clingo_lib_t> rep_;
 };
 
 class StringBuilder {

@@ -40,9 +40,10 @@ auto ConstMap::size() const -> size_t {
 }
 
 Control::Control(Library &lib, std::span<std::string const> args) {
-    auto c_args = transform(args, [](auto const &str) { return str.c_str(); });
+    auto cargs = transform(args, [](auto const &str) { return str.c_str(); });
+    auto sizes = transform(args, [](auto const &str) { return str.size(); });
     clingo_control_t *ctl = nullptr;
-    handle_error(clingo_control_new(lib, c_args.data(), c_args.size(), &ctl));
+    handle_error(clingo_control_new(lib, cargs.data(), sizes.data(), cargs.size(), &ctl));
     ctl_.reset(ctl, false);
 }
 

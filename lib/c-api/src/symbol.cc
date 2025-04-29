@@ -30,35 +30,35 @@ extern "C" auto clingo_symbol_create_number(int32_t number) -> clingo_symbol_t {
     return Clingo::Symbol::to_rep(Clingo::SymbolStore::num_ref(number));
 }
 
-extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *number, clingo_symbol_t *symbol)
-    -> clingo_result_t {
+extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *number, size_t size,
+                                                clingo_symbol_t *symbol) -> clingo_result_t {
     CLINGO_TRY {
-        if (lib == nullptr || number == nullptr || symbol == nullptr) {
+        if (lib == nullptr || (number == nullptr && size > 0) || symbol == nullptr) {
             return clingo_result_invalid;
         }
-        *symbol = Clingo::SharedSymbol::to_rep(lib->store->num(Clingo::Number{number}));
+        *symbol = Clingo::SharedSymbol::to_rep(lib->store->num(Clingo::Number{std::string_view{number, size}}));
     }
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *string, clingo_symbol_t *symbol)
+extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *string, size_t size, clingo_symbol_t *symbol)
     -> clingo_result_t {
     CLINGO_TRY {
-        if (lib == nullptr || string == nullptr || symbol == nullptr) {
+        if (lib == nullptr || (string == nullptr && size > 0) || symbol == nullptr) {
             return clingo_result_invalid;
         }
-        *symbol = Clingo::SharedSymbol::to_rep(Clingo::SymbolStore::str(*lib->store->string(string)));
+        *symbol = Clingo::SharedSymbol::to_rep(Clingo::SymbolStore::str(*lib->store->string({string, size})));
     }
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool is_positive, clingo_symbol_t *symbol)
-    -> clingo_result_t {
+extern "C" auto clingo_symbol_create_id(clingo_lib_t *lib, char const *name, size_t size, bool is_positive,
+                                        clingo_symbol_t *symbol) -> clingo_result_t {
     CLINGO_TRY {
-        if (lib == nullptr || name == nullptr || symbol == nullptr) {
+        if (lib == nullptr || (name == nullptr && size > 0) || symbol == nullptr) {
             return clingo_result_invalid;
         }
-        *symbol = Clingo::SharedSymbol::to_rep(lib->store->fun(lib->store->string(name), {}, !is_positive));
+        *symbol = Clingo::SharedSymbol::to_rep(lib->store->fun(lib->store->string({name, size}), {}, !is_positive));
     }
     CLINGO_CATCH;
 }
@@ -76,17 +76,17 @@ extern "C" auto clingo_symbol_create_tuple(clingo_lib_t *lib, clingo_symbol_t co
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_symbol_create_function(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments,
-                                              size_t arguments_size, bool is_positive, clingo_symbol_t *symbol)
-    -> clingo_result_t {
+extern "C" auto clingo_symbol_create_function(clingo_lib_t *lib, char const *name, size_t name_size,
+                                              clingo_symbol_t const *arguments, size_t arguments_size, bool is_positive,
+                                              clingo_symbol_t *symbol) -> clingo_result_t {
     CLINGO_TRY {
-        if (lib == nullptr || name == nullptr || symbol == nullptr) {
+        if (lib == nullptr || (name == nullptr && name_size > 0) || symbol == nullptr) {
             return clingo_result_invalid;
         }
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         auto const *c_args = reinterpret_cast<Clingo::Symbol const *>(arguments);
-        *symbol = Clingo::SharedSymbol::to_rep(
-            lib->store->fun(*lib->store->string(name), Clingo::SymbolSpan{c_args, arguments_size}, !is_positive));
+        *symbol = Clingo::SharedSymbol::to_rep(lib->store->fun(
+            *lib->store->string({name, name_size}), Clingo::SymbolSpan{c_args, arguments_size}, !is_positive));
     }
     CLINGO_CATCH;
 }
@@ -104,21 +104,25 @@ extern "C" auto clingo_symbol_number(clingo_symbol_t symbol, int32_t *number) ->
     return clingo_result_success;
 }
 
-extern "C" auto clingo_symbol_name(clingo_symbol_t symbol, char const **name) -> clingo_result_t {
+extern "C" auto clingo_symbol_name(clingo_symbol_t symbol, char const **name, size_t *size) -> clingo_result_t {
     auto sym = Clingo::Symbol::from_rep(symbol);
-    if (name == nullptr || sym.type() != Clingo::SymbolType::function) {
+    if (name == nullptr || size == nullptr || sym.type() != Clingo::SymbolType::function) {
         return clingo_result_invalid;
     }
-    *name = sym.name().c_str();
+    auto res = sym.name().view();
+    *name = res.data();
+    *size = res.size();
     return clingo_result_success;
 }
 
-extern "C" auto clingo_symbol_string(clingo_symbol_t symbol, char const **string) -> clingo_result_t {
+extern "C" auto clingo_symbol_string(clingo_symbol_t symbol, char const **string, size_t *size) -> clingo_result_t {
     auto sym = Clingo::Symbol::from_rep(symbol);
-    if (string == nullptr || sym.type() != Clingo::SymbolType::string) {
+    if (string == nullptr || size == nullptr || sym.type() != Clingo::SymbolType::string) {
         return clingo_result_invalid;
     }
-    *string = sym.str().c_str();
+    auto res = sym.str().view();
+    *string = res.data();
+    *size = res.size();
     return clingo_result_success;
 }
 
@@ -185,13 +189,14 @@ extern "C" auto clingo_symbol_hash(clingo_symbol_t symbol) -> size_t {
     return Clingo::Symbol::from_rep(symbol).hash();
 }
 
-extern "C" auto clingo_parse_term(clingo_lib_t *lib, char const *string, clingo_symbol_t *symbol) -> clingo_result_t {
+extern "C" auto clingo_parse_term(clingo_lib_t *lib, char const *string, size_t size, clingo_symbol_t *symbol)
+    -> clingo_result_t {
     CLINGO_TRY {
-        if (lib == nullptr || string == nullptr || symbol == nullptr) {
+        if (lib == nullptr || (string == nullptr && size > 0) || symbol == nullptr) {
             return clingo_result_invalid;
         }
         Clingo::Input::Parser p{lib->log, *lib->store};
-        p.init(string, *lib->store->string("<string>"));
+        p.init({string, size}, *lib->store->string("<string>"));
         auto sym = p.parse_symbol();
         if (!sym) {
             throw std::runtime_error("parsing term failed");
