@@ -3,6 +3,7 @@
 #include <clingo/core.h>
 
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <utility>
@@ -98,6 +99,21 @@ inline void handle_error(clingo_result_t res) {
 inline auto user_data_slot() -> size_t {
     static auto slot = clingo_user_data_slot();
     return slot;
+}
+
+//! Use std::transform to build a vector.
+template <class It, class Pred> auto transform(It begin, It end, Pred pred) {
+    auto p = std::vector<std::invoke_result_t<Pred, typename std::iterator_traits<It>::value_type>>{};
+    p.reserve(std::distance(begin, end));
+    std::transform(begin, end, std::back_inserter(p), pred);
+    return p;
+}
+
+//! Use std::transform to build a vector.
+template <class Rng, class Pred> auto transform(Rng const &rng, Pred pred) {
+    using std::begin;
+    using std::end;
+    return transform(begin(rng), end(rng), pred);
 }
 
 } // namespace Detail

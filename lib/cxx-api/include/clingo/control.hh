@@ -3,7 +3,9 @@
 #include <clingo/core.hh>
 #include <clingo/symbol.hh>
 
+#include <clingo/ast.h>
 #include <clingo/control.h>
+#include <clingo/observe.h>
 
 #include <cassert>
 #include <span>
@@ -56,6 +58,41 @@ class Control {
     }
 
     [[nodiscard]] friend auto c_cast(Control const &ctl) -> clingo_control_t * { return ctl.rep_; }
+
+    // TODO: wrap mode
+    auto mode() -> clingo_mode_e {
+        clingo_mode_t mode = 0;
+        Detail::handle_error(clingo_control_mode(rep_, &mode));
+        return static_cast<clingo_mode_e>(mode);
+    }
+
+    // TODO: wrap program
+    void join(clingo_program_t *prg) { Detail::handle_error(clingo_control_join(rep_, prg)); }
+
+    // TODO: create enum
+    void write_aspif(char const *path, bool symbols, bool append, std::optional<bool> preamble, bool preprocess) {
+        clingo_write_aspif_mode_t mode = 0;
+        if (symbols) {
+            mode |= clingo_write_aspif_mode_symbols;
+        }
+        if (append) {
+            mode |= clingo_write_aspif_mode_append;
+        }
+        if (!preamble) {
+            mode |= clingo_write_aspif_mode_preamble_auto;
+        } else if (*preamble) {
+            mode |= clingo_write_aspif_mode_preamble;
+        }
+        if (preprocess) {
+            mode |= clingo_write_aspif_mode_preprocess;
+        }
+        Detail::handle_error(clingo_control_write_aspif(rep_, path, mode));
+    }
+
+    void parse_files(std::span<std::string const> files) {
+        auto cfiles = Detail::transform(files, [](auto const &x) { return x.c_str(); });
+        Detail::handle_error(clingo_control_parse_files(rep_, cfiles.data(), cfiles.size()));
+    }
 
     void parse_string(char const *program) { Detail::handle_error(clingo_control_parse_string(rep_, program)); }
 
