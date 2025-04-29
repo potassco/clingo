@@ -3,7 +3,7 @@
 #include <clingo/core.hh>
 
 #include <clingo/symbol.h>
-
+#include <cstring> // std::strcmp
 #include <span>
 
 namespace Clingo {

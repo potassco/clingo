@@ -8,6 +8,7 @@
 #include <clingo/observe.h>
 
 #include <cassert>
+#include <optional>
 #include <span>
 
 namespace Clingo {

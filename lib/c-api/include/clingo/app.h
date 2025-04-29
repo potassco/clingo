@@ -115,7 +115,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_options_add(clingo_options_t *o
 //! Add an option that is a simple flag.
 //!
 //! This function is similar to @ref clingo_options_add() but simpler because it only supports flags, which do not have
-//! values. If a flag is passed via the command-line the parameter target is set to true.
+//! values. If a flag is passed via the command-line, the parameter target is set to true.
 //!
 //! @param[in] options object to register the option with
 //! @param[in] group options are grouped into sections as given by this string
@@ -127,7 +127,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_options_add_flag(clingo_options
                                                                   char const *option, char const *description,
                                                                   bool *target);
 
-//! Run a application with the given library and arguments.
+//! Run an application with the given library and arguments.
 //!
 //! Note that the application can be set to NULL to start clingo.
 //!

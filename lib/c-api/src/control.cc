@@ -37,15 +37,14 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
              "Run in {parse|rewrite|ground|solve} mode");
         ctx.add(group_basic);
         slv_cfg->addOptions(ctx);
-        auto pos_parser = [](const std::string &str, std::string &out) {
-            int value = 0;
-            auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), value);
-            if (ec == std::errc()) {
+        auto pos_parser = [](std::string_view str, std::string &out) {
+            if (int value = 0; Potassco::stringTo(str, value) == std::errc{}) {
                 out = "number";
                 return true;
             }
             return false;
         };
+        // TODO: this will most likely change
         std::vector<std::string> bargs;
         std::vector<char const *> cargs;
         bargs.reserve(size);
@@ -55,7 +54,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
             cargs.emplace_back(bargs.back().c_str());
         }
         cargs.emplace_back(nullptr);
-        auto values = parseCommandArray(cargs.data(), static_cast<int>(size), ctx, false, pos_parser);
+        auto values = parseCommandArray({cargs.data(), size}, ctx, pos_parser);
         auto parsed = ParsedOptions{};
         parsed.assign(values);
         ctx.assignDefaults(parsed);
