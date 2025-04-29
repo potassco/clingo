@@ -148,12 +148,14 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_size(clingo_const_map
 //! you must not call any member function during search.
 //!
 //! @param[in] lib clingo library object
-//! @param[in] arguments C string array of command line arguments
-//! @param[in] arguments_size size of the arguments array
+//! @param[in] arguments string array of command line arguments
+//! @param[in] sizes the length of the strings
+//! @param[in] size size of the arguments array
 //! @param[out] control resulting control object
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_new(clingo_lib_t *lib, char const *const *arguments,
-                                                             size_t arguments_size, clingo_control_t **control);
+                                                             size_t const *sizes, size_t size,
+                                                             clingo_control_t **control);
 
 //! Increment the reference count of the given control object.
 //!
@@ -198,8 +200,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_mode(clingo_control_t *
 //! @param[in] files the files to parse
 //! @param[in] files_size the number of files to parse
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_files(clingo_control_t *control, char const **files,
-                                                                     size_t files_size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_files(clingo_control_t *control,
+                                                                     char const *const *files, size_t files_size);
 
 //! Extend the logic program with the given non-ground logic program in string form.
 //!

@@ -106,7 +106,7 @@ auto TheoryTerm::number() -> int {
     return num;
 }
 
-auto TheoryTerm::name() -> char const * {
+auto TheoryTerm::name() -> std::string_view {
     char const *name = nullptr;
     handle_error(clingo_theory_base_term_name(base_, index_, &name));
     return name;
@@ -119,7 +119,7 @@ auto TheoryTerm::arguments() -> TypeHint<"Sequence[TheoryTerm]"> {
     return py::cast(transform_vec(std::span{args, size}, [this](clingo_id_t id) { return TheoryTerm{*base_, id}; }));
 }
 
-auto TheoryTerm::str() -> char const * {
+auto TheoryTerm::str() -> std::string_view {
     auto *bld = string_builder();
     handle_error(clingo_theory_base_term_to_string(base_, index_, bld));
     char const *str = nullptr;
@@ -149,7 +149,7 @@ auto TheoryElement::condition_id() -> clingo_literal_t {
     return id;
 }
 
-auto TheoryElement::str() -> char const * {
+auto TheoryElement::str() -> std::string_view {
     auto *bld = string_builder();
     handle_error(clingo_theory_base_element_to_string(base_, index_, bld));
     char const *str = nullptr;
@@ -179,7 +179,7 @@ auto TheoryAtom::literal() -> clingo_literal_t {
     return lit;
 }
 
-auto TheoryAtom::guard() -> std::optional<std::pair<char const *, TheoryTerm>> {
+auto TheoryAtom::guard() -> std::optional<std::pair<std::string_view, TheoryTerm>> {
     auto has_guard = false;
     handle_error(clingo_theory_base_atom_has_guard(base_, index_, &has_guard));
     if (has_guard) {
@@ -191,7 +191,7 @@ auto TheoryAtom::guard() -> std::optional<std::pair<char const *, TheoryTerm>> {
     return std::nullopt;
 }
 
-auto TheoryAtom::str() -> char const * {
+auto TheoryAtom::str() -> std::string_view {
     auto *bld = string_builder();
     handle_error(clingo_theory_base_atom_to_string(base_, index_, bld));
     char const *str = nullptr;
@@ -259,7 +259,7 @@ auto Base::at(size_t index) const -> value_type {
     throw py::index_error{"index out of range"};
 }
 
-auto Base::contains_short(std::pair<char const *, size_t> const &sig) const -> bool {
+auto Base::contains_short(std::pair<std::string_view, size_t> const &sig) const -> bool {
     return contains({std::get<0>(sig), std::get<1>(sig), true});
 }
 
@@ -273,14 +273,16 @@ auto Base::contains_symbol(Symbol const &sym) const -> bool {
 }
 
 auto Base::contains(key_type const &sig) const -> bool {
-    auto csig = clingo_signature_t{std::get<0>(sig), std::get<1>(sig), std::get<2>(sig)};
+    auto csig =
+        clingo_signature_t{std::get<0>(sig).data(), std::get<0>(sig).size(), std::get<1>(sig), std::get<2>(sig)};
     auto found = false;
     handle_error(clingo_base_atoms_find(base_, &csig, nullptr, &found));
     return found;
 }
 
 auto Base::get(key_type const &sig, std::optional<mapped_type> def) const -> std::optional<mapped_type> {
-    auto csig = clingo_signature_t{std::get<0>(sig), std::get<1>(sig), std::get<2>(sig)};
+    auto csig =
+        clingo_signature_t{std::get<0>(sig).data(), std::get<0>(sig).size(), std::get<1>(sig), std::get<2>(sig)};
     clingo_atom_base_t const *atoms = nullptr;
     auto found = false;
     handle_error(clingo_base_atoms_find(base_, &csig, &atoms, &found));
@@ -288,14 +290,15 @@ auto Base::get(key_type const &sig, std::optional<mapped_type> def) const -> std
 }
 
 auto Base::lookup(key_type const &sig) const -> mapped_type {
-    auto csig = clingo_signature_t{std::get<0>(sig), std::get<1>(sig), std::get<2>(sig)};
+    auto csig =
+        clingo_signature_t{std::get<0>(sig).data(), std::get<0>(sig).size(), std::get<1>(sig), std::get<2>(sig)};
     clingo_atom_base_t const *atoms = nullptr;
     auto found = false;
     handle_error(clingo_base_atoms_find(base_, &csig, &atoms, &found));
     return found ? AtomBase{atoms} : throw py::key_error("key does not exist");
 }
 
-auto Base::lookup_short(std::pair<char const *, size_t> const &sig) const -> mapped_type {
+auto Base::lookup_short(std::pair<std::string_view, size_t> const &sig) const -> mapped_type {
     return lookup({std::get<0>(sig), std::get<1>(sig), true});
 }
 

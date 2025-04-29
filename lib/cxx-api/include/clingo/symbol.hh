@@ -66,15 +66,17 @@ class Symbol {
         Detail::handle_error(clingo_symbol_number(rep_, &res));
         return res;
     }
-    [[nodiscard]] auto name() const -> char const * {
+    [[nodiscard]] auto name() const -> std::string_view {
         char const *res = nullptr;
-        Detail::handle_error(clingo_symbol_name(rep_, &res));
-        return res;
+        size_t size = 0;
+        Detail::handle_error(clingo_symbol_name(rep_, &res, &size));
+        return {res, size};
     }
-    [[nodiscard]] auto string() const -> char const * {
+    [[nodiscard]] auto string() const -> std::string_view {
         char const *res = nullptr;
-        Detail::handle_error(clingo_symbol_string(rep_, &res));
-        return res;
+        size_t size = 0;
+        Detail::handle_error(clingo_symbol_string(rep_, &res, &size));
+        return {res, size};
     }
     [[nodiscard]] auto is_positive() const -> bool {
         bool res = false;
@@ -94,8 +96,8 @@ class Symbol {
         clingo_symbol_to_string(rep_, c_cast(bld));
         return bld.str();
     }
-    [[nodiscard]] auto match(char const *name, size_t arity, bool positive = true) const -> bool {
-        return type() == SymbolType::function && std::strcmp(this->name(), name) == 0 && arguments().size() == arity &&
+    [[nodiscard]] auto match(std::string_view name, size_t arity, bool positive = true) const -> bool {
+        return type() == SymbolType::function && this->name() == name && arguments().size() == arity &&
                positive == is_positive();
     }
     [[nodiscard]] auto hash() const noexcept -> size_t { return clingo_symbol_hash(rep_); }
@@ -119,9 +121,9 @@ inline auto Number(int num) -> Symbol {
     return Symbol{clingo_symbol_create_number(num), false};
 }
 
-inline auto Number(Library const &lib, char const *str) -> Symbol {
+inline auto Number(Library const &lib, std::string_view str) -> Symbol {
     clingo_symbol_t sym = 0;
-    Detail::handle_error(clingo_symbol_create_number_str(c_cast(lib), str, &sym));
+    Detail::handle_error(clingo_symbol_create_number_str(c_cast(lib), str.data(), str.size(), &sym));
     return Symbol{sym, false};
 }
 
@@ -133,17 +135,17 @@ inline auto Infimum() -> Symbol {
     return Symbol{clingo_symbol_create_infimum(), false};
 }
 
-inline auto String(Library const &lib, char const *str) -> Symbol {
+inline auto String(Library const &lib, std::string_view str) -> Symbol {
     clingo_symbol_t sym = 0;
-    Detail::handle_error(clingo_symbol_create_string(c_cast(lib), str, &sym));
+    Detail::handle_error(clingo_symbol_create_string(c_cast(lib), str.data(), str.size(), &sym));
     return Symbol{sym, false};
 }
 
-inline auto Function(Library const &lib, char const *str, SymbolSpan arguments = {}, bool is_postitve = true)
+inline auto Function(Library const &lib, std::string_view str, SymbolSpan arguments = {}, bool is_postitve = true)
     -> Symbol {
     clingo_symbol_t sym = 0;
-    Detail::handle_error(
-        clingo_symbol_create_function(c_cast(lib), str, c_cast(arguments.data()), arguments.size(), is_postitve, &sym));
+    Detail::handle_error(clingo_symbol_create_function(c_cast(lib), str.data(), str.size(), c_cast(arguments.data()),
+                                                       arguments.size(), is_postitve, &sym));
     return Symbol{sym, false};
 }
 

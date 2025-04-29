@@ -23,17 +23,17 @@ class Symbol {
     [[nodiscard]] auto type() const -> clingo_symbol_type_e;
     [[nodiscard]] auto number() const -> py::int_;
     [[nodiscard]] auto string() const -> py::str;
-    [[nodiscard]] auto name() const -> char const *;
+    [[nodiscard]] auto name() const -> std::string_view;
     [[nodiscard]] auto arity() const -> size_t;
     [[nodiscard]] auto args() const -> TypeHint<"Sequence[Symbol]">;
-    [[nodiscard]] auto str() const -> char const *;
+    [[nodiscard]] auto str() const -> std::string_view;
     [[nodiscard]] auto repr() const -> std::string;
     [[nodiscard]] auto is_positive() const -> bool;
     [[nodiscard]] auto is_negative() const -> bool;
-    [[nodiscard]] auto match_function(char const *name, size_t arity, bool is_positive) const -> bool;
+    [[nodiscard]] auto match_function(std::string_view name, size_t arity, bool is_positive) const -> bool;
     [[nodiscard]] auto match_tuple(size_t arity) const -> bool;
     [[nodiscard]] auto hash() const -> size_t;
-    [[nodiscard]] auto signature() const -> std::optional<std::tuple<char const *, size_t, bool>>;
+    [[nodiscard]] auto signature() const -> std::optional<std::tuple<std::string_view, size_t, bool>>;
 
     friend auto Infimum() -> Symbol;
     friend auto Supremum() -> Symbol;

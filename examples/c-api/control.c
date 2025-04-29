@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
     handle_error(clingo_lib_new(0, clingo_log_level_info, NULL, NULL, 0, &lib));
 
     clingo_control_t *ctl GC(free_ctl) = NULL;
-    handle_error(clingo_control_new(lib, NULL, 0, &ctl));
+    handle_error(clingo_control_new(lib, NULL, NULL, 0, &ctl));
 
     handle_error(clingo_control_parse_string(ctl, "1 {a; b} 1."));
 

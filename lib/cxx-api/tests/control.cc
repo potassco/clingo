@@ -6,13 +6,13 @@
 
 namespace Clingo::Test {
 
-auto ctx(char const *name, SymbolSpan params) -> SymbolVector {
+auto ctx(std::string_view name, SymbolSpan params) -> SymbolVector {
     REQUIRE(params.size() == 1);
     REQUIRE(params[0].type() == SymbolType::number);
-    if (std::strcmp(name, "f") == 0) {
+    if (name == "f") {
         return SymbolVector{Number(params[0].number() + 1)};
     }
-    if (std::strcmp(name, "g") == 0) {
+    if (name == "g") {
         return SymbolVector{Number(params[0].number() - 1)};
     }
     return SymbolVector{};
