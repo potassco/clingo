@@ -9,11 +9,6 @@ namespace Clingo::CAPI {
 
 namespace {
 
-auto ieq(auto const &a, char const *b) -> bool {
-    return std::ranges::equal(a, std::string_view{b},
-                              [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
-}
-
 auto split(std::string_view const &source, char const *delimiter = " ") -> std::vector<std::string_view> {
     std::vector<std::string_view> results;
     size_t prev = 0;
@@ -38,7 +33,7 @@ class ClingoOptions {
 
     void init(Potassco::ProgramOptions::OptionContext &root) {
         using namespace Potassco::ProgramOptions;
-        auto parse_const = [this](std::string const &value) {
+        auto parse_const = [this](std::string_view value) {
             // NOTE: this might use the logger.
             parser_.init(value, *store_->string("<const>"));
             auto def = parser_.parse_const_def();
@@ -47,55 +42,50 @@ class ClingoOptions {
             }
             return static_cast<bool>(def);
         };
-        auto parse_parts = [&, this](std::string const &value) {
+        auto parse_parts = [&, this](std::string_view value) {
             // NOTE: this might use the logger.
             parser_.init(value, *store_->string("<parts>"));
             parts_ = parser_.parse_program_parts();
             return static_cast<bool>(parts_);
         };
-        auto parse_imin = [this](std::string const &value) {
-            const auto *end = value.data() + value.size();
-            auto ret = std::from_chars(value.data(), end, solver_opts_.imin);
-            return ret.ec == std::errc{} && ret.ptr == end;
+        auto parse_imin = [this](std::string_view value) {
+            return Potassco::stringTo(value, solver_opts_.imin) == std::errc{};
         };
-        auto parse_imax = [this](std::string const &value) {
-            if (ieq(value, "none")) {
+        auto parse_imax = [this](std::string_view value) {
+            if (Potassco::Parse::eqIgnoreCase(value, "none")) {
                 solver_opts_.imax = std::nullopt;
                 return true;
             }
             solver_opts_.imax = 0;
-            const auto *end = value.data() + value.size();
-            auto ret = std::from_chars(value.data(), end, *solver_opts_.imax);
-            return ret.ec == std::errc{} && ret.ptr == end;
+            return Potassco::stringTo(value, *solver_opts_.imax) == std::errc{};
         };
-        auto parse_level = [this](std::string const &value) {
-            if (auto lvl = LogLevel::info; parseValue(values<LogLevel>({{"error", LogLevel::error},
-                                                                        {"warn", LogLevel::warn},
-                                                                        {"info", LogLevel::info},
-                                                                        {"debug", LogLevel::debug},
-                                                                        {"trace", LogLevel::trace}}),
-                                                      value, lvl)) {
+        auto parse_level = [this](std::string_view value) {
+            if (auto lvl = LogLevel::info; values<LogLevel>({{"error", LogLevel::error},
+                                                             {"warn", LogLevel::warn},
+                                                             {"info", LogLevel::info},
+                                                             {"debug", LogLevel::debug},
+                                                             {"trace", LogLevel::trace}})(value, lvl)) {
                 log_->set_level(lvl);
                 return true;
             }
             return false;
         };
-        auto parse_info = [this](std::string const &value) {
+        auto parse_info = [this](std::string_view value) {
             auto vals = values<std::pair<MessageCode, bool>>({
                 {"all", std::pair{MessageCode::info, true}},
                 {"none", std::pair{MessageCode::info, false}},
                 {"operation-undefined", std::pair{MessageCode::info_operation_undefined, true}},
                 {"atom-undefined", std::pair{MessageCode::info_atom_undefined, true}},
                 {"file-included", std::pair{MessageCode::info_file_included, true}},
-                {"global-varibale", std::pair{MessageCode::info_global_variable, true}},
+                {"global-variable", std::pair{MessageCode::info_global_variable, true}},
                 {"no-operation-undefined", std::pair{MessageCode::info_operation_undefined, false}},
                 {"no-atom-undefined", std::pair{MessageCode::info_atom_undefined, false}},
                 {"no-file-included", std::pair{MessageCode::info_file_included, false}},
-                {"no-global-varibale", std::pair{MessageCode::info_global_variable, false}},
+                {"no-global-variable", std::pair{MessageCode::info_global_variable, false}},
             });
-            if (auto val = std::pair{MessageCode::info, true}; parseValue(vals, value, val)) {
+            if (auto val = std::pair{MessageCode::info, true}; vals(value, val)) {
                 if (val.first == MessageCode::info) {
-                    for (auto const &[k, v] : vals) {
+                    for (auto const &[k, v] : vals.values) {
                         if (v.second == val.second && v.first != val.first) {
                             log_->enable(v.first, v.second);
                         }
@@ -107,7 +97,7 @@ class ClingoOptions {
             }
             return false;
         };
-        auto parse_sigs = [this](const std::string &str) {
+        auto parse_sigs = [this](std::string_view str) {
             for (auto &sig : split(str, ",")) {
                 auto x = split(sig, "/");
                 if (x.size() != 2) {
@@ -133,7 +123,7 @@ class ClingoOptions {
             ("const,c", parse(parse_const)->arg("<id>=<term>")->composing(),
              "Replace term occurrences of <id> with <term>")                                      //
             ("parts", parse(parse_parts), "Parse comma-separated program parts to ground")        //
-            ("imin", parse(parse_imin)->arg("<n>"), "Minimium number of steps for incmode")       //
+            ("imin", parse(parse_imin)->arg("<n>"), "Minimum number of steps for incmode")        //
             ("imax", parse(parse_imax)->arg("{none|<n>}"), "Maximum number of steps for incmode") //
             ("istop",
              storeTo(solver_opts_.istop, values<Control::IStop>({{"none", Control::IStop::none},

@@ -27,12 +27,12 @@ class AppOptions {
     void add_option(char const *group, char const *option, char const *description, OptionParser parser,
                     char const *argument = nullptr, bool multi = false) {
         using namespace Potassco::ProgramOptions;
-        auto value = std::unique_ptr<Value>(
-            parse([parser = std::move(parser)]([[maybe_unused]] std::string const &name, std::string const &value) {
-                return parser(value.c_str());
-            }));
+        auto value = std::unique_ptr<Value>(parse([parser = std::move(parser)](std::string_view value) {
+            thread_local std::string val{};
+            return parser(val.assign(value).c_str());
+        }));
         if (argument != nullptr) {
-            value->arg(add_string_(argument));
+            value->arg(argument);
         }
         if (multi) {
             value->composing();
@@ -54,13 +54,10 @@ class AppOptions {
     }
 
   private:
-    auto add_string_(char const *name) -> char const * { return names_.emplace(name).first->c_str(); }
-
     void add_option_value_(char const *group, char const *option,
                            std::unique_ptr<Potassco::ProgramOptions::Value> value, char const *description) {
         auto init = add_option_group_(group).addOptions();
-        auto const *cdesc = add_string_(description);
-        init(option, value.release(), cdesc);
+        init(option, value.release(), description);
     }
 
     auto add_option_group_(char const *group) -> Potassco::ProgramOptions::OptionGroup & {
@@ -74,7 +71,6 @@ class AppOptions {
         return *groups_.emplace_after(it, group);
     }
 
-    std::unordered_set<std::string> names_;
     std::forward_list<Potassco::ProgramOptions::OptionGroup> groups_;
 };
 
@@ -260,17 +256,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     Clingo::CAPI::ClingoOptions opts_;
 };
 
-auto map(char const *name, char const *const *args, size_t size) {
-    auto c_args = std::vector<char *>{};
-    c_args.reserve(size + 2);
-    c_args.emplace_back(const_cast<char *>(name)); // NOLINT
-    for (auto const &arg : std::span{args, size}) {
-        c_args.emplace_back(const_cast<char *>(arg)); // NOLINT
-    }
-    c_args.emplace_back(nullptr);
-    return c_args;
-}
-
 } // namespace
 
 extern "C" auto clingo_options_add(clingo_options_t *options, char const *group, char const *option,
@@ -309,8 +294,8 @@ extern "C" auto clingo_main(clingo_lib_t *lib, char const *const *arguments, siz
             return clingo_result_invalid;
         }
         auto capp = ClingoApp{*lib, app, data};
-        auto args = map(capp.getName(), arguments, size);
-        auto res = capp.main(static_cast<int>(args.size() - 1), args.data());
+        auto args = std::span{arguments, size};
+        auto res = capp.main(args);
         if (code != nullptr) {
             *code = res;
         }
