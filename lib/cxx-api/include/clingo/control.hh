@@ -14,6 +14,7 @@
 namespace Clingo {
 
 using StringSpan = std::span<std::string_view const>;
+using StringList = std::initializer_list<std::string_view const>;
 
 struct Part {
     Part(std::string name, SymbolVector params = {}) : name{std::move(name)}, params(std::move(params)) {
@@ -45,13 +46,12 @@ class Control {
   public:
     using Context = std::function<SymbolVector(std::string_view, SymbolSpan)>;
 
-    Control(Library const &lib, std::initializer_list<std::string_view const> arguments)
-        : Clingo::Control{lib, StringSpan{arguments.begin(), arguments.size()}} {}
+    Control(Library const &lib, StringList arguments)
+        : Clingo::Control{lib, StringSpan{arguments.begin(), arguments.end()}} {}
     Control(Library const &lib, StringSpan arguments = {}) {
-        auto cstrs = Detail::transform(arguments, [](auto const &x) { return x.data(); });
-        auto sizes = Detail::transform(arguments, [](auto const &x) { return x.size(); });
+        auto cstrs = Detail::transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
         clingo_control_t *ptr = nullptr;
-        Detail::handle_error(clingo_control_new(c_cast(lib), cstrs.data(), sizes.data(), arguments.size(), &ptr));
+        Detail::handle_error(clingo_control_new(c_cast(lib), cstrs.data(), arguments.size(), &ptr));
         rep_.reset(ptr, false);
     }
     explicit Control(clingo_control_t *rep, bool acquire) : rep_{rep, acquire} {}
@@ -68,21 +68,19 @@ class Control {
     void join(clingo_program_t *prg) { Detail::handle_error(clingo_control_join(rep_.get(), prg)); }
 
     void write_aspif(std::string_view path, WriteAspifFlags flags = WriteAspifFlags::none) {
-        Detail::handle_error(clingo_control_write_aspif(rep_.get(), Detail::StringBuffer{path},
+        Detail::handle_error(clingo_control_write_aspif(rep_.get(), path.data(), path.size(),
                                                         static_cast<clingo_write_aspif_mode_t>(flags)));
     }
 
-    void parse_files(std::span<std::string const> files) {
-        auto cfiles = Detail::transform(files, [](auto const &x) { return x.c_str(); });
+    void parse_files(StringSpan files) {
+        auto cfiles = Detail::transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
         Detail::handle_error(clingo_control_parse_files(rep_.get(), cfiles.data(), cfiles.size()));
     }
 
-    void parse_files(std::initializer_list<std::string_view> files) {
-        parse_files(std::vector<std::string>{files.begin(), files.end()});
-    }
+    void parse_files(StringList files) { parse_files(StringSpan{files.begin(), files.end()}); }
 
     void parse_string(std::string_view program) {
-        Detail::handle_error(clingo_control_parse_string(rep_.get(), Detail::StringBuffer{program}));
+        Detail::handle_error(clingo_control_parse_string(rep_.get(), program.data(), program.size()));
     }
 
     void ground(std::optional<PartSpan> parts = std::nullopt, Context ctx = nullptr) {
@@ -90,11 +88,12 @@ class Control {
         if (parts) {
             c_parts.reserve(parts->size());
             for (auto const &part : *parts) {
-                c_parts.emplace_back(part.name.c_str(), c_cast(part.params.data()), part.params.size());
+                c_parts.emplace_back(part.name.data(), part.name.size(), c_cast(part.params.data()),
+                                     part.params.size());
             }
         } else {
             c_parts.reserve(1);
-            c_parts.emplace_back("base", nullptr, 0);
+            c_parts.emplace_back("base", 4, nullptr, 0);
         }
         Detail::handle_error(
             clingo_control_ground(rep_.get(), c_parts.data(), c_parts.size(), ctx ? &ctx_ : nullptr, &ctx));
@@ -210,11 +209,12 @@ class Control {
     friend class Detail::ManagedPtr<Control, clingo_control_t>;
 
     static auto ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
-                     char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data,
-                     clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t {
+                     char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
+                     void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data)
+        -> clingo_result_t {
         CLINGO_TRY {
             auto &cb = *static_cast<std::function<SymbolVector(std::string_view, SymbolSpan)> *>(data);
-            auto syms = cb(name, {cpp_cast(arguments), arguments_size});
+            auto syms = cb({name, name_size}, {cpp_cast(arguments), arguments_size});
             auto const *c_syms = c_cast(syms.data());
             return symbol_callback(c_syms, syms.size(), symbol_callback_data);
         }

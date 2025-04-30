@@ -179,7 +179,7 @@ class StateBdAggr : public State {
     //!
     //! Each value in the map represents an aggregate element. The vector of
     //! condition ids is kept sorted and unique. A small vector is used because
-    //! it should have commonly sizes of zero (a fact) or one (a single
+    //! it should commonly have sizes of zero (a fact) or one (a single
     //! conditions).
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<size_t>>;
 

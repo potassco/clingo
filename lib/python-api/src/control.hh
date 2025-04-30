@@ -18,13 +18,13 @@ using PartSpan = std::span<Part const>;
 
 class ConstMap {
   public:
-    using key_type = char const *;
+    using key_type = std::string_view;
     using mapped_type = Symbol;
     using value_type = std::pair<key_type, mapped_type>;
 
     ConstMap(clingo_const_map_t const *map) : map_{map} {}
-    [[nodiscard]] auto contains(char const *name) const -> bool;
-    [[nodiscard]] auto get(char const *name, std::optional<mapped_type> def) const -> std::optional<mapped_type>;
+    [[nodiscard]] auto contains(key_type name) const -> bool;
+    [[nodiscard]] auto get(key_type name, std::optional<mapped_type> def) const -> std::optional<mapped_type>;
     [[nodiscard]] auto at(size_t index) const -> value_type;
     [[nodiscard]] auto size() const -> size_t;
 
@@ -43,8 +43,8 @@ class Control {
 
     auto mode() -> clingo_mode_e;
     void parse_files(std::span<std::string const> files);
-    void parse_string(char const *str);
-    void write_aspif(char const *path, bool symbols, bool append, std::optional<bool> preamble, bool preprocess);
+    void parse_string(std::string_view str);
+    void write_aspif(std::string_view path, bool symbols, bool append, std::optional<bool> preamble, bool preprocess);
     void join(Program &prg);
     void ground(std::optional<PartSpan> parts, py::handle ctx);
     auto solve(MixedLitSpan const &assumptions, std::optional<ModelCallback> on_model,
@@ -55,7 +55,7 @@ class Control {
     auto config() -> Config;
     auto stats() -> py::dict;
     void main();
-    auto buffer() -> char const *;
+    auto buffer() -> std::string_view;
     auto const_map() -> HintConstMap;
     auto parts() -> std::optional<PartSpan>;
     void set_parts(std::optional<PartSpan> parts);
@@ -82,7 +82,7 @@ class Control {
   private:
     Control(clingo_control_t *ctl) : ctl_{ctl} {}
     [[nodiscard]] auto user_data() const -> py::list;
-    static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name,
+    static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name, size_t name_size,
                      clingo_symbol_t const *arguments, size_t arguments_size, void *data,
                      clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t;
     ManagedPtr<Control, clingo_control_t> ctl_;
@@ -115,7 +115,8 @@ struct part_span_holder {
             }
             names.emplace_back(cast_op<std::string>(std::move(nc)));
             args.emplace_back(cast_op<Clingo::Python::SymbolVec>(std::move(sc)));
-            parts.emplace_back(names.back().c_str(), c_cast(args.back().data()), args.back().size());
+            parts.emplace_back(names.back().data(), names.back().size(), c_cast(args.back().data()),
+                               args.back().size());
         }
         return true;
     }
@@ -147,8 +148,8 @@ template <> struct type_caster<Clingo::Python::PartSpan> {
         list res;
         for (auto const &part : src) {
             res.append(make_tuple(
-                name_conv::cast(part.name, policy, parent),
-                params_conv::cast(std::span{Clingo::Python::cpp_cast(part.params), part.size}, policy, parent)));
+                name_conv::cast(std::string{part.name, part.name_size}, policy, parent),
+                params_conv::cast(std::span{Clingo::Python::cpp_cast(part.params), part.params_size}, policy, parent)));
         }
         return res.release();
     }

@@ -64,7 +64,7 @@ struct clingo_control {
 
 inline auto convert(Clingo::Input::ProgramParamVec const &parts) -> std::vector<clingo_part_t> {
     return Clingo::Util::transform(parts, [](auto const &part) {
-        return clingo_part_t{part.first->c_str(), c_cast(part.second.data()), part.second.size()};
+        return clingo_part_t{part.first->data(), part.first->size(), c_cast(part.second.data()), part.second.size()};
     });
 }
 
@@ -72,7 +72,7 @@ inline auto convert(std::optional<Clingo::Input::ProgramParamVec> const &parts) 
     if (parts) {
         return convert(*parts);
     }
-    static constexpr clingo_part_t cpart = {"base", nullptr, 0};
+    static constexpr clingo_part_t cpart = {"base", 4, nullptr, 0};
     return std::vector{cpart};
 }
 
@@ -80,8 +80,9 @@ inline auto convert(clingo_control_t *control, clingo_part_t const *parts, size_
     -> Clingo::Input::ProgramParamVec {
     auto make_part = [&](auto const &sym) { return Clingo::SharedSymbol{Clingo::Symbol::from_rep(sym)}; };
     auto make_parts = [&](auto const &part) {
-        return Clingo::Input::ProgramParam{control->lib->store->string(part.name),
-                                           Clingo::Util::transform(part.params, part.params + part.size, make_part)};
+        return Clingo::Input::ProgramParam{
+            control->lib->store->string({part.name, part.name_size}),
+            Clingo::Util::transform(part.params, part.params + part.params_size, make_part)};
     };
     return Clingo::Util::transform(parts, parts + parts_size, make_parts);
 }

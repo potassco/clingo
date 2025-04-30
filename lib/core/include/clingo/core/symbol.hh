@@ -40,6 +40,10 @@ class String {
     //!
     //! The lifetime is tied to that of the reference.
     [[nodiscard]] auto view() const -> std::string_view;
+    //! Get the underlying character array.
+    //!
+    //! The lifetime is tied to that of the reference.
+    [[nodiscard]] auto data() const -> const char *;
     //! Test if the string is empty.
     [[nodiscard]] auto empty() const -> bool;
     //! Get the length of the string.

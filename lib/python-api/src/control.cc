@@ -12,14 +12,14 @@ namespace Clingo::Python {
 
 auto ConstMap::contains(key_type name) const -> bool {
     bool found = false;
-    handle_error(clingo_const_map_find(map_, name, nullptr, &found));
+    handle_error(clingo_const_map_find(map_, name.data(), name.size(), nullptr, &found));
     return found;
 }
 
 auto ConstMap::get(key_type name, std::optional<Symbol> def) const -> std::optional<mapped_type> {
     clingo_symbol_t sym = 0;
     bool found = false;
-    handle_error(clingo_const_map_find(map_, name, &sym, &found));
+    handle_error(clingo_const_map_find(map_, name.data(), name.size(), &sym, &found));
     if (found) {
         return Symbol{sym, true};
     }
@@ -28,9 +28,10 @@ auto ConstMap::get(key_type name, std::optional<Symbol> def) const -> std::optio
 
 auto ConstMap::at(size_t index) const -> value_type {
     char const *name = nullptr;
+    size_t size = 0;
     clingo_symbol_t sym = 0;
-    handle_error(clingo_const_map_at(map_, index, &name, &sym));
-    return {name, Symbol{sym, true}};
+    handle_error(clingo_const_map_at(map_, index, &name, &size, &sym));
+    return {{name, size}, Symbol{sym, true}};
 }
 
 auto ConstMap::size() const -> size_t {
@@ -40,10 +41,9 @@ auto ConstMap::size() const -> size_t {
 }
 
 Control::Control(Library &lib, std::span<std::string const> args) {
-    auto cargs = transform(args, [](auto const &str) { return str.c_str(); });
-    auto sizes = transform(args, [](auto const &str) { return str.size(); });
+    auto cargs = transform(args, [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
     clingo_control_t *ctl = nullptr;
-    handle_error(clingo_control_new(lib, cargs.data(), sizes.data(), cargs.size(), &ctl));
+    handle_error(clingo_control_new(lib, cargs.data(), cargs.size(), &ctl));
     ctl_.reset(ctl, false);
 }
 
@@ -57,11 +57,12 @@ void Control::join(Program &prg) {
     handle_error(clingo_control_join(ctl_.get(), prg));
 }
 
-void Control::parse_string(char const *str) {
-    handle_error(clingo_control_parse_string(ctl_.get(), str), get_exception_ptr());
+void Control::parse_string(std::string_view str) {
+    handle_error(clingo_control_parse_string(ctl_.get(), str.data(), str.size()), get_exception_ptr());
 }
 
-void Control::write_aspif(char const *path, bool symbols, bool append, std::optional<bool> preamble, bool preprocess) {
+void Control::write_aspif(std::string_view path, bool symbols, bool append, std::optional<bool> preamble,
+                          bool preprocess) {
     clingo_write_aspif_mode_t mode = 0;
     if (symbols) {
         mode |= clingo_write_aspif_mode_symbols;
@@ -77,17 +78,18 @@ void Control::write_aspif(char const *path, bool symbols, bool append, std::opti
     if (preprocess) {
         mode |= clingo_write_aspif_mode_preprocess;
     }
-    handle_error(clingo_control_write_aspif(ctl_.get(), path, mode), get_exception_ptr());
+    handle_error(clingo_control_write_aspif(ctl_.get(), path.data(), path.size(), mode), get_exception_ptr());
 }
 
 void Control::parse_files(std::span<std::string const> files) {
-    auto cfiles = transform(files, [](auto const &x) { return x.c_str(); });
+    auto cfiles = transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
     handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()), get_exception_ptr());
 }
 
 auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
-                   char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data,
-                   clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t {
+                   char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
+                   void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data)
+    -> clingo_result_t {
     auto &handle = *static_cast<py::handle *>(data);
     CLINGO_TRY {
         auto syms = [&] {
@@ -96,7 +98,7 @@ auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_l
             for (auto sym : std::span{arguments, arguments_size}) {
                 args.append(Symbol{sym, true});
             }
-            return handle.attr(name)(*args).cast<std::variant<SymbolVec, Symbol>>();
+            return handle.attr(std::string{name, name_size}.c_str())(*args).cast<std::variant<SymbolVec, Symbol>>();
         }();
         return std::visit(
             [&]<class T>(T const &res) {
@@ -118,7 +120,7 @@ auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_l
 void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
     auto release = py::gil_scoped_release{};
     if (!parts) {
-        static constexpr auto part = clingo_part_t{"base", nullptr, 0};
+        static constexpr auto part = clingo_part_t{"base", 4, nullptr, 0};
         parts.emplace(&part, 1);
     }
     handle_error(clingo_control_ground(ctl_.get(), parts->data(), parts->size(),
@@ -218,10 +220,11 @@ void Control::discard(bool minimize, bool project) {
     handle_error(clingo_control_discard(ctl_.get(), type));
 }
 
-auto Control::buffer() -> char const * {
+auto Control::buffer() -> std::string_view {
     char const *ret = nullptr;
-    handle_error(clingo_control_buffer(ctl_.get(), &ret));
-    return ret;
+    size_t size = 0;
+    handle_error(clingo_control_buffer(ctl_.get(), &ret, &size));
+    return {ret, size};
 }
 
 auto Control::const_map() -> HintConstMap {

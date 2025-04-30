@@ -166,7 +166,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_observe(clingo_control_
 //! @param mode control how to write
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_write_aspif(clingo_control_t *control, char const *path,
-                                                                     clingo_write_aspif_mode_t mode);
+                                                                     size_t size, clingo_write_aspif_mode_t mode);
 
 //! @}
 

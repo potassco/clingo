@@ -212,9 +212,10 @@ class ExtendedAspifWriter : public Potassco::AspifOutput {
 
 } // namespace
 
-extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const *path, clingo_write_aspif_mode_t mode)
-    -> clingo_result_t {
+extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const *path, size_t size,
+                                           clingo_write_aspif_mode_t mode) -> clingo_result_t {
     CLINGO_TRY {
+        auto path_view = std::string_view{path, size};
         if (control == nullptr || path == nullptr) {
             return clingo_result_invalid;
         }
@@ -223,12 +224,12 @@ extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const
         if ((mode & clingo_write_aspif_mode_preprocess) != 0) {
             prg.endProgram();
         }
-        auto app = (mode & clingo_write_aspif_mode_append) != 0 && std::filesystem::exists(path);
+        auto app = (mode & clingo_write_aspif_mode_append) != 0 && std::filesystem::exists(path_view);
         auto pre = (mode & clingo_write_aspif_mode_preamble) != 0;
         if ((mode & clingo_write_aspif_mode_preamble_auto) != 0) {
             pre = !app;
         }
-        auto out = std::ofstream{path, app ? std::ios::app : std::ios::out};
+        auto out = std::ofstream{path_view, app ? std::ios::app : std::ios::out};
         out.exceptions(std::ios::failbit | std::ios::badbit);
         if ((mode & clingo_write_aspif_mode_symbols) != 0) {
             auto obs = ExtendedAspifWriter{control->slv->sym_tab(), *control->slv, out};

@@ -89,7 +89,7 @@ typedef struct clingo_weighted_literal {
 typedef struct clingo_string {
     char const *data; //!< pointer to the beginning of the string
     size_t size;      //!< the length of the string
-} clingo_string;
+} clingo_string_t;
 
 //! Enumeration of error codes.
 //!

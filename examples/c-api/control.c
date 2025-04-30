@@ -4,6 +4,7 @@
 #define STDC_FORMAT_MACROS
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define GC(f) __attribute__((cleanup(f)))
 
@@ -69,11 +70,12 @@ int main(int argc, char *argv[]) {
     handle_error(clingo_lib_new(0, clingo_log_level_info, NULL, NULL, 0, &lib));
 
     clingo_control_t *ctl GC(free_ctl) = NULL;
-    handle_error(clingo_control_new(lib, NULL, NULL, 0, &ctl));
+    handle_error(clingo_control_new(lib, NULL, 0, &ctl));
 
-    handle_error(clingo_control_parse_string(ctl, "1 {a; b} 1."));
+    char const *prg = "1 {a; b} 1.";
+    handle_error(clingo_control_parse_string(ctl, prg, strlen(prg)));
 
-    clingo_part_t parts[] = {{"base", NULL, 0}};
+    clingo_part_t parts[] = {{"base", 4, NULL, 0}};
     handle_error(clingo_control_ground(ctl, parts, 1, NULL, NULL));
 
     clingo_solve_handle_t *hnd = NULL;

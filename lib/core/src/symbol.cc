@@ -611,6 +611,10 @@ auto String::view() const -> std::string_view {
     return rep_ != 0 ? CharArray::from_repr(rep_).view() : std::string_view{};
 }
 
+auto String::data() const -> char const * {
+    return c_str();
+}
+
 auto String::empty() const -> bool {
     return *c_str() == '\0';
 }
