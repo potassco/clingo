@@ -1,17 +1,17 @@
-add_library(clingo_cxx INTERFACE)
-add_library(clingo::cxx ALIAS clingo_cxx)
-clingo_target_properties(clingo_cxx lib/cxx)
-target_include_directories(clingo_cxx INTERFACE "include")
-target_link_libraries(clingo_cxx INTERFACE clingo)
+add_library(clingo_cxx-api INTERFACE)
+add_library(clingo::cxx-api ALIAS clingo_cxx-api)
+clingo_target_properties(clingo_cxx-api lib/cxx-api)
+target_include_directories(clingo_cxx-api INTERFACE "include")
+target_link_libraries(clingo_cxx-api INTERFACE clingo)
 
 if(PARSER_BUILD_TESTS)
-    add_executable(test_cxx
+    add_executable(test_cxx-api
         "tests/base.cc"
         "tests/control.cc"
         "tests/symbol.cc"
     )
-    clingo_target_properties(clingo_cxx test/cxx)
-    target_include_directories(test_cxx PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
-    target_link_libraries(test_cxx PRIVATE clingo::cxx Catch2::Catch2WithMain)
-    catch_discover_tests(test_cxx)
+    clingo_target_properties(clingo_cxx-api test/cxx-api)
+    target_include_directories(test_cxx-api PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+    target_link_libraries(test_cxx-api PRIVATE clingo::cxx-api Catch2::Catch2WithMain)
+    catch_discover_tests(test_cxx-api)
 endif()

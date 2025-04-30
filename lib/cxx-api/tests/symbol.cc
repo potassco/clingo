@@ -6,7 +6,7 @@
 
 namespace Clingo::Test {
 
-TEST_CASE("symbol") {
+TEST_CASE("cxx-symbol") {
     char const *str_big = "1999999999999999999999999999999999999999999999991";
     auto lib = Library();
     auto num_int = Number(10);

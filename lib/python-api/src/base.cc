@@ -204,7 +204,7 @@ auto TheoryAtom::str() -> std::string_view {
 // TheoryBase
 
 auto TheoryBase::at(size_t index) const -> value_type {
-    return index < size() ? TheoryAtom{*base_, index} : throw std::range_error{"atom index out of range"};
+    return index < size() ? TheoryAtom{*base_, index} : throw py::index_error{"atom index out of range"};
 }
 
 auto TheoryBase::size() const -> size_t {

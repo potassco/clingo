@@ -19,6 +19,7 @@ enum class SymbolType : clingo_symbol_type_t {
 
 class Symbol;
 using SymbolSpan = std::span<Symbol const>;
+using SymbolList = std::initializer_list<Symbol const>;
 using SymbolVector = std::vector<Symbol>;
 
 [[nodiscard]] auto cpp_cast(clingo_symbol_t const *sym) -> Symbol const *;
@@ -93,6 +94,12 @@ class Symbol {
         clingo_symbol_to_string(rep_, c_cast(bld));
         return std::string{bld.str()};
     }
+    [[nodiscard]] auto signature() const -> std::optional<std::tuple<std::string_view, size_t, bool>> {
+        if (type() == SymbolType::function) {
+            return std::make_tuple(name(), arguments().size(), is_positive());
+        }
+        return std::nullopt;
+    }
     [[nodiscard]] auto match(std::string_view name, size_t arity, bool positive = true) const -> bool {
         return type() == SymbolType::function && this->name() == name && arguments().size() == arity &&
                positive == is_positive();
@@ -144,6 +151,11 @@ inline auto Function(Library const &lib, std::string_view str, SymbolSpan argume
     Detail::handle_error(clingo_symbol_create_function(c_cast(lib), str.data(), str.size(), c_cast(arguments.data()),
                                                        arguments.size(), is_postitve, &sym));
     return Symbol{sym, false};
+}
+
+inline auto Function(Library const &lib, std::string_view str, SymbolList arguments, bool is_postitve = true)
+    -> Symbol {
+    return Function(lib, str, std::span{arguments.begin(), arguments.end()}, is_postitve);
 }
 
 inline auto Tuple(Library const &lib, SymbolSpan arguments = {}) -> Symbol {

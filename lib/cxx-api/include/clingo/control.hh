@@ -1,5 +1,6 @@
 #pragma once
 
+#include <clingo/base.hh>
 #include <clingo/core.hh>
 #include <clingo/symbol.hh>
 
@@ -51,35 +52,35 @@ class Control {
         auto cstrs = Detail::transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
         clingo_control_t *ptr = nullptr;
         Detail::handle_error(clingo_control_new(c_cast(lib), cstrs.data(), arguments.size(), &ptr));
-        rep_.reset(ptr, false);
+        ctl_.reset(ptr, false);
     }
-    explicit Control(clingo_control_t *rep, bool acquire) : rep_{rep, acquire} {}
+    explicit Control(clingo_control_t *rep, bool acquire) : ctl_{rep, acquire} {}
 
-    [[nodiscard]] friend auto c_cast(Control const &ctl) -> clingo_control_t * { return ctl.rep_.get(); }
+    [[nodiscard]] friend auto c_cast(Control const &ctl) -> clingo_control_t * { return ctl.ctl_.get(); }
 
     auto mode() -> ControlMode {
         clingo_mode_t mode = 0;
-        Detail::handle_error(clingo_control_mode(rep_.get(), &mode));
+        Detail::handle_error(clingo_control_mode(ctl_.get(), &mode));
         return static_cast<ControlMode>(mode);
     }
 
     // TODO: wrap program
-    void join(clingo_program_t *prg) { Detail::handle_error(clingo_control_join(rep_.get(), prg)); }
+    void join(clingo_program_t *prg) { Detail::handle_error(clingo_control_join(ctl_.get(), prg)); }
 
     void write_aspif(std::string_view path, WriteAspifFlags flags = WriteAspifFlags::none) {
-        Detail::handle_error(clingo_control_write_aspif(rep_.get(), path.data(), path.size(),
+        Detail::handle_error(clingo_control_write_aspif(ctl_.get(), path.data(), path.size(),
                                                         static_cast<clingo_write_aspif_mode_t>(flags)));
     }
 
     void parse_files(StringSpan files) {
         auto cfiles = Detail::transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
-        Detail::handle_error(clingo_control_parse_files(rep_.get(), cfiles.data(), cfiles.size()));
+        Detail::handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()));
     }
 
     void parse_files(StringList files) { parse_files(StringSpan{files.begin(), files.end()}); }
 
     void parse_string(std::string_view program) {
-        Detail::handle_error(clingo_control_parse_string(rep_.get(), program.data(), program.size()));
+        Detail::handle_error(clingo_control_parse_string(ctl_.get(), program.data(), program.size()));
     }
 
     void ground(std::optional<PartSpan> parts = std::nullopt, Context ctx = nullptr) {
@@ -95,16 +96,16 @@ class Control {
             c_parts.emplace_back("base", 4, nullptr, 0);
         }
         Detail::handle_error(
-            clingo_control_ground(rep_.get(), c_parts.data(), c_parts.size(), ctx ? &ctx_ : nullptr, &ctx));
+            clingo_control_ground(ctl_.get(), c_parts.data(), c_parts.size(), ctx ? &ctx_ : nullptr, &ctx));
     }
 
-    /*
     auto base() -> Base {
         clingo_base_t const *base = nullptr;
         clingo_control_base(ctl_.get(), &base);
         return {base};
     }
 
+    /*
     void observe(Observer &obs, bool preprocess) {
         obs.observe(ctl_.get(), preprocess);
     }
@@ -224,7 +225,7 @@ class Control {
 
     static auto release(clingo_control_t *ptr) { clingo_control_release(ptr); }
 
-    Detail::ManagedPtr<Control, clingo_control_t> rep_;
+    Detail::ManagedPtr<Control, clingo_control_t> ctl_;
 };
 
 } // namespace Clingo

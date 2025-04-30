@@ -18,7 +18,7 @@ auto ctx(std::string_view name, SymbolSpan params) -> SymbolVector {
     return SymbolVector{};
 }
 
-TEST_CASE("control") {
+TEST_CASE("cxx-control") {
     auto lib = Library{};
     auto ctl = Control{lib, {"0"}};
     ctl.parse_string("{a(@f(1)); b(@g(1))}.");
