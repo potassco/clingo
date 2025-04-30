@@ -1,9 +1,10 @@
 #pragma once
 
-#include <cassert>
 #include <clingo/symbol.hh>
 
 #include <clingo/base.h>
+
+#include <cassert>
 
 namespace Clingo {
 
@@ -36,80 +37,6 @@ class Atom {
     clingo_atom_base_t const *base_;
     size_t index_;
 };
-
-namespace Detail {
-
-template <typename T> class ArrowProxy {
-  public:
-    constexpr ArrowProxy(T value) : value_(std::move(value)) {}
-    constexpr auto operator->() -> T * { return &value_; }
-
-  private:
-    T value_;
-};
-
-template <class Seq> class RandomAccessIterator {
-  public:
-    using iterator_category = std::random_access_iterator_tag;
-    using value_type = typename Seq::value_type;
-    using size_type = typename Seq::size_type;
-    using difference_type = typename Seq::difference_type;
-    using pointer = typename Seq::pointer;
-    using reference = typename Seq::reference;
-
-    // NOTE: Added to fullfil the sentinel_for concept; should not be used.
-    constexpr RandomAccessIterator() : view_{throw std::logic_error("invalid iterator")}, index_{0} {}
-    constexpr RandomAccessIterator(Seq container, size_t index) noexcept : view_{std::move(container)}, index_{index} {}
-    constexpr auto operator*() const -> reference { return view_.at(index_); }
-    constexpr auto operator->() const -> pointer { return view_.at(index_); }
-    constexpr auto operator++() -> RandomAccessIterator & {
-        ++index_;
-        return *this;
-    }
-    constexpr auto operator++(int) -> RandomAccessIterator {
-        auto tmp = *this;
-        ++index_;
-        return tmp;
-    }
-    constexpr auto operator--() -> RandomAccessIterator & {
-        --index_;
-        return *this;
-    }
-    constexpr auto operator--(int) -> RandomAccessIterator {
-        auto tmp = *this;
-        --index_;
-        return tmp;
-    }
-    constexpr auto operator-(const RandomAccessIterator &other) const -> difference_type {
-        return static_cast<difference_type>(index_) - static_cast<difference_type>(other.index_);
-    }
-    constexpr auto operator+(difference_type n) const -> RandomAccessIterator {
-        return RandomAccessIterator(view_, index_ + n);
-    }
-    friend constexpr auto operator+(difference_type n, RandomAccessIterator it) -> RandomAccessIterator {
-        return RandomAccessIterator(it.view_, it.index_ + n);
-    }
-    constexpr auto operator-(difference_type n) const -> RandomAccessIterator {
-        return RandomAccessIterator(view_, index_ - n);
-    }
-    constexpr auto operator+=(difference_type n) -> RandomAccessIterator & {
-        index_ += n;
-        return *this;
-    }
-    constexpr auto operator-=(difference_type n) -> RandomAccessIterator & {
-        index_ -= n;
-        return *this;
-    }
-    constexpr auto operator==(const RandomAccessIterator &other) const -> bool { return index_ == other.index_; }
-    constexpr auto operator<=>(const RandomAccessIterator &other) const { return index_ <=> other.index_; }
-    constexpr auto operator[](difference_type n) const -> reference { return view_.at(index_ + n); }
-
-  private:
-    Seq view_;
-    size_t index_;
-};
-
-} // namespace Detail
 
 class AtomBase {
   public:
@@ -236,7 +163,7 @@ class TermBase {
 };
 
 class TheoryTerm;
-using TheoryTermVec = std::vector<TheoryTerm>;
+using TheoryTermVector = std::vector<TheoryTerm>;
 
 class TheoryTerm {
   public:
@@ -285,25 +212,51 @@ class TheoryTerm {
     size_t index_;
 };
 
-/*
+class TheoryElement;
+using TheoryElementVector = std::vector<TheoryElement>;
+
 class TheoryElement {
   public:
-    TheoryElement(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
-    auto tuple() -> TypeHint<"Sequence[TheoryTerm]">;
-    auto condition() -> LitSpan;
-    auto condition_id() -> clingo_literal_t;
-    auto str() -> char const *;
+    explicit TheoryElement(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
+    auto tuple() -> TheoryTermVector {
+        size_t size = 0;
+        clingo_id_t const *tuple = nullptr;
+        Detail::handle_error(clingo_theory_base_element_tuple(base_, index_, &tuple, &size));
+        return Detail::transform(std::span{tuple, size}, [this](clingo_id_t id) { return TheoryTerm{*base_, id}; });
+    }
+    auto condition() -> LiteralSpan {
+        size_t size = 0;
+        clingo_literal_t const *cond = nullptr;
+        Detail::handle_error(clingo_theory_base_element_condition(base_, index_, &cond, &size));
+        return std::span{cond, size};
+    }
+    auto condition_id() -> Literal {
+        clingo_literal_t id = 0;
+        Detail::handle_error(clingo_theory_base_element_condition_id(base_, index_, &id));
+        return id;
+    }
+    auto to_string() -> std::string {
+        auto bld = StringBuilder();
+        Detail::handle_error(clingo_theory_base_element_to_string(base_, index_, c_cast(bld)));
+        return bld.str();
+    }
 
-    [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
-    friend auto operator==(TheoryElement const &a, TheoryElement const &b) -> bool { return a.index_ == b.index_; }
-    friend auto operator!=(TheoryElement const &a, TheoryElement const &b) -> bool = default;
+    [[nodiscard]] auto hash() const noexcept -> size_t { return Detail::hash_value(index_); }
+    friend auto operator==(TheoryElement const &a, TheoryElement const &b) noexcept -> bool {
+        assert(a.base_ == b.base_);
+        return a.index_ == b.index_;
+    }
+    friend auto operator<=>(TheoryElement const &a, TheoryElement const &b) noexcept -> std::strong_ordering {
+        assert(a.base_ == b.base_);
+        return a.index_ <=> b.index_;
+    }
 
   private:
     clingo_theory_base_t const *base_;
     size_t index_;
 };
-using TheoryElementVec = std::vector<TheoryElement>;
 
+/*
 class TheoryAtom {
   public:
     TheoryAtom(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}

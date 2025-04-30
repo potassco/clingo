@@ -5,9 +5,10 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
+#include <span>
 #include <stdexcept>
 #include <utility>
-#include <variant>
+#include <vector>
 
 namespace Clingo {
 
@@ -197,40 +198,80 @@ template <class T, class P> class ManagedPtr {
     P *ptr_ = nullptr;
 };
 
-class StringBuffer {
+template <typename T> class ArrowProxy {
   public:
-    explicit StringBuffer(std::string_view sv) {
-        if (sv.size() < BUFFER_SIZE) {
-            auto &arr = storage_.emplace<StaticArray>();
-            *std::ranges::copy_n(sv.data(), std::ssize(sv), arr.data()).out = '\0';
-        } else {
-            auto &arr = storage_.emplace<DynamicArray>(std::make_unique_for_overwrite<char[]>(sv.size() + 1)); // NOLINT
-            *std::ranges::copy_n(sv.data(), std::ssize(sv), arr.get()).out = '\0';
-        }
-    }
-    [[nodiscard]] auto c_str() const -> char const * {
-        return std::visit(
-            []<class T>(T const &buf) -> char const * {
-                if constexpr (std::is_same_v<T, DynamicArray>) {
-                    return buf.get();
-                } else {
-                    return buf.data();
-                }
-            },
-            storage_);
-    }
-
-    operator const char *() const { return c_str(); }
+    constexpr ArrowProxy(T value) : value_(std::move(value)) {}
+    constexpr auto operator->() -> T * { return &value_; }
 
   private:
-    static constexpr size_t BUFFER_SIZE = 256;
-    using DynamicArray = std::unique_ptr<char[]>; // NOLINT
-    using StaticArray = std::array<char, BUFFER_SIZE>;
+    T value_;
+};
 
-    std::variant<DynamicArray, StaticArray> storage_;
+template <class Seq> class RandomAccessIterator {
+  public:
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = typename Seq::value_type;
+    using size_type = typename Seq::size_type;
+    using difference_type = typename Seq::difference_type;
+    using pointer = typename Seq::pointer;
+    using reference = typename Seq::reference;
+
+    // NOTE: Added to fullfil the sentinel_for concept; should not be used.
+    constexpr RandomAccessIterator() : view_{throw std::logic_error("invalid iterator")}, index_{0} {}
+    constexpr RandomAccessIterator(Seq container, size_t index) noexcept : view_{std::move(container)}, index_{index} {}
+    constexpr auto operator*() const -> reference { return view_.at(index_); }
+    constexpr auto operator->() const -> pointer { return view_.at(index_); }
+    constexpr auto operator++() -> RandomAccessIterator & {
+        ++index_;
+        return *this;
+    }
+    constexpr auto operator++(int) -> RandomAccessIterator {
+        auto tmp = *this;
+        ++index_;
+        return tmp;
+    }
+    constexpr auto operator--() -> RandomAccessIterator & {
+        --index_;
+        return *this;
+    }
+    constexpr auto operator--(int) -> RandomAccessIterator {
+        auto tmp = *this;
+        --index_;
+        return tmp;
+    }
+    constexpr auto operator-(const RandomAccessIterator &other) const -> difference_type {
+        return static_cast<difference_type>(index_) - static_cast<difference_type>(other.index_);
+    }
+    constexpr auto operator+(difference_type n) const -> RandomAccessIterator {
+        return RandomAccessIterator(view_, index_ + n);
+    }
+    friend constexpr auto operator+(difference_type n, RandomAccessIterator it) -> RandomAccessIterator {
+        return RandomAccessIterator(it.view_, it.index_ + n);
+    }
+    constexpr auto operator-(difference_type n) const -> RandomAccessIterator {
+        return RandomAccessIterator(view_, index_ - n);
+    }
+    constexpr auto operator+=(difference_type n) -> RandomAccessIterator & {
+        index_ += n;
+        return *this;
+    }
+    constexpr auto operator-=(difference_type n) -> RandomAccessIterator & {
+        index_ -= n;
+        return *this;
+    }
+    constexpr auto operator==(const RandomAccessIterator &other) const -> bool { return index_ == other.index_; }
+    constexpr auto operator<=>(const RandomAccessIterator &other) const { return index_ <=> other.index_; }
+    constexpr auto operator[](difference_type n) const -> reference { return view_.at(index_ + n); }
+
+  private:
+    Seq view_;
+    size_t index_;
 };
 
 } // namespace Detail
+
+using Literal = clingo_literal_t;
+using LiteralSpan = std::span<Literal const>;
 
 //! Enumeration of message codes.
 enum class MessageCode : clingo_message_t {

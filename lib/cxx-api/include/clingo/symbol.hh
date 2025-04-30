@@ -3,12 +3,11 @@
 #include <clingo/core.hh>
 
 #include <clingo/symbol.h>
-#include <cstring> // std::strcmp
+
 #include <span>
 
 namespace Clingo {
 
-// NOLINTNEXTLINE(performance-enum-size)
 enum class SymbolType : clingo_symbol_type_t {
     infimum = clingo_symbol_type_infimum,
     number = clingo_symbol_type_number,
@@ -37,11 +36,11 @@ class Symbol {
         return *this;
     }
 
-    Symbol(Symbol &&other) noexcept : rep_{std::exchange(other.rep_, clingo_symbol_create_number(0))} {}
+    Symbol(Symbol &&other) noexcept : rep_{std::exchange(other.rep_, 0)} {}
     auto operator=(Symbol &&other) noexcept -> Symbol & {
         if (rep_ != other.rep_) {
             clingo_symbol_release(rep_);
-            rep_ = std::exchange(other.rep_, clingo_symbol_create_number(0));
+            rep_ = std::exchange(other.rep_, 0);
         }
         return *this;
     }
@@ -114,7 +113,7 @@ class Symbol {
     }
 
   private:
-    clingo_symbol_t rep_ = clingo_symbol_create_number(0);
+    clingo_symbol_t rep_ = 0;
 };
 
 inline auto Number(int num) -> Symbol {
