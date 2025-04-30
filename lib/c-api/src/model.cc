@@ -120,6 +120,7 @@ extern "C" auto clingo_model_extend(clingo_model_t *model, clingo_symbol_t const
 
 extern "C" auto clingo_model_control(clingo_model_t *model, clingo_solve_control_t **control) -> clingo_result_t {
     CLINGO_TRY {
+        // NOLINTNEXTLINE
         *control = c_cast(&cpp_cast(model)->context());
     }
     CLINGO_CATCH;

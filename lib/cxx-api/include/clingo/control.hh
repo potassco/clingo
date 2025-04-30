@@ -34,7 +34,7 @@ enum class ControlMode : clingo_mode_t {
 };
 
 enum class WriteAspifFlags : clingo_write_aspif_mode_t {
-    none = 0,                                              //!< Write preamble.
+    none = 0,                                              //!< No flags.
     preamble = clingo_write_aspif_mode_preamble,           //!< Write preamble.
     preamble_auto = clingo_write_aspif_mode_preamble_auto, //!< Write preamble for newly created files.
     append = clingo_write_aspif_mode_append,               //!< Append to an existing file (or create it).

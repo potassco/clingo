@@ -51,7 +51,7 @@ class Symbol {
             clingo_symbol_acquire(rep_);
         }
     }
-    [[nodiscard]] friend auto c_cast(Symbol const &sym) -> clingo_symbol_t { return sym.rep_; }
+    [[nodiscard]] friend auto c_cast(Symbol const &sym) -> clingo_symbol_t const & { return sym.rep_; }
     [[nodiscard]] friend auto c_cast(Symbol const *sym) -> clingo_symbol_t const * {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         return reinterpret_cast<clingo_symbol_t const *>(sym);

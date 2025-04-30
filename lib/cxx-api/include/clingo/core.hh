@@ -270,9 +270,17 @@ template <class Seq> class RandomAccessIterator {
 
 } // namespace Detail
 
+using Id = clingo_id_t;
+
 using Literal = clingo_literal_t;
 using LiteralSpan = std::span<Literal const>;
 using LiteralVector = std::vector<Literal>;
+
+using Weight = clingo_weight_t;
+using WeightSpan = std::span<clingo_weight_t const>;
+
+using Sum = int64_t;
+using SumSpan = std::span<Sum const>;
 
 //! Enumeration of message codes.
 enum class MessageCode : clingo_message_t {

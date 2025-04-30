@@ -95,10 +95,10 @@ class SolveHandle {
 
     auto handle() -> clingo_solve_handle_t *& { return hnd_; }
     static auto c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> clingo_result_t;
-    auto exception() -> std::exception_ptr & { return *ptr_; }
+    auto exception() -> std::exception_ptr & { return ptr_; }
 
   private:
-    std::exception_ptr *ptr_ = &get_exception_ptr();
+    std::exception_ptr ptr_;
     clingo_solve_handle_t *hnd_ = nullptr;
     std::optional<ModelCallback> mdl_;
     std::optional<StatsCallback> stats_;
