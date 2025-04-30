@@ -46,8 +46,7 @@ class Control {
   public:
     using Context = std::function<SymbolVector(std::string_view, SymbolSpan)>;
 
-    Control(Library const &lib, StringList arguments)
-        : Clingo::Control{lib, StringSpan{arguments.begin(), arguments.end()}} {}
+    Control(Library const &lib, StringList arguments) : Clingo::Control{lib, StringSpan{arguments}} {}
     Control(Library const &lib, StringSpan arguments = {}) {
         auto cstrs = Detail::transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
         clingo_control_t *ptr = nullptr;

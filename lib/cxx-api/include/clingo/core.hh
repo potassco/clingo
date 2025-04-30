@@ -49,14 +49,16 @@ namespace Detail {
 #define CLINGO_ENUM_OP(op, arg, ...) [[maybe_unused]] inline __VA_ARGS__ constexpr auto operator op arg noexcept
 
 #define CLINGO_TRY try
-#define CLINGO_CATCH_PTR(x)                                                                                            \
+#define CLINGO_CATCH_PTR(ptr)                                                                                          \
     catch (...) {                                                                                                      \
-        return Detail::handle_error(x);                                                                                \
+        ptr = std::current_exception();                                                                                \
+        return clingo_result_unknown;                                                                                  \
     }                                                                                                                  \
     return clingo_result_success
 #define CLINGO_CATCH                                                                                                   \
     catch (...) {                                                                                                      \
-        return Detail::handle_error(Detail::get_exception_ptr());                                                      \
+        Detail::get_exception_ptr() = std::current_exception();                                                        \
+        return clingo_result_unknown;                                                                                  \
     }                                                                                                                  \
     return clingo_result_success
 
@@ -74,11 +76,13 @@ inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
     return clingo_result_unknown;
 }
 
-inline void handle_error(clingo_result_t res) {
+//! Map the given result code to an error or rethrow the given pointer if it is
+//! not null and has a value.
+inline void handle_error_impl(clingo_result_t res, std::exception_ptr *ptr) {
+    if (ptr != nullptr) {
+        std::rethrow_exception(std::exchange(*ptr, nullptr));
+    }
     switch (res) {
-        case clingo_result_success: {
-            return;
-        }
         case clingo_result_runtime: {
             throw std::runtime_error("runtime error");
         }
@@ -94,6 +98,24 @@ inline void handle_error(clingo_result_t res) {
         default: {
             throw std::runtime_error("unknown error");
         }
+    }
+}
+
+//! Simple error handling.
+//!
+//! The function either maps the given result code to an exception or rethrows
+//! an exception set in a callback. The exception pointer is cleared at the
+//! point where it is rethrown.
+inline void handle_error(clingo_result_t res) {
+    if (res != clingo_result_success) {
+        handle_error_impl(res, &get_exception_ptr());
+    }
+}
+
+//! Error handling for asynchronous processes using dedicated exception pointers.
+inline void handle_error(clingo_result_t res, std::exception_ptr &ptr) {
+    if (res != clingo_result_success) {
+        handle_error_impl(res, &ptr);
     }
 }
 
