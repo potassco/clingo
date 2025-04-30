@@ -169,20 +169,21 @@ class Model : public ConstModel {
   public:
     explicit Model(clingo_model_t *mdl) : ConstModel{mdl} {}
 
-    [[nodiscard]] auto control() -> SolveControl {
+    [[nodiscard]] auto control() const -> SolveControl {
         clingo_solve_control_t *ctl = nullptr;
         Detail::handle_error(clingo_model_control(mdl_(), &ctl));
         return SolveControl{ctl};
     }
 
-    void extend(SymbolSpan symbols) {
+    void extend(SymbolSpan symbols) const {
         Detail::handle_error(clingo_model_extend(mdl_(), c_cast(symbols.data()), symbols.size()));
     }
 
     friend auto c_cast(Model const &x) -> clingo_model_t const * { return x.mdl_(); }
 
   private:
-    // NOTE: the const_cast is fine because base class has been initialized with a non-const pointer
+    // NOTE: the const_cast is fine because base class has been initialized
+    // with a non-const pointer.
     [[nodiscard]] auto mdl_() const -> clingo_model_t * {
         // NOLINTNEXTLINE
         return const_cast<clingo_model_t *>(c_cast(*static_cast<ConstModel const *>(this)));
