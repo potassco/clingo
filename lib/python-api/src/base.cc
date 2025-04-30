@@ -108,7 +108,8 @@ auto TheoryTerm::number() -> int {
 
 auto TheoryTerm::name() -> std::string_view {
     char const *name = nullptr;
-    handle_error(clingo_theory_base_term_name(base_, index_, &name));
+    size_t size = 0;
+    handle_error(clingo_theory_base_term_name(base_, index_, &name, &size));
     return name;
 }
 
@@ -122,9 +123,9 @@ auto TheoryTerm::arguments() -> TypeHint<"Sequence[TheoryTerm]"> {
 auto TheoryTerm::str() -> std::string_view {
     auto *bld = string_builder();
     handle_error(clingo_theory_base_term_to_string(base_, index_, bld));
-    char const *str = nullptr;
-    handle_error(clingo_string_builder_string(bld, &str, nullptr));
-    return str;
+    clingo_string_t str;
+    handle_error(clingo_string_builder_string(bld, &str));
+    return {str.data, str.size};
 }
 
 // TheoryElement
@@ -152,9 +153,9 @@ auto TheoryElement::condition_id() -> clingo_literal_t {
 auto TheoryElement::str() -> std::string_view {
     auto *bld = string_builder();
     handle_error(clingo_theory_base_element_to_string(base_, index_, bld));
-    char const *str = nullptr;
-    handle_error(clingo_string_builder_string(bld, &str, nullptr));
-    return str;
+    clingo_string_t str;
+    handle_error(clingo_string_builder_string(bld, &str));
+    return {str.data, str.size};
 }
 
 // TheoryAtom
@@ -184,8 +185,9 @@ auto TheoryAtom::guard() -> std::optional<std::pair<std::string_view, TheoryTerm
     handle_error(clingo_theory_base_atom_has_guard(base_, index_, &has_guard));
     if (has_guard) {
         char const *op = nullptr;
+        size_t size = 0;
         clingo_id_t term = 0;
-        handle_error(clingo_theory_base_atom_guard(base_, index_, &op, &term));
+        handle_error(clingo_theory_base_atom_guard(base_, index_, &op, &size, &term));
         return std::pair{op, TheoryTerm{*base_, term}};
     }
     return std::nullopt;
@@ -194,9 +196,9 @@ auto TheoryAtom::guard() -> std::optional<std::pair<std::string_view, TheoryTerm
 auto TheoryAtom::str() -> std::string_view {
     auto *bld = string_builder();
     handle_error(clingo_theory_base_atom_to_string(base_, index_, bld));
-    char const *str = nullptr;
-    handle_error(clingo_string_builder_string(bld, &str, nullptr));
-    return str;
+    clingo_string_t str;
+    handle_error(clingo_string_builder_string(bld, &str));
+    return {str.data, str.size};
 }
 
 // TheoryBase

@@ -12,7 +12,7 @@ extern "C" void clingo_version(int *major, int *minor, int *revision) {
     *revision = CLINGO_VERSION_REVISION;
 }
 
-extern "C" void clingo_result_string(clingo_result_t code, char const **value, size_t *size) {
+extern "C" void clingo_result_string(clingo_result_t code, clingo_string_t *value) {
     auto str = [code]() -> std::string_view {
         switch (static_cast<clingo_result_e>(code)) {
             case clingo_result_success: {
@@ -39,8 +39,8 @@ extern "C" void clingo_result_string(clingo_result_t code, char const **value, s
         }
         return "unknown error";
     }();
-    *value = str.data();
-    *size = str.size();
+    value->data = str.data();
+    value->size = str.size();
 }
 
 static_assert(static_cast<int>(Clingo::MessageCode::trace) == clingo_message_trace);
@@ -53,7 +53,7 @@ static_assert(static_cast<int>(Clingo::MessageCode::info_global_variable) == cli
 static_assert(static_cast<int>(Clingo::MessageCode::warn) == clingo_message_warn);
 static_assert(static_cast<int>(Clingo::MessageCode::error) == clingo_message_error);
 
-extern "C" void clingo_message_string(clingo_message_t code, char const **value, size_t *size) {
+extern "C" void clingo_message_string(clingo_message_t code, clingo_string_t *value) {
     auto str = [code]() -> std::string_view {
         switch (static_cast<clingo_message_e>(code)) {
             case clingo_message_trace: {
@@ -86,8 +86,8 @@ extern "C" void clingo_message_string(clingo_message_t code, char const **value,
         }
         return "unknown message code";
     }();
-    *value = str.data();
-    *size = str.size();
+    value->data = str.data();
+    value->size = str.size();
 }
 
 extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t level, clingo_logger_t logger, void *data,
@@ -219,16 +219,15 @@ extern "C" void clingo_string_builder_free(clingo_string_builder_t const *bld) {
     delete cpp_cast(bld);
 }
 
-extern "C" auto clingo_string_builder_string(clingo_string_builder_t const *bld, char const **str, size_t *size)
+extern "C" auto clingo_string_builder_string(clingo_string_builder_t const *bld, clingo_string_t *value)
     -> clingo_result_t {
     CLINGO_TRY {
+        if (bld == nullptr || value == nullptr) {
+            return clingo_result_invalid;
+        }
         auto *cpp_bld = cpp_cast(const_cast<clingo_string_builder_t *>(bld)); // NOLINT
-        if (str != nullptr) {
-            *str = cpp_bld->c_str();
-        }
-        if (size != nullptr) {
-            *size = cpp_bld->size();
-        }
+        value->data = cpp_bld->c_str();
+        value->size = cpp_bld->size();
     }
     CLINGO_CATCH;
 }
@@ -271,10 +270,10 @@ extern "C" void clingo_position_free(clingo_position_t const *pos) {
     delete cpp_cast(pos);
 }
 
-extern "C" void clingo_position_file(clingo_position_t const *pos, char const **file, size_t *size) {
+extern "C" void clingo_position_file(clingo_position_t const *pos, clingo_string_t *value) {
     auto str = cpp_cast(pos)->file().view();
-    *file = str.data();
-    *size = str.size();
+    value->data = str.data();
+    value->size = str.size();
 }
 
 extern "C" auto clingo_position_line(clingo_position_t const *pos) -> size_t {

@@ -12,7 +12,7 @@ class Atom {
   public:
     explicit Atom(clingo_atom_base_t const *base, size_t index) : base_{base}, index_{index} {}
 
-    [[nodiscard]] auto literal() const -> clingo_literal_t {
+    [[nodiscard]] auto literal() const -> Literal {
         auto lit = clingo_literal_t{0};
         Detail::handle_error(clingo_atom_base_literal(base_, index_, &lit));
         return lit;
@@ -91,13 +91,13 @@ class Term {
         Detail::handle_error(clingo_term_base_symbol(base_, index_, &sym));
         return Symbol{sym, true};
     }
-    auto condition() -> std::vector<std::vector<clingo_literal_t>> {
+    auto condition() -> std::vector<LiteralVector> {
         size_t const *sizes = nullptr;
         clingo_literal_t const *const *lits = nullptr;
         size_t size = 0;
         Detail::handle_error(clingo_term_base_condition(base_, index_, &sizes, &lits, &size));
 
-        auto res = std::vector<std::vector<clingo_literal_t>>{};
+        auto res = std::vector<LiteralVector>{};
         res.reserve(size);
         for (size_t i = 0; i < size; ++i) {
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -180,8 +180,9 @@ class TheoryTerm {
     }
     [[nodiscard]] auto name() const -> std::string_view {
         char const *name = nullptr;
-        Detail::handle_error(clingo_theory_base_term_name(base_, index_, &name));
-        return name;
+        size_t size = 0;
+        Detail::handle_error(clingo_theory_base_term_name(base_, index_, &name, &size));
+        return {name, size};
     }
     [[nodiscard]] auto arguments() const -> std::vector<TheoryTerm> {
         size_t size = 0;
@@ -192,9 +193,7 @@ class TheoryTerm {
     [[nodiscard]] auto to_string() const -> std::string {
         auto bld = StringBuilder{};
         Detail::handle_error(clingo_theory_base_term_to_string(base_, index_, c_cast(bld)));
-        char const *str = nullptr;
-        Detail::handle_error(clingo_string_builder_string(c_cast(bld), &str, nullptr));
-        return str;
+        return std::string{bld.str()};
     }
 
     [[nodiscard]] auto hash() const -> size_t { return Detail::hash_value(index_); }
@@ -238,7 +237,7 @@ class TheoryElement {
     auto to_string() -> std::string {
         auto bld = StringBuilder();
         Detail::handle_error(clingo_theory_base_element_to_string(base_, index_, c_cast(bld)));
-        return bld.str();
+        return std::string{bld.str()};
     }
 
     [[nodiscard]] auto hash() const noexcept -> size_t { return Detail::hash_value(index_); }
@@ -256,25 +255,59 @@ class TheoryElement {
     size_t index_;
 };
 
-/*
 class TheoryAtom {
   public:
-    TheoryAtom(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
-    auto name() -> TheoryTerm;
-    auto elements() -> TypeHint<"Sequence[TheoryElement]">;
-    auto literal() -> clingo_literal_t;
-    auto guard() -> std::optional<std::pair<char const *, TheoryTerm>>;
-    auto str() -> char const *;
+    explicit TheoryAtom(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
+    auto name() -> TheoryTerm {
+        clingo_id_t id = 0;
+        Detail::handle_error(clingo_theory_base_atom_term(base_, index_, &id));
+        return TheoryTerm{*base_, id};
+    }
+    auto elements() -> TheoryElementVector {
+        size_t size = 0;
+        clingo_id_t const *elems = nullptr;
+        Detail::handle_error(clingo_theory_base_atom_elements(base_, index_, &elems, &size));
+        return Detail::transform(std::span{elems, size}, [this](clingo_id_t id) { return TheoryElement{*base_, id}; });
+    }
+    auto literal() -> Literal {
+        clingo_literal_t lit = 0;
+        Detail::handle_error(clingo_theory_base_atom_literal(base_, index_, &lit));
+        return lit;
+    }
+    auto guard() -> std::optional<std::pair<std::string_view, TheoryTerm>> {
+        auto has_guard = false;
+        Detail::handle_error(clingo_theory_base_atom_has_guard(base_, index_, &has_guard));
+        if (has_guard) {
+            char const *op = nullptr;
+            size_t size = 0;
+            clingo_id_t term = 0;
+            Detail::handle_error(clingo_theory_base_atom_guard(base_, index_, &op, &size, &term));
+            return std::pair{std::string_view{op, size}, TheoryTerm{*base_, term}};
+        }
+        return std::nullopt;
+    }
+    auto to_string() -> std::string {
+        auto bld = StringBuilder{};
+        Detail::handle_error(clingo_theory_base_atom_to_string(base_, index_, c_cast(bld)));
+        return std::string{bld.str()};
+    }
 
-    [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }
-    friend auto operator==(TheoryAtom const &a, TheoryAtom const &b) -> bool { return a.index_ == b.index_; }
-    friend auto operator!=(TheoryAtom const &a, TheoryAtom const &b) -> bool = default;
+    [[nodiscard]] auto hash() const noexcept -> size_t { return Detail::hash_value(index_); }
+    friend auto operator==(TheoryAtom const &a, TheoryAtom const &b) noexcept -> bool {
+        assert(a.base_ == b.base_);
+        return a.index_ == b.index_;
+    }
+    friend auto operator<=>(TheoryAtom const &a, TheoryAtom const &b) noexcept -> std::strong_ordering {
+        assert(a.base_ == b.base_);
+        return a.index_ <=> b.index_;
+    }
 
   private:
     clingo_theory_base_t const *base_;
     size_t index_;
 };
 
+/*
 class TheoryBase {
   public:
     using value_type = TheoryAtom;
@@ -295,11 +328,11 @@ class Base {
 
     Base(clingo_base_t const *base) : base_{base} {}
 
-    [[nodiscard]] auto is_external(clingo_literal_t lit) const -> bool;
-    [[nodiscard]] auto is_fact(clingo_literal_t lit) const -> bool;
-    [[nodiscard]] auto is_shown(clingo_literal_t lit) const -> bool;
-    [[nodiscard]] auto is_projected(clingo_literal_t lit) const -> bool;
-    [[nodiscard]] auto is_current(clingo_literal_t lit) const -> bool;
+    [[nodiscard]] auto is_external(Literal lit) const -> bool;
+    [[nodiscard]] auto is_fact(Literal lit) const -> bool;
+    [[nodiscard]] auto is_shown(Literal lit) const -> bool;
+    [[nodiscard]] auto is_projected(Literal lit) const -> bool;
+    [[nodiscard]] auto is_current(Literal lit) const -> bool;
     [[nodiscard]] auto size() const -> size_t;
     [[nodiscard]] auto at(size_t index) const -> value_type;
     [[nodiscard]] auto contains(key_type const &sig) const -> bool;

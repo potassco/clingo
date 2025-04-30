@@ -126,7 +126,7 @@ class StringBuilder {
     auto operator=(StringBuilder const &other) -> StringBuilder &;
     ~StringBuilder() noexcept;
 
-    [[nodiscard]] auto str() const -> std::string;
+    [[nodiscard]] auto str() const -> std::string_view;
 
     operator clingo_string_builder_t *() { return bld_; };
     operator clingo_string_builder_t const *() const { return bld_; };
@@ -151,7 +151,7 @@ class Position {
     [[nodiscard]] auto file() const -> std::string_view;
     [[nodiscard]] auto line() const -> size_t;
     [[nodiscard]] auto column() const -> size_t;
-    [[nodiscard]] auto str() const -> std::string;
+    [[nodiscard]] auto str() const -> std::string_view;
     [[nodiscard]] auto repr() const -> std::string;
     [[nodiscard]] auto hash() const -> size_t;
 
@@ -176,7 +176,7 @@ class Location {
 
     [[nodiscard]] auto begin() const -> Position;
     [[nodiscard]] auto end() const -> Position;
-    [[nodiscard]] auto str() const -> std::string;
+    [[nodiscard]] auto str() const -> std::string_view;
     [[nodiscard]] auto repr() const -> std::string;
     [[nodiscard]] auto hash() const -> size_t;
 

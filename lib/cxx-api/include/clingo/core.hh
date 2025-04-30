@@ -272,6 +272,7 @@ template <class Seq> class RandomAccessIterator {
 
 using Literal = clingo_literal_t;
 using LiteralSpan = std::span<Literal const>;
+using LiteralVector = std::vector<Literal>;
 
 //! Enumeration of message codes.
 enum class MessageCode : clingo_message_t {
@@ -365,11 +366,10 @@ class StringBuilder {
 
     [[nodiscard]] friend auto c_cast(StringBuilder &bld) -> clingo_string_builder_t * { return bld.rep_; }
 
-    [[nodiscard]] auto str() const -> char const * {
-        size_t size = 0;
-        char const *res = nullptr;
-        Detail::handle_error(clingo_string_builder_string(rep_, &res, &size));
-        return res;
+    [[nodiscard]] auto str() const -> std::string_view {
+        clingo_string_t res;
+        Detail::handle_error(clingo_string_builder_string(rep_, &res));
+        return {res.data, res.size};
     }
 
     void clear() noexcept { clingo_string_builder_clear(rep_); }

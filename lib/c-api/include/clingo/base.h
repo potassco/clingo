@@ -331,9 +331,11 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_number(clingo_
 //! @param[in] theory container where the term is stored
 //! @param[in] term id of the term
 //! @param[out] name the resulting name
+//! @param[out] size the size of the name
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_name(clingo_theory_base_t const *theory,
-                                                                       clingo_id_t term, char const **name);
+                                                                       clingo_id_t term, char const **name,
+                                                                       size_t *size);
 //! Get the arguments of the given function theory term.
 //!
 //! @pre The term must be of type ::clingo_theory_term_type_function.
@@ -458,11 +460,12 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_has_guard(clin
 //! @param[in] theory container where the atom is stored
 //! @param[in] atom id of the atom
 //! @param[out] connective the resulting theory operator
+//! @param[out] size the size of the operator
 //! @param[out] term the resulting term
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_guard(clingo_theory_base_t const *theory,
                                                                         clingo_id_t atom, char const **connective,
-                                                                        clingo_id_t *term);
+                                                                        size_t *size, clingo_id_t *term);
 
 //! Get the aspif literal associated with the given theory atom.
 //!

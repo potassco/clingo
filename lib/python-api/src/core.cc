@@ -197,11 +197,10 @@ StringBuilder::~StringBuilder() noexcept {
     clingo_string_builder_free(bld_);
 }
 
-auto StringBuilder::str() const -> std::string {
-    char const *str = nullptr;
-    size_t size = 0;
-    handle_error(clingo_string_builder_string(bld_, &str, &size));
-    return std::string{str, size};
+auto StringBuilder::str() const -> std::string_view {
+    clingo_string_t str;
+    handle_error(clingo_string_builder_string(bld_, &str));
+    return std::string_view{str.data, str.size};
 }
 
 // definition of position
@@ -239,10 +238,9 @@ Position::~Position() noexcept {
 }
 
 auto Position::file() const -> std::string_view {
-    char const *val = nullptr;
-    size_t size = 0;
-    clingo_position_file(pos_, &val, &size);
-    return {val, size};
+    clingo_string_t val;
+    clingo_position_file(pos_, &val);
+    return {val.data, val.size};
 }
 
 auto Position::line() const -> size_t {
@@ -253,10 +251,12 @@ auto Position::column() const -> size_t {
     return clingo_position_column(pos_);
 }
 
-auto Position::str() const -> std::string {
-    auto bld = StringBuilder{};
+auto Position::str() const -> std::string_view {
+    auto *bld = string_builder();
     handle_error(clingo_position_to_string(pos_, bld));
-    return bld.str();
+    clingo_string_t str;
+    handle_error(clingo_string_builder_string(bld, &str));
+    return {str.data, str.size};
 }
 
 auto Position::repr() const -> std::string {
@@ -320,10 +320,12 @@ auto Location::end() const -> Position {
     return Position{clingo_location_end(loc_)};
 }
 
-auto Location::str() const -> std::string {
-    auto bld = StringBuilder{};
+auto Location::str() const -> std::string_view {
+    auto *bld = string_builder();
     handle_error(clingo_location_to_string(loc_, bld));
-    return bld.str();
+    clingo_string_t str;
+    handle_error(clingo_string_builder_string(bld, &str));
+    return {str.data, str.size};
 }
 
 auto Location::repr() const -> std::string {

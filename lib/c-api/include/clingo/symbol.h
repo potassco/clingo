@@ -197,9 +197,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_number(clingo_symbol_t s
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] name the resulting name
-//! @param[out] size the size of the string
 //! @return whether the name has been set
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_name(clingo_symbol_t symbol, char const **name, size_t *size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_name(clingo_symbol_t symbol, clingo_string_t *name);
 
 //! Get the string of a symbol.
 //!
@@ -208,10 +207,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_name(clingo_symbol_t sym
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
-//! @param[out] size the size of the string
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_string(clingo_symbol_t symbol, char const **string,
-                                                               size_t *size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_string(clingo_symbol_t symbol, clingo_string_t *string);
 
 //! Check whether a function or number is positive.
 //!

@@ -14,10 +14,9 @@ enum constants {
 
 bool handle_result(clingo_result_t res) {
     if (res != clingo_result_success) {
-        char const *val = NULL;
-        size_t size = 0;
-        clingo_result_string(res, &val, &size);
-        printf("%.*s\n", (int)size, val);
+        clingo_string_t str;
+        clingo_result_string(res, &str);
+        printf("%.*s\n", (int)str.size, str.data);
         return false;
     }
     return true;
@@ -25,7 +24,7 @@ bool handle_result(clingo_result_t res) {
 
 clingo_result_t print_symbol(clingo_symbol_t symbol, clingo_string_builder_t *builder) {
     clingo_result_t ret = clingo_result_success;
-    char const *string = NULL;
+    clingo_string_t str;
 
     // clear the string builder
     clingo_string_builder_clear(builder);
@@ -37,13 +36,13 @@ clingo_result_t print_symbol(clingo_symbol_t symbol, clingo_string_builder_t *bu
     }
 
     // obtain the string stored in the builder
-    ret = clingo_string_builder_string(builder, &string, NULL);
+    ret = clingo_string_builder_string(builder, &str);
     if (ret != clingo_result_success) {
         return ret;
     }
 
     // print the string
-    printf("%s", string);
+    printf("%.*s", (int)str.size, str.data);
     return clingo_result_success;
 }
 

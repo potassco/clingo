@@ -107,12 +107,12 @@ public:
         return clingo_ast_hash(ast_);
     }
 
-    auto to_string() -> char const * {
+    auto to_string() -> std::string_view {
         auto *bld = string_builder();
         handle_error(clingo_ast_to_string(ast_, bld));
-        char const *str = nullptr;
-        handle_error(clingo_string_builder_string(bld, &str, nullptr));
-        return str;
+        clingo_string_t str;
+        handle_error(clingo_string_builder_string(bld, &str));
+        return {str.data, str.size};
     }
 
     friend auto operator==(ASTBase const &a, ASTBase const &b) -> bool {

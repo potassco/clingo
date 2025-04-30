@@ -59,10 +59,9 @@ auto Symbol::string() const -> py::str {
     if (t != clingo_symbol_type_string) {
         throw std::invalid_argument("symbol is not a string");
     }
-    char const *name = nullptr;
-    size_t size = 0;
-    handle_error(clingo_symbol_string(sym_, &name, &size));
-    return {name, size};
+    clingo_string_t name;
+    handle_error(clingo_symbol_string(sym_, &name));
+    return {name.data, name.size};
 }
 
 auto Symbol::name() const -> std::string_view {
@@ -70,10 +69,9 @@ auto Symbol::name() const -> std::string_view {
     if (t != clingo_symbol_type_function) {
         throw std::invalid_argument("symbol is not a function");
     }
-    char const *name = nullptr;
-    size_t size = 0;
-    handle_error(clingo_symbol_name(sym_, &name, &size));
-    return {name, size};
+    clingo_string_t name;
+    handle_error(clingo_symbol_name(sym_, &name));
+    return {name.data, name.size};
 }
 
 auto Symbol::arity() const -> size_t {
@@ -106,9 +104,9 @@ auto Symbol::args() const -> TypeHint<"Sequence[Symbol]"> {
 auto Symbol::str() const -> std::string_view {
     auto *bld = string_builder();
     handle_error(clingo_symbol_to_string(sym_, bld));
-    char const *str = nullptr;
-    handle_error(clingo_string_builder_string(bld, &str, nullptr));
-    return str;
+    clingo_string_t str;
+    handle_error(clingo_string_builder_string(bld, &str));
+    return {str.data, str.size};
 }
 
 auto Symbol::repr() const -> std::string {

@@ -104,25 +104,25 @@ extern "C" auto clingo_symbol_number(clingo_symbol_t symbol, int32_t *number) ->
     return clingo_result_success;
 }
 
-extern "C" auto clingo_symbol_name(clingo_symbol_t symbol, char const **name, size_t *size) -> clingo_result_t {
+extern "C" auto clingo_symbol_name(clingo_symbol_t symbol, clingo_string_t *name) -> clingo_result_t {
     auto sym = Clingo::Symbol::from_rep(symbol);
-    if (name == nullptr || size == nullptr || sym.type() != Clingo::SymbolType::function) {
+    if (name == nullptr || name == nullptr || sym.type() != Clingo::SymbolType::function) {
         return clingo_result_invalid;
     }
     auto res = sym.name().view();
-    *name = res.data();
-    *size = res.size();
+    name->data = res.data();
+    name->size = res.size();
     return clingo_result_success;
 }
 
-extern "C" auto clingo_symbol_string(clingo_symbol_t symbol, char const **string, size_t *size) -> clingo_result_t {
+extern "C" auto clingo_symbol_string(clingo_symbol_t symbol, clingo_string_t *string) -> clingo_result_t {
     auto sym = Clingo::Symbol::from_rep(symbol);
-    if (string == nullptr || size == nullptr || sym.type() != Clingo::SymbolType::string) {
+    if (string == nullptr || string == nullptr || sym.type() != Clingo::SymbolType::string) {
         return clingo_result_invalid;
     }
     auto res = sym.str().view();
-    *string = res.data();
-    *size = res.size();
+    string->data = res.data();
+    string->size = res.size();
     return clingo_result_success;
 }
 

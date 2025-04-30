@@ -22,7 +22,7 @@ void handle_error(clingo_result_t ret) {
 
 clingo_result_t print_symbols(clingo_symbol_t const *symbols, size_t size, void *data) {
     (void)data;
-    char const *str = NULL;
+    clingo_string_t str;
     clingo_result_t res = clingo_result_success;
     clingo_string_builder_t *bld = NULL;
     res = clingo_string_builder_new(&bld);
@@ -35,11 +35,11 @@ clingo_result_t print_symbols(clingo_symbol_t const *symbols, size_t size, void 
         if (res != clingo_result_success) {
             goto out;
         }
-        res = clingo_string_builder_string(bld, &str, NULL);
+        res = clingo_string_builder_string(bld, &str);
         if (res != clingo_result_success) {
             goto out;
         }
-        printf(" %s", str);
+        printf(" %.*s", (int)str.size, str.data);
     }
 
 out:

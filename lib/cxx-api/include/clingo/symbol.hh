@@ -66,16 +66,14 @@ class Symbol {
         return res;
     }
     [[nodiscard]] auto name() const -> std::string_view {
-        char const *res = nullptr;
-        size_t size = 0;
-        Detail::handle_error(clingo_symbol_name(rep_, &res, &size));
-        return {res, size};
+        clingo_string_t res;
+        Detail::handle_error(clingo_symbol_name(rep_, &res));
+        return {res.data, res.size};
     }
     [[nodiscard]] auto string() const -> std::string_view {
-        char const *res = nullptr;
-        size_t size = 0;
-        Detail::handle_error(clingo_symbol_string(rep_, &res, &size));
-        return {res, size};
+        clingo_string_t res;
+        Detail::handle_error(clingo_symbol_string(rep_, &res));
+        return {res.data, res.size};
     }
     [[nodiscard]] auto is_positive() const -> bool {
         bool res = false;
@@ -93,7 +91,7 @@ class Symbol {
     [[nodiscard]] auto to_string() const -> std::string {
         auto bld = StringBuilder{};
         clingo_symbol_to_string(rep_, c_cast(bld));
-        return bld.str();
+        return std::string{bld.str()};
     }
     [[nodiscard]] auto match(std::string_view name, size_t arity, bool positive = true) const -> bool {
         return type() == SymbolType::function && this->name() == name && arguments().size() == arity &&

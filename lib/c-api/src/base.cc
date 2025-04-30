@@ -347,15 +347,17 @@ extern "C" auto clingo_theory_base_term_number(clingo_theory_base_t const *theor
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_theory_base_term_name(clingo_theory_base_t const *theory, clingo_id_t term, char const **name)
-    -> clingo_result_t {
+extern "C" auto clingo_theory_base_term_name(clingo_theory_base_t const *theory, clingo_id_t term, char const **name,
+                                             size_t *size) -> clingo_result_t {
     CLINGO_TRY {
-        if (theory == nullptr || name == nullptr) {
+        if (theory == nullptr || name == nullptr || name == nullptr) {
             return clingo_result_invalid;
         }
         auto const &t = get_theory(theory);
         auto x = t.getTerm(term);
-        *name = x.isFunction() ? t.getTerm(x.function()).symbol() : x.symbol();
+        auto str = std::string_view{x.isFunction() ? t.getTerm(x.function()).symbol() : x.symbol()};
+        *name = str.data();
+        *size = str.size();
     }
     CLINGO_CATCH;
 }
@@ -594,18 +596,25 @@ extern "C" auto clingo_theory_base_atom_has_guard(clingo_theory_base_t const *th
 }
 
 extern "C" auto clingo_theory_base_atom_guard(clingo_theory_base_t const *theory, clingo_id_t atom,
-                                              char const **connective, clingo_id_t *term) -> clingo_result_t {
+                                              char const **connective, size_t *size, clingo_id_t *term)
+    -> clingo_result_t {
     CLINGO_TRY {
         if (theory == nullptr) {
             return clingo_result_invalid;
         }
         auto const &x = get_atom(theory, atom);
-        if (connective != nullptr) {
+        if (connective != nullptr || size != nullptr) {
             auto const *guard = x.guard();
             if (guard == nullptr) {
                 return clingo_result_runtime;
             }
-            *connective = get_theory(theory).getTerm(*guard).symbol();
+            auto str = std::string_view{get_theory(theory).getTerm(*guard).symbol()};
+            if (connective != nullptr) {
+                *connective = str.data();
+            }
+            if (connective != nullptr) {
+                *size = str.size();
+            }
         }
         if (term != nullptr) {
             auto const *rhs = x.rhs();

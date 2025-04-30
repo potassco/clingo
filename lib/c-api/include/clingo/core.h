@@ -183,8 +183,7 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_user_data_slot(void);
 //!
 //! @param[in] code the result code
 //! @param[out] value the string
-//! @param[out] size the size of the string
-CLINGO_VISIBILITY_DEFAULT void clingo_result_string(clingo_result_t code, char const **value, size_t *size);
+CLINGO_VISIBILITY_DEFAULT void clingo_result_string(clingo_result_t code, clingo_string_t *value);
 
 //! Convert the giving message code into a string.
 //!
@@ -192,8 +191,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_result_string(clingo_result_t code, char c
 //!
 //! @param[in] code the message code
 //! @param[out] value the string
-//! @param[out] size the size of the string
-CLINGO_VISIBILITY_DEFAULT void clingo_message_string(clingo_message_t code, char const **value, size_t *size);
+CLINGO_VISIBILITY_DEFAULT void clingo_message_string(clingo_message_t code, clingo_string_t *value);
 
 //! Set the global error logger.
 //!
@@ -300,11 +298,10 @@ CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_free(clingo_string_builder_
 //! Get the (zero-terminated) string in the builder.
 //!
 //! @param[in] bld the builder
-//! @param[out] str the resulting string
-//! @param[out] size the size of the returned string
+//! @param[out] value the resulting string
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_string_builder_string(clingo_string_builder_t const *bld,
-                                                                       char const **str, size_t *size);
+                                                                       clingo_string_t *value);
 //! Clear the string in the builder.
 //!
 //! @param[in] bld the builder
@@ -343,10 +340,9 @@ CLINGO_VISIBILITY_DEFAULT void clingo_position_free(clingo_position_t const *pos
 //! Get the file name of the position.
 //!
 //! @param[in] pos the position
-//! @param[out] file the file name
-//! @param[out] size the size of the file name
+//! @param[out] value the file name
 //! @return the file name
-CLINGO_VISIBILITY_DEFAULT void clingo_position_file(clingo_position_t const *pos, char const **file, size_t *size);
+CLINGO_VISIBILITY_DEFAULT void clingo_position_file(clingo_position_t const *pos, clingo_string_t *value);
 //! Get the line number of the position.
 //!
 //! @param[in] pos the position
