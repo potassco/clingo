@@ -132,11 +132,11 @@ Library::operator clingo_lib_t *() const {
     return lib_.get();
 }
 
-void Library::logger_(clingo_message_t code, char const *message, void *log) noexcept {
+void Library::logger_(clingo_message_t code, char const *message, size_t size, void *log) noexcept {
     try {
         auto gil = py::gil_scoped_acquire{};
         auto hnd = py::reinterpret_borrow<py::object>(static_cast<PyObject *>(log));
-        hnd.cast<Logger>()(static_cast<clingo_message_e>(code), message);
+        hnd.cast<Logger>()(static_cast<clingo_message_e>(code), {message, size});
     } catch (std::exception const &e) {
         printf("panic: exception with message %s thrown in logger\n", e.what());
         std::terminate();
@@ -210,8 +210,8 @@ Position::Position(clingo_position_t const *pos) {
     handle_error(clingo_position_copy(pos, &pos_));
 }
 
-Position::Position(Library &lib, char const *file, size_t line, size_t column) {
-    handle_error(clingo_position_new(lib, file, line, column, &pos_));
+Position::Position(Library &lib, std::string_view file, size_t line, size_t column) {
+    handle_error(clingo_position_new(lib, file.data(), file.size(), line, column, &pos_));
 }
 
 Position::Position(Position const &other) {
@@ -238,8 +238,11 @@ Position::~Position() noexcept {
     clingo_position_free(pos_);
 }
 
-auto Position::file() const -> char const * {
-    return clingo_position_file(pos_);
+auto Position::file() const -> std::string_view {
+    char const *val = nullptr;
+    size_t size = 0;
+    clingo_position_file(pos_, &val, &size);
+    return {val, size};
 }
 
 auto Position::line() const -> size_t {

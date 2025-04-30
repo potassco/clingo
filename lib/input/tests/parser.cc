@@ -9,7 +9,7 @@ namespace Clingo::Input::Test {
 TEST_CASE("parsev2") {
     std::vector<std::pair<MessageCode, std::string>> messages;
     auto store = make_symbol_store(true, false);
-    auto log = Logger{[&](MessageCode code, std::string str) { messages.emplace_back(code, std::move(str)); }};
+    auto log = Logger{[&](MessageCode code, std::string_view str) { messages.emplace_back(code, str); }};
     auto parser = Parser{log, *store};
 
     SECTION("symbol") {

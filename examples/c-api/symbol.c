@@ -14,7 +14,10 @@ enum constants {
 
 bool handle_result(clingo_result_t res) {
     if (res != clingo_result_success) {
-        printf("%s\n", clingo_result_string(res));
+        char const *val = NULL;
+        size_t size = 0;
+        clingo_result_string(res, &val, &size);
+        printf("%.*s\n", (int)size, val);
         return false;
     }
     return true;

@@ -14,7 +14,7 @@ TEST_CASE("logger_test") {
     auto ground = [&](char const *str) {
         auto msgs = V{};
         auto opts = Input::RewriteOptions{};
-        auto log = Logger{[&msgs]([[maybe_unused]] MessageCode code, char const *msg) { msgs.emplace_back(msg); }};
+        auto log = Logger{[&msgs]([[maybe_unused]] MessageCode code, std::string_view msg) { msgs.emplace_back(msg); }};
         log.set_level(LogLevel::info);
         auto buf = Util::OutputBuffer{};
         auto out = Output::make_text_output(buf);

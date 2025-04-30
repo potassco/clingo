@@ -31,7 +31,7 @@ inline auto default_store() -> SymbolStore & {
 class ParseHelper {
   public:
     ParseHelper()
-        : log_{[this](MessageCode code, std::string str) { push_(code, std::move(str)); }}, store_{default_store()},
+        : log_{[this](MessageCode code, std::string_view str) { push_(code, str); }}, store_{default_store()},
           prs_{log_, store_} {}
 
     auto term(std::string_view str) -> std::optional<Term> {
@@ -95,7 +95,7 @@ class ParseHelper {
     }
 
   private:
-    void push_(MessageCode code, std::string str) { messages_.emplace_back(code, std::move(str)); }
+    void push_(MessageCode code, std::string_view str) { messages_.emplace_back(code, str); }
 
     Logger log_;
     RewriteOptions opts_;

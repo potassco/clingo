@@ -72,17 +72,17 @@ class MainScript {
             try {
                 auto gil = py::gil_scoped_acquire{};
                 clingo_result_t code = clingo_result_runtime;
-                auto const *msg = e.what();
+                auto msg = std::string_view{e.what()};
                 if (is_clingo_error(e)) {
-                    char const *end = std::next(msg, static_cast<ssize_t>(std::strlen(msg)));
-                    char const *num = std::find_if(msg, end, [](char c) { return std::isdigit(c); });
+                    char const *end = msg.end();
+                    char const *num = std::find_if(msg.begin(), end, [](char c) { return std::isdigit(c); });
                     unsigned char res = 0;
                     std::from_chars(num, end, res, code_base);
                     if (res != 0) {
                         code = res;
                     }
                 } else {
-                    clingo_error_report(clingo_message_error, msg);
+                    clingo_error_report(clingo_message_error, msg.data(), msg.size());
                 }
                 PyErr_Clear();
                 return code;
@@ -93,22 +93,28 @@ class MainScript {
         } catch (PyClingoError const &e) {
             return e.code();
         } catch (std::invalid_argument const &e) {
-            clingo_error_report(clingo_result_invalid, e.what());
+            auto str = std::string_view{e.what()};
+            clingo_error_report(clingo_result_invalid, str.data(), str.size());
             return clingo_result_invalid;
         } catch (std::range_error const &e) {
-            clingo_error_report(clingo_result_range, e.what());
+            auto str = std::string_view{e.what()};
+            clingo_error_report(clingo_result_range, str.data(), str.size());
             return clingo_result_range;
         } catch (std::bad_alloc const &e) {
-            clingo_error_report(clingo_result_bad_alloc, e.what());
+            auto str = std::string_view{e.what()};
+            clingo_error_report(clingo_result_bad_alloc, str.data(), str.size());
             return clingo_result_bad_alloc;
         } catch (std::logic_error const &e) {
-            clingo_error_report(clingo_result_logic, e.what());
+            auto str = std::string_view{e.what()};
+            clingo_error_report(clingo_result_logic, str.data(), str.size());
             return clingo_result_logic;
         } catch (std::exception const &e) {
-            clingo_error_report(clingo_result_runtime, e.what());
+            auto str = std::string_view{e.what()};
+            clingo_error_report(clingo_result_runtime, str.data(), str.size());
             return clingo_result_runtime;
         } catch (...) {
-            clingo_error_report(clingo_result_runtime, "no message");
+            auto str = std::string_view{"no message"};
+            clingo_error_report(clingo_result_runtime, str.data(), str.size());
             return clingo_result_runtime;
         }
     }

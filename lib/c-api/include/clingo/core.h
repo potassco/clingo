@@ -80,11 +80,16 @@ typedef uint32_t clingo_atom_t;
 typedef uint32_t clingo_id_t;
 //! Signed integer type for weights in sum aggregates and minimize constraints.
 typedef int32_t clingo_weight_t;
-//! A Literal with an associated weight.
+//! A literal with an associated weight.
 typedef struct clingo_weighted_literal {
     clingo_literal_t literal; //!< the literal
     clingo_weight_t weight;   //!< the weight
 } clingo_weighted_literal_t;
+//! Struct to capture strings that are not null-terminated.
+typedef struct clingo_string {
+    char const *data; //!< pointer to the beginning of the string
+    size_t size;      //!< the length of the string
+} clingo_string;
 
 //! Enumeration of error codes.
 //!
@@ -108,8 +113,9 @@ typedef int clingo_result_t;
 //!
 //! @param[in] code associated code
 //! @param[in] message message
+//! @param[in] size the size of the message
 //! @param[in] data user data for callback
-typedef void (*clingo_error_logger_t)(clingo_result_t code, char const *message, void *data);
+typedef void (*clingo_error_logger_t)(clingo_result_t code, char const *message, size_t size, void *data);
 
 //! Enumeration of message codes.
 enum clingo_message_e {
@@ -140,11 +146,12 @@ typedef int clingo_log_level_t;
 //! Callback to intercept messages.
 //!
 //! @param[in] code associated code
-//! @param[in] message message
+//! @param[in] message the message
+//! @param[in] size the size of the message
 //! @param[in] data user data for callback
 //!
 //! @see clingo_lib_new()
-typedef void (*clingo_logger_t)(clingo_message_t code, char const *message, void *data);
+typedef void (*clingo_logger_t)(clingo_message_t code, char const *message, size_t size, void *data);
 
 //! A library object storing global information.
 typedef struct clingo_lib clingo_lib_t;
@@ -175,16 +182,18 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_user_data_slot(void);
 //! The function returns string literals that do not have to be cleaned up.
 //!
 //! @param[in] code the result code
-//! @return the string representation
-CLINGO_VISIBILITY_DEFAULT char const *clingo_result_string(clingo_result_t code);
+//! @param[out] value the string
+//! @param[out] size the size of the string
+CLINGO_VISIBILITY_DEFAULT void clingo_result_string(clingo_result_t code, char const **value, size_t *size);
 
 //! Convert the giving message code into a string.
 //!
 //! The function returns string literals that do not have to be cleaned up.
 //!
 //! @param[in] code the message code
-//! @return the string representation
-CLINGO_VISIBILITY_DEFAULT char const *clingo_message_string(clingo_message_t code);
+//! @param[out] value the string
+//! @param[out] size the size of the string
+CLINGO_VISIBILITY_DEFAULT void clingo_message_string(clingo_message_t code, char const **value, size_t *size);
 
 //! Set the global error logger.
 //!
@@ -199,7 +208,8 @@ CLINGO_VISIBILITY_DEFAULT void clingo_error_logger(clingo_error_logger_t logger,
 //!
 //! @param[in] code associated code
 //! @param[in] message message
-CLINGO_VISIBILITY_DEFAULT void clingo_error_report(clingo_result_t code, char const *message);
+//! @param[in] size the size of the message
+CLINGO_VISIBILITY_DEFAULT void clingo_error_report(clingo_result_t code, char const *message, size_t size);
 
 //! Create a library object.
 //!
@@ -262,8 +272,10 @@ CLINGO_VISIBILITY_DEFAULT void *clingo_lib_get_user_data(clingo_lib_t *lib, size
 //!
 //! @param[in] lib the library
 //! @param[in] code associated code
-//! @param[in] message message
-CLINGO_VISIBILITY_DEFAULT void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char const *message);
+//! @param[in] message the message
+//! @param[in] size the size of the message
+CLINGO_VISIBILITY_DEFAULT void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char const *message,
+                                                 size_t size);
 
 //! A builder for strings.
 typedef struct clingo_string_builder clingo_string_builder_t;
@@ -289,7 +301,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_free(clingo_string_builder_
 //!
 //! @param[in] bld the builder
 //! @param[out] str the resulting string
-//! @param[out] size the resulting size
+//! @param[out] size the size of the returned string
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_string_builder_string(clingo_string_builder_t const *bld,
                                                                        char const **str, size_t *size);
@@ -308,12 +320,14 @@ typedef struct clingo_position clingo_position_t;
 //!
 //! @param[in] lib the library storing strings
 //! @param[in] file the file of the position
+//! @param[in] size the size of the file string
 //! @param[in] line the line number of the position
 //! @param[in] column the column number of the position
 //! @param[out] pos the resulting position
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_position_new(clingo_lib_t *lib, char const *file, size_t line,
-                                                              size_t column, clingo_position_t const **pos);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_position_new(clingo_lib_t *lib, char const *file, size_t size,
+                                                              size_t line, size_t column,
+                                                              clingo_position_t const **pos);
 //! Copy the given position.
 //!
 //! @param[in] src the position to copy
@@ -329,8 +343,10 @@ CLINGO_VISIBILITY_DEFAULT void clingo_position_free(clingo_position_t const *pos
 //! Get the file name of the position.
 //!
 //! @param[in] pos the position
+//! @param[out] file the file name
+//! @param[out] size the size of the file name
 //! @return the file name
-CLINGO_VISIBILITY_DEFAULT char const *clingo_position_file(clingo_position_t const *pos);
+CLINGO_VISIBILITY_DEFAULT void clingo_position_file(clingo_position_t const *pos, char const **file, size_t *size);
 //! Get the line number of the position.
 //!
 //! @param[in] pos the position

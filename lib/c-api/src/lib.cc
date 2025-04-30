@@ -2,7 +2,7 @@
 
 namespace {
 
-void default_error_logger(clingo_result_t code, char const *message, [[maybe_unused]] void *data) {
+void default_error_logger(clingo_result_t code, char const *message, size_t size, [[maybe_unused]] void *data) {
     char const *type = "*** ERROR: (clingo)";
     switch (code) {
         case clingo_result_logic: {
@@ -25,7 +25,7 @@ void default_error_logger(clingo_result_t code, char const *message, [[maybe_unu
             break;
         }
     }
-    fprintf(stderr, "%s: %s\n", type, message);
+    fprintf(stderr, "%s: %.*s\n", type, static_cast<int>(size), message);
 }
 
 struct ErrorLogger {
@@ -35,10 +35,10 @@ struct ErrorLogger {
         return logger;
     }
 
-    static void log(clingo_result_t code, char const *message) noexcept {
+    static void log(clingo_result_t code, std::string_view msg) noexcept {
         auto &x = instance();
         if (x.logger_ != nullptr) {
-            x.logger_(code, message, x.data_);
+            x.logger_(code, msg.data(), msg.size(), x.data_);
         }
     }
 
@@ -61,8 +61,8 @@ extern "C" void clingo_error_logger(clingo_error_logger_t logger, void *data) {
     ErrorLogger::set(logger, data);
 }
 
-extern "C" void clingo_error_report(clingo_result_t code, char const *message) {
-    ErrorLogger::log(code, message);
+extern "C" void clingo_error_report(clingo_result_t code, char const *message, size_t size) {
+    ErrorLogger::log(code, std::string_view{message, size});
 }
 
 auto handle_error() -> clingo_result_t {

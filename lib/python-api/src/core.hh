@@ -67,7 +67,7 @@ auto is_clingo_error(py::error_already_set const &e) -> bool;
 //! Always returns result code unknown.
 auto handle_error(std::exception_ptr &ptr) -> clingo_result_t;
 
-using Logger = std::function<void(clingo_message_e, char const *)>;
+using Logger = std::function<void(clingo_message_e, std::string_view)>;
 
 static constexpr size_t default_message_limit = 25;
 
@@ -95,7 +95,7 @@ class Library {
     Library(clingo_lib_t *lib) : lib_{lib} {}
     [[nodiscard]] auto user_data() const -> py::list;
 
-    static void logger_(clingo_message_t code, char const *message, void *log) noexcept;
+    static void logger_(clingo_message_t code, char const *message, size_t size, void *log) noexcept;
 
     ManagedPtr<Library, clingo_lib_t> lib_;
 };
@@ -141,14 +141,14 @@ auto string_builder() -> clingo_string_builder_t *;
 class Position {
   public:
     explicit Position(clingo_position_t const *pos);
-    Position(Library &lib, char const *file, size_t line, size_t column);
+    Position(Library &lib, std::string_view, size_t line, size_t column);
     Position(Position const &other);
     Position(Position &&other) noexcept;
     auto operator=(Position const &other) -> Position &;
     auto operator=(Position &&other) noexcept -> Position &;
     ~Position() noexcept;
 
-    [[nodiscard]] auto file() const -> char const *;
+    [[nodiscard]] auto file() const -> std::string_view;
     [[nodiscard]] auto line() const -> size_t;
     [[nodiscard]] auto column() const -> size_t;
     [[nodiscard]] auto str() const -> std::string;

@@ -68,7 +68,7 @@ class rewrite_error : public std::runtime_error {
 class Logger {
   public:
     //! Callback to report messages.
-    using Printer = std::function<void(MessageCode, char const *)>;
+    using Printer = std::function<void(MessageCode, std::string_view)>;
     //! Construct a logger reporting messages to stderr.
     Logger(size_t limit = default_message_limit) : Logger{nullptr, limit} {}
     //! Construct a logger reporting messages via the given callback.
@@ -84,15 +84,13 @@ class Logger {
     //! Check if the given message code is enabled.
     [[nodiscard]] auto enabled(MessageCode code) const -> bool;
     //! Unconditionally output a message with a given code.
-    void print(MessageCode code, char const *msg);
-    //! Unconditionally output a message with a given code.
-    void print(MessageCode code, std::string const &str);
+    void print(MessageCode code, std::string_view msg);
     //! Set the log level.
     void set_level(LogLevel level);
     //! Set the message limit.
     void set_limit(size_t limit);
     //! Get a string representation of the message category.
-    [[nodiscard]] auto message_prefix(MessageCode code) const -> char const *;
+    [[nodiscard]] auto message_prefix(MessageCode code) const -> std::string_view;
     //! Reset the logger to the constructed state.
     //!
     //! This keeps all settings but resets the error flag and message limit.
@@ -119,7 +117,7 @@ class Report {
         out_ << loc << ": " << log_.message_prefix(code) << ": ";
     }
     //! Destroy the reporter and output message.
-    ~Report() noexcept(false) { log_.print(code_, out_.str().c_str()); }
+    ~Report() noexcept(false) { log_.print(code_, out_.view()); }
     //! Get message sink.
     [[nodiscard]] auto out() -> std::ostringstream & { return out_; }
 
@@ -171,7 +169,7 @@ inline void Logger::set_limit(size_t limit) {
     cur_limit_ = limit;
 }
 
-inline void Logger::print(MessageCode code, char const *msg) {
+inline void Logger::print(MessageCode code, std::string_view msg) {
     if (p_ != nullptr) {
         try {
             p_(code, msg);
@@ -181,7 +179,7 @@ inline void Logger::print(MessageCode code, char const *msg) {
         }
     } else {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
-        fprintf(stderr, "%s\n", msg);
+        fprintf(stderr, "%.*s\n", static_cast<int>(msg.size()), msg.data());
         fflush(stderr);
     }
 }
@@ -190,11 +188,7 @@ inline void Logger::reset() {
     cur_limit_ = limit_;
 }
 
-inline void Logger::print(MessageCode code, std::string const &str) {
-    print(code, str.c_str());
-}
-
-inline auto Logger::message_prefix(MessageCode code) const -> char const * {
+inline auto Logger::message_prefix(MessageCode code) const -> std::string_view {
     auto const *prefix = color_ ? "\033[31m"
                                   "error"
                                   "\033[0m"

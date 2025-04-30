@@ -243,7 +243,7 @@ CLINGO_ENABLE_BITSET_ENUM(LibraryFlags);
 
 constexpr size_t default_message_limit = 25;
 
-using Logger = std::function<void(MessageCode, char const *)>;
+using Logger = std::function<void(MessageCode, std::string_view)>;
 
 class Library {
   public:
@@ -268,8 +268,8 @@ class Library {
     friend class Detail::ManagedPtr<Library, clingo_lib_t>;
 
     static void free_logger_(void *data) noexcept { std::unique_ptr<Logger>(static_cast<Logger *>(data)); }
-    static void logger_(clingo_message_t code, char const *message, void *data) {
-        (*static_cast<Logger *>(data))(static_cast<MessageCode>(code), message);
+    static void logger_(clingo_message_t code, char const *message, size_t size, void *data) {
+        (*static_cast<Logger *>(data))(static_cast<MessageCode>(code), {message, size});
     }
     static auto acquire(clingo_lib_t *ptr) { clingo_lib_acquire(ptr); }
     static auto release(clingo_lib_t *ptr) { clingo_lib_release(ptr); }
