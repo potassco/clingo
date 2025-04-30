@@ -42,11 +42,11 @@ class SolveControl {
         return {base};
     }
 
-    auto add_clause(LiteralSpan lits) {
+    auto add_clause(LiteralSpan lits) const {
         Detail::handle_error(clingo_solve_control_add_clause(ctl_, lits.data(), lits.size()));
     }
 
-    auto add_nogood(LiteralSpan lits) {
+    auto add_nogood(LiteralSpan lits) const {
         add_clause(Detail::transform(lits, [](auto const &lit) { return -lit; }));
     }
 
@@ -70,10 +70,11 @@ enum class ShowFlags : clingo_show_type_bitset_t {
     theory = clingo_show_type_theory, //!< Select symbols added by theory.
 };
 
-class Model {
+class ConstModel {
   public:
-    explicit Model(clingo_model_t *mdl) : mdl_{mdl}, cmdl_{mdl} {}
-    explicit Model(clingo_model_t const *mdl) : cmdl_{mdl} {}
+    explicit ConstModel(clingo_model_t const *mdl) : mdl_{mdl} {}
+
+    friend auto c_cast(ConstModel const &x) -> clingo_model_t const * { return x.mdl_; }
 
     [[nodiscard]] auto symbols(ShowFlags flags) const -> SymbolVector {
         auto res = SymbolVector{};
@@ -83,31 +84,31 @@ class Model {
 
     [[nodiscard]] auto contains(Symbol const &atom) const -> bool {
         bool res = false;
-        Detail::handle_error(clingo_model_contains(cmdl_, c_cast(atom), &res));
+        Detail::handle_error(clingo_model_contains(mdl_, c_cast(atom), &res));
         return res;
     }
 
     [[nodiscard]] auto type() const -> ModelType {
         clingo_model_type_t type = 0;
-        Detail::handle_error(clingo_model_type(cmdl_, &type));
+        Detail::handle_error(clingo_model_type(mdl_, &type));
         return static_cast<ModelType>(type);
     }
 
     [[nodiscard]] auto number() const -> uint64_t {
         uint64_t num = 0;
-        Detail::handle_error(clingo_model_number(cmdl_, &num));
+        Detail::handle_error(clingo_model_number(mdl_, &num));
         return num;
     }
 
     [[nodiscard]] auto is_true(Literal lit) const -> bool {
         auto res = false;
-        Detail::handle_error(clingo_model_is_true(cmdl_, lit, &res));
+        Detail::handle_error(clingo_model_is_true(mdl_, lit, &res));
         return res;
     }
 
     [[nodiscard]] auto is_consequence(Literal lit) const -> std::optional<bool> {
         clingo_consequence_t res = 0;
-        Detail::handle_error(clingo_model_is_consequence(cmdl_, lit, &res));
+        Detail::handle_error(clingo_model_is_consequence(mdl_, lit, &res));
         if (res != clingo_consequence_unknown) {
             return res == clingo_consequence_true;
         }
@@ -117,26 +118,26 @@ class Model {
     [[nodiscard]] auto cost() const -> SumSpan {
         int64_t const *costs = nullptr;
         size_t size = 0;
-        Detail::handle_error(clingo_model_cost(cmdl_, &costs, &size));
+        Detail::handle_error(clingo_model_cost(mdl_, &costs, &size));
         return {costs, size};
     }
 
     [[nodiscard]] auto priorities() const -> WeightSpan {
         clingo_weight_t const *prios = nullptr;
         size_t size = 0;
-        Detail::handle_error(clingo_model_priority(cmdl_, &prios, &size));
+        Detail::handle_error(clingo_model_priority(mdl_, &prios, &size));
         return {prios, size};
     }
 
     [[nodiscard]] auto optimality_proven() const -> bool {
         bool res = false;
-        Detail::handle_error(clingo_model_optimality_proven(cmdl_, &res));
+        Detail::handle_error(clingo_model_optimality_proven(mdl_, &res));
         return res;
     }
 
     [[nodiscard]] auto thread_id() const -> Id {
         clingo_id_t id = 0;
-        Detail::handle_error(clingo_model_thread_id(cmdl_, &id));
+        Detail::handle_error(clingo_model_thread_id(mdl_, &id));
         return id;
     }
 
@@ -151,22 +152,6 @@ class Model {
         return res;
     }
 
-    [[nodiscard]] auto control() -> SolveControl {
-        if (mdl_ == nullptr) {
-            throw std::runtime_error{"cannot get control of constant model"};
-        }
-        clingo_solve_control_t *ctl = nullptr;
-        Detail::handle_error(clingo_model_control(mdl_, &ctl));
-        return SolveControl{ctl};
-    }
-
-    auto extend(SymbolSpan symbols) {
-        if (mdl_ == nullptr) {
-            throw std::runtime_error{"cannot extend constant model"};
-        }
-        Detail::handle_error(clingo_model_extend(mdl_, c_cast(symbols.data()), symbols.size()));
-    }
-
   private:
     static auto sym_cb_(clingo_symbol_t const *symbols, size_t size, void *data) -> clingo_result_t {
         auto *res = static_cast<SymbolVector *>(data);
@@ -177,8 +162,31 @@ class Model {
         CLINGO_CATCH;
     }
 
-    clingo_model_t *mdl_ = nullptr;
-    clingo_model_t const *cmdl_;
+    clingo_model_t const *mdl_;
+};
+
+class Model : public ConstModel {
+  public:
+    explicit Model(clingo_model_t *mdl) : ConstModel{mdl} {}
+
+    [[nodiscard]] auto control() -> SolveControl {
+        clingo_solve_control_t *ctl = nullptr;
+        Detail::handle_error(clingo_model_control(mdl_(), &ctl));
+        return SolveControl{ctl};
+    }
+
+    void extend(SymbolSpan symbols) {
+        Detail::handle_error(clingo_model_extend(mdl_(), c_cast(symbols.data()), symbols.size()));
+    }
+
+    friend auto c_cast(Model const &x) -> clingo_model_t const * { return x.mdl_(); }
+
+  private:
+    // NOTE: the const_cast is fine because base class has been initialized with a non-const pointer
+    [[nodiscard]] auto mdl_() const -> clingo_model_t * {
+        // NOLINTNEXTLINE
+        return const_cast<clingo_model_t *>(c_cast(*static_cast<ConstModel const *>(this)));
+    }
 };
 
 /*

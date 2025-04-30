@@ -58,32 +58,32 @@ class Control {
 
     [[nodiscard]] friend auto c_cast(Control const &ctl) -> clingo_control_t * { return ctl.ctl_.get(); }
 
-    auto mode() -> ControlMode {
+    [[nodiscard]] auto mode() const -> ControlMode {
         clingo_mode_t mode = 0;
         Detail::handle_error(clingo_control_mode(ctl_.get(), &mode));
         return static_cast<ControlMode>(mode);
     }
 
     // TODO: wrap program
-    void join(clingo_program_t *prg) { Detail::handle_error(clingo_control_join(ctl_.get(), prg)); }
+    void join(clingo_program_t *prg) const { Detail::handle_error(clingo_control_join(ctl_.get(), prg)); }
 
-    void write_aspif(std::string_view path, WriteAspifFlags flags = WriteAspifFlags::none) {
+    void write_aspif(std::string_view path, WriteAspifFlags flags = WriteAspifFlags::none) const {
         Detail::handle_error(clingo_control_write_aspif(ctl_.get(), path.data(), path.size(),
                                                         static_cast<clingo_write_aspif_mode_t>(flags)));
     }
 
-    void parse_files(StringSpan files) {
+    void parse_files(StringSpan files) const {
         auto cfiles = Detail::transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
         Detail::handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()));
     }
 
-    void parse_files(StringList files) { parse_files(StringSpan{files.begin(), files.end()}); }
+    void parse_files(StringList files) const { parse_files(StringSpan{files.begin(), files.end()}); }
 
-    void parse_string(std::string_view program) {
+    void parse_string(std::string_view program) const {
         Detail::handle_error(clingo_control_parse_string(ctl_.get(), program.data(), program.size()));
     }
 
-    void ground(std::optional<PartSpan> parts = std::nullopt, Context ctx = nullptr) {
+    void ground(std::optional<PartSpan> parts = std::nullopt, Context ctx = nullptr) const {
         std::vector<clingo_part_t> c_parts;
         if (parts) {
             c_parts.reserve(parts->size());
@@ -99,7 +99,7 @@ class Control {
             clingo_control_ground(ctl_.get(), c_parts.data(), c_parts.size(), ctx ? &ctx_ : nullptr, &ctx));
     }
 
-    auto base() -> Base {
+    [[nodiscard]] auto base() const -> Base {
         clingo_base_t const *base = nullptr;
         clingo_control_base(ctl_.get(), &base);
         return {base};
