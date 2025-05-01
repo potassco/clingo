@@ -32,10 +32,10 @@ class StatsArray {
 class StatsMap {
   public:
     StatsMap(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
-    auto get(char const *name) -> Stats;
-    void set(char const *name, py::handle value);
+    auto get(std::string_view name) -> Stats;
+    void set(std::string_view name, py::handle value);
     auto len() -> size_t;
-    auto contains(char const *name) -> bool;
+    auto contains(std::string_view name) -> bool;
 
   private:
     clingo_stats_t *stats_;

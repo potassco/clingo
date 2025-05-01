@@ -168,8 +168,7 @@ class ConstStatsMap {
     [[nodiscard]] auto operator[](std::string_view name) const -> ConstStats { return ConstStats{stats_, at_(name)}; }
     [[nodiscard]] auto contains(std::string_view name) const -> bool {
         auto res = false;
-        // TODO: needs sized interface
-        Detail::handle_error(clingo_stats_map_has_subkey(stats_, key_, Detail::StringBuffer{name}.c_str(), &res));
+        Detail::handle_error(clingo_stats_map_has_subkey(stats_, key_, name.data(), name.size(), &res));
         return res;
     }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
@@ -180,16 +179,15 @@ class ConstStatsMap {
 
     [[nodiscard]] auto at_(std::string_view name) const -> uint64_t {
         uint64_t subkey = 0;
-        // TODO: needs sized interface
-        Detail::handle_error(clingo_stats_map_at(stats_, key_, Detail::StringBuffer{name}.c_str(), &subkey));
+        Detail::handle_error(clingo_stats_map_at(stats_, key_, name.data(), name.size(), &subkey));
         return subkey;
     }
 
     [[nodiscard]] auto at_(size_t index) const -> std::pair<std::string_view, uint64_t> {
-        // TODO: needs sized interface
-        char const *name = nullptr;
+        clingo_string_t name;
         Detail::handle_error(clingo_stats_map_subkey_name(stats_, key_, index, &name));
-        return {name, at_(name)};
+        auto str = std::string_view{name.data, name.size};
+        return {str, at_(str)};
     }
 
     clingo_stats_t const *stats_;
@@ -216,7 +214,7 @@ class StatsMap : public ConstStatsMap {
     [[nodiscard]] auto operator[](std::string_view name) const -> Stats { return Stats{stats_(), at_(name)}; }
     [[nodiscard]] auto insert(std::string_view name, StatsType type) const -> Stats {
         uint64_t subkey = 0;
-        Detail::handle_error(clingo_stats_map_add_subkey(stats_(), key_, Detail::StringBuffer{name}.c_str(),
+        Detail::handle_error(clingo_stats_map_add_subkey(stats_(), key_, name.data(), name.size(),
                                                          static_cast<clingo_stats_type_t>(type), &subkey));
         return Stats{stats_(), subkey};
     }

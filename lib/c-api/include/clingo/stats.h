@@ -126,10 +126,11 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_size(clingo_stats_t c
 //! @param[in] stats the target stats
 //! @param[in] key the key
 //! @param[in] name name of the subkey
+//! @param[in] size the size of the name
 //! @param[out] result true if the map has a subkey with the given name
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_has_subkey(clingo_stats_t const *stats, uint64_t key,
-                                                                      char const *name, bool *result);
+                                                                      char const *name, size_t size, bool *result);
 //! Get the name associated with the offset-th subkey.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_map.
@@ -139,7 +140,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_has_subkey(clingo_sta
 //! @param[out] name the resulting name
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_subkey_name(clingo_stats_t const *stats, uint64_t key,
-                                                                       size_t offset, char const **name);
+                                                                       size_t offset, clingo_string_t *name);
 //! Lookup a subkey under the given name.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_map.
@@ -147,22 +148,24 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_subkey_name(clingo_st
 //! @param[in] stats the target stats
 //! @param[in] key the key
 //! @param[in] name the name to look up the subkey
+//! @param[in] size the size of the name
 //! @param[out] subkey the resulting subkey
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_at(clingo_stats_t const *stats, uint64_t key,
-                                                              char const *name, uint64_t *subkey);
+                                                              char const *name, size_t size, uint64_t *subkey);
 //! Add a subkey with the given name.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_map.
 //! @param[in] stats the target stats
 //! @param[in] key the key
 //! @param[in] name the name of the new subkey
+//! @param[in] size the size of the name
 //! @param[in] type the type of the new subkey
 //! @param[out] subkey the index of the resulting subkey
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_add_subkey(clingo_stats_t *stats, uint64_t key,
-                                                                      char const *name, clingo_stats_type_t type,
-                                                                      uint64_t *subkey);
+                                                                      char const *name, size_t size,
+                                                                      clingo_stats_type_t type, uint64_t *subkey);
 //! @}
 
 //! @name Functions to inspect and change values

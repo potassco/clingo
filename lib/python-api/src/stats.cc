@@ -50,26 +50,26 @@ auto StatsMap::len() -> size_t {
     return size;
 }
 
-auto StatsMap::get(char const *name) -> Stats {
+auto StatsMap::get(std::string_view name) -> Stats {
     if (contains(name)) {
         uint64_t subkey = 0;
-        handle_error(clingo_stats_map_at(stats_, key_, name, &subkey));
+        handle_error(clingo_stats_map_at(stats_, key_, name.data(), name.size(), &subkey));
         return {stats_, subkey};
     }
     throw py::index_error{"invalid key"};
 }
 
-auto StatsMap::contains(char const *name) -> bool {
+auto StatsMap::contains(std::string_view name) -> bool {
     auto res = false;
-    handle_error(clingo_stats_map_has_subkey(stats_, key_, name, &res));
+    handle_error(clingo_stats_map_has_subkey(stats_, key_, name.data(), name.size(), &res));
     return res;
 }
 
-void StatsMap::set(char const *name, py::handle value) {
+void StatsMap::set(std::string_view name, py::handle value) {
     auto has_key = contains(name);
     uint64_t subkey = 0;
-    handle_error(
-        clingo_stats_map_add_subkey(stats_, key_, name, static_cast<clingo_stats_type_t>(get_type(value)), &subkey));
+    handle_error(clingo_stats_map_add_subkey(stats_, key_, name.data(), name.size(),
+                                             static_cast<clingo_stats_type_t>(get_type(value)), &subkey));
     Stats{stats_, subkey}.update_(value, !has_key);
 }
 
@@ -129,9 +129,9 @@ auto Stats::nestify() -> py::object {
             auto n = x.len();
             auto res = py::dict{};
             for (size_t i = 0; i < n; ++i) {
-                char const *name = "";
+                clingo_string_t name;
                 handle_error(clingo_stats_map_subkey_name(stats_, key_, i, &name));
-                res[name] = x.get(name).nestify();
+                res[py::str{name.data, name.size}] = x.get(std::string_view{name.data, name.size}).nestify();
             }
             return res;
         }
@@ -168,7 +168,7 @@ void Stats::update_(py::handle value, bool init) {
             for (auto elem : py::getattr(value, "items")()) {
                 auto key = elem[py::int_{0}];
                 auto val = elem[py::int_{1}];
-                x.set(py::cast<std::string>(key).c_str(), val);
+                x.set(py::cast<std::string>(key), val);
             }
             break;
         }

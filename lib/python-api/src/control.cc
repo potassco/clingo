@@ -142,9 +142,13 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
             uint64_t root = 0;
             handle_error(clingo_stats_root(c_stats, &root));
             uint64_t step = 0;
-            handle_error(clingo_stats_map_add_subkey(c_stats, root, "user_step", clingo_stats_type_map, &step));
+            std::string_view user_step = "user_step";
+            std::string_view user_accu = "user_accu";
+            handle_error(clingo_stats_map_add_subkey(c_stats, root, user_step.data(), user_step.size(),
+                                                     clingo_stats_type_map, &step));
             uint64_t accu = 0;
-            handle_error(clingo_stats_map_add_subkey(c_stats, root, "user_accu", clingo_stats_type_map, &accu));
+            handle_error(clingo_stats_map_add_subkey(c_stats, root, user_accu.data(), user_accu.size(),
+                                                     clingo_stats_type_map, &accu));
             (*eh->stats_)(Stats{c_stats, step}, Stats{c_stats, accu});
         }
     }
@@ -196,7 +200,7 @@ auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback
     auto ass = convert(base(), assumptions, false);
     handle_error(clingo_control_solve(ctl_.get(), mode, ass.data(), assumptions.size(), &SolveHandle::c_event_handler,
                                       res.get(), &res->handle()),
-                 get_exception_ptr());
+                 res->exception());
     return res;
 }
 
