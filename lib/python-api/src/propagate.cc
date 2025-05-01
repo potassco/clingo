@@ -387,9 +387,6 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
         [](clingo_propagate_init_t *init, void *data) -> clingo_result_t {
             auto *self = static_cast<Propagator *>(data);
             CLINGO_TRY {
-                // NOTE: safe-guard for the case that solve is run in a
-                // different thread than the propagator registration
-                self->exception = &get_exception_ptr();
                 auto py_init = PropagateInit{init};
                 self->init(py_init);
             }

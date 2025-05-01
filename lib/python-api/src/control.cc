@@ -189,7 +189,7 @@ auto Control::stats() -> py::dict {
 auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback> on_model,
                     std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
     auto release = py::gil_scoped_release{};
-    auto res = std::make_shared<SolveHandle>(std::move(on_model), std::move(on_stats));
+    auto res = std::make_shared<SolveHandle>(user_data().ptr, std::move(on_model), std::move(on_stats));
     auto mode = clingo_solve_mode_bitset_t{0};
     if (yield) {
         mode |= clingo_solve_mode_yield;
@@ -206,7 +206,10 @@ auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback
 
 void Control::main() {
     auto release = py::gil_scoped_release{};
-    handle_error(clingo_control_main(ctl_.get()), get_exception_ptr());
+    // NOTE: the control's as well as the thread local exception pointers might be set here
+    // - the thread local one, for example, by the script (which also cannot use the one of the control)
+    // - the one of the control, for example, by the propagator (which also cannot use the thread local one)
+    handle_error(clingo_control_main(ctl_.get()), get_exception_ptr(), user_data().ptr);
 }
 
 void Control::interrupt() {
@@ -258,7 +261,9 @@ void Control::set_parts(std::optional<PartSpan> parts) {
 
 void Control::register_propagator(Annotation<Propagator> propagator) {
     auto &prop = propagator.cast<Propagator &>();
-    user_data().append(std::move(propagator));
+    auto &data = user_data();
+    prop.exception = &data.ptr;
+    data.list.append(std::move(propagator));
     Clingo::Python::register_propagator(ctl_.get(), prop);
 }
 
@@ -268,7 +273,7 @@ void Control::setup(PyHeapTypeObject *heap_type) {
     type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
         auto &self = py::cast<Control &>(py::handle(self_base));
         if (self.ctl_ != nullptr) {
-            Py_VISIT(self.user_data().ptr());
+            Py_VISIT(self.user_data().list.ptr());
         }
         return 0;
     };
@@ -279,16 +284,19 @@ void Control::setup(PyHeapTypeObject *heap_type) {
     };
 }
 
-auto Control::user_data() const -> py::list {
-    // NOTE: this won't throw
-    return py::reinterpret_borrow<py::list>(
-        static_cast<PyObject *>(clingo_control_get_user_data(ctl_.get(), user_data_slot())));
+auto Control::user_data() const -> UserData & {
+    return *static_cast<UserData *>(clingo_control_get_user_data(ctl_.get(), user_data_slot()));
 }
 
 void Control::release(clingo_control_t *ctl) noexcept {
     if (ctl != nullptr) {
-        auto *data = static_cast<PyObject *>(clingo_control_get_user_data(ctl, user_data_slot()));
-        Py_XDECREF(data);
+        auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl, user_data_slot()));
+        if (Py_REFCNT(data->list.ptr()) == 1) {
+            std::ignore = std::unique_ptr<UserData>{data};
+            clingo_control_set_user_data(ctl, user_data_slot(), nullptr, nullptr);
+        } else {
+            Py_XDECREF(data->list.ptr());
+        }
         clingo_control_release(ctl);
         ctl = nullptr;
     }
@@ -301,12 +309,13 @@ void Control::acquire(clingo_control_t *ctl, bool inc) {
     if (inc) {
         clingo_control_acquire(ctl);
     }
-    auto *data = static_cast<PyObject *>(clingo_control_get_user_data(ctl, user_data_slot()));
+    auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl, user_data_slot()));
     if (data != nullptr) {
-        Py_XINCREF(data);
+        Py_XINCREF(data->list.ptr());
     } else {
-        auto list = py::list{0};
-        handle_error(clingo_control_set_user_data(ctl, user_data_slot(), list.release().ptr(), nullptr));
+        auto data = std::make_unique<UserData>();
+        handle_error(clingo_control_set_user_data(ctl, user_data_slot(), data.get(), nullptr));
+        std::ignore = data.release();
     }
 }
 

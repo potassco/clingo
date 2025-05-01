@@ -80,8 +80,13 @@ class Control {
     auto c_ptr() -> clingo_control_t * { return ctl_.get(); }
 
   private:
+    struct UserData {
+        std::exception_ptr ptr;
+        py::list list;
+    };
+
     Control(clingo_control_t *ctl) : ctl_{ctl} {}
-    [[nodiscard]] auto user_data() const -> py::list;
+    [[nodiscard]] auto user_data() const -> UserData &;
     static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name, size_t name_size,
                      clingo_symbol_t const *arguments, size_t arguments_size, void *data,
                      clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t;

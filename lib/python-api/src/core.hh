@@ -27,7 +27,7 @@ namespace py = pybind11;
 
 namespace Detail {
 
-void handle_error(clingo_result_t code, std::exception_ptr *ptr);
+void handle_error(clingo_result_t code, std::exception_ptr *ptr, std::exception_ptr *ptr2 = nullptr);
 
 } // namespace Detail
 
@@ -46,6 +46,11 @@ auto get_exception_ptr() -> std::exception_ptr &;
 inline void handle_error(clingo_result_t code, std::exception_ptr &ptr) {
     if (code != clingo_result_success) {
         Detail::handle_error(code, &ptr);
+    }
+}
+inline void handle_error(clingo_result_t code, std::exception_ptr &ptr, std::exception_ptr &ptr2) {
+    if (code != clingo_result_success) {
+        Detail::handle_error(code, &ptr, &ptr2);
     }
 }
 inline void handle_error(clingo_result_t code) {

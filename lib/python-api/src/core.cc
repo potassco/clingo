@@ -7,12 +7,19 @@ namespace Clingo::Python {
 
 namespace Detail {
 
-void handle_error(clingo_result_t code, std::exception_ptr *ptr) {
+void handle_error(clingo_result_t code, std::exception_ptr *ptr, std::exception_ptr *ptr2) {
     switch (static_cast<clingo_result_e>(code)) {
         case clingo_result_success: {
             break;
         }
         case clingo_result_unknown: {
+            if (ptr2 != nullptr && *ptr2 != nullptr) {
+                // NOTE: assumes that this is the thread local exception pointer which is set to null here
+                if (ptr != nullptr) {
+                    ptr = nullptr;
+                }
+                std::rethrow_exception(std::exchange(*ptr2, nullptr));
+            }
             if (ptr != nullptr && *ptr != nullptr) {
                 std::rethrow_exception(std::exchange(*ptr, nullptr));
             }
