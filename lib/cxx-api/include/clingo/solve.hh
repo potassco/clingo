@@ -2,6 +2,7 @@
 
 #include <clingo/base.hh>
 #include <clingo/core.hh>
+#include <clingo/stats.hh>
 
 #include <clingo/solve.h>
 
@@ -182,7 +183,7 @@ class Model : public ConstModel {
     friend auto c_cast(Model const &x) -> clingo_model_t const * { return x.mdl_(); }
 
   private:
-    // NOTE: the const_cast is fine because base class has been initialized
+    // NOTE: the const_cast is fine because the base class has been initialized
     // with a non-const pointer.
     [[nodiscard]] auto mdl_() const -> clingo_model_t * {
         // NOLINTNEXTLINE
