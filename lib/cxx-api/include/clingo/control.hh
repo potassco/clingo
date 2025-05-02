@@ -106,6 +106,34 @@ class Control {
         return {base};
     }
 
+    [[nodiscard]] auto stats() const -> ConstStats {
+        clingo_stats_t const *stats = nullptr;
+        Detail::handle_error(clingo_control_stats(ctl_.get(), &stats));
+        uint64_t key = 0;
+        Detail::handle_error(clingo_stats_root(stats, &key));
+        return ConstStats{stats, key};
+    }
+
+    // TODO: a virtual handler is prob better also the python api needs to be extended
+    [[nodiscard]] auto solve(LiteralSpan const &assumptions, ModelCallback on_model = nullptr,
+                             StatsCallback on_stats = nullptr, bool yield = false, bool async = false) const
+        -> SolveHandle {
+        std::exception_ptr ptr;
+        auto res = SolveHandle{ptr, std::move(on_model), std::move(on_stats)};
+        auto mode = clingo_solve_mode_bitset_t{0};
+        if (yield) {
+            mode |= clingo_solve_mode_yield;
+        }
+        if (async) {
+            mode |= clingo_solve_mode_async;
+        }
+        // TODO: maybe set the handle differently!
+        Detail::handle_error(clingo_control_solve(ctl_.get(), mode, assumptions.data(), assumptions.size(),
+                                                  &SolveHandle::c_event_handler_, res.data_.get(), &res.data_->hnd),
+                             ptr);
+        return res;
+    }
+
     /*
     void observe(Observer &obs, bool preprocess) {
         obs.observe(ctl_.get(), preprocess);
@@ -121,31 +149,6 @@ class Control {
         clingo_id_t key = 0;
         handle_error(clingo_config_root(config, &key));
         return Config{config, key};
-    }
-
-    auto stats() -> py::dict {
-        clingo_stats_t const *stats = nullptr;
-        handle_error(clingo_control_stats(ctl_.get(), &stats));
-        uint64_t key = 0;
-        handle_error(clingo_stats_root(stats, &key));
-        // NOLINTNEXTLINE
-        return Stats{const_cast<clingo_stats_t *>(stats), key}.nestify();
-    }
-
-    auto solve(MixedLitSpan const &assumptions, std::optional<ModelCallback> on_model,
-                        std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
-        auto release = py::gil_scoped_release{};
-        auto res = std::make_shared<SolveHandle>(std::move(on_model), std::move(on_stats));
-        auto mode = clingo_solve_mode_bitset_t{0};
-        if (yield) {
-            mode |= clingo_solve_mode_yield;
-        }
-        if (async) {
-            mode |= clingo_solve_mode_async;
-        }
-        auto ass = convert(base(), assumptions, false);
-        handle_error(clingo_control_solve(ctl_.get(), mode, ass.data(), assumptions.size(),
-    &SolveHandle::c_event_handler, res.get(), &res->handle()), get_exception_ptr()); return res;
     }
 
     void main() {

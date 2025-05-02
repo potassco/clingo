@@ -194,8 +194,8 @@ using ModelCallback = std::function<std::optional<bool>(Model &)>;
 
 class SolveHandle {
   public:
-    struct ModelSentinel {};
-    class ModelIterator {
+    struct sentinel {};
+    class iterator {
       public:
         using iterator_category = std::forward_iterator_tag;
         using difference_type = std::ptrdiff_t;
@@ -203,29 +203,29 @@ class SolveHandle {
         using pointer = ConstModel *;
         using reference = ConstModel &;
 
-        ModelIterator() = default;
+        iterator() = default;
 
-        explicit ModelIterator(SolveHandle &hnd) : hnd_{&hnd} { operator++(); }
+        explicit iterator(SolveHandle &hnd) : hnd_{&hnd} { operator++(); }
 
         auto operator*() const -> reference { return mdl_.value(); }
 
         auto operator->() const -> pointer { return &mdl_.value(); }
 
-        auto operator++() -> ModelIterator & {
+        auto operator++() -> iterator & {
             hnd_->resume();
             mdl_ = hnd_->model();
             return *this;
         }
 
-        auto operator++(int) -> ModelIterator {
-            ModelIterator tmp = *this;
+        auto operator++(int) -> iterator {
+            iterator tmp = *this;
             ++(*this);
             return tmp;
         }
 
-        friend auto operator==(const ModelIterator &a, const ModelIterator &b) -> bool { return a.hnd_ == b.hnd_; }
+        friend auto operator==(const iterator &a, const iterator &b) -> bool { return a.hnd_ == b.hnd_; }
 
-        friend auto operator==(ModelIterator const &a, [[maybe_unused]] ModelSentinel const &b) -> bool {
+        friend auto operator==(iterator const &a, [[maybe_unused]] sentinel const &b) -> bool {
             return !a.mdl_.has_value();
         }
 
@@ -233,11 +233,9 @@ class SolveHandle {
         SolveHandle *hnd_ = nullptr;
         mutable std::optional<value_type> mdl_;
     };
-    using value_type = ModelIterator::value_type;
-    using reference = ModelIterator::reference;
-    using pointer = ModelIterator::pointer;
-    using iterator = ModelIterator;
-    using sentinel = ModelSentinel;
+    using value_type = iterator::value_type;
+    using reference = iterator::reference;
+    using pointer = iterator::pointer;
 
     explicit SolveHandle(std::exception_ptr &ptr, ModelCallback mdl = nullptr, StatsCallback stats = nullptr)
         : data_{std::make_unique<Data>(&ptr, std::move(mdl), std::move(stats))} {}
@@ -281,13 +279,15 @@ class SolveHandle {
         return result;
     }
 
-    [[nodiscard]] auto begin() -> iterator { return ModelIterator{*this}; }
+    [[nodiscard]] auto begin() -> iterator { return iterator{*this}; }
     [[nodiscard]] auto end() -> sentinel {
         static_cast<void>(this);
-        return ModelSentinel{};
+        return sentinel{};
     }
 
   private:
+    friend class Control;
+
     struct Data {
         ~Data() { close(); }
         void close() { Detail::handle_error(clingo_solve_handle_close(std::exchange(hnd, nullptr))); }
@@ -327,7 +327,7 @@ class SolveHandle {
 
     std::unique_ptr<Data> data_;
 };
-static_assert(std::forward_iterator<SolveHandle::ModelIterator>);
-static_assert(std::sentinel_for<SolveHandle::ModelSentinel, SolveHandle::ModelIterator>);
+static_assert(std::forward_iterator<SolveHandle::iterator>);
+static_assert(std::sentinel_for<SolveHandle::sentinel, SolveHandle::iterator>);
 
 } // namespace Clingo

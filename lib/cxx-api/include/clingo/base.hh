@@ -84,6 +84,7 @@ class AtomBase {
   private:
     clingo_atom_base_t const *base_;
 };
+static_assert(std::random_access_iterator<AtomBase::iterator>);
 
 class Term {
   public:
@@ -169,6 +170,7 @@ class TermBase {
   private:
     clingo_term_base_t const *base_;
 };
+static_assert(std::random_access_iterator<TermBase::iterator>);
 
 class TheoryTerm;
 using TheoryTermVector = std::vector<TheoryTerm>;
@@ -363,6 +365,7 @@ class TheoryBase {
   private:
     clingo_theory_base_t const *base_;
 };
+static_assert(std::random_access_iterator<TheoryBase::iterator>);
 
 class Base {
   public:
@@ -487,6 +490,7 @@ class Base {
   private:
     clingo_base_t const *base_;
 };
+static_assert(std::random_access_iterator<Base::iterator>);
 
 } // namespace Clingo
 
