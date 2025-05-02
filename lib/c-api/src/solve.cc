@@ -79,7 +79,9 @@ extern "C" auto clingo_solve_handle_cancel(clingo_solve_handle_t *handle) -> cli
 
 extern "C" auto clingo_solve_handle_close(clingo_solve_handle_t *handle) -> clingo_result_t {
     CLINGO_TRY {
-        delete cpp_cast(handle, false);
+        if (handle != nullptr) {
+            delete cpp_cast(handle, false);
+        }
     }
     CLINGO_CATCH;
 }

@@ -80,8 +80,12 @@ inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
 //! Map the given result code to an error or rethrow the given pointer if it is
 //! not null and has a value.
 inline void handle_error_impl(clingo_result_t res, std::exception_ptr *ptr) {
-    if (ptr != nullptr) {
+    if (ptr != nullptr && *ptr) {
+        get_exception_ptr() = nullptr;
         std::rethrow_exception(std::exchange(*ptr, nullptr));
+    }
+    if (auto &gptr = get_exception_ptr()) {
+        std::rethrow_exception(std::exchange(gptr, nullptr));
     }
     switch (res) {
         case clingo_result_runtime: {
@@ -109,7 +113,7 @@ inline void handle_error_impl(clingo_result_t res, std::exception_ptr *ptr) {
 //! point where it is rethrown.
 inline void handle_error(clingo_result_t res) {
     if (res != clingo_result_success) {
-        handle_error_impl(res, &get_exception_ptr());
+        handle_error_impl(res, nullptr);
     }
 }
 
@@ -268,38 +272,6 @@ template <class Seq> class RandomAccessIterator {
     size_t index_;
 };
 
-class StringBuffer {
-  public:
-    explicit StringBuffer(std::string_view sv) {
-        if (sv.size() < BUFFER_SIZE) {
-            auto &arr = storage_.emplace<StaticArray>();
-            *std::ranges::copy_n(sv.data(), std::ssize(sv), arr.data()).out = '\0';
-        } else {
-            auto &arr = storage_.emplace<DynamicArray>(std::make_unique_for_overwrite<char[]>(sv.size() + 1)); // NOLINT
-            *std::ranges::copy_n(sv.data(), std::ssize(sv), arr.get()).out = '\0';
-        }
-    }
-    [[nodiscard]] auto c_str() const -> char const * {
-        return std::visit(
-            []<class T>(T const &buf) -> char const * {
-                if constexpr (std::is_same_v<T, DynamicArray>) {
-                    return buf.get();
-                } else {
-                    return buf.data();
-                }
-            },
-            storage_);
-    }
-
-    operator const char *() const { return c_str(); }
-
-  private:
-    static constexpr size_t BUFFER_SIZE = 256;
-    using DynamicArray = std::unique_ptr<char[]>; // NOLINT
-    using StaticArray = std::array<char, BUFFER_SIZE>;
-
-    std::variant<DynamicArray, StaticArray> storage_;
-};
 } // namespace Detail
 
 using Id = clingo_id_t;

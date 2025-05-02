@@ -2,6 +2,7 @@
 
 #include <clingo/base.hh>
 #include <clingo/core.hh>
+#include <clingo/solve.hh>
 #include <clingo/symbol.hh>
 
 #include <clingo/ast.h>

@@ -183,51 +183,151 @@ class Model : public ConstModel {
     friend auto c_cast(Model const &x) -> clingo_model_t const * { return x.mdl_(); }
 
   private:
-    // NOTE: the const_cast is fine because the base class has been initialized
-    // with a non-const pointer.
     [[nodiscard]] auto mdl_() const -> clingo_model_t * {
         // NOLINTNEXTLINE
         return const_cast<clingo_model_t *>(c_cast(*static_cast<ConstModel const *>(this)));
     }
 };
 
-/*
-struct Stats;
-
 using StatsCallback = std::function<void(Stats, Stats)>;
 using ModelCallback = std::function<std::optional<bool>(Model &)>;
 
 class SolveHandle {
   public:
-    SolveHandle(ModelCallback mdl = nullptr, StatsCallback stats = nullptr)
-        : mdl_{std::move(mdl)}, stats_{std::move(stats)} {}
-    SolveHandle(SolveHandle const &other) = delete;
-    SolveHandle(SolveHandle &&other) noexcept = delete;
-    auto operator=(SolveHandle const &other) -> SolveHandle & = delete;
-    auto operator=(SolveHandle &&other) noexcept -> SolveHandle & = delete;
-    ~SolveHandle() { close(); }
+    struct ModelSentinel {};
+    class ModelIterator {
+      public:
+        using iterator_category = std::forward_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using value_type = ConstModel;
+        using pointer = ConstModel *;
+        using reference = ConstModel &;
 
-    auto get() -> SolveResult;
-    void cancel();
-    void resume();
-    auto model() -> std::optional<Model>;
-    auto last() -> std::optional<Model>;
-    auto core() -> std::span<clingo_literal_t const>;
-    auto wait(std::optional<double> timeout) -> bool;
-    auto next() -> Model;
-    void close();
+        ModelIterator() = default;
 
-    auto handle() -> clingo_solve_handle_t *& { return hnd_; }
-    static auto c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> clingo_result_t;
-    auto exception() -> std::exception_ptr & { return ptr_; }
+        explicit ModelIterator(SolveHandle &hnd) : hnd_{&hnd} { operator++(); }
+
+        auto operator*() const -> reference { return mdl_.value(); }
+
+        auto operator->() const -> pointer { return &mdl_.value(); }
+
+        auto operator++() -> ModelIterator & {
+            hnd_->resume();
+            mdl_ = hnd_->model();
+            return *this;
+        }
+
+        auto operator++(int) -> ModelIterator {
+            ModelIterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        friend auto operator==(const ModelIterator &a, const ModelIterator &b) -> bool { return a.hnd_ == b.hnd_; }
+
+        friend auto operator==(ModelIterator const &a, [[maybe_unused]] ModelSentinel const &b) -> bool {
+            return !a.mdl_.has_value();
+        }
+
+      private:
+        SolveHandle *hnd_ = nullptr;
+        mutable std::optional<value_type> mdl_;
+    };
+    using value_type = ModelIterator::value_type;
+    using reference = ModelIterator::reference;
+    using pointer = ModelIterator::pointer;
+    using iterator = ModelIterator;
+    using sentinel = ModelSentinel;
+
+    explicit SolveHandle(std::exception_ptr &ptr, ModelCallback mdl = nullptr, StatsCallback stats = nullptr)
+        : data_{std::make_unique<Data>(&ptr, std::move(mdl), std::move(stats))} {}
+
+    friend auto c_cast(SolveHandle const &x) -> clingo_solve_handle_t * { return x.data_->hnd; }
+
+    [[nodiscard]] auto get() const -> SolveResult {
+        clingo_solve_result_bitset_t res = 0;
+        Detail::handle_error(clingo_solve_handle_get(data_->hnd, &res), *data_->ptr);
+        return SolveResult{res};
+    }
+
+    void cancel() { Detail::handle_error(clingo_solve_handle_cancel(data_->hnd), *data_->ptr); }
+
+    void close() { data_->close(); }
+
+    void resume() { Detail::handle_error(clingo_solve_handle_resume(data_->hnd), *data_->ptr); }
+
+    [[nodiscard]] auto model() -> std::optional<ConstModel> {
+        clingo_model_t const *mdl = nullptr;
+        Detail::handle_error(clingo_solve_handle_model(data_->hnd, &mdl), *data_->ptr);
+        return mdl != nullptr ? std::make_optional<ConstModel>(mdl) : std::nullopt;
+    }
+
+    [[nodiscard]] auto last() const -> std::optional<ConstModel> {
+        clingo_model_t const *mdl = nullptr;
+        Detail::handle_error(clingo_solve_handle_last(data_->hnd, &mdl), *data_->ptr);
+        return mdl != nullptr ? std::make_optional<ConstModel>(mdl) : std::nullopt;
+    }
+
+    [[nodiscard]] auto core() const -> LiteralSpan {
+        auto const *lits = static_cast<clingo_literal_t *>(nullptr);
+        auto size = size_t{0};
+        Detail::handle_error(clingo_solve_handle_core(data_->hnd, &lits, &size), *data_->ptr);
+        return {lits, size};
+    }
+
+    [[nodiscard]] auto wait(std::optional<double> timeout) -> bool {
+        bool result = false;
+        Detail::handle_error(clingo_solve_handle_wait(data_->hnd, timeout ? *timeout : -1, &result), *data_->ptr);
+        return result;
+    }
+
+    [[nodiscard]] auto begin() -> iterator { return ModelIterator{*this}; }
+    [[nodiscard]] auto end() -> sentinel {
+        static_cast<void>(this);
+        return ModelSentinel{};
+    }
 
   private:
-    std::exception_ptr ptr_;
-    clingo_solve_handle_t *hnd_ = nullptr;
-    std::optional<ModelCallback> mdl_;
-    std::optional<StatsCallback> stats_;
+    struct Data {
+        ~Data() { close(); }
+        void close() { Detail::handle_error(clingo_solve_handle_close(std::exchange(hnd, nullptr))); }
+
+        std::exception_ptr *ptr;
+        ModelCallback mdl;
+        StatsCallback stats;
+        clingo_solve_handle_t *hnd = nullptr;
+    };
+
+    static auto c_event_handler_(clingo_solve_event_type_t type, void *event, void *data, bool *goon)
+        -> clingo_result_t {
+        auto *hnd = static_cast<Data *>(data);
+        CLINGO_TRY {
+            if (hnd->mdl && type == clingo_solve_event_type_model) {
+                auto mdl = Model{static_cast<clingo_model_t *>(event)};
+                auto ret = hnd->mdl(mdl);
+                *goon = ret ? *ret : true;
+            }
+            if (hnd->stats && type == clingo_solve_event_type_stats) {
+                auto *c_stats = static_cast<clingo_stats_t *>(event);
+                uint64_t root = 0;
+                Detail::handle_error(clingo_stats_root(c_stats, &root));
+                uint64_t step = 0;
+                std::string_view user_step = "user_step";
+                std::string_view user_accu = "user_accu";
+                Detail::handle_error(clingo_stats_map_add_subkey(c_stats, root, user_step.data(), user_step.size(),
+                                                                 clingo_stats_type_map, &step));
+                uint64_t accu = 0;
+                Detail::handle_error(clingo_stats_map_add_subkey(c_stats, root, user_accu.data(), user_accu.size(),
+                                                                 clingo_stats_type_map, &accu));
+                hnd->stats(Stats{c_stats, step}, Stats{c_stats, accu});
+            }
+        }
+        CLINGO_CATCH_PTR(*hnd->ptr);
+    }
+
+    std::unique_ptr<Data> data_;
 };
-using SSolveHandle = std::shared_ptr<SolveHandle>;
-*/
+static_assert(std::forward_iterator<SolveHandle::ModelIterator>);
+static_assert(std::sentinel_for<SolveHandle::ModelSentinel, SolveHandle::ModelIterator>);
 
 } // namespace Clingo

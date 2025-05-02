@@ -159,7 +159,7 @@ extern "C" auto clingo_stats_map_size(clingo_stats_t const *stats, uint64_t key,
 extern "C" auto clingo_stats_map_has_subkey(clingo_stats_t const *stats, uint64_t key, char const *name, size_t size,
                                             bool *result) -> clingo_result_t {
     CLINGO_TRY {
-        if (stats == nullptr || name == nullptr || result == nullptr) {
+        if (stats == nullptr || (name == nullptr && size > 0) || result == nullptr) {
             return clingo_result_invalid;
         }
         *result = cpp_cast(stats)->find(key, StringBuffer{std::string_view{name, size}}.c_str(), nullptr);
@@ -183,7 +183,7 @@ extern "C" auto clingo_stats_map_subkey_name(clingo_stats_t const *stats, uint64
 extern "C" auto clingo_stats_map_at(clingo_stats_t const *stats, uint64_t key, char const *name, size_t size,
                                     uint64_t *subkey) -> clingo_result_t {
     CLINGO_TRY {
-        if (stats == nullptr || name == nullptr || subkey == nullptr) {
+        if (stats == nullptr || (name == nullptr && size > 0) || subkey == nullptr) {
             return clingo_result_invalid;
         }
         *subkey = cpp_cast(stats)->get(key, StringBuffer{std::string_view{name, size}}.c_str());
@@ -194,7 +194,7 @@ extern "C" auto clingo_stats_map_at(clingo_stats_t const *stats, uint64_t key, c
 extern "C" auto clingo_stats_map_add_subkey(clingo_stats_t *stats, uint64_t key, char const *name, size_t size,
                                             clingo_stats_type_t type, uint64_t *subkey) -> clingo_result_t {
     CLINGO_TRY {
-        if (stats == nullptr || name == nullptr || subkey == nullptr) {
+        if (stats == nullptr || (name == nullptr && size > 0) || subkey == nullptr) {
             return clingo_result_invalid;
         }
         *subkey = cpp_cast(stats)->add(key, StringBuffer{std::string_view{name, size}}.c_str(),
