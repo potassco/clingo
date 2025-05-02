@@ -78,11 +78,13 @@ class Control {
     static void release(clingo_control_t *ctl) noexcept;
     //! Get the underlying C pointer.
     auto c_ptr() -> clingo_control_t * { return ctl_.get(); }
+    //! Get the controls exception pointer.
+    [[nodiscard]] auto exception() const -> std::exception_ptr &;
 
   private:
     struct UserData {
         std::exception_ptr ptr;
-        py::list list;
+        PyObject *list;
     };
 
     Control(clingo_control_t *ctl) : ctl_{ctl} {}

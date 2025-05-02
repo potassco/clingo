@@ -7,31 +7,34 @@ namespace Clingo::Python {
 
 namespace Detail {
 
-void handle_error(clingo_result_t code, std::exception_ptr *ptr, std::exception_ptr *ptr2) {
-    switch (static_cast<clingo_result_e>(code)) {
-        case clingo_result_success: {
-            break;
-        }
-        case clingo_result_unknown: {
-            if (ptr2 != nullptr && *ptr2 != nullptr) {
-                // NOTE: assumes that this is the thread local exception pointer which is set to null here
-                if (ptr != nullptr) {
-                    ptr = nullptr;
-                }
-                std::rethrow_exception(std::exchange(*ptr2, nullptr));
-            }
-            if (ptr != nullptr && *ptr != nullptr) {
-                std::rethrow_exception(std::exchange(*ptr, nullptr));
-            }
-            [[fallthrough]];
-        }
-        default: {
-            throw PyClingoError{code};
-        }
+auto get_exception_ptr() -> std::exception_ptr & {
+    static thread_local std::exception_ptr ptr;
+    return ptr;
+}
+
+void handle_error(clingo_result_t code, std::exception_ptr *ptr) {
+    auto &gptr = get_exception_ptr();
+    if (ptr != nullptr && *ptr) {
+        gptr = nullptr;
+        std::rethrow_exception(std::exchange(*ptr, nullptr));
     }
+    if (gptr) {
+        std::rethrow_exception(std::exchange(gptr, nullptr));
+    }
+    throw PyClingoError{code};
 }
 
 } // namespace Detail
+
+void handle_error_no_code(clingo_result_t code) {
+    auto &gptr = Detail::get_exception_ptr();
+    if (gptr) {
+        std::rethrow_exception(std::exchange(gptr, nullptr));
+    }
+    if (code != clingo_result_success) {
+        throw PyClingoError{code};
+    }
+}
 
 auto user_data_slot() noexcept -> size_t {
     static size_t slot = clingo_user_data_slot();
@@ -42,9 +45,8 @@ auto is_clingo_error(py::error_already_set const &e) -> bool {
     return e.type().is(py::module::import("clingo").attr("core").attr("ClingoError"));
 }
 
-auto get_exception_ptr() -> std::exception_ptr & {
-    static thread_local std::exception_ptr ptr;
-    return ptr;
+void clear_error() {
+    Detail::get_exception_ptr() = nullptr;
 }
 
 auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
@@ -58,6 +60,10 @@ auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
         ptr = std::current_exception();
     }
     return clingo_result_unknown;
+}
+
+auto handle_error() -> clingo_result_t {
+    return handle_error(Detail::get_exception_ptr());
 }
 
 auto string_builder() -> clingo_string_builder_t * {

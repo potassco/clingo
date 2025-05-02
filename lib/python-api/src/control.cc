@@ -58,7 +58,7 @@ void Control::join(Program &prg) {
 }
 
 void Control::parse_string(std::string_view str) {
-    handle_error(clingo_control_parse_string(ctl_.get(), str.data(), str.size()), get_exception_ptr());
+    handle_error(clingo_control_parse_string(ctl_.get(), str.data(), str.size()));
 }
 
 void Control::write_aspif(std::string_view path, bool symbols, bool append, std::optional<bool> preamble,
@@ -78,12 +78,12 @@ void Control::write_aspif(std::string_view path, bool symbols, bool append, std:
     if (preprocess) {
         mode |= clingo_write_aspif_mode_preprocess;
     }
-    handle_error(clingo_control_write_aspif(ctl_.get(), path.data(), path.size(), mode), get_exception_ptr());
+    handle_error(clingo_control_write_aspif(ctl_.get(), path.data(), path.size(), mode));
 }
 
 void Control::parse_files(std::span<std::string const> files) {
     auto cfiles = transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
-    handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()), get_exception_ptr());
+    handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()));
 }
 
 auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
@@ -114,7 +114,7 @@ auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_l
             },
             syms);
     }
-    CLINGO_CATCH(get_exception_ptr());
+    CLINGO_CATCH;
 }
 
 void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
@@ -124,8 +124,7 @@ void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
         parts.emplace(&part, 1);
     }
     handle_error(clingo_control_ground(ctl_.get(), parts->data(), parts->size(),
-                                       !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx),
-                 get_exception_ptr());
+                                       !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
 }
 
 auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon)
@@ -152,7 +151,7 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
             (*eh->stats_)(Stats{c_stats, step}, Stats{c_stats, accu});
         }
     }
-    CLINGO_CATCH(eh->exception());
+    CLINGO_CATCH_PTR(eh->exception());
 }
 
 auto Control::base() -> Base {
@@ -189,7 +188,7 @@ auto Control::stats() -> py::dict {
 auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback> on_model,
                     std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
     auto release = py::gil_scoped_release{};
-    auto res = std::make_shared<SolveHandle>(user_data().ptr, std::move(on_model), std::move(on_stats));
+    auto res = std::make_shared<SolveHandle>(exception(), std::move(on_model), std::move(on_stats));
     auto mode = clingo_solve_mode_bitset_t{0};
     if (yield) {
         mode |= clingo_solve_mode_yield;
@@ -209,7 +208,7 @@ void Control::main() {
     // NOTE: the control's as well as the thread local exception pointers might be set here
     // - the thread local one, for example, by the script (which also cannot use the one of the control)
     // - the one of the control, for example, by the propagator (which also cannot use the thread local one)
-    handle_error(clingo_control_main(ctl_.get()), get_exception_ptr(), user_data().ptr);
+    handle_error(clingo_control_main(ctl_.get()), exception());
 }
 
 void Control::interrupt() {
@@ -263,7 +262,7 @@ void Control::register_propagator(Annotation<Propagator> propagator) {
     auto &prop = propagator.cast<Propagator &>();
     auto &data = user_data();
     prop.exception = &data.ptr;
-    data.list.append(std::move(propagator));
+    py::reinterpret_borrow<py::list>(data.list).append(std::move(propagator));
     Clingo::Python::register_propagator(ctl_.get(), prop);
 }
 
@@ -273,7 +272,7 @@ void Control::setup(PyHeapTypeObject *heap_type) {
     type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
         auto &self = py::cast<Control &>(py::handle(self_base));
         if (self.ctl_ != nullptr) {
-            Py_VISIT(self.user_data().list.ptr());
+            Py_VISIT(self.user_data().list);
         }
         return 0;
     };
@@ -288,14 +287,17 @@ auto Control::user_data() const -> UserData & {
     return *static_cast<UserData *>(clingo_control_get_user_data(ctl_.get(), user_data_slot()));
 }
 
+auto Control::exception() const -> std::exception_ptr & {
+    return user_data().ptr;
+}
+
 void Control::release(clingo_control_t *ctl) noexcept {
     if (ctl != nullptr) {
         auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl, user_data_slot()));
-        if (Py_REFCNT(data->list.ptr()) == 1) {
+        Py_XDECREF(data->list);
+        if (data->list == nullptr) {
             std::ignore = std::unique_ptr<UserData>{data};
             clingo_control_set_user_data(ctl, user_data_slot(), nullptr, nullptr);
-        } else {
-            Py_XDECREF(data->list.ptr());
         }
         clingo_control_release(ctl);
         ctl = nullptr;
@@ -311,10 +313,11 @@ void Control::acquire(clingo_control_t *ctl, bool inc) {
     }
     auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl, user_data_slot()));
     if (data != nullptr) {
-        Py_XINCREF(data->list.ptr());
+        Py_XINCREF(data->list);
     } else {
         auto data = std::make_unique<UserData>();
         handle_error(clingo_control_set_user_data(ctl, user_data_slot(), data.get(), nullptr));
+        data->list = py::list{}.release().ptr();
         std::ignore = data.release();
     }
 }

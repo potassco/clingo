@@ -27,7 +27,7 @@ class Options {
             CLINGO_TRY {
                 *result = py::cast<Parser>(parser)(value);
             }
-            CLINGO_CATCH(get_exception_ptr());
+            CLINGO_CATCH;
         };
         handle_error(clingo_options_add(opts_, group, option, description, cparser,
                                         static_cast<void *>(&parsers_->front()), multi,
@@ -132,16 +132,12 @@ class App {
     static auto main_(clingo_control_t *ctl, char const *const *files, size_t files_size, void *data)
         -> clingo_result_t {
         auto &app = *static_cast<App *>(data);
-        // NOTE: safe guard if main is called in another thread than the app
-        // was created. Ensures that print_model, called after main, always
-        // has the right exception pointer.
-        app.ptr_ = &get_exception_ptr();
         CLINGO_TRY {
             auto pyctl = Control::cast(ctl, true);
             auto cfiles = std::span{files, files_size};
             app.main(pyctl, std::vector<std::string>{cfiles.begin(), cfiles.end()});
         }
-        CLINGO_CATCH(*app.ptr_);
+        CLINGO_CATCH;
     }
 
     static auto print_model_(clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data,
@@ -150,7 +146,7 @@ class App {
         CLINGO_TRY {
             app.print_model(Model{model}, [printer, printer_data]() { handle_error(printer(printer_data)); });
         }
-        CLINGO_CATCH(*app.ptr_);
+        CLINGO_CATCH;
     }
 
     static auto register_options_(clingo_options_t *options, void *data) -> clingo_result_t {
@@ -158,7 +154,7 @@ class App {
         CLINGO_TRY {
             app.register_options(Options{options, app.parsers_});
         }
-        CLINGO_CATCH(get_exception_ptr());
+        CLINGO_CATCH;
     }
 
     static auto validate_options_(void *data) -> clingo_result_t {
@@ -173,9 +169,9 @@ class App {
                 fprintf(stderr, "*** ERROR: (%s): %s\n", app.program_name(), msg.c_str());
                 return clingo_result_invalid;
             }
-            return handle_error(get_exception_ptr());
+            return handle_error();
         } catch (...) {
-            return handle_error(get_exception_ptr());
+            return handle_error();
         }
         return clingo_result_success;
     }
@@ -186,7 +182,6 @@ class App {
     std::optional<std::string> program_name_;
     //! The applications version.
     std::optional<std::string> version_;
-    std::exception_ptr *ptr_ = &get_exception_ptr();
 };
 
 auto pyentry() -> int {
@@ -218,11 +213,7 @@ auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<
     // return some arcane exit code. Hence, we simply check if an error has
     // been set and forward it here.
     try {
-        if (get_exception_ptr()) {
-            handle_error(clingo_result_unknown, get_exception_ptr());
-        } else {
-            handle_error(ret);
-        }
+        handle_error_no_code(ret);
     } catch (py::error_already_set const &e) {
         if (raise_errors) {
             throw;
@@ -242,7 +233,7 @@ auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<
         auto const *name = app ? app.value()->program_name() : "clingo";
         fprintf(stderr, "*** ERROR: (%s): %s\n", name, e.what());
     }
-    get_exception_ptr() = nullptr;
+    clear_error();
     return code;
 }
 

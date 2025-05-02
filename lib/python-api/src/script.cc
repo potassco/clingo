@@ -64,7 +64,7 @@ class MainScript {
 
     [[nodiscard]] auto handle_error() const -> clingo_result_t {
         if (!external_) {
-            return Clingo::Python::handle_error(get_exception_ptr());
+            return Clingo::Python::handle_error();
         }
         try {
             throw;
@@ -196,9 +196,8 @@ class MainScript {
     static auto c_version([[maybe_unused]] void *data) -> char const * { return CLINGO_PYTHON_VERSION; }
 
     static void c_free(void *data) {
-        get_exception_ptr() = nullptr;
-        // NOLINTNEXTLINE
-        delete cast(data);
+        clear_error();
+        std::ignore = std::make_unique<MainScript>(cast(data));
     }
 
   private:
@@ -238,7 +237,7 @@ class Script {
             auto &self = get_self(data);
             self.execute(code);
         }
-        CLINGO_CATCH(get_exception_ptr());
+        CLINGO_CATCH;
     }
 
     auto call(const PyLibrary &lib, char const *name, SymbolSpan args) -> TypeHint<"Sequence[clingo.symbol.Symbol]"> {
@@ -269,7 +268,7 @@ class Script {
                 },
                 syms);
         }
-        CLINGO_CATCH(get_exception_ptr());
+        CLINGO_CATCH;
     }
 
     auto callable(char const *name, size_t arguments) -> bool {
@@ -282,7 +281,7 @@ class Script {
             auto &self = get_self(data);
             *result = self.callable(name, arguments);
         }
-        CLINGO_CATCH(get_exception_ptr());
+        CLINGO_CATCH;
     }
 
     void main(const PyLibrary &lib, const PyControl &ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, lib, ctl); }
@@ -293,7 +292,7 @@ class Script {
             auto &self = get_self(data);
             self.main(get_lib(lib), get_ctl(control));
         }
-        CLINGO_CATCH(get_exception_ptr());
+        CLINGO_CATCH;
     }
 
     auto name() -> std::string { PYBIND11_OVERRIDE_PURE(std::string, Script, name); }

@@ -17,7 +17,7 @@ auto symbol_callback(clingo_symbol_t const *symbols, size_t size, void *data) ->
         // NOLINTNEXTLINE
         res->assign(cpp_cast(symbols), cpp_cast(symbols) + size);
     }
-    CLINGO_CATCH(get_exception_ptr());
+    CLINGO_CATCH;
 }
 
 class ModelIterator {
@@ -97,7 +97,7 @@ auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVe
     if (theory) {
         show |= clingo_show_type_theory;
     }
-    handle_error(clingo_model_symbols(mdl_, show, symbol_callback, &res), get_exception_ptr());
+    handle_error(clingo_model_symbols(mdl_, show, symbol_callback, &res));
     return res;
 }
 

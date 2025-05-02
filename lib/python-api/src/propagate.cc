@@ -390,7 +390,7 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
                 auto py_init = PropagateInit{init};
                 self->init(py_init);
             }
-            CLINGO_CATCH(*self->exception);
+            CLINGO_CATCH_PTR(*self->exception);
         },
         [](clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size,
            void *data) -> clingo_result_t {
@@ -399,7 +399,7 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
                 auto py_ctl = PropagateControl{control};
                 self->propagate(py_ctl, LitSpan{changes, size});
             }
-            CLINGO_CATCH(*self->exception);
+            CLINGO_CATCH_PTR(*self->exception);
         },
         [](clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data) {
             try {
@@ -421,7 +421,7 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
                 auto py_ctl = PropagateControl{control};
                 self->check(py_ctl);
             }
-            CLINGO_CATCH(*self->exception);
+            CLINGO_CATCH_PTR(*self->exception);
         },
         nullptr,
     };
@@ -435,7 +435,7 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
                                     auto py_assignment = Assignment{assignment};
                                     *decision = self->decide(thread_id, py_assignment, fallback);
                                 }
-                                CLINGO_CATCH(*self->exception);
+                                CLINGO_CATCH_PTR(*self->exception);
                             }};
     auto has_heu = pybind11::get_override(&prop, "decide");
     handle_error(clingo_control_register_propagator(ctl, has_heu ? &c_heu : &c_prop, static_cast<void *>(&prop)));

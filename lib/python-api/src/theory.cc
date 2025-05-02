@@ -188,16 +188,15 @@ class Theory {
     void rewrite(PyStatement const &stm, std::function<void(PyStatement const &)> fun) {
         if (theory_->rewrite_ast != nullptr) {
             handle_error(theory_->rewrite_ast(
-                             theory_->self, convert_stm(stm),
-                             [](clingo_ast *stm, void *data) -> clingo_result_t {
-                                 CLINGO_TRY {
-                                     auto &fun = *static_cast<std::function<void(py::handle)> *>(data);
-                                     fun(convert_stm(stm));
-                                 }
-                                 CLINGO_CATCH(get_exception_ptr());
-                             },
-                             &fun),
-                         get_exception_ptr());
+                theory_->self, convert_stm(stm),
+                [](clingo_ast *stm, void *data) -> clingo_result_t {
+                    CLINGO_TRY {
+                        auto &fun = *static_cast<std::function<void(py::handle)> *>(data);
+                        fun(convert_stm(stm));
+                    }
+                    CLINGO_CATCH;
+                },
+                &fun));
         } else {
             fun(stm);
         }
