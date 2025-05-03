@@ -44,6 +44,12 @@ enum class WriteAspifFlags : clingo_write_aspif_mode_t {
 };
 CLINGO_ENABLE_BITSET_ENUM(WriteAspifFlags);
 
+enum class SolveFlags : clingo_solve_mode_bitset_t {
+    yield = clingo_solve_mode_yield,
+    async = clingo_solve_mode_async,
+};
+CLINGO_ENABLE_BITSET_ENUM(SolveFlags);
+
 class Control {
   public:
     using Context = std::function<SymbolVector(std::string_view, SymbolSpan)>;
@@ -114,21 +120,13 @@ class Control {
         return ConstStats{stats, key};
     }
 
-    // TODO: a virtual handler is prob better also the python api needs to be extended
-    [[nodiscard]] auto solve(LiteralSpan const &assumptions, ModelCallback on_model = nullptr,
-                             StatsCallback on_stats = nullptr, bool yield = false, bool async = false) const
-        -> SolveHandle {
-        std::exception_ptr ptr;
-        auto res = SolveHandle{ptr, std::move(on_model), std::move(on_stats)};
-        auto mode = clingo_solve_mode_bitset_t{0};
-        if (yield) {
-            mode |= clingo_solve_mode_yield;
-        }
-        if (async) {
-            mode |= clingo_solve_mode_async;
-        }
-        // TODO: maybe set the handle differently!
-        Detail::handle_error(clingo_control_solve(ctl_.get(), mode, assumptions.data(), assumptions.size(),
+    // TODO: adjust python api to includ missing callbacks
+    [[nodiscard]] auto solve(LiteralSpan const &assumptions, std::unique_ptr<SolveEventHandler> handler,
+                             SolveFlags flags) const -> SolveHandle {
+        auto &ptr = data_().ptr;
+        auto res = SolveHandle{ptr, std::move(handler)};
+        Detail::handle_error(clingo_control_solve(ctl_.get(), static_cast<clingo_solve_mode_bitset_t>(flags),
+                                                  assumptions.data(), assumptions.size(),
                                                   &SolveHandle::c_event_handler_, res.data_.get(), &res.data_->hnd),
                              ptr);
         return res;
@@ -212,6 +210,11 @@ class Control {
   private:
     friend class Detail::ManagedPtr<Control, clingo_control_t>;
 
+    struct Data {
+        std::exception_ptr ptr;
+    };
+    static void free_data_(void *data) { std::ignore = std::unique_ptr<Data>(static_cast<Data *>(data)); }
+
     static auto ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
                      char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
                      void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data)
@@ -228,6 +231,15 @@ class Control {
     static auto acquire(clingo_control_t *ptr) { clingo_control_acquire(ptr); }
 
     static auto release(clingo_control_t *ptr) { clingo_control_release(ptr); }
+
+    [[nodiscard]] auto data_() const -> Data & {
+        auto *data = static_cast<Data *>(clingo_control_get_user_data(ctl_.get(), Detail::user_data_slot()));
+        if (data == nullptr) {
+            data = std::make_unique<Data>().release();
+            Detail::handle_error(clingo_control_set_user_data(ctl_.get(), Detail::user_data_slot(), data, &free_data_));
+        }
+        return *data;
+    }
 
     Detail::ManagedPtr<Control, clingo_control_t> ctl_;
 };

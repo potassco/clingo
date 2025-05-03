@@ -189,8 +189,14 @@ class Model : public ConstModel {
     }
 };
 
-using StatsCallback = std::function<void(Stats, Stats)>;
-using ModelCallback = std::function<std::optional<bool>(Model &)>;
+class SolveEventHandler {
+  public:
+    virtual ~SolveEventHandler() = default;
+    virtual auto model(Model &model) -> bool;
+    virtual void unsat(SumSpan lower_bound);
+    virtual void stats(Stats step, Stats accu);
+    virtual void finish(SolveResult result);
+};
 
 class SolveHandle {
   public:
@@ -237,8 +243,8 @@ class SolveHandle {
     using reference = iterator::reference;
     using pointer = iterator::pointer;
 
-    explicit SolveHandle(std::exception_ptr &ptr, ModelCallback mdl = nullptr, StatsCallback stats = nullptr)
-        : data_{std::make_unique<Data>(&ptr, std::move(mdl), std::move(stats))} {}
+    explicit SolveHandle(std::exception_ptr &ptr, std::unique_ptr<SolveEventHandler> seh = nullptr)
+        : data_{std::make_unique<Data>(&ptr, std::move(seh))} {}
 
     friend auto c_cast(SolveHandle const &x) -> clingo_solve_handle_t * { return x.data_->hnd; }
 
@@ -293,33 +299,46 @@ class SolveHandle {
         void close() { Detail::handle_error(clingo_solve_handle_close(std::exchange(hnd, nullptr))); }
 
         std::exception_ptr *ptr;
-        ModelCallback mdl;
-        StatsCallback stats;
+        std::unique_ptr<SolveEventHandler> seh;
         clingo_solve_handle_t *hnd = nullptr;
     };
 
     static auto c_event_handler_(clingo_solve_event_type_t type, void *event, void *data, bool *goon)
         -> clingo_result_t {
         auto *hnd = static_cast<Data *>(data);
+        assert(hnd != nullptr && hnd->seh);
         CLINGO_TRY {
-            if (hnd->mdl && type == clingo_solve_event_type_model) {
-                auto mdl = Model{static_cast<clingo_model_t *>(event)};
-                auto ret = hnd->mdl(mdl);
-                *goon = ret ? *ret : true;
-            }
-            if (hnd->stats && type == clingo_solve_event_type_stats) {
-                auto *c_stats = static_cast<clingo_stats_t *>(event);
-                uint64_t root = 0;
-                Detail::handle_error(clingo_stats_root(c_stats, &root));
-                uint64_t step = 0;
-                std::string_view user_step = "user_step";
-                std::string_view user_accu = "user_accu";
-                Detail::handle_error(clingo_stats_map_add_subkey(c_stats, root, user_step.data(), user_step.size(),
-                                                                 clingo_stats_type_map, &step));
-                uint64_t accu = 0;
-                Detail::handle_error(clingo_stats_map_add_subkey(c_stats, root, user_accu.data(), user_accu.size(),
-                                                                 clingo_stats_type_map, &accu));
-                hnd->stats(Stats{c_stats, step}, Stats{c_stats, accu});
+            switch (static_cast<clingo_solve_event_type_e>(type)) {
+                case clingo_solve_event_type_model: {
+                    auto mdl = Model{static_cast<clingo_model_t *>(event)};
+                    *goon = hnd->seh->model(mdl);
+                    break;
+                }
+                case clingo_solve_event_type_stats: {
+                    auto *c_stats = static_cast<clingo_stats_t *>(event);
+                    uint64_t root = 0;
+                    Detail::handle_error(clingo_stats_root(c_stats, &root));
+                    uint64_t step = 0;
+                    std::string_view user_step = "user_step";
+                    std::string_view user_accu = "user_accu";
+                    Detail::handle_error(clingo_stats_map_add_subkey(c_stats, root, user_step.data(), user_step.size(),
+                                                                     clingo_stats_type_map, &step));
+                    uint64_t accu = 0;
+                    Detail::handle_error(clingo_stats_map_add_subkey(c_stats, root, user_accu.data(), user_accu.size(),
+                                                                     clingo_stats_type_map, &accu));
+                    hnd->seh->stats(Stats{c_stats, step}, Stats{c_stats, accu});
+                    break;
+                }
+                case clingo_solve_event_type_finish: {
+                    auto res = SolveResult{0};
+                    hnd->seh->finish(res);
+                    throw std::logic_error{"pass proper solve result"};
+                }
+                case clingo_solve_event_type_unsat: {
+                    auto lower_bound = SumSpan{};
+                    hnd->seh->unsat(lower_bound);
+                    throw std::logic_error{"pass proper lower bound"};
+                }
             }
         }
         CLINGO_CATCH_PTR(*hnd->ptr);
