@@ -6,6 +6,8 @@
 
 namespace Clingo {
 
+// TODO: a to string would be nice
+
 enum class StatsType : clingo_stats_type_t {
     value = clingo_stats_type_value,
     array = clingo_stats_type_array,
@@ -154,7 +156,7 @@ class ConstStatsMap {
     using pointer = Detail::ArrowProxy<value_type>;
     using iterator = Detail::RandomAccessIterator<ConstStatsMap>;
 
-    explicit ConstStatsMap(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
+    explicit ConstStatsMap(clingo_stats_t const *stats, uint64_t key) : stats_{stats}, key_{key} {}
 
     [[nodiscard]] auto size() const -> size_t {
         size_t size = 0;
@@ -194,6 +196,13 @@ class ConstStatsMap {
     uint64_t key_;
 };
 
+[[nodiscard]] inline auto ConstStats::map() const -> ConstStatsMap {
+    if (type() == StatsType::array) {
+        return ConstStatsMap{stats_, key_};
+    }
+    throw std::bad_variant_access{};
+}
+
 class StatsMap : public ConstStatsMap {
   public:
     using key_type = std::string_view;
@@ -227,5 +236,12 @@ class StatsMap : public ConstStatsMap {
         return const_cast<clingo_stats_t *>(ConstStatsMap::stats_);
     }
 };
+
+[[nodiscard]] inline auto Stats::map() const -> StatsMap {
+    if (type() == StatsType::array) {
+        return StatsMap{stats_(), key_};
+    }
+    throw std::bad_variant_access{};
+}
 
 } // namespace Clingo
