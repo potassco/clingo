@@ -35,24 +35,20 @@ class ConstConfig {
     [[nodiscard]] auto map() const -> ConstConfigMap;
     [[nodiscard]] auto value() const -> std::optional<std::string_view> {
         if (intersects(type(), ConfigType::value)) {
-            // TODO: combine interface
+            clingo_string_t value;
             bool assigned = false;
-            Detail::handle_error(clingo_config_value_is_assigned(cfg_, key_, &assigned));
-            if (!assigned) {
-                // TODO: need string view interface
-                char const *value = nullptr;
-                Detail::handle_error(clingo_config_value_get(cfg_, key_, &value));
-                return value;
+            Detail::handle_error(clingo_config_value_get(cfg_, key_, &value, &assigned));
+            if (assigned) {
+                return std::string_view{value.data, value.size};
             }
             return std::nullopt;
         }
         throw std::bad_variant_access();
     }
     [[nodiscard]] auto description() const -> std::string_view {
-        // TODO: need string view interface/value might be absent?
-        char const *ret = nullptr;
+        clingo_string_t ret;
         clingo_config_description(cfg_, key_, &ret);
-        return ret;
+        return {ret.data, ret.size};
     }
 
   private:
@@ -71,8 +67,7 @@ class Config : public ConstConfig {
     [[nodiscard]] auto map() const -> ConfigMap;
     void value(std::string_view value) const {
         if (intersects(type(), ConfigType::value)) {
-            // TODO: need string view interface
-            Detail::handle_error(clingo_config_value_set(cfg_(), key_, std::string{value}.c_str()));
+            Detail::handle_error(clingo_config_value_set(cfg_(), key_, value.data(), value.size()));
         } else {
             throw std::bad_variant_access{};
         }
@@ -180,9 +175,7 @@ class ConstConfigMap {
     [[nodiscard]] auto operator[](std::string_view name) const -> ConstConfig { return ConstConfig{cfg_, at_(name)}; }
     [[nodiscard]] auto contains(std::string_view name) const -> bool {
         auto res = false;
-        // TODO: need string_view interface
-        Detail::handle_error(clingo_config_map_has_subkey(cfg_, key_, std::string{name}.c_str(), &res));
-        // Detail::handle_error(clingo_config_map_has_subkey(cfg_, key_, name.data(), name.size(), &res));
+        Detail::handle_error(clingo_config_map_has_subkey(cfg_, key_, name.data(), name.size(), &res));
         return res;
     }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
@@ -193,19 +186,14 @@ class ConstConfigMap {
 
     [[nodiscard]] auto at_(std::string_view name) const -> clingo_id_t {
         clingo_id_t subkey = 0;
-        // TODO: need string_view interface
-        Detail::handle_error(clingo_config_map_at(cfg_, key_, std::string{name}.c_str(), &subkey));
-        // Detail::handle_error(clingo_config_map_at(cfg_, key_, name.data(), name.size(), &subkey));
+        Detail::handle_error(clingo_config_map_at(cfg_, key_, name.data(), name.size(), &subkey));
         return subkey;
     }
 
     [[nodiscard]] auto at_(size_t index) const -> std::pair<std::string_view, clingo_id_t> {
-        // TODO: need string_view interface
-        // clingo_string_t name;
-        char const *name = nullptr;
+        clingo_string_t name;
         Detail::handle_error(clingo_config_map_subkey_name(cfg_, key_, index, &name));
-        // auto str = std::string_view{name.data, name.size};
-        auto str = std::string_view{name};
+        auto str = std::string_view{name.data, name.size};
         return {str, at_(str)};
     }
 

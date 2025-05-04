@@ -69,7 +69,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_type(clingo_config_t con
 //! @param[out] description the description
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_description(clingo_config_t const *config, clingo_id_t key,
-                                                                    char const **description);
+                                                                    clingo_string_t *description);
 
 //! @name Functions to access arrays
 //! @{
@@ -116,10 +116,11 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_map_size(clingo_config_t
 //! @param[in] config the target configuration
 //! @param[in] key the key
 //! @param[in] name the name to look up the subkey
+//! @param[in] name the size of the name
 //! @param[out] result whether the key is in the map
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_map_has_subkey(clingo_config_t const *config, clingo_id_t key,
-                                                                       char const *name, bool *result);
+                                                                       char const *name, size_t size, bool *result);
 //! Get the name associated with the offset-th subkey.
 //!
 //! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_map.
@@ -129,7 +130,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_map_has_subkey(clingo_co
 //! @param[out] name the resulting name
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_map_subkey_name(clingo_config_t const *config, clingo_id_t key,
-                                                                        size_t offset, char const **name);
+                                                                        size_t offset, clingo_string_t *name);
 //! Lookup a subkey under the given name.
 //!
 //! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_map.
@@ -137,24 +138,16 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_map_subkey_name(clingo_c
 //! @param[in] config the target configuration
 //! @param[in] key the key
 //! @param[in] name the name to look up the subkey
+//! @param[in] size the size of the name
 //! @param[out] subkey the resulting subkey
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_map_at(clingo_config_t const *config, clingo_id_t key,
-                                                               char const *name, clingo_id_t *subkey);
+                                                               char const *name, size_t size, clingo_id_t *subkey);
 //! @}
 
 //! @name Functions to access values
 //! @{
 
-//! Check whether an entry has a value.
-//!
-//! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_value.
-//! @param[in] config the target configuration
-//! @param[in] key the key
-//! @param[out] assigned whether the entry has a value
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_value_is_assigned(clingo_config_t const *config,
-                                                                          clingo_id_t key, bool *assigned);
 //! Get the string value of the given entry.
 //!
 //! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_value.
@@ -163,7 +156,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_value_is_assigned(clingo
 //! @param[out] value the resulting string value
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_value_get(clingo_config_t const *config, clingo_id_t key,
-                                                                  char const **value);
+                                                                  clingo_string_t *value, bool *has_value);
 //! Set the value of an entry.
 //!
 //! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_value.
@@ -172,7 +165,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_value_get(clingo_config_
 //! @param[in] value the value to set
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_value_set(clingo_config_t *config, clingo_id_t key,
-                                                                  char const *value);
+                                                                  char const *value, size_t size);
 //! @}
 
 //! Get the configuration object.

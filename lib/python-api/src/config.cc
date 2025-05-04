@@ -24,20 +24,11 @@ auto Config::is_value() -> bool {
     return (type_() & clingo_config_type_value) != 0;
 }
 
-auto Config::has_subkey_(char const *name) -> bool {
+auto Config::has_subkey_(std::string_view name) -> bool {
     if (is_map_()) {
         auto result = false;
-        handle_error(clingo_config_map_has_subkey(config_, key_, name, &result));
+        handle_error(clingo_config_map_has_subkey(config_, key_, name.data(), name.size(), &result));
         return result;
-    }
-    throw py::attribute_error{"invalid attribute"};
-}
-
-auto Config::has_value_() -> bool {
-    if (is_value()) {
-        bool assigned = false;
-        handle_error(clingo_config_value_is_assigned(config_, key_, &assigned));
-        return assigned;
     }
     throw py::attribute_error{"invalid attribute"};
 }
@@ -51,10 +42,10 @@ auto Config::at_sequence(size_t index) -> Config {
     throw py::index_error{"invalid index"};
 }
 
-auto Config::get(char const *name) -> Config {
+auto Config::get(std::string_view name) -> Config {
     if (has_subkey_(name)) {
         clingo_id_t subkey = 0;
-        handle_error(clingo_config_map_at(config_, key_, name, &subkey));
+        handle_error(clingo_config_map_at(config_, key_, name.data(), name.size(), &subkey));
         return {config_, subkey};
     }
     throw py::attribute_error{"invalid attribute"};
@@ -62,16 +53,16 @@ auto Config::get(char const *name) -> Config {
 
 void Config::set_value(pybind11::handle value) {
     if (is_value()) {
-        auto val = py::cast<std::string>(py::str(value));
-        handle_error(clingo_config_value_set(config_, key_, val.c_str()));
+        auto val = py::str(value).cast<std::string>();
+        handle_error(clingo_config_value_set(config_, key_, val.data(), val.size()));
     } else {
         throw py::attribute_error{"invalid attribute"};
     }
 }
 
-void Config::set(char const *name, pybind11::handle value) {
+void Config::set(std::string_view name, pybind11::handle value) {
     auto self = py::cast(this);
-    if (auto attr = py::getattr(self.get_type(), name, py::none{}); !attr.is_none()) {
+    if (auto attr = py::getattr(self.get_type(), py::str(name), py::none{}); !attr.is_none()) {
         py::getattr(attr, "__set__", py::none{})(self, value);
     } else {
         get(name).set_value(value);
@@ -87,13 +78,11 @@ auto Config::len_sequence() -> size_t {
     throw py::attribute_error{"invalid attribute"};
 }
 
-auto Config::get_value() -> std::optional<char const *> {
-    if (has_value_()) {
-        char const *value = nullptr;
-        handle_error(clingo_config_value_get(config_, key_, &value));
-        return value;
-    }
-    return std::nullopt;
+auto Config::get_value() -> std::optional<std::string_view> {
+    clingo_string_t value;
+    bool has_value = false;
+    handle_error(clingo_config_value_get(config_, key_, &value, &has_value));
+    return has_value ? std::make_optional<std::string_view>(value.data, value.size) : std::nullopt;
 }
 
 auto Config::attrs() -> TypeHint<"Sequence[str]"> {
@@ -102,18 +91,18 @@ auto Config::attrs() -> TypeHint<"Sequence[str]"> {
         size_t size = 0;
         handle_error(clingo_config_map_size(config_, key_, &size));
         for (size_t i = 0; i < size; ++i) {
-            char const *name = nullptr;
+            clingo_string_t name;
             handle_error(clingo_config_map_subkey_name(config_, key_, i, &name));
-            res.append(py::cast(name));
+            res.append(py::cast(std::string_view{name.data, name.size}));
         }
     }
     return res;
 }
 
-auto Config::desc() -> char const * {
-    char const *desc = nullptr;
+auto Config::desc() -> std::string_view {
+    clingo_string_t desc;
     clingo_config_description(config_, key_, &desc);
-    return desc;
+    return {desc.data, desc.size};
 }
 
 namespace {
@@ -147,7 +136,7 @@ void Config::str_(std::ostringstream &out, size_t first_indent, size_t indent) {
             auto str = py::cast<std::string>(attr);
             out << fi() << str << ":";
 
-            auto cfg = get(str.c_str());
+            auto cfg = get(str);
             if (cfg.is_value()) {
                 out << " ";
                 cfg.str_(out, 0, indent + str.size() + 2);
