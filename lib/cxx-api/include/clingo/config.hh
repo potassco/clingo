@@ -1,0 +1,39 @@
+#pragma once
+
+#include <clingo/core.hh>
+
+#include <clingo/config.h>
+
+class Config {
+  public:
+    Config(clingo_config_t *config, clingo_id_t key) : config_{config}, key_{key} {}
+
+    // value interface
+    auto is_value() -> bool;
+    auto get_value() -> std::optional<char const *>;
+    // void set_value(pybind11::handle value);
+
+    // sequence interface
+    auto is_sequence() -> bool;
+    auto at_sequence(size_t index) -> Config;
+    auto len_sequence() -> size_t;
+
+    // attribute access
+    auto get(char const *name) -> Config;
+    // void set(char const *name, pybind11::handle value);
+    // auto attrs() -> TypeHint<"Sequence[str]">;
+
+    // inspection
+    auto str() -> std::string;
+    auto desc() -> char const *;
+
+  private:
+    auto type_() -> clingo_config_type_bitset_t;
+    auto is_map_() -> bool;
+    auto has_subkey_(char const *name) -> bool;
+    auto has_value_() -> bool;
+    void str_(std::ostringstream &out, size_t first_indent, size_t indent);
+
+    clingo_config_t *config_;
+    clingo_id_t key_;
+};

@@ -1,8 +1,10 @@
 #pragma once
 
 #include <clingo/base.hh>
+#include <clingo/config.hh>
 #include <clingo/core.hh>
 #include <clingo/solve.hh>
+#include <clingo/stats.hh>
 #include <clingo/symbol.hh>
 
 #include <clingo/ast.h>
@@ -26,6 +28,7 @@ struct Part {
     SymbolVector params;
 };
 using PartSpan = std::span<Part const>;
+using PartVector = std::vector<Part>;
 
 enum class ControlMode : clingo_mode_t {
     parse = clingo_mode_parse,     //!< parse only
@@ -130,6 +133,54 @@ class Control {
         -> SolveHandle {
         return solve_(nullptr, assumptions, flags);
     }
+
+    void main() const { Detail::handle_error(clingo_control_main(ctl_.get()), data_().ptr); }
+
+    void interrupt() const { clingo_control_interrupt(ctl_.get()); }
+
+    void discard(bool minimize, bool project) const {
+        clingo_discard_type_t type = 0;
+        if (minimize) {
+            type |= clingo_discard_type_e::minimize;
+        }
+        if (project) {
+            type |= clingo_discard_type_e::project;
+        }
+        Detail::handle_error(clingo_control_discard(ctl_.get(), type));
+    }
+
+    [[nodiscard]] auto buffer() const -> std::string_view {
+        clingo_string_t ret;
+        Detail::handle_error(clingo_control_buffer(ctl_.get(), &ret));
+        return {ret.data, ret.size};
+    }
+
+    [[nodiscard]] auto parts() const -> std::optional<PartVector> {
+        clingo_part_t const *parts = nullptr;
+        size_t size = 0;
+        bool has_value = false;
+        Detail::handle_error(clingo_control_get_parts(ctl_.get(), &parts, &size, &has_value));
+        if (has_value) {
+            return Detail::transform(std::span{parts, size}, [](auto const &part) {
+                auto params = std::span{cpp_cast(part.params), part.params_size};
+                return Part{{part.name, part.name_size}, {params.begin(), params.end()}};
+            });
+        }
+        return std::nullopt;
+    }
+
+    void parts(std::optional<PartSpan> parts) const {
+        if (parts) {
+            auto cparts = Detail::transform(*parts, [](auto const &part) {
+                return clingo_part_t{part.name.data(), part.name.size(), c_cast(part.params.data()),
+                                     part.params.size()};
+            });
+            Detail::handle_error(clingo_control_set_parts(ctl_.get(), cparts.data(), cparts.size(), true));
+        } else {
+            Detail::handle_error(clingo_control_set_parts(ctl_.get(), nullptr, 0, true));
+        }
+    }
+
     /*
     void observe(Observer &obs, bool preprocess) {
         obs.observe(ctl_.get(), preprocess);
@@ -147,55 +198,10 @@ class Control {
         return Config{config, key};
     }
 
-    void main() {
-        auto release = py::gil_scoped_release{};
-        handle_error(clingo_control_main(ctl_.get()), get_exception_ptr());
-    }
-
-    void interrupt() {
-        clingo_control_interrupt(ctl_.get());
-    }
-
-    void discard(bool minimize, bool project) {
-        clingo_discard_type_t type = 0;
-        if (minimize) {
-            type |= clingo_discard_type_e::minimize;
-        }
-        if (project) {
-            type |= clingo_discard_type_e::project;
-        }
-        handle_error(clingo_control_discard(ctl_.get(), type));
-    }
-
-    auto buffer() -> char const * {
-        char const *ret = nullptr;
-        handle_error(clingo_control_buffer(ctl_.get(), &ret));
-        return ret;
-    }
-
     auto const_map() -> HintConstMap {
         clingo_const_map_t const *map = nullptr;
         handle_error(clingo_control_const_map(ctl_.get(), &map));
         return py::cast(ConstMap{map});
-    }
-
-    auto parts() -> std::optional<PartSpan> {
-        clingo_part_t const *parts = nullptr;
-        size_t size = 0;
-        bool has_value = false;
-        handle_error(clingo_control_get_parts(ctl_.get(), &parts, &size, &has_value));
-        if (!has_value) {
-            return std::nullopt;
-        }
-        return PartSpan{parts, size};
-    }
-
-    void set_parts(std::optional<PartSpan> parts) {
-        if (parts) {
-            handle_error(clingo_control_set_parts(ctl_.get(), parts->data(), parts->size(), true));
-        } else {
-            handle_error(clingo_control_set_parts(ctl_.get(), nullptr, 0, true));
-        }
     }
 
     void register_propagator(Annotation<Propagator> propagator) {

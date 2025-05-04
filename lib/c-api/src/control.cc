@@ -186,11 +186,11 @@ extern "C" auto clingo_control_main(clingo_control_t *control) -> clingo_result_
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_control_buffer(clingo_control_t *control, char const **buffer, size_t *size) -> clingo_result_t {
+extern "C" auto clingo_control_buffer(clingo_control_t *control, clingo_string_t *result) -> clingo_result_t {
     CLINGO_TRY {
         auto str = control->slv->buf().view();
-        *buffer = str.data();
-        *size = str.size();
+        result->data = str.data();
+        result->size = str.size();
     }
     CLINGO_CATCH;
 }

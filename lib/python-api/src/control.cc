@@ -227,10 +227,9 @@ void Control::discard(bool minimize, bool project) {
 }
 
 auto Control::buffer() -> std::string_view {
-    char const *ret = nullptr;
-    size_t size = 0;
-    handle_error(clingo_control_buffer(ctl_.get(), &ret, &size));
-    return {ret, size};
+    clingo_string_t res;
+    handle_error(clingo_control_buffer(ctl_.get(), &res));
+    return {res.data, res.size};
 }
 
 auto Control::const_map() -> HintConstMap {

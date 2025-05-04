@@ -30,7 +30,7 @@ class ConstStats {
 
     [[nodiscard]] auto array() const -> ConstStatsArray;
     [[nodiscard]] auto map() const -> ConstStatsMap;
-    [[nodiscard]] auto get() const -> double {
+    [[nodiscard]] auto value() const -> double {
         if (type() == StatsType::value) {
             double value = 0;
             Detail::handle_error(clingo_stats_value_get(stats_, key_, &value));
@@ -53,7 +53,7 @@ class Stats : public ConstStats {
 
     [[nodiscard]] auto array() const -> StatsArray;
     [[nodiscard]] auto map() const -> StatsMap;
-    void set(double value) const {
+    void value(double value) const {
         if (type() == StatsType::value) {
             Detail::handle_error(clingo_stats_value_set(stats_(), key_, value));
         } else {

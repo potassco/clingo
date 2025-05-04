@@ -253,11 +253,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_const_map(clingo_contro
 //! @note The control object has to be created passing option `--text-buffer`.
 //!
 //! @param[in] control the target
-//! @param[out] buffer the resulting string
-//! @param[out] size the size of the buffer
+//! @param[out] result the resulting string
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_buffer(clingo_control_t *control, char const **buffer,
-                                                                size_t *size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_buffer(clingo_control_t *control, clingo_string_t *result);
 
 //! Get the program parts to ground.
 //!
