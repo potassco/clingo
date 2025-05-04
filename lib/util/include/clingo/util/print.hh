@@ -104,6 +104,9 @@ class OutputBuffer {
         ++size_;
     }
 
+    //! Pop a char from the buffer.
+    void pop() { --size_; }
+
     //! Append an integral to the buffer.
     template <std::integral T> void append(T num) {
         constexpr auto n = 128;

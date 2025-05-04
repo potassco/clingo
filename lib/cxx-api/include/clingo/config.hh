@@ -50,6 +50,13 @@ class ConstConfig {
         clingo_config_description(cfg_, key_, &ret);
         return {ret.data, ret.size};
     }
+    [[nodiscard]] auto to_string() const -> std::string {
+        auto bld = StringBuilder{};
+        Detail::handle_error(clingo_config_to_string(cfg_, key_, c_cast(bld)));
+        clingo_string_t res;
+        Detail::handle_error(clingo_string_builder_string(c_cast(bld), &res));
+        return {res.data, res.size};
+    }
 
   private:
     friend class Config;

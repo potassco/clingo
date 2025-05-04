@@ -166,6 +166,16 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_value_get(clingo_config_
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_value_set(clingo_config_t *config, clingo_id_t key,
                                                                   char const *value, size_t size);
+
+//! Get the string representation of the given theory element.
+//!
+//! @param[in] config the target configuration
+//! @param[in] key the key
+//! @param[in] builder the builder
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_config_to_string(clingo_config_t const *config, clingo_id_t key,
+                                                                  clingo_string_builder_t *builder);
+
 //! @}
 
 //! Get the configuration object.

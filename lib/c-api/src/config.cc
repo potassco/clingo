@@ -4,6 +4,7 @@
 
 #include "clingo/control.h"
 #include "control.hh" // IWYU pragma: keep
+#include "core.hh"
 #include "lib.hh"
 
 inline auto cpp_cast(clingo_config_t const *config) -> Clasp::Cli::ClaspCliConfig const * {
@@ -67,6 +68,93 @@ extern "C" auto clingo_config_description(clingo_config_t const *config, clingo_
         }
         description->data = val.c_str();
         description->size = val.size();
+    }
+    CLINGO_CATCH;
+}
+
+namespace {
+
+class fill {
+  public:
+    fill(size_t n, char c = ' ') : n_{n}, c_{c} {}
+    friend auto operator<<(Clingo::Util::OutputBuffer &out, fill const &x) -> Clingo::Util::OutputBuffer & {
+        std::ranges::fill(out.reserve(static_cast<ssize_t>(x.n_)), x.c_);
+        return out;
+    }
+
+  private:
+    size_t n_;
+    char c_;
+};
+
+struct ConfigPrinter {
+  public:
+    explicit ConfigPrinter(Clasp::Cli::ClaspCliConfig const *cfg, Clingo::Util::OutputBuffer *out)
+        : cfg_{cfg}, out_{out} {}
+
+    auto str(clingo_id_t key) {
+        str_(key, 0, 0);
+        if (!out_->view().empty() && out_->view().back() == '\n') {
+            out_->pop();
+        }
+    }
+
+  private:
+    void str_(clingo_id_t key, size_t first_indent, size_t indent) {
+        int map_keys = 0;
+        int arr_len = 0;
+        int vals = 0;
+        cfg_->getKeyInfo(key, &map_keys, &arr_len, nullptr, &vals);
+        auto fi = [&, first = true]() mutable { return fill(std::exchange(first, false) ? first_indent : indent); };
+        if (vals >= 0) {
+            if (vals > 0) {
+                cfg_->getValue(key, val);
+                *out_ << fi() << Clingo::Util::p_quoted(val) << "\n";
+            } else {
+                *out_ << fi() << "null\n";
+            }
+        }
+        if (map_keys > 0 && arr_len <= 0) {
+            for (int i = 0; i < map_keys; ++i) {
+                auto name = std::string_view{cfg_->getSubkey(key, i)};
+                *out_ << fi() << name << ":";
+                auto sub_key = cfg_->getKey(key, name);
+                int sub_vals = 0;
+                cfg_->getKeyInfo(key, nullptr, nullptr, nullptr, &sub_vals);
+                if (sub_vals >= 0) {
+                    *out_ << " ";
+                    str_(sub_key, 0, indent + name.size() + 2);
+                } else {
+                    *out_ << "\n";
+                    str_(sub_key, indent + 2, indent + 2);
+                }
+            }
+        }
+        if (arr_len >= 0) {
+            if (int e = arr_len; e > 0) {
+                for (int i = 0, e = arr_len; i != e; ++i) {
+                    *out_ << fi() << "- ";
+                    auto sub_key = cfg_->getArrKey(key, i);
+                    str_(sub_key, 0, indent + 2);
+                }
+
+            } else {
+                *out_ << fi() << "[]\n";
+            }
+        }
+    }
+
+    Clasp::Cli::ClaspCliConfig const *cfg_;
+    Clingo::Util::OutputBuffer *out_;
+    std::string val;
+};
+
+} // namespace
+
+extern "C" auto clingo_config_to_string(clingo_config_t const *config, clingo_id_t key,
+                                        clingo_string_builder_t *builder) -> clingo_result_t {
+    CLINGO_TRY {
+        ConfigPrinter{cpp_cast(config), cpp_cast(builder)}.str(key);
     }
     CLINGO_CATCH;
 }

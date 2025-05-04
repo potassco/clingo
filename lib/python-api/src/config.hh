@@ -28,7 +28,7 @@ class Config {
     auto attrs() -> TypeHint<"Sequence[str]">;
 
     // inspection
-    auto str() -> std::string;
+    auto str() -> std::string_view;
     auto desc() -> std::string_view;
 
   private:

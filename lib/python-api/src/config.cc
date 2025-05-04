@@ -105,68 +105,12 @@ auto Config::desc() -> std::string_view {
     return {desc.data, desc.size};
 }
 
-namespace {
-
-class fill {
-  public:
-    fill(size_t n, char c = ' ') : n_{n}, c_{c} {}
-    friend auto operator<<(std::ostream &out, fill const &x) -> std::ostream & {
-        std::fill_n(std::ostreambuf_iterator<char>(out), x.n_, x.c_);
-        return out;
-    }
-
-  private:
-    size_t n_;
-    char c_;
-};
-
-} // namespace
-
-void Config::str_(std::ostringstream &out, size_t first_indent, size_t indent) {
-    auto fi = [&, first = true]() mutable { return fill(std::exchange(first, false) ? first_indent : indent); };
-    if (is_value()) {
-        if (auto val = get_value()) {
-            out << fi() << std::quoted(*val) << "\n";
-        } else {
-            out << fi() << "null\n";
-        }
-    }
-    if (is_map_() && (!is_sequence() || len_sequence() == 0)) {
-        for (auto const &attr : attrs()) {
-            auto str = py::cast<std::string>(attr);
-            out << fi() << str << ":";
-
-            auto cfg = get(str);
-            if (cfg.is_value()) {
-                out << " ";
-                cfg.str_(out, 0, indent + str.size() + 2);
-            } else {
-                out << "\n";
-                cfg.str_(out, indent + 2, indent + 2);
-            }
-        }
-    }
-    if (is_sequence()) {
-        if (size_t e = len_sequence(); e > 0) {
-            for (size_t i = 0, e = len_sequence(); i != e; ++i) {
-                out << fi() << "- ";
-                at_sequence(i).str_(out, 0, indent + 2);
-            }
-
-        } else {
-            out << fi() << "[]\n";
-        }
-    }
-}
-
-auto Config::str() -> std::string {
-    auto out = std::ostringstream{};
-    str_(out, 0, 0);
-    auto res = std::move(out).str();
-    if (res.back() == '\n') {
-        res.pop_back();
-    }
-    return res;
+auto Config::str() -> std::string_view {
+    auto *bld = string_builder();
+    handle_error(clingo_config_to_string(config_, key_, bld));
+    clingo_string_t res;
+    handle_error(clingo_string_builder_string(bld, &res));
+    return {res.data, res.size};
 }
 
 void register_config(pybind11::module &m) {
