@@ -102,6 +102,19 @@ class SolveEventHandler : public Clingo::Control::EventHandler {
         bool goon = true;
         handle_error(notify_(clingo_solve_event_type_stats, &stats, data_, &goon));
     }
+    void do_on_unsat(Clasp::SumView bound) override {
+        bool goon = true;
+        struct res {
+            int64_t const *data;
+            size_t size;
+        } res{bound.data(), bound.size()};
+        handle_error(notify_(clingo_solve_event_type_unsat, &res, data_, &goon));
+    }
+    void do_on_finish(Clingo::Control::SolveResult res) override {
+        bool goon = true;
+        auto data = static_cast<clingo_solve_result_bitset_t>(res);
+        handle_error(notify_(clingo_solve_event_type_finish, &data, data_, &goon));
+    }
 
   private:
     clingo_solve_event_callback_t notify_;

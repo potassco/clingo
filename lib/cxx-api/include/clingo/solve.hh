@@ -192,10 +192,16 @@ class Model : public ConstModel {
 class SolveEventHandler {
   public:
     virtual ~SolveEventHandler() = default;
-    virtual auto model(Model &model) -> bool;
-    virtual void unsat(SumSpan lower_bound);
-    virtual void stats(Stats step, Stats accu);
-    virtual void finish(SolveResult result);
+    auto model(Model &model) -> bool { return do_model(model); }
+    void unsat(SumSpan lower_bound) { do_unsat(lower_bound); }
+    void stats(Stats step, Stats accu) { do_stats(step, accu); }
+    void finish(SolveResult result) { do_finish(result); }
+
+  private:
+    virtual auto do_model([[maybe_unused]] Model &model) -> bool { return true; }
+    virtual void do_unsat([[maybe_unused]] SumSpan lower_bound) {}
+    virtual void do_stats([[maybe_unused]] Stats step, [[maybe_unused]] Stats accu) {}
+    virtual void do_finish([[maybe_unused]] SolveResult result) {}
 };
 
 class SolveHandle {
@@ -243,8 +249,8 @@ class SolveHandle {
     using reference = iterator::reference;
     using pointer = iterator::pointer;
 
-    explicit SolveHandle(std::exception_ptr &ptr, std::unique_ptr<SolveEventHandler> seh = nullptr)
-        : data_{std::make_unique<Data>(&ptr, std::move(seh))} {}
+    explicit SolveHandle(std::exception_ptr &ptr, SolveEventHandler *seh = nullptr)
+        : data_{std::make_unique<Data>(&ptr, seh)} {}
 
     friend auto c_cast(SolveHandle const &x) -> clingo_solve_handle_t * { return x.data_->hnd; }
 
@@ -299,7 +305,7 @@ class SolveHandle {
         void close() { Detail::handle_error(clingo_solve_handle_close(std::exchange(hnd, nullptr))); }
 
         std::exception_ptr *ptr;
-        std::unique_ptr<SolveEventHandler> seh;
+        SolveEventHandler *seh;
         clingo_solve_handle_t *hnd = nullptr;
     };
 
@@ -330,14 +336,17 @@ class SolveHandle {
                     break;
                 }
                 case clingo_solve_event_type_finish: {
-                    auto res = SolveResult{0};
+                    auto res = *static_cast<SolveResult *>(data);
                     hnd->seh->finish(res);
-                    throw std::logic_error{"pass proper solve result"};
+                    break;
                 }
                 case clingo_solve_event_type_unsat: {
-                    auto lower_bound = SumSpan{};
-                    hnd->seh->unsat(lower_bound);
-                    throw std::logic_error{"pass proper lower bound"};
+                    struct res {
+                        int64_t const *data;
+                        size_t size;
+                    } *res = static_cast<struct res *>(data);
+                    hnd->seh->unsat({res->data, res->size});
+                    break;
                 }
             }
         }

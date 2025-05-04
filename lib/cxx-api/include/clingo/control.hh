@@ -45,6 +45,7 @@ enum class WriteAspifFlags : clingo_write_aspif_mode_t {
 CLINGO_ENABLE_BITSET_ENUM(WriteAspifFlags);
 
 enum class SolveFlags : clingo_solve_mode_bitset_t {
+    empty = 0,
     yield = clingo_solve_mode_yield,
     async = clingo_solve_mode_async,
 };
@@ -120,18 +121,15 @@ class Control {
         return ConstStats{stats, key};
     }
 
-    // TODO: adjust python api to includ missing callbacks
-    [[nodiscard]] auto solve(LiteralSpan const &assumptions, std::unique_ptr<SolveEventHandler> handler,
-                             SolveFlags flags) const -> SolveHandle {
-        auto &ptr = data_().ptr;
-        auto res = SolveHandle{ptr, std::move(handler)};
-        Detail::handle_error(clingo_control_solve(ctl_.get(), static_cast<clingo_solve_mode_bitset_t>(flags),
-                                                  assumptions.data(), assumptions.size(),
-                                                  &SolveHandle::c_event_handler_, res.data_.get(), &res.data_->hnd),
-                             ptr);
-        return res;
+    [[nodiscard]] auto solve(SolveEventHandler &handler, LiteralSpan const &assumptions = {},
+                             SolveFlags flags = SolveFlags::empty) const -> SolveHandle {
+        return solve_(&handler, assumptions, flags);
     }
 
+    [[nodiscard]] auto solve(LiteralSpan const &assumptions = {}, SolveFlags flags = SolveFlags::yield) const
+        -> SolveHandle {
+        return solve_(nullptr, assumptions, flags);
+    }
     /*
     void observe(Observer &obs, bool preprocess) {
         obs.observe(ctl_.get(), preprocess);
@@ -240,7 +238,16 @@ class Control {
         }
         return *data;
     }
-
+    [[nodiscard]] auto solve_(SolveEventHandler *handler, LiteralSpan const &assumptions, SolveFlags flags) const
+        -> SolveHandle {
+        auto &ptr = data_().ptr;
+        auto res = SolveHandle{ptr, handler};
+        Detail::handle_error(clingo_control_solve(ctl_.get(), static_cast<clingo_solve_mode_bitset_t>(flags),
+                                                  assumptions.data(), assumptions.size(),
+                                                  &SolveHandle::c_event_handler_, res.data_.get(), &res.data_->hnd),
+                             ptr);
+        return res;
+    }
     Detail::ManagedPtr<Control, clingo_control_t> ctl_;
 };
 
