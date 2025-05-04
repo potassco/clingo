@@ -77,7 +77,7 @@ class ConstModel {
 
     friend auto c_cast(ConstModel const &x) -> clingo_model_t const * { return x.mdl_; }
 
-    [[nodiscard]] auto symbols(ShowFlags flags) const -> SymbolVector {
+    [[nodiscard]] auto symbols(ShowFlags flags = ShowFlags::shown) const -> SymbolVector {
         auto res = SymbolVector{};
         Detail::handle_error(clingo_model_symbols(mdl_, static_cast<clingo_show_type_bitset_t>(flags), &sym_cb_, &res));
         return res;

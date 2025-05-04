@@ -250,7 +250,8 @@ class Control {
         auto res = SolveHandle{ptr, handler};
         Detail::handle_error(clingo_control_solve(ctl_.get(), static_cast<clingo_solve_mode_bitset_t>(flags),
                                                   assumptions.data(), assumptions.size(),
-                                                  &SolveHandle::c_event_handler_, res.data_.get(), &res.data_->hnd),
+                                                  handler != nullptr ? &SolveHandle::c_event_handler_ : nullptr,
+                                                  handler != nullptr ? res.data_.get() : nullptr, &res.data_->hnd),
                              ptr);
         return res;
     }
