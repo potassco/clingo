@@ -93,10 +93,9 @@ extern "C" auto clingo_control_backend(clingo_control_t *control, clingo_backend
 
 extern "C" auto clingo_backend_close(clingo_backend_t *backend) -> clingo_result_t {
     CLINGO_TRY {
-        if (backend == nullptr) {
-            return clingo_result_invalid;
+        if (backend != nullptr) {
+            delete cpp_cast(backend);
         }
-        delete cpp_cast(backend);
     }
     CLINGO_CATCH;
 }
@@ -194,7 +193,7 @@ extern "C" auto clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, 
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t *symbol, clingo_atom_t *atom)
+extern "C" auto clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t const *symbol, clingo_atom_t *atom)
     -> clingo_result_t {
     CLINGO_TRY {
         if (backend == nullptr || atom == nullptr) {
@@ -216,13 +215,13 @@ extern "C" auto clingo_backend_theory_term_number(clingo_backend_t *backend, int
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_backend_theory_term_string(clingo_backend_t *backend, char const *string, clingo_id_t *term_id)
-    -> clingo_result_t {
+extern "C" auto clingo_backend_theory_term_string(clingo_backend_t *backend, char const *string, size_t size,
+                                                  clingo_id_t *term_id) -> clingo_result_t {
     CLINGO_TRY {
-        if (backend == nullptr || string == nullptr || term_id == nullptr) {
+        if (backend == nullptr || (string == nullptr && size > 0) || term_id == nullptr) {
             return clingo_result_invalid;
         }
-        *term_id = get_theory(backend).str(*get_store(backend).string(string));
+        *term_id = get_theory(backend).str(*get_store(backend).string(std::string_view{string, size}));
     }
     CLINGO_CATCH;
 }
@@ -251,14 +250,15 @@ extern "C" auto clingo_backend_theory_term_sequence(clingo_backend_t *backend, c
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_backend_theory_term_function(clingo_backend_t *backend, char const *name,
-                                                    clingo_id_t const *arguments, size_t size, clingo_id_t *term_id)
-    -> clingo_result_t {
+extern "C" auto clingo_backend_theory_term_function(clingo_backend_t *backend, char const *name, size_t name_size,
+                                                    clingo_id_t const *arguments, size_t arguments_size,
+                                                    clingo_id_t *term_id) -> clingo_result_t {
     CLINGO_TRY {
-        if (backend == nullptr || name == nullptr || arguments == nullptr || size == 0 || term_id == nullptr) {
+        if (backend == nullptr || (name == nullptr && name_size > 0) || arguments == nullptr || arguments_size == 0 ||
+            term_id == nullptr) {
             return clingo_result_invalid;
         }
-        *term_id = get_theory(backend).fun(*get_store(backend).string(name), std::span{arguments, size});
+        *term_id = get_theory(backend).fun(*get_store(backend).string(name), std::span{arguments, arguments_size});
     }
     CLINGO_CATCH;
 }
@@ -277,7 +277,7 @@ extern "C" auto clingo_backend_theory_element(clingo_backend_t *backend, clingo_
 }
 
 extern "C" auto clingo_backend_theory_atom(clingo_backend_t *backend, clingo_symbol_t name, clingo_id_t const *elements,
-                                           size_t size, char const *operator_name, clingo_id_t right_hand_side_id,
+                                           size_t size, clingo_string_t *operator_name, clingo_id_t right_hand_side_id,
                                            clingo_atom_t const *atom_in, clingo_atom_t *atom_out) -> clingo_result_t {
     CLINGO_TRY {
         if (backend == nullptr || (elements == nullptr && size > 0)) {
@@ -286,7 +286,7 @@ extern "C" auto clingo_backend_theory_atom(clingo_backend_t *backend, clingo_sym
         auto op = Clingo::SharedString{};
         auto guard = std::optional<std::pair<Clingo::String, clingo_id_t>>{};
         if (operator_name != nullptr) {
-            op = get_store(backend).string(operator_name);
+            op = get_store(backend).string(std::string_view{operator_name->data, operator_name->size});
             guard.emplace(*op, right_hand_side_id);
         }
         *atom_out =

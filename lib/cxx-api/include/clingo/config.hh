@@ -20,7 +20,7 @@ class ConfigMap;
 
 class ConstConfig {
   public:
-    explicit ConstConfig(clingo_config_t const *stats, Id key) : cfg_{stats}, key_{key} {}
+    explicit ConstConfig(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
     friend auto c_cast(ConstConfig const &stats) -> clingo_config_t const * { return stats.cfg_; }
 
     [[nodiscard]] auto type() const -> ConfigType {
@@ -65,7 +65,7 @@ class ConstConfig {
 
 class Config : public ConstConfig {
   public:
-    explicit Config(clingo_config_t *stats, Id key) : ConstConfig{stats, key} {}
+    explicit Config(clingo_config_t *stats, ProgramId key) : ConstConfig{stats, key} {}
     friend auto c_cast(Config const &stats) -> clingo_config_t * { return stats.cfg_(); }
 
     [[nodiscard]] auto array() const -> ConfigArray;
@@ -94,7 +94,7 @@ class ConstConfigArray {
     using pointer = Detail::ArrowProxy<value_type>;
     using iterator = Detail::RandomAccessIterator<ConstConfigArray>;
 
-    explicit ConstConfigArray(clingo_config_t const *stats, Id key) : cfg_{stats}, key_{key} {}
+    explicit ConstConfigArray(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
 
     [[nodiscard]] auto at(size_t index) const -> ConstConfig { return ConstConfig{cfg_, at_(index)}; }
     [[nodiscard]] auto operator[](size_t index) const -> ConstConfig { return at(index); }
@@ -134,7 +134,7 @@ class ConfigArray : public ConstConfigArray {
     using pointer = Detail::ArrowProxy<value_type>;
     using iterator = Detail::RandomAccessIterator<ConfigArray>;
 
-    explicit ConfigArray(clingo_config_t *stats, Id key) : ConstConfigArray{stats, key} {}
+    explicit ConfigArray(clingo_config_t *stats, ProgramId key) : ConstConfigArray{stats, key} {}
 
     [[nodiscard]] auto at(size_t index) const -> Config { return Config{cfg_(), at_(index)}; }
     [[nodiscard]] auto operator[](size_t index) const -> Config { return at(index); }
@@ -166,7 +166,7 @@ class ConstConfigMap {
     using pointer = Detail::ArrowProxy<value_type>;
     using iterator = Detail::RandomAccessIterator<ConstConfigMap>;
 
-    explicit ConstConfigMap(clingo_config_t const *stats, Id key) : cfg_{stats}, key_{key} {}
+    explicit ConstConfigMap(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
 
     [[nodiscard]] auto size() const -> size_t {
         size_t size = 0;
@@ -224,7 +224,7 @@ class ConfigMap : public ConstConfigMap {
     using pointer = Detail::ArrowProxy<value_type>;
     using iterator = Detail::RandomAccessIterator<ConfigMap>;
 
-    explicit ConfigMap(clingo_config_t *stats, Id key) : ConstConfigMap{stats, key} {}
+    explicit ConfigMap(clingo_config_t *stats, ProgramId key) : ConstConfigMap{stats, key} {}
 
     [[nodiscard]] auto at(size_t index) const -> value_type {
         auto [name, subkey] = at_(index);

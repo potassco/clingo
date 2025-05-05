@@ -1,6 +1,7 @@
 #pragma once
 
 #include <clingo/core.h>
+#include <clingo/shared.h>
 
 #include <algorithm>
 #include <functional>
@@ -274,14 +275,21 @@ template <class Seq> class RandomAccessIterator {
 
 } // namespace Detail
 
-using Id = clingo_id_t;
+using ProgramId = clingo_id_t;
+using IdSpan = std::span<ProgramId const>;
 
-using Literal = clingo_literal_t;
-using LiteralSpan = std::span<Literal const>;
-using LiteralVector = std::vector<Literal>;
+using ProgramAtom = clingo_atom_t;
+using ProgramAtomSpan = std::span<ProgramAtom const>;
+
+using ProgramLiteral = clingo_literal_t;
+using ProgramLiteralSpan = std::span<ProgramLiteral const>;
+using ProgramLiteralVector = std::vector<ProgramLiteral>;
 
 using Weight = clingo_weight_t;
 using WeightSpan = std::span<clingo_weight_t const>;
+
+using WeightedLiteral = clingo_weighted_literal_t;
+using WeightedLiteralSpan = std::span<WeightedLiteral const>;
 
 using Sum = int64_t;
 using SumSpan = std::span<Sum const>;
@@ -388,6 +396,22 @@ class StringBuilder {
 
   private:
     clingo_string_builder_t *rep_ = nullptr;
+};
+
+enum class ExternalType : clingo_external_type_t {
+    free = clingo_external_type_free,       //!< allow an external to be assigned freely
+    true_ = clingo_external_type_true,      //!< assign an external to true
+    false_ = clingo_external_type_false,    //!< assign an external to false
+    release = clingo_external_type_release, //!< no longer treat an atom as external
+};
+
+enum class HeuristicType : clingo_heuristic_type_t {
+    level = clingo_heuristic_type_level,   //!< set the level of an atom
+    sign = clingo_heuristic_type_sign,     //!< configure which sign to chose for an atom
+    factor = clingo_heuristic_type_factor, //!< modify VSIDS factor of an atom
+    init = clingo_heuristic_type_init,     //!< modify the initial VSIDS score of an atom
+    true_ = clingo_heuristic_type_true,    //!< set the level of an atom and choose a positive sign
+    false_ = clingo_heuristic_type_false   //!< set the level of an atom and choose a negative sign
 };
 
 } // namespace Clingo

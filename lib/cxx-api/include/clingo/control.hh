@@ -1,15 +1,15 @@
 #pragma once
 
+#include <clingo/backend.hh>
 #include <clingo/base.hh>
 #include <clingo/config.hh>
 #include <clingo/core.hh>
+#include <clingo/observe.hh>
 #include <clingo/solve.hh>
 #include <clingo/stats.hh>
 #include <clingo/symbol.hh>
 
-#include <clingo/ast.h>
 #include <clingo/control.h>
-#include <clingo/observe.h>
 
 #include <cassert>
 #include <optional>
@@ -171,12 +171,12 @@ class Control {
         return ConstStats{stats, key};
     }
 
-    [[nodiscard]] auto solve(SolveEventHandler &handler, LiteralSpan const &assumptions = {},
+    [[nodiscard]] auto solve(SolveEventHandler &handler, ProgramLiteralSpan const &assumptions = {},
                              SolveFlags flags = SolveFlags::empty) const -> SolveHandle {
         return solve_(&handler, assumptions, flags);
     }
 
-    [[nodiscard]] auto solve(LiteralSpan const &assumptions = {}, SolveFlags flags = SolveFlags::yield) const
+    [[nodiscard]] auto solve(ProgramLiteralSpan const &assumptions = {}, SolveFlags flags = SolveFlags::yield) const
         -> SolveHandle {
         return solve_(nullptr, assumptions, flags);
     }
@@ -242,17 +242,16 @@ class Control {
         return ConstMap{map};
     }
 
-    // TODO: wrap program
-    void join(clingo_program_t *prg) const { Detail::handle_error(clingo_control_join(ctl_.get(), prg)); }
+    void observe(Observer &obs, bool preprocess) const { obs.observe(ctl_.get(), preprocess); }
+
+    [[nodiscard]] auto backend() const -> ProgramBackend {
+        clingo_backend_t *bck = nullptr;
+        Detail::handle_error(clingo_control_backend(ctl_.get(), &bck));
+        return ProgramBackend{bck};
+    }
 
     /*
-    void observe(Observer &obs, bool preprocess) const {
-        obs.observe(ctl_.get(), preprocess);
-    }
-
-    auto backend() -> BackendManager const {
-        return BackendManager{ctl_.get()};
-    }
+    void join(AST::Program &prg) const { Detail::handle_error(clingo_control_join(ctl_.get(), prg)); }
 
     void register_propagator(Annotation<Propagator> propagator) const {
         auto &prop = propagator.cast<Propagator &>();
@@ -296,7 +295,7 @@ class Control {
         return *data;
     }
 
-    [[nodiscard]] auto solve_(SolveEventHandler *handler, LiteralSpan const &assumptions, SolveFlags flags) const
+    [[nodiscard]] auto solve_(SolveEventHandler *handler, ProgramLiteralSpan const &assumptions, SolveFlags flags) const
         -> SolveHandle {
         auto &ptr = data_().ptr;
         auto res = SolveHandle{ptr, handler};

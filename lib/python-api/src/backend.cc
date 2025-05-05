@@ -135,7 +135,7 @@ void Observer::observe(clingo_control_t *ctl, bool preprocess) {
 
 auto Backend::atom(std::optional<Symbol> symbol) -> clingo_atom_t {
     clingo_atom_t atom = 0;
-    clingo_backend_add_atom(backend_, symbol ? c_cast(&*symbol) : nullptr, &atom);
+    handle_error(clingo_backend_add_atom(backend_, symbol ? c_cast(&*symbol) : nullptr, &atom));
     return atom;
 }
 
@@ -179,9 +179,9 @@ auto Backend::theory_number(int number) -> clingo_id_t {
     return id;
 }
 
-auto Backend::theory_string(std::string const &string) -> clingo_id_t {
+auto Backend::theory_string(std::string_view string) -> clingo_id_t {
     clingo_id_t id = 0;
-    handle_error(clingo_backend_theory_term_string(backend_, string.c_str(), &id));
+    handle_error(clingo_backend_theory_term_string(backend_, string.data(), string.size(), &id));
     return id;
 }
 
@@ -197,9 +197,10 @@ auto Backend::theory_sequence(clingo_theory_sequence_type_e type, IdSpan element
     return id;
 }
 
-auto Backend::theory_function(std::string const &name, IdSpan elements) -> clingo_id_t {
+auto Backend::theory_function(std::string_view name, IdSpan elements) -> clingo_id_t {
     clingo_id_t id = 0;
-    handle_error(clingo_backend_theory_term_function(backend_, name.c_str(), elements.data(), elements.size(), &id));
+    handle_error(
+        clingo_backend_theory_term_function(backend_, name.data(), name.size(), elements.data(), elements.size(), &id));
     return id;
 }
 
@@ -213,9 +214,10 @@ auto Backend::theory_element(IdSpan tuple, LitSpan condition) -> clingo_id_t {
 auto Backend::theory_atom(std::optional<clingo_atom_t> atom, Symbol name, IdSpan elements,
                           std::optional<std::pair<std::string, clingo_id_t>> const &guard) -> clingo_atom_t {
     clingo_atom_t res = 0;
+    auto op = clingo_string_t{guard ? guard->first.data() : nullptr, guard ? guard->first.size() : 0};
     handle_error(clingo_backend_theory_atom(backend_, *c_cast(&name), elements.data(), elements.size(),
-                                            guard ? guard->first.c_str() : nullptr, guard ? guard->second : 0,
-                                            atom ? &*atom : nullptr, &res));
+                                            guard ? &op : nullptr, guard ? guard->second : 0, atom ? &*atom : nullptr,
+                                            &res));
     return res;
 }
 

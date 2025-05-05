@@ -8,11 +8,13 @@
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
+#include <fstream>
+
 namespace {
 
 auto map(Potassco::WeightLitSpan lits) -> clingo_weighted_literal_t * {
     // NOTE: a reinterpret_cast should be safe as well
-    static thread_local auto ret = std::vector<clingo_weighted_literal_t>{};
+    thread_local auto ret = std::vector<clingo_weighted_literal_t>{};
     ret.clear();
     for (auto const &lit : lits) {
         ret.emplace_back(lit.lit, lit.weight);
@@ -229,7 +231,7 @@ extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const
         if ((mode & clingo_write_aspif_mode_preamble_auto) != 0) {
             pre = !app;
         }
-        auto out = std::ofstream{path_view, app ? std::ios::app : std::ios::out};
+        auto out = std::ofstream{std::string{path_view}, app ? std::ios::app : std::ios::out};
         out.exceptions(std::ios::failbit | std::ios::badbit);
         if ((mode & clingo_write_aspif_mode_symbols) != 0) {
             auto obs = ExtendedAspifWriter{control->slv->sym_tab(), *control->slv, out};

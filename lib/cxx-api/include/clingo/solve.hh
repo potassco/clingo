@@ -43,11 +43,11 @@ class SolveControl {
         return {base};
     }
 
-    auto add_clause(LiteralSpan lits) const {
+    auto add_clause(ProgramLiteralSpan lits) const {
         Detail::handle_error(clingo_solve_control_add_clause(ctl_, lits.data(), lits.size()));
     }
 
-    auto add_nogood(LiteralSpan lits) const {
+    auto add_nogood(ProgramLiteralSpan lits) const {
         add_clause(Detail::transform(lits, [](auto const &lit) { return -lit; }));
     }
 
@@ -101,13 +101,13 @@ class ConstModel {
         return num;
     }
 
-    [[nodiscard]] auto is_true(Literal lit) const -> bool {
+    [[nodiscard]] auto is_true(ProgramLiteral lit) const -> bool {
         auto res = false;
         Detail::handle_error(clingo_model_is_true(mdl_, lit, &res));
         return res;
     }
 
-    [[nodiscard]] auto is_consequence(Literal lit) const -> std::optional<bool> {
+    [[nodiscard]] auto is_consequence(ProgramLiteral lit) const -> std::optional<bool> {
         clingo_consequence_t res = 0;
         Detail::handle_error(clingo_model_is_consequence(mdl_, lit, &res));
         if (res != clingo_consequence_unknown) {
@@ -136,7 +136,7 @@ class ConstModel {
         return res;
     }
 
-    [[nodiscard]] auto thread_id() const -> Id {
+    [[nodiscard]] auto thread_id() const -> ProgramId {
         clingo_id_t id = 0;
         Detail::handle_error(clingo_model_thread_id(mdl_, &id));
         return id;
@@ -278,7 +278,7 @@ class SolveHandle {
         return mdl != nullptr ? std::make_optional<ConstModel>(mdl) : std::nullopt;
     }
 
-    [[nodiscard]] auto core() const -> LiteralSpan {
+    [[nodiscard]] auto core() const -> ProgramLiteralSpan {
         auto const *lits = static_cast<clingo_literal_t *>(nullptr);
         auto size = size_t{0};
         Detail::handle_error(clingo_solve_handle_core(data_->hnd, &lits, &size), *data_->ptr);

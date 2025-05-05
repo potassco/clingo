@@ -12,7 +12,7 @@ class Atom {
   public:
     explicit Atom(clingo_atom_base_t const *base, size_t index) : base_{base}, index_{index} {}
 
-    [[nodiscard]] auto literal() const -> Literal {
+    [[nodiscard]] auto literal() const -> ProgramLiteral {
         auto lit = clingo_literal_t{0};
         Detail::handle_error(clingo_atom_base_literal(base_, index_, &lit));
         return lit;
@@ -95,13 +95,13 @@ class Term {
         Detail::handle_error(clingo_term_base_symbol(base_, index_, &sym));
         return Symbol{sym, true};
     }
-    [[nodiscard]] auto condition() const -> std::vector<LiteralVector> {
+    [[nodiscard]] auto condition() const -> std::vector<ProgramLiteralVector> {
         size_t const *sizes = nullptr;
         clingo_literal_t const *const *lits = nullptr;
         size_t size = 0;
         Detail::handle_error(clingo_term_base_condition(base_, index_, &sizes, &lits, &size));
 
-        auto res = std::vector<LiteralVector>{};
+        auto res = std::vector<ProgramLiteralVector>{};
         res.reserve(size);
         for (size_t i = 0; i < size; ++i) {
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -242,14 +242,14 @@ class TheoryElement {
         return Detail::transform(std::span{tuple, size}, [this](clingo_id_t id) { return TheoryTerm{*base_, id}; });
     }
 
-    [[nodiscard]] auto condition() const -> LiteralSpan {
+    [[nodiscard]] auto condition() const -> ProgramLiteralSpan {
         size_t size = 0;
         clingo_literal_t const *cond = nullptr;
         Detail::handle_error(clingo_theory_base_element_condition(base_, index_, &cond, &size));
         return std::span{cond, size};
     }
 
-    [[nodiscard]] auto condition_id() const -> Literal {
+    [[nodiscard]] auto condition_id() const -> ProgramLiteral {
         clingo_literal_t id = 0;
         Detail::handle_error(clingo_theory_base_element_condition_id(base_, index_, &id));
         return id;
@@ -295,7 +295,7 @@ class TheoryAtom {
         return Detail::transform(std::span{elems, size}, [this](clingo_id_t id) { return TheoryElement{*base_, id}; });
     }
 
-    [[nodiscard]] auto literal() const -> Literal {
+    [[nodiscard]] auto literal() const -> ProgramLiteral {
         clingo_literal_t lit = 0;
         Detail::handle_error(clingo_theory_base_atom_literal(base_, index_, &lit));
         return lit;
@@ -380,31 +380,31 @@ class Base {
 
     Base(clingo_base_t const *base) : base_{base} {}
 
-    [[nodiscard]] auto is_external(Literal lit) const -> bool {
+    [[nodiscard]] auto is_external(ProgramLiteral lit) const -> bool {
         auto ext = false;
         Detail::handle_error(clingo_base_is_external(base_, lit, &ext));
         return ext;
     }
 
-    [[nodiscard]] auto is_fact(Literal lit) const -> bool {
+    [[nodiscard]] auto is_fact(ProgramLiteral lit) const -> bool {
         auto fact = false;
         Detail::handle_error(clingo_base_is_fact(base_, lit, &fact));
         return fact;
     }
 
-    [[nodiscard]] auto is_shown(Literal lit) const -> bool {
+    [[nodiscard]] auto is_shown(ProgramLiteral lit) const -> bool {
         auto shown = false;
         Detail::handle_error(clingo_base_is_shown(base_, lit, &shown));
         return shown;
     }
 
-    [[nodiscard]] auto is_projected(Literal lit) const -> bool {
+    [[nodiscard]] auto is_projected(ProgramLiteral lit) const -> bool {
         auto projected = false;
         Detail::handle_error(clingo_base_is_fact(base_, lit, &projected));
         return projected;
     }
 
-    [[nodiscard]] auto is_current(Literal lit) const -> bool {
+    [[nodiscard]] auto is_current(ProgramLiteral lit) const -> bool {
         auto current = false;
         Detail::handle_error(clingo_base_is_current(base_, lit, &current));
         return current;

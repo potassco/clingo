@@ -154,8 +154,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_acyc_edge(clingo_backen
 //! @param[in] symbol optional symbol to associate the atom with
 //! @param[out] atom the resulting atom
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t *symbol,
-                                                                  clingo_atom_t *atom);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_add_atom(clingo_backend_t *backend,
+                                                                  clingo_symbol_t const *symbol, clingo_atom_t *atom);
 //! Add a numeric theory term.
 //!
 //! @param[in] backend the target backend
@@ -168,10 +168,12 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_theory_term_number(clin
 //!
 //! @param[in] backend the target backend
 //! @param[in] string the value of the term
+//! @param[in] size the size of the string
 //! @param[out] term_id the resulting term id
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_theory_term_string(clingo_backend_t *backend,
-                                                                            char const *string, clingo_id_t *term_id);
+                                                                            char const *string, size_t size,
+                                                                            clingo_id_t *term_id);
 //! Add a theory term representing a sequence of theory terms.
 //!
 //! @param[in] backend the target backend
@@ -188,13 +190,15 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_theory_term_sequence(cl
 //!
 //! @param[in] backend the target backend
 //! @param[in] name the name of the function
+//! @param[in] name_size the size of the name
 //! @param[in] arguments an array of term ids for the theory terms in the arguments
-//! @param[in] size the number of arguments
+//! @param[in] arguments_size the number of arguments
 //! @param[out] term_id the resulting term id
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_theory_term_function(clingo_backend_t *backend,
-                                                                              char const *name,
-                                                                              clingo_id_t const *arguments, size_t size,
+                                                                              char const *name, size_t name_size,
+                                                                              clingo_id_t const *arguments,
+                                                                              size_t arguments_size,
                                                                               clingo_id_t *term_id);
 //! Convert the given symbol into a theory term.
 //!
@@ -235,9 +239,12 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_theory_element(clingo_b
 //! @param[in] atom_in the atom as described above
 //! @param[out] atom_out the final program atom of the theory atom
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_theory_atom(
-    clingo_backend_t *backend, clingo_symbol_t name, clingo_id_t const *elements, size_t size,
-    char const *operator_name, clingo_id_t right_hand_side_id, clingo_atom_t const *atom_in, clingo_atom_t *atom_out);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_backend_theory_atom(clingo_backend_t *backend, clingo_symbol_t name,
+                                                                     clingo_id_t const *elements, size_t size,
+                                                                     clingo_string_t *operator_name,
+                                                                     clingo_id_t right_hand_side_id,
+                                                                     clingo_atom_t const *atom_in,
+                                                                     clingo_atom_t *atom_out);
 
 //! @}
 #ifdef __cplusplus
