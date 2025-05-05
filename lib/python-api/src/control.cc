@@ -27,11 +27,10 @@ auto ConstMap::get(key_type name, std::optional<Symbol> def) const -> std::optio
 }
 
 auto ConstMap::at(size_t index) const -> value_type {
-    char const *name = nullptr;
-    size_t size = 0;
+    clingo_string_t name;
     clingo_symbol_t sym = 0;
-    handle_error(clingo_const_map_at(map_, index, &name, &size, &sym));
-    return {{name, size}, Symbol{sym, true}};
+    handle_error(clingo_const_map_at(map_, index, &name, &sym));
+    return {{name.data, name.size}, Symbol{sym, true}};
 }
 
 auto ConstMap::size() const -> size_t {

@@ -6,8 +6,6 @@
 
 namespace Clingo {
 
-// TODO: a to string would be nice
-
 enum class ConfigType : clingo_config_type_bitset_t {
     value = clingo_config_type_value,
     array = clingo_config_type_array,

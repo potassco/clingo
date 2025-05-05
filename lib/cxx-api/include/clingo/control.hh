@@ -24,11 +24,59 @@ struct Part {
     Part(std::string name, SymbolVector params = {}) : name{std::move(name)}, params(std::move(params)) {
         assert(!this->name.empty());
     }
+
     std::string name;
     SymbolVector params;
 };
 using PartSpan = std::span<Part const>;
 using PartVector = std::vector<Part>;
+
+class ConstMap {
+  public:
+    using key_type = std::string_view;
+    using mapped_type = Symbol;
+    using value_type = std::pair<key_type, mapped_type>;
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+    using reference = value_type;
+    using pointer = Detail::ArrowProxy<value_type>;
+    using iterator = Detail::RandomAccessIterator<ConstMap>;
+
+    explicit ConstMap(clingo_const_map_t const *map) : map_{map} {}
+
+    [[nodiscard]] auto contains(key_type name) const -> bool {
+        bool found = false;
+        Detail::handle_error(clingo_const_map_find(map_, name.data(), name.size(), nullptr, &found));
+        return found;
+    }
+
+    [[nodiscard]] auto operator[](key_type name) const -> mapped_type {
+        clingo_symbol_t sym = 0;
+        bool found = false;
+        Detail::handle_error(clingo_const_map_find(map_, name.data(), name.size(), &sym, &found));
+        return found ? Symbol{sym, true} : throw std::out_of_range{"key not found"};
+    }
+
+    [[nodiscard]] auto at(size_t index) const -> value_type {
+        clingo_string_t name;
+        clingo_symbol_t sym = 0;
+        Detail::handle_error(clingo_const_map_at(map_, index, &name, &sym));
+        return {{name.data, name.size}, Symbol{sym, true}};
+    }
+
+    [[nodiscard]] auto size() const -> size_type {
+        size_t size = 0;
+        Detail::handle_error(clingo_const_map_size(map_, &size));
+        return size;
+    }
+
+    [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
+
+    [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
+
+  private:
+    clingo_const_map_t const *map_;
+};
 
 enum class ControlMode : clingo_mode_t {
     parse = clingo_mode_parse,     //!< parse only
@@ -59,12 +107,14 @@ class Control {
     using Context = std::function<SymbolVector(std::string_view, SymbolSpan)>;
 
     Control(Library const &lib, StringList arguments) : Clingo::Control{lib, StringSpan{arguments}} {}
+
     Control(Library const &lib, StringSpan arguments = {}) {
         auto cstrs = Detail::transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
         clingo_control_t *ptr = nullptr;
         Detail::handle_error(clingo_control_new(c_cast(lib), cstrs.data(), arguments.size(), &ptr));
         ctl_.reset(ptr, false);
     }
+
     explicit Control(clingo_control_t *rep, bool acquire) : ctl_{rep, acquire} {}
 
     [[nodiscard]] friend auto c_cast(Control const &ctl) -> clingo_control_t * { return ctl.ctl_.get(); }
@@ -74,9 +124,6 @@ class Control {
         Detail::handle_error(clingo_control_mode(ctl_.get(), &mode));
         return static_cast<ControlMode>(mode);
     }
-
-    // TODO: wrap program
-    void join(clingo_program_t *prg) const { Detail::handle_error(clingo_control_join(ctl_.get(), prg)); }
 
     void write_aspif(std::string_view path, WriteAspifFlags flags = WriteAspifFlags::none) const {
         Detail::handle_error(clingo_control_write_aspif(ctl_.get(), path.data(), path.size(),
@@ -181,30 +228,33 @@ class Control {
         }
     }
 
-    /*
-    void observe(Observer &obs, bool preprocess) {
-        obs.observe(ctl_.get(), preprocess);
-    }
-
-    auto backend() -> BackendManager {
-        return BackendManager{ctl_.get()};
-    }
-
-    auto config() -> Config {
+    [[nodiscard]] auto config() const -> Config {
         clingo_config_t *config = nullptr;
-        handle_error(clingo_control_config(ctl_.get(), &config));
+        Detail::handle_error(clingo_control_config(ctl_.get(), &config));
         clingo_id_t key = 0;
-        handle_error(clingo_config_root(config, &key));
+        Detail::handle_error(clingo_config_root(config, &key));
         return Config{config, key};
     }
 
-    auto const_map() -> HintConstMap {
+    [[nodiscard]] auto const_map() const -> ConstMap {
         clingo_const_map_t const *map = nullptr;
-        handle_error(clingo_control_const_map(ctl_.get(), &map));
-        return py::cast(ConstMap{map});
+        Detail::handle_error(clingo_control_const_map(ctl_.get(), &map));
+        return ConstMap{map};
     }
 
-    void register_propagator(Annotation<Propagator> propagator) {
+    // TODO: wrap program
+    void join(clingo_program_t *prg) const { Detail::handle_error(clingo_control_join(ctl_.get(), prg)); }
+
+    /*
+    void observe(Observer &obs, bool preprocess) const {
+        obs.observe(ctl_.get(), preprocess);
+    }
+
+    auto backend() -> BackendManager const {
+        return BackendManager{ctl_.get()};
+    }
+
+    void register_propagator(Annotation<Propagator> propagator) const {
         auto &prop = propagator.cast<Propagator &>();
         user_data().append(std::move(propagator));
         Clingo::Python::register_propagator(ctl_.get(), prop);
@@ -217,6 +267,7 @@ class Control {
     struct Data {
         std::exception_ptr ptr;
     };
+
     static void free_data_(void *data) { std::ignore = std::unique_ptr<Data>(static_cast<Data *>(data)); }
 
     static auto ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
@@ -244,6 +295,7 @@ class Control {
         }
         return *data;
     }
+
     [[nodiscard]] auto solve_(SolveEventHandler *handler, LiteralSpan const &assumptions, SolveFlags flags) const
         -> SolveHandle {
         auto &ptr = data_().ptr;
@@ -255,6 +307,7 @@ class Control {
                              ptr);
         return res;
     }
+
     Detail::ManagedPtr<Control, clingo_control_t> ctl_;
 };
 

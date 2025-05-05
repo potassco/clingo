@@ -274,7 +274,7 @@ extern "C" auto clingo_const_map_find(clingo_const_map_t const *map, char const 
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_const_map_at(clingo_const_map_t const *map, size_t index, char const **name, size_t *size,
+extern "C" auto clingo_const_map_at(clingo_const_map_t const *map, size_t index, clingo_string_t *name,
                                     clingo_symbol_t *symbol) -> clingo_result_t {
     CLINGO_TRY {
         if (map == nullptr) {
@@ -286,10 +286,8 @@ extern "C" auto clingo_const_map_at(clingo_const_map_t const *map, size_t index,
             *symbol = *c_cast(&*it->second.second);
         }
         if (name != nullptr) {
-            *name = it->first->data();
-        }
-        if (size != nullptr) {
-            *size = it->first->size();
+            name->data = it->first->data();
+            name->size = it->first->size();
         }
     }
     CLINGO_CATCH;

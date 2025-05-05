@@ -131,7 +131,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_find(clingo_const_map
 //! @param[out] symbol the value of the constant
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_at(clingo_const_map_t const *map, size_t index,
-                                                              char const **name, size_t *size, clingo_symbol_t *symbol);
+                                                              clingo_string_t *name, clingo_symbol_t *symbol);
 
 //! Get the size of the constant map.
 //!
