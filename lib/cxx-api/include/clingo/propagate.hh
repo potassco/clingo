@@ -7,72 +7,46 @@
 
 namespace Clingo {
 
-/*
-class TrailView {
-  public:
-    using value_type = clingo_literal_t;
-
-    TrailView(clingo_assignment_t const *assignment, py::object rng) : assignment_{assignment}, rng_{std::move(rng)} {}
-
-    [[nodiscard]] auto slice(py::slice const &slc) const -> Sequence<clingo_literal_t> {
-        return py::cast(TrailView{assignment_, rng_[slc]});
-    }
-
-    [[nodiscard]] auto at(uint32_t index) const -> clingo_literal_t {
-        clingo_literal_t lit = 0;
-        auto offset = rng_[py::int_{index}].cast<uint32_t>();
-        handle_error(clingo_assignment_trail_at(assignment_, offset, &lit));
-        return lit;
-    }
-    [[nodiscard]] auto size() const -> uint32_t { return py::len(rng_); }
-
-  private:
-    clingo_assignment_t const *assignment_;
-    py::object rng_;
-};
-*/
-
 class Trail {
   public:
     using value_type = clingo_literal_t;
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+    using reference = value_type;
+    using pointer = Detail::ArrowProxy<value_type>;
+    using iterator = Detail::RandomAccessIterator<Trail>;
 
-    Trail(clingo_assignment_t const *assignment) : assignment_{assignment} {}
+    explicit Trail(clingo_assignment_t const *assignment) : assignment_{assignment} {}
 
-    /*
-    [[nodiscard]] auto slice(py::slice const &slc) const -> Sequence<clingo_literal_t> {
-        return py::cast(TrailView{assignment_, to_rng(size(), slc)});
-    }
-    */
-
-    [[nodiscard]] auto at(uint32_t index) const -> clingo_literal_t {
+    [[nodiscard]] auto operator[](size_t index) const -> clingo_literal_t {
         clingo_literal_t lit = 0;
         Detail::handle_error(clingo_assignment_trail_at(assignment_, index, &lit));
         return lit;
     }
 
-    [[nodiscard]] auto size() const -> uint32_t {
+    [[nodiscard]] auto size() const -> size_t {
         uint32_t size = 0;
         Detail::handle_error(clingo_assignment_trail_size(assignment_, &size));
         return size;
     }
 
-    [[nodiscard]] auto begin_level(uint32_t level) const -> uint32_t {
+    [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
+
+    [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
+
+    [[nodiscard]] auto begin(uint32_t level) const -> iterator {
         uint32_t offset = 0;
         Detail::handle_error(clingo_assignment_trail_begin(assignment_, level, &offset));
-        return offset;
+        return iterator{*this, level};
     }
 
-    [[nodiscard]] auto end_level(uint32_t level) const -> uint32_t {
+    [[nodiscard]] auto end(uint32_t level) const -> iterator {
         uint32_t offset = 0;
         Detail::handle_error(clingo_assignment_trail_end(assignment_, level, &offset));
-        return offset;
+        return iterator{*this, level};
     }
 
-    /*
-    [[nodiscard]] auto level(uint32_t level) const -> Sequence<clingo_literal_t> {
-        return slice(py::slice(begin_level(level), end_level(level), 1));
-    }
-    */
+    [[nodiscard]] auto level(uint32_t level) const { return std::ranges::subrange{begin(level), end(level)}; }
 
   private:
     clingo_assignment_t const *assignment_;
@@ -82,7 +56,7 @@ class Assignment {
   public:
     using value_type = clingo_literal_t;
 
-    Assignment(clingo_assignment_t const *assignment) : assignment_(assignment) {}
+    explicit Assignment(clingo_assignment_t const *assignment) : assignment_(assignment) {}
 
     [[nodiscard]] auto size() const -> size_t {
         size_t size = 0;
@@ -90,7 +64,7 @@ class Assignment {
         return size;
     }
 
-    [[nodiscard]] auto at(size_t size) const -> clingo_literal_t {
+    [[nodiscard]] auto operator[](size_t size) const -> clingo_literal_t {
         clingo_literal_t lit = 0;
         Detail::handle_error(clingo_assignment_at(assignment_, size, &lit));
         return lit;
@@ -186,12 +160,12 @@ class Assignment {
 
 class PropagateInit {
   public:
-    PropagateInit(clingo_propagate_init_t *init) : init_{init} {}
+    explicit PropagateInit(clingo_propagate_init_t *init) : init_{init} {}
 
     auto assignment() -> Assignment {
         clingo_assignment_t const *assignment = nullptr;
         Detail::handle_error(clingo_propagate_init_assignment(init_, &assignment));
-        return {assignment};
+        return Assignment{assignment};
     }
 
     /*
@@ -296,7 +270,7 @@ class PropagateInit {
 
 class PropagateControl {
   public:
-    PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
+    explicit PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
 
     auto add_clause(ProgramLiteralSpan literals, bool tag, bool lock) -> bool {
         clingo_clause_type_t type = 0;
@@ -345,7 +319,7 @@ class PropagateControl {
     auto assignment() -> Assignment {
         clingo_assignment_t const *assignment = nullptr;
         Detail::handle_error(clingo_propagate_control_assignment(ctl_, &assignment));
-        return {assignment};
+        return Assignment{assignment};
     }
 
     auto thread_id() -> uint32_t {
@@ -357,6 +331,7 @@ class PropagateControl {
   private:
     clingo_propagate_control_t *ctl_;
 };
+
 class Propagator {
   public:
     void init(PropagateInit &init);
@@ -364,14 +339,6 @@ class Propagator {
     void undo(uint32_t thread_id, Assignment &assignment, ProgramLiteralSpan changes);
     void check(PropagateControl &ctl);
     auto decide(uint32_t thread_id, Assignment &assignment, clingo_literal_t lit) -> clingo_literal_t;
-
-    std::exception_ptr *exception = nullptr;
-
-  private:
-    template <class... Args> void no_op([[maybe_unused]] Args const &...args) {}
-
-    auto decide_([[maybe_unused]] uint32_t thread_id, [[maybe_unused]] Assignment &assignment,
-                 [[maybe_unused]] clingo_literal_t lit) -> clingo_literal_t;
 };
 
 } // namespace Clingo
