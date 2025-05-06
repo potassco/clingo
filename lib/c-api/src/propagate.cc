@@ -392,7 +392,7 @@ extern "C" auto clingo_propagate_init_base(clingo_propagate_init_t const *init, 
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_propagate_init_number_of_threads(clingo_propagate_init_t const *init, size_t *threads)
+extern "C" auto clingo_propagate_init_number_of_threads(clingo_propagate_init_t const *init, clingo_id_t *threads)
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr || threads == nullptr) {

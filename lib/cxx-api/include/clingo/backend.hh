@@ -43,28 +43,28 @@ class TheoryBackend {
         return id;
     }
 
-    [[nodiscard]] auto sequence(TheorySequenceType type, IdSpan elements) const -> ProgramId {
+    [[nodiscard]] auto sequence(TheorySequenceType type, ProgramIdSpan elements) const -> ProgramId {
         clingo_id_t id = 0;
         Detail::handle_error(clingo_backend_theory_term_sequence(
             backend_, static_cast<clingo_theory_sequence_type_t>(type), elements.data(), elements.size(), &id));
         return id;
     }
 
-    [[nodiscard]] auto function(std::string_view name, IdSpan elements) const -> ProgramId {
+    [[nodiscard]] auto function(std::string_view name, ProgramIdSpan elements) const -> ProgramId {
         clingo_id_t id = 0;
         Detail::handle_error(clingo_backend_theory_term_function(backend_, name.data(), name.size(), elements.data(),
                                                                  elements.size(), &id));
         return id;
     }
 
-    [[nodiscard]] auto element(IdSpan tuple, ProgramLiteralSpan condition) const -> ProgramId {
+    [[nodiscard]] auto element(ProgramIdSpan tuple, ProgramLiteralSpan condition) const -> ProgramId {
         clingo_id_t id = 0;
         Detail::handle_error(clingo_backend_theory_element(backend_, tuple.data(), tuple.size(), condition.data(),
                                                            condition.size(), &id));
         return id;
     }
 
-    [[nodiscard]] auto atom(std::optional<ProgramAtom> atom, Symbol const &name, IdSpan elements,
+    [[nodiscard]] auto atom(std::optional<ProgramAtom> atom, Symbol const &name, ProgramIdSpan elements,
                             std::optional<std::pair<std::string_view, ProgramId>> const &guard) const -> ProgramId {
         clingo_atom_t res = 0;
         auto op = clingo_string_t{guard ? guard->first.data() : nullptr, guard ? guard->first.size() : 0};

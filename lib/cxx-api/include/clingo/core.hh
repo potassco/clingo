@@ -276,7 +276,7 @@ template <class Seq> class RandomAccessIterator {
 } // namespace Detail
 
 using ProgramId = clingo_id_t;
-using IdSpan = std::span<ProgramId const>;
+using ProgramIdSpan = std::span<ProgramId const>;
 
 using ProgramAtom = clingo_atom_t;
 using ProgramAtomSpan = std::span<ProgramAtom const>;
@@ -284,6 +284,10 @@ using ProgramAtomSpan = std::span<ProgramAtom const>;
 using ProgramLiteral = clingo_literal_t;
 using ProgramLiteralSpan = std::span<ProgramLiteral const>;
 using ProgramLiteralVector = std::vector<ProgramLiteral>;
+
+using SolverLiteral = clingo_literal_t;
+using SolverLiteralSpan = std::span<SolverLiteral const>;
+using SolverLiteralVector = std::vector<SolverLiteral>;
 
 using Weight = clingo_weight_t;
 using WeightSpan = std::span<clingo_weight_t const>;

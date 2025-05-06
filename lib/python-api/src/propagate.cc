@@ -221,8 +221,8 @@ class PropagateInit {
         handle_error(clingo_propagate_init_set_check_mode(init_, mode));
     }
 
-    auto number_of_threads() -> size_t {
-        size_t res = 0;
+    auto number_of_threads() -> clingo_id_t {
+        clingo_id_t res = 0;
         handle_error(clingo_propagate_init_number_of_threads(init_, &res));
         return res;
     }

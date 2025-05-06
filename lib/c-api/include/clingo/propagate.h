@@ -323,7 +323,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_base(clingo_prop
 //! @return the result code
 //! @see clingo_propagate_control_thread_id()
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_propagate_init_number_of_threads(clingo_propagate_init_t const *init,
-                                                                                  size_t *threads);
+                                                                                  clingo_id_t *threads);
 //! Configure when to call the check method of the propagator.
 //!
 //! @param[in] init the target

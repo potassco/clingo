@@ -5,6 +5,7 @@
 #include <clingo/config.hh>
 #include <clingo/core.hh>
 #include <clingo/observe.hh>
+#include <clingo/propagate.hh>
 #include <clingo/solve.hh>
 #include <clingo/stats.hh>
 #include <clingo/symbol.hh>
@@ -12,6 +13,7 @@
 #include <clingo/control.h>
 
 #include <cassert>
+#include <forward_list>
 #include <optional>
 #include <span>
 
@@ -250,14 +252,22 @@ class Control {
         return ProgramBackend{bck};
     }
 
+    void register_propagator(std::unique_ptr<Propagator> propagator) const {
+        auto &data = data_();
+        data.data.emplace_front(propagator.get(), &data.ptr);
+        data.props.emplace_back(std::move(propagator));
+        Detail::handle_error(clingo_control_register_propagator(ctl_.get(), &Detail::c_propagator, &data.data.front()));
+    }
+
+    void register_propagator(std::unique_ptr<Heuristic> heuristic) const {
+        auto &data = data_();
+        data.data.emplace_front(heuristic.get(), &data.ptr);
+        data.props.emplace_back(std::move(heuristic));
+        Detail::handle_error(clingo_control_register_propagator(ctl_.get(), &Detail::c_heuristic, &data.data.front()));
+    }
+
     /*
     void join(AST::Program &prg) const { Detail::handle_error(clingo_control_join(ctl_.get(), prg)); }
-
-    void register_propagator(Annotation<Propagator> propagator) const {
-        auto &prop = propagator.cast<Propagator &>();
-        user_data().append(std::move(propagator));
-        Clingo::Python::register_propagator(ctl_.get(), prop);
-    }
     */
 
   private:
@@ -265,6 +275,8 @@ class Control {
 
     struct Data {
         std::exception_ptr ptr;
+        std::vector<std::unique_ptr<Propagator>> props;
+        std::forward_list<Detail::PropagatorData> data;
     };
 
     static void free_data_(void *data) { std::ignore = std::unique_ptr<Data>(static_cast<Data *>(data)); }
