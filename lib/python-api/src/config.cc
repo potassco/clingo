@@ -62,7 +62,7 @@ void Config::set_value(pybind11::handle value) {
 
 void Config::set(std::string_view name, pybind11::handle value) {
     auto self = py::cast(this);
-    if (auto attr = py::getattr(self.get_type(), py::str(name), py::none{}); !attr.is_none()) {
+    if (auto attr = py::getattr(py::type::of(self), py::str(name), py::none{}); !attr.is_none()) {
         py::getattr(attr, "__set__", py::none{})(self, value);
     } else {
         get(name).set_value(value);
