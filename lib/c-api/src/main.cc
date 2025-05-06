@@ -102,7 +102,7 @@ class AppAdapter {
         }
     }
 
-    void validateOptions() {
+    void validate_options() const {
         if (app_ != nullptr && app_->validate_options != nullptr) {
             handle_error(app_->validate_options(data_));
         }
@@ -142,9 +142,9 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     ClingoApp(clingo_lib_t &lib, clingo_application_t *app = nullptr, void *data = nullptr)
         : ctl_{new clingo_control_t{&lib}}, app_{app, data}, opts_{ctl_->lib->log, *ctl_->lib->store} {}
 
-    [[nodiscard]] auto getName() const -> char const * override { return app_.get_name(); }
-    [[nodiscard]] auto getVersion() const -> char const * override { return app_.get_version(); }
-    [[nodiscard]] auto getUsage() const -> char const * override { return "[number] [options] [files]"; }
+    [[nodiscard]] auto getName() const -> std::string_view override { return app_.get_name(); }
+    [[nodiscard]] auto getVersion() const -> std::string_view override { return app_.get_version(); }
+    [[nodiscard]] auto getUsage() const -> std::string_view override { return "[number] [options] [files]"; }
 
   private:
     using AppMode = Clingo::Control::AppMode;
@@ -184,12 +184,11 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     }
 
     void validateOptions(const Potassco::ProgramOptions::OptionContext &root,
-                         const Potassco::ProgramOptions::ParsedOptions &parsed,
-                         const Potassco::ProgramOptions::ParsedValues &vals) override {
-        BaseType::validateOptions(root, parsed, vals);
+                         const Potassco::ProgramOptions::ParsedOptions &parsed) override {
+        BaseType::validateOptions(root, parsed);
         setExitCode(Clasp::Cli::exit_no_run);
         ctl_->lib->log.set_level(log_level_);
-        app_.validateOptions();
+        app_.validate_options();
         setExitCode(0);
     }
 

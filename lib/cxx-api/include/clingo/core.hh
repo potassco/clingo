@@ -7,6 +7,7 @@
 #include <cassert>
 #include <functional>
 #include <iterator>
+#include <memory>
 #include <span>
 #include <stdexcept>
 #include <utility>

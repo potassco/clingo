@@ -39,7 +39,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         slv_cfg->addOptions(ctx);
         auto pos_parser = [](std::string_view str, std::string &out) {
             if (int value = 0; Potassco::stringTo(str, value) == std::errc{}) {
-                out = "number";
+                out = "models";
                 return true;
             }
             return false;
@@ -53,11 +53,10 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
             cargs.emplace_back(bargs.back().c_str());
         }
         cargs.emplace_back(nullptr);
-        auto values = parseCommandArray({cargs.data(), size}, ctx, pos_parser);
-        auto parsed = ParsedOptions{};
-        parsed.assign(values);
-        ctx.assignDefaults(parsed);
-        slv_cfg->finalize(parsed, Clasp::ProblemType::asp, true);
+        DefaultParseContext pc{ctx};
+        parseCommandArray(pc, {cargs.data(), size}, pos_parser);
+        ctx.assignDefaults(pc.parsed());
+        slv_cfg->finalize(pc.parsed(), Clasp::ProblemType::asp, true);
 
         // setup control
         if (opts.mode() == Clingo::Control::AppMode::solve) {

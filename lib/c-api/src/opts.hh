@@ -120,7 +120,7 @@ class ClingoOptions {
 
         auto group_grounder = OptionGroup{"Grounder Options"};
         group_grounder.addOptions() //
-            ("const,c", parse(parse_const)->arg("<id>=<term>")->composing(),
+            ("-c,const", parse(parse_const)->arg("<id>=<term>")->composing(),
              "Replace term occurrences of <id> with <term>")                                      //
             ("parts", parse(parse_parts), "Parse comma-separated program parts to ground")        //
             ("imin", parse(parse_imin)->arg("<n>"), "Minimum number of steps for incmode")        //
@@ -132,7 +132,7 @@ class ClingoOptions {
                                                                  {"unknown", Control::IStop::unknown}})),
 
              "Stop when {none|sat|unsat|unknown} in incmode") //
-            ("projection-mode,@1",
+            ("@1,projection-mode",
              storeTo(rewrite_opts_.project_mode = Input::ProjectionMode::pure,
                      values<Input::ProjectionMode>({
                          {"none", Input::ProjectionMode::disabled},
@@ -140,7 +140,7 @@ class ClingoOptions {
                          {"pure", Input::ProjectionMode::pure},
                      })),
              "Project {none|anonymous|pure} variables") //
-            ("project-anonymous,@1", flag(rewrite_opts_.project_anonymous = false),
+            ("@1,project-anonymous", flag(rewrite_opts_.project_anonymous = false),
              "Project anonymous variables in negative literals") //
             ("show", parse(parse_sigs), "Comma-separated list of predicates to show");
         root.add(group_grounder);
@@ -148,8 +148,8 @@ class ClingoOptions {
         auto group_basic = OptionGroup{"Basic Options"};
         group_basic.addOptions()                                                                   //
             ("single-shot", flag(solver_opts_.single_shot = false), "Force single shot solving")   //
-            ("log-level,@1", parse(parse_level), "Select log level {error|warn|info|debug|trace}") //
-            ("info,W,@1", parse(parse_info)->composing(), R"(Enable/disable specific info messages:
+            ("@1,log-level", parse(parse_level), "Select log level {error|warn|info|debug|trace}") //
+            ("@1-W,info", parse(parse_info)->composing(), R"(Enable/disable specific info messages:
       none                    : disable all
       all                     : enable all
       [no-]atom-undefined     : a :- b.
