@@ -25,31 +25,32 @@ auto {{ c_type_name }}::{{ argument_name }}() -> Symbol {
     return Symbol{ret, true};
 }
 {%    elif argument.type == 'string' %}
-auto {{ c_type_name }}::{{ argument_name }}() -> char const * {
-    char const *ret = nullptr;
+auto {{ c_type_name }}::{{ argument_name }}() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_{{ argument_name }}, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 {%    elif argument.type == 'string_array' %}
-auto {{ c_type_name }}::{{ argument_name }}() -> std::vector<char const *> {
+auto {{ c_type_name }}::{{ argument_name }}() -> std::vector<std::string_view> {
+    clingo_string_t const *value = nullptr;
     size_t size = 0;
-    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_{{ argument_name }}, nullptr, &size));
-    std::vector<char const *> ret;
-    ret.resize(size, nullptr);
-    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_{{ argument_name }}, ret.data(), &size));
+    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_{{ argument_name }}, &value, &size));
+    std::vector<std::string_view> ret;
+    ret.reserve(size);
+    for (auto const &x : std::span{value, size}) {
+        ret.emplace_back(x.data, x.size);
+    }
     return ret;
 }
 {%    elif argument.type == 'symbol_array' %}
 auto {{ c_type_name }}::{{ argument_name }}() -> SymbolArray {
+    clingo_symbol_t const *value = nullptr;
     size_t size = 0;
-    handle_error(clingo_ast_attribute_get_symbol_array(ast_, clingo_ast_attribute_{{ argument_name }}, nullptr, &size));
-    std::vector<clingo_symbol_t> syms;
-    syms.resize(size);
-    handle_error(clingo_ast_attribute_get_symbol_array(ast_, clingo_ast_attribute_{{ argument_name }}, syms.data(), &size));
-    auto ret = SymbolArray{};
+    handle_error(clingo_ast_attribute_get_symbol_array(ast_, clingo_ast_attribute_{{ argument_name }}, &value, &size));
+    SymbolArray ret;
     ret.reserve(size);
-    for (auto const &sym : syms) {
-        ret.emplace_back(sym, true);
+    for (auto const &x : std::span{value, size}) {
+        ret.emplace_back(x, true);
     }
     return ret;
 }

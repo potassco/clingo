@@ -24,7 +24,7 @@ def cval(name):
     if name == "location":
         return "Location"
     if name == "string":
-        return "char const *"
+        return "std::string_view"
     if name == "number":
         return "int "
     if name == "bool":
@@ -41,7 +41,7 @@ def cref(name):
     if name == "location":
         return "Location const &"
     if name == "string":
-        return "char const *"
+        return "std::string_view "
     if name == "number":
         return "int "
     if name == "bool":
@@ -67,7 +67,8 @@ def c_cast(arguments, type_map):
         if argument["type"] == "location":
             res.append(f"static_cast<clingo_location_t const *>({argument_name})")
         elif argument["type"] == "string":
-            res.append(f"{argument_name}")
+            res.append(f"{argument_name}.data()")
+            res.append(f"{argument_name}.size()")
         elif argument["type"] == "number":
             res.append(f"{argument_name}")
         elif argument["type"] == "bool":

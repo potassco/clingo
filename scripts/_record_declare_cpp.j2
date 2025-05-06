@@ -10,7 +10,7 @@ public:
 {%- if argument.type == 'location' %}
     auto {{ argument_name }}() -> Location;
 {%- elif argument.type == 'string' %}
-    auto {{ argument_name }}() -> char const *;
+    auto {{ argument_name }}() -> std::string_view;
 {%- elif argument.type == 'number' %}
     auto {{ argument_name }}() -> int;
 {%- elif argument.type == 'bool' %}
@@ -18,7 +18,7 @@ public:
 {%- elif argument.type == 'symbol' %}
     auto {{ argument_name }}() -> Symbol;
 {%- elif argument.type == 'string_array' %}
-    auto {{ argument_name }}() -> std::vector<char const *>;
+    auto {{ argument_name }}() -> std::vector<std::string_view>;
 {%- else %}
     auto {{ argument_name }}() -> {{ argument.type | camel }};
 {%- endif %}

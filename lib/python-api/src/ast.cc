@@ -21,7 +21,7 @@ using StringIterable = Iterable<std::string>;
 using SymbolArray = std::vector<Symbol>;
 using SymbolIterable = Iterable<Symbol>;
 
-auto to_string_array(std::vector<char const *> arr) -> StringArray {
+auto to_string_array(std::vector<std::string_view> arr) -> StringArray {
     auto res = StringArray();
     res.insert(res.end(), arr.begin(), arr.end());
     return res;
@@ -33,11 +33,11 @@ template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast
 
 template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t *>;
 
-auto c_cast(StringArray const &arr) -> std::vector<char const *> {
-    std::vector<char const *> ret;
+auto c_cast(StringArray const &arr) -> std::vector<clingo_string_t> {
+    std::vector<clingo_string_t> ret;
     ret.reserve(arr.size());
     for (auto const &str : arr) {
-        ret.emplace_back(str.c_str());
+        ret.emplace_back(str.data(), str.size());
     }
     return ret;
 }
@@ -127,23 +127,23 @@ auto c_cast(ASTBase const &x) -> clingo_ast_t * {
 }
 
 struct CString {
-    CString(char const *str) : str_{str} {}
+    CString(std::string_view str) : str_{str} {}
     CString(std::string &&str) : str_{std::move(str)} {}
-    operator char const *() const {
+    operator std::string_view() const {
         return std::visit(
             []<class T>(T const &x) {
                 if constexpr (std::is_same_v<T, std::string>) {
-                    return x.c_str();
+                    return std::string_view{x};
                 } else {
                     return x;
                 }
             },
             str_);
     }
-    std::variant<std::string, char const *> str_;
+    std::variant<std::string, std::string_view> str_;
 };
 
-template <class T> using update_result_t = std::conditional_t<std::is_same_v<T, char const *>, CString, T>;
+template <class T> using update_result_t = std::conditional_t<std::is_same_v<T, std::string_view>, CString, T>;
 
 template <class T, class F, class M>
 auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) -> update_result_t<T>;
@@ -322,7 +322,7 @@ class TermVariable : public ASTBase {
     ~TermVariable() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto anonymous() -> bool;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -330,7 +330,8 @@ class TermVariable : public ASTBase {
         -> std::optional<TermVariable>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermVariable;
 
-    static auto construct(Library &lib, Location const &location, char const *name, bool anonymous) -> TermVariable;
+    static auto construct(Library &lib, Location const &location, std::string_view name, bool anonymous)
+        -> TermVariable;
     static auto acquire(clingo_ast_t *ast) -> TermVariable { return {ast}; }
 
     friend auto operator==(TermVariable const &a, TermVariable const &b) -> bool = default;
@@ -491,7 +492,7 @@ class TermFunction : public ASTBase {
     ~TermFunction() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto pool() -> ArgumentTupleArray;
     auto external() -> bool;
 
@@ -500,8 +501,8 @@ class TermFunction : public ASTBase {
         -> std::optional<TermFunction>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermFunction;
 
-    static auto construct(Library &lib, Location const &location, char const *name, ArgumentTupleIterable const &pool,
-                          bool external) -> TermFunction;
+    static auto construct(Library &lib, Location const &location, std::string_view name,
+                          ArgumentTupleIterable const &pool, bool external) -> TermFunction;
     static auto acquire(clingo_ast_t *ast) -> TermFunction { return {ast}; }
 
     friend auto operator==(TermFunction const &a, TermFunction const &b) -> bool = default;
@@ -726,7 +727,7 @@ class UnparsedElement : public ASTBase {
     auto operator=(UnparsedElement &&x) noexcept -> UnparsedElement & = default;
     ~UnparsedElement() noexcept = default;
 
-    auto operators() -> std::vector<char const *>;
+    auto operators() -> std::vector<std::string_view>;
     auto term() -> TheoryTerm;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -759,7 +760,7 @@ class TheoryTermVariable : public ASTBase {
     ~TheoryTermVariable() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto anonymous() -> bool;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -767,7 +768,7 @@ class TheoryTermVariable : public ASTBase {
         -> std::optional<TheoryTermVariable>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermVariable;
 
-    static auto construct(Library &lib, Location const &location, char const *name, bool anonymous)
+    static auto construct(Library &lib, Location const &location, std::string_view name, bool anonymous)
         -> TheoryTermVariable;
     static auto acquire(clingo_ast_t *ast) -> TheoryTermVariable { return {ast}; }
 
@@ -844,7 +845,7 @@ class TheoryTermFunction : public ASTBase {
     ~TheoryTermFunction() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto arguments() -> TheoryTermArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -852,8 +853,8 @@ class TheoryTermFunction : public ASTBase {
         -> std::optional<TheoryTermFunction>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermFunction;
 
-    static auto construct(Library &lib, Location const &location, char const *name, TheoryTermIterable const &arguments)
-        -> TheoryTermFunction;
+    static auto construct(Library &lib, Location const &location, std::string_view name,
+                          TheoryTermIterable const &arguments) -> TheoryTermFunction;
     static auto acquire(clingo_ast_t *ast) -> TheoryTermFunction { return {ast}; }
 
     friend auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool = default;
@@ -900,7 +901,7 @@ class TheoryRightGuard : public ASTBase {
     auto operator=(TheoryRightGuard &&x) noexcept -> TheoryRightGuard & = default;
     ~TheoryRightGuard() noexcept = default;
 
-    auto theory_operator() -> char const *;
+    auto theory_operator() -> std::string_view;
     auto term() -> TheoryTerm;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -908,7 +909,7 @@ class TheoryRightGuard : public ASTBase {
         -> std::optional<TheoryRightGuard>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryRightGuard;
 
-    static auto construct(Library &lib, char const *theory_operator, TheoryTerm const &term) -> TheoryRightGuard;
+    static auto construct(Library &lib, std::string_view theory_operator, TheoryTerm const &term) -> TheoryRightGuard;
     static auto acquire(clingo_ast_t *ast) -> TheoryRightGuard { return {ast}; }
 
     friend auto operator==(TheoryRightGuard const &a, TheoryRightGuard const &b) -> bool = default;
@@ -1449,7 +1450,7 @@ class TheoryOperatorDefinition : public ASTBase {
     ~TheoryOperatorDefinition() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto priority() -> int;
     auto operator_type() -> TheoryOperatorType;
 
@@ -1458,7 +1459,7 @@ class TheoryOperatorDefinition : public ASTBase {
         -> std::optional<TheoryOperatorDefinition>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryOperatorDefinition;
 
-    static auto construct(Library &lib, Location const &location, char const *name, int priority,
+    static auto construct(Library &lib, Location const &location, std::string_view name, int priority,
                           TheoryOperatorType const &operator_type) -> TheoryOperatorDefinition;
     static auto acquire(clingo_ast_t *ast) -> TheoryOperatorDefinition { return {ast}; }
 
@@ -1485,7 +1486,7 @@ class TheoryTermDefinition : public ASTBase {
     ~TheoryTermDefinition() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto operators() -> TheoryOperatorDefinitionArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -1493,7 +1494,7 @@ class TheoryTermDefinition : public ASTBase {
         -> std::optional<TheoryTermDefinition>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermDefinition;
 
-    static auto construct(Library &lib, Location const &location, char const *name,
+    static auto construct(Library &lib, Location const &location, std::string_view name,
                           TheoryOperatorDefinitionIterable const &operators) -> TheoryTermDefinition;
     static auto acquire(clingo_ast_t *ast) -> TheoryTermDefinition { return {ast}; }
 
@@ -1519,15 +1520,16 @@ class TheoryGuardDefinition : public ASTBase {
     auto operator=(TheoryGuardDefinition &&x) noexcept -> TheoryGuardDefinition & = default;
     ~TheoryGuardDefinition() noexcept = default;
 
-    auto operators() -> std::vector<char const *>;
-    auto term() -> char const *;
+    auto operators() -> std::vector<std::string_view>;
+    auto term() -> std::string_view;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryGuardDefinition>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryGuardDefinition;
 
-    static auto construct(Library &lib, StringIterable const &operators, char const *term) -> TheoryGuardDefinition;
+    static auto construct(Library &lib, StringIterable const &operators, std::string_view term)
+        -> TheoryGuardDefinition;
     static auto acquire(clingo_ast_t *ast) -> TheoryGuardDefinition { return {ast}; }
 
     friend auto operator==(TheoryGuardDefinition const &a, TheoryGuardDefinition const &b) -> bool = default;
@@ -1550,9 +1552,9 @@ class TheoryAtomDefinition : public ASTBase {
     ~TheoryAtomDefinition() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto arity() -> int;
-    auto term() -> char const *;
+    auto term() -> std::string_view;
     auto guard() -> OptionalTheoryGuardDefinition;
     auto atom_type() -> TheoryAtomType;
 
@@ -1561,9 +1563,9 @@ class TheoryAtomDefinition : public ASTBase {
         -> std::optional<TheoryAtomDefinition>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomDefinition;
 
-    static auto construct(Library &lib, Location const &location, char const *name, int arity, char const *term,
-                          OptionalTheoryGuardDefinition const &guard, TheoryAtomType const &atom_type)
-        -> TheoryAtomDefinition;
+    static auto construct(Library &lib, Location const &location, std::string_view name, int arity,
+                          std::string_view term, OptionalTheoryGuardDefinition const &guard,
+                          TheoryAtomType const &atom_type) -> TheoryAtomDefinition;
     static auto acquire(clingo_ast_t *ast) -> TheoryAtomDefinition { return {ast}; }
 
     friend auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool = default;
@@ -1682,7 +1684,7 @@ class ProgramPart : public ASTBase {
     auto operator=(ProgramPart &&x) noexcept -> ProgramPart & = default;
     ~ProgramPart() noexcept = default;
 
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto arguments() -> SymbolArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -1690,7 +1692,7 @@ class ProgramPart : public ASTBase {
         -> std::optional<ProgramPart>;
     auto update(Library &lib, py::kwargs const &kwargs) -> ProgramPart;
 
-    static auto construct(Library &lib, char const *name, SymbolIterable const &arguments) -> ProgramPart;
+    static auto construct(Library &lib, std::string_view name, SymbolIterable const &arguments) -> ProgramPart;
     static auto acquire(clingo_ast_t *ast) -> ProgramPart { return {ast}; }
 
     friend auto operator==(ProgramPart const &a, ProgramPart const &b) -> bool = default;
@@ -1790,7 +1792,7 @@ class StatementTheory : public ASTBase {
     ~StatementTheory() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto terms() -> TheoryTermDefinitionArray;
     auto atoms() -> TheoryAtomDefinitionArray;
 
@@ -1799,7 +1801,7 @@ class StatementTheory : public ASTBase {
         -> std::optional<StatementTheory>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementTheory;
 
-    static auto construct(Library &lib, Location const &location, char const *name,
+    static auto construct(Library &lib, Location const &location, std::string_view name,
                           TheoryTermDefinitionIterable const &terms, TheoryAtomDefinitionIterable const &atoms)
         -> StatementTheory;
     static auto acquire(clingo_ast_t *ast) -> StatementTheory { return {ast}; }
@@ -1936,7 +1938,7 @@ class StatementShowSignature : public ASTBase {
     ~StatementShowSignature() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto arity() -> int;
     auto sign() -> bool;
 
@@ -1945,7 +1947,7 @@ class StatementShowSignature : public ASTBase {
         -> std::optional<StatementShowSignature>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShowSignature;
 
-    static auto construct(Library &lib, Location const &location, char const *name, int arity, bool sign)
+    static auto construct(Library &lib, Location const &location, std::string_view name, int arity, bool sign)
         -> StatementShowSignature;
     static auto acquire(clingo_ast_t *ast) -> StatementShowSignature { return {ast}; }
 
@@ -1996,7 +1998,7 @@ class StatementProjectSignature : public ASTBase {
     ~StatementProjectSignature() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto arity() -> int;
     auto sign() -> bool;
 
@@ -2005,7 +2007,7 @@ class StatementProjectSignature : public ASTBase {
         -> std::optional<StatementProjectSignature>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProjectSignature;
 
-    static auto construct(Library &lib, Location const &location, char const *name, int arity, bool sign)
+    static auto construct(Library &lib, Location const &location, std::string_view name, int arity, bool sign)
         -> StatementProjectSignature;
     static auto acquire(clingo_ast_t *ast) -> StatementProjectSignature { return {ast}; }
 
@@ -2027,7 +2029,7 @@ class StatementDefined : public ASTBase {
     ~StatementDefined() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto arity() -> int;
     auto sign() -> bool;
 
@@ -2036,7 +2038,7 @@ class StatementDefined : public ASTBase {
         -> std::optional<StatementDefined>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementDefined;
 
-    static auto construct(Library &lib, Location const &location, char const *name, int arity, bool sign)
+    static auto construct(Library &lib, Location const &location, std::string_view name, int arity, bool sign)
         -> StatementDefined;
     static auto acquire(clingo_ast_t *ast) -> StatementDefined { return {ast}; }
 
@@ -2148,15 +2150,15 @@ class StatementScript : public ASTBase {
     ~StatementScript() noexcept = default;
 
     auto location() -> Location;
-    auto value() -> char const *;
-    auto script_type() -> char const *;
+    auto value() -> std::string_view;
+    auto script_type() -> std::string_view;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementScript>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementScript;
 
-    static auto construct(Library &lib, Location const &location, char const *value, char const *script_type)
+    static auto construct(Library &lib, Location const &location, std::string_view value, std::string_view script_type)
         -> StatementScript;
     static auto acquire(clingo_ast_t *ast) -> StatementScript { return {ast}; }
 
@@ -2177,7 +2179,7 @@ class StatementInclude : public ASTBase {
     ~StatementInclude() noexcept = default;
 
     auto location() -> Location;
-    auto value() -> char const *;
+    auto value() -> std::string_view;
     auto include_type() -> IncludeType;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -2185,8 +2187,8 @@ class StatementInclude : public ASTBase {
         -> std::optional<StatementInclude>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementInclude;
 
-    static auto construct(Library &lib, Location const &location, char const *value, IncludeType const &include_type)
-        -> StatementInclude;
+    static auto construct(Library &lib, Location const &location, std::string_view value,
+                          IncludeType const &include_type) -> StatementInclude;
     static auto acquire(clingo_ast_t *ast) -> StatementInclude { return {ast}; }
 
     friend auto operator==(StatementInclude const &a, StatementInclude const &b) -> bool = default;
@@ -2206,16 +2208,16 @@ class StatementProgram : public ASTBase {
     ~StatementProgram() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
-    auto arguments() -> std::vector<char const *>;
+    auto name() -> std::string_view;
+    auto arguments() -> std::vector<std::string_view>;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementProgram>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProgram;
 
-    static auto construct(Library &lib, Location const &location, char const *name, StringIterable const &arguments)
-        -> StatementProgram;
+    static auto construct(Library &lib, Location const &location, std::string_view name,
+                          StringIterable const &arguments) -> StatementProgram;
     static auto acquire(clingo_ast_t *ast) -> StatementProgram { return {ast}; }
 
     friend auto operator==(StatementProgram const &a, StatementProgram const &b) -> bool = default;
@@ -2264,7 +2266,7 @@ class StatementConst : public ASTBase {
     ~StatementConst() noexcept = default;
 
     auto location() -> Location;
-    auto name() -> char const *;
+    auto name() -> std::string_view;
     auto value() -> Term;
     auto precedence() -> Precedence;
 
@@ -2273,7 +2275,7 @@ class StatementConst : public ASTBase {
         -> std::optional<StatementConst>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementConst;
 
-    static auto construct(Library &lib, Location const &location, char const *name, Term const &value,
+    static auto construct(Library &lib, Location const &location, std::string_view name, Term const &value,
                           Precedence const &precedence) -> StatementConst;
     static auto acquire(clingo_ast_t *ast) -> StatementConst { return {ast}; }
 
@@ -2294,7 +2296,7 @@ class StatementComment : public ASTBase {
     ~StatementComment() noexcept = default;
 
     auto location() -> Location;
-    auto value() -> char const *;
+    auto value() -> std::string_view;
     auto comment_type() -> CommentType;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -2302,8 +2304,8 @@ class StatementComment : public ASTBase {
         -> std::optional<StatementComment>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementComment;
 
-    static auto construct(Library &lib, Location const &location, char const *value, CommentType const &comment_type)
-        -> StatementComment;
+    static auto construct(Library &lib, Location const &location, std::string_view value,
+                          CommentType const &comment_type) -> StatementComment;
     static auto acquire(clingo_ast_t *ast) -> StatementComment { return {ast}; }
 
     friend auto operator==(StatementComment const &a, StatementComment const &b) -> bool = default;
@@ -2525,10 +2527,10 @@ auto TermVariable::location() -> Location {
     return Location{ret};
 }
 
-auto TermVariable::name() -> char const * {
-    char const *ret = nullptr;
+auto TermVariable::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto TermVariable::anonymous() -> bool {
@@ -2537,10 +2539,11 @@ auto TermVariable::anonymous() -> bool {
     return ret != 0;
 }
 
-auto TermVariable::construct(Library &lib, Location const &location, char const *name, bool anonymous) -> TermVariable {
+auto TermVariable::construct(Library &lib, Location const &location, std::string_view name, bool anonymous)
+    -> TermVariable {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_term_variable, &res_,
-                                      static_cast<clingo_location_t const *>(location), name,
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(),
                                       static_cast<int>(anonymous)));
     return TermVariable::acquire(res_);
 }
@@ -2557,7 +2560,7 @@ auto TermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py:
 
 auto TermVariable::update(Library &lib, py::kwargs const &kwargs) -> TermVariable {
     return TermVariable::construct(lib, update_value<Location>(this, &TermVariable::location, kwargs, "location"),
-                                   update_value<char const *>(this, &TermVariable::name, kwargs, "name"),
+                                   update_value<std::string_view>(this, &TermVariable::name, kwargs, "name"),
                                    update_value<bool>(this, &TermVariable::anonymous, kwargs, "anonymous"));
 }
 
@@ -2791,10 +2794,10 @@ auto TermFunction::location() -> Location {
     return Location{ret};
 }
 
-auto TermFunction::name() -> char const * {
-    char const *ret = nullptr;
+auto TermFunction::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto TermFunction::pool() -> ArgumentTupleArray {
@@ -2810,12 +2813,12 @@ auto TermFunction::external() -> bool {
     return ret != 0;
 }
 
-auto TermFunction::construct(Library &lib, Location const &location, char const *name,
+auto TermFunction::construct(Library &lib, Location const &location, std::string_view name,
                              ArgumentTupleIterable const &pool, bool external) -> TermFunction {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_term_function, &res_,
-                                      static_cast<clingo_location_t const *>(location), name, c_cast(pool).data(),
-                                      pool.size(), static_cast<int>(external)));
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(),
+                                      c_cast(pool).data(), pool.size(), static_cast<int>(external)));
     return TermFunction::acquire(res_);
 }
 
@@ -2836,7 +2839,7 @@ auto TermFunction::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py:
 
 auto TermFunction::update(Library &lib, py::kwargs const &kwargs) -> TermFunction {
     return TermFunction::construct(lib, update_value<Location>(this, &TermFunction::location, kwargs, "location"),
-                                   update_value<char const *>(this, &TermFunction::name, kwargs, "name"),
+                                   update_value<std::string_view>(this, &TermFunction::name, kwargs, "name"),
                                    update_value<ArgumentTupleArray>(this, &TermFunction::pool, kwargs, "pool"),
                                    update_value<bool>(this, &TermFunction::external, kwargs, "external"));
 }
@@ -3188,12 +3191,15 @@ auto construct_theory_term_array(clingo_ast_t **ast, size_t size) -> TheoryTermA
     return ret;
 }
 
-auto UnparsedElement::operators() -> std::vector<char const *> {
+auto UnparsedElement::operators() -> std::vector<std::string_view> {
+    clingo_string_t const *value = nullptr;
     size_t size = 0;
-    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, nullptr, &size));
-    std::vector<char const *> ret;
-    ret.resize(size, nullptr);
-    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, ret.data(), &size));
+    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, &value, &size));
+    std::vector<std::string_view> ret;
+    ret.reserve(size);
+    for (auto const &x : std::span{value, size}) {
+        ret.emplace_back(x.data, x.size);
+    }
     return ret;
 }
 
@@ -3255,10 +3261,10 @@ auto TheoryTermVariable::location() -> Location {
     return Location{ret};
 }
 
-auto TheoryTermVariable::name() -> char const * {
-    char const *ret = nullptr;
+auto TheoryTermVariable::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto TheoryTermVariable::anonymous() -> bool {
@@ -3267,11 +3273,11 @@ auto TheoryTermVariable::anonymous() -> bool {
     return ret != 0;
 }
 
-auto TheoryTermVariable::construct(Library &lib, Location const &location, char const *name, bool anonymous)
+auto TheoryTermVariable::construct(Library &lib, Location const &location, std::string_view name, bool anonymous)
     -> TheoryTermVariable {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_variable, &res_,
-                                      static_cast<clingo_location_t const *>(location), name,
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(),
                                       static_cast<int>(anonymous)));
     return TheoryTermVariable::acquire(res_);
 }
@@ -3289,7 +3295,7 @@ auto TheoryTermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused
 auto TheoryTermVariable::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermVariable {
     return TheoryTermVariable::construct(
         lib, update_value<Location>(this, &TheoryTermVariable::location, kwargs, "location"),
-        update_value<char const *>(this, &TheoryTermVariable::name, kwargs, "name"),
+        update_value<std::string_view>(this, &TheoryTermVariable::name, kwargs, "name"),
         update_value<bool>(this, &TheoryTermVariable::anonymous, kwargs, "anonymous"));
 }
 
@@ -3384,10 +3390,10 @@ auto TheoryTermFunction::location() -> Location {
     return Location{ret};
 }
 
-auto TheoryTermFunction::name() -> char const * {
-    char const *ret = nullptr;
+auto TheoryTermFunction::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto TheoryTermFunction::arguments() -> TheoryTermArray {
@@ -3397,12 +3403,12 @@ auto TheoryTermFunction::arguments() -> TheoryTermArray {
     return construct_theory_term_array(ast, size);
 }
 
-auto TheoryTermFunction::construct(Library &lib, Location const &location, char const *name,
+auto TheoryTermFunction::construct(Library &lib, Location const &location, std::string_view name,
                                    TheoryTermIterable const &arguments) -> TheoryTermFunction {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_function, &res_,
-                                      static_cast<clingo_location_t const *>(location), name, c_cast(arguments).data(),
-                                      arguments.size()));
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(),
+                                      c_cast(arguments).data(), arguments.size()));
     return TheoryTermFunction::acquire(res_);
 }
 
@@ -3424,7 +3430,7 @@ auto TheoryTermFunction::transform([[maybe_unused]] Library &lib, [[maybe_unused
 auto TheoryTermFunction::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermFunction {
     return TheoryTermFunction::construct(
         lib, update_value<Location>(this, &TheoryTermFunction::location, kwargs, "location"),
-        update_value<char const *>(this, &TheoryTermFunction::name, kwargs, "name"),
+        update_value<std::string_view>(this, &TheoryTermFunction::name, kwargs, "name"),
         update_value<TheoryTermArray>(this, &TheoryTermFunction::arguments, kwargs, "arguments"));
 }
 
@@ -3471,10 +3477,10 @@ auto TheoryTermUnparsed::update(Library &lib, py::kwargs const &kwargs) -> Theor
         update_value<UnparsedElementArray>(this, &TheoryTermUnparsed::elements, kwargs, "elements"));
 }
 
-auto TheoryRightGuard::theory_operator() -> char const * {
-    char const *ret = nullptr;
+auto TheoryRightGuard::theory_operator() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_theory_operator, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto TheoryRightGuard::term() -> TheoryTerm {
@@ -3483,10 +3489,11 @@ auto TheoryRightGuard::term() -> TheoryTerm {
     return construct_theory_term(ast);
 }
 
-auto TheoryRightGuard::construct(Library &lib, char const *theory_operator, TheoryTerm const &term)
+auto TheoryRightGuard::construct(Library &lib, std::string_view theory_operator, TheoryTerm const &term)
     -> TheoryRightGuard {
     clingo_ast_t *res_ = nullptr;
-    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_right_guard, &res_, theory_operator, c_cast(term)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_right_guard, &res_, theory_operator.data(),
+                                      theory_operator.size(), c_cast(term)));
     return TheoryRightGuard::acquire(res_);
 }
 
@@ -3507,7 +3514,7 @@ auto TheoryRightGuard::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto TheoryRightGuard::update(Library &lib, py::kwargs const &kwargs) -> TheoryRightGuard {
     return TheoryRightGuard::construct(
-        lib, update_value<char const *>(this, &TheoryRightGuard::theory_operator, kwargs, "theory_operator"),
+        lib, update_value<std::string_view>(this, &TheoryRightGuard::theory_operator, kwargs, "theory_operator"),
         update_value<TheoryTerm>(this, &TheoryRightGuard::term, kwargs, "term"));
 }
 
@@ -4619,10 +4626,10 @@ auto TheoryOperatorDefinition::location() -> Location {
     return Location{ret};
 }
 
-auto TheoryOperatorDefinition::name() -> char const * {
-    char const *ret = nullptr;
+auto TheoryOperatorDefinition::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto TheoryOperatorDefinition::priority() -> int {
@@ -4637,12 +4644,12 @@ auto TheoryOperatorDefinition::operator_type() -> TheoryOperatorType {
     return static_cast<TheoryOperatorType>(ret);
 }
 
-auto TheoryOperatorDefinition::construct(Library &lib, Location const &location, char const *name, int priority,
+auto TheoryOperatorDefinition::construct(Library &lib, Location const &location, std::string_view name, int priority,
                                          TheoryOperatorType const &operator_type) -> TheoryOperatorDefinition {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_operator_definition, &res_,
-                                      static_cast<clingo_location_t const *>(location), name, priority,
-                                      static_cast<int>(operator_type)));
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(),
+                                      priority, static_cast<int>(operator_type)));
     return TheoryOperatorDefinition::acquire(res_);
 }
 
@@ -4660,7 +4667,7 @@ auto TheoryOperatorDefinition::transform([[maybe_unused]] Library &lib, [[maybe_
 auto TheoryOperatorDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryOperatorDefinition {
     return TheoryOperatorDefinition::construct(
         lib, update_value<Location>(this, &TheoryOperatorDefinition::location, kwargs, "location"),
-        update_value<char const *>(this, &TheoryOperatorDefinition::name, kwargs, "name"),
+        update_value<std::string_view>(this, &TheoryOperatorDefinition::name, kwargs, "name"),
         update_value<int>(this, &TheoryOperatorDefinition::priority, kwargs, "priority"),
         update_value<TheoryOperatorType>(this, &TheoryOperatorDefinition::operator_type, kwargs, "operator_type"));
 }
@@ -4688,10 +4695,10 @@ auto TheoryTermDefinition::location() -> Location {
     return Location{ret};
 }
 
-auto TheoryTermDefinition::name() -> char const * {
-    char const *ret = nullptr;
+auto TheoryTermDefinition::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto TheoryTermDefinition::operators() -> TheoryOperatorDefinitionArray {
@@ -4701,12 +4708,12 @@ auto TheoryTermDefinition::operators() -> TheoryOperatorDefinitionArray {
     return construct_theory_operator_definition_array(ast, size);
 }
 
-auto TheoryTermDefinition::construct(Library &lib, Location const &location, char const *name,
+auto TheoryTermDefinition::construct(Library &lib, Location const &location, std::string_view name,
                                      TheoryOperatorDefinitionIterable const &operators) -> TheoryTermDefinition {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_definition, &res_,
-                                      static_cast<clingo_location_t const *>(location), name, c_cast(operators).data(),
-                                      operators.size()));
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(),
+                                      c_cast(operators).data(), operators.size()));
     return TheoryTermDefinition::acquire(res_);
 }
 
@@ -4728,7 +4735,7 @@ auto TheoryTermDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unus
 auto TheoryTermDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermDefinition {
     return TheoryTermDefinition::construct(
         lib, update_value<Location>(this, &TheoryTermDefinition::location, kwargs, "location"),
-        update_value<char const *>(this, &TheoryTermDefinition::name, kwargs, "name"),
+        update_value<std::string_view>(this, &TheoryTermDefinition::name, kwargs, "name"),
         update_value<TheoryOperatorDefinitionArray>(this, &TheoryTermDefinition::operators, kwargs, "operators"));
 }
 
@@ -4749,26 +4756,29 @@ auto construct_theory_term_definition_array(clingo_ast_t **ast, size_t size) -> 
     return ret;
 }
 
-auto TheoryGuardDefinition::operators() -> std::vector<char const *> {
+auto TheoryGuardDefinition::operators() -> std::vector<std::string_view> {
+    clingo_string_t const *value = nullptr;
     size_t size = 0;
-    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, nullptr, &size));
-    std::vector<char const *> ret;
-    ret.resize(size, nullptr);
-    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, ret.data(), &size));
+    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, &value, &size));
+    std::vector<std::string_view> ret;
+    ret.reserve(size);
+    for (auto const &x : std::span{value, size}) {
+        ret.emplace_back(x.data, x.size);
+    }
     return ret;
 }
 
-auto TheoryGuardDefinition::term() -> char const * {
-    char const *ret = nullptr;
+auto TheoryGuardDefinition::term() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_term, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
-auto TheoryGuardDefinition::construct(Library &lib, StringIterable const &operators, char const *term)
+auto TheoryGuardDefinition::construct(Library &lib, StringIterable const &operators, std::string_view term)
     -> TheoryGuardDefinition {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_guard_definition, &res_, c_cast(operators).data(),
-                                      operators.size(), term));
+                                      operators.size(), term.data(), term.size()));
     return TheoryGuardDefinition::acquire(res_);
 }
 
@@ -4785,7 +4795,7 @@ auto TheoryGuardDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unu
 auto TheoryGuardDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryGuardDefinition {
     return TheoryGuardDefinition::construct(
         lib, update_value<StringArray>(this, &TheoryGuardDefinition::operators, kwargs, "operators"),
-        update_value<char const *>(this, &TheoryGuardDefinition::term, kwargs, "term"));
+        update_value<std::string_view>(this, &TheoryGuardDefinition::term, kwargs, "term"));
 }
 
 auto TheoryAtomDefinition::location() -> Location {
@@ -4794,10 +4804,10 @@ auto TheoryAtomDefinition::location() -> Location {
     return Location{ret};
 }
 
-auto TheoryAtomDefinition::name() -> char const * {
-    char const *ret = nullptr;
+auto TheoryAtomDefinition::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto TheoryAtomDefinition::arity() -> int {
@@ -4806,10 +4816,10 @@ auto TheoryAtomDefinition::arity() -> int {
     return ret;
 }
 
-auto TheoryAtomDefinition::term() -> char const * {
-    char const *ret = nullptr;
+auto TheoryAtomDefinition::term() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_term, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto TheoryAtomDefinition::guard() -> OptionalTheoryGuardDefinition {
@@ -4828,13 +4838,13 @@ auto TheoryAtomDefinition::atom_type() -> TheoryAtomType {
     return static_cast<TheoryAtomType>(ret);
 }
 
-auto TheoryAtomDefinition::construct(Library &lib, Location const &location, char const *name, int arity,
-                                     char const *term, OptionalTheoryGuardDefinition const &guard,
+auto TheoryAtomDefinition::construct(Library &lib, Location const &location, std::string_view name, int arity,
+                                     std::string_view term, OptionalTheoryGuardDefinition const &guard,
                                      TheoryAtomType const &atom_type) -> TheoryAtomDefinition {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_atom_definition, &res_,
-                                      static_cast<clingo_location_t const *>(location), name, arity, term,
-                                      c_cast(guard), static_cast<int>(atom_type)));
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(), arity,
+                                      term.data(), term.size(), c_cast(guard), static_cast<int>(atom_type)));
     return TheoryAtomDefinition::acquire(res_);
 }
 
@@ -4858,9 +4868,9 @@ auto TheoryAtomDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unus
 auto TheoryAtomDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomDefinition {
     return TheoryAtomDefinition::construct(
         lib, update_value<Location>(this, &TheoryAtomDefinition::location, kwargs, "location"),
-        update_value<char const *>(this, &TheoryAtomDefinition::name, kwargs, "name"),
+        update_value<std::string_view>(this, &TheoryAtomDefinition::name, kwargs, "name"),
         update_value<int>(this, &TheoryAtomDefinition::arity, kwargs, "arity"),
-        update_value<char const *>(this, &TheoryAtomDefinition::term, kwargs, "term"),
+        update_value<std::string_view>(this, &TheoryAtomDefinition::term, kwargs, "term"),
         update_value<OptionalTheoryGuardDefinition>(this, &TheoryAtomDefinition::guard, kwargs, "guard"),
         update_value<TheoryAtomType>(this, &TheoryAtomDefinition::atom_type, kwargs, "atom_type"));
 }
@@ -5058,30 +5068,28 @@ auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray {
     return ret;
 }
 
-auto ProgramPart::name() -> char const * {
-    char const *ret = nullptr;
+auto ProgramPart::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto ProgramPart::arguments() -> SymbolArray {
+    clingo_symbol_t const *value = nullptr;
     size_t size = 0;
-    handle_error(clingo_ast_attribute_get_symbol_array(ast_, clingo_ast_attribute_arguments, nullptr, &size));
-    std::vector<clingo_symbol_t> syms;
-    syms.resize(size);
-    handle_error(clingo_ast_attribute_get_symbol_array(ast_, clingo_ast_attribute_arguments, syms.data(), &size));
-    auto ret = SymbolArray{};
+    handle_error(clingo_ast_attribute_get_symbol_array(ast_, clingo_ast_attribute_arguments, &value, &size));
+    SymbolArray ret;
     ret.reserve(size);
-    for (auto const &sym : syms) {
-        ret.emplace_back(sym, true);
+    for (auto const &x : std::span{value, size}) {
+        ret.emplace_back(x, true);
     }
     return ret;
 }
 
-auto ProgramPart::construct(Library &lib, char const *name, SymbolIterable const &arguments) -> ProgramPart {
+auto ProgramPart::construct(Library &lib, std::string_view name, SymbolIterable const &arguments) -> ProgramPart {
     clingo_ast_t *res_ = nullptr;
-    handle_error(clingo_ast_construct(lib, clingo_ast_type_program_part, &res_, name, c_cast(arguments).data(),
-                                      arguments.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_program_part, &res_, name.data(), name.size(),
+                                      c_cast(arguments).data(), arguments.size()));
     return ProgramPart::acquire(res_);
 }
 
@@ -5096,7 +5104,7 @@ auto ProgramPart::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::
 }
 
 auto ProgramPart::update(Library &lib, py::kwargs const &kwargs) -> ProgramPart {
-    return ProgramPart::construct(lib, update_value<char const *>(this, &ProgramPart::name, kwargs, "name"),
+    return ProgramPart::construct(lib, update_value<std::string_view>(this, &ProgramPart::name, kwargs, "name"),
                                   update_value<SymbolArray>(this, &ProgramPart::arguments, kwargs, "arguments"));
 }
 
@@ -5245,10 +5253,10 @@ auto StatementTheory::location() -> Location {
     return Location{ret};
 }
 
-auto StatementTheory::name() -> char const * {
-    char const *ret = nullptr;
+auto StatementTheory::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto StatementTheory::terms() -> TheoryTermDefinitionArray {
@@ -5265,13 +5273,13 @@ auto StatementTheory::atoms() -> TheoryAtomDefinitionArray {
     return construct_theory_atom_definition_array(ast, size);
 }
 
-auto StatementTheory::construct(Library &lib, Location const &location, char const *name,
+auto StatementTheory::construct(Library &lib, Location const &location, std::string_view name,
                                 TheoryTermDefinitionIterable const &terms, TheoryAtomDefinitionIterable const &atoms)
     -> StatementTheory {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_theory, &res_,
-                                      static_cast<clingo_location_t const *>(location), name, c_cast(terms).data(),
-                                      terms.size(), c_cast(atoms).data(), atoms.size()));
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(),
+                                      c_cast(terms).data(), terms.size(), c_cast(atoms).data(), atoms.size()));
     return StatementTheory::acquire(res_);
 }
 
@@ -5295,7 +5303,7 @@ auto StatementTheory::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 auto StatementTheory::update(Library &lib, py::kwargs const &kwargs) -> StatementTheory {
     return StatementTheory::construct(
         lib, update_value<Location>(this, &StatementTheory::location, kwargs, "location"),
-        update_value<char const *>(this, &StatementTheory::name, kwargs, "name"),
+        update_value<std::string_view>(this, &StatementTheory::name, kwargs, "name"),
         update_value<TheoryTermDefinitionArray>(this, &StatementTheory::terms, kwargs, "terms"),
         update_value<TheoryAtomDefinitionArray>(this, &StatementTheory::atoms, kwargs, "atoms"));
 }
@@ -5488,10 +5496,10 @@ auto StatementShowSignature::location() -> Location {
     return Location{ret};
 }
 
-auto StatementShowSignature::name() -> char const * {
-    char const *ret = nullptr;
+auto StatementShowSignature::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto StatementShowSignature::arity() -> int {
@@ -5506,11 +5514,11 @@ auto StatementShowSignature::sign() -> bool {
     return ret != 0;
 }
 
-auto StatementShowSignature::construct(Library &lib, Location const &location, char const *name, int arity, bool sign)
-    -> StatementShowSignature {
+auto StatementShowSignature::construct(Library &lib, Location const &location, std::string_view name, int arity,
+                                       bool sign) -> StatementShowSignature {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_show_signature, &res_,
-                                      static_cast<clingo_location_t const *>(location), name, arity,
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(), arity,
                                       static_cast<int>(sign)));
     return StatementShowSignature::acquire(res_);
 }
@@ -5528,7 +5536,7 @@ auto StatementShowSignature::transform([[maybe_unused]] Library &lib, [[maybe_un
 auto StatementShowSignature::update(Library &lib, py::kwargs const &kwargs) -> StatementShowSignature {
     return StatementShowSignature::construct(
         lib, update_value<Location>(this, &StatementShowSignature::location, kwargs, "location"),
-        update_value<char const *>(this, &StatementShowSignature::name, kwargs, "name"),
+        update_value<std::string_view>(this, &StatementShowSignature::name, kwargs, "name"),
         update_value<int>(this, &StatementShowSignature::arity, kwargs, "arity"),
         update_value<bool>(this, &StatementShowSignature::sign, kwargs, "sign"));
 }
@@ -5591,10 +5599,10 @@ auto StatementProjectSignature::location() -> Location {
     return Location{ret};
 }
 
-auto StatementProjectSignature::name() -> char const * {
-    char const *ret = nullptr;
+auto StatementProjectSignature::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto StatementProjectSignature::arity() -> int {
@@ -5609,11 +5617,11 @@ auto StatementProjectSignature::sign() -> bool {
     return ret != 0;
 }
 
-auto StatementProjectSignature::construct(Library &lib, Location const &location, char const *name, int arity,
+auto StatementProjectSignature::construct(Library &lib, Location const &location, std::string_view name, int arity,
                                           bool sign) -> StatementProjectSignature {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_project_signature, &res_,
-                                      static_cast<clingo_location_t const *>(location), name, arity,
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(), arity,
                                       static_cast<int>(sign)));
     return StatementProjectSignature::acquire(res_);
 }
@@ -5632,7 +5640,7 @@ auto StatementProjectSignature::transform([[maybe_unused]] Library &lib, [[maybe
 auto StatementProjectSignature::update(Library &lib, py::kwargs const &kwargs) -> StatementProjectSignature {
     return StatementProjectSignature::construct(
         lib, update_value<Location>(this, &StatementProjectSignature::location, kwargs, "location"),
-        update_value<char const *>(this, &StatementProjectSignature::name, kwargs, "name"),
+        update_value<std::string_view>(this, &StatementProjectSignature::name, kwargs, "name"),
         update_value<int>(this, &StatementProjectSignature::arity, kwargs, "arity"),
         update_value<bool>(this, &StatementProjectSignature::sign, kwargs, "sign"));
 }
@@ -5643,10 +5651,10 @@ auto StatementDefined::location() -> Location {
     return Location{ret};
 }
 
-auto StatementDefined::name() -> char const * {
-    char const *ret = nullptr;
+auto StatementDefined::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto StatementDefined::arity() -> int {
@@ -5661,11 +5669,11 @@ auto StatementDefined::sign() -> bool {
     return ret != 0;
 }
 
-auto StatementDefined::construct(Library &lib, Location const &location, char const *name, int arity, bool sign)
+auto StatementDefined::construct(Library &lib, Location const &location, std::string_view name, int arity, bool sign)
     -> StatementDefined {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_defined, &res_,
-                                      static_cast<clingo_location_t const *>(location), name, arity,
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(), arity,
                                       static_cast<int>(sign)));
     return StatementDefined::acquire(res_);
 }
@@ -5683,7 +5691,7 @@ auto StatementDefined::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 auto StatementDefined::update(Library &lib, py::kwargs const &kwargs) -> StatementDefined {
     return StatementDefined::construct(lib,
                                        update_value<Location>(this, &StatementDefined::location, kwargs, "location"),
-                                       update_value<char const *>(this, &StatementDefined::name, kwargs, "name"),
+                                       update_value<std::string_view>(this, &StatementDefined::name, kwargs, "name"),
                                        update_value<int>(this, &StatementDefined::arity, kwargs, "arity"),
                                        update_value<bool>(this, &StatementDefined::sign, kwargs, "sign"));
 }
@@ -5901,23 +5909,24 @@ auto StatementScript::location() -> Location {
     return Location{ret};
 }
 
-auto StatementScript::value() -> char const * {
-    char const *ret = nullptr;
+auto StatementScript::value() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
-auto StatementScript::script_type() -> char const * {
-    char const *ret = nullptr;
+auto StatementScript::script_type() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_script_type, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
-auto StatementScript::construct(Library &lib, Location const &location, char const *value, char const *script_type)
-    -> StatementScript {
+auto StatementScript::construct(Library &lib, Location const &location, std::string_view value,
+                                std::string_view script_type) -> StatementScript {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_script, &res_,
-                                      static_cast<clingo_location_t const *>(location), value, script_type));
+                                      static_cast<clingo_location_t const *>(location), value.data(), value.size(),
+                                      script_type.data(), script_type.size()));
     return StatementScript::acquire(res_);
 }
 
@@ -5934,8 +5943,8 @@ auto StatementScript::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 auto StatementScript::update(Library &lib, py::kwargs const &kwargs) -> StatementScript {
     return StatementScript::construct(
         lib, update_value<Location>(this, &StatementScript::location, kwargs, "location"),
-        update_value<char const *>(this, &StatementScript::value, kwargs, "value"),
-        update_value<char const *>(this, &StatementScript::script_type, kwargs, "script_type"));
+        update_value<std::string_view>(this, &StatementScript::value, kwargs, "value"),
+        update_value<std::string_view>(this, &StatementScript::script_type, kwargs, "script_type"));
 }
 
 auto StatementInclude::location() -> Location {
@@ -5944,10 +5953,10 @@ auto StatementInclude::location() -> Location {
     return Location{ret};
 }
 
-auto StatementInclude::value() -> char const * {
-    char const *ret = nullptr;
+auto StatementInclude::value() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto StatementInclude::include_type() -> IncludeType {
@@ -5956,11 +5965,11 @@ auto StatementInclude::include_type() -> IncludeType {
     return static_cast<IncludeType>(ret);
 }
 
-auto StatementInclude::construct(Library &lib, Location const &location, char const *value,
+auto StatementInclude::construct(Library &lib, Location const &location, std::string_view value,
                                  IncludeType const &include_type) -> StatementInclude {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_include, &res_,
-                                      static_cast<clingo_location_t const *>(location), value,
+                                      static_cast<clingo_location_t const *>(location), value.data(), value.size(),
                                       static_cast<int>(include_type)));
     return StatementInclude::acquire(res_);
 }
@@ -5978,7 +5987,7 @@ auto StatementInclude::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 auto StatementInclude::update(Library &lib, py::kwargs const &kwargs) -> StatementInclude {
     return StatementInclude::construct(
         lib, update_value<Location>(this, &StatementInclude::location, kwargs, "location"),
-        update_value<char const *>(this, &StatementInclude::value, kwargs, "value"),
+        update_value<std::string_view>(this, &StatementInclude::value, kwargs, "value"),
         update_value<IncludeType>(this, &StatementInclude::include_type, kwargs, "include_type"));
 }
 
@@ -5988,27 +5997,30 @@ auto StatementProgram::location() -> Location {
     return Location{ret};
 }
 
-auto StatementProgram::name() -> char const * {
-    char const *ret = nullptr;
+auto StatementProgram::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
-auto StatementProgram::arguments() -> std::vector<char const *> {
+auto StatementProgram::arguments() -> std::vector<std::string_view> {
+    clingo_string_t const *value = nullptr;
     size_t size = 0;
-    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_arguments, nullptr, &size));
-    std::vector<char const *> ret;
-    ret.resize(size, nullptr);
-    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_arguments, ret.data(), &size));
+    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_arguments, &value, &size));
+    std::vector<std::string_view> ret;
+    ret.reserve(size);
+    for (auto const &x : std::span{value, size}) {
+        ret.emplace_back(x.data, x.size);
+    }
     return ret;
 }
 
-auto StatementProgram::construct(Library &lib, Location const &location, char const *name,
+auto StatementProgram::construct(Library &lib, Location const &location, std::string_view name,
                                  StringIterable const &arguments) -> StatementProgram {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_program, &res_,
-                                      static_cast<clingo_location_t const *>(location), name, c_cast(arguments).data(),
-                                      arguments.size()));
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(),
+                                      c_cast(arguments).data(), arguments.size()));
     return StatementProgram::acquire(res_);
 }
 
@@ -6025,7 +6037,7 @@ auto StatementProgram::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 auto StatementProgram::update(Library &lib, py::kwargs const &kwargs) -> StatementProgram {
     return StatementProgram::construct(
         lib, update_value<Location>(this, &StatementProgram::location, kwargs, "location"),
-        update_value<char const *>(this, &StatementProgram::name, kwargs, "name"),
+        update_value<std::string_view>(this, &StatementProgram::name, kwargs, "name"),
         update_value<StringArray>(this, &StatementProgram::arguments, kwargs, "arguments"));
 }
 
@@ -6085,10 +6097,10 @@ auto StatementConst::location() -> Location {
     return Location{ret};
 }
 
-auto StatementConst::name() -> char const * {
-    char const *ret = nullptr;
+auto StatementConst::name() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto StatementConst::value() -> Term {
@@ -6103,12 +6115,12 @@ auto StatementConst::precedence() -> Precedence {
     return static_cast<Precedence>(ret);
 }
 
-auto StatementConst::construct(Library &lib, Location const &location, char const *name, Term const &value,
+auto StatementConst::construct(Library &lib, Location const &location, std::string_view name, Term const &value,
                                Precedence const &precedence) -> StatementConst {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_const, &res_,
-                                      static_cast<clingo_location_t const *>(location), name, c_cast(value),
-                                      static_cast<int>(precedence)));
+                                      static_cast<clingo_location_t const *>(location), name.data(), name.size(),
+                                      c_cast(value), static_cast<int>(precedence)));
     return StatementConst::acquire(res_);
 }
 
@@ -6129,7 +6141,7 @@ auto StatementConst::transform([[maybe_unused]] Library &lib, [[maybe_unused]] p
 
 auto StatementConst::update(Library &lib, py::kwargs const &kwargs) -> StatementConst {
     return StatementConst::construct(lib, update_value<Location>(this, &StatementConst::location, kwargs, "location"),
-                                     update_value<char const *>(this, &StatementConst::name, kwargs, "name"),
+                                     update_value<std::string_view>(this, &StatementConst::name, kwargs, "name"),
                                      update_value<Term>(this, &StatementConst::value, kwargs, "value"),
                                      update_value<Precedence>(this, &StatementConst::precedence, kwargs, "precedence"));
 }
@@ -6140,10 +6152,10 @@ auto StatementComment::location() -> Location {
     return Location{ret};
 }
 
-auto StatementComment::value() -> char const * {
-    char const *ret = nullptr;
+auto StatementComment::value() -> std::string_view {
+    clingo_string_t ret;
     handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret));
-    return ret;
+    return {ret.data, ret.size};
 }
 
 auto StatementComment::comment_type() -> CommentType {
@@ -6152,11 +6164,11 @@ auto StatementComment::comment_type() -> CommentType {
     return static_cast<CommentType>(ret);
 }
 
-auto StatementComment::construct(Library &lib, Location const &location, char const *value,
+auto StatementComment::construct(Library &lib, Location const &location, std::string_view value,
                                  CommentType const &comment_type) -> StatementComment {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_comment, &res_,
-                                      static_cast<clingo_location_t const *>(location), value,
+                                      static_cast<clingo_location_t const *>(location), value.data(), value.size(),
                                       static_cast<int>(comment_type)));
     return StatementComment::acquire(res_);
 }
@@ -6174,7 +6186,7 @@ auto StatementComment::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 auto StatementComment::update(Library &lib, py::kwargs const &kwargs) -> StatementComment {
     return StatementComment::construct(
         lib, update_value<Location>(this, &StatementComment::location, kwargs, "location"),
-        update_value<char const *>(this, &StatementComment::value, kwargs, "value"),
+        update_value<std::string_view>(this, &StatementComment::value, kwargs, "value"),
         update_value<CommentType>(this, &StatementComment::comment_type, kwargs, "comment_type"));
 }
 
@@ -6249,7 +6261,7 @@ namespace {
 
 struct CString {
     CString(std::string &&str) : str_{std::move(str)} {}
-    operator char const *() const { return str_.c_str(); }
+    operator std::string_view() const { return std::string_view{str_}; }
     std::string str_;
 };
 
@@ -6257,7 +6269,7 @@ struct CString {
 
 template <class T, class F, class M>
 auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) -> update_result_t<T> {
-    if constexpr (std::is_same_v<T, char const *>) {
+    if constexpr (std::is_same_v<T, std::string_view>) {
         if (kwargs.contains(attr)) {
             return py::cast<std::string>(kwargs[attr]);
         }
@@ -6274,39 +6286,42 @@ auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) ->
     }
 }
 
-auto parse_term(Library &lib, char const *string) -> Term {
+auto parse_term(Library &lib, std::string_view string) -> Term {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string.data(), string.size(), &ast));
     return construct_term(ast);
 }
 
-auto parse_theory_term(Library &lib, char const *string) -> TheoryTerm {
+auto parse_theory_term(Library &lib, std::string_view string) -> TheoryTerm {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_theory_term, string, &ast));
+    handle_error(
+        clingo_ast_parse_expression(lib, clingo_ast_parse_type_theory_term, string.data(), string.size(), &ast));
     return construct_theory_term(ast);
 }
 
-auto parse_literal(Library &lib, char const *string) -> Literal {
+auto parse_literal(Library &lib, std::string_view string) -> Literal {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string.data(), string.size(), &ast));
     return construct_literal(ast);
 }
 
-auto parse_head_literal(Library &lib, char const *string) -> HeadLiteral {
+auto parse_head_literal(Library &lib, std::string_view string) -> HeadLiteral {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_head_literal, string, &ast));
+    handle_error(
+        clingo_ast_parse_expression(lib, clingo_ast_parse_type_head_literal, string.data(), string.size(), &ast));
     return construct_head_literal(ast);
 }
 
-auto parse_body_literal(Library &lib, char const *string) -> BodyLiteral {
+auto parse_body_literal(Library &lib, std::string_view string) -> BodyLiteral {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_body_literal, string, &ast));
+    handle_error(
+        clingo_ast_parse_expression(lib, clingo_ast_parse_type_body_literal, string.data(), string.size(), &ast));
     return construct_body_literal(ast);
 }
 
-auto parse_statement(Library &lib, char const *string) -> Statement {
+auto parse_statement(Library &lib, std::string_view string) -> Statement {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, string.data(), string.size(), &ast));
     return construct_statement(ast);
 }
 
@@ -6357,14 +6372,15 @@ class Scanner {
     friend auto operator==(Iterator const &a, Iterator const &b) -> bool;
     friend auto operator!=(Iterator const &a, Iterator const &b) -> bool;
 
-    Scanner(Library &lib, char const *program) : lib_{lib} {
-        handle_error(clingo_ast_scan_string(lib, program, &scanner_));
+    Scanner(Library &lib, std::string_view program) : lib_{lib} {
+        handle_error(clingo_ast_scan_string(lib, program.data(), program.size(), &scanner_));
     }
 
     Scanner(Library &lib, std::vector<std::string> files) : lib_{lib} {
-        std::vector<char const *> cfiles;
+        std::vector<clingo_string_t> cfiles;
         cfiles.reserve(cfiles.size());
-        std::ranges::transform(files, std::back_inserter(cfiles), [](auto const &file) { return file.c_str(); });
+        std::ranges::transform(files, std::back_inserter(cfiles),
+                               [](auto const &file) { return clingo_string_t{file.data(), file.size()}; });
         handle_error(clingo_ast_scan_files(lib, cfiles.data(), cfiles.size(), &scanner_));
     }
 
@@ -6419,7 +6435,9 @@ class RewriteContext {
     }
     void set_project_anoymous(bool value) { clingo_ast_rewrite_context_set_project_anonymous(ctx_, value); }
     auto get_project_anonymous() -> bool { return clingo_ast_rewrite_context_get_project_mode(ctx_) != 0; }
-    void add_param(std::string const &name) { handle_error(clingo_ast_rewrite_context_add_param(ctx_, name.c_str())); }
+    void add_param(std::string const &name) {
+        handle_error(clingo_ast_rewrite_context_add_param(ctx_, name.data(), name.size()));
+    }
     void clear_params() { clingo_ast_rewrite_context_clear_params(ctx_); }
     void add_theory(StatementTheory const &stm) {
         handle_error(clingo_ast_rewrite_context_add_theory(ctx_, c_cast(stm)));
@@ -9264,7 +9282,7 @@ Returns:
 )doc");
 
     py::class_<Scanner>(ast, "Scanner", R"doc( Scanner to parse statements.)doc")
-        .def(py::init<Library &, char const *>(), py::arg("lib"), py::arg("program"),
+        .def(py::init<Library &, std::string_view>(), py::arg("lib"), py::arg("program"),
              R"doc(Create a scanner to parse from the given string.
 
 Args:

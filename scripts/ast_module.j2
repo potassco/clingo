@@ -21,7 +21,7 @@ using StringIterable = Iterable<std::string>;
 using SymbolArray = std::vector<Symbol>;
 using SymbolIterable = Iterable<Symbol>;
 
-auto to_string_array(std::vector<char const *> arr) -> StringArray {
+auto to_string_array(std::vector<std::string_view> arr) -> StringArray {
     auto res = StringArray();
     res.insert(res.end(), arr.begin(), arr.end());
     return res;
@@ -36,11 +36,11 @@ auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t*;
 template <class T>
 auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*>;
 
-auto c_cast(StringArray const &arr) -> std::vector<char const *> {
-    std::vector<char const *> ret;
+auto c_cast(StringArray const &arr) -> std::vector<clingo_string_t> {
+    std::vector<clingo_string_t> ret;
     ret.reserve(arr.size());
     for (auto const &str : arr) {
-        ret.emplace_back(str.c_str());
+        ret.emplace_back(str.data(), str.size());
     }
     return ret;
 }
@@ -137,23 +137,23 @@ auto c_cast(ASTBase const &x) -> clingo_ast_t * {
 }
 
 struct CString {
-    CString(char const *str) : str_{str} {}
+    CString(std::string_view str) : str_{str} {}
     CString(std::string &&str) : str_{std::move(str)} {}
-    operator char const *() const {
+    operator std::string_view() const {
         return std::visit([]<class T>(T const &x){
             if constexpr (std::is_same_v<T, std::string>) {
-                return x.c_str();
+                return std::string_view{x};
             }
             else {
                 return x;
             }
         }, str_);
     }
-    std::variant<std::string, char const *> str_;
+    std::variant<std::string, std::string_view> str_;
 };
 
 template <class T>
-using update_result_t = std::conditional_t<std::is_same_v<T, char const *>, CString, T>;
+using update_result_t = std::conditional_t<std::is_same_v<T, std::string_view>, CString, T>;
 
 template <class T, class F, class M> auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) -> update_result_t<T>;
 
@@ -312,8 +312,8 @@ namespace {
 
 struct CString {
     CString(std::string &&str) : str_{std::move(str)} { }
-    operator char const*() const {
-        return str_.c_str();
+    operator std::string_view() const {
+        return std::string_view{str_};
     }
     std::string str_;
 };
@@ -322,7 +322,7 @@ struct CString {
 
 template <class T, class F, class M>
 auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) -> update_result_t<T> {
-    if constexpr (std::is_same_v<T, char const *>) {
+    if constexpr (std::is_same_v<T, std::string_view>) {
         if (kwargs.contains(attr)) {
             return py::cast<std::string>(kwargs[attr]);
         }
@@ -340,39 +340,39 @@ auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) ->
     }
 }
 
-auto parse_term(Library &lib, char const *string) -> Term {
+auto parse_term(Library &lib, std::string_view string) -> Term {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string.data(), string.size(), &ast));
     return construct_term(ast);
 }
 
-auto parse_theory_term(Library &lib, char const *string) -> TheoryTerm {
+auto parse_theory_term(Library &lib, std::string_view string) -> TheoryTerm {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_theory_term, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_theory_term, string.data(), string.size(), &ast));
     return construct_theory_term(ast);
 }
 
-auto parse_literal(Library &lib, char const *string) -> Literal {
+auto parse_literal(Library &lib, std::string_view string) -> Literal {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string.data(), string.size(), &ast));
     return construct_literal(ast);
 }
 
-auto parse_head_literal(Library &lib, char const *string) -> HeadLiteral {
+auto parse_head_literal(Library &lib, std::string_view string) -> HeadLiteral {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_head_literal, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_head_literal, string.data(), string.size(), &ast));
     return construct_head_literal(ast);
 }
 
-auto parse_body_literal(Library &lib, char const *string) -> BodyLiteral {
+auto parse_body_literal(Library &lib, std::string_view string) -> BodyLiteral {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_body_literal, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_body_literal, string.data(), string.size(), &ast));
     return construct_body_literal(ast);
 }
 
-auto parse_statement(Library &lib, char const *string) -> Statement {
+auto parse_statement(Library &lib, std::string_view string) -> Statement {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, string.data(), string.size(), &ast));
     return construct_statement(ast);
 }
 
@@ -427,14 +427,14 @@ public:
     friend auto operator==(Iterator const &a, Iterator const &b) -> bool;
     friend auto operator!=(Iterator const &a, Iterator const &b) -> bool;
 
-    Scanner(Library &lib, char const *program) : lib_{lib} {
-        handle_error(clingo_ast_scan_string(lib, program, &scanner_));
+    Scanner(Library &lib, std::string_view program) : lib_{lib} {
+        handle_error(clingo_ast_scan_string(lib, program.data(), program.size(), &scanner_));
     }
 
     Scanner(Library &lib, std::vector<std::string> files) : lib_{lib} {
-        std::vector<char const *> cfiles;
+        std::vector<clingo_string_t> cfiles;
         cfiles.reserve(cfiles.size());
-        std::ranges::transform(files, std::back_inserter(cfiles), [](auto const &file){ return file.c_str(); });
+        std::ranges::transform(files, std::back_inserter(cfiles), [](auto const &file){ return clingo_string_t{file.data(), file.size()}; });
         handle_error(clingo_ast_scan_files(lib, cfiles.data(), cfiles.size(), &scanner_));
     }
 
@@ -495,7 +495,7 @@ class RewriteContext {
     void set_project_anoymous(bool value) { clingo_ast_rewrite_context_set_project_anonymous(ctx_, value); }
     auto get_project_anonymous() -> bool { return clingo_ast_rewrite_context_get_project_mode(ctx_) != 0; }
     void add_param(std::string const &name) {
-        handle_error(clingo_ast_rewrite_context_add_param(ctx_, name.c_str()));
+        handle_error(clingo_ast_rewrite_context_add_param(ctx_, name.data(), name.size()));
     }
     void clear_params() {
         clingo_ast_rewrite_context_clear_params(ctx_);
@@ -659,7 +659,7 @@ Returns:
 {%    endif %}
 {%- endfor %}
     py::class_<Scanner>(ast, "Scanner", R"doc( Scanner to parse statements.)doc")
-        .def(py::init<Library &, char const *>(), py::arg("lib"), py::arg("program"),
+        .def(py::init<Library &, std::string_view>(), py::arg("lib"), py::arg("program"),
             R"doc(Create a scanner to parse from the given string.
 
 Args:

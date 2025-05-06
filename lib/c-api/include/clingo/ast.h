@@ -204,12 +204,14 @@ typedef int clingo_ast_parse_type_t;
 //! @param[in] lib the library object to store symbols
 //! @param[in] type the expression type to parse
 //! @param[in] string the expression to parse
+//! @param[in] size the size of the string
 //! @param[in] ast the resulting ast
 //! @return the result code; might return one of the following codes:
 //! - ::clingo_result_bad_alloc
 //! - ::clingo_result_runtime for invalid arguments or expressions
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_type_t type,
-                                                                      char const *string, clingo_ast_t **ast);
+                                                                      char const *string, size_t size,
+                                                                      clingo_ast_t **ast);
 
 //! Free an AST node.
 //!
@@ -316,7 +318,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_location(clin
 //! - ::clingo_result_runtime
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string(clingo_ast_t *ast,
                                                                           clingo_ast_attribute_t attribute,
-                                                                          char const **value);
+                                                                          clingo_string_t *value);
 
 //! Get the value of a string array attribute.
 //!
@@ -329,7 +331,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string(clingo
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string_array(clingo_ast_t *ast,
                                                                                 clingo_ast_attribute_t attribute,
-                                                                                char const **value, size_t *size);
+                                                                                clingo_string_t const **value,
+                                                                                size_t *size);
 
 //! Get the value of a symbol array attribute.
 //!
@@ -342,7 +345,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string_array(
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_symbol_array(clingo_ast_t *ast,
                                                                                 clingo_ast_attribute_t attribute,
-                                                                                clingo_symbol_t *value, size_t *size);
+                                                                                clingo_symbol_t const **value,
+                                                                                size_t *size);
 
 //! Get the value of an ast attribute.
 //!
@@ -390,9 +394,10 @@ typedef struct clingo_ast_scanner clingo_ast_scanner_t;
 //!
 //! @param[in] lib the library object to store symbols
 //! @param[in] program the string to read from
+//! @param[in] size the size of the string
 //! @param[out] scanner the resulting scanner
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_string(clingo_lib_t *lib, char const *program,
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_string(clingo_lib_t *lib, char const *program, size_t size,
                                                                  clingo_ast_scanner_t **scanner);
 
 //! Creater a scanner reading a program from a string.
@@ -402,7 +407,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_string(clingo_lib_t *l
 //! @param[in] size the number of file paths
 //! @param[out] scanner the resulting scanner
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_files(clingo_lib_t *lib, char const *const *files,
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_files(clingo_lib_t *lib, clingo_string_t const *files,
                                                                 size_t size, clingo_ast_scanner_t **scanner);
 
 //! Parse the next statement.
@@ -455,9 +460,10 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_free(clingo_ast_rewrit
 //!
 //! @param[in] context the context object
 //! @param[in] param the parameter to protect
+//! @param[in] size the size of the string
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context,
-                                                                               char const *param);
+                                                                               char const *param, size_t size);
 
 //! Remove all previously added parameters.
 //!
