@@ -33,7 +33,9 @@ TEST_CASE("cxx-control") {
             oss << sym << " ";
         }
         mdls.emplace_back(oss.str());
-        mdls.back().pop_back();
+        if (not mdls.back().empty()) {
+            mdls.back().pop_back();
+        }
     }
     std::ranges::sort(mdls);
     REQUIRE(mdls == std::vector<std::string>{"", "a(2)", "a(2) b(0)", "b(0)"});

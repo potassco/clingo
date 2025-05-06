@@ -4,6 +4,7 @@
 
 #include <clingo/symbol.h>
 
+#include <optional>
 #include <span>
 
 namespace Clingo {

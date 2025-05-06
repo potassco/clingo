@@ -4,6 +4,8 @@
 
 #include <clingo/config.h>
 
+#include <variant>
+
 namespace Clingo {
 
 enum class ConfigType : clingo_config_type_bitset_t {

@@ -55,44 +55,6 @@ inline auto c_cast(Potassco::StatisticsType type) -> clingo_stats_type_e {
     }
 }
 
-namespace {
-
-// TODO: remove
-class StringBuffer {
-  public:
-    explicit StringBuffer(std::string_view sv) {
-        if (sv.size() < BUFFER_SIZE) {
-            auto &arr = storage_.emplace<StaticArray>();
-            *std::ranges::copy_n(sv.data(), std::ssize(sv), arr.data()).out = '\0';
-        } else {
-            auto &arr = storage_.emplace<DynamicArray>(std::make_unique_for_overwrite<char[]>(sv.size() + 1)); // NOLINT
-            *std::ranges::copy_n(sv.data(), std::ssize(sv), arr.get()).out = '\0';
-        }
-    }
-    [[nodiscard]] auto c_str() const -> char const * {
-        return std::visit(
-            []<class T>(T const &buf) -> char const * {
-                if constexpr (std::is_same_v<T, DynamicArray>) {
-                    return buf.get();
-                } else {
-                    return buf.data();
-                }
-            },
-            storage_);
-    }
-
-    operator const char *() const { return c_str(); }
-
-  private:
-    static constexpr size_t BUFFER_SIZE = 256;
-    using DynamicArray = std::unique_ptr<char[]>; // NOLINT
-    using StaticArray = std::array<char, BUFFER_SIZE>;
-
-    std::variant<DynamicArray, StaticArray> storage_;
-};
-
-} // namespace
-
 extern "C" auto clingo_stats_root(clingo_stats_t const *stats, uint64_t *key) -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || key == nullptr) {
@@ -162,7 +124,7 @@ extern "C" auto clingo_stats_map_has_subkey(clingo_stats_t const *stats, uint64_
         if (stats == nullptr || (name == nullptr && size > 0) || result == nullptr) {
             return clingo_result_invalid;
         }
-        *result = cpp_cast(stats)->find(key, StringBuffer{std::string_view{name, size}}.c_str(), nullptr);
+        *result = cpp_cast(stats)->find(key, std::string_view{name, size}, nullptr);
     }
     CLINGO_CATCH;
 }
@@ -173,7 +135,7 @@ extern "C" auto clingo_stats_map_subkey_name(clingo_stats_t const *stats, uint64
         if (stats == nullptr || name == nullptr) {
             return clingo_result_invalid;
         }
-        auto str = std::string_view{cpp_cast(stats)->key(key, offset)};
+        auto str = cpp_cast(stats)->key(key, offset);
         name->data = str.data();
         name->size = str.size();
     }
@@ -186,7 +148,7 @@ extern "C" auto clingo_stats_map_at(clingo_stats_t const *stats, uint64_t key, c
         if (stats == nullptr || (name == nullptr && size > 0) || subkey == nullptr) {
             return clingo_result_invalid;
         }
-        *subkey = cpp_cast(stats)->get(key, StringBuffer{std::string_view{name, size}}.c_str());
+        *subkey = cpp_cast(stats)->get(key, std::string_view{name, size});
     }
     CLINGO_CATCH;
 }
@@ -197,8 +159,8 @@ extern "C" auto clingo_stats_map_add_subkey(clingo_stats_t *stats, uint64_t key,
         if (stats == nullptr || (name == nullptr && size > 0) || subkey == nullptr) {
             return clingo_result_invalid;
         }
-        *subkey = cpp_cast(stats)->add(key, StringBuffer{std::string_view{name, size}}.c_str(),
-                                       cpp_cast(static_cast<clingo_stats_type_e>(type)));
+        *subkey =
+            cpp_cast(stats)->add(key, std::string_view{name, size}, cpp_cast(static_cast<clingo_stats_type_e>(type)));
     }
     CLINGO_CATCH;
 }
