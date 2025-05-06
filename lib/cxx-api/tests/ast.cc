@@ -18,8 +18,8 @@ TEST_CASE("cxx-ast") {
     REQUIRE(body.front().to_string() == "b");
 
     auto loc = head.location(AST::Attribute::location);
-    // auto var = AST::Node(lib, AST::NodeType::term_variable, loc, "X", false);
-    // REQUIRE(var.to_string() == "X");
+    auto var = AST::Node(lib, AST::NodeType::term_variable, loc, "X", false);
+    REQUIRE(var.to_string() == "X");
 }
 
 } // namespace Clingo::Test
