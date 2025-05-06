@@ -403,8 +403,7 @@ static constexpr auto c_propagator = clingo_propagator_t{
     [](clingo_propagate_init_t *init, void *data) -> clingo_result_t {
         auto const &[self, ptr] = *static_cast<PropagatorData *>(data);
         CLINGO_TRY {
-            auto py_init = PropagateInit{init};
-            self->init(py_init);
+            self->init(PropagateInit{init});
         }
         CLINGO_CATCH_PTR(*ptr);
     },
@@ -412,8 +411,7 @@ static constexpr auto c_propagator = clingo_propagator_t{
        void *data) -> clingo_result_t {
         auto const &[self, ptr] = *static_cast<PropagatorData *>(data);
         CLINGO_TRY {
-            auto py_ctl = PropagateControl{control};
-            self->propagate(py_ctl, SolverLiteralSpan{changes, size});
+            self->propagate(PropagateControl{control}, SolverLiteralSpan{changes, size});
         }
         CLINGO_CATCH_PTR(*ptr);
     },
@@ -424,8 +422,7 @@ static constexpr auto c_propagator = clingo_propagator_t{
             Detail::handle_error(clingo_propagate_control_thread_id(control, &thread_id));
             clingo_assignment_t const *assignment = nullptr;
             Detail::handle_error(clingo_propagate_control_assignment(control, &assignment));
-            auto py_assignment = Assignment(assignment);
-            self->undo(thread_id, py_assignment, SolverLiteralSpan{changes, size});
+            self->undo(thread_id, Assignment(assignment), SolverLiteralSpan{changes, size});
         } catch (std::exception const &e) {
             printf("panic: %s\n", e.what());
             std::abort();
@@ -447,9 +444,10 @@ static constexpr auto c_heuristic =
                            void *data, clingo_literal_t *decision) -> clingo_result_t {
                             auto const &[self, ptr] = *static_cast<PropagatorData *>(data);
                             CLINGO_TRY {
-                                auto py_assignment = Assignment{assignment};
-                                // NOLINTNEXTLINE
-                                *decision = static_cast<Heuristic *>(self)->decide(thread_id, py_assignment, fallback);
+                                // NOLINTBEGIN
+                                *decision =
+                                    static_cast<Heuristic *>(self)->decide(thread_id, Assignment{assignment}, fallback);
+                                // NOLINTEND
                             }
                             CLINGO_CATCH_PTR(*ptr);
                         }};
