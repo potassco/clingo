@@ -33,7 +33,7 @@ TEST_CASE("cxx-control") {
             oss << sym << " ";
         }
         mdls.emplace_back(oss.str());
-        if (not mdls.back().empty()) {
+        if (!mdls.back().empty()) {
             mdls.back().pop_back();
         }
     }
