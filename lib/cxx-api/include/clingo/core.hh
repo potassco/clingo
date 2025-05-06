@@ -4,6 +4,7 @@
 #include <clingo/shared.h>
 
 #include <algorithm>
+#include <cassert>
 #include <functional>
 #include <iterator>
 #include <span>
@@ -131,18 +132,18 @@ inline auto user_data_slot() -> size_t {
 }
 
 //! Use std::transform to build a vector.
-template <class It, class Pred> auto transform(It begin, It end, Pred pred) {
-    auto p = std::vector<std::invoke_result_t<Pred, typename std::iterator_traits<It>::value_type>>{};
+template <std::input_iterator It, std::sentinel_for<It> S, class Pred> auto transform(It begin, S end, Pred pred) {
+    auto p = std::vector<std::invoke_result_t<Pred, std::iter_reference_t<It>>>{};
     p.reserve(std::distance(begin, end));
     std::transform(begin, end, std::back_inserter(p), pred);
     return p;
 }
 
 //! Use std::transform to build a vector.
-template <class Rng, class Pred> auto transform(Rng const &rng, Pred pred) {
+template <std::ranges::input_range Rng, class Pred> auto transform(Rng &&rng, Pred pred) { // NOLINT
     using std::begin;
     using std::end;
-    return transform(begin(rng), end(rng), pred);
+    return transform(std::ranges::begin(rng), std::ranges::end(rng), pred);
 }
 
 //! Compute the hash for the given type.
@@ -416,6 +417,125 @@ enum class HeuristicType : clingo_heuristic_type_t {
     init = clingo_heuristic_type_init,     //!< modify the initial VSIDS score of an atom
     true_ = clingo_heuristic_type_true,    //!< set the level of an atom and choose a positive sign
     false_ = clingo_heuristic_type_false   //!< set the level of an atom and choose a negative sign
+};
+
+class Position {
+  public:
+    Position(Position const &other) { Detail::handle_error(clingo_position_copy(other.pos_, &pos_)); }
+
+    auto operator=(Position const &other) -> Position & {
+        if (this != &other) {
+            assert(pos_ == nullptr || pos_ != other.pos_);
+            clingo_position_free(std::exchange(pos_, nullptr));
+            Detail::handle_error(clingo_position_copy(other.pos_, &pos_));
+        }
+        return *this;
+    }
+
+    Position(Position &&other) noexcept : pos_{std::exchange(other.pos_, nullptr)} {}
+
+    friend auto c_cast(Position const &x) -> clingo_position_t const * { return x.pos_; }
+
+    auto operator=(Position &&other) noexcept -> Position & {
+        if (this != &other) {
+            assert(pos_ == nullptr || pos_ != other.pos_);
+            clingo_position_free(std::exchange(pos_, std::exchange(other.pos_, nullptr)));
+        }
+        return *this;
+    }
+
+    ~Position() noexcept { clingo_position_free(pos_); }
+
+    explicit Position(clingo_position_t const *pos) { Detail::handle_error(clingo_position_copy(pos, &pos_)); }
+
+    Position(Library const &lib, std::string_view file, size_t line, size_t column) {
+        Detail::handle_error(clingo_position_new(c_cast(lib), file.data(), file.size(), line, column, &pos_));
+    }
+
+    [[nodiscard]] auto file() const -> std::string_view {
+        clingo_string_t val;
+        clingo_position_file(pos_, &val);
+        return {val.data, val.size};
+    }
+
+    [[nodiscard]] auto line() const -> size_t { return clingo_position_line(pos_); }
+
+    [[nodiscard]] auto column() const -> size_t { return clingo_position_column(pos_); }
+
+    [[nodiscard]] auto to_string() const -> std::string {
+        auto bld = StringBuilder{};
+        Detail::handle_error(clingo_position_to_string(pos_, c_cast(bld)));
+        return std::string{bld.str()};
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_position_hash(pos_); }
+
+    friend auto operator==(Position const &a, Position const &b) -> bool {
+        return clingo_position_equal(a.pos_, b.pos_);
+    }
+    friend auto operator<=>(Position const &a, Position const &b) -> std::strong_ordering {
+        return clingo_position_compare(a.pos_, b.pos_) <=> 0;
+    }
+
+  private:
+    clingo_position_t const *pos_ = nullptr;
+};
+
+class Location {
+  public:
+    Location(Location const &other) { Detail::handle_error(clingo_location_copy(other.loc_, &loc_)); }
+
+    auto operator=(Location const &other) -> Location & {
+        if (this != &other) {
+            assert(loc_ == nullptr || loc_ != other.loc_);
+            clingo_location_free(std::exchange(loc_, nullptr));
+            Detail::handle_error(clingo_location_copy(other.loc_, &loc_));
+        }
+        return *this;
+    }
+
+    Location(Location &&other) noexcept : loc_{std::exchange(other.loc_, nullptr)} {}
+
+    auto operator=(Location &&other) noexcept -> Location & {
+        if (this != &other) {
+            assert(loc_ == nullptr || loc_ != other.loc_);
+            clingo_location_free(std::exchange(loc_, std::exchange(other.loc_, nullptr)));
+        }
+        return *this;
+    }
+
+    ~Location() noexcept { clingo_location_free(loc_); }
+
+    explicit Location(clingo_location_t const *loc) { Detail::handle_error(clingo_location_copy(loc, &loc_)); }
+
+    Location(Position const &begin, Position const &end) {
+        Detail::handle_error(clingo_location_new(c_cast(begin), c_cast(end), &loc_));
+    }
+
+    friend auto c_cast(Location const &x) -> clingo_location_t const * { return x.loc_; }
+
+    [[nodiscard]] auto begin() const -> Position { return Position{clingo_location_begin(loc_)}; }
+
+    [[nodiscard]] auto end() const -> Position { return Position{clingo_location_end(loc_)}; }
+
+    [[nodiscard]] auto to_string() const -> std::string {
+        auto bld = StringBuilder{};
+        Detail::handle_error(clingo_location_to_string(loc_, c_cast(bld)));
+        return std::string{bld.str()};
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_location_hash(loc_); }
+
+    friend auto operator==(Location const &a, Location const &b) -> bool {
+        return clingo_location_equal(a.loc_, b.loc_);
+    }
+
+    friend auto operator<=>(Location const &a, Location const &b) -> std::strong_ordering {
+        return clingo_location_compare(a.loc_, b.loc_) <=> 0;
+    }
+
+  private:
+    clingo_location_t const *loc_ = nullptr;
 };
 
 } // namespace Clingo

@@ -260,7 +260,7 @@ extern "C" auto clingo_position_new(clingo_lib_t *lib, char const *file, size_t 
 extern "C" auto clingo_position_copy(clingo_position_t const *src, clingo_position_t const **dst) -> clingo_result_t {
     CLINGO_TRY {
         // NOLINTNEXTLINE
-        *dst = c_cast(new Clingo::Position{*cpp_cast(src)});
+        *dst = src != nullptr ? c_cast(new Clingo::Position{*cpp_cast(src)}) : nullptr;
     }
     CLINGO_CATCH;
 }
@@ -319,7 +319,7 @@ extern "C" auto clingo_location_new(clingo_position_t const *begin, clingo_posit
 extern "C" auto clingo_location_copy(clingo_location_t const *src, clingo_location_t const **dst) -> clingo_result_t {
     CLINGO_TRY {
         // NOLINTNEXTLINE
-        *dst = c_cast(new Clingo::Location{*cpp_cast(src)});
+        *dst = src != nullptr ? c_cast(new Clingo::Location{*cpp_cast(src)}) : nullptr;
     }
     CLINGO_CATCH;
 }

@@ -12,7 +12,7 @@ if (PARSER_BUILD_TESTS)
     add_executable(test_core
         "tests/number.cc"
         "tests/symbol.cc")
-    clingo_target_properties(clingo_core test/core)
+    clingo_target_properties(test_core test/core tests)
     target_include_directories(test_core PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_core PRIVATE clingo::core Catch2::Catch2WithMain)
     catch_discover_tests(test_core)

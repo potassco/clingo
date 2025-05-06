@@ -5,7 +5,23 @@
 
 #include <clingo/ast.h>
 
-namespace Clingo {
+#include <cassert>
+
+namespace Clingo::Detail {
+
+template <typename T, typename V>
+concept is_contiguous_range_over =
+    std::ranges::contiguous_range<T> && std::is_same_v<std::remove_const_t<std::ranges::range_value_t<T>>, V>;
+
+template <typename T, typename V>
+concept is_range_over =
+    std::ranges::forward_range<T> && std::is_same_v<std::remove_const_t<std::ranges::range_value_t<T>>, V>;
+
+template <typename> inline constexpr bool always_false = false;
+
+} // namespace Clingo::Detail
+
+namespace Clingo::AST {
 
 enum class Attribute : clingo_ast_attribute_t {
     anonymous = clingo_ast_attribute_anonymous,
@@ -51,40 +67,256 @@ enum class Attribute : clingo_ast_attribute_t {
     weight = clingo_ast_attribute_weight,
 };
 
+enum class NodeType : clingo_ast_type_t {
+    // terms
+    projection = clingo_ast_type_projection,
+    term_variable = clingo_ast_type_term_variable,
+    term_symbolic = clingo_ast_type_term_symbolic,
+    term_absolute = clingo_ast_type_term_absolute,
+    term_unary_operation = clingo_ast_type_term_unary_operation,
+    term_binary_operation = clingo_ast_type_term_binary_operation,
+    term_tuple = clingo_ast_type_term_tuple,
+    term_function = clingo_ast_type_term_function,
+    argument_tuple = clingo_ast_type_argument_tuple,
+    // theory terms
+    unparsed_element = clingo_ast_type_unparsed_element,
+    theory_term_variable = clingo_ast_type_theory_term_variable,
+    theory_term_symbolic = clingo_ast_type_theory_term_symbolic,
+    theory_term_tuple = clingo_ast_type_theory_term_tuple,
+    theory_term_function = clingo_ast_type_theory_term_function,
+    theory_term_unparsed = clingo_ast_type_theory_term_unparsed,
+    // literals
+    left_guard = clingo_ast_type_left_guard,
+    right_guard = clingo_ast_type_right_guard,
+    literal_boolean = clingo_ast_type_literal_boolean,
+    literal_comparison = clingo_ast_type_literal_comparison,
+    literal_symbolic = clingo_ast_type_literal_symbolic,
+    // set aggregates and theory atoms
+    set_aggregate_element = clingo_ast_type_set_aggregate_element,
+    theory_atom_element = clingo_ast_type_theory_atom_element,
+    theory_right_guard = clingo_ast_type_theory_right_guard,
+    // body literals
+    body_simple_literal = clingo_ast_type_body_simple_literal,
+    body_aggregate_element = clingo_ast_type_body_aggregate_element,
+    body_aggregate = clingo_ast_type_body_aggregate,
+    body_set_aggregate = clingo_ast_type_body_set_aggregate,
+    body_theory_atom = clingo_ast_type_body_theory_atom,
+    body_conditional_literal = clingo_ast_type_body_conditional_literal,
+    // head literals
+    head_simple_literal = clingo_ast_type_head_simple_literal,
+    head_aggregate_element = clingo_ast_type_head_aggregate_element,
+    head_aggregate = clingo_ast_type_head_aggregate,
+    head_set_aggregate = clingo_ast_type_head_set_aggregate,
+    head_theory_atom = clingo_ast_type_head_theory_atom,
+    head_conditional_literal = clingo_ast_type_head_conditional_literal,
+    head_disjunction = clingo_ast_type_head_disjunction,
+    // theory definition
+    theory_operator_definition = clingo_ast_type_theory_operator_definition,
+    theory_term_definition = clingo_ast_type_theory_term_definition,
+    theory_guard_definition = clingo_ast_type_theory_guard_definition,
+    theory_atom_definition = clingo_ast_type_theory_atom_definition,
+    // elements
+    optimize_tuple = clingo_ast_type_optimize_tuple,
+    optimize_element = clingo_ast_type_optimize_element,
+    edge = clingo_ast_type_edge,
+    program_part = clingo_ast_type_program_part,
+    // statements
+    statement_rule = clingo_ast_type_statement_rule,
+    statement_theory = clingo_ast_type_statement_theory,
+    statement_optimize = clingo_ast_type_statement_optimize,
+    statement_weak_constraint = clingo_ast_type_statement_weak_constraint,
+    statement_show = clingo_ast_type_statement_show,
+    statement_show_nothing = clingo_ast_type_statement_show_nothing,
+    statement_show_signature = clingo_ast_type_statement_show_signature,
+    statement_project = clingo_ast_type_statement_project,
+    statement_project_signature = clingo_ast_type_statement_project_signature,
+    statement_defined = clingo_ast_type_statement_defined,
+    statement_external = clingo_ast_type_statement_external,
+    statement_edge = clingo_ast_type_statement_edge,
+    statement_heuristic = clingo_ast_type_statement_heuristic,
+    statement_script = clingo_ast_type_statement_script,
+    statement_program = clingo_ast_type_statement_program,
+    statement_include = clingo_ast_type_statement_include,
+    statement_const = clingo_ast_type_statement_const,
+    statement_parts = clingo_ast_type_statement_parts,
+    statement_comment = clingo_ast_type_statement_comment
+};
+
 class Node {
   public:
-    [[nodiscard]] auto get_number(Attribute attribute) const -> int {
+    Node(Node const &other) { Detail::handle_error(clingo_ast_copy(other.ast_, &ast_)); }
+
+    auto operator=(Node const &other) -> Node & {
+        if (this != &other) {
+            assert(ast_ == nullptr || ast_ != other.ast_);
+            clingo_ast_free(std::exchange(ast_, nullptr));
+            Detail::handle_error(clingo_ast_copy(other.ast_, &ast_));
+        }
+        return *this;
+    }
+
+    Node(Node &&other) noexcept : ast_{std::exchange(other.ast_, nullptr)} {}
+
+    auto operator=(Node &&other) noexcept -> Node & {
+        if (this != &other) {
+            assert(ast_ == nullptr || ast_ != other.ast_);
+            clingo_ast_free(std::exchange(ast_, std::exchange(other.ast_, nullptr)));
+        }
+        return *this;
+    }
+
+    ~Node() { clingo_ast_free(ast_); }
+
+    explicit Node(clingo_ast_t *ast) : ast_{ast} {}
+
+    template <class... Args>
+    explicit Node(Library const &lib, NodeType type, Args const &...args)
+        : ast_{construct(lib, type, args..., sentinel{})} {}
+
+    [[nodiscard]] auto type() const -> NodeType {
+        clingo_ast_type_t value = 0;
+        Detail::handle_error(clingo_ast_get_type(ast_, &value));
+        return static_cast<NodeType>(value);
+    }
+
+    [[nodiscard]] auto number(Attribute attribute) const -> int {
         int value = 0;
         Detail::handle_error(
             clingo_ast_attribute_get_number(ast_, static_cast<clingo_ast_attribute_t>(attribute), &value));
         return value;
     }
 
-    [[nodiscard]] auto get_symbol(Attribute attribute) const -> Symbol {
+    [[nodiscard]] auto symbol(Attribute attribute) const -> Symbol {
         clingo_symbol_t value = 0;
         Detail::handle_error(
             clingo_ast_attribute_get_symbol(ast_, static_cast<clingo_ast_attribute_t>(attribute), &value));
         return Symbol{value, true};
     }
 
-    /*
-    [[nodiscard]] auto get_location(Attribute attribute) const -> Location {
+    [[nodiscard]] auto symbols(Attribute attribute) const -> SymbolVector {
+        clingo_symbol_t const *value = nullptr;
+        size_t size = 0;
+        Detail::handle_error(
+            clingo_ast_attribute_get_symbol_array(ast_, static_cast<clingo_ast_attribute_t>(attribute), &value, &size));
+        return Detail::transform(std::span{value, size}, [](auto x) { return Symbol{x, true}; });
+    }
+
+    [[nodiscard]] auto location(Attribute attribute) const -> Location {
         clingo_location_t const *value = nullptr;
         Detail::handle_error(
             clingo_ast_attribute_get_location(ast_, static_cast<clingo_ast_attribute_t>(attribute), &value));
         return Location{value};
     }
-    */
 
-    [[nodiscard]] auto get_string(Attribute attribute) const -> std::string_view {
+    [[nodiscard]] auto string(Attribute attribute) const -> std::string_view {
         clingo_string_t value;
         Detail::handle_error(
             clingo_ast_attribute_get_string(ast_, static_cast<clingo_ast_attribute_t>(attribute), &value));
         return {value.data, value.size};
     }
 
+    [[nodiscard]] auto strings(Attribute attribute) const -> std::vector<std::string_view> {
+        clingo_string_t const *value = nullptr;
+        size_t size = 0;
+        Detail::handle_error(
+            clingo_ast_attribute_get_string_array(ast_, static_cast<clingo_ast_attribute_t>(attribute), &value, &size));
+        return Detail::transform(std::span{value, size}, [](auto x) { return std::string_view{x.data, x.size}; });
+    }
+
+    [[nodiscard]] auto node(Attribute attribute) const -> Node {
+        clingo_ast_t *value = nullptr;
+        Detail::handle_error(
+            clingo_ast_attribute_get_ast(ast_, static_cast<clingo_ast_attribute_t>(attribute), &value));
+        return Node{value};
+    }
+
+    [[nodiscard]] auto nodes(Attribute attribute) const -> std::vector<Node> {
+        class Free {
+          public:
+            Free(size_t size) : size_{size} {}
+            void operator()(clingo_ast_t **value) const { clingo_ast_array_free(value, size_); }
+
+          private:
+            size_t size_;
+        };
+        clingo_ast_t **value = nullptr;
+        size_t size = 0;
+        Detail::handle_error(
+            clingo_ast_attribute_get_ast_array(ast_, static_cast<clingo_ast_attribute_t>(attribute), &value, &size));
+        auto ptr = std::unique_ptr<clingo_ast_t *, Free>{value, Free{size}};
+        return Detail::transform(std::span{value, size},
+                                 [](auto *&node) { return Node{std::exchange(node, nullptr)}; });
+    }
+
+    [[nodiscard]] auto to_string() const -> std::string {
+        auto bld = StringBuilder{};
+        Detail::handle_error(clingo_ast_to_string(ast_, c_cast(bld)));
+        return std::string{bld.str()};
+    }
+
+    [[nodiscard]] auto hash() const noexcept -> size_t { return clingo_ast_hash(ast_); }
+    friend auto operator==(Node const &a, Node const &b) noexcept -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
+    friend auto operator<=>(Node const &a, Node const &b) noexcept -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
+    }
+
   private:
-    clingo_ast_t *ast_;
+    struct sentinel {};
+
+    // TODO: some checking of arguments wolud be nice.
+    template <class Arg, class... Args>
+    static auto construct(Library const &lib, NodeType type, Arg const &value, Args const &...args) -> clingo_ast_t * {
+        if constexpr (std::is_same_v<Arg, sentinel>) {
+            clingo_ast_t *ast = nullptr;
+            Detail::handle_error(
+                clingo_ast_construct(c_cast(lib), static_cast<clingo_ast_type_t>(type), &ast, args...));
+            return ast;
+        } else if constexpr (Detail::is_contiguous_range_over<Arg, Node> ||
+                             Detail::is_contiguous_range_over<Arg, Symbol>) {
+            return construct(lib, type, args..., std::ranges::data(value), std::ranges::size(value));
+        } else if constexpr (Detail::is_contiguous_range_over<Arg, char>) {
+            auto str = std::string_view{value};
+            return construct(lib, type, args..., std::ranges::data(str), std::ranges::size(str));
+        } else if constexpr (Detail::is_range_over<Arg, std::string_view>) {
+            auto strs = Detail::transform(value, [](auto str) { return clingo_string_t{str.data(), str.size()}; });
+            return construct(lib, type, args..., strs.data(), strs.size());
+        } else if constexpr (std::is_same_v<Arg, Node> || std::is_same_v<Arg, Symbol> ||
+                             std::is_same_v<Arg, Location>) {
+            return construct(lib, type, args..., c_cast(value));
+        } else if constexpr (std::is_same_v<Arg, int>) {
+            return construct(lib, type, args..., value);
+        } else if constexpr (std::is_same_v<Arg, bool>) {
+            return construct(lib, type, args..., static_cast<int>(value));
+        } else {
+            static_assert(Detail::always_false<Arg>, "Unsupported argument type for Node()");
+        }
+    }
+
+    clingo_ast_t *ast_ = nullptr;
 };
 
-} // namespace Clingo
+enum class ParseType : clingo_ast_parse_type_t {
+    term = clingo_ast_parse_type_term,
+    theory_term = clingo_ast_parse_type_theory_term,
+    literal = clingo_ast_parse_type_literal,
+    body_literal = clingo_ast_parse_type_body_literal,
+    head_literal = clingo_ast_parse_type_head_literal,
+    statement = clingo_ast_parse_type_statement,
+};
+
+inline auto parse(Library const &lib, std::string_view string, ParseType type = ParseType::statement) -> Node {
+    clingo_ast_t *ast = nullptr;
+    Detail::handle_error(clingo_ast_parse_expression(c_cast(lib), static_cast<clingo_ast_parse_type_t>(type),
+                                                     string.data(), string.size(), &ast));
+    return Node{ast};
+}
+
+} // namespace Clingo::AST
+
+namespace std {
+
+template <> struct hash<Clingo::AST::Node> {
+    auto operator()(Clingo::AST::Node const &x) const noexcept -> size_t { return x.hash(); }
+};
+
+} // namespace std

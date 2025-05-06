@@ -74,7 +74,7 @@ function(clingo_target_properties target folder)
     if (is_multi_config)
         set(base_dir "${base_dir}/$<CONFIG>")
     endif()
-    set_target_properties(${target} PROPERTIES
+    set_target_properties("${target}" PROPERTIES
         FOLDER "${folder}"
         POSITION_INDEPENDENT_CODE ON
         RUNTIME_OUTPUT_DIRECTORY "${base_dir}/${binary_subdir}"

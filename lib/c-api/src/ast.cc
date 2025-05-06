@@ -2403,10 +2403,10 @@ extern "C" auto clingo_ast_hash(clingo_ast_t *ast) -> size_t {
 
 extern "C" auto clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy) -> clingo_result_t {
     CLINGO_TRY {
-        if (ast == nullptr || copy == nullptr) {
+        if (copy == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
-        *copy = ast->copy().release();
+        *copy = ast != nullptr ? ast->copy().release() : nullptr;
     }
     CLINGO_CATCH;
 }

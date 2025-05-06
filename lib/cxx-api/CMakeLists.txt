@@ -6,11 +6,12 @@ target_link_libraries(clingo_cxx-api INTERFACE clingo)
 
 if(PARSER_BUILD_TESTS)
     add_executable(test_cxx-api
+        "tests/ast.cc"
         "tests/base.cc"
         "tests/control.cc"
         "tests/symbol.cc"
     )
-    clingo_target_properties(clingo_cxx-api test/cxx-api)
+    clingo_target_properties(test_cxx-api test/cxx-api tests)
     target_include_directories(test_cxx-api PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_cxx-api PRIVATE clingo::cxx-api Catch2::Catch2WithMain)
     catch_discover_tests(test_cxx-api)
