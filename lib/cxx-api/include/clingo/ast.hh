@@ -1,29 +1,12 @@
 #pragma once
 
+#include <clingo/ast_detail.hh>
 #include <clingo/core.hh>
 #include <clingo/symbol.hh>
 
 #include <clingo/ast.h>
 
 #include <cassert>
-
-namespace Clingo::Detail {
-
-template <typename T, typename V>
-concept is_contiguous_range_over =
-    std::ranges::contiguous_range<T> && std::is_same_v<std::remove_const_t<std::ranges::range_value_t<T>>, V>;
-
-template <typename T, typename V>
-concept is_range_over =
-    std::ranges::forward_range<T> && std::is_same_v<std::remove_const_t<std::ranges::range_value_t<T>>, V>;
-
-template <typename> inline constexpr bool always_false = false;
-
-inline void join(clingo_control_t *ctl, clingo_program_t const *prg) {
-    Detail::handle_error(clingo_control_join(ctl, prg));
-}
-
-} // namespace Clingo::Detail
 
 namespace Clingo::AST {
 
@@ -173,9 +156,50 @@ class Node {
 
     explicit Node(clingo_ast_t *ast) : ast_{ast} {}
 
-    template <class... Args>
-    explicit Node(Library const &lib, NodeType type, Args const &...args)
-        : ast_{construct(lib, type, args..., sentinel{})} {}
+    template <NodeType type, class... Args> static auto create(Library const &lib, Args const &...args) {
+        return Node{create_<type, 0>(lib, args..., sentinel{})};
+    }
+
+    template <NodeType type, class Updater> auto update(Library const &lib, Updater const &fun) const -> Node {
+        return Node{update_<type, 0>(lib, fun)};
+    }
+
+    void visit(std::function<bool(Node const &)> const &fun) const {
+        if (fun(*this)) {
+            auto t = type();
+            for (auto const arg : Detail::cons.at(static_cast<size_t>(t))) {
+                if (arg.type == Detail::Arg::node) {
+                    node(static_cast<Attribute>(arg.attr)).visit(fun);
+                } else if (arg.type == Detail::Arg::optional_node) {
+                    if (auto node = optional_node(static_cast<Attribute>(arg.attr))) {
+                        node->visit(fun);
+                    }
+                } else if (arg.type == Detail::Arg::node_array) {
+                    for (auto const &node : nodes(static_cast<Attribute>(arg.attr))) {
+                        node.visit(fun);
+                    }
+                }
+            }
+        }
+    }
+
+    auto transform(std::function<std::optional<Node>(Node const &)> const &fun) const -> std::optional<Node> {
+        if (auto node = fun(*this)) {
+            return node;
+        }
+        // NOTE: a transfrom function is possible but requires a big switch
+        auto t = type();
+        if (static_cast<size_t>(t) == 0) {
+            constexpr auto const &cons = Detail::cons[0];
+            static_cast<void>(cons);
+            // transform_<0, 0>(lib, fun)
+            //   transform_<0, n>(lib, fun, nullopt, opt<Node>, nullopt)
+            //     return std::optional{create_<0>(lib, value, value, value)}
+            //   transform_<0, n>(lib, fun, nullopt, nullopt, nullopt)
+            //     return std::nullopt
+        }
+        return std::nullopt;
+    }
 
     friend auto c_cast(Node const &x) -> clingo_ast_t * { return x.ast_; }
 
@@ -233,7 +257,17 @@ class Node {
         clingo_ast_t *value = nullptr;
         Detail::handle_error(
             clingo_ast_attribute_get_ast(ast_, static_cast<clingo_ast_attribute_t>(attribute), &value));
+        if (value == nullptr) {
+            throw std::runtime_error("invalid attribute");
+        }
         return Node{value};
+    }
+
+    [[nodiscard]] auto optional_node(Attribute attribute) const -> std::optional<Node> {
+        clingo_ast_t *value = nullptr;
+        Detail::handle_error(
+            clingo_ast_attribute_get_ast(ast_, static_cast<clingo_ast_attribute_t>(attribute), &value));
+        return value != nullptr ? std::make_optional<Node>(value) : std::nullopt;
     }
 
     [[nodiscard]] auto nodes(Attribute attribute) const -> std::vector<Node> {
@@ -269,32 +303,138 @@ class Node {
   private:
     struct sentinel {};
 
-    // TODO: some checking of arguments wolud be nice.
-    template <class Arg, class... Args>
-    static auto construct(Library const &lib, NodeType type, Arg const &value, Args const &...args) -> clingo_ast_t * {
+    template <NodeType type, size_t i, class Arg, class... Args>
+    static auto create_(Library const &lib, Arg const &value, Args const &...args) -> clingo_ast_t * {
+        constexpr auto const &cons = Detail::cons.at(static_cast<size_t>(type));
         if constexpr (std::is_same_v<Arg, sentinel>) {
+            static_assert(i == cons.size(), "too few arguments");
             clingo_ast_t *ast = nullptr;
             Detail::handle_error(
                 clingo_ast_construct(c_cast(lib), static_cast<clingo_ast_type_t>(type), &ast, args...));
             return ast;
-        } else if constexpr (Detail::is_contiguous_range_over<Arg, Node> ||
-                             Detail::is_contiguous_range_over<Arg, Symbol>) {
-            return construct(lib, type, args..., std::ranges::data(value), std::ranges::size(value));
-        } else if constexpr (Detail::is_contiguous_range_over<Arg, char>) {
+        } else if constexpr (Detail::is_contiguous_range_over<Arg, Symbol>) {
+            static_assert(cons[i].type == Detail::Arg::symbol_array);
+            return create_<type, i + 1>(lib, args..., std::ranges::data(value), std::ranges::size(value));
+        } else if constexpr (Detail::is_contiguous_range_over<Arg, Node>) {
+            static_assert(cons[i].type == Detail::Arg::node_array);
+            return create_<type, i + 1>(lib, args..., std::ranges::data(value), std::ranges::size(value));
+        } else if constexpr (Detail::is_contiguous_range_over<Arg, char> || std::is_same_v<Arg, char const *>) {
+            static_assert(cons[i].type == Detail::Arg::string);
             auto str = std::string_view{value};
-            return construct(lib, type, args..., std::ranges::data(str), std::ranges::size(str));
+            return create_<type, i + 1>(lib, args..., std::ranges::data(str), std::ranges::size(str));
         } else if constexpr (Detail::is_range_over<Arg, std::string_view>) {
+            static_assert(cons[i].type == Detail::Arg::string_array);
             auto strs = Detail::transform(value, [](auto str) { return clingo_string_t{str.data(), str.size()}; });
-            return construct(lib, type, args..., strs.data(), strs.size());
-        } else if constexpr (std::is_same_v<Arg, Node> || std::is_same_v<Arg, Symbol> ||
-                             std::is_same_v<Arg, Location>) {
-            return construct(lib, type, args..., c_cast(value));
+            return create_<type, i + 1>(lib, args..., strs.data(), strs.size());
+        } else if constexpr (std::is_same_v<Arg, Node>) {
+            static_assert(cons[i].type == Detail::Arg::node || cons[i].type == Detail::Arg::optional_node);
+            return create_<type, i + 1>(lib, args..., c_cast(value));
+        } else if constexpr (std::is_same_v<Arg, std::optional<Node>>) {
+            static_assert(cons[i].type == Detail::Arg::optional_node);
+            return create_<type, i + 1>(lib, args..., value ? c_cast(*value) : nullptr);
+        } else if constexpr (std::is_same_v<Arg, Symbol>) {
+            static_assert(cons[i].type == Detail::Arg::symbol);
+            return create_<type, i + 1>(lib, args..., c_cast(value));
+        } else if constexpr (std::is_same_v<Arg, Location>) {
+            static_assert(cons[i].type == Detail::Arg::location);
+            return create_<type, i + 1>(lib, args..., c_cast(value));
         } else if constexpr (std::is_same_v<Arg, int>) {
-            return construct(lib, type, args..., value);
+            static_assert(cons[i].type == Detail::Arg::integer);
+            return create_<type, i + 1>(lib, args..., value);
         } else if constexpr (std::is_same_v<Arg, bool>) {
-            return construct(lib, type, args..., static_cast<int>(value));
+            static_assert(cons[i].type == Detail::Arg::integer);
+            return create_<type, i + 1>(lib, args..., static_cast<int>(value));
         } else {
-            static_assert(Detail::always_false<Arg>, "Unsupported argument type for Node()");
+            static_assert(Detail::always_false<Arg>, "unsupported argument type");
+        }
+    }
+
+    template <NodeType type, size_t i, typename F, typename... Args>
+    auto update_(Library const &lib, F const &fun, Args const &...args) const -> clingo_ast_t * {
+        constexpr auto const &cons = Detail::cons.at(static_cast<size_t>(type));
+        if constexpr (i == cons.size()) {
+            clingo_ast_t *ast = nullptr;
+            Detail::handle_error(
+                clingo_ast_construct(c_cast(lib), static_cast<clingo_ast_type_t>(type), &ast, args...));
+            return ast;
+        } else {
+            constexpr auto attr = static_cast<Attribute>(cons[i].attr);
+            if constexpr (Detail::invokable<F, attr>) {
+                auto value = fun.template operator()<attr>();
+                using Arg = decltype(value);
+                if constexpr (Detail::is_contiguous_range_over<Arg, Symbol>) {
+                    static_assert(cons[i].type == Detail::Arg::symbol_array);
+                    return update_<type, i + 1>(lib, fun, args..., std::ranges::data(value), std::ranges::size(value));
+                } else if constexpr (Detail::is_contiguous_range_over<Arg, Node>) {
+                    static_assert(cons[i].type == Detail::Arg::node_array);
+                    return update_<type, i + 1>(lib, fun, args..., std::ranges::data(value), std::ranges::size(value));
+                } else if constexpr (Detail::is_contiguous_range_over<Arg, char> || std::is_same_v<Arg, char const *>) {
+                    static_assert(cons[i].type == Detail::Arg::string);
+                    auto str = std::string_view{value};
+                    return update_<type, i + 1>(lib, fun, args..., std::ranges::data(str), std::ranges::size(str));
+                } else if constexpr (Detail::is_range_over<Arg, std::string_view>) {
+                    static_assert(cons[i].type == Detail::Arg::string_array);
+                    auto strs =
+                        Detail::transform(value, [](auto str) { return clingo_string_t{str.data(), str.size()}; });
+                    return update_<type, i + 1>(lib, fun, args..., strs.data(), strs.size());
+                } else if constexpr (std::is_same_v<Arg, Node>) {
+                    static_assert(cons[i].type == Detail::Arg::node || cons[i].type == Detail::Arg::optional_node);
+                    return update_<type, i + 1>(lib, fun, args..., c_cast(value));
+                } else if constexpr (std::is_same_v<Arg, std::optional<Node>>) {
+                    static_assert(cons[i].type == Detail::Arg::optional_node);
+                    return update_<type, i + 1>(lib, fun, args..., value ? c_cast(*value) : nullptr);
+                } else if constexpr (std::is_same_v<Arg, Symbol>) {
+                    static_assert(cons[i].type == Detail::Arg::symbol);
+                    return update_<type, i + 1>(lib, fun, args..., c_cast(value));
+                } else if constexpr (std::is_same_v<Arg, Location>) {
+                    static_assert(cons[i].type == Detail::Arg::location);
+                    return update_<type, i + 1>(lib, fun, args..., c_cast(value));
+                } else if constexpr (std::is_same_v<Arg, int>) {
+                    static_assert(cons[i].type == Detail::Arg::integer);
+                    return update_<type, i + 1>(lib, fun, args..., value);
+                } else if constexpr (std::is_same_v<Arg, bool>) {
+                    static_assert(cons[i].type == Detail::Arg::integer);
+                    return update_<type, i + 1>(lib, fun, args..., static_cast<int>(value));
+                } else {
+                    static_assert(Detail::always_false<Arg>, "unsupported argument type");
+                }
+            } else if constexpr (cons[i].type == Detail::Arg::integer) {
+                int value = 0;
+                Detail::handle_error(clingo_ast_attribute_get_number(ast_, cons[i].attr, &value));
+                return update_<type, i + 1>(lib, fun, args..., value);
+            } else if constexpr (cons[i].type == Detail::Arg::location) {
+                clingo_location_t const *value = nullptr;
+                Detail::handle_error(clingo_ast_attribute_get_location(ast_, cons[i].attr, &value));
+                return update_<type, i + 1>(lib, fun, args..., value);
+            } else if constexpr (cons[i].type == Detail::Arg::string) {
+                clingo_string_t value;
+                Detail::handle_error(clingo_ast_attribute_get_string(ast_, cons[i].attr, &value));
+                return update_<type, i + 1>(lib, fun, args..., value.data, value.size);
+            } else if constexpr (cons[i].type == Detail::Arg::string_array) {
+                clingo_string_t const *value = nullptr;
+                size_t size = 0;
+                Detail::handle_error(clingo_ast_attribute_get_string_array(ast_, cons[i].attr, &value, &size));
+                return update_<type, i + 1>(lib, fun, args..., value, size);
+            } else if constexpr (cons[i].type == Detail::Arg::symbol) {
+                clingo_symbol_t value = 0;
+                Detail::handle_error(clingo_ast_attribute_get_symbol(ast_, cons[i].attr, &value));
+                return update_<type, i + 1>(lib, fun, args..., value);
+            } else if constexpr (cons[i].type == Detail::Arg::symbol_array) {
+                clingo_symbol_t const *value = nullptr;
+                size_t size = 0;
+                Detail::handle_error(clingo_ast_attribute_get_symbol_array(ast_, cons[i].attr, &value, &size));
+                return update_<type, i + 1>(lib, fun, args..., value, size);
+            } else if constexpr (cons[i].type == Detail::Arg::node || cons[i].type == Detail::Arg::optional_node) {
+                clingo_ast_t *value = nullptr;
+                Detail::handle_error(clingo_ast_attribute_get_ast(ast_, cons[i].attr, &value));
+                return update_<type, i + 1>(lib, fun, args..., value);
+            } else if constexpr (cons[i].type == Detail::Arg::node_array) {
+                auto arr = Detail::Array{};
+                Detail::handle_error(clingo_ast_attribute_get_ast_array(ast_, cons[i].attr, &arr.value, &arr.size));
+                return update_<type, i + 1>(lib, fun, args..., arr.value, arr.size);
+            } else {
+                static_assert(i == cons.size(), "unsupported argument type");
+            }
         }
     }
 
@@ -459,14 +599,9 @@ class RewriteContext {
 };
 
 auto rewrite(RewriteContext &ctx, Node const &stm) -> std::vector<Node> {
-    struct Array {
-        ~Array() { clingo_ast_array_free(result, result_size); }
-        clingo_ast_t **result = nullptr;
-        size_t result_size = 0;
-    };
-    auto arr = Array{};
-    Detail::handle_error(clingo_ast_rewrite(c_cast(ctx), c_cast(stm), &arr.result, &arr.result_size));
-    return Detail::transform(std::span{arr.result, arr.result_size},
+    auto arr = Detail::Array{};
+    Detail::handle_error(clingo_ast_rewrite(c_cast(ctx), c_cast(stm), &arr.value, &arr.size));
+    return Detail::transform(std::span{arr.value, arr.size},
                              [](auto *&ast) { return Node{std::exchange(ast, nullptr)}; });
 }
 
