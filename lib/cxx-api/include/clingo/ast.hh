@@ -187,16 +187,45 @@ class Node {
         if (auto node = fun(*this)) {
             return node;
         }
-        // NOTE: a transfrom function is possible but requires a big switch
-        auto t = type();
-        if (static_cast<size_t>(t) == 0) {
-            constexpr auto const &cons = Detail::cons[0];
-            static_cast<void>(cons);
-            // transform_<0, 0>(lib, fun)
-            //   transform_<0, n>(lib, fun, nullopt, opt<Node>, nullopt)
-            //     return std::optional{create_<0>(lib, value, value, value)}
-            //   transform_<0, n>(lib, fun, nullopt, nullopt, nullopt)
-            //     return std::nullopt
+        return select_<0>(static_cast<size_t>(type()), fun);
+    }
+
+    template <size_t Type>
+    auto select_(size_t type, std::function<std::optional<Node>(Node const &)> const &fun) const
+        -> std::optional<Node> {
+        if (type == Type) {
+            return transform_<Type, 0>(fun);
+        }
+        if constexpr (Type + 1 < Detail::cons.size()) {
+            return select_<Type + 1>(type, fun);
+        }
+        assert(false);
+    }
+
+    template <typename Arg> static auto notnull_(std::optional<Arg> const &arg) { return arg.has_value(); }
+
+    static auto notnull_([[maybe_unused]] std::nullopt_t null) { return false; }
+
+    template <size_t Type, size_t i, typename... Args>
+    auto transform_(std::function<std::optional<Node>(Node const &)> const &fun, Args const &...args) const
+        -> std::optional<Node> {
+        constexpr auto const &cons = Detail::cons.at(Type);
+        if constexpr (i == cons.size()) {
+            if ((notnull_(args) || ...)) {
+                throw std::logic_error("implement something similar to update_");
+            }
+            return std::nullopt;
+        } else {
+            if constexpr (cons[i].type == Detail::Arg::node) {
+                transform_<Type, i + 1>(fun, args..., fun(node(static_cast<Attribute>(cons[i].attr))));
+            } else if constexpr (cons[i].type == Detail::Arg::optional_node) {
+                throw std::logic_error("some way to handle optional nodes");
+            } else if constexpr (cons[i].type == Detail::Arg::node_array) {
+                throw std::logic_error("some way to handle node arrays");
+            } else {
+                // TODO: optional_node and node_array
+                transform_<Type, i + 1>(fun, args..., std::nullopt);
+            }
         }
         return std::nullopt;
     }
@@ -351,6 +380,7 @@ class Node {
 
     template <NodeType type, size_t i, typename F, typename... Args>
     auto update_(Library const &lib, F const &fun, Args const &...args) const -> clingo_ast_t * {
+        // TODO: better use create + index sequence with a getter
         constexpr auto const &cons = Detail::cons.at(static_cast<size_t>(type));
         if constexpr (i == cons.size()) {
             clingo_ast_t *ast = nullptr;
@@ -425,6 +455,7 @@ class Node {
                 Detail::handle_error(clingo_ast_attribute_get_symbol_array(ast_, cons[i].attr, &value, &size));
                 return update_<type, i + 1>(lib, fun, args..., value, size);
             } else if constexpr (cons[i].type == Detail::Arg::node || cons[i].type == Detail::Arg::optional_node) {
+                // FIXME: ast is leaked
                 clingo_ast_t *value = nullptr;
                 Detail::handle_error(clingo_ast_attribute_get_ast(ast_, cons[i].attr, &value));
                 return update_<type, i + 1>(lib, fun, args..., value);
