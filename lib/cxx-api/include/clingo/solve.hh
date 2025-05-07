@@ -209,7 +209,7 @@ class SolveHandle {
     struct sentinel {};
     class iterator {
       public:
-        using iterator_category = std::forward_iterator_tag;
+        using iterator_category = std::input_iterator_tag;
         using difference_type = std::ptrdiff_t;
         using value_type = ConstModel;
         using pointer = ConstModel *;
@@ -245,6 +245,7 @@ class SolveHandle {
         SolveHandle *hnd_ = nullptr;
         mutable std::optional<value_type> mdl_;
     };
+    using difference_type = iterator::difference_type;
     using value_type = iterator::value_type;
     using reference = iterator::reference;
     using pointer = iterator::pointer;
@@ -355,7 +356,7 @@ class SolveHandle {
 
     std::unique_ptr<Data> data_;
 };
-static_assert(std::forward_iterator<SolveHandle::iterator>);
+static_assert(std::input_iterator<SolveHandle::iterator>);
 static_assert(std::sentinel_for<SolveHandle::sentinel, SolveHandle::iterator>);
 
 } // namespace Clingo

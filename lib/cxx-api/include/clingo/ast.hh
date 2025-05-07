@@ -19,6 +19,10 @@ concept is_range_over =
 
 template <typename> inline constexpr bool always_false = false;
 
+inline void join(clingo_control_t *ctl, clingo_program_t const *prg) {
+    Detail::handle_error(clingo_control_join(ctl, prg));
+}
+
 } // namespace Clingo::Detail
 
 namespace Clingo::AST {
@@ -173,6 +177,8 @@ class Node {
     explicit Node(Library const &lib, NodeType type, Args const &...args)
         : ast_{construct(lib, type, args..., sentinel{})} {}
 
+    friend auto c_cast(Node const &x) -> clingo_ast_t * { return x.ast_; }
+
     [[nodiscard]] auto type() const -> NodeType {
         clingo_ast_type_t value = 0;
         Detail::handle_error(clingo_ast_get_type(ast_, &value));
@@ -302,6 +308,186 @@ enum class ParseType : clingo_ast_parse_type_t {
     body_literal = clingo_ast_parse_type_body_literal,
     head_literal = clingo_ast_parse_type_head_literal,
     statement = clingo_ast_parse_type_statement,
+};
+
+class Scanner {
+  public:
+    struct sentinel {};
+    class iterator {
+      public:
+        using iterator_category = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using value_type = Node;
+        using pointer = Node *;
+        using reference = Node &;
+
+        iterator() = default;
+
+        explicit iterator(Scanner &hnd) : scanner_{&hnd} { operator++(); }
+
+        auto operator*() const -> reference {
+            assert(scanner_ != nullptr);
+            return scanner_->value_.value();
+        }
+
+        auto operator->() const -> pointer {
+            assert(scanner_ != nullptr);
+            return &scanner_->value_.value();
+        }
+
+        auto operator++() -> iterator & {
+            assert(scanner_ != nullptr);
+            scanner_->next_();
+            return *this;
+        }
+
+        auto operator++(int) -> iterator {
+            iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        friend auto operator==(iterator const &a, iterator const &b) -> bool {
+            assert(a.scanner_ == b.scanner_);
+            return true;
+        }
+
+        friend auto operator==(iterator const &a, [[maybe_unused]] sentinel const &b) -> bool {
+            assert(a.scanner_ != nullptr);
+            return a.scanner_->value_.has_value();
+        }
+
+      private:
+        Scanner *scanner_ = nullptr;
+    };
+    using difference_type = iterator::difference_type;
+    using value_type = iterator::value_type;
+    using reference = iterator::reference;
+    using pointer = iterator::pointer;
+
+    explicit Scanner(Library lib, std::string_view program) : lib_{std::move(lib)} {
+        clingo_ast_scanner_t *scanner = nullptr;
+        Detail::handle_error(clingo_ast_scan_string(c_cast(lib_), program.data(), program.size(), &scanner));
+        scanner_.reset(scanner);
+    }
+
+    explicit Scanner(Library &lib, StringSpan files) : lib_{lib} {
+        std::vector<clingo_string_t> cfiles;
+        cfiles.reserve(cfiles.size());
+        std::ranges::transform(files, std::back_inserter(cfiles),
+                               [](auto const &file) { return clingo_string_t{file.data(), file.size()}; });
+        clingo_ast_scanner_t *scanner = nullptr;
+        Detail::handle_error(clingo_ast_scan_files(c_cast(lib), cfiles.data(), cfiles.size(), &scanner));
+        scanner_.reset(scanner);
+    }
+
+    explicit Scanner(Library &lib, StringList files) : Scanner{lib, std::span{files}} {}
+
+    auto begin() -> iterator { return iterator{*this}; }
+
+    auto end() -> sentinel {
+        static_cast<void>(this);
+        return sentinel{};
+    }
+
+  private:
+    struct Free {
+        void operator()(clingo_ast_scanner_t *scanner) const { clingo_ast_scanner_close(scanner); }
+    };
+
+    void next_() {
+        clingo_ast_t *ast = nullptr;
+        Detail::handle_error(clingo_ast_scanner_next(scanner_.get(), &ast));
+        if (ast != nullptr) {
+            value_.emplace(ast);
+        } else {
+            value_.reset();
+        }
+    }
+
+    Library lib_;
+    std::unique_ptr<clingo_ast_scanner_t, Free> scanner_;
+    std::optional<Node> value_;
+};
+static_assert(std::input_iterator<Scanner::iterator>);
+static_assert(std::sentinel_for<Scanner::sentinel, Scanner::iterator>);
+
+enum class ProjectionMode : clingo_projection_mode_t {
+    disabled = clingo_projection_mode_disabled,
+    anonymous = clingo_projection_mode_anonymous,
+    pure = clingo_projection_mode_pure,
+};
+
+class RewriteContext {
+  public:
+    RewriteContext(Library const &lib) {
+        clingo_ast_rewrite_context_t *ctx = nullptr;
+        Detail::handle_error(clingo_ast_rewrite_context_create(c_cast(lib), &ctx));
+        ctx_.reset(ctx);
+    }
+
+    friend auto c_cast(RewriteContext const &x) -> clingo_ast_rewrite_context_t * { return x.ctx_.get(); }
+
+    void project_mode(ProjectionMode value) {
+        clingo_ast_rewrite_context_set_project_mode(ctx_.get(), static_cast<clingo_projection_mode_t>(value));
+    }
+
+    auto project_mode() -> ProjectionMode {
+        return static_cast<ProjectionMode>(clingo_ast_rewrite_context_get_project_mode(ctx_.get()));
+    }
+
+    void project_anonymous(bool value) { clingo_ast_rewrite_context_set_project_anonymous(ctx_.get(), value); }
+
+    auto project_anonymous() -> bool { return clingo_ast_rewrite_context_get_project_mode(ctx_.get()) != 0; }
+
+    void add_param(std::string_view name) {
+        Detail::handle_error(clingo_ast_rewrite_context_add_param(ctx_.get(), name.data(), name.size()));
+    }
+
+    void clear_params() { clingo_ast_rewrite_context_clear_params(ctx_.get()); }
+
+    void add_theory(Node const &stm) {
+        Detail::handle_error(clingo_ast_rewrite_context_add_theory(ctx_.get(), c_cast(stm)));
+    }
+
+  private:
+    struct Free {
+        auto operator()(clingo_ast_rewrite_context_t *ctx) { clingo_ast_rewrite_context_free(ctx); }
+    };
+
+    std::unique_ptr<clingo_ast_rewrite_context_t, Free> ctx_ = nullptr;
+};
+
+auto rewrite(RewriteContext &ctx, Node const &stm) -> std::vector<Node> {
+    struct Array {
+        ~Array() { clingo_ast_array_free(result, result_size); }
+        clingo_ast_t **result = nullptr;
+        size_t result_size = 0;
+    };
+    auto arr = Array{};
+    Detail::handle_error(clingo_ast_rewrite(c_cast(ctx), c_cast(stm), &arr.result, &arr.result_size));
+    return Detail::transform(std::span{arr.result, arr.result_size},
+                             [](auto *&ast) { return Node{std::exchange(ast, nullptr)}; });
+}
+
+class Program {
+  public:
+    Program(Library const &lib) {
+        clingo_program_t *prg = nullptr;
+        Detail::handle_error(clingo_program_new(c_cast(lib), &prg));
+        prg_.reset(prg);
+    }
+
+    void add(Node const &stm) { Detail::handle_error(clingo_program_add(prg_.get(), c_cast(stm))); }
+
+    friend auto c_cast(Program const &x) -> clingo_program_t * { return x.prg_.get(); }
+
+  private:
+    struct Free {
+        void operator()(clingo_program_t *prg) noexcept { clingo_program_free(prg); }
+    };
+
+    std::unique_ptr<clingo_program_t, Free> prg_;
 };
 
 inline auto parse(Library const &lib, std::string_view string, ParseType type = ParseType::statement) -> Node {

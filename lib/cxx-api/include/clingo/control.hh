@@ -19,8 +19,18 @@
 
 namespace Clingo {
 
-using StringSpan = std::span<std::string_view const>;
-using StringList = std::initializer_list<std::string_view const>;
+namespace AST {
+
+class Program;
+auto c_cast(Program const &x) -> clingo_program_t *;
+
+namespace Detail {
+
+void join(clingo_control_t *ctx, clingo_program_t const *prg);
+
+} // namespace Detail
+
+} // namespace AST
 
 struct Part {
     Part(std::string name, SymbolVector params = {}) : name{std::move(name)}, params(std::move(params)) {
@@ -266,9 +276,7 @@ class Control {
         Detail::handle_error(clingo_control_register_propagator(ctl_.get(), &Detail::c_heuristic, &data.data.front()));
     }
 
-    /*
-    void join(AST::Program &prg) const { Detail::handle_error(clingo_control_join(ctl_.get(), prg)); }
-    */
+    void join(AST::Program const &prg) const { AST::Detail::join(ctl_.get(), c_cast(prg)); }
 
   private:
     friend class Detail::ManagedPtr<Control, clingo_control_t>;

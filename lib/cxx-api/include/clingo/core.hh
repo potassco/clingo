@@ -300,6 +300,9 @@ using WeightedLiteralSpan = std::span<WeightedLiteral const>;
 using Sum = int64_t;
 using SumSpan = std::span<Sum const>;
 
+using StringSpan = std::span<std::string_view const>;
+using StringList = std::initializer_list<std::string_view const>;
+
 //! Enumeration of message codes.
 enum class MessageCode : clingo_message_t {
     trace = clingo_message_trace,                             //!< a trace message
