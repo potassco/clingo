@@ -129,6 +129,18 @@ enum class NodeType : clingo_ast_type_t {
     statement_comment = clingo_ast_type_statement_comment
 };
 
+class Node;
+
+using Visitor = std::function<void(Node const &)>;
+void visit(Visitor const &fun, Node const &node);
+void visit(Visitor const &fun, std::optional<Node> const &node);
+void visit(Visitor const &fun, std::span<Node const> nodes);
+
+using Transformer = std::function<std::optional<Node>(Node const &)>;
+auto transform(Transformer const &fun, Node const &node) -> std::optional<Node>;
+auto transform(Transformer const &fun, std::optional<Node> const &node) -> std::optional<std::optional<Node>>;
+auto transform(Transformer const &fun, std::vector<Node> nodes) -> std::optional<std::vector<Node>>;
+
 class Node {
   public:
     Node(Node const &other) { *this = other; }
@@ -154,30 +166,20 @@ class Node {
         return Node{update_<type, 0>(lib, fun, std::make_index_sequence<Detail::cons.at(type).size()>())};
     }
 
-    void visit(std::function<bool(Node const &)> const &fun) const {
-        if (fun(*this)) {
-            auto t = type();
-            for (auto const arg : Detail::cons.at(static_cast<size_t>(t))) {
-                if (arg.type == Detail::Arg::node) {
-                    node(static_cast<Attribute>(arg.attr)).visit(fun);
-                } else if (arg.type == Detail::Arg::optional_node) {
-                    if (auto node = optional_node(static_cast<Attribute>(arg.attr))) {
-                        node->visit(fun);
-                    }
-                } else if (arg.type == Detail::Arg::node_array) {
-                    for (auto const &node : nodes(static_cast<Attribute>(arg.attr))) {
-                        node.visit(fun);
-                    }
-                }
+    void accept(Visitor const &fun) const {
+        auto t = type();
+        for (auto const arg : Detail::cons.at(static_cast<size_t>(t))) {
+            if (arg.type == Detail::Arg::node) {
+                visit(fun, node(static_cast<Attribute>(arg.attr)));
+            } else if (arg.type == Detail::Arg::optional_node) {
+                visit(fun, optional_node(static_cast<Attribute>(arg.attr)));
+            } else if (arg.type == Detail::Arg::node_array) {
+                visit(fun, nodes(static_cast<Attribute>(arg.attr)));
             }
         }
     }
 
-    auto transform(Library const &lib, std::function<std::optional<Node>(Node const &)> const &fun) const
-        -> std::optional<Node> {
-        if (auto node = fun(*this)) {
-            return node;
-        }
+    [[nodiscard]] auto accept(Library const &lib, Transformer const &fun) const -> std::optional<Node> {
         return select_<0>(lib, static_cast<size_t>(type()), fun);
     }
 
@@ -386,9 +388,7 @@ class Node {
 
     //! Dispatch to the type-specific transform method.
     template <size_t Type>
-    [[nodiscard]] auto select_(Library const &lib, size_t type,
-                               std::function<std::optional<Node>(Node const &)> const &fun) const
-        -> std::optional<Node> {
+    [[nodiscard]] auto select_(Library const &lib, size_t type, Transformer const &fun) const -> std::optional<Node> {
         if (type == Type) {
             return apply_<Type>(lib, fun, std::make_index_sequence<Detail::cons.at(Type).size()>());
         }
@@ -416,20 +416,17 @@ class Node {
     }
 
     //! Transform the i-child of the node.
-    template <size_t Type, size_t I>
-    [[nodiscard]] auto transform_child_(std::function<std::optional<Node>(Node const &)> const &fun) const {
+    template <size_t Type, size_t I> [[nodiscard]] auto transform_child_(Transformer const &fun) const {
         static_assert(Type <= Detail::cons.size(), "invalid type");
         constexpr auto const &cons = Detail::cons.at(Type);
         static_assert(I < cons.size(), "unsupported argument type");
         constexpr auto attr = static_cast<Attribute>(cons[I].attr);
         if constexpr (cons[I].type == Detail::Arg::node) {
-            return fun(node(attr));
+            return transform(fun, node(attr));
         } else if constexpr (cons[I].type == Detail::Arg::optional_node) {
-            // TODO: handle optional node
-            return std::optional<std::optional<Node>>();
+            return transform(fun, optional_node(attr));
         } else if constexpr (cons[I].type == Detail::Arg::node_array) {
-            // TODO: handle array
-            return std::optional<std::vector<Node>>();
+            return transform(fun, nodes(attr));
         } else {
             return std::nullopt;
         }
@@ -437,8 +434,8 @@ class Node {
 
     //! Apply the transformation function to the node's children.
     template <size_t Type, size_t... Is>
-    [[nodiscard]] auto apply_(Library const &lib, std::function<std::optional<Node>(Node const &)> const &fun,
-                              std::index_sequence<Is...> seq) const -> std::optional<Node> {
+    [[nodiscard]] auto apply_(Library const &lib, Transformer const &fun, std::index_sequence<Is...> seq) const
+        -> std::optional<Node> {
         return transform_<Type, Is...>(lib, seq, transform_child_<Type, Is>(fun)...);
     }
     //! Transform the node if one of its children changed.
@@ -453,6 +450,47 @@ class Node {
 
     std::unique_ptr<clingo_ast_t, Free> ast_;
 };
+
+inline void visit(Visitor const &fun, Node const &node) {
+    fun(node);
+}
+
+inline void visit(Visitor const &fun, std::optional<Node> const &node) {
+    if (node) {
+        fun(*node);
+    }
+}
+
+inline void visit(Visitor const &fun, std::span<Node const> nodes) {
+    for (auto const &node : nodes) {
+        fun(node);
+    }
+}
+
+inline auto transform(Transformer const &fun, Node const &node) -> std::optional<Node> {
+    return fun(node);
+}
+
+inline auto transform(Transformer const &fun, std::optional<Node> const &node) -> std::optional<std::optional<Node>> {
+    auto res = std::optional<std::optional<Node>>();
+    if (node) {
+        if (auto trans = fun(*node)) {
+            res.emplace(std::move(trans));
+        }
+    }
+    return res;
+}
+
+inline auto transform(Transformer const &fun, std::vector<Node> nodes) -> std::optional<std::vector<Node>> {
+    bool changed = false;
+    for (auto &node : nodes) {
+        if (auto trans = fun(node)) {
+            changed = true;
+            node = *std::move(trans);
+        }
+    }
+    return changed ? std::make_optional(std::move(nodes)) : std::nullopt;
+}
 
 enum class ParseType : clingo_ast_parse_type_t {
     term = clingo_ast_parse_type_term,

@@ -28,29 +28,33 @@ TEST_CASE("cxx-ast") {
     REQUIRE(var_y.to_string() == "Y");
 
     auto trail = std::vector<std::string>{};
-    stm.visit([&trail](AST::Node const &node) {
+    AST::Visitor visit = [&](AST::Node const &node) {
         trail.emplace_back(node.to_string());
-        return true;
-    });
+        node.accept(visit);
+    };
+    visit(stm);
     REQUIRE(trail == std::vector<std::string>{"a :- b.", "a", "a", "a", "b", "b", "b"});
 
-    // TODO: I think, I am going to leave it up to the user whether to call transform recursively on a node.
-    // To facilitate this process, there should be the following functions:
-    // - transform(node)
-    // - transform(nodes)
-    // - transform(optional_node)
-    auto var_z = var_y.transform(lib, [&lib](AST::Node const &node) -> std::optional<AST::Node> {
+    AST::Transformer trans = [&](AST::Node const &node) -> std::optional<AST::Node> {
         if (node.type() == AST::NodeType::term_variable) {
-            return node.update<AST::NodeType::term_variable>(lib, []<AST::Attribute attr>() {
+            return node.update<AST::NodeType::term_variable>(lib, [&]<AST::Attribute attr>() {
                 if constexpr (attr == AST::Attribute::name) {
-                    return std::string_view{"Z"};
+                    // TODO: it is probably a good idea to already pass in the value
+                    return node.string(attr) == "X" ? "Y" : "Z";
                 }
             });
         }
-        return std::nullopt;
-    });
+        return node.accept(lib, trans);
+    };
+    auto var_z = trans(var_y);
     REQUIRE(var_z.has_value());
     REQUIRE(var_z->to_string() == "Z");
+
+    auto stm_xy = AST::parse(lib, "a(X) :- b(Y).");
+    REQUIRE(stm_xy.to_string() == "a(X) :- b(Y).");
+    auto stm_yz = trans(stm_xy);
+    REQUIRE(stm_yz.has_value());
+    REQUIRE(stm_yz->to_string() == "a(Y) :- b(Z).");
 }
 
 } // namespace Clingo::Test
