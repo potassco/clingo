@@ -277,10 +277,6 @@ class Node {
     }
 
   private:
-    struct Free {
-        void operator()(clingo_ast_t *ast) const noexcept { clingo_ast_free(ast); }
-    };
-
     struct sentinel {};
 
     template <size_t Type, size_t I, class Arg, class... Args>
@@ -441,7 +437,7 @@ class Node {
         return std::nullopt;
     }
 
-    std::unique_ptr<clingo_ast_t, Free> ast_;
+    Detail::unique_handle<clingo_ast_t, clingo_ast_free> ast_;
 };
 
 inline void visit(Visitor const &fun, Node const &node) {
@@ -572,10 +568,6 @@ class Scanner {
     }
 
   private:
-    struct Free {
-        void operator()(clingo_ast_scanner_t *scanner) const { clingo_ast_scanner_close(scanner); }
-    };
-
     void next_() {
         clingo_ast_t *ast = nullptr;
         Detail::handle_error(clingo_ast_scanner_next(scanner_.get(), &ast));
@@ -587,7 +579,7 @@ class Scanner {
     }
 
     Library lib_;
-    std::unique_ptr<clingo_ast_scanner_t, Free> scanner_;
+    Detail::unique_handle<clingo_ast_scanner_t, clingo_ast_scanner_close> scanner_;
     std::optional<Node> value_;
 };
 static_assert(std::input_iterator<Scanner::iterator>);
@@ -632,11 +624,7 @@ class RewriteContext {
     }
 
   private:
-    struct Free {
-        auto operator()(clingo_ast_rewrite_context_t *ctx) { clingo_ast_rewrite_context_free(ctx); }
-    };
-
-    std::unique_ptr<clingo_ast_rewrite_context_t, Free> ctx_ = nullptr;
+    Detail::unique_handle<clingo_ast_rewrite_context_t, clingo_ast_rewrite_context_free> ctx_;
 };
 
 auto rewrite(RewriteContext &ctx, Node const &stm) -> std::vector<Node> {
@@ -659,11 +647,7 @@ class Program {
     friend auto c_cast(Program const &x) -> clingo_program_t * { return x.prg_.get(); }
 
   private:
-    struct Free {
-        void operator()(clingo_program_t *prg) noexcept { clingo_program_free(prg); }
-    };
-
-    std::unique_ptr<clingo_program_t, Free> prg_;
+    Detail::unique_handle<clingo_program_t, clingo_program_free> prg_;
 };
 
 inline auto parse(Library const &lib, std::string_view string, ParseType type = ParseType::statement) -> Node {

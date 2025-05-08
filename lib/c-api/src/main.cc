@@ -13,7 +13,6 @@
 #include <clasp/cli/clasp_app.h>
 
 #include <forward_list>
-#include <unordered_set>
 #include <utility>
 
 namespace {
@@ -22,17 +21,14 @@ using namespace Clingo::Input;
 
 class AppOptions {
   public:
-    using OptionParser = std::function<bool(char const *)>;
+    using OptionParser = std::function<bool(std::string_view)>;
 
-    void add_option(char const *group, char const *option, char const *description, OptionParser parser,
-                    char const *argument = nullptr, bool multi = false) {
+    void add_option(std::string_view group, std::string_view option, std::string_view description, OptionParser parser,
+                    std::optional<std::string_view> argument, bool multi = false) {
         using namespace Potassco::ProgramOptions;
-        auto value = std::unique_ptr<Value>(parse([parser = std::move(parser)](std::string_view value) {
-            thread_local std::string val{};
-            return parser(val.assign(value).c_str());
-        }));
-        if (argument != nullptr) {
-            value->arg(argument);
+        auto value = std::unique_ptr<Value>(parse(std::move(parser)));
+        if (argument) {
+            value->arg(strings_.emplace_front(*argument).c_str());
         }
         if (multi) {
             value->composing();
@@ -40,7 +36,7 @@ class AppOptions {
         add_option_value_(group, option, std::move(value), description);
     }
 
-    void add_flag(char const *group, char const *option, char const *description, bool &target) {
+    void add_flag(std::string_view group, std::string_view option, std::string_view description, bool &target) {
         using namespace Potassco::ProgramOptions;
         std::unique_ptr<Value> value{flag(target)};
         value->negatable();
@@ -54,13 +50,13 @@ class AppOptions {
     }
 
   private:
-    void add_option_value_(char const *group, char const *option,
-                           std::unique_ptr<Potassco::ProgramOptions::Value> value, char const *description) {
+    void add_option_value_(std::string_view group, std::string_view option,
+                           std::unique_ptr<Potassco::ProgramOptions::Value> value, std::string_view description) {
         auto init = add_option_group_(group).addOptions();
-        init(option, value.release(), description);
+        init(strings_.emplace_front(option).c_str(), value.release(), strings_.emplace_front(description).c_str());
     }
 
-    auto add_option_group_(char const *group) -> Potassco::ProgramOptions::OptionGroup & {
+    auto add_option_group_(std::string_view group) -> Potassco::ProgramOptions::OptionGroup & {
         auto it = groups_.before_begin();
         for (auto &option_group : groups_) {
             if (option_group.caption() == group) {
@@ -72,6 +68,7 @@ class AppOptions {
     }
 
     std::forward_list<Potassco::ProgramOptions::OptionGroup> groups_;
+    std::forward_list<std::string> strings_;
 };
 
 auto c_cast(AppOptions *opts) -> clingo_options_t * {
@@ -88,11 +85,21 @@ class AppAdapter {
   public:
     AppAdapter(clingo_application_t *app, void *data) : app_(app), data_(data) {}
 
-    [[nodiscard]] auto get_name() const -> char const * {
-        return app_ != nullptr && app_->program_name != nullptr ? app_->program_name(data_) : "clingo";
+    [[nodiscard]] auto get_name() const -> std::string_view {
+        if (app_ != nullptr && app_->program_name != nullptr) {
+            clingo_string_t str;
+            app_->program_name(data_, &str);
+            return {str.data, str.size};
+        }
+        return "clingo";
     }
-    [[nodiscard]] auto get_version() const -> char const * {
-        return app_ != nullptr && app_->version != nullptr ? app_->version(data_) : CLINGO_VERSION;
+    [[nodiscard]] auto get_version() const -> std::string_view {
+        if (app_ != nullptr && app_->version != nullptr) {
+            clingo_string_t str;
+            app_->version(data_, &str);
+            return {str.data, str.size};
+        }
+        return CLINGO_VERSION;
     }
 
     void register_options(Potassco::ProgramOptions::OptionContext &root) {
@@ -127,7 +134,8 @@ class AppAdapter {
 
     void main(clingo_control_t *ctl, std::span<std::string const> const &input) {
         assert(has_main());
-        auto vec = Clingo::Util::transform(input, [](auto const &str) { return str.c_str(); });
+        auto vec =
+            Clingo::Util::transform(input, [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
         handle_error(app_->main(ctl, vec.data(), vec.size(), data_));
     }
 
@@ -257,33 +265,35 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 
 } // namespace
 
-extern "C" auto clingo_options_add(clingo_options_t *options, char const *group, char const *option,
-                                   char const *description, clingo_option_parser_t parser, void *data, bool multi,
-                                   char const *argument) -> clingo_result_t {
+extern "C" auto clingo_options_add(clingo_options_t *options, char const *group, size_t group_size, char const *option,
+                                   size_t option_size, char const *description, size_t description_size,
+                                   clingo_option_parser_t parser, void *data, bool multi, char const *argument,
+                                   size_t argument_size) -> clingo_result_t {
     CLINGO_TRY {
         auto *opts = cpp_cast(options);
         opts->add_option(
-            group, option, description,
-            [parser, data](char const *value) {
+            {group, group_size}, {option, option_size}, {description, description_size},
+            [parser, data](std::string_view value) {
                 auto result = false;
-                handle_error(parser(value, data, &result));
+                handle_error(parser(value.data(), value.size(), data, &result));
                 return result;
             },
-            argument, multi);
+            argument != nullptr ? std::make_optional<std::string_view>(argument, argument_size) : std::nullopt, multi);
     }
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_options_add_flag(clingo_options_t *options, char const *group, char const *option,
-                                        char const *description, bool *target) -> clingo_result_t {
+extern "C" auto clingo_options_add_flag(clingo_options_t *options, char const *group, size_t group_size,
+                                        char const *option, size_t option_size, char const *description,
+                                        size_t description_size, bool *target) -> clingo_result_t {
     CLINGO_TRY {
         auto *opts = cpp_cast(options);
-        opts->add_flag(group, option, description, *target);
+        opts->add_flag({group, group_size}, {option, option_size}, {description, description_size}, *target);
     }
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size, clingo_application_t *app,
+extern "C" auto clingo_main(clingo_lib_t *lib, clingo_string_t const *arguments, size_t size, clingo_application_t *app,
                             void *data, int *code) -> clingo_result_t {
     CLINGO_TRY {
         if (code != nullptr) {
@@ -293,8 +303,10 @@ extern "C" auto clingo_main(clingo_lib_t *lib, char const *const *arguments, siz
             return clingo_result_invalid;
         }
         auto capp = ClingoApp{*lib, app, data};
-        auto args = std::span{arguments, size};
-        auto res = capp.main(args);
+        auto args = Clingo::Util::transform(std::span{arguments, size},
+                                            [](auto const &str) { return std::string{str.data, str.size}; });
+        auto cargs = Clingo::Util::transform(args, [](auto const &str) { return str.c_str(); });
+        auto res = capp.main(cargs);
         if (code != nullptr) {
             *code = res;
         }

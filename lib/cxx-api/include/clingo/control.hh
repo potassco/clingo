@@ -279,7 +279,7 @@ class Control {
     void join(AST::Program const &prg) const { AST::Detail::join(ctl_.get(), c_cast(prg)); }
 
   private:
-    friend class Detail::ManagedPtr<Control, clingo_control_t>;
+    friend class Detail::intrusive_handle<Control, clingo_control_t>;
 
     struct Data {
         std::exception_ptr ptr;
@@ -327,7 +327,7 @@ class Control {
         return res;
     }
 
-    Detail::ManagedPtr<Control, clingo_control_t> ctl_;
+    Detail::intrusive_handle<Control, clingo_control_t> ctl_;
 };
 
 } // namespace Clingo

@@ -132,6 +132,12 @@ inline auto user_data_slot() -> size_t {
     return slot;
 }
 
+template <auto F> struct Free {
+    template <typename Ptr> void operator()(Ptr p) const noexcept { F(p); }
+};
+
+template <class T, auto F> using unique_handle = std::unique_ptr<T, Free<F>>;
+
 //! Use std::transform to build a vector.
 template <std::input_iterator It, std::sentinel_for<It> S, class Pred> auto transform(It begin, S end, Pred pred) {
     auto p = std::vector<std::invoke_result_t<Pred, std::iter_reference_t<It>>>{};
@@ -162,24 +168,24 @@ inline auto hash_combine(size_t a, size_t b) -> size_t {
     // NOLINTEND
 }
 
-template <class T, class P> class ManagedPtr {
+template <class T, class P> class intrusive_handle {
   public:
-    ManagedPtr() = default;
-    explicit ManagedPtr(P *ptr, bool inc = true) : ptr_{ptr} {
+    intrusive_handle() = default;
+    explicit intrusive_handle(P *ptr, bool inc = true) : ptr_{ptr} {
         if (inc) {
             T::acquire(ptr);
         }
     }
-    ManagedPtr(ManagedPtr const &other) : ManagedPtr{other.ptr_} {}
-    ManagedPtr(ManagedPtr &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {}
-    ~ManagedPtr() noexcept { T::release(ptr_); }
-    auto operator=(ManagedPtr const &other) -> ManagedPtr & {
+    intrusive_handle(intrusive_handle const &other) : intrusive_handle{other.ptr_} {}
+    intrusive_handle(intrusive_handle &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {}
+    ~intrusive_handle() noexcept { T::release(ptr_); }
+    auto operator=(intrusive_handle const &other) -> intrusive_handle & {
         T::acquire(other.ptr_);
         T::release(ptr_);
         ptr_ = other.ptr_;
         return *this;
     }
-    auto operator=(ManagedPtr &&other) noexcept -> ManagedPtr & {
+    auto operator=(intrusive_handle &&other) noexcept -> intrusive_handle & {
         T::release(ptr_);
         ptr_ = std::exchange(other.ptr_, nullptr);
         return *this;
@@ -196,10 +202,10 @@ template <class T, class P> class ManagedPtr {
             T::acquire(ptr_);
         }
     }
-    friend auto operator==(ManagedPtr const &p, std::nullptr_t) noexcept -> bool { return p.ptr_ == nullptr; }
-    friend auto operator!=(ManagedPtr const &p, std::nullptr_t) noexcept -> bool { return p.ptr_ != nullptr; }
-    friend auto operator==(std::nullptr_t, ManagedPtr const &p) noexcept -> bool { return p.ptr_ == nullptr; }
-    friend auto operator!=(std::nullptr_t, ManagedPtr const &p) noexcept -> bool { return p.ptr_ != nullptr; }
+    friend auto operator==(intrusive_handle const &p, std::nullptr_t) noexcept -> bool { return p.ptr_ == nullptr; }
+    friend auto operator!=(intrusive_handle const &p, std::nullptr_t) noexcept -> bool { return p.ptr_ != nullptr; }
+    friend auto operator==(std::nullptr_t, intrusive_handle const &p) noexcept -> bool { return p.ptr_ == nullptr; }
+    friend auto operator!=(std::nullptr_t, intrusive_handle const &p) noexcept -> bool { return p.ptr_ != nullptr; }
 
   private:
     P *ptr_ = nullptr;
@@ -358,7 +364,7 @@ class Library {
     [[nodiscard]] friend auto c_cast(Library const &lib) -> clingo_lib_t * { return lib.rep_.get(); }
 
   private:
-    friend class Detail::ManagedPtr<Library, clingo_lib_t>;
+    friend class Detail::intrusive_handle<Library, clingo_lib_t>;
 
     static void free_logger_(void *data) noexcept { std::unique_ptr<Logger>(static_cast<Logger *>(data)); }
     static void logger_(clingo_message_t code, char const *message, size_t size, void *data) {
@@ -367,7 +373,7 @@ class Library {
     static auto acquire(clingo_lib_t *ptr) { clingo_lib_acquire(ptr); }
     static auto release(clingo_lib_t *ptr) { clingo_lib_release(ptr); }
 
-    Detail::ManagedPtr<Library, clingo_lib_t> rep_;
+    Detail::intrusive_handle<Library, clingo_lib_t> rep_;
 };
 
 class StringBuilder {

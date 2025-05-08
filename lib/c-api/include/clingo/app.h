@@ -49,11 +49,11 @@ typedef struct clingo_options clingo_options_t;
 //!
 //! @param[in] control corresponding control object
 //! @param[in] files files passed via command line arguments
-//! @param[in] files_size number of files
+//! @param[in] size number of files
 //! @param[in] data user data for the callback
 //! @return the result code
-typedef clingo_result_t (*clingo_main_function_t)(clingo_control_t *control, char const *const *files,
-                                                  size_t files_size, void *data);
+typedef clingo_result_t (*clingo_main_function_t)(clingo_control_t *control, clingo_string_t const *files, size_t size,
+                                                  void *data);
 
 //! Callback to print a model in default format.
 //!
@@ -73,10 +73,10 @@ typedef clingo_result_t (*clingo_model_printer_t)(clingo_model_t const *model, c
 
 //! This struct contains a set of functions to customize the clingo application.
 typedef struct clingo_application {
-    char const *(*program_name)(void *data); //!< callback to obtain program name
-    char const *(*version)(void *data);      //!< callback to obtain version information
-    clingo_main_function_t main;             //!< callback to override clingo's main function
-    clingo_model_printer_t print_model;      //!< callback to override default model printing
+    void (*program_name)(void *data, clingo_string_t *string); //!< callback to obtain program name
+    void (*version)(void *data, clingo_string_t *string);      //!< callback to obtain version information
+    clingo_main_function_t main;                               //!< callback to override clingo's main function
+    clingo_model_printer_t print_model;                        //!< callback to override default model printing
     clingo_result_t (*register_options)(clingo_options_t *options, void *data); //!< callback to register options
     clingo_result_t (*validate_options)(void *data);                            //!< callback validate options
 } clingo_application_t;
@@ -84,10 +84,11 @@ typedef struct clingo_application {
 //! Callback to parse the value of a command-line option.
 //!
 //! @param[in] value the value to parse
+//! @param[in] size the size of the value
 //! @param[in] data the user data of the callback
 //! @param[in] result
 //! @return the result code
-typedef clingo_result_t (*clingo_option_parser_t)(char const *value, void *data, bool *result);
+typedef clingo_result_t (*clingo_option_parser_t)(char const *value, size_t size, void *data, bool *result);
 
 //! Add an option that is processed with a custom parser.
 //!
@@ -101,17 +102,22 @@ typedef clingo_result_t (*clingo_option_parser_t)(char const *value, void *data,
 //!
 //! @param[in] options object to register the option with
 //! @param[in] group options are grouped into sections as given by this string
+//! @param[in] group_size the size of the group
 //! @param[in] option specifies the command line option
+//! @param[in] option_size teh size of the option
 //! @param[in] description the description of the option
+//! @param[in] description_size the size of the description
 //! @param[in] parser callback to parse the value of the option
 //! @param[in] data user data for the callback
 //! @param[in] multi whether the option can appear multiple times on the command-line
-//! @param[in] argument optional string to change the value name in the generated help output
+//! @param[in] argument optional string (NULL) to change the value name in the generated help output
+//! @param[in] argument_size the size of the argument
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_options_add(clingo_options_t *options, char const *group,
-                                                             char const *option, char const *description,
+                                                             size_t group_size, char const *option, size_t option_size,
+                                                             char const *description, size_t description_size,
                                                              clingo_option_parser_t parser, void *data, bool multi,
-                                                             char const *argument);
+                                                             char const *argument, size_t argument_size);
 //! Add an option that is a simple flag.
 //!
 //! This function is similar to @ref clingo_options_add() but simpler because it only supports flags, which do not have
@@ -119,13 +125,17 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_options_add(clingo_options_t *o
 //!
 //! @param[in] options object to register the option with
 //! @param[in] group options are grouped into sections as given by this string
+//! @param[in] group_size the size of the group
 //! @param[in] option specifies the command line option
+//! @param[in] option_size teh size of the option
 //! @param[in] description the description of the option
+//! @param[in] description_size the size of the description
 //! @param[in] target boolean set to true if the flag is given on the command-line
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_options_add_flag(clingo_options_t *options, char const *group,
-                                                                  char const *option, char const *description,
-                                                                  bool *target);
+                                                                  size_t group_size, char const *option,
+                                                                  size_t option_size, char const *description,
+                                                                  size_t description_size, bool *target);
 
 //! Run an application with the given library and arguments.
 //!
@@ -140,7 +150,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_options_add_flag(clingo_options
 //! @param[in] data user data for callbacks in app
 //! @param[out] code the exit code
 //! @return the exit code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size,
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_main(clingo_lib_t *lib, clingo_string_t const *arguments, size_t size,
                                                       clingo_application_t *app, void *data, int *code);
 
 //! @}

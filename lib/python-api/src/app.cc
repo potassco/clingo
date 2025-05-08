@@ -14,29 +14,33 @@ struct Flag {
 
 class Options {
   public:
-    using Parser = std::function<bool(char const *value)>;
+    using Parser = std::function<bool(std::string_view)>;
     using ParserList = std::forward_list<Annotation<Parser>>;
 
     Options(clingo_options_t *opts, ParserList &parsers) : opts_{opts}, parsers_{&parsers} {}
 
-    void add(char const *group, char const *option, char const *description, Annotation<Parser> parser, bool multi,
-             std::optional<char const *> argument) {
+    void add(std::string_view group, std::string_view option, std::string_view description, Annotation<Parser> parser,
+             bool multi, std::optional<std::string_view> argument) {
         parsers_->emplace_front(std::move(parser));
-        static constexpr auto cparser = [](char const *value, void *data, bool *result) -> clingo_result_t {
+        static constexpr auto cparser = [](char const *value, size_t size, void *data,
+                                           bool *result) -> clingo_result_t {
             auto &parser = *static_cast<ParserList::value_type *>(data);
             CLINGO_TRY {
-                *result = py::cast<Parser>(parser)(value);
+                *result = py::cast<Parser>(parser)({value, size});
             }
             CLINGO_CATCH;
         };
-        handle_error(clingo_options_add(opts_, group, option, description, cparser,
+        handle_error(clingo_options_add(opts_, group.data(), group.size(), option.data(), option.size(),
+                                        description.data(), description.size(), cparser,
                                         static_cast<void *>(&parsers_->front()), multi,
-                                        argument ? argument.value() : nullptr));
+                                        argument ? argument->data() : nullptr, argument ? argument->size() : 0));
     }
 
-    void add_flag(char const *group, char const *option, char const *description, Annotation<Flag> const &flag) {
+    void add_flag(std::string_view group, std::string_view option, std::string_view description,
+                  Annotation<Flag> const &flag) {
         auto &cflag = flag.cast<Flag &>();
-        handle_error(clingo_options_add_flag(opts_, group, option, description, &cflag.value));
+        handle_error(clingo_options_add_flag(opts_, group.data(), group.size(), option.data(), option.size(),
+                                             description.data(), description.size(), &cflag.value));
     }
 
     auto c_ptr() -> clingo_options_t * { return opts_; }
@@ -69,11 +73,11 @@ class App {
 
     void validate_options() { PYBIND11_OVERRIDE_NAME(void, App, "validate_options", no_op_); }
 
-    auto program_name() -> char const * { return program_name_ ? program_name_->c_str() : "clingo"; }
+    auto program_name() -> std::string_view { return program_name_ ? std::string_view{*program_name_} : "clingo"; }
 
-    auto version() -> char const * {
+    auto version() -> std::string_view {
         assert(version_);
-        return version_->c_str();
+        return *version_;
     }
 
     auto prepare() -> clingo_application_t {
@@ -109,33 +113,36 @@ class App {
 
     auto has_override_(char const *name) const -> bool { return bool(py::get_override(this, name)); }
 
-    static auto get_program_name_(void *data) -> char const * {
+    static void get_program_name_(void *data, clingo_string_t *res) {
         auto &app = *static_cast<App *>(data);
         try {
-            return app.program_name();
+            auto str = app.program_name();
+            res->data = str.data();
+            res->size = str.size();
         } catch (std::exception const &e) {
             printf("panic: %s\n", e.what());
             std::abort();
         }
     }
 
-    static auto get_version_(void *data) -> char const * {
+    static void get_version_(void *data, clingo_string_t *res) {
         auto &app = *static_cast<App *>(data);
         try {
-            return app.version();
+            auto str = app.version();
+            res->data = str.data();
+            res->size = str.size();
         } catch (std::exception const &e) {
             printf("panic: %s\n", e.what());
             std::abort();
         }
     }
 
-    static auto main_(clingo_control_t *ctl, char const *const *files, size_t files_size, void *data)
-        -> clingo_result_t {
+    static auto main_(clingo_control_t *ctl, clingo_string_t const *files, size_t size, void *data) -> clingo_result_t {
         auto &app = *static_cast<App *>(data);
         CLINGO_TRY {
             auto pyctl = Control::cast(ctl, true);
-            auto cfiles = std::span{files, files_size};
-            app.main(pyctl, std::vector<std::string>{cfiles.begin(), cfiles.end()});
+            auto pyfiles = transform(std::span{files, size}, [](auto const &x) { return std::string{x.data, x.size}; });
+            app.main(pyctl, pyfiles);
         }
         CLINGO_CATCH;
     }
@@ -165,8 +172,9 @@ class App {
             // we report option validation errors here to avoid long winded
             // messages with traces later
             if (e.matches(PyExc_ValueError)) {
+                auto str = app.program_name();
                 std::string msg = py::str(e.value());
-                fprintf(stderr, "*** ERROR: (%s): %s\n", app.program_name(), msg.c_str());
+                fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)str.size(), str.data(), msg.c_str());
                 return clingo_result_invalid;
             }
             return handle_error();
@@ -205,7 +213,7 @@ auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<
     if (app) {
         capp.emplace(app.value()->prepare());
     }
-    auto cargs = transform(arguments, [](auto const &x) { return x.c_str(); });
+    auto cargs = transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
     auto code = 0;
     auto ret = clingo_main(lib, cargs.data(), cargs.size(), capp ? &*capp : nullptr,
                            app ? static_cast<void *>(*app) : nullptr, &code);
@@ -219,8 +227,8 @@ auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<
             throw;
         }
         if (!is_clingo_error(e)) {
-            auto const *name = app ? app.value()->program_name() : "clingo";
-            fprintf(stderr, "*** ERROR: (%s): %s\n", name, e.what());
+            auto name = app ? app.value()->program_name() : "clingo";
+            fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
         }
     } catch (PyClingoError const &e) {
         if (raise_errors) {
@@ -230,8 +238,8 @@ auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<
         if (raise_errors) {
             throw;
         }
-        auto const *name = app ? app.value()->program_name() : "clingo";
-        fprintf(stderr, "*** ERROR: (%s): %s\n", name, e.what());
+        auto name = app ? app.value()->program_name() : "clingo";
+        fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
     }
     clear_error();
     return code;

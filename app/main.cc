@@ -1,5 +1,9 @@
 #include <clingo/app.h>
-#include <cstdio>
+
+#include <cstdlib>
+#include <cstring>
+#include <span>
+#include <vector>
 
 #ifndef CLINGO_PYTHON_ENABLED
 #define CLINGO_PYTHON_ENABLED 0
@@ -32,8 +36,17 @@ auto main(int argc, char *argv[]) -> int {
         return 1;
     }
 #endif
+    auto args = std::vector<clingo_string_t>{};
+    try {
+        args.reserve(argc - 1);
+        std::ranges::transform(std::span{argv + 1, static_cast<size_t>(argc - 1)}, std::back_inserter(args),
+                               [](auto const &x) { return clingo_string_t{x, strlen(x)}; });
+    } catch (std::exception const &e) {
+        clingo_lib_report(lib.ptr, clingo_message_error, e.what(), std::strlen(e.what()));
+        return 1;
+    }
     int code = 0;
-    if (clingo_main(lib.ptr, argv + 1, argc - 1, nullptr, nullptr, &code) != clingo_result_success) {
+    if (clingo_main(lib.ptr, args.data(), args.size(), nullptr, nullptr, &code) != clingo_result_success) {
         return 1;
     }
     return code;
