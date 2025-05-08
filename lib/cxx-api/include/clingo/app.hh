@@ -13,6 +13,8 @@ class Options {
 
     Options(clingo_options_t *opts, ParserList &parsers) : opts_{opts}, parsers_{&parsers} {}
 
+    friend auto c_cast(Options const &x) -> clingo_options_t * { return x.opts_; }
+
     void add(std::string_view group, std::string_view option, std::string_view description, Parser parser, bool multi,
              std::optional<std::string_view> argument) {
         parsers_->emplace_front(std::move(parser));
@@ -35,11 +37,31 @@ class Options {
                                                      description.data(), description.size(), &flag));
     }
 
-    auto c_ptr() -> clingo_options_t * { return opts_; }
-
   private:
     clingo_options_t *opts_;
     ParserList *parsers_;
+};
+
+using ModelPrinter = std::function<void()>;
+
+class App {
+  public:
+    virtual ~App() = default;
+    void main(Control const &control, std::span<std::string_view const> files) { do_main(control, files); }
+    void print_model(Model model, ModelPrinter const &printer) { do_print_model(model, printer); }
+    void register_options([[maybe_unused]] Options options) {}
+    void validate_options() { do_validate_options(); }
+
+  private:
+    virtual void do_main(Control const &control, std::span<std::string_view const> files) {
+        control.parse_files(files);
+        control.main();
+    }
+    virtual void do_print_model([[maybe_unused]] Model model, ModelPrinter const &printer) { printer(); }
+    virtual void do_register_options([[maybe_unused]] Options options) {}
+    virtual void do_validate_options() {}
+    virtual auto do_program_name() -> std::string_view { return "clingo"; }
+    virtual auto do_version() -> std::string_view { return CLINGO_VERSION; }
 };
 
 /*
