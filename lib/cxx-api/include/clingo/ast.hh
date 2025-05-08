@@ -1,7 +1,7 @@
 #pragma once
 
-#include <clingo/ast_detail.hh>
 #include <clingo/core.hh>
+#include <clingo/detail/ast.hh>
 #include <clingo/symbol.hh>
 
 #include <clingo/ast.h>
@@ -184,7 +184,7 @@ class Node {
     }
 
     [[nodiscard]] auto accept(Library const &lib, Transformer const &fun) const -> std::optional<Node> {
-        return select_<0>(lib, static_cast<size_t>(type()), fun);
+        return dispatch_<0>(lib, static_cast<size_t>(type()), fun);
     }
 
     [[nodiscard]] auto type() const -> NodeType {
@@ -255,20 +255,10 @@ class Node {
     }
 
     [[nodiscard]] auto nodes(Attribute attribute) const -> std::vector<Node> {
-        class Free {
-          public:
-            Free(size_t size) : size_{size} {}
-            void operator()(clingo_ast_t **value) const { clingo_ast_array_free(value, size_); }
-
-          private:
-            size_t size_;
-        };
-        clingo_ast_t **value = nullptr;
-        size_t size = 0;
+        auto arr = Detail::Array{};
         Detail::handle_error(clingo_ast_attribute_get_ast_array(
-            ast_.get(), static_cast<clingo_ast_attribute_t>(attribute), &value, &size));
-        auto ptr = std::unique_ptr<clingo_ast_t *, Free>{value, Free{size}};
-        return Detail::transform(std::span{value, size},
+            ast_.get(), static_cast<clingo_ast_attribute_t>(attribute), &arr.value, &arr.size));
+        return Detail::transform(std::span{arr.value, arr.size},
                                  [](auto *&node) { return Node{std::exchange(node, nullptr)}; });
     }
 
@@ -341,7 +331,7 @@ class Node {
         }
     }
 
-    //! Get the ith argument of the given node type.
+    //! Get the ith member of the given node.
     template <size_t Type, size_t I> [[nodiscard]] auto get_() const {
         static_assert(Type <= Detail::cons.size(), "invalid type");
         constexpr auto const &cons = Detail::cons.at(Type);
@@ -368,7 +358,7 @@ class Node {
         }
     }
 
-    //! Get the ith argument of the given node type.
+    //! Get the ith member of the given node.
     template <size_t Type, size_t I, typename F> [[nodiscard]] auto update_child_(F const &fun) const {
         static_assert(Type <= Detail::cons.size(), "invalid type");
         constexpr auto const &cons = Detail::cons.at(Type);
@@ -381,7 +371,7 @@ class Node {
         }
     }
 
-    //! Update the current node replacing selected children.
+    //! Update the current node replacing selected members.
     template <size_t Type, size_t I, typename F, size_t... Is>
     [[nodiscard]] auto update_(Library const &lib, F const &fun, [[maybe_unused]] std::index_sequence<Is...> seq) const
         -> clingo_ast_t * {
@@ -390,12 +380,12 @@ class Node {
 
     //! Dispatch to the type-specific transform method.
     template <size_t Type>
-    [[nodiscard]] auto select_(Library const &lib, size_t type, Transformer const &fun) const -> std::optional<Node> {
+    [[nodiscard]] auto dispatch_(Library const &lib, size_t type, Transformer const &fun) const -> std::optional<Node> {
         if (type == Type) {
             return apply_<Type>(lib, fun, std::make_index_sequence<Detail::cons.at(Type).size()>());
         }
         if constexpr (Type + 1 < Detail::cons.size()) {
-            return select_<Type + 1>(lib, type, fun);
+            return dispatch_<Type + 1>(lib, type, fun);
         }
         throw std::invalid_argument{"invalid type"};
     }
@@ -407,17 +397,17 @@ class Node {
     //! Check if the argument has a value.
     [[nodiscard]] static auto has_value_([[maybe_unused]] std::nullopt_t null) { return false; }
 
-    //! Get the i-th child of the given node or the given value if engaged.
+    //! Get the ith member of the given node or the given value if engaged.
     template <size_t Type, size_t I, typename Arg> [[nodiscard]] auto get_value_(std::optional<Arg> arg) const {
         return arg ? *std::move(arg) : get_<Type, I>();
     }
 
-    //! Get the ith child of the given node type.
+    //! Get the ith member of the given node.
     template <size_t Type, size_t I> [[nodiscard]] auto get_value_([[maybe_unused]] std::nullopt_t null) const {
         return get_<Type, I>();
     }
 
-    //! Transform the i-child of the node.
+    //! Transform the ith member of the node.
     template <size_t Type, size_t I> [[nodiscard]] auto transform_child_(Transformer const &fun) const {
         static_assert(Type <= Detail::cons.size(), "invalid type");
         constexpr auto const &cons = Detail::cons.at(Type);
@@ -434,13 +424,14 @@ class Node {
         }
     }
 
-    //! Apply the transformation function to the node's children.
+    //! Apply the transformation function to the node's members.
     template <size_t Type, size_t... Is>
     [[nodiscard]] auto apply_(Library const &lib, Transformer const &fun, std::index_sequence<Is...> seq) const
         -> std::optional<Node> {
         return transform_<Type, Is...>(lib, seq, transform_child_<Type, Is>(fun)...);
     }
-    //! Transform the node if one of its children changed.
+
+    //! Transform the node if one of its members changed.
     template <size_t Type, size_t... Is, typename... Args>
     [[nodiscard]] auto transform_(Library const &lib, [[maybe_unused]] std::index_sequence<Is...> seq,
                                   Args &&...args) const -> std::optional<Node> {
@@ -519,14 +510,11 @@ class Scanner {
         explicit iterator(Scanner &hnd) : scanner_{&hnd} { operator++(); }
 
         auto operator*() const -> reference {
-            assert(scanner_ != nullptr);
-            return scanner_->value_.value();
+            assert(scanner_ != nullptr && scanner_->value_);
+            return *scanner_->value_;
         }
 
-        auto operator->() const -> pointer {
-            assert(scanner_ != nullptr);
-            return &scanner_->value_.value();
-        }
+        auto operator->() const -> pointer { return &**this; }
 
         auto operator++() -> iterator & {
             assert(scanner_ != nullptr);
