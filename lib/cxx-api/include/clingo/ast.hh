@@ -532,7 +532,7 @@ class Scanner {
             return tmp;
         }
 
-        friend auto operator==(iterator const &a, iterator const &b) -> bool {
+        friend auto operator==([[maybe_unused]] iterator const &a, [[maybe_unused]] iterator const &b) -> bool {
             assert(a.scanner_ == b.scanner_);
             return true;
         }

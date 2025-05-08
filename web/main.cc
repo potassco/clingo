@@ -19,9 +19,10 @@ int run(std::string input, std::vector<std::string> const &args) {
     static clingo_application_t app = {
         nullptr,
         nullptr,
-        [](clingo_control_t *control, [[maybe_unused]] char const *const *files, [[maybe_unused]] size_t files_size,
+        [](clingo_control_t *control, [[maybe_unused]] clingo_string_t const *files, [[maybe_unused]] size_t files_size,
            void *data) -> clingo_result_t {
-            auto res = clingo_control_parse_string(control, static_cast<char const *>(data));
+            auto &str = *static_cast<std::string *>(data);
+            auto res = clingo_control_parse_string(control, str.data(), str.size());
             if (res != clingo_result_success) {
                 return res;
             }
@@ -34,12 +35,13 @@ int run(std::string input, std::vector<std::string> const &args) {
     };
     int code = 1;
     clingo_lib_t *lib = nullptr;
-    auto c_args = std::vector<const char *>(args.size());
-    std::ranges::transform(args, c_args.begin(), [](auto const &str) { return str.c_str(); });
+    auto c_args = std::vector<clingo_string_t>(args.size());
+    std::ranges::transform(args, c_args.begin(),
+                           [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
     if (clingo_lib_new(clingo_lib_flags_slotted | clingo_lib_flags_fast_release, clingo_log_level_info, nullptr,
                        nullptr, message_limit, &lib) == clingo_result_success) {
 
-        clingo_main(lib, c_args.data(), c_args.size(), &app, static_cast<void *>(input.data()), &code);
+        clingo_main(lib, c_args.data(), c_args.size(), &app, static_cast<void *>(&input), &code);
     }
     clingo_lib_release(lib);
     return code;

@@ -104,8 +104,9 @@ class ClingoOptions {
                     return false;
                 }
                 size_t arity = 0;
+                const auto *begin = x[1].data();
                 const auto *end = x[1].data() + x[1].size();
-                auto [ptr, ec] = std::from_chars(x[1].begin(), end, arity);
+                auto [ptr, ec] = std::from_chars(begin, end, arity);
                 if (ec != std::errc{} || ptr != end) {
                     return false;
                 }
