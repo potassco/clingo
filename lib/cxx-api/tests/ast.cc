@@ -33,6 +33,24 @@ TEST_CASE("cxx-ast") {
         return true;
     });
     REQUIRE(trail == std::vector<std::string>{"a :- b.", "a", "a", "a", "b", "b", "b"});
+
+    // TODO: I think, I am going to leave it up to the user whether to call transform recursively on a node.
+    // To facilitate this process, there should be the following functions:
+    // - transform(node)
+    // - transform(nodes)
+    // - transform(optional_node)
+    auto var_z = var_y.transform(lib, [&lib](AST::Node const &node) -> std::optional<AST::Node> {
+        if (node.type() == AST::NodeType::term_variable) {
+            return node.update<AST::NodeType::term_variable>(lib, []<AST::Attribute attr>() {
+                if constexpr (attr == AST::Attribute::name) {
+                    return std::string_view{"Z"};
+                }
+            });
+        }
+        return std::nullopt;
+    });
+    REQUIRE(var_z.has_value());
+    REQUIRE(var_z->to_string() == "Z");
 }
 
 } // namespace Clingo::Test
