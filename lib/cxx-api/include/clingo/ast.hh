@@ -156,12 +156,16 @@ class Node {
 
     explicit Node(clingo_ast_t *ast) : ast_{ast} {}
 
-    template <NodeType Type, class... Args> static auto create(Library const &lib, Args const &...args) {
+    [[nodiscard]] friend auto c_cast(Node const &x) -> clingo_ast_t * { return x.ast_.get(); }
+
+    template <NodeType Type, class... Args>
+    [[nodiscard]] static auto create(Library const &lib, Args const &...args) -> Node {
         constexpr auto type = static_cast<size_t>(Type);
         return Node{create_<type, 0>(lib, args..., sentinel{})};
     }
 
-    template <NodeType Type, class Updater> auto update(Library const &lib, Updater const &fun) const -> Node {
+    template <NodeType Type, class Updater>
+    [[nodiscard]] auto update(Library const &lib, Updater const &fun) const -> Node {
         constexpr auto type = static_cast<size_t>(Type);
         return Node{update_<type, 0>(lib, fun, std::make_index_sequence<Detail::cons.at(type).size()>())};
     }
@@ -182,8 +186,6 @@ class Node {
     [[nodiscard]] auto accept(Library const &lib, Transformer const &fun) const -> std::optional<Node> {
         return select_<0>(lib, static_cast<size_t>(type()), fun);
     }
-
-    friend auto c_cast(Node const &x) -> clingo_ast_t * { return x.ast_.get(); }
 
     [[nodiscard]] auto type() const -> NodeType {
         clingo_ast_type_t value = 0;

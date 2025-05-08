@@ -7,7 +7,9 @@
 namespace Clingo::Test {
 
 TEST_CASE("cxx-ast") {
+    using T = AST::NodeType;
     using A = AST::Attribute;
+
     auto lib = Library{};
     auto stm = AST::parse(lib, "a :- b.");
     auto head = stm.node(A::head);
@@ -17,11 +19,11 @@ TEST_CASE("cxx-ast") {
     REQUIRE(body.size() == 1);
     REQUIRE(body.front().to_string() == "b");
 
-    auto loc = head.location(AST::Attribute::location);
-    auto var_x = AST::Node::create<AST::NodeType::term_variable>(lib, loc, "X", false);
+    auto loc = head.location(A::location);
+    auto var_x = AST::Node::create<T::term_variable>(lib, loc, "X", false);
     REQUIRE(var_x.to_string() == "X");
-    auto var_y = var_x.update<AST::NodeType::term_variable>(lib, []<AST::Attribute attr>() {
-        if constexpr (attr == AST::Attribute::name) {
+    auto var_y = var_x.update<T::term_variable>(lib, []<A attr>() {
+        if constexpr (attr == A::name) {
             return std::string_view{"Y"};
         }
     });
@@ -36,10 +38,9 @@ TEST_CASE("cxx-ast") {
     REQUIRE(trail == std::vector<std::string>{"a :- b.", "a", "a", "a", "b", "b", "b"});
 
     AST::Transformer trans = [&](AST::Node const &node) -> std::optional<AST::Node> {
-        if (node.type() == AST::NodeType::term_variable) {
-            return node.update<AST::NodeType::term_variable>(lib, [&]<AST::Attribute attr>() {
-                if constexpr (attr == AST::Attribute::name) {
-                    // TODO: it is probably a good idea to already pass in the value
+        if (node.type() == T::term_variable) {
+            return node.update<T::term_variable>(lib, [&]<A attr>() {
+                if constexpr (attr == A::name) {
                     return node.string(attr) == "X" ? "Y" : "Z";
                 }
             });
