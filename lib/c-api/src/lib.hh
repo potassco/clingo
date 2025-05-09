@@ -75,6 +75,24 @@ inline auto map(Potassco::WeightLitSpan lits) -> clingo_weighted_literal_t const
     return reinterpret_cast<clingo_weighted_literal_t const *>(lits.data());
 }
 
+class Error {
+  public:
+    static auto instance() noexcept -> Error &;
+    void forward(Error &other) noexcept;
+    void set(clingo_result_t code, char const *message, size_t size) noexcept;
+    void get(clingo_result_t *code, clingo_string_t *message) noexcept;
+    void clear() noexcept;
+    [[nodiscard]] auto active() const noexcept -> bool { return code_ != clingo_result_success; }
+    void raise();
+    auto store() noexcept -> clingo_result_t;
+
+  private:
+    auto set_(clingo_result_t code, char const *message) noexcept -> clingo_result_t;
+
+    clingo_result_t code_ = clingo_result_success;
+    std::string message_;
+};
+
 class ClingoError : public std::exception {
   public:
     ClingoError(clingo_result_t code) : code_{code} {}
@@ -85,13 +103,20 @@ class ClingoError : public std::exception {
     clingo_result_t code_;
 };
 
+void raise_error(Error *error);
+auto store_error(Error *error) -> clingo_result_t;
+
 inline void handle_error(clingo_result_t code) {
     if (code != clingo_result_success) {
-        throw ClingoError(code);
+        raise_error(nullptr);
     }
 }
 
-auto handle_error() -> clingo_result_t;
+inline void handle_error(clingo_result_t code, Error &error) {
+    if (code != clingo_result_success || error.active()) {
+        raise_error(&error);
+    }
+}
 
 template <typename In, typename C, typename Pred> auto append_n(In begin, size_t n, C &out, Pred pred) {
     out.reserve(out.size() + n);
@@ -105,7 +130,12 @@ template <typename In, typename C, typename Pred> auto append_n(In begin, size_t
 #define CLINGO_TRY try
 #define CLINGO_CATCH                                                                                                   \
     catch (...) {                                                                                                      \
-        return handle_error();                                                                                         \
+        return store_error(nullptr);                                                                                   \
+    }                                                                                                                  \
+    return clingo_result_success
+#define CLINGO_CATCH_ERROR(x)                                                                                          \
+    catch (...) {                                                                                                      \
+        return store_error(&(x));                                                                                      \
     }                                                                                                                  \
     return clingo_result_success
 

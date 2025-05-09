@@ -111,6 +111,19 @@ enum clingo_result_e {
 //! Corresponding type to ::clingo_result_e.
 typedef int clingo_result_t;
 
+//! Set an error in the current thread.
+//!
+//! @param[in] code the error code
+//! @param[in] message the error message
+//! @param[in] size the size of the error message
+CLINGO_VISIBILITY_DEFAULT void clingo_set_error(clingo_result_t code, char const *message, size_t size);
+
+//! Get the error set in the current thread.
+//!
+//! @param[out] code the error code
+//! @param[out] message the error message
+CLINGO_VISIBILITY_DEFAULT void clingo_get_error(clingo_result_t *code, clingo_string_t *message);
+
 //! A logger for result codes other than success and unknown.
 //!
 //! @param[in] code associated code
