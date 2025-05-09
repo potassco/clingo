@@ -71,6 +71,8 @@ extern "C" {
 #define CLINGO_VERSION_REVISION 0
 //! String representation of version.
 #define CLINGO_VERSION "6.0.0"
+//! The name of the clingo executable.
+#define CLINGO_EXECUTABLE "clingo"
 
 //! Signed integer type used for aspif and solver literals.
 typedef int32_t clingo_literal_t;

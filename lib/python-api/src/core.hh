@@ -63,7 +63,7 @@ inline void handle_error(clingo_result_t code) {
 }
 
 // Similar to handle_error but also reraises if teh code is succsess.
-void handle_error_no_code(clingo_result_t code);
+void handle_error_no_code(clingo_result_t code, std::exception_ptr *ptr = nullptr);
 
 //! Check if the given exception is a clingo error.
 auto is_clingo_error(py::error_already_set const &e) -> bool;

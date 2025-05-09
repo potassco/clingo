@@ -91,7 +91,7 @@ class AppAdapter {
             app_->program_name(data_, &str);
             return {str.data, str.size};
         }
-        return "clingo";
+        return CLINGO_EXECUTABLE;
     }
     [[nodiscard]] auto get_version() const -> std::string_view {
         if (app_ != nullptr && app_->version != nullptr) {

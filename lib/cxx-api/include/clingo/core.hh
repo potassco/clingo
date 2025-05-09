@@ -80,6 +80,16 @@ inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
     return clingo_result_unknown;
 }
 
+class clingo_error : std::exception {
+  public:
+    clingo_error(clingo_result_t code) : code_{code} {}
+    [[nodiscard]] auto what() const noexcept -> const char * override { return "solving failed"; }
+    [[nodiscard]] auto code() const noexcept -> clingo_result_t { return code_; }
+
+  private:
+    clingo_result_t code_;
+};
+
 //! Map the given result code to an error or rethrow the given pointer if it is
 //! not null and has a value.
 inline void handle_error_impl(clingo_result_t res, std::exception_ptr *ptr) {
@@ -90,23 +100,7 @@ inline void handle_error_impl(clingo_result_t res, std::exception_ptr *ptr) {
     if (auto &gptr = get_exception_ptr()) {
         std::rethrow_exception(std::exchange(gptr, nullptr));
     }
-    switch (res) {
-        case clingo_result_runtime: {
-            throw std::runtime_error("runtime error");
-        }
-        case clingo_result_logic: {
-            throw std::runtime_error("logic error");
-        }
-        case clingo_result_range: {
-            throw std::runtime_error("range error");
-        }
-        case clingo_result_bad_alloc: {
-            throw std::runtime_error("bad alloc");
-        }
-        default: {
-            throw std::runtime_error("unknown error");
-        }
-    }
+    throw clingo_error{res};
 }
 
 //! Simple error handling.

@@ -26,8 +26,12 @@ void handle_error(clingo_result_t code, std::exception_ptr *ptr) {
 
 } // namespace Detail
 
-void handle_error_no_code(clingo_result_t code) {
+void handle_error_no_code(clingo_result_t code, std::exception_ptr *ptr) {
     auto &gptr = Detail::get_exception_ptr();
+    if (ptr != nullptr && *ptr) {
+        gptr = nullptr;
+        std::rethrow_exception(std::exchange(*ptr, nullptr));
+    }
     if (gptr) {
         std::rethrow_exception(std::exchange(gptr, nullptr));
     }

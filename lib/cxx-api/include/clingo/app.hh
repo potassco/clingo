@@ -62,52 +62,54 @@ class App {
     virtual void do_print_model([[maybe_unused]] ConstModel model, ModelPrinter const &printer) { printer(); }
     virtual void do_register_options([[maybe_unused]] Options options) {}
     virtual void do_validate_options() {}
-    virtual auto do_program_name() noexcept -> std::string_view { return "clingo"; }
+    virtual auto do_program_name() noexcept -> std::string_view { return CLINGO_EXECUTABLE; }
     virtual auto do_version() noexcept -> std::string_view { return CLINGO_VERSION; }
 };
 
 namespace Detail {
 
-// FIXME: put somewhere else
-static inline Options::ParserList parsers_; // NOLINT
+struct AppData {
+    App *app;
+    std::exception_ptr ptr;
+    Options::ParserList parsers;
+};
 
 static constexpr clingo_application_t c_app = {
     [](void *data, clingo_string_t *name) -> void {
-        auto &app = *static_cast<App *>(data);
-        auto str = app.program_name();
+        auto &app_data = *static_cast<AppData *>(data);
+        auto str = app_data.app->program_name();
         name->data = str.data();
         name->size = str.size();
     },
     [](void *data, clingo_string_t *version) -> void {
-        auto &app = *static_cast<App *>(data);
-        auto str = app.program_version();
+        auto &app_data = *static_cast<AppData *>(data);
+        auto str = app_data.app->program_version();
         version->data = str.data();
         version->size = str.size();
     },
     [](clingo_control_t *ctl, clingo_string_t const *files, size_t size, void *data) -> clingo_result_t {
-        auto &app = *static_cast<App *>(data);
+        auto &app_data = *static_cast<AppData *>(data);
         CLINGO_TRY {
             auto cpp_ctl = Control(ctl, true);
             auto cpp_files =
                 transform(std::span{files, size}, [](auto const &x) { return std::string_view{x.data, x.size}; });
-            app.main(cpp_ctl, cpp_files);
+            app_data.app->main(cpp_ctl, cpp_files);
         }
         CLINGO_CATCH;
     },
     [](clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data,
        void *data) -> clingo_result_t {
-        // FIXME: the print_model callback does not necessarily run in the main thread and thus has to store the error
-        // in a custom exception pointer.
-        auto &app = *static_cast<App *>(data);
+        auto &app_data = *static_cast<AppData *>(data);
         CLINGO_TRY {
-            app.print_model(ConstModel{model}, [printer, printer_data]() { handle_error(printer(printer_data)); });
+            app_data.app->print_model(ConstModel{model},
+                                      [printer, printer_data]() { handle_error(printer(printer_data)); });
         }
-        CLINGO_CATCH;
+        CLINGO_CATCH_PTR(app_data.ptr);
     },
     [](clingo_options_t *options, void *data) -> clingo_result_t {
-        auto &app = *static_cast<App *>(data);
+        auto &app_data = *static_cast<AppData *>(data);
         CLINGO_TRY {
-            app.register_options(Options{options, parsers_});
+            app_data.app->register_options(Options{options, app_data.parsers});
         }
         CLINGO_CATCH;
     },
@@ -134,19 +136,28 @@ auto main(Library &lib, std::span<std::string_view const> arguments, App *app = 
     auto code = 1;
     try {
         auto c_args = Detail::transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
+        auto data = Detail::AppData{app, {}, {}};
         Detail::handle_error(clingo_main(c_cast(lib), c_args.data(), c_args.size(),
                                          app != nullptr ? &Detail::c_app : nullptr,
-                                         app != nullptr ? static_cast<void *>(app) : nullptr, &code));
+                                         app != nullptr ? static_cast<void *>(&data) : nullptr, &code));
         auto &ptr = Detail::get_exception_ptr();
-        if (ptr != nullptr) {
-            std::rethrow_exception(ptr);
+        if (data.ptr != nullptr) {
+            ptr = nullptr;
+            std::rethrow_exception(std::exchange(data.ptr, nullptr));
         }
-    } catch (std::exception const &e) {
-        // NOTE: already reported exceptions are included here as well
+        if (ptr != nullptr) {
+            std::rethrow_exception(std::exchange(ptr, nullptr));
+        }
+    } catch ([[maybe_unused]] Detail::clingo_error const &e) {
+        // NOTE: clingo errors should have been reported by clasp already
         if (raise_errors) {
             throw;
         }
-        auto name = app != nullptr ? app->program_name() : "clingo";
+    } catch (std::exception const &e) {
+        if (raise_errors) {
+            throw;
+        }
+        auto name = app != nullptr ? app->program_name() : CLINGO_EXECUTABLE;
         fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
     }
     return code;
