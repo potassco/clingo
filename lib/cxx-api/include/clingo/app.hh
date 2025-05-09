@@ -47,8 +47,10 @@ using ModelPrinter = std::function<void()>;
 class App {
   public:
     virtual ~App() = default;
+    auto program_name() noexcept -> std::string_view { return do_program_name(); }
+    auto program_version() noexcept -> std::string_view { return do_version(); }
     void main(Control const &control, std::span<std::string_view const> files) { do_main(control, files); }
-    void print_model(Model model, ModelPrinter const &printer) { do_print_model(model, printer); }
+    void print_model(ConstModel model, ModelPrinter const &printer) { do_print_model(model, printer); }
     void register_options([[maybe_unused]] Options options) {}
     void validate_options() { do_validate_options(); }
 
@@ -57,12 +59,75 @@ class App {
         control.parse_files(files);
         control.main();
     }
-    virtual void do_print_model([[maybe_unused]] Model model, ModelPrinter const &printer) { printer(); }
+    virtual void do_print_model([[maybe_unused]] ConstModel model, ModelPrinter const &printer) { printer(); }
     virtual void do_register_options([[maybe_unused]] Options options) {}
     virtual void do_validate_options() {}
-    virtual auto do_program_name() -> std::string_view { return "clingo"; }
-    virtual auto do_version() -> std::string_view { return CLINGO_VERSION; }
+    virtual auto do_program_name() noexcept -> std::string_view { return "clingo"; }
+    virtual auto do_version() noexcept -> std::string_view { return CLINGO_VERSION; }
 };
+
+namespace Detail {
+
+// FIXME: put somewhere else
+static inline Options::ParserList parsers_; // NOLINT
+
+static constexpr clingo_application_t c_app = {
+    [](void *data, clingo_string_t *name) -> void {
+        auto &app = *static_cast<App *>(data);
+        auto str = app.program_name();
+        name->data = str.data();
+        name->size = str.size();
+    },
+    [](void *data, clingo_string_t *version) -> void {
+        auto &app = *static_cast<App *>(data);
+        auto str = app.program_version();
+        version->data = str.data();
+        version->size = str.size();
+    },
+    [](clingo_control_t *ctl, clingo_string_t const *files, size_t size, void *data) -> clingo_result_t {
+        auto &app = *static_cast<App *>(data);
+        CLINGO_TRY {
+            auto cpp_ctl = Control(ctl, true);
+            auto cpp_files =
+                transform(std::span{files, size}, [](auto const &x) { return std::string_view{x.data, x.size}; });
+            app.main(cpp_ctl, cpp_files);
+        }
+        CLINGO_CATCH;
+    },
+    [](clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data,
+       void *data) -> clingo_result_t {
+        // FIXME: the print_model callback does not necessarily run in the main thread and thus has to store the error
+        // in a custom exception pointer.
+        auto &app = *static_cast<App *>(data);
+        CLINGO_TRY {
+            app.print_model(ConstModel{model}, [printer, printer_data]() { handle_error(printer(printer_data)); });
+        }
+        CLINGO_CATCH;
+    },
+    [](clingo_options_t *options, void *data) -> clingo_result_t {
+        auto &app = *static_cast<App *>(data);
+        CLINGO_TRY {
+            app.register_options(Options{options, parsers_});
+        }
+        CLINGO_CATCH;
+    },
+    [](void *data) -> clingo_result_t {
+        auto &app = *static_cast<App *>(data);
+        try {
+            app.validate_options();
+        } catch (std::invalid_argument &e) {
+            // Report option validation errors right away.
+            auto str = app.program_name();
+            fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)str.size(), str.data(), e.what());
+            return clingo_result_invalid;
+        } catch (...) {
+            Detail::get_exception_ptr() = std::current_exception();
+            return clingo_result_unknown;
+        }
+        return clingo_result_success;
+    }};
+
+} // namespace Detail
 
 /*
 class App {
