@@ -83,7 +83,7 @@ auto cpp_cast(clingo_options_t *opts) -> AppOptions * {
 
 class AppAdapter {
   public:
-    AppAdapter(clingo_application_t *app, void *data) : app_(app), data_(data) {}
+    AppAdapter(clingo_application_t const *app, void *data) : app_(app), data_(data) {}
 
     [[nodiscard]] auto get_name() const -> std::string_view {
         if (app_ != nullptr && app_->program_name != nullptr) {
@@ -141,13 +141,13 @@ class AppAdapter {
 
   private:
     AppOptions opts_;
-    clingo_application_t *app_;
+    clingo_application_t const *app_;
     void *data_;
 };
 
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
   public:
-    ClingoApp(clingo_lib_t &lib, clingo_application_t *app = nullptr, void *data = nullptr)
+    ClingoApp(clingo_lib_t &lib, clingo_application_t const *app = nullptr, void *data = nullptr)
         : ctl_{new clingo_control_t{&lib}}, app_{app, data}, opts_{ctl_->lib->log, *ctl_->lib->store} {}
 
     [[nodiscard]] auto getName() const -> std::string_view override { return app_.get_name(); }
@@ -293,8 +293,8 @@ extern "C" auto clingo_options_add_flag(clingo_options_t *options, char const *g
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_main(clingo_lib_t *lib, clingo_string_t const *arguments, size_t size, clingo_application_t *app,
-                            void *data, int *code) -> clingo_result_t {
+extern "C" auto clingo_main(clingo_lib_t *lib, clingo_string_t const *arguments, size_t size,
+                            clingo_application_t const *app, void *data, int *code) -> clingo_result_t {
     CLINGO_TRY {
         if (code != nullptr) {
             *code = 1;
