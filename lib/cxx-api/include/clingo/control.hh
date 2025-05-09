@@ -24,13 +24,14 @@ namespace AST {
 class Program;
 auto c_cast(Program const &x) -> clingo_program_t *;
 
+} // namespace AST
+
 namespace Detail {
 
+struct AppData;
 void join(clingo_control_t *ctx, clingo_program_t const *prg);
 
 } // namespace Detail
-
-} // namespace AST
 
 struct Part {
     Part(std::string name, SymbolVector params = {}) : name{std::move(name)}, params(std::move(params)) {
@@ -276,9 +277,12 @@ class Control {
         Detail::handle_error(clingo_control_register_propagator(ctl_.get(), &Detail::c_heuristic, &data.data.front()));
     }
 
-    void join(AST::Program const &prg) const { AST::Detail::join(ctl_.get(), c_cast(prg)); }
+    void join(AST::Program const &prg) const { Detail::join(ctl_.get(), c_cast(prg)); }
 
   private:
+    // NOTE: Putting the user_data function into the Detail namespace would
+    // avoid this.
+    friend struct Detail::AppData;
     friend class Detail::intrusive_handle<Control, clingo_control_t>;
 
     struct Data {

@@ -70,8 +70,11 @@ namespace Detail {
 
 struct AppData {
     App *app;
-    std::exception_ptr ptr;
     Options::ParserList parsers;
+    std::exception_ptr ptr;
+    std::optional<Control> ctl;
+
+    auto active_ptr() -> std::exception_ptr & { return ctl ? ctl->data_().ptr : ptr; }
 };
 
 static constexpr clingo_application_t c_app = {
@@ -90,10 +93,10 @@ static constexpr clingo_application_t c_app = {
     [](clingo_control_t *ctl, clingo_string_t const *files, size_t size, void *data) -> clingo_result_t {
         auto &app_data = *static_cast<AppData *>(data);
         CLINGO_TRY {
-            auto cpp_ctl = Control(ctl, true);
+            app_data.ctl.emplace(ctl, true);
             auto cpp_files =
                 transform(std::span{files, size}, [](auto const &x) { return std::string_view{x.data, x.size}; });
-            app_data.app->main(cpp_ctl, cpp_files);
+            app_data.app->main(*app_data.ctl, cpp_files);
         }
         CLINGO_CATCH;
     },
@@ -104,7 +107,7 @@ static constexpr clingo_application_t c_app = {
             app_data.app->print_model(ConstModel{model},
                                       [printer, printer_data]() { handle_error(printer(printer_data)); });
         }
-        CLINGO_CATCH_PTR(app_data.ptr);
+        CLINGO_CATCH_PTR(app_data.active_ptr());
     },
     [](clingo_options_t *options, void *data) -> clingo_result_t {
         auto &app_data = *static_cast<AppData *>(data);
@@ -136,17 +139,18 @@ auto main(Library &lib, std::span<std::string_view const> arguments, App *app = 
     auto code = 1;
     try {
         auto c_args = Detail::transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
-        auto data = Detail::AppData{app, {}, {}};
+        auto data = Detail::AppData{app, {}, {}, {}};
         Detail::handle_error(clingo_main(c_cast(lib), c_args.data(), c_args.size(),
                                          app != nullptr ? &Detail::c_app : nullptr,
                                          app != nullptr ? static_cast<void *>(&data) : nullptr, &code));
-        auto &ptr = Detail::get_exception_ptr();
-        if (data.ptr != nullptr) {
-            ptr = nullptr;
-            std::rethrow_exception(std::exchange(data.ptr, nullptr));
-        }
+        auto &ptr = data.active_ptr();
+        auto &gptr = Detail::get_exception_ptr();
         if (ptr != nullptr) {
+            gptr = nullptr;
             std::rethrow_exception(std::exchange(ptr, nullptr));
+        }
+        if (gptr != nullptr) {
+            std::rethrow_exception(std::exchange(gptr, nullptr));
         }
     } catch ([[maybe_unused]] Detail::clingo_error const &e) {
         // NOTE: clingo errors should have been reported by clasp already
