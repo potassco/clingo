@@ -99,7 +99,7 @@ typedef struct clingo_part {
 //!     sym = clingo_symbol_create_number(42);
 //!     return symbol_callback(&sym, 1, symbol_callback_data);
 //!   }
-//!   clingo_lib_report(lib, clingo_result_runtime, "function not found");
+//!   clingo_set_error(lib, clingo_result_runtime, "function not found", 18);
 //!   return clingo_result_runtime;
 //! }
 //! ~~~~~~~~~~~~~~~

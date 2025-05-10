@@ -2442,7 +2442,7 @@ extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_at
             *value = *num;
             return clingo_result_success;
         }
-        return clingo_result_runtime;
+        return fail_with(clingo_result_invalid, "invalid attribute");
     }
     CLINGO_CATCH;
 }
@@ -2457,7 +2457,7 @@ extern "C" auto clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_at
             *value = *sym;
             return clingo_result_success;
         }
-        return clingo_result_runtime;
+        return fail_with(clingo_result_invalid, "invalid attribute");
     }
     CLINGO_CATCH;
 }
@@ -2472,7 +2472,7 @@ extern "C" auto clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_
             *value = *loc;
             return clingo_result_success;
         }
-        return clingo_result_runtime;
+        return fail_with(clingo_result_invalid, "invalid attribute");
     }
     CLINGO_CATCH;
 }
@@ -2488,7 +2488,7 @@ extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_at
             value->size = str->size();
             return clingo_result_success;
         }
-        return clingo_result_runtime;
+        return fail_with(clingo_result_invalid, "invalid attribute");
     }
     CLINGO_CATCH;
 }
@@ -2508,7 +2508,7 @@ extern "C" auto clingo_ast_attribute_get_string_array(clingo_ast_t *ast, clingo_
             *size = res.size();
             return clingo_result_success;
         }
-        return clingo_result_runtime;
+        return fail_with(clingo_result_invalid, "invalid attribute");
     }
     CLINGO_CATCH;
 }
@@ -2528,7 +2528,7 @@ extern "C" auto clingo_ast_attribute_get_symbol_array(clingo_ast_t *ast, clingo_
             *size = res.size();
             return clingo_result_success;
         }
-        return clingo_result_runtime;
+        return fail_with(clingo_result_invalid, "invalid attribute");
     }
     CLINGO_CATCH;
 }
@@ -2543,7 +2543,7 @@ extern "C" auto clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attri
             *value = val->release();
             return clingo_result_success;
         }
-        return clingo_result_runtime;
+        return fail_with(clingo_result_invalid, "invalid attribute");
     }
     CLINGO_CATCH;
 }
@@ -2558,7 +2558,7 @@ extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast
             std::tie(*value, *size) = val->release();
             return clingo_result_success;
         }
-        return clingo_result_runtime;
+        return fail_with(clingo_result_invalid, "invalid attribute");
     }
     CLINGO_CATCH;
 }
@@ -2575,7 +2575,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
             case clingo_ast_parse_type_term: {
                 auto term = p.parse_term();
                 if (!term) {
-                    return clingo_result_runtime;
+                    return fail_with(clingo_result_runtime, "parsing failed");
                 }
                 *ast = make_ast(*std::move(term)).release();
                 break;
@@ -2583,7 +2583,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
             case clingo_ast_parse_type_theory_term: {
                 auto term = p.parse_theory_term();
                 if (!term) {
-                    return clingo_result_runtime;
+                    return fail_with(clingo_result_runtime, "parsing failed");
                 }
                 *ast = make_ast(*std::move(term)).release();
                 break;
@@ -2591,7 +2591,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
             case clingo_ast_parse_type_literal: {
                 auto lit = p.parse_literal();
                 if (!lit) {
-                    return clingo_result_runtime;
+                    return fail_with(clingo_result_runtime, "parsing failed");
                 }
                 *ast = make_ast(*std::move(lit)).release();
                 break;
@@ -2599,7 +2599,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
             case clingo_ast_parse_type_head_literal: {
                 auto lit = p.parse_head_literal();
                 if (!lit) {
-                    return clingo_result_runtime;
+                    return fail_with(clingo_result_runtime, "parsing failed");
                 }
                 *ast = make_ast(*std::move(lit)).release();
                 break;
@@ -2607,7 +2607,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
             case clingo_ast_parse_type_body_literal: {
                 auto lit = p.parse_body_literal();
                 if (!lit) {
-                    return clingo_result_runtime;
+                    return fail_with(clingo_result_runtime, "parsing failed");
                 }
                 *ast = make_ast(*std::move(lit)).release();
                 break;
@@ -2615,13 +2615,13 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
             case clingo_ast_parse_type_statement: {
                 auto lit = p.parse_statement();
                 if (!lit) {
-                    return clingo_result_runtime;
+                    return fail_with(clingo_result_runtime, "parsing failed");
                 }
                 *ast = make_ast(*std::move(lit)).release();
                 break;
             }
             default: {
-                return clingo_result_runtime;
+                return fail_arguments();
             }
         }
     }

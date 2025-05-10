@@ -122,7 +122,7 @@ static constexpr clingo_application_t c_app = {
             // Report option validation errors right away.
             auto str = app.program_name();
             fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)str.size(), str.data(), e.what());
-            return clingo_result_invalid;
+            return store_error();
         } catch (...) {
             return store_error();
         }

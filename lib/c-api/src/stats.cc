@@ -58,7 +58,7 @@ inline auto c_cast(Potassco::StatisticsType type) -> clingo_stats_type_e {
 extern "C" auto clingo_stats_root(clingo_stats_t const *stats, uint64_t *key) -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || key == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *key = cpp_cast(stats)->root();
     }
@@ -69,7 +69,7 @@ extern "C" auto clingo_stats_type(clingo_stats_t const *stats, uint64_t key, cli
     -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || type == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *type = c_cast(cpp_cast(stats)->type(key));
     }
@@ -79,7 +79,7 @@ extern "C" auto clingo_stats_type(clingo_stats_t const *stats, uint64_t key, cli
 extern "C" auto clingo_stats_array_size(clingo_stats_t const *stats, uint64_t key, size_t *size) -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || size == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *size = cpp_cast(stats)->size(key);
     }
@@ -90,7 +90,7 @@ extern "C" auto clingo_stats_array_at(clingo_stats_t const *stats, uint64_t key,
     -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || subkey == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *subkey = cpp_cast(stats)->at(key, offset);
     }
@@ -101,7 +101,7 @@ extern "C" auto clingo_stats_array_push(clingo_stats_t *stats, uint64_t key, cli
     -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || subkey == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *subkey = cpp_cast(stats)->push(key, cpp_cast(static_cast<clingo_stats_type_e>(type)));
     }
@@ -111,7 +111,7 @@ extern "C" auto clingo_stats_array_push(clingo_stats_t *stats, uint64_t key, cli
 extern "C" auto clingo_stats_map_size(clingo_stats_t const *stats, uint64_t key, size_t *size) -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || size == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *size = cpp_cast(stats)->size(key);
     }
@@ -122,7 +122,7 @@ extern "C" auto clingo_stats_map_has_subkey(clingo_stats_t const *stats, uint64_
                                             bool *result) -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || (name == nullptr && size > 0) || result == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *result = cpp_cast(stats)->find(key, std::string_view{name, size}, nullptr);
     }
@@ -133,7 +133,7 @@ extern "C" auto clingo_stats_map_subkey_name(clingo_stats_t const *stats, uint64
                                              clingo_string_t *name) -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || name == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         auto str = cpp_cast(stats)->key(key, offset);
         name->data = str.data();
@@ -146,7 +146,7 @@ extern "C" auto clingo_stats_map_at(clingo_stats_t const *stats, uint64_t key, c
                                     uint64_t *subkey) -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || (name == nullptr && size > 0) || subkey == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *subkey = cpp_cast(stats)->get(key, std::string_view{name, size});
     }
@@ -157,7 +157,7 @@ extern "C" auto clingo_stats_map_add_subkey(clingo_stats_t *stats, uint64_t key,
                                             clingo_stats_type_t type, uint64_t *subkey) -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || (name == nullptr && size > 0) || subkey == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *subkey =
             cpp_cast(stats)->add(key, std::string_view{name, size}, cpp_cast(static_cast<clingo_stats_type_e>(type)));
@@ -168,7 +168,7 @@ extern "C" auto clingo_stats_map_add_subkey(clingo_stats_t *stats, uint64_t key,
 extern "C" auto clingo_stats_value_get(clingo_stats_t const *stats, uint64_t key, double *value) -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr || value == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *value = cpp_cast(stats)->value(key);
     }
@@ -178,7 +178,7 @@ extern "C" auto clingo_stats_value_get(clingo_stats_t const *stats, uint64_t key
 extern "C" auto clingo_stats_value_set(clingo_stats_t *stats, uint64_t key, double value) -> clingo_result_t {
     CLINGO_TRY {
         if (stats == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         cpp_cast(stats)->set(key, value);
     }
@@ -188,7 +188,7 @@ extern "C" auto clingo_stats_value_set(clingo_stats_t *stats, uint64_t key, doub
 extern "C" auto clingo_control_stats(clingo_control_t *control, clingo_stats_t const **stats) -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || stats == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *stats = c_cast(&control->slv->clasp_stats());
     }

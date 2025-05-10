@@ -67,15 +67,15 @@ auto store_error() -> clingo_result_t {
     } catch (std::out_of_range const &e) {
         auto msg = std::string_view{e.what()};
         clingo_set_error(clingo_result_range, msg.data(), msg.size());
-        return clingo_result_logic;
+        return clingo_result_range;
     } catch (std::invalid_argument const &e) {
         auto msg = std::string_view{e.what()};
         clingo_set_error(clingo_result_invalid, msg.data(), msg.size());
-        return clingo_result_logic;
+        return clingo_result_invalid;
     } catch (std::bad_alloc const &e) {
         auto msg = std::string_view{e.what()};
         clingo_set_error(clingo_result_bad_alloc, msg.data(), msg.size());
-        return clingo_result_logic;
+        return clingo_result_bad_alloc;
     } catch (std::logic_error const &e) {
         auto msg = std::string_view{e.what()};
         clingo_set_error(clingo_result_logic, msg.data(), msg.size());

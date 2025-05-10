@@ -300,7 +300,7 @@ extern "C" auto clingo_main(clingo_lib_t *lib, clingo_string_t const *arguments,
             *code = 1;
         }
         if (lib == nullptr || (arguments == nullptr && size > 0)) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         auto capp = ClingoApp{*lib, app, data};
         auto args = Clingo::Util::transform(std::span{arguments, size},

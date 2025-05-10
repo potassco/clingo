@@ -34,7 +34,7 @@ extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *n
                                                 clingo_symbol_t *symbol) -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || (number == nullptr && size > 0) || symbol == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *symbol = Clingo::SharedSymbol::to_rep(lib->store->num(Clingo::Number{std::string_view{number, size}}));
     }
@@ -45,7 +45,7 @@ extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *strin
     -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || (string == nullptr && size > 0) || symbol == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *symbol = Clingo::SharedSymbol::to_rep(Clingo::SymbolStore::str(*lib->store->string({string, size})));
     }
@@ -56,7 +56,7 @@ extern "C" auto clingo_symbol_create_id(clingo_lib_t *lib, char const *name, siz
                                         clingo_symbol_t *symbol) -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || (name == nullptr && size > 0) || symbol == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *symbol = Clingo::SharedSymbol::to_rep(lib->store->fun(lib->store->string({name, size}), {}, !is_positive));
     }
@@ -67,7 +67,7 @@ extern "C" auto clingo_symbol_create_tuple(clingo_lib_t *lib, clingo_symbol_t co
                                            clingo_symbol_t *symbol) -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || symbol == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         auto const *c_args = reinterpret_cast<Clingo::Symbol const *>(arguments);
@@ -81,7 +81,7 @@ extern "C" auto clingo_symbol_create_function(clingo_lib_t *lib, char const *nam
                                               clingo_symbol_t *symbol) -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || (name == nullptr && name_size > 0) || symbol == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         auto const *c_args = reinterpret_cast<Clingo::Symbol const *>(arguments);
@@ -94,11 +94,11 @@ extern "C" auto clingo_symbol_create_function(clingo_lib_t *lib, char const *nam
 extern "C" auto clingo_symbol_number(clingo_symbol_t symbol, int32_t *number) -> clingo_result_t {
     auto sym = Clingo::Symbol::from_rep(symbol);
     if (number == nullptr || sym.type() != Clingo::SymbolType::number) {
-        return clingo_result_invalid;
+        return fail_arguments();
     }
     auto num = sym.num().as_int();
     if (!num) {
-        return clingo_result_range;
+        return fail_with(clingo_result_range, "number out of range");
     }
     *number = *num;
     return clingo_result_success;
@@ -107,7 +107,7 @@ extern "C" auto clingo_symbol_number(clingo_symbol_t symbol, int32_t *number) ->
 extern "C" auto clingo_symbol_name(clingo_symbol_t symbol, clingo_string_t *name) -> clingo_result_t {
     auto sym = Clingo::Symbol::from_rep(symbol);
     if (name == nullptr || name == nullptr || sym.type() != Clingo::SymbolType::function) {
-        return clingo_result_invalid;
+        return fail_arguments();
     }
     auto res = sym.name().view();
     name->data = res.data();
@@ -118,7 +118,7 @@ extern "C" auto clingo_symbol_name(clingo_symbol_t symbol, clingo_string_t *name
 extern "C" auto clingo_symbol_string(clingo_symbol_t symbol, clingo_string_t *string) -> clingo_result_t {
     auto sym = Clingo::Symbol::from_rep(symbol);
     if (string == nullptr || string == nullptr || sym.type() != Clingo::SymbolType::string) {
-        return clingo_result_invalid;
+        return fail_arguments();
     }
     auto res = sym.str().view();
     string->data = res.data();
@@ -130,7 +130,7 @@ extern "C" auto clingo_symbol_is_positive(clingo_symbol_t symbol, bool *is_posit
     auto sym = Clingo::Symbol::from_rep(symbol);
     if (is_positive == nullptr ||
         (sym.type() != Clingo::SymbolType::function && sym.type() != Clingo::SymbolType::number)) {
-        return clingo_result_invalid;
+        return fail_arguments();
     }
     *is_positive = !sym.has_sign();
     return clingo_result_success;
@@ -141,7 +141,7 @@ extern "C" auto clingo_symbol_arguments(clingo_symbol_t symbol, clingo_symbol_t 
     auto sym = Clingo::Symbol::from_rep(symbol);
     if (arguments == nullptr || arguments_size == nullptr ||
         (sym.type() != Clingo::SymbolType::function && sym.type() != Clingo::SymbolType::tuple)) {
-        return clingo_result_invalid;
+        return fail_arguments();
     }
     auto args = sym.args();
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -165,7 +165,7 @@ extern "C" auto clingo_symbol_type(clingo_symbol_t symbol) -> clingo_symbol_type
 extern "C" auto clingo_symbol_to_string(clingo_symbol_t symbol, clingo_string_builder_t *builder) -> clingo_result_t {
     CLINGO_TRY {
         if (builder == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         auto sym = Clingo::Symbol::from_rep(symbol);
         *cpp_cast(builder) << sym;
@@ -193,7 +193,7 @@ extern "C" auto clingo_parse_term(clingo_lib_t *lib, char const *string, size_t 
     -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || (string == nullptr && size > 0) || symbol == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         Clingo::Input::Parser p{lib->log, *lib->store};
         p.init({string, size}, *lib->store->string("<string>"));

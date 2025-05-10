@@ -130,7 +130,7 @@ extern "C" auto clingo_solve_control_base(clingo_solve_control_t const *control,
     -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || base == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         // NOLINTBEGIN
         *base = reinterpret_cast<clingo_base_t const *>(cpp_cast(control));

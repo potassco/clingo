@@ -220,7 +220,7 @@ extern "C" auto clingo_string_builder_string(clingo_string_builder_t const *bld,
     -> clingo_result_t {
     CLINGO_TRY {
         if (bld == nullptr || value == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         auto *cpp_bld = cpp_cast(const_cast<clingo_string_builder_t *>(bld)); // NOLINT
         value->data = cpp_bld->c_str();

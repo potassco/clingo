@@ -171,13 +171,10 @@ class App {
         try {
             app.validate_options();
         } catch (py::error_already_set &e) {
-            // we report option validation errors here to avoid long winded
-            // messages with traces later
             if (e.matches(PyExc_ValueError)) {
                 auto str = app.program_name();
                 std::string msg = py::str(e.value());
                 fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)str.size(), str.data(), msg.c_str());
-                return clingo_result_invalid;
             }
             return store_error();
         } catch (...) {

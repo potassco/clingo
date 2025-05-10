@@ -161,7 +161,7 @@ extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observe
                                        bool preprocess) -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || observer == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         // NOLINTNEXTLINE
         auto &prg = const_cast<Clasp::Asp::LogicProgram &>(control->slv->clasp_program());
@@ -219,7 +219,7 @@ extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const
     CLINGO_TRY {
         auto path_view = std::string_view{path, size};
         if (control == nullptr || path == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         // NOLINTNEXTLINE
         auto &prg = const_cast<Clasp::Asp::LogicProgram &>(control->slv->clasp_program());

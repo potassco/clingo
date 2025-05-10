@@ -244,7 +244,7 @@ auto cpp_cast(clingo_const_map_t const *map) {
 extern "C" auto clingo_control_const_map(clingo_control_t *control, clingo_const_map_t const **map) -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || map == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *map = c_cast(&control->slv->const_map());
     }
@@ -255,7 +255,7 @@ extern "C" auto clingo_const_map_find(clingo_const_map_t const *map, char const 
                                       clingo_symbol_t *symbol, bool *found) -> clingo_result_t {
     CLINGO_TRY {
         if (map == nullptr || (size > 0 && name == nullptr)) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         auto const *cmap = cpp_cast(map);
         auto it = cmap->find(std::string_view{name, size});
@@ -277,7 +277,7 @@ extern "C" auto clingo_const_map_at(clingo_const_map_t const *map, size_t index,
                                     clingo_symbol_t *symbol) -> clingo_result_t {
     CLINGO_TRY {
         if (map == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         auto const *cmap = cpp_cast(map);
         auto it = cmap->nth(index);
@@ -295,7 +295,7 @@ extern "C" auto clingo_const_map_at(clingo_const_map_t const *map, size_t index,
 extern "C" auto clingo_const_map_size(clingo_const_map_t const *map, size_t *size) -> clingo_result_t {
     CLINGO_TRY {
         if (map == nullptr || size == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         auto const *cmap = cpp_cast(map);
         *size = cmap->size();

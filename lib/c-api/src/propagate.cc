@@ -120,7 +120,7 @@ extern "C" auto clingo_assignment_decision_level(clingo_assignment_t const *assi
     -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || level == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *level = cpp_cast(assignment)->level();
     }
@@ -131,7 +131,7 @@ extern "C" auto clingo_assignment_root_level(clingo_assignment_t const *assignme
     -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || level == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *level = cpp_cast(assignment)->rootLevel();
     }
@@ -142,7 +142,7 @@ extern "C" auto clingo_assignment_has_conflict(clingo_assignment_t const *assign
     -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || is_conflicting == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *is_conflicting = cpp_cast(assignment)->hasConflict();
     }
@@ -153,7 +153,7 @@ extern "C" auto clingo_assignment_has_literal(clingo_assignment_t const *assignm
                                               bool *is_valid) -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || is_valid == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *is_valid = cpp_cast(assignment)->hasLit(literal);
     }
@@ -164,7 +164,7 @@ extern "C" auto clingo_assignment_level(clingo_assignment_t const *assignment, c
                                         uint32_t *level) -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || level == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *level = cpp_cast(assignment)->level(literal);
     }
@@ -175,7 +175,7 @@ extern "C" auto clingo_assignment_decision(clingo_assignment_t const *assignment
                                            clingo_literal_t *literal) -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || literal == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *literal = cpp_cast(assignment)->decision(level);
     }
@@ -186,7 +186,7 @@ extern "C" auto clingo_assignment_is_fixed(clingo_assignment_t const *assignment
                                            bool *is_fixed) -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || is_fixed == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *is_fixed = cpp_cast(assignment)->isFixed(literal);
     }
@@ -197,7 +197,7 @@ extern "C" auto clingo_assignment_is_true(clingo_assignment_t const *assignment,
                                           bool *is_true) -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || is_true == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *is_true = cpp_cast(assignment)->isTrue(literal);
     }
@@ -208,7 +208,7 @@ extern "C" auto clingo_assignment_is_false(clingo_assignment_t const *assignment
                                            bool *is_false) -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || is_false == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *is_false = cpp_cast(assignment)->isFalse(literal);
     }
@@ -219,7 +219,7 @@ extern "C" auto clingo_assignment_truth_value(clingo_assignment_t const *assignm
                                               clingo_truth_value_t *value) -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || value == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *value = map(cpp_cast(assignment)->value(literal));
     }
@@ -229,7 +229,7 @@ extern "C" auto clingo_assignment_truth_value(clingo_assignment_t const *assignm
 extern "C" auto clingo_assignment_size(clingo_assignment_t const *assignment, size_t *size) -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || size == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *size = cpp_cast(assignment)->size();
     }
@@ -240,7 +240,8 @@ extern "C" auto clingo_assignment_at(clingo_assignment_t const *assignment, size
     -> clingo_result_t {
     CLINGO_TRY {
         if (offset >= cpp_cast(assignment)->size()) {
-            return clingo_result_range;
+            return fail_with(clingo_result_range, "index out of range");
+            ;
         }
         *literal = static_cast<clingo_literal_t>(offset + 1);
     }
@@ -250,7 +251,7 @@ extern "C" auto clingo_assignment_at(clingo_assignment_t const *assignment, size
 extern "C" auto clingo_assignment_is_total(clingo_assignment_t const *assignment, bool *is_total) -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || is_total == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *is_total = cpp_cast(assignment)->isTotal();
     }
@@ -260,7 +261,7 @@ extern "C" auto clingo_assignment_is_total(clingo_assignment_t const *assignment
 extern "C" auto clingo_assignment_trail_size(clingo_assignment_t const *assignment, uint32_t *size) -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || size == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *size = cpp_cast(assignment)->trailSize();
     }
@@ -271,7 +272,7 @@ extern "C" auto clingo_assignment_trail_begin(clingo_assignment_t const *assignm
     -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || offset == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *offset = cpp_cast(assignment)->trailBegin(level);
     }
@@ -282,7 +283,7 @@ extern "C" auto clingo_assignment_trail_end(clingo_assignment_t const *assignmen
     -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || offset == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *offset = cpp_cast(assignment)->trailEnd(level);
     }
@@ -293,7 +294,7 @@ extern "C" auto clingo_assignment_trail_at(clingo_assignment_t const *assignment
                                            clingo_literal_t *literal) -> clingo_result_t {
     CLINGO_TRY {
         if (assignment == nullptr || literal == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *literal = cpp_cast(assignment)->trailAt(offset);
     }
@@ -305,7 +306,7 @@ extern "C" auto clingo_propagate_init_solver_literal(clingo_propagate_init_t con
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr || solver_literal == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *solver_literal = init->init->solverLiteral(aspif_literal);
     }
@@ -316,7 +317,7 @@ extern "C" auto clingo_propagate_init_add_watch(clingo_propagate_init_t *init, c
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         init->init->addWatch(solver_literal);
     }
@@ -328,7 +329,7 @@ extern "C" auto clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         init->init->addWatch(solver_literal, thread_id);
     }
@@ -339,7 +340,7 @@ extern "C" auto clingo_propagate_init_remove_watch(clingo_propagate_init_t *init
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         init->init->removeWatch(solver_literal);
     }
@@ -351,7 +352,7 @@ extern "C" auto clingo_propagate_init_remove_watch_from_thread(clingo_propagate_
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         init->init->removeWatch(solver_literal, thread_id);
     }
@@ -362,7 +363,7 @@ extern "C" auto clingo_propagate_init_freeze_literal(clingo_propagate_init_t *in
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         init->init->freezeLiteral(solver_literal);
     }
@@ -373,7 +374,7 @@ extern "C" auto clingo_propagate_init_library(clingo_propagate_init_t const *ini
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr || lib == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *lib = init->ctl->lib;
     }
@@ -384,7 +385,7 @@ extern "C" auto clingo_propagate_init_base(clingo_propagate_init_t const *init, 
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr || base == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         // NOLINTNEXTLINE
         *base = reinterpret_cast<clingo_base_t const *>(init->ctl->slv);
@@ -396,7 +397,7 @@ extern "C" auto clingo_propagate_init_number_of_threads(clingo_propagate_init_t 
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr || threads == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *threads = init->init->numSolver();
     }
@@ -407,7 +408,7 @@ extern "C" auto clingo_propagate_init_set_check_mode(clingo_propagate_init_t *in
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         init->init->setCheckMode(static_cast<PotasscoCheckMode>(mode));
     }
@@ -418,7 +419,7 @@ extern "C" auto clingo_propagate_init_get_check_mode(clingo_propagate_init_t con
                                                      clingo_propagator_check_mode_t *mode) -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *mode = static_cast<clingo_propagator_check_mode_t>(init->init->checkMode());
     }
@@ -429,7 +430,7 @@ extern "C" auto clingo_propagate_init_set_undo_mode(clingo_propagate_init_t *ini
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         init->init->setUndoMode(static_cast<PotasscoUndoMode>(mode));
     }
@@ -440,7 +441,7 @@ extern "C" auto clingo_propagate_init_get_undo_mode(clingo_propagate_init_t cons
                                                     clingo_propagator_undo_mode_t *mode) -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *mode = static_cast<clingo_propagator_undo_mode_t>(init->init->undoMode());
     }
@@ -451,7 +452,7 @@ extern "C" auto clingo_propagate_init_assignment(clingo_propagate_init_t const *
                                                  clingo_assignment_t const **assignment) -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *assignment = c_cast(&init->init->assignment());
     }
@@ -462,7 +463,7 @@ extern "C" auto clingo_propagate_init_add_literal(clingo_propagate_init_t *init,
                                                   clingo_literal_t *solver_literal) -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr || solver_literal == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *solver_literal = init->init->addLiteral(freeze);
     }
@@ -473,7 +474,7 @@ extern "C" auto clingo_propagate_init_add_clause(clingo_propagate_init_t *init, 
                                                  size_t size, bool *result) -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr || (literals == nullptr && size > 0) || result == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *result = init->init->addClause(std::span{literals, size});
     }
@@ -487,7 +488,7 @@ extern "C" auto clingo_propagate_init_add_weight_constraint(clingo_propagate_ini
                                                             bool compare_equal, bool *result) -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr || (literals == nullptr && size > 0) || result == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *result = init->init->addWeightConstraint(solver_literal, map(literals, size), bound, type, compare_equal);
     }
@@ -499,7 +500,7 @@ extern "C" auto clingo_propagate_init_add_minimize(clingo_propagate_init_t *init
     -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         init->init->addMinimize(priority, {solver_literal, weight});
     }
@@ -509,7 +510,7 @@ extern "C" auto clingo_propagate_init_add_minimize(clingo_propagate_init_t *init
 extern "C" auto clingo_propagate_init_propagate(clingo_propagate_init_t *init, bool *result) -> clingo_result_t {
     CLINGO_TRY {
         if (init == nullptr || result == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *result = init->init->propagate();
     }
@@ -520,7 +521,7 @@ extern "C" auto clingo_propagate_control_thread_id(clingo_propagate_control_t co
     -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || thread_id == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *thread_id = cpp_cast(control)->id();
     }
@@ -531,7 +532,7 @@ extern "C" auto clingo_propagate_control_assignment(clingo_propagate_control_t c
                                                     clingo_assignment_t const **assignment) -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || assignment == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *assignment = c_cast(&cpp_cast(control)->assignment());
     }
@@ -542,7 +543,7 @@ extern "C" auto clingo_propagate_control_add_literal(clingo_propagate_control_t 
     -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || result == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *result = cpp_cast(control)->addVariable();
     }
@@ -553,7 +554,7 @@ extern "C" auto clingo_propagate_control_add_watch(clingo_propagate_control_t *c
     -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         cpp_cast(control)->addWatch(literal);
     }
@@ -564,7 +565,7 @@ extern "C" auto clingo_propagate_control_has_watch(clingo_propagate_control_t co
                                                    bool *has_watch) -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || has_watch == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *has_watch = cpp_cast(control)->hasWatch(literal);
     }
@@ -575,7 +576,7 @@ extern "C" auto clingo_propagate_control_remove_watch(clingo_propagate_control_t
     -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         cpp_cast(control)->removeWatch(literal);
     }
@@ -587,7 +588,7 @@ extern "C" auto clingo_propagate_control_add_clause(clingo_propagate_control_t *
                                                     clingo_clause_type_t type, bool *result) -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || (literals == nullptr && size > 0) || result == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         static_assert(static_cast<clingo_clause_type_t>(Potassco::ClauseType::learnt) == clingo_clause_type_learnt);
         static_assert(static_cast<clingo_clause_type_t>(Potassco::ClauseType::locked) == clingo_clause_type_static);
@@ -604,7 +605,7 @@ extern "C" auto clingo_propagate_control_propagate(clingo_propagate_control_t *c
     -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || result == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         *result = cpp_cast(control)->propagate();
     }
@@ -615,7 +616,7 @@ extern "C" auto clingo_control_register_propagator(clingo_control_t *control, cl
                                                    void *data) -> clingo_result_t {
     CLINGO_TRY {
         if (control == nullptr || propagator == nullptr) {
-            return clingo_result_invalid;
+            return fail_arguments();
         }
         control->slv->register_propagator(std::make_unique<ClingoPropagator>(control, *propagator, data));
     }

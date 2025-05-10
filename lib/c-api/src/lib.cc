@@ -108,9 +108,12 @@ void handle_error_no_code(clingo_result_t code) {
     }
 }
 
-auto store_error(clingo_result_t code, char const *msg) -> clingo_result_t {
-    auto str = std::string_view{msg};
-    Error::instance().set(code, str.data(), str.size());
+auto fail_arguments() -> clingo_result_t {
+    return fail_with(clingo_result_invalid, "invalid arguments");
+}
+
+auto fail_with(clingo_result_t code, std::string_view msg) -> clingo_result_t {
+    clingo_set_error(code, msg.data(), msg.size());
     return code;
 }
 

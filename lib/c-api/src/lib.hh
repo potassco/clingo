@@ -87,6 +87,8 @@ class ClingoError : public std::exception {
 
 void raise_error();
 auto store_error() -> clingo_result_t;
+auto fail_arguments() -> clingo_result_t;
+auto fail_with(clingo_result_t code, std::string_view msg) -> clingo_result_t;
 
 inline void handle_error(clingo_result_t code) {
     if (code != clingo_result_success) {
