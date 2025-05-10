@@ -1570,8 +1570,7 @@ auto clingo_ast::compare(clingo_ast_t const &other) const -> std::strong_orderin
 }
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...)
-    -> clingo_result_t {
+extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
     using namespace Clingo::Input;
     CLINGO_TRY {
         if (lib == nullptr || ast == nullptr) {
@@ -2379,7 +2378,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
 }
 // NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
-extern "C" auto clingo_ast_to_string(clingo_ast_t *ast, clingo_string_builder_t *builder) -> clingo_result_t {
+extern "C" auto clingo_ast_to_string(clingo_ast_t *ast, clingo_string_builder_t *builder) -> bool {
     CLINGO_TRY {
         if (ast == nullptr || builder == nullptr) {
             return fail_arguments();
@@ -2401,7 +2400,7 @@ extern "C" auto clingo_ast_hash(clingo_ast_t *ast) -> size_t {
     return ast->hash();
 }
 
-extern "C" auto clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy) -> clingo_result_t {
+extern "C" auto clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy) -> bool {
     CLINGO_TRY {
         if (copy == nullptr) {
             return fail_arguments();
@@ -2422,7 +2421,7 @@ extern "C" void clingo_ast_array_free(clingo_ast_t **ast, size_t size) {
     }
 }
 
-extern "C" auto clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) -> clingo_result_t {
+extern "C" auto clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) -> bool {
     CLINGO_TRY {
         if (ast == nullptr || type == nullptr) {
             return fail_arguments();
@@ -2433,14 +2432,14 @@ extern "C" auto clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) 
 }
 
 extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int *value)
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
             return fail_arguments();
         }
         if (auto num = ast->get_number(attribute); num) {
             *value = *num;
-            return clingo_result_success;
+            return true;
         }
         return fail_with(clingo_result_invalid, "invalid attribute");
     }
@@ -2448,14 +2447,14 @@ extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_at
 }
 
 extern "C" auto clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                clingo_symbol_t *value) -> clingo_result_t {
+                                                clingo_symbol_t *value) -> bool {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
             return fail_arguments();
         }
         if (auto sym = ast->get_symbol(attribute); sym) {
             *value = *sym;
-            return clingo_result_success;
+            return true;
         }
         return fail_with(clingo_result_invalid, "invalid attribute");
     }
@@ -2463,14 +2462,14 @@ extern "C" auto clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_at
 }
 
 extern "C" auto clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                  clingo_location_t const **value) -> clingo_result_t {
+                                                  clingo_location_t const **value) -> bool {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
             return fail_arguments();
         }
         if (auto loc = ast->get_location(attribute); loc) {
             *value = *loc;
-            return clingo_result_success;
+            return true;
         }
         return fail_with(clingo_result_invalid, "invalid attribute");
     }
@@ -2478,7 +2477,7 @@ extern "C" auto clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_
 }
 
 extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                clingo_string_t *value) -> clingo_result_t {
+                                                clingo_string_t *value) -> bool {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
             return fail_arguments();
@@ -2486,7 +2485,7 @@ extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_at
         if (auto str = ast->get_string(attribute); str) {
             value->data = str->data();
             value->size = str->size();
-            return clingo_result_success;
+            return true;
         }
         return fail_with(clingo_result_invalid, "invalid attribute");
     }
@@ -2494,7 +2493,7 @@ extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_at
 }
 
 extern "C" auto clingo_ast_attribute_get_string_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                      clingo_string_t const **value, size_t *size) -> clingo_result_t {
+                                                      clingo_string_t const **value, size_t *size) -> bool {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr || size == nullptr) {
             return fail_arguments();
@@ -2506,7 +2505,7 @@ extern "C" auto clingo_ast_attribute_get_string_array(clingo_ast_t *ast, clingo_
                            [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
             *value = res.data();
             *size = res.size();
-            return clingo_result_success;
+            return true;
         }
         return fail_with(clingo_result_invalid, "invalid attribute");
     }
@@ -2514,7 +2513,7 @@ extern "C" auto clingo_ast_attribute_get_string_array(clingo_ast_t *ast, clingo_
 }
 
 extern "C" auto clingo_ast_attribute_get_symbol_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                      clingo_symbol_t const **value, size_t *size) -> clingo_result_t {
+                                                      clingo_symbol_t const **value, size_t *size) -> bool {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr || size == nullptr) {
             return fail_arguments();
@@ -2526,7 +2525,7 @@ extern "C" auto clingo_ast_attribute_get_symbol_array(clingo_ast_t *ast, clingo_
                            [](auto const &sym) { return Clingo::Symbol::to_rep(sym); });
             *value = res.data();
             *size = res.size();
-            return clingo_result_success;
+            return true;
         }
         return fail_with(clingo_result_invalid, "invalid attribute");
     }
@@ -2534,14 +2533,14 @@ extern "C" auto clingo_ast_attribute_get_symbol_array(clingo_ast_t *ast, clingo_
 }
 
 extern "C" auto clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute, clingo_ast_t **value)
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
             return fail_arguments();
         }
         if (auto val = ast->get_ast(attribute); val) {
             *value = val->release();
-            return clingo_result_success;
+            return true;
         }
         return fail_with(clingo_result_invalid, "invalid attribute");
     }
@@ -2549,14 +2548,14 @@ extern "C" auto clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attri
 }
 
 extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                   clingo_ast_t ***value, size_t *size) -> clingo_result_t {
+                                                   clingo_ast_t ***value, size_t *size) -> bool {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr || size == nullptr) {
             return fail_arguments();
         }
         if (auto val = ast->get_ast_vec(attribute); val) {
             std::tie(*value, *size) = val->release();
-            return clingo_result_success;
+            return true;
         }
         return fail_with(clingo_result_invalid, "invalid attribute");
     }
@@ -2564,7 +2563,7 @@ extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast
 }
 
 extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_type_t type, char const *string,
-                                            size_t size, clingo_ast_t **ast) -> clingo_result_t {
+                                            size_t size, clingo_ast_t **ast) -> bool {
     CLINGO_TRY {
         if (ast == nullptr || (string == nullptr && size > 0) || ast == nullptr) {
             return fail_arguments();
@@ -2678,7 +2677,7 @@ struct clingo_ast_scanner {
 };
 
 extern "C" auto clingo_ast_scan_string(clingo_lib_t *lib, char const *program, size_t size,
-                                       clingo_ast_scanner_t **scanner) -> clingo_result_t {
+                                       clingo_ast_scanner_t **scanner) -> bool {
     CLINGO_TRY {
         if (lib == nullptr || (program == nullptr && size > 0) || scanner == nullptr) {
             return fail_arguments();
@@ -2691,7 +2690,7 @@ extern "C" auto clingo_ast_scan_string(clingo_lib_t *lib, char const *program, s
 }
 
 extern "C" auto clingo_ast_scan_files(clingo_lib_t *lib, clingo_string_t const *files, size_t size,
-                                      clingo_ast_scanner_t **scanner) -> clingo_result_t {
+                                      clingo_ast_scanner_t **scanner) -> bool {
     CLINGO_TRY {
         if (lib == nullptr || (files == nullptr && size != 0) || scanner == nullptr) {
             return fail_arguments();
@@ -2709,7 +2708,7 @@ extern "C" auto clingo_ast_scan_files(clingo_lib_t *lib, clingo_string_t const *
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast) -> clingo_result_t {
+extern "C" auto clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast) -> bool {
     CLINGO_TRY {
         if (scanner == nullptr || scanner == nullptr) {
             return fail_arguments();
@@ -2742,8 +2741,7 @@ struct clingo_ast_rewrite_context {
     Clingo::Input::ParamUnmap param_unmap;
 };
 
-extern "C" auto clingo_ast_rewrite_context_create(clingo_lib_t *lib, clingo_ast_rewrite_context_t **context)
-    -> clingo_result_t {
+extern "C" auto clingo_ast_rewrite_context_create(clingo_lib_t *lib, clingo_ast_rewrite_context_t **context) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
         *context = new clingo_ast_rewrite_context{lib};
@@ -2757,7 +2755,7 @@ extern "C" void clingo_ast_rewrite_context_free(clingo_ast_rewrite_context_t *co
 }
 
 extern "C" auto clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context, char const *param,
-                                                     size_t size) -> clingo_result_t {
+                                                     size_t size) -> bool {
     auto *lib = context->lib;
     CLINGO_TRY {
         if (auto prm = lib->store->string(std::string_view{param, size}); context->param_map.emplace(prm).second) {
@@ -2774,7 +2772,7 @@ extern "C" void clingo_ast_rewrite_context_clear_params(clingo_ast_rewrite_conte
 }
 
 extern "C" auto clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context_t *context, clingo_ast_t const *theory)
-    -> clingo_result_t {
+    -> bool {
     auto *lib = context->lib;
     CLINGO_TRY {
         auto stm = convert<Clingo::Input::StmTheory>(theory);
@@ -2809,7 +2807,7 @@ extern "C" auto clingo_ast_rewrite_context_get_lib(clingo_ast_rewrite_context_t 
 }
 
 extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo_ast_t *statement,
-                                   clingo_ast_t ***result, size_t *result_size) -> clingo_result_t {
+                                   clingo_ast_t ***result, size_t *result_size) -> bool {
     using namespace Clingo::Input;
     auto *lib = context->lib;
     CLINGO_TRY {
@@ -2845,7 +2843,7 @@ void clingo_program::mark(Clingo::SymbolCollector &gc) const {
     program.mark(gc);
 }
 
-extern "C" auto clingo_program_new(clingo_lib_t *lib, clingo_program_t **program) -> clingo_result_t {
+extern "C" auto clingo_program_new(clingo_lib_t *lib, clingo_program_t **program) -> bool {
     CLINGO_TRY {
         *program = std::make_unique<clingo_program>(lib).release();
     }
@@ -2857,7 +2855,7 @@ extern "C" void clingo_program_free(clingo_program_t *program) {
     delete program;
 }
 
-extern "C" auto clingo_program_add(clingo_program_t *program, clingo_ast_t *statement) -> clingo_result_t {
+extern "C" auto clingo_program_add(clingo_program_t *program, clingo_ast_t *statement) -> bool {
     CLINGO_TRY {
         program->program.add(*program->lib->store, convert<Clingo::Input::Stm>(statement));
     }

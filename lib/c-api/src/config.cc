@@ -22,7 +22,7 @@ inline auto c_cast(Clasp::Cli::ClaspCliConfig *config) -> clingo_config_t * {
     return reinterpret_cast<clingo_config_t *>(config);
 }
 
-extern "C" auto clingo_config_root(clingo_config_t const *config, clingo_id_t *key) -> clingo_result_t {
+extern "C" auto clingo_config_root(clingo_config_t const *config, clingo_id_t *key) -> bool {
     CLINGO_TRY {
         if (config == nullptr || key == nullptr) {
             return fail_arguments();
@@ -33,7 +33,7 @@ extern "C" auto clingo_config_root(clingo_config_t const *config, clingo_id_t *k
 }
 
 extern "C" auto clingo_config_type(clingo_config_t const *config, clingo_id_t key, clingo_config_type_bitset_t *type)
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         if (config == nullptr || type == nullptr) {
             return fail_arguments();
@@ -57,7 +57,7 @@ extern "C" auto clingo_config_type(clingo_config_t const *config, clingo_id_t ke
 }
 
 extern "C" auto clingo_config_description(clingo_config_t const *config, clingo_id_t key, clingo_string_t *description)
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         if (config == nullptr || description == nullptr) {
             return fail_arguments();
@@ -152,15 +152,14 @@ struct ConfigPrinter {
 } // namespace
 
 extern "C" auto clingo_config_to_string(clingo_config_t const *config, clingo_id_t key,
-                                        clingo_string_builder_t *builder) -> clingo_result_t {
+                                        clingo_string_builder_t *builder) -> bool {
     CLINGO_TRY {
         ConfigPrinter{cpp_cast(config), cpp_cast(builder)}.str(key);
     }
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_config_array_size(clingo_config_t const *config, clingo_id_t key, size_t *size)
-    -> clingo_result_t {
+extern "C" auto clingo_config_array_size(clingo_config_t const *config, clingo_id_t key, size_t *size) -> bool {
     CLINGO_TRY {
         if (config == nullptr || size == nullptr) {
             return fail_arguments();
@@ -176,7 +175,7 @@ extern "C" auto clingo_config_array_size(clingo_config_t const *config, clingo_i
 }
 
 extern "C" auto clingo_config_array_at(clingo_config_t const *config, clingo_id_t key, size_t offset,
-                                       clingo_id_t *subkey) -> clingo_result_t {
+                                       clingo_id_t *subkey) -> bool {
     CLINGO_TRY {
         if (config == nullptr || subkey == nullptr) {
             return fail_arguments();
@@ -189,8 +188,7 @@ extern "C" auto clingo_config_array_at(clingo_config_t const *config, clingo_id_
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_config_map_size(clingo_config_t const *config, clingo_id_t key, size_t *size)
-    -> clingo_result_t {
+extern "C" auto clingo_config_map_size(clingo_config_t const *config, clingo_id_t key, size_t *size) -> bool {
     CLINGO_TRY {
         if (config == nullptr || size == nullptr) {
             return fail_arguments();
@@ -206,7 +204,7 @@ extern "C" auto clingo_config_map_size(clingo_config_t const *config, clingo_id_
 }
 
 extern "C" auto clingo_config_map_has_subkey(clingo_config_t const *config, clingo_id_t key, char const *name,
-                                             size_t size, bool *result) -> clingo_result_t {
+                                             size_t size, bool *result) -> bool {
     CLINGO_TRY {
         if (config == nullptr || (name == nullptr && size > 0) || result == nullptr) {
             return fail_arguments();
@@ -218,7 +216,7 @@ extern "C" auto clingo_config_map_has_subkey(clingo_config_t const *config, clin
 }
 
 extern "C" auto clingo_config_map_subkey_name(clingo_config_t const *config, clingo_id_t key, size_t offset,
-                                              clingo_string_t *name) -> clingo_result_t {
+                                              clingo_string_t *name) -> bool {
     CLINGO_TRY {
         if (config == nullptr || name == nullptr) {
             return fail_arguments();
@@ -233,7 +231,7 @@ extern "C" auto clingo_config_map_subkey_name(clingo_config_t const *config, cli
 }
 
 extern "C" auto clingo_config_map_at(clingo_config_t const *config, clingo_id_t key, char const *name, size_t size,
-                                     clingo_id_t *subkey) -> clingo_result_t {
+                                     clingo_id_t *subkey) -> bool {
     CLINGO_TRY {
         if (config == nullptr || (name == nullptr && size > 0) || subkey == nullptr) {
             return fail_arguments();
@@ -247,7 +245,7 @@ extern "C" auto clingo_config_map_at(clingo_config_t const *config, clingo_id_t 
 }
 
 extern "C" auto clingo_config_value_is_assigned(clingo_config_t const *config, clingo_id_t key, bool *assigned)
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         if (config == nullptr || assigned == nullptr) {
             return fail_arguments();
@@ -263,7 +261,7 @@ extern "C" auto clingo_config_value_is_assigned(clingo_config_t const *config, c
 }
 
 extern "C" auto clingo_config_value_get(clingo_config_t const *config, clingo_id_t key, clingo_string_t *value,
-                                        bool *has_value) -> clingo_result_t {
+                                        bool *has_value) -> bool {
     CLINGO_TRY {
         if (config == nullptr) {
             return fail_arguments();
@@ -285,7 +283,7 @@ extern "C" auto clingo_config_value_get(clingo_config_t const *config, clingo_id
 }
 
 extern "C" auto clingo_config_value_set(clingo_config_t *config, clingo_id_t key, char const *value, size_t size)
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         if (config == nullptr || (value == nullptr && size > 0) ||
             cpp_cast(config)->setValue(key, std::string_view{value, size}) <= 0) {
@@ -295,7 +293,7 @@ extern "C" auto clingo_config_value_set(clingo_config_t *config, clingo_id_t key
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_control_config(clingo_control_t *control, clingo_config_t **config) -> clingo_result_t {
+extern "C" auto clingo_control_config(clingo_control_t *control, clingo_config_t **config) -> bool {
     CLINGO_TRY {
         if (control == nullptr || config == nullptr) {
             return fail_arguments();

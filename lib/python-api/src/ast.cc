@@ -2317,9 +2317,9 @@ class StatementComment : public ASTBase {
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type = 0;
-    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
+    if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
-        throw std::runtime_error("could not get type");
+        raise_error();
     }
     switch (type) {
         case clingo_ast_type_term_variable: {
@@ -2396,9 +2396,9 @@ auto Projection::update(Library &lib, py::kwargs const &kwargs) -> Projection {
 
 auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
     clingo_ast_type_t type = 0;
-    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
+    if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
-        throw std::runtime_error("could not get type");
+        raise_error();
     }
     switch (type) {
         case clingo_ast_type_term_variable: {
@@ -2468,9 +2468,9 @@ auto construct_argument_tuple_array(clingo_ast_t **ast, size_t size) -> Argument
 
 auto construct_term_or_argument_tuple(clingo_ast_t *ast) -> TermOrArgumentTuple {
     clingo_ast_type_t type = 0;
-    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
+    if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
-        throw std::runtime_error("could not get type");
+        raise_error();
     }
     switch (type) {
         case clingo_ast_type_term_variable: {
@@ -2880,9 +2880,9 @@ auto ArgumentTuple::update(Library &lib, py::kwargs const &kwargs) -> ArgumentTu
 
 auto construct_literal(clingo_ast_t *ast) -> Literal {
     clingo_ast_type_t type = 0;
-    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
+    if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
-        throw std::runtime_error("could not get type");
+        raise_error();
     }
     switch (type) {
         case clingo_ast_type_literal_boolean: {
@@ -3147,9 +3147,9 @@ auto LiteralSymbolic::update(Library &lib, py::kwargs const &kwargs) -> LiteralS
 
 auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm {
     clingo_ast_type_t type = 0;
-    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
+    if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
-        throw std::runtime_error("could not get type");
+        raise_error();
     }
     switch (type) {
         case clingo_ast_type_theory_term_variable: {
@@ -3746,9 +3746,9 @@ auto construct_theory_atom_element_array(clingo_ast_t **ast, size_t size) -> The
 
 auto construct_body_literal(clingo_ast_t *ast) -> BodyLiteral {
     clingo_ast_type_t type = 0;
-    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
+    if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
-        throw std::runtime_error("could not get type");
+        raise_error();
     }
     switch (type) {
         case clingo_ast_type_body_simple_literal: {
@@ -4173,9 +4173,9 @@ auto HeadConditionalLiteral::update(Library &lib, py::kwargs const &kwargs) -> H
 
 auto construct_disjunction_element(clingo_ast_t *ast) -> DisjunctionElement {
     clingo_ast_type_t type = 0;
-    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
+    if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
-        throw std::runtime_error("could not get type");
+        raise_error();
     }
     switch (type) {
         case clingo_ast_type_literal_boolean: {
@@ -4295,9 +4295,9 @@ auto construct_head_aggregate_element_array(clingo_ast_t **ast, size_t size) -> 
 
 auto construct_head_literal(clingo_ast_t *ast) -> HeadLiteral {
     clingo_ast_type_t type = 0;
-    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
+    if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
-        throw std::runtime_error("could not get type");
+        raise_error();
     }
     switch (type) {
         case clingo_ast_type_head_simple_literal: {
@@ -5127,9 +5127,9 @@ auto construct_program_part_array(clingo_ast_t **ast, size_t size) -> ProgramPar
 
 auto construct_statement(clingo_ast_t *ast) -> Statement {
     clingo_ast_type_t type = 0;
-    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
+    if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
-        throw std::runtime_error("could not get type");
+        raise_error();
     }
     switch (type) {
         case clingo_ast_type_statement_rule: {

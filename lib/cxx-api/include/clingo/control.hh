@@ -292,8 +292,7 @@ class Control {
 
     static auto ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
                      char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
-                     void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data)
-        -> clingo_result_t {
+                     void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
         CLINGO_TRY {
             auto &cb = *static_cast<std::function<SymbolVector(std::string_view, SymbolSpan)> *>(data);
             auto syms = cb({name, name_size}, {cpp_cast(arguments), arguments_size});

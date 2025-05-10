@@ -38,7 +38,7 @@ class CScript : public Clingo::Control::Script {
 
     using CBData = std::pair<CScript *, Clingo::SymbolVec &>;
 
-    static auto cb(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> clingo_result_t {
+    static auto cb(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> bool {
         auto &[self, out] = *static_cast<CBData *>(data);
         CLINGO_TRY {
             append_n(symbols, symbols_size, out, [](auto sym) { return Clingo::Symbol::from_rep(sym); });
@@ -60,8 +60,7 @@ class CScript : public Clingo::Control::Script {
 
 } // namespace
 
-extern "C" auto clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script, void *data)
-    -> clingo_result_t {
+extern "C" auto clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script, void *data) -> bool {
     CLINGO_TRY {
         auto const *name = script->name(data);
         lib->scripts.register_script(name, std::make_unique<CScript>(lib, *script, data));

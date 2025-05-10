@@ -17,15 +17,6 @@ namespace Clingo {
 //! The default message limit.
 static constexpr size_t default_message_limit = 20;
 
-//! Exception thrown when an error code is set.
-//!
-//! This is used by the C-API.
-class ClingoError : public std::runtime_error {
-  public:
-    //! Construct the error.
-    ClingoError(char const *msg) : std::runtime_error(msg) {}
-};
-
 //! Codes of messages.
 //!
 //! Codes larger or equal to error indicate non-recoverable runtime errors.

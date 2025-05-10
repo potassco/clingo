@@ -75,28 +75,18 @@ inline auto map(Potassco::WeightLitSpan lits) -> clingo_weighted_literal_t const
     return reinterpret_cast<clingo_weighted_literal_t const *>(lits.data());
 }
 
-class ClingoError : public std::exception {
-  public:
-    ClingoError(clingo_result_t code) : code_{code} {}
-    [[nodiscard]] auto what() const noexcept -> char const * override { return "solving failed"; }
-    [[nodiscard]] auto code() const -> clingo_result_t { return code_; }
-
-  private:
-    clingo_result_t code_;
-};
-
 void raise_error();
-auto store_error() -> clingo_result_t;
-auto fail_arguments() -> clingo_result_t;
-auto fail_with(clingo_result_t code, std::string_view msg) -> clingo_result_t;
+auto store_error() -> bool;
+auto fail_arguments() -> bool;
+auto fail_with(clingo_result_t code, std::string_view msg) -> bool;
 
-inline void handle_error(clingo_result_t code) {
-    if (code != clingo_result_success) {
+inline void handle_error(bool res) {
+    if (!res) {
         raise_error();
     }
 }
 
-inline void handle_error_no_code(clingo_result_t code);
+inline void handle_error_no_code(bool res);
 
 template <typename In, typename C, typename Pred> auto append_n(In begin, size_t n, C &out, Pred pred) {
     out.reserve(out.size() + n);
@@ -112,6 +102,6 @@ template <typename In, typename C, typename Pred> auto append_n(In begin, size_t
     catch (...) {                                                                                                      \
         return store_error();                                                                                          \
     }                                                                                                                  \
-    return clingo_result_success
+    return true
 
 // NOLINTEND(cppcoreguidelines-macro-usage)

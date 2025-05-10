@@ -48,9 +48,10 @@ auto Symbol::number() const -> py::int_ {
         throw std::invalid_argument("symbol is not a number");
     }
     int32_t num = 0;
-    if (clingo_symbol_number(sym_, &num) == clingo_result_success) {
+    if (clingo_symbol_number(sym_, &num)) {
         return num;
     }
+    clingo_clear_error();
     return py::reinterpret_steal<py::int_>(PyLong_FromString(std::string{str()}.c_str(), nullptr, decimal_base));
 }
 

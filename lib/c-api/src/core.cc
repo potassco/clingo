@@ -88,7 +88,7 @@ extern "C" void clingo_message_string(clingo_message_t code, clingo_string_t *va
 }
 
 extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t level, clingo_logger_t logger, void *data,
-                               size_t limit, clingo_lib_t **lib) -> clingo_result_t {
+                               size_t limit, clingo_lib_t **lib) -> bool {
     try {
         *lib = nullptr;
         Clingo::Logger::Printer prt = nullptr;
@@ -169,7 +169,7 @@ extern "C" auto clingo_user_data_slot() -> size_t {
 }
 
 extern "C" auto clingo_lib_set_user_data(clingo_lib_t *lib, size_t slot, void *data, void (*deleter)(void *data))
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         lib->user_data.resize(slot + 1);
         lib->user_data[slot] = std::unique_ptr<void, user_data_deleter>(data, user_data_deleter{deleter});
@@ -193,7 +193,7 @@ extern "C" void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char
 
 // definition of position
 
-extern "C" auto clingo_string_builder_new(clingo_string_builder_t **bld) -> clingo_result_t {
+extern "C" auto clingo_string_builder_new(clingo_string_builder_t **bld) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE
         *bld = c_cast(new Clingo::Util::OutputBuffer{});
@@ -201,8 +201,7 @@ extern "C" auto clingo_string_builder_new(clingo_string_builder_t **bld) -> clin
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_string_builder_copy(clingo_string_builder_t const *src, clingo_string_builder_t **dst)
-    -> clingo_result_t {
+extern "C" auto clingo_string_builder_copy(clingo_string_builder_t const *src, clingo_string_builder_t **dst) -> bool {
     CLINGO_TRY {
         auto oss = std::make_unique<Clingo::Util::OutputBuffer>();
         *oss << cpp_cast(src)->view();
@@ -216,8 +215,7 @@ extern "C" void clingo_string_builder_free(clingo_string_builder_t const *bld) {
     delete cpp_cast(bld);
 }
 
-extern "C" auto clingo_string_builder_string(clingo_string_builder_t const *bld, clingo_string_t *value)
-    -> clingo_result_t {
+extern "C" auto clingo_string_builder_string(clingo_string_builder_t const *bld, clingo_string_t *value) -> bool {
     CLINGO_TRY {
         if (bld == nullptr || value == nullptr) {
             return fail_arguments();
@@ -246,7 +244,7 @@ static auto cpp_cast(clingo_position_t const *pos) -> Clingo::Position const * {
 }
 
 extern "C" auto clingo_position_new(clingo_lib_t *lib, char const *file, size_t size, size_t line, size_t column,
-                                    clingo_position_t const **pos) -> clingo_result_t {
+                                    clingo_position_t const **pos) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE
         *pos = c_cast(new Clingo::Position{*lib->store->string(std::string_view{file, size}), line, column});
@@ -254,7 +252,7 @@ extern "C" auto clingo_position_new(clingo_lib_t *lib, char const *file, size_t 
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_position_copy(clingo_position_t const *src, clingo_position_t const **dst) -> clingo_result_t {
+extern "C" auto clingo_position_copy(clingo_position_t const *src, clingo_position_t const **dst) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE
         *dst = src != nullptr ? c_cast(new Clingo::Position{*cpp_cast(src)}) : nullptr;
@@ -294,8 +292,7 @@ extern "C" auto clingo_position_compare(clingo_position_t const *a, clingo_posit
     return c_cast(*cpp_cast(a) <=> *cpp_cast(b));
 }
 
-extern "C" auto clingo_position_to_string(clingo_position_t const *pos, clingo_string_builder_t *str)
-    -> clingo_result_t {
+extern "C" auto clingo_position_to_string(clingo_position_t const *pos, clingo_string_builder_t *str) -> bool {
     CLINGO_TRY {
         *cpp_cast(str) << *cpp_cast(pos);
     }
@@ -305,7 +302,7 @@ extern "C" auto clingo_position_to_string(clingo_position_t const *pos, clingo_s
 // definition of location
 
 extern "C" auto clingo_location_new(clingo_position_t const *begin, clingo_position_t const *end,
-                                    clingo_location_t const **loc) -> clingo_result_t {
+                                    clingo_location_t const **loc) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE
         *loc = c_cast(new Clingo::Location{*cpp_cast(begin), *cpp_cast(end)});
@@ -313,7 +310,7 @@ extern "C" auto clingo_location_new(clingo_position_t const *begin, clingo_posit
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_location_copy(clingo_location_t const *src, clingo_location_t const **dst) -> clingo_result_t {
+extern "C" auto clingo_location_copy(clingo_location_t const *src, clingo_location_t const **dst) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE
         *dst = src != nullptr ? c_cast(new Clingo::Location{*cpp_cast(src)}) : nullptr;
@@ -348,8 +345,7 @@ extern "C" auto clingo_location_compare(clingo_location_t const *a, clingo_locat
     return c_cast(*cpp_cast(a) <=> *cpp_cast(b));
 }
 
-extern "C" auto clingo_location_to_string(clingo_location_t const *loc, clingo_string_builder_t *str)
-    -> clingo_result_t {
+extern "C" auto clingo_location_to_string(clingo_location_t const *loc, clingo_string_builder_t *str) -> bool {
     CLINGO_TRY {
         *cpp_cast(str) << *cpp_cast(loc);
     }

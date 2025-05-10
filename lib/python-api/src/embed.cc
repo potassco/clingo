@@ -4,7 +4,7 @@
 
 #include <pybind11/embed.h>
 
-extern "C" auto clingo_register_python(clingo_lib_t *lib) -> clingo_result_t {
+extern "C" auto clingo_register_python(clingo_lib_t *lib) -> bool {
     return Clingo::Python::register_python(lib);
 }
 

@@ -47,14 +47,14 @@ typedef struct clingo_observer {
     //! @param[in] incremental whether the program is incremental
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*init_program)(bool incremental, void *data);
+    bool (*init_program)(bool incremental, void *data);
     //! Marks the beginning of a block of directives passed to the solver.
     //!
     //! @see @ref end_step
     //!
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*begin_step)(void *data);
+    bool (*begin_step)(void *data);
     //! Marks the end of a block of directives passed to the solver.
     //!
     //! This function is called before solving starts.
@@ -64,7 +64,7 @@ typedef struct clingo_observer {
     //! @param[in] base the base of the program
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*end_step)(clingo_base_t const *base, void *data);
+    bool (*end_step)(clingo_base_t const *base, void *data);
 
     //! Observe rules passed to the solver.
     //!
@@ -75,8 +75,8 @@ typedef struct clingo_observer {
     //! @param[in] body_size the number of literals in the body
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*rule)(bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body,
-                            size_t body_size, void *data);
+    bool (*rule)(bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body,
+                 size_t body_size, void *data);
     //! Observe weight rules passed to the solver.
     //!
     //! @param[in] choice determines if the head is a choice or a disjunction
@@ -87,9 +87,8 @@ typedef struct clingo_observer {
     //! @param[in] body_size the number of weighted literals in the body
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*weight_rule)(bool choice, clingo_atom_t const *head, size_t head_size,
-                                   clingo_weight_t lower_bound, clingo_weighted_literal_t const *body, size_t body_size,
-                                   void *data);
+    bool (*weight_rule)(bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower_bound,
+                        clingo_weighted_literal_t const *body, size_t body_size, void *data);
     //! Observe minimize constraints (or weak constraints) passed to the solver.
     //!
     //! @param[in] priority the priority of the constraint
@@ -97,22 +96,21 @@ typedef struct clingo_observer {
     //! @param[in] size the number of weighted literals
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*minimize)(clingo_weight_t priority, clingo_weighted_literal_t const *literals, size_t size,
-                                void *data);
+    bool (*minimize)(clingo_weight_t priority, clingo_weighted_literal_t const *literals, size_t size, void *data);
     //! Observe projection directives passed to the solver.
     //!
     //! @param[in] atoms the atoms to project on
     //! @param[in] size the number of atoms
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*project)(clingo_atom_t const *atoms, size_t size, void *data);
+    bool (*project)(clingo_atom_t const *atoms, size_t size, void *data);
     //! Observe external statements passed to the solver.
     //!
     //! @param[in] atom the external atom
     //! @param[in] type the type of the external statement
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*external)(clingo_atom_t atom, clingo_external_type_t type, void *data);
+    bool (*external)(clingo_atom_t atom, clingo_external_type_t type, void *data);
     //! Observe assumption directives passed to the solver.
     //!
     //! @param[in] literals the literals to assume (positive literals are true and negative literals false for the next
@@ -120,7 +118,7 @@ typedef struct clingo_observer {
     //! @param[in] size the number of atoms
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*assume)(clingo_literal_t const *literals, size_t size, void *data);
+    bool (*assume)(clingo_literal_t const *literals, size_t size, void *data);
     //! Observe heuristic directives passed to the solver.
     //!
     //! @param[in] atom the target atom
@@ -131,8 +129,8 @@ typedef struct clingo_observer {
     //! @param[in] size the number of atoms in the condition
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*heuristic)(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority,
-                                 clingo_literal_t const *condition, size_t size, void *data);
+    bool (*heuristic)(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority,
+                      clingo_literal_t const *condition, size_t size, void *data);
     //! Observe edge directives passed to the solver.
     //!
     //! @param[in] node_u the start vertex of the edge
@@ -141,7 +139,7 @@ typedef struct clingo_observer {
     //! @param[in] size the number of atoms in the condition
     //! @param[in] data user data for the callback
     //! @return the result code
-    clingo_result_t (*acyc_edge)(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data);
+    bool (*acyc_edge)(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data);
 } clingo_observer_t;
 
 //! Get an observer to inspect the ground program.
@@ -155,9 +153,8 @@ typedef struct clingo_observer {
 //! @param[in] data user data for the observer
 //! @param[in] preprocess whether to preprocess the program first
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_observe(clingo_control_t *control,
-                                                                 clingo_observer_t const *observer, void *data,
-                                                                 bool preprocess);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_observe(clingo_control_t *control, clingo_observer_t const *observer,
+                                                      void *data, bool preprocess);
 
 //! Write the current logic program in aspif format to a file.
 //!
@@ -165,8 +162,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_observe(clingo_control_
 //! @param path the path to the file to write to
 //! @param mode control how to write
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_write_aspif(clingo_control_t *control, char const *path,
-                                                                     size_t size, clingo_write_aspif_mode_t mode);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_write_aspif(clingo_control_t *control, char const *path, size_t size,
+                                                          clingo_write_aspif_mode_t mode);
 
 //! @}
 

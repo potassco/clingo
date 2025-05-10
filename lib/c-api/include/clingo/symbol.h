@@ -55,10 +55,9 @@ typedef uint64_t clingo_symbol_t;
 //! @param symbols array of symbols
 //! @param symbols_size size of the symbol array
 //! @param data user data of the callback
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
+//! @return whether the call was successful
 //! @see ::clingo_ground_callback_t
-typedef clingo_result_t (*clingo_symbol_callback_t)(clingo_symbol_t const *symbols, size_t symbols_size, void *data);
+typedef bool (*clingo_symbol_callback_t)(clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 
 //! @name Symbol Construction Functions
 //! @{
@@ -85,10 +84,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_number(int32_t nu
 //! @param[in] number the number in form of a string
 //! @param[in] size the size of the string
 //! @param[out] symbol the resulting symbol
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_number_str(clingo_lib_t *lib, char const *number,
-                                                                          size_t size, clingo_symbol_t *symbol);
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_number_str(clingo_lib_t *lib, char const *number, size_t size,
+                                                               clingo_symbol_t *symbol);
 
 //! Construct a symbol representing a string.
 //!
@@ -98,8 +96,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_number_str(clingo
 //! @param[out] symbol the resulting symbol
 //! @return the result code; might return one of the following codes:
 //! - ::clingo_result_bad_alloc
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_string(clingo_lib_t *lib, char const *string,
-                                                                      size_t size, clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_string(clingo_lib_t *lib, char const *string, size_t size,
+                                                           clingo_symbol_t *symbol);
 
 //! Construct a symbol representing an id.
 //!
@@ -113,8 +111,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_string(clingo_lib
 //! @param[out] symbol the resulting symbol
 //! @return the result code; might return one of the following codes:
 //! - ::clingo_result_bad_alloc
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_id(clingo_lib_t *lib, char const *name, size_t size,
-                                                                  bool is_positive, clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_id(clingo_lib_t *lib, char const *name, size_t size,
+                                                       bool is_positive, clingo_symbol_t *symbol);
 
 //! Construct a symbol representing a tuple.
 //!
@@ -124,9 +122,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_id(clingo_lib_t *
 //! @param[out] symbol the resulting symbol
 //! @return the result code; might return one of the following codes:
 //! - ::clingo_result_bad_alloc
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_tuple(clingo_lib_t *lib,
-                                                                     clingo_symbol_t const *arguments,
-                                                                     size_t arguments_size, clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_tuple(clingo_lib_t *lib, clingo_symbol_t const *arguments,
+                                                          size_t arguments_size, clingo_symbol_t *symbol);
 
 //! Construct a symbol representing a function.
 //!
@@ -139,11 +136,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_tuple(clingo_lib_
 //! @param[out] symbol the resulting symbol
 //! @return the result code; might return one of the following codes:
 //! - ::clingo_result_bad_alloc
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_function(clingo_lib_t *lib, char const *name,
-                                                                        size_t name_size,
-                                                                        clingo_symbol_t const *arguments,
-                                                                        size_t arguments_size, bool is_positive,
-                                                                        clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_function(clingo_lib_t *lib, char const *name, size_t name_size,
+                                                             clingo_symbol_t const *arguments, size_t arguments_size,
+                                                             bool is_positive, clingo_symbol_t *symbol);
 
 //! Parse a term in string form.
 //!
@@ -157,8 +152,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_function(clingo_l
 //! @return the result code; might return one of the following codes:
 //! - ::clingo_result_bad_alloc
 //! - ::clingo_result_runtime if parsing fails
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_parse_term(clingo_lib_t *lib, char const *string, size_t size,
-                                                            clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT bool clingo_parse_term(clingo_lib_t *lib, char const *string, size_t size,
+                                                 clingo_symbol_t *symbol);
 
 //! Acquire ownership of the given symbol.
 //!
@@ -188,7 +183,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_symbol_release(clingo_symbol_t symbol);
 //! @param[in] symbol the target symbol
 //! @param[out] number the resulting number
 //! @return whether the number has been set
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_number(clingo_symbol_t symbol, int32_t *number);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_number(clingo_symbol_t symbol, int32_t *number);
 
 //! Get the name of a symbol.
 //!
@@ -198,7 +193,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_number(clingo_symbol_t s
 //! @param[in] symbol the target symbol
 //! @param[out] name the resulting name
 //! @return whether the name has been set
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_name(clingo_symbol_t symbol, clingo_string_t *name);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_name(clingo_symbol_t symbol, clingo_string_t *name);
 
 //! Get the string of a symbol.
 //!
@@ -208,14 +203,14 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_name(clingo_symbol_t sym
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_string(clingo_symbol_t symbol, clingo_string_t *string);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_string(clingo_symbol_t symbol, clingo_string_t *string);
 
 //! Check whether a function or number is positive.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] is_positive the result
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_is_positive(clingo_symbol_t symbol, bool *is_positive);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_is_positive(clingo_symbol_t symbol, bool *is_positive);
 
 //! Get the arguments of a symbol.
 //!
@@ -223,9 +218,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_is_positive(clingo_symbo
 //! @param[out] arguments the resulting arguments
 //! @param[out] arguments_size the number of arguments
 //! @return whether the arguments have been set
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_arguments(clingo_symbol_t symbol,
-                                                                  clingo_symbol_t const **arguments,
-                                                                  size_t *arguments_size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_arguments(clingo_symbol_t symbol, clingo_symbol_t const **arguments,
+                                                       size_t *arguments_size);
 
 //! Get the type of a symbol.
 //!
@@ -238,8 +232,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_symbol_type_t clingo_symbol_type(clingo_symbol_
 //! @param[in] symbol the target symbol
 //! @param[in] builder the string builder
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_to_string(clingo_symbol_t symbol,
-                                                                  clingo_string_builder_t *builder);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_to_string(clingo_symbol_t symbol, clingo_string_builder_t *builder);
 
 //! @}
 

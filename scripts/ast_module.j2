@@ -222,9 +222,9 @@ auto construct_{{ type_name }}(clingo_ast_t **ast, size_t size) -> {{ c_type_nam
 {%    elif type.type == 'union' %}
 auto construct_{{ type_name }}(clingo_ast_t *ast) -> {{ c_type_name }} {
     clingo_ast_type_t type = 0;
-    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
+    if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
-        throw std::runtime_error("could not get type");
+        raise_error();
     }
     switch (type) {
 {%-     for sub_type in type.types | flatten_types(types) %}

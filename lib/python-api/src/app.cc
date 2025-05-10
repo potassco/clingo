@@ -22,8 +22,7 @@ class Options {
     void add(std::string_view group, std::string_view option, std::string_view description, Annotation<Parser> parser,
              bool multi, std::optional<std::string_view> argument) {
         parsers_->emplace_front(std::move(parser));
-        static constexpr auto cparser = [](char const *value, size_t size, void *data,
-                                           bool *result) -> clingo_result_t {
+        static constexpr auto cparser = [](char const *value, size_t size, void *data, bool *result) -> bool {
             auto &parser = *static_cast<ParserList::value_type *>(data);
             CLINGO_TRY {
                 *result = py::cast<Parser>(parser)({value, size});
@@ -139,7 +138,7 @@ class App {
         }
     }
 
-    static auto main_(clingo_control_t *ctl, clingo_string_t const *files, size_t size, void *data) -> clingo_result_t {
+    static auto main_(clingo_control_t *ctl, clingo_string_t const *files, size_t size, void *data) -> bool {
         auto &app = *static_cast<App *>(data);
         CLINGO_TRY {
             auto pyctl = Control::cast(ctl, true);
@@ -150,7 +149,7 @@ class App {
     }
 
     static auto print_model_(clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data,
-                             void *data) -> clingo_result_t {
+                             void *data) -> bool {
         auto &app = *static_cast<App *>(data);
         CLINGO_TRY {
             app.print_model(Model{model}, [printer, printer_data]() { handle_error(printer(printer_data)); });
@@ -158,7 +157,7 @@ class App {
         CLINGO_CATCH;
     }
 
-    static auto register_options_(clingo_options_t *options, void *data) -> clingo_result_t {
+    static auto register_options_(clingo_options_t *options, void *data) -> bool {
         auto &app = *static_cast<App *>(data);
         CLINGO_TRY {
             app.register_options(Options{options, app.parsers_});
@@ -166,7 +165,7 @@ class App {
         CLINGO_CATCH;
     }
 
-    static auto validate_options_(void *data) -> clingo_result_t {
+    static auto validate_options_(void *data) -> bool {
         auto &app = *static_cast<App *>(data);
         try {
             app.validate_options();
@@ -180,7 +179,7 @@ class App {
         } catch (...) {
             return store_error();
         }
-        return clingo_result_success;
+        return true;
     }
 
     //! The list of option parsers.

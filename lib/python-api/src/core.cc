@@ -28,8 +28,8 @@ void raise_error() {
     }
 }
 
-void handle_error_no_code(clingo_result_t code) {
-    if (code != clingo_result_success) {
+void handle_error_no_code(bool res) {
+    if (!res) {
         raise_error();
     }
     clingo_string_t str;
@@ -45,49 +45,39 @@ auto user_data_slot() noexcept -> size_t {
     return slot;
 }
 
-auto store_error() -> clingo_result_t {
+auto store_error() -> bool {
     try {
         throw;
     } catch (py::error_already_set const &e) {
         auto msg = std::string_view{e.what()};
         if (e.matches(PyExc_ValueError)) {
-            clingo_set_error(clingo_result_invalid, msg.data(), msg.size());
-            return clingo_result_invalid;
+            return clingo_set_error(clingo_result_invalid, msg.data(), msg.size());
         }
         if (e.matches(PyExc_IndexError)) {
-            clingo_set_error(clingo_result_range, msg.data(), msg.size());
-            return clingo_result_range;
+            return clingo_set_error(clingo_result_range, msg.data(), msg.size());
         }
         if (e.matches(PyExc_MemoryError)) {
-            clingo_set_error(clingo_result_bad_alloc, msg.data(), msg.size());
-            return clingo_result_bad_alloc;
+            return clingo_set_error(clingo_result_bad_alloc, msg.data(), msg.size());
         }
-        clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
-        return clingo_result_runtime;
+        return clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
     } catch (std::out_of_range const &e) {
         auto msg = std::string_view{e.what()};
-        clingo_set_error(clingo_result_range, msg.data(), msg.size());
-        return clingo_result_range;
+        return clingo_set_error(clingo_result_range, msg.data(), msg.size());
     } catch (std::invalid_argument const &e) {
         auto msg = std::string_view{e.what()};
-        clingo_set_error(clingo_result_invalid, msg.data(), msg.size());
-        return clingo_result_invalid;
+        return clingo_set_error(clingo_result_invalid, msg.data(), msg.size());
     } catch (std::bad_alloc const &e) {
         auto msg = std::string_view{e.what()};
-        clingo_set_error(clingo_result_bad_alloc, msg.data(), msg.size());
-        return clingo_result_bad_alloc;
+        return clingo_set_error(clingo_result_bad_alloc, msg.data(), msg.size());
     } catch (std::logic_error const &e) {
         auto msg = std::string_view{e.what()};
-        clingo_set_error(clingo_result_logic, msg.data(), msg.size());
-        return clingo_result_logic;
+        return clingo_set_error(clingo_result_logic, msg.data(), msg.size());
     } catch (std::exception const &e) {
         auto msg = std::string_view{e.what()};
-        clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
-        return clingo_result_runtime;
+        return clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
     } catch (...) {
         auto msg = std::string_view{"no message"};
-        clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
-        return clingo_result_runtime;
+        return clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
     }
 }
 

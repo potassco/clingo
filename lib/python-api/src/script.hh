@@ -6,7 +6,7 @@
 
 namespace Clingo::Python {
 
-auto register_python(clingo_lib_t *lib) -> clingo_result_t;
+auto register_python(clingo_lib_t *lib) -> bool;
 
 void register_script(pybind11::module &m);
 

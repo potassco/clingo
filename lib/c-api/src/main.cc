@@ -119,7 +119,7 @@ class AppAdapter {
 
     template <class T> void print_model(Clingo::Control::Model &mdl, T &prt) const {
         assert(has_print_model());
-        auto cprt = [](void *data) -> clingo_result_t {
+        auto cprt = [](void *data) -> bool {
             CLINGO_TRY {
                 (*static_cast<T const *>(data))();
             }
@@ -268,7 +268,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 extern "C" auto clingo_options_add(clingo_options_t *options, char const *group, size_t group_size, char const *option,
                                    size_t option_size, char const *description, size_t description_size,
                                    clingo_option_parser_t parser, void *data, bool multi, char const *argument,
-                                   size_t argument_size) -> clingo_result_t {
+                                   size_t argument_size) -> bool {
     CLINGO_TRY {
         auto *opts = cpp_cast(options);
         opts->add_option(
@@ -285,7 +285,7 @@ extern "C" auto clingo_options_add(clingo_options_t *options, char const *group,
 
 extern "C" auto clingo_options_add_flag(clingo_options_t *options, char const *group, size_t group_size,
                                         char const *option, size_t option_size, char const *description,
-                                        size_t description_size, bool *target) -> clingo_result_t {
+                                        size_t description_size, bool *target) -> bool {
     CLINGO_TRY {
         auto *opts = cpp_cast(options);
         opts->add_flag({group, group_size}, {option, option_size}, {description, description_size}, *target);
@@ -294,7 +294,7 @@ extern "C" auto clingo_options_add_flag(clingo_options_t *options, char const *g
 }
 
 extern "C" auto clingo_main(clingo_lib_t *lib, clingo_string_t const *arguments, size_t size,
-                            clingo_application_t const *app, void *data, int *code) -> clingo_result_t {
+                            clingo_application_t const *app, void *data, int *code) -> bool {
     CLINGO_TRY {
         if (code != nullptr) {
             *code = 1;

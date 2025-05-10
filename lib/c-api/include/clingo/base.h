@@ -101,9 +101,8 @@ typedef struct clingo_theory_base clingo_theory_base_t;
 //! @param[in] atoms the atom base
 //! @param[in] literal the index of the literal
 //! @param[out] is_fact whether the literal is a fact
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_fact(clingo_base_t const *atoms, clingo_literal_t literal,
-                                                              bool *is_fact);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_base_is_fact(clingo_base_t const *atoms, clingo_literal_t literal, bool *is_fact);
 
 //! Check whether an literal is external.
 //!
@@ -113,9 +112,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_fact(clingo_base_t cons
 //! @param[in] atoms the target
 //! @param[in] literal the index of the literal
 //! @param[out] is_external whether the literal is an external
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_external(clingo_base_t const *atoms, clingo_literal_t literal,
-                                                                  bool *is_external);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_base_is_external(clingo_base_t const *atoms, clingo_literal_t literal,
+                                                       bool *is_external);
 
 //! Check whether an literal is shown.
 //!
@@ -124,9 +123,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_external(clingo_base_t 
 //! @param[in] atoms the target
 //! @param[in] literal the index of the tom
 //! @param[out] is_shown whether the tom is shown
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_shown(clingo_base_t const *atoms, clingo_literal_t literal,
-                                                               bool *is_shown);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_base_is_shown(clingo_base_t const *atoms, clingo_literal_t literal,
+                                                    bool *is_shown);
 
 //! Check whether a literal is subject to projection.
 //!
@@ -135,9 +134,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_shown(clingo_base_t con
 //! @param[in] atoms the target
 //! @param[in] literal the index of the literal
 //! @param[out] is_projected whether the literal is subject to projection
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_projected(clingo_base_t const *atoms, clingo_literal_t literal,
-                                                                   bool *is_projected);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_base_is_projected(clingo_base_t const *atoms, clingo_literal_t literal,
+                                                        bool *is_projected);
 
 //! Check whether a literal has been introduced in the current step.
 //!
@@ -147,9 +146,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_projected(clingo_base_t
 //! @param[in] atoms the target
 //! @param[in] literal the index of the literal
 //! @param[out] is_current whether the literal was introduced in the current step
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_current(clingo_base_t const *atoms, clingo_literal_t literal,
-                                                                 bool *is_current);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_base_is_current(clingo_base_t const *atoms, clingo_literal_t literal,
+                                                      bool *is_current);
 
 //! Get the number of atom bases in the program.
 //!
@@ -157,8 +156,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_is_current(clingo_base_t c
 //!
 //! @param[in] base the target
 //! @param[out] size the number of atoms
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_size(clingo_base_t const *base, size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_base_atoms_size(clingo_base_t const *base, size_t *size);
 
 //! Get the signature and atom base at the given index.
 //!
@@ -169,10 +168,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_size(clingo_base_t c
 //! @param[in] index the index of the atom base
 //! @param[out] signature the target signature
 //! @param[out] atoms the target atom base
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_at(clingo_base_t const *base, size_t index,
-                                                               clingo_signature_t *signature,
-                                                               clingo_atom_base_t const **atoms);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_base_atoms_at(clingo_base_t const *base, size_t index,
+                                                    clingo_signature_t *signature, clingo_atom_base_t const **atoms);
 
 //! Find the atom base wit the given signature.
 //!
@@ -180,17 +178,16 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_at(clingo_base_t con
 //! @param[in] signature the signature to lookup
 //! @param[out] atoms the target atom base
 //! @param[out] found whether a base has been found
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_atoms_find(clingo_base_t const *base,
-                                                                 clingo_signature_t const *signature,
-                                                                 clingo_atom_base_t const **atoms, bool *found);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_base_atoms_find(clingo_base_t const *base, clingo_signature_t const *signature,
+                                                      clingo_atom_base_t const **atoms, bool *found);
 
 //! Get the size of the given atom base.
 //!
 //! @param[in] atoms the atom base
 //! @param[out] size the target size
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_size(clingo_atom_base_t const *atoms, size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_atom_base_size(clingo_atom_base_t const *atoms, size_t *size);
 
 //! Find the index of the atom with the given symbol in the atom base.
 //!
@@ -199,18 +196,18 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_size(clingo_atom_base
 //! @param atoms the atom base
 //! @param symbol the symbol to lookup
 //! @param index the target index
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_find(clingo_atom_base_t const *atoms, clingo_symbol_t symbol,
-                                                                size_t *index);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_atom_base_find(clingo_atom_base_t const *atoms, clingo_symbol_t symbol,
+                                                     size_t *index);
 
 //! Get the symbolic representation of an atom.
 //!
 //! @param[in] atoms the atom base
 //! @param[in] index the index of the atom
 //! @param[out] symbol the resulting symbol
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_symbol(clingo_atom_base_t const *atoms, size_t index,
-                                                                  clingo_symbol_t *symbol);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_atom_base_symbol(clingo_atom_base_t const *atoms, size_t index,
+                                                       clingo_symbol_t *symbol);
 
 //! Returns the (numeric) program literal corresponding to the given symbolic atom.
 //!
@@ -220,17 +217,16 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_symbol(clingo_atom_ba
 //! @param[in] atoms the atom base
 //! @param[in] index the index of the atom
 //! @param[out] literal the resulting literal
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_atom_base_literal(clingo_atom_base_t const *atoms, size_t index,
-                                                                   clingo_literal_t *literal);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_atom_base_literal(clingo_atom_base_t const *atoms, size_t index,
+                                                        clingo_literal_t *literal);
 
 //! Get the term base capturing show term directives.
 //!
 //! @param base the base
 //! @param terms the term base
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_terms(clingo_base_t const *base,
-                                                            clingo_term_base_t const **terms);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_base_terms(clingo_base_t const *base, clingo_term_base_t const **terms);
 
 //! Get the theory base capturing theory terms, elements, and atoms.
 //!
@@ -246,9 +242,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_terms(clingo_base_t const 
 //!
 //! @param base the base
 //! @param theory the theory base
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_theory(clingo_base_t const *base,
-                                                             clingo_theory_base_t const **theory);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_base_theory(clingo_base_t const *base, clingo_theory_base_t const **theory);
 
 //! During grounding, theory atoms get consecutive numbers starting with zero.
 //! The total number of theory atoms can be obtained using clingo_theory_base_size().
@@ -264,17 +259,17 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_base_theory(clingo_base_t const
 //!
 //! @param[in] terms the term base
 //! @param[out] size the number of terms in the base
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_size(clingo_term_base_t const *terms, size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_term_base_size(clingo_term_base_t const *terms, size_t *size);
 
 //! Get the symbol of the show directive with the given index.
 //!
 //! @param[in] terms the term base
 //! @param[in] index the index of the show directive
 //! @param[out] term the resulting term
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_symbol(clingo_term_base_t const *terms, size_t index,
-                                                                  clingo_symbol_t *term);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_term_base_symbol(clingo_term_base_t const *terms, size_t index,
+                                                       clingo_symbol_t *term);
 
 //! Get the conditions of a show directive.
 //!
@@ -286,11 +281,10 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_symbol(clingo_term_ba
 //! @param[out] sizes the sizes of the conjunctions
 //! @param[out] literals the target literals
 //! @param[out] size the size of the disjunction
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_condition(clingo_term_base_t const *terms, size_t index,
-                                                                     size_t const **sizes,
-                                                                     clingo_literal_t const *const **literals,
-                                                                     size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_term_base_condition(clingo_term_base_t const *terms, size_t index,
+                                                          size_t const **sizes,
+                                                          clingo_literal_t const *const **literals, size_t *size);
 
 //! Get the index of the given symbol.
 //!
@@ -299,9 +293,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_condition(clingo_term
 //! @param[in] terms the term base
 //! @param[in] symbol the symbol to lookup
 //! @param[out] index the target index
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_find(clingo_term_base_t const *terms, clingo_symbol_t symbol,
-                                                                size_t *index);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_term_base_find(clingo_term_base_t const *terms, clingo_symbol_t symbol,
+                                                     size_t *index);
 
 //! @name Theory Term Inspection
 //! @{
@@ -311,10 +305,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_term_base_find(clingo_term_base
 //! @param[in] theory container where the term is stored
 //! @param[in] term id of the term
 //! @param[out] type the resulting type
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_type(clingo_theory_base_t const *theory,
-                                                                       clingo_id_t term,
-                                                                       clingo_theory_term_type_t *type);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_term_type(clingo_theory_base_t const *theory, clingo_id_t term,
+                                                            clingo_theory_term_type_t *type);
 
 //! Get the number of the given numeric theory term.
 //!
@@ -322,9 +315,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_type(clingo_th
 //! @param[in] theory container where the term is stored
 //! @param[in] term id of the term
 //! @param[out] number the resulting number
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_number(clingo_theory_base_t const *theory,
-                                                                         clingo_id_t term, int *number);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_term_number(clingo_theory_base_t const *theory, clingo_id_t term,
+                                                              int *number);
 //! Get the name of the given constant or function theory term.
 //!
 //! @pre The term must be of type ::clingo_theory_term_type_function or ::clingo_theory_term_type_symbol.
@@ -332,10 +325,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_number(clingo_
 //! @param[in] term id of the term
 //! @param[out] name the resulting name
 //! @param[out] size the size of the name
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_name(clingo_theory_base_t const *theory,
-                                                                       clingo_id_t term, char const **name,
-                                                                       size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_term_name(clingo_theory_base_t const *theory, clingo_id_t term,
+                                                            char const **name, size_t *size);
 //! Get the arguments of the given function theory term.
 //!
 //! @pre The term must be of type ::clingo_theory_term_type_function.
@@ -343,23 +335,20 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_name(clingo_th
 //! @param[in] term id of the term
 //! @param[out] arguments the resulting arguments in form of an array of term ids
 //! @param[out] size the number of arguments
-//! @return the result code
+//! @return wether the call was successful
 
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_arguments(clingo_theory_base_t const *theory,
-                                                                            clingo_id_t term,
-                                                                            clingo_id_t const **arguments,
-                                                                            size_t *size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_term_arguments(clingo_theory_base_t const *theory, clingo_id_t term,
+                                                                 clingo_id_t const **arguments, size_t *size);
 
 //! Get the string representation of the given theory term.
 //!
 //! @param[in] theory container where the term is stored
 //! @param[in] term id of the term
 //! @param[in] builder the string builder
-//! @return the result code
+//! @return wether the call was successful
 //! @see clingo_theory_base_term_to_string_size()
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_to_string(clingo_theory_base_t const *theory,
-                                                                            clingo_id_t term,
-                                                                            clingo_string_builder_t *builder);
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_term_to_string(clingo_theory_base_t const *theory, clingo_id_t term,
+                                                                 clingo_string_builder_t *builder);
 
 //! @}
 
@@ -372,10 +361,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_term_to_string(clin
 //! @param[in] element id of the element
 //! @param[out] tuple the resulting array of term ids
 //! @param[out] size the number of term ids
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_tuple(clingo_theory_base_t const *theory,
-                                                                           clingo_id_t element,
-                                                                           clingo_id_t const **tuple, size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_element_tuple(clingo_theory_base_t const *theory, clingo_id_t element,
+                                                                clingo_id_t const **tuple, size_t *size);
 
 //! Get the condition (array of aspif literals) of the given theory element.
 //!
@@ -383,11 +371,10 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_tuple(cling
 //! @param[in] element id of the element
 //! @param[out] condition the resulting array of aspif literals
 //! @param[out] size the number of term literals
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_condition(clingo_theory_base_t const *theory,
-                                                                               clingo_id_t element,
-                                                                               clingo_literal_t const **condition,
-                                                                               size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_element_condition(clingo_theory_base_t const *theory,
+                                                                    clingo_id_t element,
+                                                                    clingo_literal_t const **condition, size_t *size);
 
 //! Get the id of the condition of the given theory element.
 //!
@@ -399,20 +386,20 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_condition(c
 //! @param[in] theory container where the element is stored
 //! @param[in] element id of the element
 //! @param[out] condition the resulting condition id
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_condition_id(clingo_theory_base_t const *theory,
-                                                                                  clingo_id_t element,
-                                                                                  clingo_literal_t *condition);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_element_condition_id(clingo_theory_base_t const *theory,
+                                                                       clingo_id_t element,
+                                                                       clingo_literal_t *condition);
 
 //! Get the string representation of the given theory element.
 //!
 //! @param[in] theory container where the element is stored
 //! @param[in] element id of the element
 //! @param[in] builder the builder
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_to_string(clingo_theory_base_t const *theory,
-                                                                               clingo_id_t element,
-                                                                               clingo_string_builder_t *builder);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_element_to_string(clingo_theory_base_t const *theory,
+                                                                    clingo_id_t element,
+                                                                    clingo_string_builder_t *builder);
 
 //! @}
 
@@ -423,17 +410,17 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_element_to_string(c
 //!
 //! @param[in] theory the target
 //! @param[out] size the resulting number
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_size(clingo_theory_base_t const *theory, size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_size(clingo_theory_base_t const *theory, size_t *size);
 
 //! Get the theory term associated with the theory atom.
 //!
 //! @param[in] theory container where the atom is stored
 //! @param[in] atom id of the atom
 //! @param[out] term the resulting term id
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_term(clingo_theory_base_t const *theory,
-                                                                       clingo_id_t atom, clingo_id_t *term);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_atom_term(clingo_theory_base_t const *theory, clingo_id_t atom,
+                                                            clingo_id_t *term);
 
 //! Get the theory elements associated with the theory atom.
 //!
@@ -441,19 +428,18 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_term(clingo_th
 //! @param[in] atom id of the atom
 //! @param[out] elements the resulting array of elements
 //! @param[out] size the number of elements
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_elements(clingo_theory_base_t const *theory,
-                                                                           clingo_id_t atom,
-                                                                           clingo_id_t const **elements, size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_atom_elements(clingo_theory_base_t const *theory, clingo_id_t atom,
+                                                                clingo_id_t const **elements, size_t *size);
 
 //! Whether the theory atom has a guard.
 //!
 //! @param[in] theory container where the atom is stored
 //! @param[in] atom id of the atom
 //! @param[out] has_guard whether the theory atom has a guard
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_has_guard(clingo_theory_base_t const *theory,
-                                                                            clingo_id_t atom, bool *has_guard);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_atom_has_guard(clingo_theory_base_t const *theory, clingo_id_t atom,
+                                                                 bool *has_guard);
 
 //! Get the guard consisting of a theory operator and a theory term of the given theory atom.
 //!
@@ -462,29 +448,27 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_has_guard(clin
 //! @param[out] connective the resulting theory operator
 //! @param[out] size the size of the operator
 //! @param[out] term the resulting term
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_guard(clingo_theory_base_t const *theory,
-                                                                        clingo_id_t atom, char const **connective,
-                                                                        size_t *size, clingo_id_t *term);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_atom_guard(clingo_theory_base_t const *theory, clingo_id_t atom,
+                                                             char const **connective, size_t *size, clingo_id_t *term);
 
 //! Get the aspif literal associated with the given theory atom.
 //!
 //! @param[in] theory container where the atom is stored
 //! @param[in] atom id of the atom
 //! @param[out] literal the resulting literal
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_literal(clingo_theory_base_t const *theory,
-                                                                          clingo_id_t atom, clingo_literal_t *literal);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_atom_literal(clingo_theory_base_t const *theory, clingo_id_t atom,
+                                                               clingo_literal_t *literal);
 
 //! Get the string representation of the given theory atom.
 //!
 //! @param[in] theory container where the atom is stored
 //! @param[in] atom id of the element
 //! @param[in] builder the builder
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_to_string(clingo_theory_base_t const *theory,
-                                                                            clingo_id_t atom,
-                                                                            clingo_string_builder_t *builder);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_atom_to_string(clingo_theory_base_t const *theory, clingo_id_t atom,
+                                                                 clingo_string_builder_t *builder);
 //! @}
 
 //! Get the base associated with the control object.
@@ -495,9 +479,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_theory_base_atom_to_string(clin
 //!
 //! @param[in] control the target
 //! @param[in] base the base to obtain
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_base(clingo_control_t const *control,
-                                                              clingo_base_t const **base);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_base(clingo_control_t const *control, clingo_base_t const **base);
 
 //! @}
 

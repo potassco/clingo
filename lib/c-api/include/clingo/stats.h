@@ -62,17 +62,16 @@ typedef struct clingo_statistic clingo_stats_t;
 //!
 //! @param[in] stats the target stats
 //! @param[out] key the root key
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_root(clingo_stats_t const *stats, uint64_t *key);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_root(clingo_stats_t const *stats, uint64_t *key);
 
 //! Get the type of a key.
 //!
 //! @param[in] stats the target stats
 //! @param[in] key the key
 //! @param[out] type the resulting type
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_type(clingo_stats_t const *stats, uint64_t key,
-                                                            clingo_stats_type_t *type);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_type(clingo_stats_t const *stats, uint64_t key, clingo_stats_type_t *type);
 
 //! @name Functions to access arrays
 //! @{
@@ -83,9 +82,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_type(clingo_stats_t const
 //! @param[in] stats the target stats
 //! @param[in] key the key
 //! @param[out] size the resulting size
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_array_size(clingo_stats_t const *stats, uint64_t key,
-                                                                  size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_array_size(clingo_stats_t const *stats, uint64_t key, size_t *size);
 //! Get the subkey at the given offset of an array entry.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_array.
@@ -93,9 +91,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_array_size(clingo_stats_t
 //! @param[in] key the key
 //! @param[in] offset the offset in the array
 //! @param[out] subkey the resulting subkey
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_array_at(clingo_stats_t const *stats, uint64_t key,
-                                                                size_t offset, uint64_t *subkey);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_array_at(clingo_stats_t const *stats, uint64_t key, size_t offset,
+                                                     uint64_t *subkey);
 //! Create the subkey at the end of an array entry.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_array.
@@ -103,9 +101,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_array_at(clingo_stats_t c
 //! @param[in] key the key
 //! @param[in] type the type of the new subkey
 //! @param[out] subkey the resulting subkey
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_array_push(clingo_stats_t *stats, uint64_t key,
-                                                                  clingo_stats_type_t type, uint64_t *subkey);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_array_push(clingo_stats_t *stats, uint64_t key, clingo_stats_type_t type,
+                                                       uint64_t *subkey);
 //! @}
 
 //! @name Functions to access maps
@@ -117,9 +115,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_array_push(clingo_stats_t
 //! @param[in] stats the target stats
 //! @param[in] key the key
 //! @param[out] size the resulting number
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_size(clingo_stats_t const *stats, uint64_t key,
-                                                                size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_size(clingo_stats_t const *stats, uint64_t key, size_t *size);
 //! Test if the given map contains a specific subkey.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_map.
@@ -128,9 +125,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_size(clingo_stats_t c
 //! @param[in] name name of the subkey
 //! @param[in] size the size of the name
 //! @param[out] result true if the map has a subkey with the given name
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_has_subkey(clingo_stats_t const *stats, uint64_t key,
-                                                                      char const *name, size_t size, bool *result);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_has_subkey(clingo_stats_t const *stats, uint64_t key, char const *name,
+                                                           size_t size, bool *result);
 //! Get the name associated with the offset-th subkey.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_map.
@@ -138,9 +135,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_has_subkey(clingo_sta
 //! @param[in] key the key
 //! @param[in] offset the offset of the name
 //! @param[out] name the resulting name
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_subkey_name(clingo_stats_t const *stats, uint64_t key,
-                                                                       size_t offset, clingo_string_t *name);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_subkey_name(clingo_stats_t const *stats, uint64_t key, size_t offset,
+                                                            clingo_string_t *name);
 //! Lookup a subkey under the given name.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_map.
@@ -150,9 +147,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_subkey_name(clingo_st
 //! @param[in] name the name to look up the subkey
 //! @param[in] size the size of the name
 //! @param[out] subkey the resulting subkey
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_at(clingo_stats_t const *stats, uint64_t key,
-                                                              char const *name, size_t size, uint64_t *subkey);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_at(clingo_stats_t const *stats, uint64_t key, char const *name,
+                                                   size_t size, uint64_t *subkey);
 //! Add a subkey with the given name.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_map.
@@ -162,10 +159,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_at(clingo_stats_t con
 //! @param[in] size the size of the name
 //! @param[in] type the type of the new subkey
 //! @param[out] subkey the index of the resulting subkey
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_add_subkey(clingo_stats_t *stats, uint64_t key,
-                                                                      char const *name, size_t size,
-                                                                      clingo_stats_type_t type, uint64_t *subkey);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_add_subkey(clingo_stats_t *stats, uint64_t key, char const *name,
+                                                           size_t size, clingo_stats_type_t type, uint64_t *subkey);
 //! @}
 
 //! @name Functions to inspect and change values
@@ -177,25 +173,24 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_map_add_subkey(clingo_sta
 //! @param[in] stats the target stats
 //! @param[in] key the key
 //! @param[out] value the resulting value
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_value_get(clingo_stats_t const *stats, uint64_t key,
-                                                                 double *value);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_value_get(clingo_stats_t const *stats, uint64_t key, double *value);
 //! Set the value of the given entry.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_value.
 //! @param[in] stats the target stats
 //! @param[in] key the key
 //! @param[out] value the new value
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_stats_value_set(clingo_stats_t *stats, uint64_t key, double value);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_value_set(clingo_stats_t *stats, uint64_t key, double value);
 //! @}
 
 //! Get the solver stats.
 //!
 //! @param[in] control the target control object
 //! @param[out] stats the resulting stats object
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_stats(clingo_control_t *control, clingo_stats_t const **stats);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_stats(clingo_control_t *control, clingo_stats_t const **stats);
 
 //! @}
 

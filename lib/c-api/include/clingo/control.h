@@ -99,15 +99,13 @@ typedef struct clingo_part {
 //!     sym = clingo_symbol_create_number(42);
 //!     return symbol_callback(&sym, 1, symbol_callback_data);
 //!   }
-//!   clingo_set_error(lib, clingo_result_runtime, "function not found", 18);
-//!   return clingo_result_runtime;
+//!   return clingo_set_error(lib, clingo_result_runtime, "function not found", 18);
 //! }
 //! ~~~~~~~~~~~~~~~
-typedef clingo_result_t (*clingo_ground_callback_t)(clingo_lib_t *lib, clingo_location_t const *location,
-                                                    char const *name, size_t name_size,
-                                                    clingo_symbol_t const *arguments, size_t arguments_size, void *data,
-                                                    clingo_symbol_callback_t symbol_callback,
-                                                    void *symbol_callback_data);
+typedef bool (*clingo_ground_callback_t)(clingo_lib_t *lib, clingo_location_t const *location, char const *name,
+                                         size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
+                                         void *data, clingo_symbol_callback_t symbol_callback,
+                                         void *symbol_callback_data);
 
 //! A map from constantns to their values.
 typedef struct clingo_const_map clingo_const_map_t;
@@ -118,9 +116,9 @@ typedef struct clingo_const_map clingo_const_map_t;
 //! @param[in] name the name of the constant
 //! @param[out] symbol the value of the constant
 //! @param[out] found whether the constant was found
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_find(clingo_const_map_t const *map, char const *name,
-                                                                size_t name_size, clingo_symbol_t *symbol, bool *found);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_find(clingo_const_map_t const *map, char const *name, size_t name_size,
+                                                     clingo_symbol_t *symbol, bool *found);
 
 //! Get the name and value of the contstant at the given index.
 //!
@@ -128,16 +126,16 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_find(clingo_const_map
 //! @param[in] index the index of the elemnt
 //! @param[out] name the name of the constant
 //! @param[out] symbol the value of the constant
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_at(clingo_const_map_t const *map, size_t index,
-                                                              clingo_string_t *name, clingo_symbol_t *symbol);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_at(clingo_const_map_t const *map, size_t index, clingo_string_t *name,
+                                                   clingo_symbol_t *symbol);
 
 //! Get the size of the constant map.
 //!
 //! @param[in] map the target
 //! @param[out] size the size of the map
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_size(clingo_const_map_t const *map, size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_size(clingo_const_map_t const *map, size_t *size);
 
 //! Create a new control object.
 //!
@@ -153,9 +151,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_const_map_size(clingo_const_map
 //! @param[in] sizes the length of the strings
 //! @param[in] size size of the arguments array
 //! @param[out] control resulting control object
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arguments,
-                                                             size_t size, clingo_control_t **control);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arguments, size_t size,
+                                                  clingo_control_t **control);
 
 //! Increment the reference count of the given control object.
 //!
@@ -176,9 +174,9 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_release(clingo_control_t *control)
 //! @param[in] slot the slot to use
 //! @param[in] data the user data to set.
 //! @param[in] deleter optional deleter to destroy the user data
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_set_user_data(clingo_control_t *control, size_t slot,
-                                                                       void *data, void (*deleter)(void *data));
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_user_data(clingo_control_t *control, size_t slot, void *data,
+                                                            void (*deleter)(void *data));
 
 //! Get the user data of the control object.
 //!
@@ -191,17 +189,17 @@ CLINGO_VISIBILITY_DEFAULT void *clingo_control_get_user_data(clingo_control_t *c
 //!
 //! @param[in] control the target
 //! @param[in] mode the mode
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode);
 
 //! Extend the logic program with a program in a file.
 //!
 //! @param[in] control the target
 //! @param[in] files the files to parse
 //! @param[in] size the number of files to parse
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_files(clingo_control_t *control,
-                                                                     clingo_string_t const *files, size_t size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_files(clingo_control_t *control, clingo_string_t const *files,
+                                                          size_t size);
 
 //! Extend the logic program with the given non-ground logic program in string form.
 //!
@@ -211,9 +209,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_files(clingo_cont
 //! @param[in] control the target
 //! @param[in] program string representation of the program
 //! @param[in] size the size of the program
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_string(clingo_control_t *control, char const *program,
-                                                                      size_t size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_string(clingo_control_t *control, char const *program, size_t size);
 
 //! Ground the selected parts of the current (non-ground) logic program.
 //!
@@ -228,24 +225,22 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_string(clingo_con
 //! @param[in] size size of the parts array
 //! @param[in] ground_callback callback to implement external functions
 //! @param[in] data user data for ground_callback
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts,
-                                                                size_t size, clingo_ground_callback_t ground_callback,
-                                                                void *data);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t size,
+                                                     clingo_ground_callback_t ground_callback, void *data);
 
 //! Execute the default ground and solve flow after parsing.
 //!
 //! @param[in] control the target
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_main(clingo_control_t *control);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_main(clingo_control_t *control);
 
 //! Get the map of constants.
 //!
 //! @param[in] control the target
 //! @param[out] map the map of constants
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_const_map(clingo_control_t *control,
-                                                                   clingo_const_map_t const **map);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_const_map(clingo_control_t *control, clingo_const_map_t const **map);
 
 //! Get the output of the text output.
 //!
@@ -253,8 +248,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_const_map(clingo_contro
 //!
 //! @param[in] control the target
 //! @param[out] result the resulting string
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_buffer(clingo_control_t *control, clingo_string_t *result);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_buffer(clingo_control_t *control, clingo_string_t *result);
 
 //! Get the program parts to ground.
 //!
@@ -262,10 +257,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_buffer(clingo_control_t
 //! @param[out] parts the resulting parts
 //! @param[out] size the resulting parts
 //! @param[out] has_value the resulting parts
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_get_parts(clingo_control_t *control,
-                                                                   clingo_part_t const **parts, size_t *size,
-                                                                   bool *has_value);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_get_parts(clingo_control_t *control, clingo_part_t const **parts,
+                                                        size_t *size, bool *has_value);
 
 //! Set the program parts to ground.
 //!
@@ -273,10 +267,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_get_parts(clingo_contro
 //! @param[in] parts the parts to set
 //! @param[in] size the size of the parts
 //! @param[in] has_value whether parts are available
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_set_parts(clingo_control_t *control,
-                                                                   clingo_part_t const *parts, size_t size,
-                                                                   bool has_value);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_parts(clingo_control_t *control, clingo_part_t const *parts,
+                                                        size_t size, bool has_value);
 
 //! Enumeration of discardable statements.
 enum clingo_discard_type_e {
@@ -290,7 +283,7 @@ typedef unsigned clingo_discard_type_t;
 //!
 //! @param[in] control the target control
 //! @param[in] type what to discard
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_discard(clingo_control_t *ctl, clingo_discard_type_t type);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_discard(clingo_control_t *ctl, clingo_discard_type_t type);
 
 //! Interrupt the running search.
 //!

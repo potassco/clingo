@@ -83,7 +83,7 @@ auto map(clingo_theory_sequence_type_e type) -> Clingo::TheoryTermTupleType {
 
 } // namespace
 
-extern "C" auto clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend) -> clingo_result_t {
+extern "C" auto clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE
         *backend = reinterpret_cast<clingo_backend_t *>(control->slv->backend().release());
@@ -91,7 +91,7 @@ extern "C" auto clingo_control_backend(clingo_control_t *control, clingo_backend
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_backend_close(clingo_backend_t *backend) -> clingo_result_t {
+extern "C" auto clingo_backend_close(clingo_backend_t *backend) -> bool {
     CLINGO_TRY {
         if (backend != nullptr) {
             delete cpp_cast(backend);
@@ -101,7 +101,7 @@ extern "C" auto clingo_backend_close(clingo_backend_t *backend) -> clingo_result
 }
 
 extern "C" auto clingo_backend_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_size,
-                                    clingo_literal_t const *body, size_t body_size) -> clingo_result_t {
+                                    clingo_literal_t const *body, size_t body_size) -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (head == nullptr && head_size > 0) || (body == nullptr && body_size > 0)) {
             return fail_arguments();
@@ -114,7 +114,7 @@ extern "C" auto clingo_backend_rule(clingo_backend_t *backend, bool choice, clin
 
 extern "C" auto clingo_backend_weight_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head,
                                            size_t head_size, clingo_weight_t lower_bound,
-                                           clingo_weighted_literal_t const *body, size_t body_size) -> clingo_result_t {
+                                           clingo_weighted_literal_t const *body, size_t body_size) -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (head == nullptr && head_size > 0) || (body == nullptr && body_size > 0)) {
             return fail_arguments();
@@ -126,7 +126,7 @@ extern "C" auto clingo_backend_weight_rule(clingo_backend_t *backend, bool choic
 }
 
 extern "C" auto clingo_backend_minimize(clingo_backend_t *backend, clingo_weight_t priority,
-                                        clingo_weighted_literal_t const *literals, size_t size) -> clingo_result_t {
+                                        clingo_weighted_literal_t const *literals, size_t size) -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (literals == nullptr && size > 0)) {
             return fail_arguments();
@@ -136,8 +136,7 @@ extern "C" auto clingo_backend_minimize(clingo_backend_t *backend, clingo_weight
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_backend_project(clingo_backend_t *backend, clingo_atom_t const *atoms, size_t size)
-    -> clingo_result_t {
+extern "C" auto clingo_backend_project(clingo_backend_t *backend, clingo_atom_t const *atoms, size_t size) -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (atoms == nullptr && size > 0)) {
             return fail_arguments();
@@ -148,7 +147,7 @@ extern "C" auto clingo_backend_project(clingo_backend_t *backend, clingo_atom_t 
 }
 
 extern "C" auto clingo_backend_external(clingo_backend_t *backend, clingo_atom_t atom, clingo_external_type_t type)
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         if (backend == nullptr) {
             return fail_arguments();
@@ -159,7 +158,7 @@ extern "C" auto clingo_backend_external(clingo_backend_t *backend, clingo_atom_t
 }
 
 extern "C" auto clingo_backend_assume(clingo_backend_t *backend, clingo_literal_t const *literals, size_t size)
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (literals == nullptr && size > 0)) {
             return fail_arguments();
@@ -171,7 +170,7 @@ extern "C" auto clingo_backend_assume(clingo_backend_t *backend, clingo_literal_
 
 extern "C" auto clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom, clingo_heuristic_type_t type,
                                          int bias, unsigned priority, clingo_literal_t const *condition, size_t size)
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (condition == nullptr && size > 0)) {
             return fail_arguments();
@@ -183,7 +182,7 @@ extern "C" auto clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_
 }
 
 extern "C" auto clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v,
-                                         clingo_literal_t const *condition, size_t size) -> clingo_result_t {
+                                         clingo_literal_t const *condition, size_t size) -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (condition == nullptr && size > 0)) {
             return fail_arguments();
@@ -194,7 +193,7 @@ extern "C" auto clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, 
 }
 
 extern "C" auto clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t const *symbol, clingo_atom_t *atom)
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         if (backend == nullptr || atom == nullptr) {
             return fail_arguments();
@@ -204,8 +203,7 @@ extern "C" auto clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_backend_theory_term_number(clingo_backend_t *backend, int number, clingo_id_t *term_id)
-    -> clingo_result_t {
+extern "C" auto clingo_backend_theory_term_number(clingo_backend_t *backend, int number, clingo_id_t *term_id) -> bool {
     CLINGO_TRY {
         if (backend == nullptr || term_id == nullptr) {
             return fail_arguments();
@@ -216,7 +214,7 @@ extern "C" auto clingo_backend_theory_term_number(clingo_backend_t *backend, int
 }
 
 extern "C" auto clingo_backend_theory_term_string(clingo_backend_t *backend, char const *string, size_t size,
-                                                  clingo_id_t *term_id) -> clingo_result_t {
+                                                  clingo_id_t *term_id) -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (string == nullptr && size > 0) || term_id == nullptr) {
             return fail_arguments();
@@ -227,7 +225,7 @@ extern "C" auto clingo_backend_theory_term_string(clingo_backend_t *backend, cha
 }
 
 extern "C" auto clingo_backend_theory_term_symbol(clingo_backend_t *backend, clingo_symbol_t symbol,
-                                                  clingo_id_t *term_id) -> clingo_result_t {
+                                                  clingo_id_t *term_id) -> bool {
     CLINGO_TRY {
         if (backend == nullptr || term_id == nullptr) {
             return fail_arguments();
@@ -239,7 +237,7 @@ extern "C" auto clingo_backend_theory_term_symbol(clingo_backend_t *backend, cli
 
 extern "C" auto clingo_backend_theory_term_sequence(clingo_backend_t *backend, clingo_theory_sequence_type_t type,
                                                     clingo_id_t const *arguments, size_t size, clingo_id_t *term_id)
-    -> clingo_result_t {
+    -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (arguments == nullptr && size == 0) || term_id == nullptr) {
             return fail_arguments();
@@ -252,7 +250,7 @@ extern "C" auto clingo_backend_theory_term_sequence(clingo_backend_t *backend, c
 
 extern "C" auto clingo_backend_theory_term_function(clingo_backend_t *backend, char const *name, size_t name_size,
                                                     clingo_id_t const *arguments, size_t arguments_size,
-                                                    clingo_id_t *term_id) -> clingo_result_t {
+                                                    clingo_id_t *term_id) -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (name == nullptr && name_size > 0) || arguments == nullptr || arguments_size == 0 ||
             term_id == nullptr) {
@@ -265,7 +263,7 @@ extern "C" auto clingo_backend_theory_term_function(clingo_backend_t *backend, c
 
 extern "C" auto clingo_backend_theory_element(clingo_backend_t *backend, clingo_id_t const *tuple, size_t tuple_size,
                                               clingo_literal_t const *condition, size_t condition_size,
-                                              clingo_id_t *element_id) -> clingo_result_t {
+                                              clingo_id_t *element_id) -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (tuple == nullptr && tuple_size > 0) ||
             (condition == nullptr && condition_size > 0) || element_id == nullptr) {
@@ -278,7 +276,7 @@ extern "C" auto clingo_backend_theory_element(clingo_backend_t *backend, clingo_
 
 extern "C" auto clingo_backend_theory_atom(clingo_backend_t *backend, clingo_symbol_t name, clingo_id_t const *elements,
                                            size_t size, clingo_string_t *operator_name, clingo_id_t right_hand_side_id,
-                                           clingo_atom_t const *atom_in, clingo_atom_t *atom_out) -> clingo_result_t {
+                                           clingo_atom_t const *atom_in, clingo_atom_t *atom_out) -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (elements == nullptr && size > 0)) {
             return fail_arguments();

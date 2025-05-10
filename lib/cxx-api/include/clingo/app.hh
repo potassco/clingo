@@ -20,8 +20,7 @@ class Options {
     void add(std::string_view group, std::string_view option, std::string_view description, Parser parser, bool multi,
              std::optional<std::string_view> argument) {
         parsers_->emplace_front(std::move(parser));
-        static constexpr auto cparser = [](char const *value, size_t size, void *data,
-                                           bool *result) -> clingo_result_t {
+        static constexpr auto cparser = [](char const *value, size_t size, void *data, bool *result) -> bool {
             auto &parser = *static_cast<Parser *>(data);
             CLINGO_TRY {
                 *result = parser({value, size});
@@ -88,7 +87,7 @@ static constexpr clingo_application_t c_app = {
         version->data = str.data();
         version->size = str.size();
     },
-    [](clingo_control_t *ctl, clingo_string_t const *files, size_t size, void *data) -> clingo_result_t {
+    [](clingo_control_t *ctl, clingo_string_t const *files, size_t size, void *data) -> bool {
         auto &app_data = *static_cast<AppData *>(data);
         CLINGO_TRY {
             auto cpp_ctl = Control{ctl, true};
@@ -98,8 +97,7 @@ static constexpr clingo_application_t c_app = {
         }
         CLINGO_CATCH;
     },
-    [](clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data,
-       void *data) -> clingo_result_t {
+    [](clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data, void *data) -> bool {
         auto &app_data = *static_cast<AppData *>(data);
         CLINGO_TRY {
             app_data.app->print_model(ConstModel{model},
@@ -107,14 +105,14 @@ static constexpr clingo_application_t c_app = {
         }
         CLINGO_CATCH;
     },
-    [](clingo_options_t *options, void *data) -> clingo_result_t {
+    [](clingo_options_t *options, void *data) -> bool {
         auto &app_data = *static_cast<AppData *>(data);
         CLINGO_TRY {
             app_data.app->register_options(Options{options, app_data.parsers});
         }
         CLINGO_CATCH;
     },
-    [](void *data) -> clingo_result_t {
+    [](void *data) -> bool {
         auto &app = *static_cast<App *>(data);
         try {
             app.validate_options();
@@ -126,7 +124,7 @@ static constexpr clingo_application_t c_app = {
         } catch (...) {
             return store_error();
         }
-        return clingo_result_success;
+        return true;
     }};
 
 } // namespace Detail

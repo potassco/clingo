@@ -53,7 +53,7 @@ class Error {
         }
     }
 
-    auto store() noexcept -> clingo_result_t {
+    auto store() noexcept -> bool {
         try {
             throw;
         } catch (std::bad_alloc const &e) {
@@ -64,8 +64,6 @@ class Error {
             return set_(clingo_result_invalid, e.what());
         } catch (std::logic_error const &e) {
             return set_(clingo_result_logic, e.what());
-        } catch (ClingoError const &e) {
-            return set_(e.code(), e.what());
         } catch (std::exception const &e) {
             return set_(clingo_result_runtime, e.what());
         } catch (...) {
@@ -76,14 +74,14 @@ class Error {
   private:
     Error() = default;
 
-    auto set_(clingo_result_t code, char const *message) noexcept -> clingo_result_t {
+    auto set_(clingo_result_t code, char const *message) noexcept -> bool {
         code_ = code;
         try {
             message_.assign(message);
         } catch (std::exception &ptr) {
             message_.clear();
         }
-        return code;
+        return false;
     }
 
     clingo_result_t code_ = clingo_result_success;
@@ -92,35 +90,40 @@ class Error {
 
 } // namespace
 
-extern "C" void clingo_set_error(clingo_result_t code, char const *message, size_t size) {
+extern "C" auto clingo_set_error(clingo_result_t code, char const *message, size_t size) -> bool {
     Error::instance().set(code, message, size);
+    return false;
 }
 
 extern "C" void clingo_get_error(clingo_result_t *code, clingo_string_t *message) {
     Error::instance().get(code, message);
 }
 
-void handle_error_no_code(clingo_result_t code) {
-    if (code != clingo_result_success) {
+extern "C" void clingo_clear_error(void) {
+    Error::instance().clear();
+}
+
+void handle_error_no_code(bool res) {
+    if (!res) {
         raise_error();
     } else if (Error::instance().active()) {
         Error::instance().raise();
     }
 }
 
-auto fail_arguments() -> clingo_result_t {
+auto fail_arguments() -> bool {
     return fail_with(clingo_result_invalid, "invalid arguments");
 }
 
-auto fail_with(clingo_result_t code, std::string_view msg) -> clingo_result_t {
+auto fail_with(clingo_result_t code, std::string_view msg) -> bool {
     clingo_set_error(code, msg.data(), msg.size());
-    return code;
+    return false;
 }
 
 void raise_error() {
     Error::instance().raise();
 }
 
-auto store_error() -> clingo_result_t {
+auto store_error() -> bool {
     return Error::instance().store();
 }

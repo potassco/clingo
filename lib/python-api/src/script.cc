@@ -62,7 +62,7 @@ class MainScript {
 
     static auto cast(void *data) -> MainScript * { return static_cast<MainScript *>(data); }
 
-    static auto c_execute(char const *code, void *data) -> clingo_result_t {
+    static auto c_execute(char const *code, void *data) -> bool {
         auto *self = cast(data);
         CLINGO_TRY {
             self->init_();
@@ -73,8 +73,7 @@ class MainScript {
 
     static auto c_call(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
                        clingo_symbol_t const *arguments, size_t arguments_size,
-                       clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data)
-        -> clingo_result_t {
+                       clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data) -> bool {
         auto *self = cast(data);
         CLINGO_TRY {
             if (self->py_) {
@@ -100,8 +99,7 @@ class MainScript {
         CLINGO_CATCH;
     }
 
-    static auto c_callable(char const *name, [[maybe_unused]] size_t arguments, bool *result, void *data)
-        -> clingo_result_t {
+    static auto c_callable(char const *name, [[maybe_unused]] size_t arguments, bool *result, void *data) -> bool {
         // NOTE: python cannot check the number of arguments
         auto *self = cast(data);
         CLINGO_TRY {
@@ -115,7 +113,7 @@ class MainScript {
         CLINGO_CATCH;
     }
 
-    static auto main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
+    static auto main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> bool {
         auto *self = cast(data);
         CLINGO_TRY {
             if (self->py_) {
@@ -124,7 +122,6 @@ class MainScript {
             }
         }
         CLINGO_CATCH;
-        return clingo_result_success;
     }
 
     static auto c_name([[maybe_unused]] void *data) -> char const * { return "python"; }
@@ -165,7 +162,7 @@ class Script {
 
     static auto get_self(void *data) -> Script & { return *static_cast<Script *>(data); }
 
-    static auto c_execute(char const *code, void *data) -> clingo_result_t {
+    static auto c_execute(char const *code, void *data) -> bool {
         CLINGO_TRY {
             auto &self = get_self(data);
             self.execute(code);
@@ -179,8 +176,7 @@ class Script {
 
     static auto c_call(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
                        clingo_symbol_t const *arguments, size_t arguments_size,
-                       clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data)
-        -> clingo_result_t {
+                       clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data) -> bool {
         auto &self = get_self(data);
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
@@ -208,7 +204,7 @@ class Script {
         PYBIND11_OVERRIDE_PURE(bool, Script, callable, name, arguments);
     }
 
-    static auto c_callable(char const *name, size_t arguments, bool *result, void *data) -> clingo_result_t {
+    static auto c_callable(char const *name, size_t arguments, bool *result, void *data) -> bool {
         CLINGO_TRY {
             auto gil = py::gil_scoped_acquire{};
             auto &self = get_self(data);
@@ -219,7 +215,7 @@ class Script {
 
     void main(const PyLibrary &lib, const PyControl &ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, lib, ctl); }
 
-    static auto c_main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
+    static auto c_main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> bool {
         CLINGO_TRY {
             auto gil = py::gil_scoped_acquire{};
             auto &self = get_self(data);
@@ -284,7 +280,7 @@ void reg_python(Annotation<Library> const &lib) {
 
 } // namespace
 
-auto register_python(clingo_lib_t *lib) -> clingo_result_t {
+auto register_python(clingo_lib_t *lib) -> bool {
     using Script = Clingo::Python::MainScript;
     auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::main,
                                     Script::c_name,    Script::c_version, Script::c_free};

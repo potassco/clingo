@@ -94,7 +94,7 @@ class SolveHandle {
     void close();
 
     auto handle() -> clingo_solve_handle_t *& { return hnd_; }
-    static auto c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> clingo_result_t;
+    static auto c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> bool;
 
   private:
     clingo_solve_handle_t *hnd_ = nullptr;

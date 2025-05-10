@@ -87,8 +87,7 @@ void Control::parse_files(std::span<std::string const> files) {
 
 auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
                    char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
-                   void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data)
-    -> clingo_result_t {
+                   void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
     auto &handle = *static_cast<py::handle *>(data);
     CLINGO_TRY {
         auto syms = [&] {
@@ -126,8 +125,7 @@ void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
                                        !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
 }
 
-auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon)
-    -> clingo_result_t {
+auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> bool {
     auto *eh = static_cast<SolveHandle *>(data);
     CLINGO_TRY {
         if (eh->mdl_ && type == clingo_solve_event_type_model) {

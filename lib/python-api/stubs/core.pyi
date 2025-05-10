@@ -16,7 +16,6 @@ from __future__ import annotations
 import typing
 
 __all__ = [
-    "ClingoError",
     "Library",
     "Location",
     "LogLevel",
@@ -134,16 +133,6 @@ class MessageType:
     def name(self) -> str: ...
     @property
     def value(self) -> int: ...
-
-class ClingoError(Exception):
-    """
-    Exception class for internal Clingo errors.
-
-    This exception is typically used to propagate internal errors. It should
-    be forwarded to the outer scope, where it serves as an indicator that an
-    error has been logged. The string representation contains an internal
-    error code that is *not* meant to be displayed to the user.
-    """
 
 class Library:
     """

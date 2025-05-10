@@ -154,7 +154,7 @@ class ConstModel {
     }
 
   private:
-    static auto sym_cb_(clingo_symbol_t const *symbols, size_t size, void *data) -> clingo_result_t {
+    static auto sym_cb_(clingo_symbol_t const *symbols, size_t size, void *data) -> bool {
         auto *res = static_cast<SymbolVector *>(data);
         CLINGO_TRY {
             // NOLINTNEXTLINE
@@ -308,8 +308,7 @@ class SolveHandle {
         clingo_solve_handle_t *hnd = nullptr;
     };
 
-    static auto c_event_handler_(clingo_solve_event_type_t type, void *event, void *data, bool *goon)
-        -> clingo_result_t {
+    static auto c_event_handler_(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> bool {
         auto *hnd = static_cast<Data *>(data);
         assert(hnd != nullptr && hnd->seh);
         CLINGO_TRY {

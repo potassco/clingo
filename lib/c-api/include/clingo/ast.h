@@ -170,20 +170,15 @@ typedef struct clingo_ast clingo_ast_t;
 //! @param[in] lib the library object to store symbols
 //! @param[in] type the type of AST to construct
 //! @param[out] ast the resulting AST
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! - ::clingo_result_runtime if one of the arguments is incompatible with the type
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type,
-                                                               clingo_ast_t **ast, ...);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...);
 
 //! Copy the given AST node.
 //!
 //! @param[in] ast the AST to copy
 //! @param[out] copy the resulting AST
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! - ::clingo_result_runtime for invalid arguments
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy);
 
 //! Enumeration of expressions that can be parsed.
 enum clingo_ast_parse_type_e {
@@ -206,12 +201,9 @@ typedef int clingo_ast_parse_type_t;
 //! @param[in] string the expression to parse
 //! @param[in] size the size of the string
 //! @param[in] ast the resulting ast
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! - ::clingo_result_runtime for invalid arguments or expressions
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_type_t type,
-                                                                      char const *string, size_t size,
-                                                                      clingo_ast_t **ast);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_type_t type,
+                                                           char const *string, size_t size, clingo_ast_t **ast);
 
 //! Free an AST node.
 //!
@@ -235,9 +227,8 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_array_free(clingo_ast_t **ast, size_t 
 //!
 //! @param[in] ast the target AST
 //! @param[in] builder the string builder
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_runtime
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_to_string(clingo_ast_t *ast, clingo_string_builder_t *builder);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string(clingo_ast_t *ast, clingo_string_builder_t *builder);
 
 //! @}
 
@@ -273,52 +264,44 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_ast_hash(clingo_ast_t *ast);
 //!
 //! @param[in] ast the target AST
 //! @param[out] type the resulting type
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_runtime
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type);
 
 //! Get the value of numeric attribute.
 //!
 //! @param[in] ast the target AST
 //! @param[in] attribute the target attribute
 //! @param[out] value the resulting value
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_runtime
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_number(clingo_ast_t *ast,
-                                                                          clingo_ast_attribute_t attribute, int *value);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                               int *value);
 
 //! Get the value of a symbol attribute.
 //!
 //! @param[in] ast the target AST
 //! @param[in] attribute the target attribute
 //! @param[out] value the resulting value
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_runtime
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_symbol(clingo_ast_t *ast,
-                                                                          clingo_ast_attribute_t attribute,
-                                                                          clingo_symbol_t *value);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                               clingo_symbol_t *value);
 
 //! Get the value of a location attribute.
 //!
 //! @param[in] ast the target AST
 //! @param[in] attribute the target attribute
 //! @param[out] value the resulting value
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_runtime
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_location(clingo_ast_t *ast,
-                                                                            clingo_ast_attribute_t attribute,
-                                                                            clingo_location_t const **value);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                                 clingo_location_t const **value);
 
 //! Get the value of a string attribute.
 //!
 //! @param[in] ast the target AST
 //! @param[in] attribute the target attribute
 //! @param[out] value the resulting value
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_runtime
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string(clingo_ast_t *ast,
-                                                                          clingo_ast_attribute_t attribute,
-                                                                          clingo_string_t *value);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                               clingo_string_t *value);
 
 //! Get the value of a string array attribute.
 //!
@@ -328,11 +311,10 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string(clingo
 //! @param[in] attribute the target attribute
 //! @param[out] value the resulting value
 //! @param[out] size the size of the array
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string_array(clingo_ast_t *ast,
-                                                                                clingo_ast_attribute_t attribute,
-                                                                                clingo_string_t const **value,
-                                                                                size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string_array(clingo_ast_t *ast,
+                                                                     clingo_ast_attribute_t attribute,
+                                                                     clingo_string_t const **value, size_t *size);
 
 //! Get the value of a symbol array attribute.
 //!
@@ -342,11 +324,10 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string_array(
 //! @param[in] attribute the target attribute
 //! @param[out] value the resulting value
 //! @param[out] size the size of the array
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_symbol_array(clingo_ast_t *ast,
-                                                                                clingo_ast_attribute_t attribute,
-                                                                                clingo_symbol_t const **value,
-                                                                                size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_symbol_array(clingo_ast_t *ast,
+                                                                     clingo_ast_attribute_t attribute,
+                                                                     clingo_symbol_t const **value, size_t *size);
 
 //! Get the value of an ast attribute.
 //!
@@ -357,11 +338,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_symbol_array(
 //! @param[in] ast the target AST
 //! @param[in] attribute the target attribute
 //! @param[out] value the resulting value
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_runtime
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_ast(clingo_ast_t *ast,
-                                                                       clingo_ast_attribute_t attribute,
-                                                                       clingo_ast_t **value);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                            clingo_ast_t **value);
 
 //! Get the value of an ast array attribute.
 //!
@@ -371,11 +350,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_ast(clingo_as
 //! @param[in] attribute the target attribute
 //! @param[out] value the resulting value
 //! @param[out] size the size of the array
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_runtime
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_ast_array(clingo_ast_t *ast,
-                                                                             clingo_ast_attribute_t attribute,
-                                                                             clingo_ast_t ***value, size_t *size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                                  clingo_ast_t ***value, size_t *size);
 
 //! Get a description of the AST structure in form of a YAML document.
 //!
@@ -396,9 +373,9 @@ typedef struct clingo_ast_scanner clingo_ast_scanner_t;
 //! @param[in] program the string to read from
 //! @param[in] size the size of the string
 //! @param[out] scanner the resulting scanner
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_string(clingo_lib_t *lib, char const *program, size_t size,
-                                                                 clingo_ast_scanner_t **scanner);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_string(clingo_lib_t *lib, char const *program, size_t size,
+                                                      clingo_ast_scanner_t **scanner);
 
 //! Creater a scanner reading a program from a string.
 //!
@@ -406,16 +383,16 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_string(clingo_lib_t *l
 //! @param[in] files the file paths to read from
 //! @param[in] size the number of file paths
 //! @param[out] scanner the resulting scanner
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_files(clingo_lib_t *lib, clingo_string_t const *files,
-                                                                size_t size, clingo_ast_scanner_t **scanner);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_files(clingo_lib_t *lib, clingo_string_t const *files, size_t size,
+                                                     clingo_ast_scanner_t **scanner);
 
 //! Parse the next statement.
 //!
 //! @param[in] scanner the scanner to use for parsing
 //! @param[out] ast the resulting ast
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast);
 
 //! Check if there was a parse error.
 //!
@@ -445,9 +422,9 @@ typedef struct clingo_ast_rewrite_context clingo_ast_rewrite_context_t;
 //!
 //! @param[in] lib the library object to store symbols
 //! @param[out] context the resulting context object
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite_context_create(clingo_lib_t *lib,
-                                                                            clingo_ast_rewrite_context_t **context);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_create(clingo_lib_t *lib,
+                                                                 clingo_ast_rewrite_context_t **context);
 
 //! Free the given rewrite context.
 //!
@@ -461,9 +438,9 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_free(clingo_ast_rewrit
 //! @param[in] context the context object
 //! @param[in] param the parameter to protect
 //! @param[in] size the size of the string
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context,
-                                                                               char const *param, size_t size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context,
+                                                                    char const *param, size_t size);
 
 //! Remove all previously added parameters.
 //!
@@ -476,9 +453,9 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_clear_params(clingo_as
 //!
 //! @param[in] context the context object
 //! @param[in] theory the theory definition
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context_t *context,
-                                                                                clingo_ast_t const *theory);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context_t *context,
+                                                                     clingo_ast_t const *theory);
 
 //! Configure whether anonymous variables in negative literals are projected.
 //!
@@ -521,10 +498,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_ast_rewrite_context_get_lib(cling
 //! @param[in] statement the statement object
 //! @param[out] result the resulting rewritten statements
 //! @param[out] result_size the number of resulting statements
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite(clingo_ast_rewrite_context_t *context,
-                                                             clingo_ast_t *statement, clingo_ast_t ***result,
-                                                             size_t *result_size);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo_ast_t *statement,
+                                                  clingo_ast_t ***result, size_t *result_size);
 
 //! Object to store
 typedef struct clingo_program clingo_program_t;
@@ -536,8 +512,8 @@ typedef struct clingo_program clingo_program_t;
 //!
 //! @param[in] lib the library object
 //! @param[out] program the program builder object
-//! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_program_new(clingo_lib_t *lib, clingo_program_t **program);
+//! @return wether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_program_new(clingo_lib_t *lib, clingo_program_t **program);
 //! Destroy the given program object.
 //!
 //! @param[in] program the program object
@@ -546,10 +522,8 @@ CLINGO_VISIBILITY_DEFAULT void clingo_program_free(clingo_program_t *program);
 //!
 //! @param[in] program the target program
 //! @param[in] statement the statement to add
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_runtime for statements of invalid form or AST nodes that do not represent statements
-//! - ::clingo_result_bad_alloc
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_program_add(clingo_program_t *program, clingo_ast_t *statement);
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_program_add(clingo_program_t *program, clingo_ast_t *statement);
 
 //! @}
 
@@ -560,11 +534,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_program_add(clingo_program_t *p
 //!
 //! @param[in] control the target
 //! @param[in] program the program to add
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! - ::clingo_result_runtime if rewriting fails
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_join(clingo_control_t *control,
-                                                              clingo_program_t const *program);
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_join(clingo_control_t *control, clingo_program_t const *program);
 
 //! @}
 

@@ -3,7 +3,6 @@
 #include "iterable.hh"
 #include "util.hh" // IWYU pragma: keep
 
-#include <charconv>
 #include <clingo/core.h>
 
 #include <pybind11/pybind11.h>
@@ -17,7 +16,7 @@
     catch (...) {                                                                                                      \
         return store_error();                                                                                          \
     }                                                                                                                  \
-    return clingo_result_success
+    return true
 
 // NOLINTEND(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
 
@@ -26,21 +25,21 @@ namespace Clingo::Python {
 namespace py = pybind11;
 
 //! Store the active exception as a clingo error.
-auto store_error() -> clingo_result_t;
+auto store_error() -> bool;
 //! Raise the current clingo error as an exception.
 void raise_error();
 
 //! This function should be used to handle failing C API calls.
 //!
 //! It rethrows the current error as a python error.
-inline void handle_error(clingo_result_t code) {
-    if (code != clingo_result_success) {
+inline void handle_error(bool res) {
+    if (!res) {
         raise_error();
     }
 }
 
 // Similar to handle_error but also reraises if the code is succsess.
-void handle_error_no_code(clingo_result_t code);
+void handle_error_no_code(bool res);
 
 using Logger = std::function<void(clingo_message_e, std::string_view)>;
 
@@ -76,23 +75,6 @@ class Library {
 };
 
 static constexpr auto code_base = 36;
-
-class PyClingoError : public std::exception {
-  public:
-    PyClingoError(clingo_result_t code) {
-        std::to_chars(msg_.begin(), msg_.end(), static_cast<unsigned char>(code), code_base);
-    }
-
-    [[nodiscard]] auto what() const noexcept -> char const * override { return msg_.data(); }
-    [[nodiscard]] auto code() const noexcept -> clingo_result_t {
-        unsigned char res = 0;
-        std::from_chars(msg_.begin(), msg_.end(), res, code_base);
-        return res != 0 ? res : static_cast<unsigned char>(clingo_result_runtime);
-    }
-
-  private:
-    std::array<char, 3> msg_{};
-};
 
 class StringBuilder {
   public:

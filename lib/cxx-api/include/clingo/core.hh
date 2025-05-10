@@ -57,36 +57,30 @@ namespace Detail {
     catch (...) {                                                                                                      \
         return Clingo::Detail::store_error();                                                                          \
     }                                                                                                                  \
-    return clingo_result_success
+    return true
 
 //! Store the active exception as a clingo error.
-inline auto store_error() -> clingo_result_t {
+inline auto store_error() -> bool {
     try {
         throw;
     } catch (std::out_of_range const &e) {
         auto msg = std::string_view{e.what()};
-        clingo_set_error(clingo_result_range, msg.data(), msg.size());
-        return clingo_result_range;
+        return clingo_set_error(clingo_result_range, msg.data(), msg.size());
     } catch (std::invalid_argument const &e) {
         auto msg = std::string_view{e.what()};
-        clingo_set_error(clingo_result_invalid, msg.data(), msg.size());
-        return clingo_result_invalid;
+        return clingo_set_error(clingo_result_invalid, msg.data(), msg.size());
     } catch (std::bad_alloc const &e) {
         auto msg = std::string_view{e.what()};
-        clingo_set_error(clingo_result_bad_alloc, msg.data(), msg.size());
-        return clingo_result_bad_alloc;
+        return clingo_set_error(clingo_result_bad_alloc, msg.data(), msg.size());
     } catch (std::logic_error const &e) {
         auto msg = std::string_view{e.what()};
-        clingo_set_error(clingo_result_logic, msg.data(), msg.size());
-        return clingo_result_logic;
+        return clingo_set_error(clingo_result_logic, msg.data(), msg.size());
     } catch (std::exception const &e) {
         auto msg = std::string_view{e.what()};
-        clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
-        return clingo_result_runtime;
+        return clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
     } catch (...) {
         auto msg = std::string_view{"no message"};
-        clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
-        return clingo_result_runtime;
+        return clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
     }
 }
 
@@ -117,15 +111,15 @@ inline void raise_error() {
 //! This function should be used to handle failing C API calls.
 //!
 //! It rethrows the current error as a python error.
-inline void handle_error(clingo_result_t code) {
-    if (code != clingo_result_success) {
+inline void handle_error(bool res) {
+    if (!res) {
         raise_error();
     }
 }
 
 // Similar to handle_error but also reraises if the code is succsess.
-inline void handle_error_no_code(clingo_result_t code) {
-    if (code != clingo_result_success) {
+inline void handle_error_no_code(bool res) {
+    if (!res) {
         raise_error();
     }
     clingo_string_t str;

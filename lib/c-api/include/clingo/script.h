@@ -20,7 +20,7 @@ typedef struct clingo_script {
     //! @param[in] code the code to evaluate
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    clingo_result_t (*execute)(char const *code, void *data);
+    bool (*execute)(char const *code, void *data);
     //! Call the function with the given name and arguments.
     //! @param[in] lib library object
     //! @param[in] name the name of the function
@@ -30,21 +30,21 @@ typedef struct clingo_script {
     //! @param[in] symbol_callback_data user data for the symbol callback
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    clingo_result_t (*call)(clingo_lib_t *lib, clingo_location_t const *loc, char const *name,
-                            clingo_symbol_t const *arguments, size_t arguments_size,
-                            clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data);
+    bool (*call)(clingo_lib_t *lib, clingo_location_t const *loc, char const *name, clingo_symbol_t const *arguments,
+                 size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
+                 void *data);
     //! Check if the given function is callable.
     //! @param[in] name the name of the function
     //! @param[in] arguments the number of arguments
     //! @param[out] result whether the function is callable
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    clingo_result_t (*callable)(char const *name, size_t arguments, bool *result, void *data);
+    bool (*callable)(char const *name, size_t arguments, bool *result, void *data);
     //! Run the main function.
     //! @param[in] control the control object to pass to the main function
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    clingo_result_t (*main)(clingo_lib_t *lib, clingo_control_t *control, void *data);
+    bool (*main)(clingo_lib_t *lib, clingo_control_t *control, void *data);
     //! Get the name of the script.
     //! @return the name of the script.
     char const *(*name)(void *data);
@@ -62,8 +62,7 @@ typedef struct clingo_script {
 //! @param[in] script struct with functions implementing the language
 //! @param[in] data user data to pass to callbacks in the script
 //! @return the result code
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script,
-                                                                 void *data);
+CLINGO_VISIBILITY_DEFAULT bool clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script, void *data);
 
 //! Get the version of the registered scripting language.
 //!

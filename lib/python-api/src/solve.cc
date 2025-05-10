@@ -11,7 +11,7 @@ namespace Clingo::Python {
 
 namespace {
 
-auto symbol_callback(clingo_symbol_t const *symbols, size_t size, void *data) -> clingo_result_t {
+auto symbol_callback(clingo_symbol_t const *symbols, size_t size, void *data) -> bool {
     auto *res = static_cast<SymbolVec *>(data);
     CLINGO_TRY {
         // NOLINTNEXTLINE

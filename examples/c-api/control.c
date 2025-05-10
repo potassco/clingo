@@ -14,29 +14,29 @@ void free_lib(clingo_lib_t **lib) {
 void free_ctl(clingo_control_t **ctl) {
     clingo_control_release(*ctl);
 }
-void handle_error(clingo_result_t ret) {
-    if (ret != clingo_result_success) {
+void handle_error(bool ret) {
+    if (!ret) {
         exit(1);
     }
 }
 
-clingo_result_t print_symbols(clingo_symbol_t const *symbols, size_t size, void *data) {
+bool print_symbols(clingo_symbol_t const *symbols, size_t size, void *data) {
     (void)data;
     clingo_string_t str;
-    clingo_result_t res = clingo_result_success;
+    bool res = true;
     clingo_string_builder_t *bld = NULL;
     res = clingo_string_builder_new(&bld);
-    if (res != clingo_result_success) {
+    if (!res) {
         goto out;
     }
     for (size_t i = 0; i != size; ++i) {
         clingo_string_builder_clear(bld);
         res = clingo_symbol_to_string(symbols[i], bld);
-        if (res != clingo_result_success) {
+        if (!res) {
             goto out;
         }
         res = clingo_string_builder_string(bld, &str);
-        if (res != clingo_result_success) {
+        if (!res) {
             goto out;
         }
         printf(" %.*s", (int)str.size, str.data);
@@ -47,19 +47,19 @@ out:
     return res;
 }
 
-clingo_result_t on_model(clingo_solve_event_type_t type, void *event, void *data, bool *goon) {
+bool on_model(clingo_solve_event_type_t type, void *event, void *data, bool *goon) {
     (void)data;
     if (type == clingo_solve_event_type_model) {
         printf("Answer:");
         clingo_model_t *mdl = (clingo_model_t *)(event);
-        clingo_result_t res = clingo_model_symbols(mdl, clingo_show_type_shown, print_symbols, NULL);
-        if (res != clingo_result_success) {
+        bool res = clingo_model_symbols(mdl, clingo_show_type_shown, print_symbols, NULL);
+        if (!res) {
             return res;
         }
         printf("\n");
     }
     *goon = true;
-    return clingo_result_success;
+    return true;
 }
 
 int main(int argc, char *argv[]) {

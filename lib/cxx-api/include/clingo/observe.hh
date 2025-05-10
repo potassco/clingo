@@ -31,73 +31,72 @@ class Observer {
 
     void observe(clingo_control_t *ctl, bool preprocess) {
         static constexpr auto cobs = clingo_observer_t{
-            [](bool incremental, void *data) -> clingo_result_t {
+            [](bool incremental, void *data) -> bool {
                 CLINGO_TRY {
                     static_cast<Observer *>(data)->init_program(incremental);
                 }
                 CLINGO_CATCH;
             },
-            [](void *data) -> clingo_result_t {
+            [](void *data) -> bool {
                 CLINGO_TRY {
                     static_cast<Observer *>(data)->begin_step();
                 }
                 CLINGO_CATCH;
             },
-            [](clingo_base_t const *base, void *data) -> clingo_result_t {
+            [](clingo_base_t const *base, void *data) -> bool {
                 CLINGO_TRY {
                     static_cast<Observer *>(data)->end_step(Base{base});
                 }
                 CLINGO_CATCH;
             },
             [](bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size,
-               void *data) -> clingo_result_t {
+               void *data) -> bool {
                 CLINGO_TRY {
                     static_cast<Observer *>(data)->rule(std::span{head, head_size}, std::span{body, body_size}, choice);
                 }
                 CLINGO_CATCH;
             },
             [](bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower,
-               clingo_weighted_literal_t const *body, size_t body_size, void *data) -> clingo_result_t {
+               clingo_weighted_literal_t const *body, size_t body_size, void *data) -> bool {
                 CLINGO_TRY {
                     static_cast<Observer *>(data)->weight_rule(std::span{head, head_size}, lower,
                                                                std::span{body, body_size}, choice);
                 }
                 CLINGO_CATCH;
             },
-            [](clingo_weight_t priority, clingo_weighted_literal_t const *body, size_t body_size,
-               void *data) -> clingo_result_t {
+            [](clingo_weight_t priority, clingo_weighted_literal_t const *body, size_t body_size, void *data) -> bool {
                 CLINGO_TRY {
                     static_cast<Observer *>(data)->minimize(std::span{body, body_size}, priority);
                 }
                 CLINGO_CATCH;
             },
-            [](clingo_atom_t const *atoms, size_t size, void *data) -> clingo_result_t {
+            [](clingo_atom_t const *atoms, size_t size, void *data) -> bool {
                 CLINGO_TRY {
                     static_cast<Observer *>(data)->project(std::span{atoms, size});
                 }
                 CLINGO_CATCH;
             },
-            [](clingo_atom_t atom, clingo_external_type_t type, void *data) -> clingo_result_t {
+            [](clingo_atom_t atom, clingo_external_type_t type, void *data) -> bool {
                 CLINGO_TRY {
                     static_cast<Observer *>(data)->external(atom, static_cast<ExternalType>(type));
                 }
                 CLINGO_CATCH;
             },
-            [](clingo_literal_t const *literals, size_t size, void *data) -> clingo_result_t {
+            [](clingo_literal_t const *literals, size_t size, void *data) -> bool {
                 CLINGO_TRY {
                     static_cast<Observer *>(data)->assume(std::span{literals, size});
                 }
                 CLINGO_CATCH;
             },
             [](clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority,
-               clingo_literal_t const *condition, size_t size, void *data) -> clingo_result_t {
+               clingo_literal_t const *condition, size_t size, void *data) -> bool {
                 CLINGO_TRY {
                     static_cast<Observer *>(data)->heuristic(atom, static_cast<HeuristicType>(type), bias, priority,
                                                              std::span{condition, size});
                 }
                 CLINGO_CATCH;
             },
-            [](int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data) -> clingo_result_t {
+            [](int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data) -> bool {
                 CLINGO_TRY {
                     static_cast<Observer *>(data)->edge(node_u, node_v, std::span{condition, size});
                 }

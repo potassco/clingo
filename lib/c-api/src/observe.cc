@@ -158,7 +158,7 @@ class Observer : public Potassco::AbstractProgram {
 } // namespace
 
 extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observer_t const *observer, void *data,
-                                       bool preprocess) -> clingo_result_t {
+                                       bool preprocess) -> bool {
     CLINGO_TRY {
         if (control == nullptr || observer == nullptr) {
             return fail_arguments();
@@ -215,7 +215,7 @@ class ExtendedAspifWriter : public Potassco::AspifOutput {
 } // namespace
 
 extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const *path, size_t size,
-                                           clingo_write_aspif_mode_t mode) -> clingo_result_t {
+                                           clingo_write_aspif_mode_t mode) -> bool {
     CLINGO_TRY {
         auto path_view = std::string_view{path, size};
         if (control == nullptr || path == nullptr) {

@@ -384,7 +384,7 @@ auto Propagator::decide_([[maybe_unused]] uint32_t thread_id, [[maybe_unused]] A
 void register_propagator(clingo_control_t *ctl, Propagator &prop) {
     // propagator without heuristic
     static constexpr auto c_prop = clingo_propagator_t{
-        [](clingo_propagate_init_t *init, void *data) -> clingo_result_t {
+        [](clingo_propagate_init_t *init, void *data) -> bool {
             auto *self = static_cast<Propagator *>(data);
             CLINGO_TRY {
                 auto py_init = PropagateInit{init};
@@ -392,8 +392,7 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
             }
             CLINGO_CATCH;
         },
-        [](clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size,
-           void *data) -> clingo_result_t {
+        [](clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data) -> bool {
             auto *self = static_cast<Propagator *>(data);
             CLINGO_TRY {
                 auto py_ctl = PropagateControl{control};
@@ -415,7 +414,7 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
                 std::abort();
             }
         },
-        [](clingo_propagate_control_t *control, void *data) -> clingo_result_t {
+        [](clingo_propagate_control_t *control, void *data) -> bool {
             auto *self = static_cast<Propagator *>(data);
             CLINGO_TRY {
                 auto py_ctl = PropagateControl{control};
@@ -429,7 +428,7 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
     static constexpr auto c_heu =
         clingo_propagator_t{c_prop.init, c_prop.propagate, c_prop.undo, c_prop.check,
                             [](clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback,
-                               void *data, clingo_literal_t *decision) -> clingo_result_t {
+                               void *data, clingo_literal_t *decision) -> bool {
                                 auto *self = static_cast<Propagator *>(data);
                                 CLINGO_TRY {
                                     auto py_assignment = Assignment{assignment};

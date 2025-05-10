@@ -398,15 +398,14 @@ class Heuristic : public Propagator {
 namespace Detail {
 
 static constexpr auto c_propagator = clingo_propagator_t{
-    [](clingo_propagate_init_t *init, void *data) -> clingo_result_t {
+    [](clingo_propagate_init_t *init, void *data) -> bool {
         auto &self = *static_cast<Propagator *>(data);
         CLINGO_TRY {
             self.init(PropagateInit{init});
         }
         CLINGO_CATCH;
     },
-    [](clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size,
-       void *data) -> clingo_result_t {
+    [](clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data) -> bool {
         auto &self = *static_cast<Propagator *>(data);
         CLINGO_TRY {
             self.propagate(PropagateControl{control}, SolverLiteralSpan{changes, size});
@@ -426,7 +425,7 @@ static constexpr auto c_propagator = clingo_propagator_t{
             std::abort();
         }
     },
-    [](clingo_propagate_control_t *control, void *data) -> clingo_result_t {
+    [](clingo_propagate_control_t *control, void *data) -> bool {
         auto &self = *static_cast<Propagator *>(data);
         CLINGO_TRY {
             self.check(PropagateControl{control});
@@ -439,7 +438,7 @@ static constexpr auto c_propagator = clingo_propagator_t{
 static constexpr auto c_heuristic =
     clingo_propagator_t{c_propagator.init, c_propagator.propagate, c_propagator.undo, c_propagator.check,
                         [](clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback,
-                           void *data, clingo_literal_t *decision) -> clingo_result_t {
+                           void *data, clingo_literal_t *decision) -> bool {
                             auto &self = *static_cast<Propagator *>(data);
                             CLINGO_TRY {
                                 // NOLINTBEGIN

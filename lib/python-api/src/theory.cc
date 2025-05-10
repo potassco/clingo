@@ -189,7 +189,7 @@ class Theory {
         if (theory_->rewrite_ast != nullptr) {
             handle_error(theory_->rewrite_ast(
                 theory_->self, convert_stm(stm),
-                [](clingo_ast *stm, void *data) -> clingo_result_t {
+                [](clingo_ast *stm, void *data) -> bool {
                     CLINGO_TRY {
                         auto &fun = *static_cast<std::function<void(py::handle)> *>(data);
                         fun(convert_stm(stm));
