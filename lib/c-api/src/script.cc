@@ -15,7 +15,7 @@ class CScript : public Clingo::Control::Script {
     }
 
   private:
-    void do_exec(std::string_view code) override { script_.execute(std::string(code).c_str(), data_); }
+    void do_exec(std::string_view code) override { script_.execute(code.data(), code.size(), data_); }
 
     void do_main(Clingo::Control::Solver &slv) override {
         class main_guard {
@@ -32,7 +32,7 @@ class CScript : public Clingo::Control::Script {
 
     auto do_callable(std::string_view name, size_t args) -> bool override {
         bool res = true;
-        handle_error(script_.callable(std::string(name).c_str(), args, &res, data_));
+        handle_error(script_.callable(name.data(), name.size(), args, &res, data_));
         return res;
     }
 
@@ -49,7 +49,7 @@ class CScript : public Clingo::Control::Script {
     void do_call(Clingo::Location const &loc, std::string_view name, Clingo::SymbolSpan args,
                  Clingo::SymbolVec &out) override {
         auto data = CBData{this, out};
-        handle_error(script_.call(lib_, c_cast(&loc), std::string(name).c_str(), c_cast(args.data()), args.size(), &cb,
+        handle_error(script_.call(lib_, c_cast(&loc), name.data(), name.size(), c_cast(args.data()), args.size(), &cb,
                                   &data, data_));
     }
 
@@ -62,8 +62,9 @@ class CScript : public Clingo::Control::Script {
 
 extern "C" auto clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script, void *data) -> bool {
     CLINGO_TRY {
-        auto const *name = script->name(data);
-        lib->scripts.register_script(name, std::make_unique<CScript>(lib, *script, data));
+        clingo_string_t name;
+        script->name(data, &name);
+        lib->scripts.register_script({name.data, name.size}, std::make_unique<CScript>(lib, *script, data));
     }
     CLINGO_CATCH;
 }

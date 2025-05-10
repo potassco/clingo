@@ -28,17 +28,19 @@ class Scope {
         version_ = py::module_::import("sys").attr("version").cast<std::string>();
     }
 
-    void exec(char const *code) { py::exec(code, scope_); }
+    void exec(std::string_view code) { py::exec(code, scope_); }
 
-    auto callable(char const *name) -> bool { return scope_.contains(name) && callable_(scope_[name]).cast<bool>(); }
+    auto callable(std::string_view name) -> bool {
+        return scope_.contains(name) && callable_(scope_[py::str{name}]).cast<bool>();
+    }
 
-    auto call(PyLibrary const &lib, char const *name, SymbolVec args) -> std::variant<SymbolVec, Symbol> {
-        return scope_[name](lib, *py::cast(args)).cast<std::variant<SymbolVec, Symbol>>();
+    auto call(PyLibrary const &lib, std::string_view name, SymbolVec const &args) -> std::variant<SymbolVec, Symbol> {
+        return scope_[py::str{name}](lib, *py::cast(args)).cast<std::variant<SymbolVec, Symbol>>();
     }
 
     auto main(PyLibrary const &lib, PyControl const &ctl) { scope_["main"](lib, ctl); }
 
-    auto version() -> char const * { return version_.c_str(); }
+    auto version() -> std::string_view { return version_; }
 
   private:
     py::object scope_;
@@ -62,17 +64,17 @@ class MainScript {
 
     static auto cast(void *data) -> MainScript * { return static_cast<MainScript *>(data); }
 
-    static auto c_execute(char const *code, void *data) -> bool {
+    static auto c_execute(char const *code, size_t size, void *data) -> bool {
         auto *self = cast(data);
         CLINGO_TRY {
             self->init_();
-            self->py_->exec(code);
+            self->py_->exec({code, size});
         }
         CLINGO_CATCH;
     }
 
     static auto c_call(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
-                       clingo_symbol_t const *arguments, size_t arguments_size,
+                       size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data) -> bool {
         auto *self = cast(data);
         CLINGO_TRY {
@@ -80,7 +82,7 @@ class MainScript {
                 auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                       [](auto sym) { return Symbol{sym, true}; });
                 auto gil = py::gil_scoped_acquire{};
-                auto syms = self->py_->call(self->get_lib(lib), name, args);
+                auto syms = self->py_->call(self->get_lib(lib), {name, name_size}, args);
                 return std::visit(
                     [&]<class T>(T const &res) {
                         if constexpr (std::is_same_v<T, Symbol>) {
@@ -99,13 +101,14 @@ class MainScript {
         CLINGO_CATCH;
     }
 
-    static auto c_callable(char const *name, [[maybe_unused]] size_t arguments, bool *result, void *data) -> bool {
+    static auto c_callable(char const *name, size_t size, [[maybe_unused]] size_t arguments, bool *result, void *data)
+        -> bool {
         // NOTE: python cannot check the number of arguments
         auto *self = cast(data);
         CLINGO_TRY {
             if (self->py_) {
                 auto gil = py::gil_scoped_acquire{};
-                *result = self->py_->callable(name);
+                *result = self->py_->callable({name, size});
             } else {
                 *result = false;
             }
@@ -124,9 +127,15 @@ class MainScript {
         CLINGO_CATCH;
     }
 
-    static auto c_name([[maybe_unused]] void *data) -> char const * { return "python"; }
+    static void c_name([[maybe_unused]] void *data, clingo_string_t *name) {
+        name->data = "python";
+        name->size = strlen(name->data);
+    }
 
-    static auto c_version([[maybe_unused]] void *data) -> char const * { return CLINGO_PYTHON_VERSION; }
+    static void c_version([[maybe_unused]] void *data, clingo_string_t *version) {
+        version->data = CLINGO_PYTHON_VERSION;
+        version->size = strlen(version->data);
+    }
 
     static void c_free(void *data) { std::ignore = std::make_unique<MainScript>(cast(data)); }
 
@@ -158,31 +167,32 @@ class MainScript {
 
 class Script {
   public:
-    void execute(char const *code) { PYBIND11_OVERRIDE_PURE(void, Script, execute, code); }
+    void execute(std::string_view code) { PYBIND11_OVERRIDE_PURE(void, Script, execute, code); }
 
     static auto get_self(void *data) -> Script & { return *static_cast<Script *>(data); }
 
-    static auto c_execute(char const *code, void *data) -> bool {
+    static auto c_execute(char const *code, size_t size, void *data) -> bool {
         CLINGO_TRY {
             auto &self = get_self(data);
-            self.execute(code);
+            self.execute({code, size});
         }
         CLINGO_CATCH;
     }
 
-    auto call(const PyLibrary &lib, char const *name, SymbolSpan args) -> TypeHint<"Sequence[clingo.symbol.Symbol]"> {
+    auto call(const PyLibrary &lib, std::string_view name, SymbolSpan args)
+        -> TypeHint<"Sequence[clingo.symbol.Symbol]"> {
         PYBIND11_OVERRIDE_PURE(TypeHint<"Sequence[clingo.symbol.Symbol]">, Script, call, lib, name, args);
     }
 
     static auto c_call(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
-                       clingo_symbol_t const *arguments, size_t arguments_size,
+                       size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data) -> bool {
         auto &self = get_self(data);
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
             auto gil = py::gil_scoped_acquire{};
-            auto syms = self.call(get_lib(lib), name, args).cast<std::variant<SymbolVec, Symbol>>();
+            auto syms = self.call(get_lib(lib), {name, name_size}, args).cast<std::variant<SymbolVec, Symbol>>();
             return std::visit(
                 [&]<class T>(T const &res) {
                     if constexpr (std::is_same_v<T, Symbol>) {
@@ -200,15 +210,15 @@ class Script {
         CLINGO_CATCH;
     }
 
-    auto callable(char const *name, size_t arguments) -> bool {
+    auto callable(std::string_view name, size_t arguments) -> bool {
         PYBIND11_OVERRIDE_PURE(bool, Script, callable, name, arguments);
     }
 
-    static auto c_callable(char const *name, size_t arguments, bool *result, void *data) -> bool {
+    static auto c_callable(char const *name, size_t size, size_t arguments, bool *result, void *data) -> bool {
         CLINGO_TRY {
             auto gil = py::gil_scoped_acquire{};
             auto &self = get_self(data);
-            *result = self.callable(name, arguments);
+            *result = self.callable({name, size}, arguments);
         }
         CLINGO_CATCH;
     }
@@ -226,29 +236,33 @@ class Script {
 
     auto name() -> std::string { PYBIND11_OVERRIDE_PURE(std::string, Script, name); }
 
-    static auto c_name(void *data) -> char const * {
+    static void c_name(void *data, clingo_string_t *name) {
         try {
             auto &self = get_self(data);
             if (self.name_.empty()) {
                 self.name_ = self.name();
             }
-            return self.name_.c_str();
+            name->data = self.name_.data();
+            name->size = self.name_.size();
         } catch (...) {
-            return "<error>";
+            name->data = "<error>";
+            name->size = strlen(name->data);
         }
     }
 
     auto version() -> std::string { PYBIND11_OVERRIDE_PURE(std::string, Script, version); }
 
-    static auto c_version(void *data) -> char const * {
+    static void c_version(void *data, clingo_string_t *version) {
         try {
             auto &self = get_self(data);
             if (self.version_.empty()) {
                 self.version_ = self.version();
             }
-            return self.version_.c_str();
+            version->data = self.version_.data();
+            version->size = self.version_.size();
         } catch (...) {
-            return "<error>";
+            version->data = "<error>";
+            version->size = strlen(version->data);
         }
     }
 

@@ -263,6 +263,7 @@ class Control {
     }
 
     void register_propagator(std::unique_ptr<Propagator> propagator) const {
+        // NOTE: a destructor in the propagator would make the data unnecessary for the C++ api
         auto &data = data_();
         data.props.emplace_back(std::move(propagator));
         Detail::handle_error(
