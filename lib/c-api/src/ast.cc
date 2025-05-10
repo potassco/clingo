@@ -1575,7 +1575,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
     using namespace Clingo::Input;
     CLINGO_TRY {
         if (lib == nullptr || ast == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         *ast = nullptr;
         switch (static_cast<clingo_ast_type_e>(type)) {
@@ -2382,7 +2382,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
 extern "C" auto clingo_ast_to_string(clingo_ast_t *ast, clingo_string_builder_t *builder) -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || builder == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         *cpp_cast(builder) << *ast;
     }
@@ -2404,7 +2404,7 @@ extern "C" auto clingo_ast_hash(clingo_ast_t *ast) -> size_t {
 extern "C" auto clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy) -> clingo_result_t {
     CLINGO_TRY {
         if (copy == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         *copy = ast != nullptr ? ast->copy().release() : nullptr;
     }
@@ -2425,7 +2425,7 @@ extern "C" void clingo_ast_array_free(clingo_ast_t **ast, size_t size) {
 extern "C" auto clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || type == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         *type = ast->get_type();
     }
@@ -2436,7 +2436,7 @@ extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_at
     -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         if (auto num = ast->get_number(attribute); num) {
             *value = *num;
@@ -2451,7 +2451,7 @@ extern "C" auto clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_at
                                                 clingo_symbol_t *value) -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         if (auto sym = ast->get_symbol(attribute); sym) {
             *value = *sym;
@@ -2466,7 +2466,7 @@ extern "C" auto clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_
                                                   clingo_location_t const **value) -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         if (auto loc = ast->get_location(attribute); loc) {
             *value = *loc;
@@ -2481,7 +2481,7 @@ extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_at
                                                 clingo_string_t *value) -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         if (auto str = ast->get_string(attribute); str) {
             value->data = str->data();
@@ -2497,7 +2497,7 @@ extern "C" auto clingo_ast_attribute_get_string_array(clingo_ast_t *ast, clingo_
                                                       clingo_string_t const **value, size_t *size) -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr || size == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         if (auto vec = ast->get_string_vec(attribute); vec) {
             thread_local auto res = std::vector<clingo_string_t>{};
@@ -2517,7 +2517,7 @@ extern "C" auto clingo_ast_attribute_get_symbol_array(clingo_ast_t *ast, clingo_
                                                       clingo_symbol_t const **value, size_t *size) -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr || size == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         if (auto vec = ast->get_symbol_vec(attribute); vec) {
             thread_local auto res = std::vector<clingo_symbol_t>{};
@@ -2537,7 +2537,7 @@ extern "C" auto clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attri
     -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         if (auto val = ast->get_ast(attribute); val) {
             *value = val->release();
@@ -2552,7 +2552,7 @@ extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast
                                                    clingo_ast_t ***value, size_t *size) -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr || size == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         if (auto val = ast->get_ast_vec(attribute); val) {
             std::tie(*value, *size) = val->release();
@@ -2567,7 +2567,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                                             size_t size, clingo_ast_t **ast) -> clingo_result_t {
     CLINGO_TRY {
         if (ast == nullptr || (string == nullptr && size > 0) || ast == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         auto p = Clingo::Input::Parser{lib->log, *lib->store};
         p.init(std::string_view{string, size}, *lib->store->string("<string>"));
@@ -2681,7 +2681,7 @@ extern "C" auto clingo_ast_scan_string(clingo_lib_t *lib, char const *program, s
                                        clingo_ast_scanner_t **scanner) -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || (program == nullptr && size > 0) || scanner == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         auto res = std::make_unique<clingo_ast_scanner>(lib);
         res->scan_string(std::string{program, size});
@@ -2694,7 +2694,7 @@ extern "C" auto clingo_ast_scan_files(clingo_lib_t *lib, clingo_string_t const *
                                       clingo_ast_scanner_t **scanner) -> clingo_result_t {
     CLINGO_TRY {
         if (lib == nullptr || (files == nullptr && size != 0) || scanner == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         auto res = std::make_unique<clingo_ast_scanner>(lib);
         auto span = std::span(files, size);
@@ -2712,7 +2712,7 @@ extern "C" auto clingo_ast_scan_files(clingo_lib_t *lib, clingo_string_t const *
 extern "C" auto clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast) -> clingo_result_t {
     CLINGO_TRY {
         if (scanner == nullptr || scanner == nullptr) {
-            throw std::invalid_argument("invalid arguments");
+            return fail_arguments();
         }
         *ast = scanner->next().release();
     }
