@@ -5,38 +5,38 @@
 
 namespace Clingo::Python {
 
-namespace Detail {
-
-auto get_exception_ptr() -> std::exception_ptr & {
-    static thread_local std::exception_ptr ptr;
-    return ptr;
+void raise_error() {
+    clingo_string_t str;
+    clingo_result_t rc = clingo_result_success;
+    clingo_get_error(&rc, &str);
+    switch (rc) {
+        case clingo_result_bad_alloc: {
+            throw std::bad_alloc{};
+        }
+        case clingo_result_logic: {
+            throw std::logic_error{std::string{str.data, str.size}};
+        }
+        case clingo_result_invalid: {
+            throw std::invalid_argument{std::string{str.data, str.size}};
+        }
+        case clingo_result_range: {
+            throw std::out_of_range{std::string{str.data, str.size}};
+        }
+        default: {
+            throw std::runtime_error{std::string{str.data, str.size}};
+        }
+    }
 }
 
-void handle_error(clingo_result_t code, std::exception_ptr *ptr) {
-    auto &gptr = get_exception_ptr();
-    if (ptr != nullptr && *ptr) {
-        gptr = nullptr;
-        std::rethrow_exception(std::exchange(*ptr, nullptr));
-    }
-    if (gptr) {
-        std::rethrow_exception(std::exchange(gptr, nullptr));
-    }
-    throw PyClingoError{code};
-}
-
-} // namespace Detail
-
-void handle_error_no_code(clingo_result_t code, std::exception_ptr *ptr) {
-    auto &gptr = Detail::get_exception_ptr();
-    if (ptr != nullptr && *ptr) {
-        gptr = nullptr;
-        std::rethrow_exception(std::exchange(*ptr, nullptr));
-    }
-    if (gptr) {
-        std::rethrow_exception(std::exchange(gptr, nullptr));
-    }
+void handle_error_no_code(clingo_result_t code) {
     if (code != clingo_result_success) {
-        throw PyClingoError{code};
+        raise_error();
+    }
+    clingo_string_t str;
+    clingo_result_t rc = clingo_result_success;
+    clingo_get_error(&rc, &str);
+    if (rc != clingo_result_success) {
+        raise_error();
     }
 }
 
@@ -45,29 +45,50 @@ auto user_data_slot() noexcept -> size_t {
     return slot;
 }
 
-auto is_clingo_error(py::error_already_set const &e) -> bool {
-    return e.type().is(py::module::import("clingo").attr("core").attr("ClingoError"));
-}
-
-void clear_error() {
-    Detail::get_exception_ptr() = nullptr;
-}
-
-auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
+auto store_error() -> clingo_result_t {
     try {
         throw;
     } catch (py::error_already_set const &e) {
-        auto gil = py::gil_scoped_acquire{};
-        ptr = std::current_exception();
-        PyErr_Clear();
+        auto msg = std::string_view{e.what()};
+        if (e.matches(PyExc_ValueError)) {
+            clingo_set_error(clingo_result_invalid, msg.data(), msg.size());
+            return clingo_result_invalid;
+        }
+        if (e.matches(PyExc_IndexError)) {
+            clingo_set_error(clingo_result_range, msg.data(), msg.size());
+            return clingo_result_range;
+        }
+        if (e.matches(PyExc_MemoryError)) {
+            clingo_set_error(clingo_result_bad_alloc, msg.data(), msg.size());
+            return clingo_result_bad_alloc;
+        }
+        clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
+        return clingo_result_runtime;
+    } catch (std::out_of_range const &e) {
+        auto msg = std::string_view{e.what()};
+        clingo_set_error(clingo_result_range, msg.data(), msg.size());
+        return clingo_result_logic;
+    } catch (std::invalid_argument const &e) {
+        auto msg = std::string_view{e.what()};
+        clingo_set_error(clingo_result_invalid, msg.data(), msg.size());
+        return clingo_result_logic;
+    } catch (std::bad_alloc const &e) {
+        auto msg = std::string_view{e.what()};
+        clingo_set_error(clingo_result_bad_alloc, msg.data(), msg.size());
+        return clingo_result_logic;
+    } catch (std::logic_error const &e) {
+        auto msg = std::string_view{e.what()};
+        clingo_set_error(clingo_result_logic, msg.data(), msg.size());
+        return clingo_result_logic;
+    } catch (std::exception const &e) {
+        auto msg = std::string_view{e.what()};
+        clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
+        return clingo_result_runtime;
     } catch (...) {
-        ptr = std::current_exception();
+        auto msg = std::string_view{"no message"};
+        clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
+        return clingo_result_runtime;
     }
-    return clingo_result_unknown;
-}
-
-auto handle_error() -> clingo_result_t {
-    return handle_error(Detail::get_exception_ptr());
 }
 
 auto string_builder() -> clingo_string_builder_t * {
@@ -384,15 +405,6 @@ Get Clingo's version.
 Returns:
     A tuple (major, minor, revision) representing the Clingo version.
 )"_d);
-
-    py::register_exception<PyClingoError>(core, "ClingoError").attr("__doc__") = R"(
-Exception class for internal Clingo errors.
-
-This exception is typically used to propagate internal errors. It should
-be forwarded to the outer scope, where it serves as an indicator that an
-error has been logged. The string representation contains an internal
-error code that is *not* meant to be displayed to the user.
-)"_d;
 
     py::enum_<clingo_log_level_e>(core, "LogLevel", "The available log levels.")
         .value("Trace", clingo_log_level_trace, R"(Report trace messages (includes debug level).)")

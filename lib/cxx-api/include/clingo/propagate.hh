@@ -397,43 +397,41 @@ class Heuristic : public Propagator {
 
 namespace Detail {
 
-using PropagatorData = std::pair<Propagator *, std::exception_ptr *>;
-
 static constexpr auto c_propagator = clingo_propagator_t{
     [](clingo_propagate_init_t *init, void *data) -> clingo_result_t {
-        auto const &[self, ptr] = *static_cast<PropagatorData *>(data);
+        auto &self = *static_cast<Propagator *>(data);
         CLINGO_TRY {
-            self->init(PropagateInit{init});
+            self.init(PropagateInit{init});
         }
-        CLINGO_CATCH_PTR(*ptr);
+        CLINGO_CATCH;
     },
     [](clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size,
        void *data) -> clingo_result_t {
-        auto const &[self, ptr] = *static_cast<PropagatorData *>(data);
+        auto &self = *static_cast<Propagator *>(data);
         CLINGO_TRY {
-            self->propagate(PropagateControl{control}, SolverLiteralSpan{changes, size});
+            self.propagate(PropagateControl{control}, SolverLiteralSpan{changes, size});
         }
-        CLINGO_CATCH_PTR(*ptr);
+        CLINGO_CATCH;
     },
     [](clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data) {
-        auto *self = static_cast<PropagatorData *>(data)->first;
+        auto &self = *static_cast<Propagator *>(data);
         try {
             uint32_t thread_id = 0;
             Detail::handle_error(clingo_propagate_control_thread_id(control, &thread_id));
             clingo_assignment_t const *assignment = nullptr;
             Detail::handle_error(clingo_propagate_control_assignment(control, &assignment));
-            self->undo(thread_id, Assignment(assignment), SolverLiteralSpan{changes, size});
+            self.undo(thread_id, Assignment(assignment), SolverLiteralSpan{changes, size});
         } catch (std::exception const &e) {
             printf("panic: %s\n", e.what());
             std::abort();
         }
     },
     [](clingo_propagate_control_t *control, void *data) -> clingo_result_t {
-        auto const &[self, ptr] = *static_cast<PropagatorData *>(data);
+        auto &self = *static_cast<Propagator *>(data);
         CLINGO_TRY {
-            self->check(PropagateControl{control});
+            self.check(PropagateControl{control});
         }
-        CLINGO_CATCH_PTR(*ptr);
+        CLINGO_CATCH;
     },
     nullptr,
 };
@@ -442,14 +440,14 @@ static constexpr auto c_heuristic =
     clingo_propagator_t{c_propagator.init, c_propagator.propagate, c_propagator.undo, c_propagator.check,
                         [](clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback,
                            void *data, clingo_literal_t *decision) -> clingo_result_t {
-                            auto const &[self, ptr] = *static_cast<PropagatorData *>(data);
+                            auto &self = *static_cast<Propagator *>(data);
                             CLINGO_TRY {
                                 // NOLINTBEGIN
                                 *decision =
-                                    static_cast<Heuristic *>(self)->decide(thread_id, Assignment{assignment}, fallback);
+                                    static_cast<Heuristic &>(self).decide(thread_id, Assignment{assignment}, fallback);
                                 // NOLINTEND
                             }
-                            CLINGO_CATCH_PTR(*ptr);
+                            CLINGO_CATCH;
                         }};
 
 } // namespace Detail

@@ -150,7 +150,7 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
             (*eh->stats_)(Stats{c_stats, step}, Stats{c_stats, accu});
         }
     }
-    CLINGO_CATCH_PTR(eh->exception());
+    CLINGO_CATCH;
 }
 
 auto Control::base() -> Base {
@@ -187,7 +187,7 @@ auto Control::stats() -> py::dict {
 auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback> on_model,
                     std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
     auto release = py::gil_scoped_release{};
-    auto res = std::make_shared<SolveHandle>(exception(), std::move(on_model), std::move(on_stats));
+    auto res = std::make_shared<SolveHandle>(std::move(on_model), std::move(on_stats));
     auto mode = clingo_solve_mode_bitset_t{0};
     if (yield) {
         mode |= clingo_solve_mode_yield;
@@ -197,17 +197,13 @@ auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback
     }
     auto ass = convert(base(), assumptions, false);
     handle_error(clingo_control_solve(ctl_.get(), mode, ass.data(), assumptions.size(), &SolveHandle::c_event_handler,
-                                      res.get(), &res->handle()),
-                 res->exception());
+                                      res.get(), &res->handle()));
     return res;
 }
 
 void Control::main() {
     auto release = py::gil_scoped_release{};
-    // NOTE: the control's as well as the thread local exception pointers might be set here
-    // - the thread local one, for example, by the script (which also cannot use the one of the control)
-    // - the one of the control, for example, by the propagator (which also cannot use the thread local one)
-    handle_error(clingo_control_main(ctl_.get()), exception());
+    handle_error(clingo_control_main(ctl_.get()));
 }
 
 void Control::interrupt() {
@@ -259,7 +255,6 @@ void Control::set_parts(std::optional<PartSpan> parts) {
 void Control::register_propagator(Annotation<Propagator> propagator) {
     auto &prop = propagator.cast<Propagator &>();
     auto &data = user_data();
-    prop.exception = &data.ptr;
     py::reinterpret_borrow<py::list>(data.list).append(std::move(propagator));
     Clingo::Python::register_propagator(ctl_.get(), prop);
 }
@@ -283,10 +278,6 @@ void Control::setup(PyHeapTypeObject *heap_type) {
 
 auto Control::user_data() const -> UserData & {
     return *static_cast<UserData *>(clingo_control_get_user_data(ctl_.get(), user_data_slot()));
-}
-
-auto Control::exception() const -> std::exception_ptr & {
-    return user_data().ptr;
 }
 
 void Control::release(clingo_control_t *ctl) noexcept {

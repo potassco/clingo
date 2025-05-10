@@ -106,7 +106,6 @@ enum clingo_result_e {
     clingo_result_bad_alloc = 3, //!< memory could not be allocated
     clingo_result_invalid = 4,   //!< invalid arguments passed to function
     clingo_result_range = 5,     //!< result out of range
-    clingo_result_unknown = 6    //!< errors unrelated to clingo
 };
 //! Corresponding type to ::clingo_result_e.
 typedef int clingo_result_t;
@@ -207,22 +206,6 @@ CLINGO_VISIBILITY_DEFAULT void clingo_result_string(clingo_result_t code, clingo
 //! @param[in] code the message code
 //! @param[out] value the string
 CLINGO_VISIBILITY_DEFAULT void clingo_message_string(clingo_message_t code, clingo_string_t *value);
-
-//! Set the global error logger.
-//!
-//! This logger is used to report error messages. Such message are usually
-//! related to wrong API usage and meant to help debug problems during
-//! development.
-//!
-//! The default logger simply prints message to stderr.
-CLINGO_VISIBILITY_DEFAULT void clingo_error_logger(clingo_error_logger_t logger, void *data);
-
-//! Report a message via the global error logger.
-//!
-//! @param[in] code associated code
-//! @param[in] message message
-//! @param[in] size the size of the message
-CLINGO_VISIBILITY_DEFAULT void clingo_error_report(clingo_result_t code, char const *message, size_t size);
 
 //! Create a library object.
 //!

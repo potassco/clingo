@@ -13,7 +13,6 @@
 #include <clingo/control.h>
 
 #include <cassert>
-#include <forward_list>
 #include <optional>
 #include <span>
 
@@ -194,7 +193,7 @@ class Control {
         return solve_(nullptr, assumptions, flags);
     }
 
-    void main() const { Detail::handle_error(clingo_control_main(ctl_.get()), data_().ptr); }
+    void main() const { Detail::handle_error(clingo_control_main(ctl_.get())); }
 
     void interrupt() const { clingo_control_interrupt(ctl_.get()); }
 
@@ -265,16 +264,16 @@ class Control {
 
     void register_propagator(std::unique_ptr<Propagator> propagator) const {
         auto &data = data_();
-        data.data.emplace_front(propagator.get(), &data.ptr);
         data.props.emplace_back(std::move(propagator));
-        Detail::handle_error(clingo_control_register_propagator(ctl_.get(), &Detail::c_propagator, &data.data.front()));
+        Detail::handle_error(
+            clingo_control_register_propagator(ctl_.get(), &Detail::c_propagator, data.props.back().get()));
     }
 
     void register_propagator(std::unique_ptr<Heuristic> heuristic) const {
         auto &data = data_();
-        data.data.emplace_front(heuristic.get(), &data.ptr);
         data.props.emplace_back(std::move(heuristic));
-        Detail::handle_error(clingo_control_register_propagator(ctl_.get(), &Detail::c_heuristic, &data.data.front()));
+        Detail::handle_error(
+            clingo_control_register_propagator(ctl_.get(), &Detail::c_heuristic, data.props.back().get()));
     }
 
     void join(AST::Program const &prg) const { Detail::join(ctl_.get(), c_cast(prg)); }
@@ -286,9 +285,7 @@ class Control {
     friend class Detail::intrusive_handle<Control, clingo_control_t>;
 
     struct Data {
-        std::exception_ptr ptr;
         std::vector<std::unique_ptr<Propagator>> props;
-        std::forward_list<Detail::PropagatorData> data;
     };
 
     static void free_data_(void *data) { std::ignore = std::unique_ptr<Data>(static_cast<Data *>(data)); }
@@ -321,13 +318,11 @@ class Control {
 
     [[nodiscard]] auto solve_(SolveEventHandler *handler, ProgramLiteralSpan const &assumptions, SolveFlags flags) const
         -> SolveHandle {
-        auto &ptr = data_().ptr;
-        auto res = SolveHandle{ptr, handler};
+        auto res = SolveHandle{handler};
         Detail::handle_error(clingo_control_solve(ctl_.get(), static_cast<clingo_solve_mode_bitset_t>(flags),
                                                   assumptions.data(), assumptions.size(),
                                                   handler != nullptr ? &SolveHandle::c_event_handler_ : nullptr,
-                                                  handler != nullptr ? res.data_.get() : nullptr, &res.data_->hnd),
-                             ptr);
+                                                  handler != nullptr ? res.data_.get() : nullptr, &res.data_->hnd));
         return res;
     }
 

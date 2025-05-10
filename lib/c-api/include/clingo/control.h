@@ -68,8 +68,7 @@ typedef struct clingo_part {
 //! The callback can be called multiple times; all symbols passed are injected.
 //!
 //! If a (non-recoverable) clingo API function fails in this callback, for example, the symbol callback, the callback
-//! must return its return code. In case of errors not related to clingo, this function can return
-//! ::clingo_result_unknown to stop grounding with an error.
+//! must return its return code. In case of errors not related to clingo, this function can use clingo_set_error().
 //!
 //! @param[in] lib the library object
 //! @param[in] location location from which the external function was called

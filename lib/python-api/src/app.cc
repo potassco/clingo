@@ -110,8 +110,6 @@ class App {
         };
     }
 
-    [[nodiscard]] auto ptr() -> std::exception_ptr & { return ptr_; }
-
   private:
     template <class... Args> void no_op_([[maybe_unused]] Args const &...args) {}
 
@@ -157,7 +155,7 @@ class App {
         CLINGO_TRY {
             app.print_model(Model{model}, [printer, printer_data]() { handle_error(printer(printer_data)); });
         }
-        CLINGO_CATCH_PTR(app.ptr_);
+        CLINGO_CATCH;
     }
 
     static auto register_options_(clingo_options_t *options, void *data) -> clingo_result_t {
@@ -181,9 +179,9 @@ class App {
                 fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)str.size(), str.data(), msg.c_str());
                 return clingo_result_invalid;
             }
-            return handle_error();
+            return store_error();
         } catch (...) {
-            return handle_error();
+            return store_error();
         }
         return clingo_result_success;
     }
@@ -194,8 +192,6 @@ class App {
     std::optional<std::string> program_name_;
     //! The applications version.
     std::optional<std::string> version_;
-    //! The applications exception pointer.
-    std::exception_ptr ptr_;
 };
 
 auto pyentry() -> int {
@@ -227,19 +223,13 @@ auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<
     // return some arcane exit code. Hence, we simply check if an error has
     // been set and forward it here.
     try {
-        handle_error_no_code(ret, app ? &app.value()->ptr() : nullptr);
+        handle_error_no_code(ret);
     } catch (py::error_already_set const &e) {
         if (raise_errors) {
             throw;
         }
-        if (!is_clingo_error(e)) {
-            auto name = app ? app.value()->program_name() : CLINGO_EXECUTABLE;
-            fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
-        }
-    } catch (PyClingoError const &e) {
-        if (raise_errors) {
-            throw;
-        }
+        auto name = app ? app.value()->program_name() : CLINGO_EXECUTABLE;
+        fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
     } catch (std::exception const &e) {
         if (raise_errors) {
             throw;
@@ -247,7 +237,6 @@ auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<
         auto name = app ? app.value()->program_name() : CLINGO_EXECUTABLE;
         fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
     }
-    clear_error();
     return code;
 }
 

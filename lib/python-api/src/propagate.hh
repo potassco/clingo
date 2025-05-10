@@ -20,8 +20,6 @@ class Propagator {
     void check(PropagateControl &ctl);
     auto decide(uint32_t thread_id, Assignment &assignment, clingo_literal_t lit) -> clingo_literal_t;
 
-    std::exception_ptr *exception = nullptr;
-
   private:
     template <class... Args> void no_op([[maybe_unused]] Args const &...args) {}
 

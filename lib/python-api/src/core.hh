@@ -15,12 +15,7 @@
 #define CLINGO_TRY try
 #define CLINGO_CATCH                                                                                                   \
     catch (...) {                                                                                                      \
-        return handle_error();                                                                                         \
-    }                                                                                                                  \
-    return clingo_result_success
-#define CLINGO_CATCH_PTR(x)                                                                                            \
-    catch (...) {                                                                                                      \
-        return handle_error(x);                                                                                        \
+        return store_error();                                                                                          \
     }                                                                                                                  \
     return clingo_result_success
 
@@ -30,65 +25,22 @@ namespace Clingo::Python {
 
 namespace py = pybind11;
 
-namespace Detail {
-
-void handle_error(clingo_result_t code, std::exception_ptr *ptr);
-
-} // namespace Detail
-
-//! This function should be used to handle failing C API calls.
-//!
-//! If the given exception is not null, the exception is rethrown and and
-//! cleared together with the thread local exception. If the given exception is
-//! null and the thread local exception is not null, it is rethrown and
-//! cleared. Otherwise, the code is wrapped in a PyClingoError, which has an
-//! empty error message. This error is intended to just forward the code but is
-//! otherwise ignored by exception handling.
-inline void handle_error(clingo_result_t code, std::exception_ptr &ptr) {
-    if (code != clingo_result_success) {
-        Detail::handle_error(code, &ptr);
-    }
-}
+//! Store the active exception as a clingo error.
+auto store_error() -> clingo_result_t;
+//! Raise the current clingo error as an exception.
+void raise_error();
 
 //! This function should be used to handle failing C API calls.
 //!
-//! If the thread local exception is not null, it is rethrown and cleared.
-//! Otherwise, the code is wrapped in a PyClingoError, which has an empty error
-//! message. This error is intended to just forward the code but is otherwise
-//! ignored by exception handling.
+//! It rethrows the current error as a python error.
 inline void handle_error(clingo_result_t code) {
     if (code != clingo_result_success) {
-        Detail::handle_error(code, nullptr);
+        raise_error();
     }
 }
 
-// Similar to handle_error but also reraises if teh code is succsess.
-void handle_error_no_code(clingo_result_t code, std::exception_ptr *ptr = nullptr);
-
-//! Check if the given exception is a clingo error.
-auto is_clingo_error(py::error_already_set const &e) -> bool;
-
-void clear_error();
-
-//! Rethrows the current exception and stores it in the given exception
-//! pointer.
-//!
-//! Must be called in a catch clause.
-//!
-//! If a pybind11 exception is to be stored, python's error indicator is
-//! cleared to allow further execution of python code in the current thread.
-//! Always returns result code unknown.
-auto handle_error(std::exception_ptr &ptr) -> clingo_result_t;
-
-//! Rethrows the current exception and stores it in a thread local exception
-//! pointer.
-//!
-//! Must be called in a catch clause.
-//!
-//! If a pybind11 exception is to be stored, python's error indicator is
-//! cleared to allow further execution of python code in the current thread.
-//! Always returns result code unknown.
-auto handle_error() -> clingo_result_t;
+// Similar to handle_error but also reraises if the code is succsess.
+void handle_error_no_code(clingo_result_t code);
 
 using Logger = std::function<void(clingo_message_e, std::string_view)>;
 

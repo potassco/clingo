@@ -62,72 +62,13 @@ class MainScript {
 
     static auto cast(void *data) -> MainScript * { return static_cast<MainScript *>(data); }
 
-    [[nodiscard]] auto handle_error() const -> clingo_result_t {
-        if (!external_) {
-            return Clingo::Python::handle_error();
-        }
-        try {
-            throw;
-        } catch (py::error_already_set &e) {
-            try {
-                auto gil = py::gil_scoped_acquire{};
-                clingo_result_t code = clingo_result_runtime;
-                auto msg = std::string_view{e.what()};
-                if (is_clingo_error(e)) {
-                    char const *end = msg.end();
-                    char const *num = std::find_if(msg.begin(), end, [](char c) { return std::isdigit(c); });
-                    unsigned char res = 0;
-                    std::from_chars(num, end, res, code_base);
-                    if (res != 0) {
-                        code = res;
-                    }
-                } else {
-                    clingo_error_report(clingo_message_error, msg.data(), msg.size());
-                }
-                PyErr_Clear();
-                return code;
-            } catch (...) {
-                fprintf(stderr, "error: exception handling failed\n");
-                std::abort();
-            }
-        } catch (PyClingoError const &e) {
-            return e.code();
-        } catch (std::invalid_argument const &e) {
-            auto str = std::string_view{e.what()};
-            clingo_error_report(clingo_result_invalid, str.data(), str.size());
-            return clingo_result_invalid;
-        } catch (std::range_error const &e) {
-            auto str = std::string_view{e.what()};
-            clingo_error_report(clingo_result_range, str.data(), str.size());
-            return clingo_result_range;
-        } catch (std::bad_alloc const &e) {
-            auto str = std::string_view{e.what()};
-            clingo_error_report(clingo_result_bad_alloc, str.data(), str.size());
-            return clingo_result_bad_alloc;
-        } catch (std::logic_error const &e) {
-            auto str = std::string_view{e.what()};
-            clingo_error_report(clingo_result_logic, str.data(), str.size());
-            return clingo_result_logic;
-        } catch (std::exception const &e) {
-            auto str = std::string_view{e.what()};
-            clingo_error_report(clingo_result_runtime, str.data(), str.size());
-            return clingo_result_runtime;
-        } catch (...) {
-            auto str = std::string_view{"no message"};
-            clingo_error_report(clingo_result_runtime, str.data(), str.size());
-            return clingo_result_runtime;
-        }
-    }
-
     static auto c_execute(char const *code, void *data) -> clingo_result_t {
         auto *self = cast(data);
-        try {
+        CLINGO_TRY {
             self->init_();
             self->py_->exec(code);
-        } catch (...) {
-            return self->handle_error();
         }
-        return clingo_result_success;
+        CLINGO_CATCH;
     }
 
     static auto c_call(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
@@ -135,7 +76,7 @@ class MainScript {
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data)
         -> clingo_result_t {
         auto *self = cast(data);
-        try {
+        CLINGO_TRY {
             if (self->py_) {
                 auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                       [](auto sym) { return Symbol{sym, true}; });
@@ -155,39 +96,34 @@ class MainScript {
                     },
                     syms);
             }
-        } catch (...) {
-            return self->handle_error();
         }
-        return clingo_result_success;
+        CLINGO_CATCH;
     }
 
     static auto c_callable(char const *name, [[maybe_unused]] size_t arguments, bool *result, void *data)
         -> clingo_result_t {
         // NOTE: python cannot check the number of arguments
         auto *self = cast(data);
-        try {
+        CLINGO_TRY {
             if (self->py_) {
                 auto gil = py::gil_scoped_acquire{};
                 *result = self->py_->callable(name);
             } else {
                 *result = false;
             }
-        } catch (...) {
-            return self->handle_error();
         }
-        return clingo_result_success;
+        CLINGO_CATCH;
     }
 
     static auto main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
         auto *self = cast(data);
-        try {
+        CLINGO_TRY {
             if (self->py_) {
                 auto gil = py::gil_scoped_acquire{};
                 self->py_->main(self->get_lib(lib), get_ctl(control));
             }
-        } catch (...) {
-            return self->handle_error();
         }
+        CLINGO_CATCH;
         return clingo_result_success;
     }
 
@@ -195,10 +131,7 @@ class MainScript {
 
     static auto c_version([[maybe_unused]] void *data) -> char const * { return CLINGO_PYTHON_VERSION; }
 
-    static void c_free(void *data) {
-        clear_error();
-        std::ignore = std::make_unique<MainScript>(cast(data));
-    }
+    static void c_free(void *data) { std::ignore = std::make_unique<MainScript>(cast(data)); }
 
   private:
     void init_() {

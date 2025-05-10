@@ -53,71 +53,86 @@ namespace Detail {
 #define CLINGO_ENUM_OP(op, arg, ...) [[maybe_unused]] inline __VA_ARGS__ constexpr auto operator op arg noexcept
 
 #define CLINGO_TRY try
-#define CLINGO_CATCH_PTR(ptr)                                                                                          \
-    catch (...) {                                                                                                      \
-        ptr = std::current_exception();                                                                                \
-        return clingo_result_unknown;                                                                                  \
-    }                                                                                                                  \
-    return clingo_result_success
 #define CLINGO_CATCH                                                                                                   \
     catch (...) {                                                                                                      \
-        Detail::get_exception_ptr() = std::current_exception();                                                        \
-        return clingo_result_unknown;                                                                                  \
+        return Clingo::Detail::store_error();                                                                          \
     }                                                                                                                  \
     return clingo_result_success
 
-inline auto get_exception_ptr() -> std::exception_ptr & {
-    thread_local std::exception_ptr ptr;
-    return ptr;
-}
-
-inline auto handle_error(std::exception_ptr &ptr) -> clingo_result_t {
+//! Store the active exception as a clingo error.
+inline auto store_error() -> clingo_result_t {
     try {
         throw;
+    } catch (std::out_of_range const &e) {
+        auto msg = std::string_view{e.what()};
+        clingo_set_error(clingo_result_range, msg.data(), msg.size());
+        return clingo_result_logic;
+    } catch (std::invalid_argument const &e) {
+        auto msg = std::string_view{e.what()};
+        clingo_set_error(clingo_result_invalid, msg.data(), msg.size());
+        return clingo_result_logic;
+    } catch (std::bad_alloc const &e) {
+        auto msg = std::string_view{e.what()};
+        clingo_set_error(clingo_result_bad_alloc, msg.data(), msg.size());
+        return clingo_result_logic;
+    } catch (std::logic_error const &e) {
+        auto msg = std::string_view{e.what()};
+        clingo_set_error(clingo_result_logic, msg.data(), msg.size());
+        return clingo_result_logic;
+    } catch (std::exception const &e) {
+        auto msg = std::string_view{e.what()};
+        clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
+        return clingo_result_runtime;
     } catch (...) {
-        ptr = std::current_exception();
+        auto msg = std::string_view{"no message"};
+        clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
+        return clingo_result_runtime;
     }
-    return clingo_result_unknown;
 }
 
-class clingo_error : std::exception {
-  public:
-    clingo_error(clingo_result_t code) : code_{code} {}
-    [[nodiscard]] auto what() const noexcept -> const char * override { return "solving failed"; }
-    [[nodiscard]] auto code() const noexcept -> clingo_result_t { return code_; }
-
-  private:
-    clingo_result_t code_;
-};
-
-//! Map the given result code to an error or rethrow the given pointer if it is
-//! not null and has a value.
-inline void handle_error_impl(clingo_result_t res, std::exception_ptr *ptr) {
-    if (ptr != nullptr && *ptr) {
-        get_exception_ptr() = nullptr;
-        std::rethrow_exception(std::exchange(*ptr, nullptr));
+//! Raise the current clingo error as an exception.
+inline void raise_error() {
+    clingo_string_t str;
+    clingo_result_t rc = clingo_result_success;
+    clingo_get_error(&rc, &str);
+    switch (rc) {
+        case clingo_result_bad_alloc: {
+            throw std::bad_alloc{};
+        }
+        case clingo_result_logic: {
+            throw std::logic_error{std::string{str.data, str.size}};
+        }
+        case clingo_result_invalid: {
+            throw std::invalid_argument{std::string{str.data, str.size}};
+        }
+        case clingo_result_range: {
+            throw std::out_of_range{std::string{str.data, str.size}};
+        }
+        default: {
+            throw std::runtime_error{std::string{str.data, str.size}};
+        }
     }
-    if (auto &gptr = get_exception_ptr()) {
-        std::rethrow_exception(std::exchange(gptr, nullptr));
-    }
-    throw clingo_error{res};
 }
 
-//! Simple error handling.
+//! This function should be used to handle failing C API calls.
 //!
-//! The function either maps the given result code to an exception or rethrows
-//! an exception set in a callback. The exception pointer is cleared at the
-//! point where it is rethrown.
-inline void handle_error(clingo_result_t res) {
-    if (res != clingo_result_success) {
-        handle_error_impl(res, nullptr);
+//! It rethrows the current error as a python error.
+inline void handle_error(clingo_result_t code) {
+    if (code != clingo_result_success) {
+        raise_error();
     }
 }
 
-//! Error handling for asynchronous processes using dedicated exception pointers.
-inline void handle_error(clingo_result_t res, std::exception_ptr &ptr) {
-    if (res != clingo_result_success) {
-        handle_error_impl(res, &ptr);
+// Similar to handle_error but also reraises if the code is succsess.
+inline void handle_error_no_code(clingo_result_t code) {
+    if (code != clingo_result_success) {
+        raise_error();
+    }
+    clingo_string_t str;
+    clingo_result_t rc = clingo_result_success;
+    clingo_get_error(&rc, &str);
+    if (rc != clingo_result_success) {
+        raise_error();
     }
 }
 

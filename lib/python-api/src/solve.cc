@@ -186,29 +186,29 @@ auto Model::extend(std::span<Symbol const> symbols) {
 auto SolveHandle::get() -> SolveResult {
     auto release = py::gil_scoped_release{};
     clingo_solve_result_bitset_t res = 0;
-    handle_error(clingo_solve_handle_get(hnd_, &res), *ptr_);
+    handle_error(clingo_solve_handle_get(hnd_, &res));
     return {res};
 }
 
 void SolveHandle::cancel() {
     auto release = py::gil_scoped_release{};
-    handle_error(clingo_solve_handle_cancel(hnd_), *ptr_);
+    handle_error(clingo_solve_handle_cancel(hnd_));
 }
 
 void SolveHandle::resume() {
-    handle_error(clingo_solve_handle_resume(hnd_), *ptr_);
+    handle_error(clingo_solve_handle_resume(hnd_));
 }
 
 auto SolveHandle::model() -> std::optional<Model> {
     auto release = py::gil_scoped_release{};
     auto const *mdl = static_cast<clingo_model_t const *>(nullptr);
-    handle_error(clingo_solve_handle_model(hnd_, &mdl), *ptr_);
+    handle_error(clingo_solve_handle_model(hnd_, &mdl));
     return mdl != nullptr ? std::make_optional<Model>(mdl) : std::nullopt;
 }
 
 auto SolveHandle::last() -> std::optional<Model> {
     auto const *mdl = static_cast<clingo_model_t const *>(nullptr);
-    handle_error(clingo_solve_handle_last(hnd_, &mdl), *ptr_);
+    handle_error(clingo_solve_handle_last(hnd_, &mdl));
     return mdl != nullptr ? std::make_optional<Model>(mdl) : std::nullopt;
 }
 
@@ -216,21 +216,21 @@ auto SolveHandle::core() -> std::span<clingo_literal_t const> {
     auto release = py::gil_scoped_release{};
     auto const *lits = static_cast<clingo_literal_t *>(nullptr);
     auto size = size_t{0};
-    handle_error(clingo_solve_handle_core(hnd_, &lits, &size), *ptr_);
+    handle_error(clingo_solve_handle_core(hnd_, &lits, &size));
     return {lits, size};
 }
 
 auto SolveHandle::wait(std::optional<double> timeout) -> bool {
     auto release = py::gil_scoped_release{};
     bool result = false;
-    handle_error(clingo_solve_handle_wait(hnd_, timeout ? *timeout : -1, &result), *ptr_);
+    handle_error(clingo_solve_handle_wait(hnd_, timeout ? *timeout : -1, &result));
     return result;
 }
 
 void SolveHandle::close() {
     if (hnd_ != nullptr) {
         auto release = py::gil_scoped_release{};
-        handle_error(clingo_solve_handle_close(std::exchange(hnd_, nullptr)), *ptr_);
+        handle_error(clingo_solve_handle_close(std::exchange(hnd_, nullptr)));
     }
 }
 

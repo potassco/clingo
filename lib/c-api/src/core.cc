@@ -33,9 +33,6 @@ extern "C" void clingo_result_string(clingo_result_t code, clingo_string_t *valu
             case clingo_result_range: {
                 return "range error";
             }
-            case clingo_result_unknown: {
-                break;
-            }
         }
         return "unknown error";
     }();

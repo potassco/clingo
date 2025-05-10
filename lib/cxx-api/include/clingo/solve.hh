@@ -250,45 +250,44 @@ class SolveHandle {
     using reference = iterator::reference;
     using pointer = iterator::pointer;
 
-    explicit SolveHandle(std::exception_ptr &ptr, SolveEventHandler *seh = nullptr)
-        : data_{std::make_unique<Data>(&ptr, seh)} {}
+    explicit SolveHandle(SolveEventHandler *seh = nullptr) : data_{std::make_unique<Data>(seh)} {}
 
     friend auto c_cast(SolveHandle const &x) -> clingo_solve_handle_t * { return x.data_->hnd; }
 
     [[nodiscard]] auto get() const -> SolveResult {
         clingo_solve_result_bitset_t res = 0;
-        Detail::handle_error(clingo_solve_handle_get(data_->hnd, &res), *data_->ptr);
+        Detail::handle_error(clingo_solve_handle_get(data_->hnd, &res));
         return SolveResult{res};
     }
 
-    void cancel() { Detail::handle_error(clingo_solve_handle_cancel(data_->hnd), *data_->ptr); }
+    void cancel() { Detail::handle_error(clingo_solve_handle_cancel(data_->hnd)); }
 
     void close() { data_->close(); }
 
-    void resume() { Detail::handle_error(clingo_solve_handle_resume(data_->hnd), *data_->ptr); }
+    void resume() { Detail::handle_error(clingo_solve_handle_resume(data_->hnd)); }
 
     [[nodiscard]] auto model() -> std::optional<ConstModel> {
         clingo_model_t const *mdl = nullptr;
-        Detail::handle_error(clingo_solve_handle_model(data_->hnd, &mdl), *data_->ptr);
+        Detail::handle_error(clingo_solve_handle_model(data_->hnd, &mdl));
         return mdl != nullptr ? std::make_optional<ConstModel>(mdl) : std::nullopt;
     }
 
     [[nodiscard]] auto last() const -> std::optional<ConstModel> {
         clingo_model_t const *mdl = nullptr;
-        Detail::handle_error(clingo_solve_handle_last(data_->hnd, &mdl), *data_->ptr);
+        Detail::handle_error(clingo_solve_handle_last(data_->hnd, &mdl));
         return mdl != nullptr ? std::make_optional<ConstModel>(mdl) : std::nullopt;
     }
 
     [[nodiscard]] auto core() const -> ProgramLiteralSpan {
         auto const *lits = static_cast<clingo_literal_t *>(nullptr);
         auto size = size_t{0};
-        Detail::handle_error(clingo_solve_handle_core(data_->hnd, &lits, &size), *data_->ptr);
+        Detail::handle_error(clingo_solve_handle_core(data_->hnd, &lits, &size));
         return {lits, size};
     }
 
     [[nodiscard]] auto wait(std::optional<double> timeout) -> bool {
         bool result = false;
-        Detail::handle_error(clingo_solve_handle_wait(data_->hnd, timeout ? *timeout : -1, &result), *data_->ptr);
+        Detail::handle_error(clingo_solve_handle_wait(data_->hnd, timeout ? *timeout : -1, &result));
         return result;
     }
 
@@ -305,7 +304,6 @@ class SolveHandle {
         ~Data() { close(); }
         void close() { Detail::handle_error(clingo_solve_handle_close(std::exchange(hnd, nullptr))); }
 
-        std::exception_ptr *ptr;
         SolveEventHandler *seh;
         clingo_solve_handle_t *hnd = nullptr;
     };
@@ -351,7 +349,7 @@ class SolveHandle {
                 }
             }
         }
-        CLINGO_CATCH_PTR(*hnd->ptr);
+        CLINGO_CATCH;
     }
 
     std::unique_ptr<Data> data_;
