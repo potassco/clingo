@@ -71,6 +71,11 @@ class ClingoPropagator : public Clingo::Control::Propagator {
   public:
     ClingoPropagator(clingo_control_t *ctl, clingo_propagator_t prop, void *data)
         : ctl_{ctl}, prop_(prop), data_(data) {}
+    ~ClingoPropagator() override {
+        if (prop_.free != nullptr) {
+            prop_.free(data_);
+        }
+    }
 
     void init(Init &init) override {
         if (prop_.init != nullptr) {

@@ -264,17 +264,12 @@ class Control {
 
     void register_propagator(std::unique_ptr<Propagator> propagator) const {
         // NOTE: a destructor in the propagator would make the data unnecessary for the C++ api
-        auto &data = data_();
-        data.props.emplace_back(std::move(propagator));
         Detail::handle_error(
-            clingo_control_register_propagator(ctl_.get(), &Detail::c_propagator, data.props.back().get()));
+            clingo_control_register_propagator(ctl_.get(), &Detail::c_propagator, propagator.release()));
     }
 
     void register_propagator(std::unique_ptr<Heuristic> heuristic) const {
-        auto &data = data_();
-        data.props.emplace_back(std::move(heuristic));
-        Detail::handle_error(
-            clingo_control_register_propagator(ctl_.get(), &Detail::c_heuristic, data.props.back().get()));
+        Detail::handle_error(clingo_control_register_propagator(ctl_.get(), &Detail::c_heuristic, heuristic.release()));
     }
 
     void join(AST::Program const &prg) const { Detail::join(ctl_.get(), c_cast(prg)); }
@@ -284,12 +279,6 @@ class Control {
     // avoid this.
     friend struct Detail::AppData;
     friend class Detail::intrusive_handle<Control, clingo_control_t>;
-
-    struct Data {
-        std::vector<std::unique_ptr<Propagator>> props;
-    };
-
-    static void free_data_(void *data) { std::ignore = std::unique_ptr<Data>(static_cast<Data *>(data)); }
 
     static auto ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
                      char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
@@ -306,15 +295,6 @@ class Control {
     static auto acquire(clingo_control_t *ptr) { clingo_control_acquire(ptr); }
 
     static auto release(clingo_control_t *ptr) { clingo_control_release(ptr); }
-
-    [[nodiscard]] auto data_() const -> Data & {
-        auto *data = static_cast<Data *>(clingo_control_get_user_data(ctl_.get(), Detail::user_data_slot()));
-        if (data == nullptr) {
-            data = std::make_unique<Data>().release();
-            Detail::handle_error(clingo_control_set_user_data(ctl_.get(), Detail::user_data_slot(), data, &free_data_));
-        }
-        return *data;
-    }
 
     [[nodiscard]] auto solve_(SolveEventHandler *handler, ProgramLiteralSpan const &assumptions, SolveFlags flags) const
         -> SolveHandle {

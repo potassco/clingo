@@ -646,10 +646,14 @@ typedef struct clingo_propagator {
     //! @param[in] thread_id the solver's thread id
     //! @param[in] assignment the assignment of the solver
     //! @param[in] fallback the literal chosen by the solver's heuristic
+    //! @param[in] data user data for the callback
     //! @param[out] decision the literal to make true
     //! @return wether the call was successful
     bool (*decide)(clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data,
                    clingo_literal_t *decision);
+    //! Free the propagator.
+    //! @param[in] data user data for the callback
+    void (*free)(void *data);
 } clingo_propagator_t;
 
 //! Register a custom propagator with the control object.

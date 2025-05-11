@@ -423,19 +423,25 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
             CLINGO_CATCH;
         },
         nullptr,
+        nullptr,
     };
     // propagator with heuristic
-    static constexpr auto c_heu =
-        clingo_propagator_t{c_prop.init, c_prop.propagate, c_prop.undo, c_prop.check,
-                            [](clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback,
-                               void *data, clingo_literal_t *decision) -> bool {
-                                auto *self = static_cast<Propagator *>(data);
-                                CLINGO_TRY {
-                                    auto py_assignment = Assignment{assignment};
-                                    *decision = self->decide(thread_id, py_assignment, fallback);
-                                }
-                                CLINGO_CATCH;
-                            }};
+    static constexpr auto c_heu = clingo_propagator_t{
+        c_prop.init,
+        c_prop.propagate,
+        c_prop.undo,
+        c_prop.check,
+        [](clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data,
+           clingo_literal_t *decision) -> bool {
+            auto *self = static_cast<Propagator *>(data);
+            CLINGO_TRY {
+                auto py_assignment = Assignment{assignment};
+                *decision = self->decide(thread_id, py_assignment, fallback);
+            }
+            CLINGO_CATCH;
+        },
+        nullptr,
+    };
     auto has_heu = pybind11::get_override(&prop, "decide");
     handle_error(clingo_control_register_propagator(ctl, has_heu ? &c_heu : &c_prop, static_cast<void *>(&prop)));
 }

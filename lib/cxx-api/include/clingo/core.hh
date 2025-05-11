@@ -358,6 +358,7 @@ class Library {
                                             limit, &ptr));
         rep_.reset(ptr, false);
         if (log) {
+            // NOTE: for the C++ API a simpler mechanism would be sufficient
             Detail::handle_error(
                 clingo_lib_set_user_data(rep_.get(), Detail::user_data_slot(), log.release(), &free_logger_));
         }

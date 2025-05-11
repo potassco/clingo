@@ -433,21 +433,26 @@ static constexpr auto c_propagator = clingo_propagator_t{
         CLINGO_CATCH;
     },
     nullptr,
+    [](void *data) { std::ignore = std::make_unique<Propagator>(*static_cast<Propagator *>(data)); },
 };
 
-static constexpr auto c_heuristic =
-    clingo_propagator_t{c_propagator.init, c_propagator.propagate, c_propagator.undo, c_propagator.check,
-                        [](clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback,
-                           void *data, clingo_literal_t *decision) -> bool {
-                            auto &self = *static_cast<Propagator *>(data);
-                            CLINGO_TRY {
-                                // NOLINTBEGIN
-                                *decision =
-                                    static_cast<Heuristic &>(self).decide(thread_id, Assignment{assignment}, fallback);
-                                // NOLINTEND
-                            }
-                            CLINGO_CATCH;
-                        }};
+static constexpr auto c_heuristic = clingo_propagator_t{
+    c_propagator.init,
+    c_propagator.propagate,
+    c_propagator.undo,
+    c_propagator.check,
+    [](clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data,
+       clingo_literal_t *decision) -> bool {
+        auto &self = *static_cast<Propagator *>(data);
+        CLINGO_TRY {
+            // NOLINTBEGIN
+            *decision = static_cast<Heuristic &>(self).decide(thread_id, Assignment{assignment}, fallback);
+            // NOLINTEND
+        }
+        CLINGO_CATCH;
+    },
+    c_propagator.free,
+};
 
 } // namespace Detail
 
