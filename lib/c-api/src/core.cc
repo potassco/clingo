@@ -87,17 +87,30 @@ extern "C" void clingo_message_string(clingo_message_t code, clingo_string_t *va
     value->size = str.size();
 }
 
-extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t level, clingo_logger_t logger, void *data,
-                               size_t limit, clingo_lib_t **lib) -> bool {
+extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t level, clingo_logger_t const *logger,
+                               void *data, size_t limit, clingo_lib_t **lib) -> bool {
     try {
         *lib = nullptr;
+        struct LH {
+            clingo_logger_t log;
+            void *data;
+            ~LH() {
+                if (log.free != nullptr) {
+                    log.free(data);
+                }
+            }
+        };
+        std::shared_ptr<LH> lh;
         Clingo::Logger::Printer prt = nullptr;
         if (logger != nullptr) {
-            prt = [logger, data](Clingo::MessageCode code, std::string_view msg) {
-                logger(static_cast<clingo_message_t>(code), msg.data(), msg.size(), data);
-            };
+            lh = std::make_shared<LH>(*logger, data);
+            if (logger->log != nullptr) {
+                prt = [lh](Clingo::MessageCode code, std::string_view msg) {
+                    lh->log.log(static_cast<clingo_message_t>(code), msg.data(), msg.size(), lh->data);
+                };
+            }
         }
-        *lib = std::make_unique<clingo_lib>(Clingo::Logger{prt, limit},
+        *lib = std::make_unique<clingo_lib>(Clingo::Logger{std::move(prt), limit},
                                             Clingo::make_symbol_store((flags & clingo_lib_flags_slotted) != 0,
                                                                       (flags & clingo_lib_flags_shared) != 0),
                                             data, (flags & clingo_lib_flags_fast_release) != 0)

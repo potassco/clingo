@@ -130,11 +130,6 @@ inline void handle_error_no_code(bool res) {
     }
 }
 
-inline auto user_data_slot() -> size_t {
-    static auto slot = clingo_user_data_slot();
-    return slot;
-}
-
 template <auto F> struct Free {
     template <typename Ptr> void operator()(Ptr p) const noexcept { F(p); }
 };
@@ -354,14 +349,9 @@ class Library {
         clingo_lib_t *ptr = nullptr;
         auto log = std::make_unique<Logger>(logger ? std::move(logger) : nullptr);
         Detail::handle_error(clingo_lib_new(static_cast<clingo_lib_flags_t>(flags),
-                                            static_cast<clingo_log_level_t>(level), log ? &logger_ : nullptr, log.get(),
-                                            limit, &ptr));
+                                            static_cast<clingo_log_level_t>(level), log ? &c_logger : nullptr,
+                                            log.release(), limit, &ptr));
         rep_.reset(ptr, false);
-        if (log) {
-            // NOTE: for the C++ API a simpler mechanism would be sufficient
-            Detail::handle_error(
-                clingo_lib_set_user_data(rep_.get(), Detail::user_data_slot(), log.release(), &free_logger_));
-        }
     }
     explicit Library(clingo_lib_t *rep, bool acquire) : rep_{rep, acquire} {}
 
@@ -370,10 +360,13 @@ class Library {
   private:
     friend class Detail::intrusive_handle<Library, clingo_lib_t>;
 
-    static void free_logger_(void *data) noexcept { std::unique_ptr<Logger>(static_cast<Logger *>(data)); }
-    static void logger_(clingo_message_t code, char const *message, size_t size, void *data) {
-        (*static_cast<Logger *>(data))(static_cast<MessageCode>(code), {message, size});
-    }
+    static constexpr clingo_logger_t c_logger = {
+        [](clingo_message_t code, char const *message, size_t size, void *data) {
+            (*static_cast<Logger *>(data))(static_cast<MessageCode>(code), {message, size});
+        },
+        [](void *data) noexcept { std::unique_ptr<Logger>(static_cast<Logger *>(data)); },
+    };
+
     static auto acquire(clingo_lib_t *ptr) { clingo_lib_acquire(ptr); }
     static auto release(clingo_lib_t *ptr) { clingo_lib_release(ptr); }
 

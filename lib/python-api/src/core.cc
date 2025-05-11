@@ -108,7 +108,18 @@ Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation
     auto logger = cb.cast<std::optional<Logger>>();
     auto *ptr = logger ? cb.ptr() : nullptr;
     clingo_lib_t *lib = nullptr;
-    handle_error(clingo_lib_new(flags, level, ptr != nullptr ? &logger_ : nullptr, ptr, default_message_limit, &lib));
+    // TODO:
+    // - register the library globally: clingo_lib_t -> Library
+    // - tie the lifetime of the logger to that of the library
+    // - get rid of the user data
+    // - when creating a Library object from a clingo_lib_t use the registry for lookup
+    // - destroying the library removes it from the registry
+    // - a library object not found in the registry just creates a new one
+    auto constexpr c_logger = clingo_logger_t{
+        logger_,
+        nullptr,
+    };
+    handle_error(clingo_lib_new(flags, level, ptr != nullptr ? &c_logger : nullptr, ptr, default_message_limit, &lib));
     lib_.reset(lib, false);
     if (ptr != nullptr) {
         add_object(std::move(cb));

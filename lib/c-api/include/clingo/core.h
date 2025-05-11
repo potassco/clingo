@@ -153,15 +153,23 @@ enum clingo_log_level_e {
 //! Corresponding type to ::clingo_log_level_e.
 typedef int clingo_log_level_t;
 
-//! Callback to intercept messages.
-//!
-//! @param[in] code associated code
-//! @param[in] message the message
-//! @param[in] size the size of the message
-//! @param[in] data user data for callback
-//!
-//! @see clingo_lib_new()
-typedef void (*clingo_logger_t)(clingo_message_t code, char const *message, size_t size, void *data);
+typedef struct clingo_logger {
+    //! Callback to intercept messages.
+    //!
+    //! @param[in] code associated code
+    //! @param[in] message the message
+    //! @param[in] size the size of the message
+    //! @param[in] data user data for callback
+    //!
+    //! @see clingo_lib_new()
+    void (*log)(clingo_message_t code, char const *message, size_t size, void *data);
+    //! Free the logger.
+    //!
+    //! @param[in] data user data for callback
+    //!
+    //! @see clingo_lib_new()
+    void (*free)(void *data);
+} clingo_logger_t;
 
 //! A library object storing global information.
 typedef struct clingo_lib clingo_lib_t;
@@ -213,11 +221,11 @@ CLINGO_VISIBILITY_DEFAULT void clingo_message_string(clingo_message_t code, clin
 //! @param[in] level the log level for the message logger
 //! @param[in] logger callback functions for warnings and info messages
 //! @param[in] data user data for the logger callback
-//! @param[in] limit maximum number of times the logger callback is called
 //! @param[out] lib the resulting library object
 //! @return wether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t level,
-                                              clingo_logger_t logger, void *data, size_t limit, clingo_lib_t **lib);
+                                              clingo_logger_t const *logger, void *data, size_t limit,
+                                              clingo_lib_t **lib);
 
 //! Increment the reference count of the given library.
 //!
