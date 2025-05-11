@@ -57,13 +57,14 @@ class Library {
     ~Library();
 
     void close() noexcept;
-    void tie([[maybe_unused]] py::handle obj) {};
+    void tie(py::handle obj);
 
     operator clingo_lib_t *() const;
 
     static auto cast(clingo_lib_t *lib, bool convert = false) -> PyLibrary;
     static void acquire(clingo_lib_t *lib, bool inc = true);
     static void release(clingo_lib_t *lib) noexcept;
+    static void setup(PyHeapTypeObject *heap_type);
 
   private:
     Library(clingo_lib_t *lib);
@@ -72,6 +73,7 @@ class Library {
     static clingo_logger_t c_logger;
 
     ManagedPtr<Library, clingo_lib_t> lib_;
+    py::list ref_;
 };
 
 static constexpr auto code_base = 36;

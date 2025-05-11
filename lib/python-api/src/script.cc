@@ -275,11 +275,12 @@ class Script {
 };
 
 void reg_script(Annotation<Library> const &lib, Annotation<Script> const &script) {
-    auto &clib = py::cast<Library &>(lib);
+    auto &c_lib = py::cast<Library &>(lib);
     auto c_script =
         clingo_script_t{Script::c_execute, Script::c_call, Script::c_callable, Script::c_main, Script::c_name,
                         Script::c_version, nullptr};
-    handle_error(clingo_script_register(clib, &c_script, py::cast<Script *>(script)));
+    c_lib.tie(script);
+    handle_error(clingo_script_register(c_lib, &c_script, py::cast<Script *>(script)));
 }
 
 void reg_python(Annotation<Library> const &lib) {
@@ -288,7 +289,7 @@ void reg_python(Annotation<Library> const &lib) {
     auto c_script = clingo_script_t{Script::c_execute, Script::c_call, Script::c_callable, Script::main, Script::c_name,
                                     Script::c_version, nullptr};
     auto py_script = py::cast(Script{false});
-    lib.attr("_tie")(py_script);
+    c_lib.tie(py_script);
     handle_error(clingo_script_register(c_lib, &c_script, py::cast<Script *>(py_script)));
 }
 
@@ -409,7 +410,7 @@ Args:
         .def("version", &Script::version, R"(Get the version of the script.)");
 
     script
-        .def("register", &reg_script, py::arg("lib"), py::arg("script"), py::keep_alive<1, 2>(), R"(
+        .def("register", &reg_script, py::arg("lib"), py::arg("script"), R"(
 Registers a script language which can then be embedded into a logic program.
 
 Args:

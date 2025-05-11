@@ -111,6 +111,7 @@ Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation
     handle_error(clingo_lib_new(flags, level, ptr != nullptr ? &c_logger : nullptr, ptr, default_message_limit, &lib));
     lib_.reset(lib, false);
     registry.emplace(lib_.get(), this);
+    ref_.append(cb);
 }
 
 Library::Library(clingo_lib_t *lib) : lib_{lib} {
@@ -133,6 +134,25 @@ auto Library::cast(clingo_lib_t *lib, bool convert) -> PyLibrary {
 }
 
 std::unordered_map<clingo_lib_t *, Library *> Library::registry;
+
+void Library::tie(py::handle obj) {
+    ref_.append(obj);
+}
+
+void Library::setup(PyHeapTypeObject *heap_type) {
+    auto *type = &heap_type->ht_type;
+    type->tp_flags |= Py_TPFLAGS_HAVE_GC;
+    type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
+        auto &self = py::cast<Library &>(py::handle(self_base));
+        Py_VISIT(self.ref_.ptr());
+        return 0;
+    };
+    type->tp_clear = [](PyObject *self_base) -> int {
+        auto &self = py::cast<Library &>(py::handle(self_base));
+        Py_CLEAR(self.ref_.ptr());
+        return 0;
+    };
+}
 
 clingo_logger_t Library::c_logger = {
     [](clingo_message_t code, char const *message, size_t size, void *log) {
@@ -393,7 +413,7 @@ Returns:
         .value("Warn", clingo_message_warn, R"(A warning message.)")
         .value("Error", clingo_message_error, R"(An error message.)");
 
-    py::class_<Library>(core, "Library",
+    py::class_<Library>(core, "Library", py::custom_type_setup(&Library::setup),
                         R"(
 A library object that manages Clingo's core resources.
 
@@ -405,7 +425,7 @@ This class implements the `ContextManager` interface.
         .def(py::init<bool, bool, clingo_log_level_e, Annotation<std::optional<Logger>>, size_t>(),
              "Create a library object.", py::arg("shared") = true, py::arg("slotted") = true,
              py::arg("log_level") = clingo_log_level_info, py::arg("logger") = std::nullopt,
-             py::arg("message_limit") = default_message_limit, py::keep_alive<1, 5>(), // NOLINT
+             py::arg("message_limit") = default_message_limit, // NOLINT
              R"(
 Create a library object.
 
@@ -431,9 +451,7 @@ Return self.
             },
             R"(
 Close the library object.
-)"_d)
-        .def("_tie", &Library::tie, py::arg("object"), py::keep_alive<1, 2>{},
-             R"(Tie the lifetime of the given object to that of the library.)");
+)"_d);
     make_comparable(py::class_<Position>(core, "Position", R"(
 Represents a position in a source file.
 
