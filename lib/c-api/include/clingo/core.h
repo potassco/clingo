@@ -247,26 +247,6 @@ CLINGO_VISIBILITY_DEFAULT void clingo_lib_acquire(clingo_lib_t *lib);
 //! @param[in] lib the target
 CLINGO_VISIBILITY_DEFAULT void clingo_lib_release(clingo_lib_t *lib);
 
-//! Store the given user data in the library.
-//!
-//! This function is meant to associate library objects with their wrapper
-//! object in language bindings.
-//!
-//! @param[in] lib the target library
-//! @param[in] slot the slot to use
-//! @param[in] data the user data to set
-//! @param[in] deleter optional deleter to destroy the user data
-//! @return wether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_lib_set_user_data(clingo_lib_t *lib, size_t slot, void *data,
-                                                        void (*deleter)(void *data));
-
-//! Get the user data of the library.
-//!
-//! @param[in] lib the target library
-//! @param[in] slot the slot to use
-//! @return the user data
-CLINGO_VISIBILITY_DEFAULT void *clingo_lib_get_user_data(clingo_lib_t *lib, size_t slot);
-
 //! Report a message via the libraries logger.
 //!
 //! @param[in] lib the library

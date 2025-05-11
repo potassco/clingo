@@ -108,28 +108,48 @@ Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation
     auto logger = cb.cast<std::optional<Logger>>();
     auto *ptr = logger ? cb.ptr() : nullptr;
     clingo_lib_t *lib = nullptr;
-    // TODO:
-    // - register the library globally: clingo_lib_t -> Library
-    // - tie the lifetime of the logger to that of the library
-    // - get rid of the user data
-    // - when creating a Library object from a clingo_lib_t use the registry for lookup
-    // - destroying the library removes it from the registry
-    // - a library object not found in the registry just creates a new one
-    auto constexpr c_logger = clingo_logger_t{
-        logger_,
-        nullptr,
-    };
     handle_error(clingo_lib_new(flags, level, ptr != nullptr ? &c_logger : nullptr, ptr, default_message_limit, &lib));
     lib_.reset(lib, false);
-    if (ptr != nullptr) {
-        add_object(std::move(cb));
-    }
+    registry.emplace(lib_.get(), this);
 }
+
+Library::Library(clingo_lib_t *lib) : lib_{lib} {
+    registry.emplace(lib_.get(), this);
+}
+
+Library::~Library() {
+    registry.erase(lib_.get());
+}
+
+auto Library::cast(clingo_lib_t *lib, bool convert) -> PyLibrary {
+    auto it = registry.find(lib);
+    if (it != registry.end()) {
+        return py::cast(it->second);
+    }
+    if (!convert) {
+        return py::cast(std::unique_ptr<Library>(new Library{lib}));
+    }
+    throw py::cast_error("invalid Library cast");
+}
+
+std::unordered_map<clingo_lib_t *, Library *> Library::registry;
+
+clingo_logger_t Library::c_logger = {
+    [](clingo_message_t code, char const *message, size_t size, void *log) {
+        try {
+            auto gil = py::gil_scoped_acquire{};
+            auto hnd = py::reinterpret_borrow<py::object>(static_cast<PyObject *>(log));
+            hnd.cast<Logger>()(static_cast<clingo_message_e>(code), {message, size});
+        } catch (std::exception const &e) {
+            printf("panic: exception with message %s thrown in logger\n", e.what());
+            std::terminate();
+        }
+    },
+    nullptr,
+};
 
 void Library::release(clingo_lib_t *lib) noexcept {
     if (lib != nullptr) {
-        auto *data = static_cast<PyObject *>(clingo_lib_get_user_data(lib, user_data_slot()));
-        Py_XDECREF(data);
         clingo_lib_release(lib);
         lib = nullptr;
     }
@@ -142,25 +162,6 @@ void Library::acquire(clingo_lib_t *lib, bool inc) {
     if (inc) {
         clingo_lib_acquire(lib);
     }
-    auto *data = static_cast<PyObject *>(clingo_lib_get_user_data(lib, user_data_slot()));
-    if (data != nullptr) {
-        Py_XINCREF(data);
-    } else {
-        auto list = py::list{0};
-        handle_error(clingo_lib_set_user_data(lib, user_data_slot(), list.release().ptr(), nullptr));
-    }
-}
-
-auto Library::user_data() const -> py::list {
-    return py::reinterpret_borrow<py::list>(
-        static_cast<PyObject *>(clingo_lib_get_user_data(lib_.get(), user_data_slot())));
-}
-
-auto Library::cast(clingo_lib_t *lib, bool convert) -> Annotation<Library> {
-    if (!convert && clingo_lib_get_user_data(lib, user_data_slot()) == nullptr) {
-        throw py::cast_error("invalid Library cast");
-    }
-    return py::cast(Library{lib});
 }
 
 void Library::close() noexcept {
@@ -171,47 +172,12 @@ Library::operator clingo_lib_t *() const {
     return lib_.get();
 }
 
-void Library::logger_(clingo_message_t code, char const *message, size_t size, void *log) noexcept {
-    try {
-        auto gil = py::gil_scoped_acquire{};
-        auto hnd = py::reinterpret_borrow<py::object>(static_cast<PyObject *>(log));
-        hnd.cast<Logger>()(static_cast<clingo_message_e>(code), {message, size});
-    } catch (std::exception const &e) {
-        printf("panic: exception with message %s thrown in logger\n", e.what());
-        std::terminate();
-    }
-}
-
 auto version() -> std::tuple<int, int, int> {
     int major = 0;
     int minor = 0;
     int patch = 0;
     clingo_version(&major, &minor, &patch);
     return {major, minor, patch};
-}
-
-auto Library::add_object(py::object script) -> PyObject * {
-    auto *ret = script.ptr();
-    user_data().append(std::move(script));
-    return ret;
-}
-
-void Library::setup(PyHeapTypeObject *heap_type) {
-    auto *type = &heap_type->ht_type;
-    type->tp_flags |= Py_TPFLAGS_HAVE_GC;
-    type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
-        auto &self = py::cast<Library &>(py::handle(self_base));
-        if (self.lib_ != nullptr) {
-            auto *objs = self.user_data().ptr();
-            Py_VISIT(objs);
-        }
-        return 0;
-    };
-    type->tp_clear = [](PyObject *self_base) -> int {
-        auto &self = py::cast<Library &>(py::handle(self_base));
-        self.lib_.reset();
-        return 0;
-    };
 }
 
 // definition of StringBuilder
@@ -427,7 +393,7 @@ Returns:
         .value("Warn", clingo_message_warn, R"(A warning message.)")
         .value("Error", clingo_message_error, R"(An error message.)");
 
-    py::class_<Library>(core, "Library", py::custom_type_setup(&Library::setup),
+    py::class_<Library>(core, "Library",
                         R"(
 A library object that manages Clingo's core resources.
 
@@ -439,7 +405,7 @@ This class implements the `ContextManager` interface.
         .def(py::init<bool, bool, clingo_log_level_e, Annotation<std::optional<Logger>>, size_t>(),
              "Create a library object.", py::arg("shared") = true, py::arg("slotted") = true,
              py::arg("log_level") = clingo_log_level_info, py::arg("logger") = std::nullopt,
-             py::arg("message_limit") = default_message_limit,
+             py::arg("message_limit") = default_message_limit, py::keep_alive<1, 5>(), // NOLINT
              R"(
 Create a library object.
 
@@ -465,7 +431,9 @@ Return self.
             },
             R"(
 Close the library object.
-)"_d);
+)"_d)
+        .def("_tie", &Library::tie, py::arg("object"), py::keep_alive<1, 2>{},
+             R"(Tie the lifetime of the given object to that of the library.)");
     make_comparable(py::class_<Position>(core, "Position", R"(
 Represents a position in a source file.
 

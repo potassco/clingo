@@ -27,7 +27,6 @@ struct clingo_lib {
     void *data;
     clingo_lib_t *next_ = nullptr;
     std::atomic<size_t> ref_count = 1;
-    std::vector<std::unique_ptr<void, user_data_deleter>> user_data;
     bool fast_release;
 };
 

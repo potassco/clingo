@@ -54,10 +54,10 @@ class Library {
   public:
     Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
             size_t default_message_limit);
+    ~Library();
 
     void close() noexcept;
-    auto add_object(py::object script) -> PyObject *;
-    static void setup(PyHeapTypeObject *heap_type);
+    void tie([[maybe_unused]] py::handle obj) {};
 
     operator clingo_lib_t *() const;
 
@@ -66,10 +66,10 @@ class Library {
     static void release(clingo_lib_t *lib) noexcept;
 
   private:
-    Library(clingo_lib_t *lib) : lib_{lib} {}
-    [[nodiscard]] auto user_data() const -> py::list;
+    Library(clingo_lib_t *lib);
 
-    static void logger_(clingo_message_t code, char const *message, size_t size, void *log) noexcept;
+    static std::unordered_map<clingo_lib_t *, Library *> registry;
+    static clingo_logger_t c_logger;
 
     ManagedPtr<Library, clingo_lib_t> lib_;
 };
