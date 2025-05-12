@@ -44,6 +44,8 @@ struct Arg {
     Type type;
 };
 
+// NOTE: a tuple of arrays would have been the better choice
+
 constexpr auto cons_projection = std::array{Arg{clingo_ast_attribute_location, Arg::location}};
 constexpr auto cons_term_variable =
     std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_name, Arg::string},

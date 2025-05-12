@@ -107,10 +107,9 @@ auto TheoryTerm::number() -> int {
 }
 
 auto TheoryTerm::name() -> std::string_view {
-    char const *name = nullptr;
-    size_t size = 0;
-    handle_error(clingo_theory_base_term_name(base_, index_, &name, &size));
-    return name;
+    clingo_string_t name;
+    handle_error(clingo_theory_base_term_name(base_, index_, &name));
+    return {name.data, name.size};
 }
 
 auto TheoryTerm::arguments() -> TypeHint<"Sequence[TheoryTerm]"> {
@@ -184,11 +183,10 @@ auto TheoryAtom::guard() -> std::optional<std::pair<std::string_view, TheoryTerm
     auto has_guard = false;
     handle_error(clingo_theory_base_atom_has_guard(base_, index_, &has_guard));
     if (has_guard) {
-        char const *op = nullptr;
-        size_t size = 0;
+        clingo_string_t op;
         clingo_id_t term = 0;
-        handle_error(clingo_theory_base_atom_guard(base_, index_, &op, &size, &term));
-        return std::pair{op, TheoryTerm{*base_, term}};
+        handle_error(clingo_theory_base_atom_guard(base_, index_, &op, &term));
+        return std::pair{std::string_view{op.data, op.size}, TheoryTerm{*base_, term}};
     }
     return std::nullopt;
 }

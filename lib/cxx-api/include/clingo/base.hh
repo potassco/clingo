@@ -13,18 +13,14 @@ class Atom {
     explicit Atom(clingo_atom_base_t const *base, size_t index) : base_{base}, index_{index} {}
 
     [[nodiscard]] auto literal() const -> ProgramLiteral {
-        auto lit = clingo_literal_t{0};
-        Detail::handle_error(clingo_atom_base_literal(base_, index_, &lit));
-        return lit;
+        return Detail::call<clingo_atom_base_literal>(base_, index_);
     }
 
     [[nodiscard]] auto symbol() const -> Symbol {
-        auto sym = clingo_symbol_t{0};
-        Detail::handle_error(clingo_atom_base_symbol(base_, index_, &sym));
-        return Symbol{sym, true};
+        return Symbol{Detail::call<clingo_atom_base_symbol>(base_, index_), true};
     }
 
-    [[nodiscard]] auto hash() const noexcept { return Detail::hash_value(index_); }
+    [[nodiscard]] auto hash() const noexcept -> size_t { return Detail::hash_value(index_); }
 
     friend auto operator==(Atom const &a, Atom const &b) noexcept -> bool {
         assert(a.base_ == b.base_);
@@ -54,11 +50,7 @@ class AtomBase {
 
     explicit AtomBase(clingo_atom_base_t const *base) : base_{base} {}
 
-    [[nodiscard]] auto size() const -> size_type {
-        size_t size = 0;
-        Detail::handle_error(clingo_atom_base_size(base_, &size));
-        return size;
-    }
+    [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_atom_base_size>(base_); }
 
     [[nodiscard]] auto at(size_t index) const -> value_type {
         auto atom = Atom{base_, index};
@@ -66,14 +58,11 @@ class AtomBase {
     }
 
     [[nodiscard]] auto contains(key_type const &symbol) const -> bool {
-        auto index = size_t{0};
-        Detail::handle_error(clingo_atom_base_find(base_, *c_cast(&symbol), &index));
-        return index < size();
+        return Detail::call<clingo_atom_base_find>(base_, *c_cast(&symbol)) < size();
     }
 
     [[nodiscard]] auto get(key_type const &symbol, std::optional<mapped_type> def) const -> std::optional<mapped_type> {
-        auto index = size_t{0};
-        Detail::handle_error(clingo_atom_base_find(base_, *c_cast(&symbol), &index));
+        auto index = Detail::call<clingo_atom_base_find>(base_, *c_cast(&symbol));
         return index < size() ? std::make_optional<mapped_type>(base_, index) : def;
     }
 
@@ -91,11 +80,10 @@ class Term {
     explicit Term(clingo_term_base_t const &base, size_t index) : base_{&base}, index_{index} {}
 
     [[nodiscard]] auto symbol() const -> Symbol {
-        auto sym = clingo_symbol_t{0};
-        Detail::handle_error(clingo_term_base_symbol(base_, index_, &sym));
-        return Symbol{sym, true};
+        return Symbol{Detail::call<clingo_term_base_symbol>(base_, index_), true};
     }
     [[nodiscard]] auto condition() const -> std::vector<ProgramLiteralVector> {
+        // TODO: maybe clingo_literals_t { clingo_literal_t const *, size_t size }
         size_t const *sizes = nullptr;
         clingo_literal_t const *const *lits = nullptr;
         size_t size = 0;
@@ -140,11 +128,7 @@ class TermBase {
 
     explicit TermBase(clingo_term_base_t const &base) : base_{&base} {}
 
-    [[nodiscard]] auto size() const -> size_type {
-        size_t size = 0;
-        Detail::handle_error(clingo_term_base_size(base_, &size));
-        return size;
-    }
+    [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_term_base_size>(base_); }
 
     [[nodiscard]] auto at(size_t index) const -> value_type {
         auto term = Term{*base_, index};
@@ -152,14 +136,11 @@ class TermBase {
     }
 
     [[nodiscard]] auto contains(key_type const &symbol) const -> bool {
-        auto index = size_t{0};
-        Detail::handle_error(clingo_term_base_find(base_, *c_cast(&symbol), &index));
-        return index < size();
+        return Detail::call<clingo_term_base_find>(base_, *c_cast(&symbol)) < size();
     }
 
     [[nodiscard]] auto get(key_type const &symbol, std::optional<mapped_type> def) const -> std::optional<mapped_type> {
-        auto index = size_t{0};
-        Detail::handle_error(clingo_term_base_find(base_, *c_cast(&symbol), &index));
+        auto index = Detail::call<clingo_term_base_find>(base_, *c_cast(&symbol));
         return index < size() ? std::make_optional<mapped_type>(*base_, index) : def;
     }
 
@@ -172,6 +153,15 @@ class TermBase {
 };
 static_assert(std::random_access_iterator<TermBase::iterator>);
 
+enum class TheoryTermType {
+    tuple = clingo_theory_term_type_tuple,       //!< a tuple term, e.g., `(1,2,3)`
+    list = clingo_theory_term_type_list,         //!< a list term, e.g., `[1,2,3]`
+    set = clingo_theory_term_type_set,           //!< a set term, e.g., `{1,2,3}`
+    function = clingo_theory_term_type_function, //!< a function term, e.g., `f(1,2,3)`
+    number = clingo_theory_term_type_number,     //!< a number term, e.g., `42`
+    symbol = clingo_theory_term_type_symbol      //!< a symbol term, e.g., `c`
+};
+
 class TheoryTerm;
 using TheoryTermVector = std::vector<TheoryTerm>;
 
@@ -179,22 +169,14 @@ class TheoryTerm {
   public:
     explicit TheoryTerm(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
 
-    [[nodiscard]] auto type() const -> clingo_theory_term_type_e {
-        clingo_theory_term_type_t type = 0;
-        Detail::handle_error(clingo_theory_base_term_type(base_, index_, &type));
-        return static_cast<clingo_theory_term_type_e>(type);
+    [[nodiscard]] auto type() const -> TheoryTermType {
+        return static_cast<TheoryTermType>(Detail::call<clingo_theory_base_term_type>(base_, index_));
     }
 
-    [[nodiscard]] auto number() const -> int {
-        int num = 0;
-        Detail::handle_error(clingo_theory_base_term_number(base_, index_, &num));
-        return num;
-    }
+    [[nodiscard]] auto number() const -> int { return Detail::call<clingo_theory_base_term_number>(base_, index_); }
 
     [[nodiscard]] auto name() const -> std::string_view {
-        char const *name = nullptr;
-        size_t size = 0;
-        Detail::handle_error(clingo_theory_base_term_name(base_, index_, &name, &size));
+        auto [name, size] = Detail::call<clingo_theory_base_term_name>(base_, index_);
         return {name, size};
     }
 
@@ -250,9 +232,7 @@ class TheoryElement {
     }
 
     [[nodiscard]] auto condition_id() const -> ProgramLiteral {
-        clingo_literal_t id = 0;
-        Detail::handle_error(clingo_theory_base_element_condition_id(base_, index_, &id));
-        return id;
+        return Detail::call<clingo_theory_base_element_condition_id>(base_, index_);
     }
 
     [[nodiscard]] auto to_string() const -> std::string {
@@ -283,9 +263,7 @@ class TheoryAtom {
     explicit TheoryAtom(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
 
     [[nodiscard]] auto name() const -> TheoryTerm {
-        clingo_id_t id = 0;
-        Detail::handle_error(clingo_theory_base_atom_term(base_, index_, &id));
-        return TheoryTerm{*base_, id};
+        return TheoryTerm{*base_, Detail::call<clingo_theory_base_atom_term>(base_, index_)};
     }
 
     [[nodiscard]] auto elements() const -> TheoryElementVector {
@@ -296,20 +274,16 @@ class TheoryAtom {
     }
 
     [[nodiscard]] auto literal() const -> ProgramLiteral {
-        clingo_literal_t lit = 0;
-        Detail::handle_error(clingo_theory_base_atom_literal(base_, index_, &lit));
-        return lit;
+        return Detail::call<clingo_theory_base_atom_literal>(base_, index_);
     }
 
     [[nodiscard]] auto guard() const -> std::optional<std::pair<std::string_view, TheoryTerm>> {
-        auto has_guard = false;
-        Detail::handle_error(clingo_theory_base_atom_has_guard(base_, index_, &has_guard));
+        auto has_guard = Detail::call<clingo_theory_base_atom_has_guard>(base_, index_);
         if (has_guard) {
-            char const *op = nullptr;
-            size_t size = 0;
+            clingo_string_t op;
             clingo_id_t term = 0;
-            Detail::handle_error(clingo_theory_base_atom_guard(base_, index_, &op, &size, &term));
-            return std::pair{std::string_view{op, size}, TheoryTerm{*base_, term}};
+            Detail::handle_error(clingo_theory_base_atom_guard(base_, index_, &op, &term));
+            return std::pair{std::string_view{op.data, op.size}, TheoryTerm{*base_, term}};
         }
         return std::nullopt;
     }
@@ -348,11 +322,7 @@ class TheoryBase {
 
     explicit TheoryBase(clingo_theory_base_t const &base) : base_{&base} {}
 
-    [[nodiscard]] auto size() const -> size_type {
-        size_t size = 0;
-        Detail::handle_error(clingo_theory_base_size(base_, &size));
-        return size;
-    }
+    [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_theory_base_size>(base_); }
 
     [[nodiscard]] auto at(size_t index) const -> value_type {
         return index < size() ? TheoryAtom{*base_, index} : throw std::out_of_range{"atom index out of range"};
@@ -381,45 +351,31 @@ class Base {
     Base(clingo_base_t const *base) : base_{base} {}
 
     [[nodiscard]] auto is_external(ProgramLiteral lit) const -> bool {
-        auto ext = false;
-        Detail::handle_error(clingo_base_is_external(base_, lit, &ext));
-        return ext;
+        return Detail::call<clingo_base_is_external>(base_, lit);
     }
 
     [[nodiscard]] auto is_fact(ProgramLiteral lit) const -> bool {
-        auto fact = false;
-        Detail::handle_error(clingo_base_is_fact(base_, lit, &fact));
-        return fact;
+        return Detail::call<clingo_base_is_fact>(base_, lit);
     }
 
     [[nodiscard]] auto is_shown(ProgramLiteral lit) const -> bool {
-        auto shown = false;
-        Detail::handle_error(clingo_base_is_shown(base_, lit, &shown));
-        return shown;
+        return Detail::call<clingo_base_is_shown>(base_, lit);
     }
 
     [[nodiscard]] auto is_projected(ProgramLiteral lit) const -> bool {
-        auto projected = false;
-        Detail::handle_error(clingo_base_is_fact(base_, lit, &projected));
-        return projected;
+        return Detail::call<clingo_base_is_fact>(base_, lit);
     }
 
     [[nodiscard]] auto is_current(ProgramLiteral lit) const -> bool {
-        auto current = false;
-        Detail::handle_error(clingo_base_is_current(base_, lit, &current));
-        return current;
+        return Detail::call<clingo_base_is_current>(base_, lit);
     }
 
-    [[nodiscard]] auto size() const -> size_type {
-        size_t size = 0;
-        Detail::handle_error(clingo_base_atoms_size(base_, &size));
-        return size;
-    }
+    [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_base_atoms_size>(base_); }
 
     [[nodiscard]] auto at(size_t index) const -> value_type {
-        auto sig = clingo_signature_t{};
-        clingo_atom_base_t const *atoms = nullptr;
         if (index < size()) {
+            auto sig = clingo_signature_t{};
+            clingo_atom_base_t const *atoms = nullptr;
             Detail::handle_error(clingo_base_atoms_at(base_, index, &sig, &atoms));
             return std::pair{std::tuple{sig.name, sig.arity, sig.is_positive}, AtomBase{atoms}};
         }
@@ -429,9 +385,7 @@ class Base {
     [[nodiscard]] auto contains(key_type const &sig) const -> bool {
         auto csig =
             clingo_signature_t{std::get<0>(sig).data(), std::get<0>(sig).size(), std::get<1>(sig), std::get<2>(sig)};
-        auto found = false;
-        Detail::handle_error(clingo_base_atoms_find(base_, &csig, nullptr, &found));
-        return found;
+        return Detail::call<clingo_base_atoms_find>(base_, &csig, nullptr);
     }
 
     [[nodiscard]] auto contains(std::pair<std::string_view, size_t> const &sig) const -> bool {
@@ -471,17 +425,9 @@ class Base {
         return def;
     }
 
-    [[nodiscard]] auto terms() const -> TermBase {
-        auto const *terms = static_cast<clingo_term_base_t const *>(nullptr);
-        Detail::handle_error(clingo_base_terms(base_, &terms));
-        return TermBase{*terms};
-    }
+    [[nodiscard]] auto terms() const -> TermBase { return TermBase{*Detail::call<clingo_base_terms>(base_)}; }
 
-    [[nodiscard]] auto theory() const -> TheoryBase {
-        auto const *base = static_cast<clingo_theory_base_t const *>(nullptr);
-        Detail::handle_error(clingo_base_theory(base_, &base));
-        return TheoryBase{*base};
-    }
+    [[nodiscard]] auto theory() const -> TheoryBase { return TheoryBase{*Detail::call<clingo_base_theory>(base_)}; }
 
     [[nodiscard]] auto begin() const -> iterator { return {*this, 0}; }
 

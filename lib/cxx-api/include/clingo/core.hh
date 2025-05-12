@@ -130,8 +130,86 @@ inline void handle_error_no_code(bool res) {
     }
 }
 
+template <typename> struct funptr_traits;
+
+template <typename R, typename... As> struct funptr_traits<R (*)(As...)> {
+    using return_type = R;
+    using args_tuple = std::tuple<As...>;
+    template <std::size_t N> using arg = std::tuple_element_t<N, args_tuple>;
+
+    static constexpr std::size_t arity = sizeof...(As);
+    using last = arg<arity - 1>;
+};
+
+template <auto F, class... As> auto call(As &&...args) {
+    using Traits = funptr_traits<decltype(F)>;
+    auto res = std::remove_pointer_t<typename Traits::last>{};
+    if constexpr (std::is_same_v<typename Traits::return_type, void>) {
+        F(std::forward<As>(args)..., &res);
+    } else {
+        handle_error(F(std::forward<As>(args)..., &res));
+    }
+    return res;
+}
+
 template <auto F> struct Free {
     template <typename Ptr> void operator()(Ptr p) const noexcept { F(p); }
+};
+
+template <class T> struct value_handle {
+  public:
+    using pointer = typename T::pointer;
+
+    value_handle() = default;
+
+    value_handle(const value_handle &other) : ptr_{other ? T::copy(other.ptr_) : nullptr} {}
+
+    value_handle(value_handle &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {}
+
+    explicit value_handle(pointer ptr, bool copy) : ptr_{copy && ptr != nullptr ? T::copy(ptr) : ptr} {}
+
+    ~value_handle() {
+        if (*this) {
+            T::free(ptr_);
+        }
+    }
+
+    auto operator=(const value_handle &other) -> value_handle & {
+        if (this != &other) {
+            if (*this) {
+                T::free(ptr_);
+            }
+            ptr_ = other ? T::copy(other.ptr_) : nullptr;
+        }
+        return *this;
+    }
+
+    auto operator=(value_handle &&other) noexcept -> value_handle & {
+        if (this != &other) {
+            if (*this) {
+                T::free(ptr_);
+            }
+            ptr_ = std::exchange(other.ptr_, nullptr);
+        }
+        return *this;
+    }
+
+    [[nodiscard]] auto get() const -> pointer { return ptr_; }
+    explicit operator bool() const { return ptr_ != nullptr; }
+
+  private:
+    pointer ptr_ = nullptr;
+};
+
+template <auto Copy, auto Free> struct value_handle_traits {
+    using pointer = typename std::remove_pointer_t<typename funptr_traits<decltype(Copy)>::template arg<1>>;
+    using const_pointer = typename funptr_traits<decltype(Copy)>::template arg<0>;
+    static auto copy(pointer p) -> pointer {
+        auto res = pointer{};
+        handle_error(Copy(p, &res));
+        return res;
+    }
+    static void free(const_pointer p) noexcept { Free(p); }
 };
 
 template <class T, auto F> using unique_handle = std::unique_ptr<T, Free<F>>;
@@ -346,12 +424,11 @@ class Library {
   public:
     Library(LibraryFlags flags = LibraryFlags::none, Logger logger = nullptr, LogLevel level = LogLevel::info,
             size_t limit = default_message_limit) {
-        clingo_lib_t *ptr = nullptr;
         auto log = std::make_unique<Logger>(logger ? std::move(logger) : nullptr);
-        Detail::handle_error(clingo_lib_new(static_cast<clingo_lib_flags_t>(flags),
-                                            static_cast<clingo_log_level_t>(level), log ? &c_logger : nullptr,
-                                            log.release(), limit, &ptr));
-        rep_.reset(ptr, false);
+        rep_.reset(Detail::call<clingo_lib_new>(static_cast<clingo_lib_flags_t>(flags),
+                                                static_cast<clingo_log_level_t>(level), log ? &c_logger : nullptr,
+                                                log.release(), limit),
+                   false);
     }
     explicit Library(clingo_lib_t *rep, bool acquire) : rep_{rep, acquire} {}
 
@@ -375,39 +452,20 @@ class Library {
 
 class StringBuilder {
   public:
-    StringBuilder() { Detail::handle_error(clingo_string_builder_new(&rep_)); }
-    ~StringBuilder() { clingo_string_builder_free(rep_); }
+    explicit StringBuilder() : bld_{Detail::call<clingo_string_builder_new>(), false} {}
 
-    StringBuilder(StringBuilder const &other) { Detail::handle_error(clingo_string_builder_copy(other.rep_, &rep_)); }
-    auto operator=(StringBuilder const &other) -> StringBuilder & {
-        if (other.rep_ != rep_) {
-            clingo_string_builder_free(rep_);
-            Detail::handle_error(clingo_string_builder_copy(other.rep_, &rep_));
-        }
-        return *this;
-    }
-
-    StringBuilder(StringBuilder &&other) noexcept : rep_{std::exchange(other.rep_, nullptr)} {}
-    auto operator=(StringBuilder &&other) noexcept -> StringBuilder & {
-        if (other.rep_ != rep_) {
-            clingo_string_builder_free(rep_);
-            rep_ = std::exchange(other.rep_, nullptr);
-        }
-        return *this;
-    }
-
-    [[nodiscard]] friend auto c_cast(StringBuilder &bld) -> clingo_string_builder_t * { return bld.rep_; }
+    [[nodiscard]] friend auto c_cast(StringBuilder &bld) -> clingo_string_builder_t * { return bld.bld_.get(); }
 
     [[nodiscard]] auto str() const -> std::string_view {
-        clingo_string_t res;
-        Detail::handle_error(clingo_string_builder_string(rep_, &res));
-        return {res.data, res.size};
+        auto [data, size] = Detail::call<clingo_string_builder_string>(bld_.get());
+        return {data, size};
     }
 
-    void clear() noexcept { clingo_string_builder_clear(rep_); }
+    void clear() noexcept { clingo_string_builder_clear(bld_.get()); }
 
   private:
-    clingo_string_builder_t *rep_ = nullptr;
+    using Traits = Detail::value_handle_traits<clingo_string_builder_copy, clingo_string_builder_free>;
+    Detail::value_handle<Traits> bld_;
 };
 
 enum class ExternalType : clingo_external_type_t {
@@ -428,121 +486,74 @@ enum class HeuristicType : clingo_heuristic_type_t {
 
 class Position {
   public:
-    Position(Position const &other) { Detail::handle_error(clingo_position_copy(other.pos_, &pos_)); }
+    explicit Position(clingo_position_t const *pos) : pos_{pos, true} {}
 
-    auto operator=(Position const &other) -> Position & {
-        if (this != &other) {
-            assert(pos_ == nullptr || pos_ != other.pos_);
-            clingo_position_free(std::exchange(pos_, nullptr));
-            Detail::handle_error(clingo_position_copy(other.pos_, &pos_));
-        }
-        return *this;
-    }
+    explicit Position(Library const &lib, std::string_view file, size_t line, size_t column)
+        : pos_{Detail::call<clingo_position_new>(c_cast(lib), file.data(), file.size(), line, column), false} {}
 
-    Position(Position &&other) noexcept : pos_{std::exchange(other.pos_, nullptr)} {}
-
-    friend auto c_cast(Position const &x) -> clingo_position_t const * { return x.pos_; }
-
-    auto operator=(Position &&other) noexcept -> Position & {
-        if (this != &other) {
-            assert(pos_ == nullptr || pos_ != other.pos_);
-            clingo_position_free(std::exchange(pos_, std::exchange(other.pos_, nullptr)));
-        }
-        return *this;
-    }
-
-    ~Position() noexcept { clingo_position_free(pos_); }
-
-    explicit Position(clingo_position_t const *pos) { Detail::handle_error(clingo_position_copy(pos, &pos_)); }
-
-    Position(Library const &lib, std::string_view file, size_t line, size_t column) {
-        Detail::handle_error(clingo_position_new(c_cast(lib), file.data(), file.size(), line, column, &pos_));
-    }
+    friend auto c_cast(Position const &x) -> clingo_position_t const * { return x.pos_.get(); }
 
     [[nodiscard]] auto file() const -> std::string_view {
-        clingo_string_t val;
-        clingo_position_file(pos_, &val);
-        return {val.data, val.size};
+        auto [data, size] = Detail::call<clingo_position_file>(pos_.get());
+        return {data, size};
     }
 
-    [[nodiscard]] auto line() const -> size_t { return clingo_position_line(pos_); }
+    [[nodiscard]] auto line() const -> size_t { return clingo_position_line(pos_.get()); }
 
-    [[nodiscard]] auto column() const -> size_t { return clingo_position_column(pos_); }
+    [[nodiscard]] auto column() const -> size_t { return clingo_position_column(pos_.get()); }
 
     [[nodiscard]] auto to_string() const -> std::string {
         auto bld = StringBuilder{};
-        Detail::handle_error(clingo_position_to_string(pos_, c_cast(bld)));
+        Detail::handle_error(clingo_position_to_string(pos_.get(), c_cast(bld)));
         return std::string{bld.str()};
     }
 
-    [[nodiscard]] auto hash() const -> size_t { return clingo_position_hash(pos_); }
+    [[nodiscard]] auto hash() const noexcept -> size_t { return clingo_position_hash(pos_.get()); }
 
-    friend auto operator==(Position const &a, Position const &b) -> bool {
-        return clingo_position_equal(a.pos_, b.pos_);
+    friend auto operator==(Position const &a, Position const &b) noexcept -> bool {
+        return clingo_position_equal(a.pos_.get(), b.pos_.get());
     }
-    friend auto operator<=>(Position const &a, Position const &b) -> std::strong_ordering {
-        return clingo_position_compare(a.pos_, b.pos_) <=> 0;
+    friend auto operator<=>(Position const &a, Position const &b) noexcept -> std::strong_ordering {
+        return clingo_position_compare(a.pos_.get(), b.pos_.get()) <=> 0;
     }
 
   private:
-    clingo_position_t const *pos_ = nullptr;
+    using Traits = Detail::value_handle_traits<clingo_position_copy, clingo_position_free>;
+    Detail::value_handle<Traits> pos_;
 };
 
 class Location {
   public:
-    Location(Location const &other) { Detail::handle_error(clingo_location_copy(other.loc_, &loc_)); }
+    explicit Location(clingo_location_t const *loc) : loc_{loc, true} {}
 
-    auto operator=(Location const &other) -> Location & {
-        if (this != &other) {
-            assert(loc_ == nullptr || loc_ != other.loc_);
-            clingo_location_free(std::exchange(loc_, nullptr));
-            Detail::handle_error(clingo_location_copy(other.loc_, &loc_));
-        }
-        return *this;
-    }
+    explicit Location(Position const &begin, Position const &end)
+        : loc_{Detail::call<clingo_location_new>(c_cast(begin), c_cast(end)), false} {}
 
-    Location(Location &&other) noexcept : loc_{std::exchange(other.loc_, nullptr)} {}
+    friend auto c_cast(Location const &x) -> clingo_location_t const * { return x.loc_.get(); }
 
-    auto operator=(Location &&other) noexcept -> Location & {
-        if (this != &other) {
-            assert(loc_ == nullptr || loc_ != other.loc_);
-            clingo_location_free(std::exchange(loc_, std::exchange(other.loc_, nullptr)));
-        }
-        return *this;
-    }
+    [[nodiscard]] auto begin() const -> Position { return Position{clingo_location_begin(loc_.get())}; }
 
-    ~Location() noexcept { clingo_location_free(loc_); }
-
-    explicit Location(clingo_location_t const *loc) { Detail::handle_error(clingo_location_copy(loc, &loc_)); }
-
-    Location(Position const &begin, Position const &end) {
-        Detail::handle_error(clingo_location_new(c_cast(begin), c_cast(end), &loc_));
-    }
-
-    friend auto c_cast(Location const &x) -> clingo_location_t const * { return x.loc_; }
-
-    [[nodiscard]] auto begin() const -> Position { return Position{clingo_location_begin(loc_)}; }
-
-    [[nodiscard]] auto end() const -> Position { return Position{clingo_location_end(loc_)}; }
+    [[nodiscard]] auto end() const -> Position { return Position{clingo_location_end(loc_.get())}; }
 
     [[nodiscard]] auto to_string() const -> std::string {
         auto bld = StringBuilder{};
-        Detail::handle_error(clingo_location_to_string(loc_, c_cast(bld)));
+        Detail::handle_error(clingo_location_to_string(loc_.get(), c_cast(bld)));
         return std::string{bld.str()};
     }
 
-    [[nodiscard]] auto hash() const -> size_t { return clingo_location_hash(loc_); }
+    [[nodiscard]] auto hash() const noexcept -> size_t { return clingo_location_hash(loc_.get()); }
 
-    friend auto operator==(Location const &a, Location const &b) -> bool {
-        return clingo_location_equal(a.loc_, b.loc_);
+    friend auto operator==(Location const &a, Location const &b) noexcept -> bool {
+        return clingo_location_equal(a.loc_.get(), b.loc_.get());
     }
 
-    friend auto operator<=>(Location const &a, Location const &b) -> std::strong_ordering {
-        return clingo_location_compare(a.loc_, b.loc_) <=> 0;
+    friend auto operator<=>(Location const &a, Location const &b) noexcept -> std::strong_ordering {
+        return clingo_location_compare(a.loc_.get(), b.loc_.get()) <=> 0;
     }
 
   private:
-    clingo_location_t const *loc_ = nullptr;
+    using Traits = Detail::value_handle_traits<clingo_location_copy, clingo_location_free>;
+    Detail::value_handle<Traits> loc_;
 };
 
 } // namespace Clingo

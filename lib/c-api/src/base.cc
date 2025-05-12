@@ -341,8 +341,8 @@ extern "C" auto clingo_theory_base_term_number(clingo_theory_base_t const *theor
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_theory_base_term_name(clingo_theory_base_t const *theory, clingo_id_t term, char const **name,
-                                             size_t *size) -> bool {
+extern "C" auto clingo_theory_base_term_name(clingo_theory_base_t const *theory, clingo_id_t term,
+                                             clingo_string_t *name) -> bool {
     CLINGO_TRY {
         if (theory == nullptr || name == nullptr || name == nullptr) {
             return fail_arguments();
@@ -350,8 +350,8 @@ extern "C" auto clingo_theory_base_term_name(clingo_theory_base_t const *theory,
         auto const &t = get_theory(theory);
         auto x = t.getTerm(term);
         auto str = std::string_view{x.isFunction() ? t.getTerm(x.function()).symbol() : x.symbol()};
-        *name = str.data();
-        *size = str.size();
+        name->data = str.data();
+        name->size = str.size();
     }
     CLINGO_CATCH;
 }
@@ -589,23 +589,21 @@ extern "C" auto clingo_theory_base_atom_has_guard(clingo_theory_base_t const *th
 }
 
 extern "C" auto clingo_theory_base_atom_guard(clingo_theory_base_t const *theory, clingo_id_t atom,
-                                              char const **connective, size_t *size, clingo_id_t *term) -> bool {
+                                              clingo_string_t *connective, clingo_id_t *term) -> bool {
     CLINGO_TRY {
         if (theory == nullptr) {
             return fail_arguments();
         }
         auto const &x = get_atom(theory, atom);
-        if (connective != nullptr || size != nullptr) {
+        if (connective != nullptr) {
             auto const *guard = x.guard();
             if (guard == nullptr) {
                 return fail_with(clingo_result_runtime, "guard expected");
             }
             auto str = std::string_view{get_theory(theory).getTerm(*guard).symbol()};
             if (connective != nullptr) {
-                *connective = str.data();
-            }
-            if (connective != nullptr) {
-                *size = str.size();
+                connective->data = str.data();
+                connective->size = str.size();
             }
         }
         if (term != nullptr) {

@@ -143,18 +143,7 @@ auto transform(Transformer const &fun, std::vector<Node> nodes) -> std::optional
 
 class Node {
   public:
-    Node(Node const &other) { *this = other; }
-
-    auto operator=(Node const &other) -> Node & {
-        if (this != &other) {
-            clingo_ast_t *ast = nullptr;
-            Detail::handle_error(clingo_ast_copy(other.ast_.get(), &ast));
-            ast_.reset(ast);
-        }
-        return *this;
-    }
-
-    explicit Node(clingo_ast_t *ast) : ast_{ast} {}
+    explicit Node(clingo_ast_t *ast) : ast_{ast, false} {}
 
     [[nodiscard]] friend auto c_cast(Node const &x) -> clingo_ast_t * { return x.ast_.get(); }
 
@@ -191,23 +180,18 @@ class Node {
     }
 
     [[nodiscard]] auto type() const -> NodeType {
-        clingo_ast_type_t value = 0;
-        Detail::handle_error(clingo_ast_get_type(ast_.get(), &value));
-        return static_cast<NodeType>(value);
+        return static_cast<NodeType>(Detail::call<clingo_ast_get_type>(ast_.get()));
     }
 
     [[nodiscard]] auto number(Attribute attribute) const -> int {
-        int value = 0;
-        Detail::handle_error(
-            clingo_ast_attribute_get_number(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute), &value));
-        return value;
+        return Detail::call<clingo_ast_attribute_get_number>(ast_.get(),
+                                                             static_cast<clingo_ast_attribute_t>(attribute));
     }
 
     [[nodiscard]] auto symbol(Attribute attribute) const -> Symbol {
-        clingo_symbol_t value = 0;
-        Detail::handle_error(
-            clingo_ast_attribute_get_symbol(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute), &value));
-        return Symbol{value, true};
+        return Symbol{
+            Detail::call<clingo_ast_attribute_get_symbol>(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute)),
+            true};
     }
 
     [[nodiscard]] auto symbols(Attribute attribute) const -> SymbolVector {
@@ -219,17 +203,14 @@ class Node {
     }
 
     [[nodiscard]] auto location(Attribute attribute) const -> Location {
-        clingo_location_t const *value = nullptr;
-        Detail::handle_error(
-            clingo_ast_attribute_get_location(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute), &value));
-        return Location{value};
+        return Location{Detail::call<clingo_ast_attribute_get_location>(
+            ast_.get(), static_cast<clingo_ast_attribute_t>(attribute))};
     }
 
     [[nodiscard]] auto string(Attribute attribute) const -> std::string_view {
-        clingo_string_t value;
-        Detail::handle_error(
-            clingo_ast_attribute_get_string(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute), &value));
-        return {value.data, value.size};
+        auto [data, size] =
+            Detail::call<clingo_ast_attribute_get_string>(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute));
+        return {data, size};
     }
 
     [[nodiscard]] auto strings(Attribute attribute) const -> std::vector<std::string_view> {
@@ -241,9 +222,8 @@ class Node {
     }
 
     [[nodiscard]] auto node(Attribute attribute) const -> Node {
-        clingo_ast_t *value = nullptr;
-        Detail::handle_error(
-            clingo_ast_attribute_get_ast(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute), &value));
+        clingo_ast_t *value =
+            Detail::call<clingo_ast_attribute_get_ast>(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute));
         if (value == nullptr) {
             throw std::runtime_error("invalid attribute");
         }
@@ -251,9 +231,8 @@ class Node {
     }
 
     [[nodiscard]] auto optional_node(Attribute attribute) const -> std::optional<Node> {
-        clingo_ast_t *value = nullptr;
-        Detail::handle_error(
-            clingo_ast_attribute_get_ast(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute), &value));
+        clingo_ast_t *value =
+            Detail::call<clingo_ast_attribute_get_ast>(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute));
         return value != nullptr ? std::make_optional<Node>(value) : std::nullopt;
     }
 
@@ -445,7 +424,8 @@ class Node {
         return std::nullopt;
     }
 
-    Detail::unique_handle<clingo_ast_t, clingo_ast_free> ast_;
+    using Traits = Detail::value_handle_traits<clingo_ast_copy, clingo_ast_free>;
+    Detail::value_handle<Traits> ast_;
 };
 
 inline void visit(Visitor const &fun, Node const &node) {
@@ -550,20 +530,13 @@ class Scanner {
     using reference = iterator::reference;
     using pointer = iterator::pointer;
 
-    explicit Scanner(Library lib, std::string_view program) : lib_{std::move(lib)} {
-        clingo_ast_scanner_t *scanner = nullptr;
-        Detail::handle_error(clingo_ast_scan_string(c_cast(lib_), program.data(), program.size(), &scanner));
-        scanner_.reset(scanner);
-    }
+    explicit Scanner(Library lib, std::string_view program)
+        : lib_{std::move(lib)},
+          scanner_{Detail::call<clingo_ast_scan_string>(c_cast(lib_), program.data(), program.size())} {}
 
     explicit Scanner(Library &lib, StringSpan files) : lib_{lib} {
-        std::vector<clingo_string_t> cfiles;
-        cfiles.reserve(cfiles.size());
-        std::ranges::transform(files, std::back_inserter(cfiles),
-                               [](auto const &file) { return clingo_string_t{file.data(), file.size()}; });
-        clingo_ast_scanner_t *scanner = nullptr;
-        Detail::handle_error(clingo_ast_scan_files(c_cast(lib), cfiles.data(), cfiles.size(), &scanner));
-        scanner_.reset(scanner);
+        auto cfiles = Detail::transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
+        scanner_.reset(Detail::call<clingo_ast_scan_files>(c_cast(lib), cfiles.data(), cfiles.size()));
     }
 
     explicit Scanner(Library &lib, StringList files) : Scanner{lib, std::span{files}} {}
@@ -577,8 +550,7 @@ class Scanner {
 
   private:
     void next_() {
-        clingo_ast_t *ast = nullptr;
-        Detail::handle_error(clingo_ast_scanner_next(scanner_.get(), &ast));
+        clingo_ast_t *ast = Detail::call<clingo_ast_scanner_next>(scanner_.get());
         if (ast != nullptr) {
             value_.emplace(ast);
         } else {
@@ -601,11 +573,7 @@ enum class ProjectionMode : clingo_projection_mode_t {
 
 class RewriteContext {
   public:
-    RewriteContext(Library const &lib) {
-        clingo_ast_rewrite_context_t *ctx = nullptr;
-        Detail::handle_error(clingo_ast_rewrite_context_create(c_cast(lib), &ctx));
-        ctx_.reset(ctx);
-    }
+    explicit RewriteContext(Library const &lib) : ctx_{Detail::call<clingo_ast_rewrite_context_create>(c_cast(lib))} {}
 
     friend auto c_cast(RewriteContext const &x) -> clingo_ast_rewrite_context_t * { return x.ctx_.get(); }
 
@@ -644,11 +612,7 @@ auto rewrite(RewriteContext &ctx, Node const &stm) -> std::vector<Node> {
 
 class Program {
   public:
-    Program(Library const &lib) {
-        clingo_program_t *prg = nullptr;
-        Detail::handle_error(clingo_program_new(c_cast(lib), &prg));
-        prg_.reset(prg);
-    }
+    Program(Library const &lib) : prg_{Detail::call<clingo_program_new>(c_cast(lib))} {}
 
     void add(Node const &stm) { Detail::handle_error(clingo_program_add(prg_.get(), c_cast(stm))); }
 
@@ -659,10 +623,8 @@ class Program {
 };
 
 inline auto parse(Library const &lib, std::string_view string, ParseType type = ParseType::statement) -> Node {
-    clingo_ast_t *ast = nullptr;
-    Detail::handle_error(clingo_ast_parse_expression(c_cast(lib), static_cast<clingo_ast_parse_type_t>(type),
-                                                     string.data(), string.size(), &ast));
-    return Node{ast};
+    return Node{Detail::call<clingo_ast_parse_expression>(c_cast(lib), static_cast<clingo_ast_parse_type_t>(type),
+                                                          string.data(), string.size())};
 }
 
 } // namespace Clingo::AST
