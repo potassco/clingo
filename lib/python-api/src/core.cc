@@ -109,31 +109,23 @@ Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation
     auto *ptr = logger ? cb.ptr() : nullptr;
     clingo_lib_t *lib = nullptr;
     handle_error(clingo_lib_new(flags, level, ptr != nullptr ? &c_logger : nullptr, ptr, default_message_limit, &lib));
-    lib_.reset(lib, false);
-    registry.emplace(lib_.get(), this);
+    reset(lib, false);
     ref_.append(cb);
 }
 
-Library::Library(clingo_lib_t *lib) : lib_{lib} {
-    registry.emplace(lib_.get(), this);
-}
-
-Library::~Library() {
-    registry.erase(lib_.get());
+Library::Library(clingo_lib_t *lib) : Parent{lib} {
 }
 
 auto Library::cast(clingo_lib_t *lib, bool convert) -> PyLibrary {
-    auto it = registry.find(lib);
-    if (it != registry.end()) {
-        return py::cast(it->second);
+    auto *ptr = from_registry(lib);
+    if (ptr != nullptr) {
+        return py::cast(ptr);
     }
     if (!convert) {
         return py::cast(std::unique_ptr<Library>(new Library{lib}));
     }
     throw py::cast_error("invalid Library cast");
 }
-
-std::unordered_map<clingo_lib_t *, Library *> Library::registry;
 
 void Library::tie(py::handle obj) {
     ref_.append(obj);
@@ -185,11 +177,11 @@ void Library::acquire(clingo_lib_t *lib, bool inc) {
 }
 
 void Library::close() noexcept {
-    lib_.reset();
+    reset();
 }
 
 Library::operator clingo_lib_t *() const {
-    return lib_.get();
+    return get();
 }
 
 auto version() -> std::tuple<int, int, int> {

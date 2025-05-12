@@ -50,11 +50,77 @@ auto user_data_slot() noexcept -> size_t;
 class Library;
 using PyLibrary = Annotation<Library>;
 
-class Library {
+template <class T, class P> class registered_handle {
+    friend T;
+    registered_handle() = default;
+
+    registered_handle(registered_handle const &other) = delete; // NOLINT
+
+    auto operator=(registered_handle const &other) -> registered_handle & = delete; // NOLINT
+
+    registered_handle(registered_handle &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {
+        auto it = registry.find(ptr_);
+        assert(it != registry.end());
+        it->second = static_cast<T *>(this);
+    }
+
+    auto operator=(registered_handle &&other) noexcept -> registered_handle & {
+        if (this != &other) {
+            assert(ptr_ == nullptr || ptr_ != other.ptr_);
+            registry.erase(ptr_);
+            T::release(ptr_);
+            ptr_ = std::exchange(other.ptr_, nullptr);
+            if (ptr_ != nullptr) {
+                auto it = registry.find(get());
+                it->second = static_cast<T *>(this);
+            }
+        }
+        return *this;
+    }
+    ~registered_handle() noexcept {
+        registry.erase(ptr_);
+        T::release(ptr_);
+    }
+    explicit registered_handle(P *ptr, bool inc = true) : ptr_{ptr} {
+        T::acquire(ptr_, inc);
+        if (ptr_ != nullptr) {
+            registry.emplace(ptr_, static_cast<T *>(this));
+        }
+    }
+
+    [[nodiscard]] auto get() const noexcept -> P * { return ptr_; }
+    void reset(std::nullptr_t = nullptr) noexcept {
+        registry.erase(ptr_);
+        T::release(ptr_);
+        ptr_ = nullptr;
+    }
+    void reset(P *ptr, bool inc = true) {
+        registry.erase(ptr_);
+        T::release(ptr_);
+        ptr_ = ptr;
+        T::acquire(ptr_, inc);
+        if (ptr_ != nullptr) {
+            registry.emplace(ptr_, static_cast<T *>(this));
+        }
+    }
+
+    static auto from_registry(P *ptr) -> T * {
+        if (auto it = registry.find(ptr); it != registry.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
+
+    static std::unordered_map<P *, T *> registry;
+    P *ptr_ = nullptr;
+};
+
+template <class T, class P> std::unordered_map<P *, T *> registered_handle<T, P>::registry;
+
+class Library : public registered_handle<Library, clingo_lib_t> {
   public:
     Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
             size_t default_message_limit);
-    ~Library();
 
     void close() noexcept;
     void tie(py::handle obj);
@@ -67,12 +133,11 @@ class Library {
     static void setup(PyHeapTypeObject *heap_type);
 
   private:
+    using Parent = registered_handle<Library, clingo_lib_t>;
     Library(clingo_lib_t *lib);
 
-    static std::unordered_map<clingo_lib_t *, Library *> registry;
     static clingo_logger_t c_logger;
 
-    ManagedPtr<Library, clingo_lib_t> lib_;
     py::list ref_;
 };
 
