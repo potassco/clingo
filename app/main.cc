@@ -27,12 +27,12 @@ auto main(int argc, char *argv[]) -> int {
         ~scoped_lib() { clingo_lib_release(ptr); };
         clingo_lib_t *ptr = nullptr;
     } lib;
-    if (clingo_lib_new(clingo_lib_flags_slotted | clingo_lib_flags_fast_release, clingo_log_level_trace, nullptr,
-                       nullptr, message_limit, &lib.ptr) != clingo_result_success) {
+    if (!clingo_lib_new(clingo_lib_flags_slotted | clingo_lib_flags_fast_release, clingo_log_level_trace, nullptr,
+                        nullptr, message_limit, &lib.ptr)) {
         return 1;
     }
 #if CLINGO_PYTHON_ENABLED
-    if (clingo_register_python(lib.ptr) != clingo_result_success) {
+    if (!clingo_register_python(lib.ptr)) {
         return 1;
     }
 #endif
@@ -46,7 +46,7 @@ auto main(int argc, char *argv[]) -> int {
         return 1;
     }
     int code = 0;
-    if (clingo_main(lib.ptr, args.data(), args.size(), nullptr, nullptr, &code) != clingo_result_success) {
+    if (!clingo_main(lib.ptr, args.data(), args.size(), nullptr, nullptr, &code)) {
         return 1;
     }
     return code;

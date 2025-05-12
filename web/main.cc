@@ -20,13 +20,9 @@ int run(std::string input, std::vector<std::string> const &args) {
         nullptr,
         nullptr,
         [](clingo_control_t *control, [[maybe_unused]] clingo_string_t const *files, [[maybe_unused]] size_t files_size,
-           void *data) -> clingo_result_t {
+           void *data) -> bool {
             auto &str = *static_cast<std::string *>(data);
-            auto res = clingo_control_parse_string(control, str.data(), str.size());
-            if (res != clingo_result_success) {
-                return res;
-            }
-            return clingo_control_main(control);
+            return clingo_control_parse_string(control, str.data(), str.size()) && clingo_control_main(control);
         },
         nullptr,
         nullptr,
@@ -39,7 +35,7 @@ int run(std::string input, std::vector<std::string> const &args) {
     std::ranges::transform(args, c_args.begin(),
                            [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
     if (clingo_lib_new(clingo_lib_flags_slotted | clingo_lib_flags_fast_release, clingo_log_level_info, nullptr,
-                       nullptr, message_limit, &lib) == clingo_result_success) {
+                       nullptr, message_limit, &lib)) {
 
         clingo_main(lib, c_args.data(), c_args.size(), &app, static_cast<void *>(&input), &code);
     }

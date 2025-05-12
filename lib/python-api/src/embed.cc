@@ -9,6 +9,5 @@ extern "C" auto clingo_register_python(clingo_lib_t *lib) -> bool {
 }
 
 PYBIND11_EMBEDDED_MODULE(clingo, m) {
-    m.attr("__file__") = "<embedded>";
     Clingo::Python::register_clingo(m);
 }
