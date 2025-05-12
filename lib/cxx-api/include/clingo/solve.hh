@@ -305,16 +305,20 @@ class SolveHandle {
     friend class Control;
 
     struct Data {
-        Data(SolveEventHandler *seh) : seh{seh} { assert(std::uncaught_exceptions() == 0); }
+        Data(SolveEventHandler *seh) : seh{seh} {
+            // NOTE: We assume that solve is only called during normal
+            // operation - not during exception handling.
+            assert(std::uncaught_exceptions() == 0);
+        }
         ~Data() noexcept(false) {
-            if (std::uncaught_exceptions() == 0) {
-                try {
-                    close();
-                } catch (...) {
-                    // NOTE: we ignore the exception if there is an active one
-                    if (std::uncaught_exceptions() == 1) {
-                        throw;
-                    }
+            try {
+                // NOTE: currently the solve handle calls cancel and then
+                // deletes clasp's underlying solve handle. I am not sure
+                // whether this can actually throw or not.
+                close();
+            } catch (...) {
+                if (std::uncaught_exceptions() == 1) {
+                    throw;
                 }
             }
         }
