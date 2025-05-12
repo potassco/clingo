@@ -165,26 +165,6 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_acquire(clingo_control_t *control)
 //! @param[in] control the target
 CLINGO_VISIBILITY_DEFAULT void clingo_control_release(clingo_control_t *control);
 
-//! Store the given user data in the control object.
-//!
-//! This function is meant to associate control objects with their wrapper
-//! object in language bindings.
-//!
-//! @param[in] control the target library
-//! @param[in] slot the slot to use
-//! @param[in] data the user data to set.
-//! @param[in] deleter optional deleter to destroy the user data
-//! @return wether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_user_data(clingo_control_t *control, size_t slot, void *data,
-                                                            void (*deleter)(void *data));
-
-//! Get the user data of the control object.
-//!
-//! @param[in] control the target library
-//! @param[in] slot the slot to use
-//! @return the user data
-CLINGO_VISIBILITY_DEFAULT void *clingo_control_get_user_data(clingo_control_t *control, size_t slot);
-
 //! Get the configured mode.
 //!
 //! @param[in] control the target

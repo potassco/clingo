@@ -35,7 +35,7 @@ class ConstMap {
 class Control;
 using PyControl = Annotation<Control>;
 
-class Control {
+class Control : public registered_handle<Control, clingo_control_t>, public reference_keeper<Control> {
   public:
     using HintConstMap = TypeHint<"typing.Mapping[str, clingo.symbol.Symbol]">;
 
@@ -62,10 +62,9 @@ class Control {
     void interrupt();
     void discard(bool minimize, bool project);
 
-    void register_propagator(Annotation<Propagator> propagator);
+    void register_propagator(Annotation<Propagator> const &propagator);
 
     static auto cast(clingo_control_t *ctl, bool convert = false) -> PyControl;
-    static void setup(PyHeapTypeObject *heap_type);
     //! This function acquires the control and user data.
     //!
     //! If no user data exists yet, it creates a default one.
@@ -77,19 +76,14 @@ class Control {
     //! data.
     static void release(clingo_control_t *ctl) noexcept;
     //! Get the underlying C pointer.
-    auto c_ptr() -> clingo_control_t * { return ctl_.get(); }
+    auto c_ptr() -> clingo_control_t * { return get(); }
 
   private:
-    struct UserData {
-        PyObject *list;
-    };
-
-    Control(clingo_control_t *ctl) : ctl_{ctl} {}
-    [[nodiscard]] auto user_data() const -> UserData &;
+    using Parent = registered_handle<Control, clingo_control_t>;
+    Control(clingo_control_t *ctl) : Parent{ctl} {}
     static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name, size_t name_size,
                      clingo_symbol_t const *arguments, size_t arguments_size, void *data,
                      clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool;
-    ManagedPtr<Control, clingo_control_t> ctl_;
 };
 
 void register_control(pybind11::module &m);

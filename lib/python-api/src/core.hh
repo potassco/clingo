@@ -45,13 +45,13 @@ using Logger = std::function<void(clingo_message_e, std::string_view)>;
 
 static constexpr size_t default_message_limit = 25;
 
-auto user_data_slot() noexcept -> size_t;
-
 class Library;
 using PyLibrary = Annotation<Library>;
 
 template <class T, class P> class registered_handle {
+  private:
     friend T;
+
     registered_handle() = default;
 
     registered_handle(registered_handle const &other) = delete; // NOLINT
@@ -117,28 +117,51 @@ template <class T, class P> class registered_handle {
 
 template <class T, class P> std::unordered_map<P *, T *> registered_handle<T, P>::registry;
 
-class Library : public registered_handle<Library, clingo_lib_t> {
+template <class T> class reference_keeper {
+  public:
+    void tie(py::handle obj) { ref_.append(obj); }
+
+    static void setup(PyHeapTypeObject *heap_type) {
+        auto *type = &heap_type->ht_type;
+        type->tp_flags |= Py_TPFLAGS_HAVE_GC;
+        type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
+            auto &self = py::cast<T &>(py::handle(self_base));
+            Py_VISIT(self.ref_.ptr());
+            return 0;
+        };
+        type->tp_clear = [](PyObject *self_base) -> int {
+            auto &self = py::cast<T &>(py::handle(self_base));
+            Py_CLEAR(self.ref_.ptr());
+            return 0;
+        };
+    }
+
+  private:
+    friend T;
+
+    reference_keeper() = default;
+
+    py::list ref_;
+};
+
+class Library : public registered_handle<Library, clingo_lib_t>, public reference_keeper<Library> {
   public:
     Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
             size_t default_message_limit);
 
     void close() noexcept;
-    void tie(py::handle obj);
 
     operator clingo_lib_t *() const;
 
     static auto cast(clingo_lib_t *lib, bool convert = false) -> PyLibrary;
     static void acquire(clingo_lib_t *lib, bool inc = true);
     static void release(clingo_lib_t *lib) noexcept;
-    static void setup(PyHeapTypeObject *heap_type);
 
   private:
     using Parent = registered_handle<Library, clingo_lib_t>;
     Library(clingo_lib_t *lib);
 
     static clingo_logger_t c_logger;
-
-    py::list ref_;
 };
 
 static constexpr auto code_base = 36;

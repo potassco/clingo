@@ -82,22 +82,6 @@ extern "C" void clingo_control_release(clingo_control_t *control) {
     }
 }
 
-extern "C" auto clingo_control_set_user_data(clingo_control_t *control, size_t slot, void *data,
-                                             void (*deleter)(void *data)) -> bool {
-    CLINGO_TRY {
-        control->user_data.resize(slot + 1);
-        control->user_data[slot] = std::unique_ptr<void, user_data_deleter>(data, user_data_deleter{deleter});
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" auto clingo_control_get_user_data(clingo_control_t *control, size_t slot) -> void * {
-    if (control->user_data.size() > slot) {
-        return control->user_data[slot].get();
-    }
-    return nullptr;
-}
-
 extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode) -> bool {
     CLINGO_TRY {
         *mode = static_cast<clingo_mode_t>(control->slv->get_mode());

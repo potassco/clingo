@@ -190,11 +190,6 @@ typedef uint32_t clingo_lib_flags_t;
 //! @param[out] revision revision number
 CLINGO_VISIBILITY_DEFAULT void clingo_version(int *major, int *minor, int *revision);
 
-//! Get a slot id for user data.
-//!
-//! @return a slot id
-CLINGO_VISIBILITY_DEFAULT size_t clingo_user_data_slot(void);
-
 //! Convert the given result code into a string.
 //!
 //! The function returns string literals that do not have to be cleaned up.

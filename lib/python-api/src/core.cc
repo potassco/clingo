@@ -40,11 +40,6 @@ void handle_error_no_code(bool res) {
     }
 }
 
-auto user_data_slot() noexcept -> size_t {
-    static size_t slot = clingo_user_data_slot();
-    return slot;
-}
-
 auto store_error() -> bool {
     try {
         throw;
@@ -110,7 +105,7 @@ Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation
     clingo_lib_t *lib = nullptr;
     handle_error(clingo_lib_new(flags, level, ptr != nullptr ? &c_logger : nullptr, ptr, default_message_limit, &lib));
     reset(lib, false);
-    ref_.append(cb);
+    tie(cb);
 }
 
 Library::Library(clingo_lib_t *lib) : Parent{lib} {
@@ -121,29 +116,10 @@ auto Library::cast(clingo_lib_t *lib, bool convert) -> PyLibrary {
     if (ptr != nullptr) {
         return py::cast(ptr);
     }
-    if (!convert) {
+    if (convert) {
         return py::cast(std::unique_ptr<Library>(new Library{lib}));
     }
     throw py::cast_error("invalid Library cast");
-}
-
-void Library::tie(py::handle obj) {
-    ref_.append(obj);
-}
-
-void Library::setup(PyHeapTypeObject *heap_type) {
-    auto *type = &heap_type->ht_type;
-    type->tp_flags |= Py_TPFLAGS_HAVE_GC;
-    type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
-        auto &self = py::cast<Library &>(py::handle(self_base));
-        Py_VISIT(self.ref_.ptr());
-        return 0;
-    };
-    type->tp_clear = [](PyObject *self_base) -> int {
-        auto &self = py::cast<Library &>(py::handle(self_base));
-        Py_CLEAR(self.ref_.ptr());
-        return 0;
-    };
 }
 
 clingo_logger_t Library::c_logger = {
@@ -168,10 +144,7 @@ void Library::release(clingo_lib_t *lib) noexcept {
 }
 
 void Library::acquire(clingo_lib_t *lib, bool inc) {
-    if (lib == nullptr) {
-        return;
-    }
-    if (inc) {
+    if (lib != nullptr && inc) {
         clingo_lib_acquire(lib);
     }
 }

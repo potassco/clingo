@@ -176,11 +176,6 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
 #endif
 }
 
-extern "C" auto clingo_user_data_slot() -> size_t {
-    static size_t slots = 0;
-    return slots++;
-}
-
 extern "C" void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char const *message, size_t size) {
     auto c = static_cast<Clingo::MessageCode>(code);
     if (lib != nullptr && lib->log.check(c)) {

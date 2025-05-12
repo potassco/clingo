@@ -38,7 +38,6 @@ struct clingo_control {
             delete clasp;
             delete cfg;
         }
-        user_data.clear();
         clingo_lib_release(lib);
     }
     //! Bind the control object to the clasp and clingo objects.
@@ -53,7 +52,6 @@ struct clingo_control {
         this->slv->user_data() = this;
         own = false;
     }
-    std::vector<std::unique_ptr<void, user_data_deleter>> user_data;
     clingo_lib_t *lib;
     Clingo::Control::Solver *slv = nullptr;
     Clasp::ClaspConfig *cfg = nullptr;

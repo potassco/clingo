@@ -43,21 +43,21 @@ Control::Control(Library &lib, std::span<std::string const> args) {
     auto cargs = transform(args, [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
     clingo_control_t *ctl = nullptr;
     handle_error(clingo_control_new(lib, cargs.data(), cargs.size(), &ctl));
-    ctl_.reset(ctl, false);
+    reset(ctl, false);
 }
 
 auto Control::mode() -> clingo_mode_e {
     clingo_mode_t mode = 0;
-    handle_error(clingo_control_mode(ctl_.get(), &mode));
+    handle_error(clingo_control_mode(get(), &mode));
     return static_cast<clingo_mode_e>(mode);
 }
 
 void Control::join(Program &prg) {
-    handle_error(clingo_control_join(ctl_.get(), prg));
+    handle_error(clingo_control_join(get(), prg));
 }
 
 void Control::parse_string(std::string_view str) {
-    handle_error(clingo_control_parse_string(ctl_.get(), str.data(), str.size()));
+    handle_error(clingo_control_parse_string(get(), str.data(), str.size()));
 }
 
 void Control::write_aspif(std::string_view path, bool symbols, bool append, std::optional<bool> preamble,
@@ -77,12 +77,12 @@ void Control::write_aspif(std::string_view path, bool symbols, bool append, std:
     if (preprocess) {
         mode |= clingo_write_aspif_mode_preprocess;
     }
-    handle_error(clingo_control_write_aspif(ctl_.get(), path.data(), path.size(), mode));
+    handle_error(clingo_control_write_aspif(get(), path.data(), path.size(), mode));
 }
 
 void Control::parse_files(std::span<std::string const> files) {
     auto cfiles = transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
-    handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()));
+    handle_error(clingo_control_parse_files(get(), cfiles.data(), cfiles.size()));
 }
 
 auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
@@ -121,8 +121,8 @@ void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
         static constexpr auto part = clingo_part_t{"base", 4, nullptr, 0};
         parts.emplace(&part, 1);
     }
-    handle_error(clingo_control_ground(ctl_.get(), parts->data(), parts->size(),
-                                       !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
+    handle_error(
+        clingo_control_ground(get(), parts->data(), parts->size(), !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
 }
 
 auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> bool {
@@ -153,21 +153,21 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
 
 auto Control::base() -> Base {
     clingo_base_t const *base = nullptr;
-    clingo_control_base(ctl_.get(), &base);
+    clingo_control_base(get(), &base);
     return {base};
 }
 
 void Control::observe(Observer &obs, bool preprocess) {
-    obs.observe(ctl_.get(), preprocess);
+    obs.observe(get(), preprocess);
 }
 
 auto Control::backend() -> BackendManager {
-    return BackendManager{ctl_.get()};
+    return BackendManager{get()};
 }
 
 auto Control::config() -> Config {
     clingo_config_t *config = nullptr;
-    handle_error(clingo_control_config(ctl_.get(), &config));
+    handle_error(clingo_control_config(get(), &config));
     clingo_id_t key = 0;
     handle_error(clingo_config_root(config, &key));
     return Config{config, key};
@@ -175,7 +175,7 @@ auto Control::config() -> Config {
 
 auto Control::stats() -> py::dict {
     clingo_stats_t const *stats = nullptr;
-    handle_error(clingo_control_stats(ctl_.get(), &stats));
+    handle_error(clingo_control_stats(get(), &stats));
     uint64_t key = 0;
     handle_error(clingo_stats_root(stats, &key));
     // NOLINTNEXTLINE
@@ -194,18 +194,18 @@ auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback
         mode |= clingo_solve_mode_async;
     }
     auto ass = convert(base(), assumptions, false);
-    handle_error(clingo_control_solve(ctl_.get(), mode, ass.data(), assumptions.size(), &SolveHandle::c_event_handler,
+    handle_error(clingo_control_solve(get(), mode, ass.data(), assumptions.size(), &SolveHandle::c_event_handler,
                                       res.get(), &res->handle()));
     return res;
 }
 
 void Control::main() {
     auto release = py::gil_scoped_release{};
-    handle_error(clingo_control_main(ctl_.get()));
+    handle_error(clingo_control_main(get()));
 }
 
 void Control::interrupt() {
-    clingo_control_interrupt(ctl_.get());
+    clingo_control_interrupt(get());
 }
 
 void Control::discard(bool minimize, bool project) {
@@ -216,18 +216,18 @@ void Control::discard(bool minimize, bool project) {
     if (project) {
         type |= clingo_discard_type_e::project;
     }
-    handle_error(clingo_control_discard(ctl_.get(), type));
+    handle_error(clingo_control_discard(get(), type));
 }
 
 auto Control::buffer() -> std::string_view {
     clingo_string_t res;
-    handle_error(clingo_control_buffer(ctl_.get(), &res));
+    handle_error(clingo_control_buffer(get(), &res));
     return {res.data, res.size};
 }
 
 auto Control::const_map() -> HintConstMap {
     clingo_const_map_t const *map = nullptr;
-    handle_error(clingo_control_const_map(ctl_.get(), &map));
+    handle_error(clingo_control_const_map(get(), &map));
     return py::cast(ConstMap{map});
 }
 
@@ -235,7 +235,7 @@ auto Control::parts() -> std::optional<PartSpan> {
     clingo_part_t const *parts = nullptr;
     size_t size = 0;
     bool has_value = false;
-    handle_error(clingo_control_get_parts(ctl_.get(), &parts, &size, &has_value));
+    handle_error(clingo_control_get_parts(get(), &parts, &size, &has_value));
     if (!has_value) {
         return std::nullopt;
     }
@@ -244,76 +244,40 @@ auto Control::parts() -> std::optional<PartSpan> {
 
 void Control::set_parts(std::optional<PartSpan> parts) {
     if (parts) {
-        handle_error(clingo_control_set_parts(ctl_.get(), parts->data(), parts->size(), true));
+        handle_error(clingo_control_set_parts(get(), parts->data(), parts->size(), true));
     } else {
-        handle_error(clingo_control_set_parts(ctl_.get(), nullptr, 0, true));
+        handle_error(clingo_control_set_parts(get(), nullptr, 0, true));
     }
 }
 
-void Control::register_propagator(Annotation<Propagator> propagator) {
+void Control::register_propagator(Annotation<Propagator> const &propagator) {
     auto &prop = propagator.cast<Propagator &>();
-    auto &data = user_data();
-    py::reinterpret_borrow<py::list>(data.list).append(std::move(propagator));
-    Clingo::Python::register_propagator(ctl_.get(), prop);
-}
-
-void Control::setup(PyHeapTypeObject *heap_type) {
-    auto *type = &heap_type->ht_type;
-    type->tp_flags |= Py_TPFLAGS_HAVE_GC;
-    type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
-        auto &self = py::cast<Control &>(py::handle(self_base));
-        if (self.ctl_ != nullptr) {
-            Py_VISIT(self.user_data().list);
-        }
-        return 0;
-    };
-    type->tp_clear = [](PyObject *self_base) -> int {
-        auto &self = py::cast<Control &>(py::handle(self_base));
-        self.ctl_.reset();
-        return 0;
-    };
-}
-
-auto Control::user_data() const -> UserData & {
-    return *static_cast<UserData *>(clingo_control_get_user_data(ctl_.get(), user_data_slot()));
+    tie(propagator);
+    Clingo::Python::register_propagator(get(), prop);
 }
 
 void Control::release(clingo_control_t *ctl) noexcept {
     if (ctl != nullptr) {
-        auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl, user_data_slot()));
-        Py_XDECREF(data->list);
-        if (data->list == nullptr) {
-            std::ignore = std::unique_ptr<UserData>{data};
-            clingo_control_set_user_data(ctl, user_data_slot(), nullptr, nullptr);
-        }
         clingo_control_release(ctl);
         ctl = nullptr;
     }
 }
 
 void Control::acquire(clingo_control_t *ctl, bool inc) {
-    if (ctl == nullptr) {
-        return;
-    }
-    if (inc) {
+    if (ctl != nullptr && inc) {
         clingo_control_acquire(ctl);
-    }
-    auto *data = static_cast<UserData *>(clingo_control_get_user_data(ctl, user_data_slot()));
-    if (data != nullptr) {
-        Py_XINCREF(data->list);
-    } else {
-        auto data = std::make_unique<UserData>();
-        handle_error(clingo_control_set_user_data(ctl, user_data_slot(), data.get(), nullptr));
-        data->list = py::list{}.release().ptr();
-        std::ignore = data.release();
     }
 }
 
 auto Control::cast(clingo_control_t *ctl, bool convert) -> PyControl {
-    if (!convert && clingo_control_get_user_data(ctl, user_data_slot()) == nullptr) {
-        throw py::cast_error("invalid Control cast");
+    auto *ptr = from_registry(ctl);
+    if (ptr != nullptr) {
+        return py::cast(ptr);
     }
-    return py::cast(Control{ctl});
+    if (convert) {
+        return py::cast(std::unique_ptr<Control>(new Control{ctl}));
+    }
+    throw py::cast_error("invalid Control cast");
 }
 
 void register_control(pybind11::module &m) {
