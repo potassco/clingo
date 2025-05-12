@@ -212,7 +212,7 @@ class PropagateInit {
     [[nodiscard]] auto base() const -> Base {
         clingo_base_t const *base = nullptr;
         Detail::handle_error(clingo_propagate_init_base(init_, &base));
-        return {base};
+        return Base{base};
     }
 
     [[nodiscard]] auto check_mode() const -> PropgatorCheckMode {

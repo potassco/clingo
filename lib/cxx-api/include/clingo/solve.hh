@@ -40,7 +40,7 @@ class SolveControl {
     [[nodiscard]] auto base() const -> Base {
         clingo_base_t const *base = nullptr;
         Detail::handle_error(clingo_solve_control_base(ctl_, &base));
-        return {base};
+        return Base{base};
     }
 
     auto add_clause(ProgramLiteralSpan lits) const {
@@ -219,9 +219,13 @@ class SolveHandle {
 
         explicit iterator(SolveHandle &hnd) : hnd_{&hnd} { operator++(); }
 
-        auto operator*() const -> reference { return mdl_.value(); }
+        auto operator*() const -> reference {
+            return mdl_.value(); // NOLINT
+        }
 
-        auto operator->() const -> pointer { return &mdl_.value(); }
+        auto operator->() const -> pointer {
+            return &mdl_.value(); // NOLINT
+        }
 
         auto operator++() -> iterator & {
             hnd_->resume();
@@ -301,7 +305,19 @@ class SolveHandle {
     friend class Control;
 
     struct Data {
-        ~Data() { close(); }
+        Data(SolveEventHandler *seh) : seh{seh} { assert(std::uncaught_exceptions() == 0); }
+        ~Data() noexcept(false) {
+            if (std::uncaught_exceptions() == 0) {
+                try {
+                    close();
+                } catch (...) {
+                    // NOTE: we ignore the exception if there is an active one
+                    if (std::uncaught_exceptions() == 1) {
+                        throw;
+                    }
+                }
+            }
+        }
         void close() { Detail::handle_error(clingo_solve_handle_close(std::exchange(hnd, nullptr))); }
 
         SolveEventHandler *seh;

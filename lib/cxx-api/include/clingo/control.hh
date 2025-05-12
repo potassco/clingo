@@ -27,7 +27,6 @@ auto c_cast(Program const &x) -> clingo_program_t *;
 
 namespace Detail {
 
-struct AppData;
 void join(clingo_control_t *ctx, clingo_program_t const *prg);
 
 } // namespace Detail
@@ -57,9 +56,7 @@ class ConstMap {
     explicit ConstMap(clingo_const_map_t const *map) : map_{map} {}
 
     [[nodiscard]] auto contains(key_type name) const -> bool {
-        bool found = false;
-        Detail::handle_error(clingo_const_map_find(map_, name.data(), name.size(), nullptr, &found));
-        return found;
+        return Detail::call<clingo_const_map_find>(map_, name.data(), name.size(), nullptr);
     }
 
     [[nodiscard]] auto operator[](key_type name) const -> mapped_type {
@@ -76,11 +73,7 @@ class ConstMap {
         return {{name.data, name.size}, Symbol{sym, true}};
     }
 
-    [[nodiscard]] auto size() const -> size_type {
-        size_t size = 0;
-        Detail::handle_error(clingo_const_map_size(map_, &size));
-        return size;
-    }
+    [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_const_map_size>(map_); }
 
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
 
@@ -122,9 +115,7 @@ class Control {
 
     Control(Library const &lib, StringSpan arguments = {}) {
         auto cstrs = Detail::transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
-        clingo_control_t *ptr = nullptr;
-        Detail::handle_error(clingo_control_new(c_cast(lib), cstrs.data(), arguments.size(), &ptr));
-        ctl_.reset(ptr, false);
+        ctl_.reset(Detail::call<clingo_control_new>(c_cast(lib), cstrs.data(), arguments.size()), false);
     }
 
     explicit Control(clingo_control_t *rep, bool acquire) : ctl_{rep, acquire} {}
@@ -132,9 +123,7 @@ class Control {
     [[nodiscard]] friend auto c_cast(Control const &ctl) -> clingo_control_t * { return ctl.ctl_.get(); }
 
     [[nodiscard]] auto mode() const -> ControlMode {
-        clingo_mode_t mode = 0;
-        Detail::handle_error(clingo_control_mode(ctl_.get(), &mode));
-        return static_cast<ControlMode>(mode);
+        return static_cast<ControlMode>(Detail::call<clingo_control_mode>(ctl_.get()));
     }
 
     void write_aspif(std::string_view path, WriteAspifFlags flags = WriteAspifFlags::none) const {
@@ -169,17 +158,11 @@ class Control {
             clingo_control_ground(ctl_.get(), c_parts.data(), c_parts.size(), ctx ? &ctx_ : nullptr, &ctx));
     }
 
-    [[nodiscard]] auto base() const -> Base {
-        clingo_base_t const *base = nullptr;
-        clingo_control_base(ctl_.get(), &base);
-        return {base};
-    }
+    [[nodiscard]] auto base() const -> Base { return Base{Detail::call<clingo_control_base>(ctl_.get())}; }
 
     [[nodiscard]] auto stats() const -> ConstStats {
-        clingo_stats_t const *stats = nullptr;
-        Detail::handle_error(clingo_control_stats(ctl_.get(), &stats));
-        uint64_t key = 0;
-        Detail::handle_error(clingo_stats_root(stats, &key));
+        auto const *stats = Detail::call<clingo_control_stats>(ctl_.get());
+        auto key = Detail::call<clingo_stats_root>(stats);
         return ConstStats{stats, key};
     }
 
@@ -209,9 +192,8 @@ class Control {
     }
 
     [[nodiscard]] auto buffer() const -> std::string_view {
-        clingo_string_t ret;
-        Detail::handle_error(clingo_control_buffer(ctl_.get(), &ret));
-        return {ret.data, ret.size};
+        auto [data, size] = Detail::call<clingo_control_buffer>(ctl_.get());
+        return {data, size};
     }
 
     [[nodiscard]] auto parts() const -> std::optional<PartVector> {
@@ -241,29 +223,22 @@ class Control {
     }
 
     [[nodiscard]] auto config() const -> Config {
-        clingo_config_t *config = nullptr;
-        Detail::handle_error(clingo_control_config(ctl_.get(), &config));
-        clingo_id_t key = 0;
-        Detail::handle_error(clingo_config_root(config, &key));
+        auto *config = Detail::call<clingo_control_config>(ctl_.get());
+        auto key = Detail::call<clingo_config_root>(config);
         return Config{config, key};
     }
 
     [[nodiscard]] auto const_map() const -> ConstMap {
-        clingo_const_map_t const *map = nullptr;
-        Detail::handle_error(clingo_control_const_map(ctl_.get(), &map));
-        return ConstMap{map};
+        return ConstMap{Detail::call<clingo_control_const_map>(ctl_.get())};
     }
 
     void observe(Observer &obs, bool preprocess) const { obs.observe(ctl_.get(), preprocess); }
 
     [[nodiscard]] auto backend() const -> ProgramBackend {
-        clingo_backend_t *bck = nullptr;
-        Detail::handle_error(clingo_control_backend(ctl_.get(), &bck));
-        return ProgramBackend{bck};
+        return ProgramBackend{Detail::call<clingo_control_backend>(ctl_.get())};
     }
 
     void register_propagator(std::unique_ptr<Propagator> propagator) const {
-        // NOTE: a destructor in the propagator would make the data unnecessary for the C++ api
         Detail::handle_error(
             clingo_control_register_propagator(ctl_.get(), &Detail::c_propagator, propagator.release()));
     }
@@ -275,9 +250,6 @@ class Control {
     void join(AST::Program const &prg) const { Detail::join(ctl_.get(), c_cast(prg)); }
 
   private:
-    // NOTE: Putting the user_data function into the Detail namespace would
-    // avoid this.
-    friend struct Detail::AppData;
     friend class Detail::intrusive_handle<Control, clingo_control_t>;
 
     static auto ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,

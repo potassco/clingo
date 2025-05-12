@@ -348,7 +348,7 @@ class Base {
     using pointer = Detail::ArrowProxy<value_type>;
     using iterator = Detail::RandomAccessIterator<Base>;
 
-    Base(clingo_base_t const *base) : base_{base} {}
+    explicit Base(clingo_base_t const *base) : base_{base} {}
 
     [[nodiscard]] auto is_external(ProgramLiteral lit) const -> bool {
         return Detail::call<clingo_base_is_external>(base_, lit);

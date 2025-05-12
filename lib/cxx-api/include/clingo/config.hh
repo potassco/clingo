@@ -26,9 +26,7 @@ class ConstConfig {
     friend auto c_cast(ConstConfig const &stats) -> clingo_config_t const * { return stats.cfg_; }
 
     [[nodiscard]] auto type() const -> ConfigType {
-        clingo_config_type_bitset_t type = 0;
-        Detail::handle_error(clingo_config_type(cfg_, key_, &type));
-        return static_cast<ConfigType>(type);
+        return static_cast<ConfigType>(Detail::call<clingo_config_type>(cfg_, key_));
     }
 
     [[nodiscard]] auto array() const -> ConstConfigArray;
@@ -46,16 +44,13 @@ class ConstConfig {
         throw std::bad_variant_access();
     }
     [[nodiscard]] auto description() const -> std::string_view {
-        clingo_string_t ret;
-        clingo_config_description(cfg_, key_, &ret);
-        return {ret.data, ret.size};
+        auto [data, size] = Detail::call<clingo_config_description>(cfg_, key_);
+        return {data, size};
     }
     [[nodiscard]] auto to_string() const -> std::string {
         auto bld = StringBuilder{};
         Detail::handle_error(clingo_config_to_string(cfg_, key_, c_cast(bld)));
-        clingo_string_t res;
-        Detail::handle_error(clingo_string_builder_string(c_cast(bld), &res));
-        return {res.data, res.size};
+        return std::string{bld.str()};
     }
 
   private:
@@ -100,20 +95,14 @@ class ConstConfigArray {
 
     [[nodiscard]] auto at(size_t index) const -> ConstConfig { return ConstConfig{cfg_, at_(index)}; }
     [[nodiscard]] auto operator[](size_t index) const -> ConstConfig { return at(index); }
-    [[nodiscard]] auto size() const -> size_t {
-        size_t size = 0;
-        Detail::handle_error(clingo_config_array_size(cfg_, key_, &size));
-        return size;
-    }
+    [[nodiscard]] auto size() const -> size_t { return Detail::call<clingo_config_array_size>(cfg_, key_); }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 
   private:
     friend class ConfigArray;
     [[nodiscard]] auto at_(size_t index) const -> clingo_id_t {
-        clingo_id_t subkey = 0;
-        Detail::handle_error(clingo_config_array_at(cfg_, key_, index, &subkey));
-        return subkey;
+        return Detail::call<clingo_config_array_at>(cfg_, key_, index);
     }
 
     clingo_config_t const *cfg_;
@@ -170,20 +159,14 @@ class ConstConfigMap {
 
     explicit ConstConfigMap(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
 
-    [[nodiscard]] auto size() const -> size_t {
-        size_t size = 0;
-        Detail::handle_error(clingo_config_map_size(cfg_, key_, &size));
-        return size;
-    }
+    [[nodiscard]] auto size() const -> size_t { return Detail::call<clingo_config_map_size>(cfg_, key_); }
     [[nodiscard]] auto at(size_t index) const -> value_type {
         auto [name, subkey] = at_(index);
         return {name, ConstConfig{cfg_, subkey}};
     }
     [[nodiscard]] auto operator[](std::string_view name) const -> ConstConfig { return ConstConfig{cfg_, at_(name)}; }
     [[nodiscard]] auto contains(std::string_view name) const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_config_map_has_subkey(cfg_, key_, name.data(), name.size(), &res));
-        return res;
+        return Detail::call<clingo_config_map_has_subkey>(cfg_, key_, name.data(), name.size());
     }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
@@ -192,15 +175,12 @@ class ConstConfigMap {
     friend class ConfigMap;
 
     [[nodiscard]] auto at_(std::string_view name) const -> clingo_id_t {
-        clingo_id_t subkey = 0;
-        Detail::handle_error(clingo_config_map_at(cfg_, key_, name.data(), name.size(), &subkey));
-        return subkey;
+        return Detail::call<clingo_config_map_at>(cfg_, key_, name.data(), name.size());
     }
 
     [[nodiscard]] auto at_(size_t index) const -> std::pair<std::string_view, clingo_id_t> {
-        clingo_string_t name;
-        Detail::handle_error(clingo_config_map_subkey_name(cfg_, key_, index, &name));
-        auto str = std::string_view{name.data, name.size};
+        auto [data, size] = Detail::call<clingo_config_map_subkey_name>(cfg_, key_, index);
+        auto str = std::string_view{data, size};
         return {str, at_(str)};
     }
 

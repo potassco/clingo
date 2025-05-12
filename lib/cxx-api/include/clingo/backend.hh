@@ -18,52 +18,38 @@ enum class TheorySequenceType : clingo_theory_sequence_type_t {
 class TheoryBackend {
   public:
     [[nodiscard]] auto number(int number) const -> ProgramId {
-        clingo_id_t id = 0;
-        Detail::handle_error(clingo_backend_theory_term_number(backend_.get(), number, &id));
-        return id;
+        return Detail::call<clingo_backend_theory_term_number>(backend_.get(), number);
     }
 
     [[nodiscard]] auto string(std::string_view str) const -> ProgramId {
-        clingo_id_t id = 0;
-        Detail::handle_error(clingo_backend_theory_term_string(backend_.get(), str.data(), str.size(), &id));
-        return id;
+        return Detail::call<clingo_backend_theory_term_string>(backend_.get(), str.data(), str.size());
     }
 
     [[nodiscard]] auto symbol(Symbol const &symbol) const -> ProgramId {
-        clingo_id_t id = 0;
-        Detail::handle_error(clingo_backend_theory_term_symbol(backend_.get(), c_cast(symbol), &id));
-        return id;
+        return Detail::call<clingo_backend_theory_term_symbol>(backend_.get(), c_cast(symbol));
     }
 
     [[nodiscard]] auto sequence(TheorySequenceType type, ProgramIdSpan elements) const -> ProgramId {
-        clingo_id_t id = 0;
-        Detail::handle_error(clingo_backend_theory_term_sequence(
-            backend_.get(), static_cast<clingo_theory_sequence_type_t>(type), elements.data(), elements.size(), &id));
-        return id;
+        return Detail::call<clingo_backend_theory_term_sequence>(
+            backend_.get(), static_cast<clingo_theory_sequence_type_t>(type), elements.data(), elements.size());
     }
 
     [[nodiscard]] auto function(std::string_view name, ProgramIdSpan elements) const -> ProgramId {
-        clingo_id_t id = 0;
-        Detail::handle_error(clingo_backend_theory_term_function(backend_.get(), name.data(), name.size(),
-                                                                 elements.data(), elements.size(), &id));
-        return id;
+        return Detail::call<clingo_backend_theory_term_function>(backend_.get(), name.data(), name.size(),
+                                                                 elements.data(), elements.size());
     }
 
     [[nodiscard]] auto element(ProgramIdSpan tuple, ProgramLiteralSpan condition) const -> ProgramId {
-        clingo_id_t id = 0;
-        Detail::handle_error(clingo_backend_theory_element(backend_.get(), tuple.data(), tuple.size(), condition.data(),
-                                                           condition.size(), &id));
-        return id;
+        return Detail::call<clingo_backend_theory_element>(backend_.get(), tuple.data(), tuple.size(), condition.data(),
+                                                           condition.size());
     }
 
     [[nodiscard]] auto atom(std::optional<ProgramAtom> atom, Symbol const &name, ProgramIdSpan elements,
                             std::optional<std::pair<std::string_view, ProgramId>> const &guard) const -> ProgramId {
-        clingo_atom_t res = 0;
         auto op = clingo_string_t{guard ? guard->first.data() : nullptr, guard ? guard->first.size() : 0};
-        Detail::handle_error(clingo_backend_theory_atom(backend_.get(), c_cast(name), elements.data(), elements.size(),
+        return Detail::call<clingo_backend_theory_atom>(backend_.get(), c_cast(name), elements.data(), elements.size(),
                                                         guard ? &op : nullptr, guard ? guard->second : 0,
-                                                        atom ? &*atom : nullptr, &res));
-        return res;
+                                                        atom ? &*atom : nullptr);
     }
 
   private:
@@ -96,10 +82,7 @@ class ProgramBackend : private TheoryBackend {
     void close() { Detail::handle_error(clingo_backend_close(backend_.release())); }
 
     [[nodiscard]] auto atom(std::optional<Symbol> symbol) const -> ProgramAtom {
-        clingo_atom_t atom = 0;
-        Detail::handle_error(
-            clingo_backend_add_atom(backend_.get(), symbol ? c_cast(&symbol.value()) : nullptr, &atom));
-        return atom;
+        return Detail::call<clingo_backend_add_atom>(backend_.get(), symbol ? c_cast(&symbol.value()) : nullptr);
     }
 
     void rule(ProgramAtomSpan head, ProgramLiteralSpan body, bool choice) const {
