@@ -25,18 +25,14 @@ class ConstStats {
     friend auto c_cast(ConstStats const &stats) -> clingo_stats_t const * { return stats.stats_; }
 
     [[nodiscard]] auto type() const -> StatsType {
-        clingo_stats_type_t type = 0;
-        Detail::handle_error(clingo_stats_type(stats_, key_, &type));
-        return static_cast<StatsType>(type);
+        return static_cast<StatsType>(Detail::call<clingo_stats_type>(stats_, key_));
     }
 
     [[nodiscard]] auto array() const -> ConstStatsArray;
     [[nodiscard]] auto map() const -> ConstStatsMap;
     [[nodiscard]] auto value() const -> double {
         if (type() == StatsType::value) {
-            double value = 0;
-            Detail::handle_error(clingo_stats_value_get(stats_, key_, &value));
-            return value;
+            return Detail::call<clingo_stats_value_get>(stats_, key_);
         }
         throw std::bad_variant_access();
     }
@@ -83,20 +79,14 @@ class ConstStatsArray {
 
     [[nodiscard]] auto at(size_t index) const -> ConstStats { return ConstStats{stats_, at_(index)}; }
     [[nodiscard]] auto operator[](size_t index) const -> ConstStats { return at(index); }
-    [[nodiscard]] auto size() const -> size_t {
-        size_t size = 0;
-        Detail::handle_error(clingo_stats_array_size(stats_, key_, &size));
-        return size;
-    }
+    [[nodiscard]] auto size() const -> size_t { return Detail::call<clingo_stats_array_size>(stats_, key_); }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 
   private:
     friend class StatsArray;
     [[nodiscard]] auto at_(size_t index) const -> uint64_t {
-        uint64_t subkey = 0;
-        Detail::handle_error(clingo_stats_array_at(stats_, key_, index, &subkey));
-        return subkey;
+        return Detail::call<clingo_stats_array_at>(stats_, key_, index);
     }
 
     clingo_stats_t const *stats_;
@@ -124,9 +114,8 @@ class StatsArray : public ConstStatsArray {
     [[nodiscard]] auto at(size_t index) const -> Stats { return Stats{stats_(), at_(index)}; }
     [[nodiscard]] auto operator[](size_t index) const -> Stats { return at(index); }
     [[nodiscard]] auto push(StatsType type) const -> Stats {
-        uint64_t subkey = 0;
-        Detail::handle_error(clingo_stats_array_push(stats_(), key_, static_cast<clingo_stats_type_t>(type), &subkey));
-        return Stats{stats_(), subkey};
+        return Stats{stats_(),
+                     Detail::call<clingo_stats_array_push>(stats_(), key_, static_cast<clingo_stats_type_t>(type))};
     }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
@@ -158,20 +147,14 @@ class ConstStatsMap {
 
     explicit ConstStatsMap(clingo_stats_t const *stats, uint64_t key) : stats_{stats}, key_{key} {}
 
-    [[nodiscard]] auto size() const -> size_t {
-        size_t size = 0;
-        Detail::handle_error(clingo_stats_map_size(stats_, key_, &size));
-        return size;
-    }
+    [[nodiscard]] auto size() const -> size_t { return Detail::call<clingo_stats_map_size>(stats_, key_); }
     [[nodiscard]] auto at(size_t index) const -> value_type {
         auto [name, subkey] = at_(index);
         return {name, ConstStats{stats_, subkey}};
     }
     [[nodiscard]] auto operator[](std::string_view name) const -> ConstStats { return ConstStats{stats_, at_(name)}; }
     [[nodiscard]] auto contains(std::string_view name) const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_stats_map_has_subkey(stats_, key_, name.data(), name.size(), &res));
-        return res;
+        return Detail::call<clingo_stats_map_has_subkey>(stats_, key_, name.data(), name.size());
     }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
@@ -180,15 +163,12 @@ class ConstStatsMap {
     friend class StatsMap;
 
     [[nodiscard]] auto at_(std::string_view name) const -> uint64_t {
-        uint64_t subkey = 0;
-        Detail::handle_error(clingo_stats_map_at(stats_, key_, name.data(), name.size(), &subkey));
-        return subkey;
+        return Detail::call<clingo_stats_map_at>(stats_, key_, name.data(), name.size());
     }
 
     [[nodiscard]] auto at_(size_t index) const -> std::pair<std::string_view, uint64_t> {
-        clingo_string_t name;
-        Detail::handle_error(clingo_stats_map_subkey_name(stats_, key_, index, &name));
-        auto str = std::string_view{name.data, name.size};
+        auto [data, size] = Detail::call<clingo_stats_map_subkey_name>(stats_, key_, index);
+        auto str = std::string_view{data, size};
         return {str, at_(str)};
     }
 
@@ -222,10 +202,8 @@ class StatsMap : public ConstStatsMap {
     }
     [[nodiscard]] auto operator[](std::string_view name) const -> Stats { return Stats{stats_(), at_(name)}; }
     [[nodiscard]] auto insert(std::string_view name, StatsType type) const -> Stats {
-        uint64_t subkey = 0;
-        Detail::handle_error(clingo_stats_map_add_subkey(stats_(), key_, name.data(), name.size(),
-                                                         static_cast<clingo_stats_type_t>(type), &subkey));
-        return Stats{stats_(), subkey};
+        return Stats{stats_(), Detail::call<clingo_stats_map_add_subkey>(stats_(), key_, name.data(), name.size(),
+                                                                         static_cast<clingo_stats_type_t>(type))};
     }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }

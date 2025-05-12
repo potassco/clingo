@@ -37,11 +37,7 @@ class SolveControl {
   public:
     explicit SolveControl(clingo_solve_control_t *ctl) : ctl_{ctl} {}
 
-    [[nodiscard]] auto base() const -> Base {
-        clingo_base_t const *base = nullptr;
-        Detail::handle_error(clingo_solve_control_base(ctl_, &base));
-        return Base{base};
-    }
+    [[nodiscard]] auto base() const -> Base { return Base{Detail::call<clingo_solve_control_base>(ctl_)}; }
 
     auto add_clause(ProgramLiteralSpan lits) const {
         Detail::handle_error(clingo_solve_control_add_clause(ctl_, lits.data(), lits.size()));
@@ -84,32 +80,21 @@ class ConstModel {
     }
 
     [[nodiscard]] auto contains(Symbol const &atom) const -> bool {
-        bool res = false;
-        Detail::handle_error(clingo_model_contains(mdl_, c_cast(atom), &res));
-        return res;
+        return Detail::call<clingo_model_contains>(mdl_, c_cast(atom));
     }
 
     [[nodiscard]] auto type() const -> ModelType {
-        clingo_model_type_t type = 0;
-        Detail::handle_error(clingo_model_type(mdl_, &type));
-        return static_cast<ModelType>(type);
+        return static_cast<ModelType>(Detail::call<clingo_model_type>(mdl_));
     }
 
-    [[nodiscard]] auto number() const -> uint64_t {
-        uint64_t num = 0;
-        Detail::handle_error(clingo_model_number(mdl_, &num));
-        return num;
-    }
+    [[nodiscard]] auto number() const -> uint64_t { return Detail::call<clingo_model_number>(mdl_); }
 
     [[nodiscard]] auto is_true(ProgramLiteral lit) const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_model_is_true(mdl_, lit, &res));
-        return res;
+        return Detail::call<clingo_model_is_true>(mdl_, lit);
     }
 
     [[nodiscard]] auto is_consequence(ProgramLiteral lit) const -> std::optional<bool> {
-        clingo_consequence_t res = 0;
-        Detail::handle_error(clingo_model_is_consequence(mdl_, lit, &res));
+        auto res = Detail::call<clingo_model_is_consequence>(mdl_, lit);
         if (res != clingo_consequence_unknown) {
             return res == clingo_consequence_true;
         }
@@ -130,17 +115,9 @@ class ConstModel {
         return {prios, size};
     }
 
-    [[nodiscard]] auto optimality_proven() const -> bool {
-        bool res = false;
-        Detail::handle_error(clingo_model_optimality_proven(mdl_, &res));
-        return res;
-    }
+    [[nodiscard]] auto optimality_proven() const -> bool { return Detail::call<clingo_model_optimality_proven>(mdl_); }
 
-    [[nodiscard]] auto thread_id() const -> ProgramId {
-        clingo_id_t id = 0;
-        Detail::handle_error(clingo_model_thread_id(mdl_, &id));
-        return id;
-    }
+    [[nodiscard]] auto thread_id() const -> ProgramId { return Detail::call<clingo_model_thread_id>(mdl_); }
 
     [[nodiscard]] auto to_string() const -> std::string {
         auto res = std::string{};
@@ -171,9 +148,7 @@ class Model : public ConstModel {
     explicit Model(clingo_model_t *mdl) : ConstModel{mdl} {}
 
     [[nodiscard]] auto control() const -> SolveControl {
-        clingo_solve_control_t *ctl = nullptr;
-        Detail::handle_error(clingo_model_control(mdl_(), &ctl));
-        return SolveControl{ctl};
+        return SolveControl{Detail::call<clingo_model_control>(mdl_())};
     }
 
     void extend(SymbolSpan symbols) const {
@@ -259,9 +234,7 @@ class SolveHandle {
     friend auto c_cast(SolveHandle const &x) -> clingo_solve_handle_t * { return x.data_->hnd; }
 
     [[nodiscard]] auto get() const -> SolveResult {
-        clingo_solve_result_bitset_t res = 0;
-        Detail::handle_error(clingo_solve_handle_get(data_->hnd, &res));
-        return SolveResult{res};
+        return SolveResult{Detail::call<clingo_solve_handle_get>(data_->hnd)};
     }
 
     void cancel() { Detail::handle_error(clingo_solve_handle_cancel(data_->hnd)); }
@@ -271,14 +244,12 @@ class SolveHandle {
     void resume() { Detail::handle_error(clingo_solve_handle_resume(data_->hnd)); }
 
     [[nodiscard]] auto model() -> std::optional<ConstModel> {
-        clingo_model_t const *mdl = nullptr;
-        Detail::handle_error(clingo_solve_handle_model(data_->hnd, &mdl));
+        clingo_model_t const *mdl = Detail::call<clingo_solve_handle_model>(data_->hnd);
         return mdl != nullptr ? std::make_optional<ConstModel>(mdl) : std::nullopt;
     }
 
     [[nodiscard]] auto last() const -> std::optional<ConstModel> {
-        clingo_model_t const *mdl = nullptr;
-        Detail::handle_error(clingo_solve_handle_last(data_->hnd, &mdl));
+        clingo_model_t const *mdl = Detail::call<clingo_solve_handle_last>(data_->hnd);
         return mdl != nullptr ? std::make_optional<ConstModel>(mdl) : std::nullopt;
     }
 
@@ -290,9 +261,7 @@ class SolveHandle {
     }
 
     [[nodiscard]] auto wait(std::optional<double> timeout) -> bool {
-        bool result = false;
-        Detail::handle_error(clingo_solve_handle_wait(data_->hnd, timeout ? *timeout : -1, &result));
-        return result;
+        return Detail::call<clingo_solve_handle_wait>(data_->hnd, timeout ? *timeout : -1);
     }
 
     [[nodiscard]] auto begin() -> iterator { return iterator{*this}; }
@@ -340,16 +309,13 @@ class SolveHandle {
                 }
                 case clingo_solve_event_type_stats: {
                     auto *c_stats = static_cast<clingo_stats_t *>(event);
-                    uint64_t root = 0;
-                    Detail::handle_error(clingo_stats_root(c_stats, &root));
-                    uint64_t step = 0;
                     std::string_view user_step = "user_step";
                     std::string_view user_accu = "user_accu";
-                    Detail::handle_error(clingo_stats_map_add_subkey(c_stats, root, user_step.data(), user_step.size(),
-                                                                     clingo_stats_type_map, &step));
-                    uint64_t accu = 0;
-                    Detail::handle_error(clingo_stats_map_add_subkey(c_stats, root, user_accu.data(), user_accu.size(),
-                                                                     clingo_stats_type_map, &accu));
+                    uint64_t root = Detail::call<clingo_stats_root>(c_stats);
+                    uint64_t step = Detail::call<clingo_stats_map_add_subkey>(c_stats, root, user_step.data(),
+                                                                              user_step.size(), clingo_stats_type_map);
+                    uint64_t accu = Detail::call<clingo_stats_map_add_subkey>(c_stats, root, user_accu.data(),
+                                                                              user_accu.size(), clingo_stats_type_map);
                     hnd->seh->stats(Stats{c_stats, step}, Stats{c_stats, accu});
                     break;
                 }

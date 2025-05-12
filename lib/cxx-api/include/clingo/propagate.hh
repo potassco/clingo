@@ -45,31 +45,21 @@ class Trail {
     explicit Trail(clingo_assignment_t const *assignment) : assignment_{assignment} {}
 
     [[nodiscard]] auto operator[](size_type index) const -> value_type {
-        clingo_literal_t lit = 0;
-        Detail::handle_error(clingo_assignment_trail_at(assignment_, index, &lit));
-        return lit;
+        return Detail::call<clingo_assignment_trail_at>(assignment_, index);
     }
 
-    [[nodiscard]] auto size() const -> size_type {
-        uint32_t size = 0;
-        Detail::handle_error(clingo_assignment_trail_size(assignment_, &size));
-        return size;
-    }
+    [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_assignment_trail_size>(assignment_); }
 
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
 
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 
     [[nodiscard]] auto begin(ProgramId level) const -> iterator {
-        uint32_t offset = 0;
-        Detail::handle_error(clingo_assignment_trail_begin(assignment_, level, &offset));
-        return iterator{*this, level};
+        return iterator{*this, Detail::call<clingo_assignment_trail_begin>(assignment_, level)};
     }
 
     [[nodiscard]] auto end(ProgramId level) const -> iterator {
-        uint32_t offset = 0;
-        Detail::handle_error(clingo_assignment_trail_end(assignment_, level, &offset));
-        return iterator{*this, level};
+        return iterator{*this, Detail::call<clingo_assignment_trail_end>(assignment_, level)};
     }
 
     [[nodiscard]] auto level(ProgramId level) const { return std::ranges::subrange{begin(level), end(level)}; }
@@ -89,81 +79,52 @@ class Assignment {
 
     explicit Assignment(clingo_assignment_t const *assignment) : assignment_(assignment) {}
 
-    [[nodiscard]] auto size() const -> size_type {
-        size_t size = 0;
-        Detail::handle_error(clingo_assignment_size(assignment_, &size));
-        return size;
-    }
+    [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_assignment_size>(assignment_); }
 
     [[nodiscard]] auto operator[](size_type size) const -> value_type {
-        clingo_literal_t lit = 0;
-        Detail::handle_error(clingo_assignment_at(assignment_, size, &lit));
-        return lit;
+        return Detail::call<clingo_assignment_at>(assignment_, size);
     }
 
     [[nodiscard]] auto decision(ProgramId level) const -> SolverLiteral {
-        clingo_literal_t lit = 0;
-        Detail::handle_error(clingo_assignment_decision(assignment_, level, &lit));
-        return lit;
+        return Detail::call<clingo_assignment_decision>(assignment_, level);
     }
 
     [[nodiscard]] auto decision_level() const -> ProgramId {
-        uint32_t level = 0;
-        Detail::handle_error(clingo_assignment_decision_level(assignment_, &level));
-        return level;
+        return Detail::call<clingo_assignment_decision_level>(assignment_);
     }
 
     [[nodiscard]] auto has_conflict() const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_assignment_has_conflict(assignment_, &res));
-        return res;
+        return Detail::call<clingo_assignment_has_conflict>(assignment_);
     }
 
     [[nodiscard]] auto contains(SolverLiteral lit) const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_assignment_has_literal(assignment_, lit, &res));
-        return res;
+        return Detail::call<clingo_assignment_has_literal>(assignment_, lit);
     }
 
     [[nodiscard]] auto is_false(SolverLiteral lit) const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_assignment_is_false(assignment_, lit, &res));
-        return res;
+        return Detail::call<clingo_assignment_is_false>(assignment_, lit);
     }
 
     [[nodiscard]] auto is_fixed(SolverLiteral lit) const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_assignment_is_fixed(assignment_, lit, &res));
-        return res;
+        return Detail::call<clingo_assignment_is_fixed>(assignment_, lit);
     }
 
     [[nodiscard]] auto is_free(SolverLiteral lit) const -> bool {
-        clingo_truth_value_t res = 0;
-        Detail::handle_error(clingo_assignment_truth_value(assignment_, lit, &res));
-        return res == clingo_truth_value_free;
+        return Detail::call<clingo_assignment_truth_value>(assignment_, lit) == clingo_truth_value_free;
     }
 
-    [[nodiscard]] auto is_total() const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_assignment_is_total(assignment_, &res));
-        return res;
-    }
+    [[nodiscard]] auto is_total() const -> bool { return Detail::call<clingo_assignment_is_total>(assignment_); }
 
     [[nodiscard]] auto is_true(SolverLiteral lit) const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_assignment_is_true(assignment_, lit, &res));
-        return res;
+        return Detail::call<clingo_assignment_is_true>(assignment_, lit);
     }
 
     [[nodiscard]] auto level(SolverLiteral lit) const -> ProgramId {
-        uint32_t level = 0;
-        Detail::handle_error(clingo_assignment_level(assignment_, lit, &level));
-        return level;
+        return Detail::call<clingo_assignment_level>(assignment_, lit);
     }
 
     [[nodiscard]] auto value(SolverLiteral lit) const -> std::optional<bool> {
-        clingo_truth_value_t res = 0;
-        Detail::handle_error(clingo_assignment_truth_value(assignment_, lit, &res));
+        clingo_truth_value_t res = Detail::call<clingo_assignment_truth_value>(assignment_, lit);
         switch (res) {
             case clingo_truth_value_true: {
                 return true;
@@ -178,9 +139,7 @@ class Assignment {
     }
 
     [[nodiscard]] auto root_level() const -> ProgramId {
-        uint32_t level = 0;
-        Detail::handle_error(clingo_assignment_root_level(assignment_, &level));
-        return level;
+        return Detail::call<clingo_assignment_root_level>(assignment_);
     }
 
     [[nodiscard]] auto trail() const -> Trail { return Trail{assignment_}; }
@@ -198,27 +157,17 @@ class PropagateInit {
     explicit PropagateInit(clingo_propagate_init_t *init) : init_{init} {}
 
     [[nodiscard]] auto assignment() const -> Assignment {
-        clingo_assignment_t const *assignment = nullptr;
-        Detail::handle_error(clingo_propagate_init_assignment(init_, &assignment));
-        return Assignment{assignment};
+        return Assignment{Detail::call<clingo_propagate_init_assignment>(init_)};
     }
 
     [[nodiscard]] auto library() const -> Library {
-        clingo_lib_t *lib = nullptr;
-        Detail::handle_error(clingo_propagate_init_library(init_, &lib));
-        return Library{lib, true};
+        return Library{Detail::call<clingo_propagate_init_library>(init_), true};
     }
 
-    [[nodiscard]] auto base() const -> Base {
-        clingo_base_t const *base = nullptr;
-        Detail::handle_error(clingo_propagate_init_base(init_, &base));
-        return Base{base};
-    }
+    [[nodiscard]] auto base() const -> Base { return Base{Detail::call<clingo_propagate_init_base>(init_)}; }
 
     [[nodiscard]] auto check_mode() const -> PropgatorCheckMode {
-        clingo_propagator_check_mode_t mode = 0;
-        Detail::handle_error(clingo_propagate_init_get_check_mode(init_, &mode));
-        return static_cast<PropgatorCheckMode>(mode);
+        return static_cast<PropgatorCheckMode>(Detail::call<clingo_propagate_init_get_check_mode>(init_));
     }
 
     void check_mode(PropgatorCheckMode mode) {
@@ -227,15 +176,11 @@ class PropagateInit {
     }
 
     [[nodiscard]] auto number_of_threads() const -> ProgramId {
-        clingo_id_t res = 0;
-        Detail::handle_error(clingo_propagate_init_number_of_threads(init_, &res));
-        return res;
+        return Detail::call<clingo_propagate_init_number_of_threads>(init_);
     }
 
     [[nodiscard]] auto undo_mode() const -> PropagatorUndoMode {
-        clingo_propagator_check_mode_t mode = 0;
-        Detail::handle_error(clingo_propagate_init_get_undo_mode(init_, &mode));
-        return static_cast<PropagatorUndoMode>(mode);
+        return static_cast<PropagatorUndoMode>(Detail::call<clingo_propagate_init_get_undo_mode>(init_));
     }
 
     void undo_mode(PropagatorUndoMode mode) const {
@@ -244,15 +189,11 @@ class PropagateInit {
     }
 
     [[nodiscard]] auto add_clause(SolverLiteralSpan literals) const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_propagate_init_add_clause(init_, literals.data(), literals.size(), &res));
-        return res;
+        return Detail::call<clingo_propagate_init_add_clause>(init_, literals.data(), literals.size());
     }
 
     [[nodiscard]] auto add_literal(bool freeze) const -> SolverLiteral {
-        clingo_literal_t lit = 0;
-        Detail::handle_error(clingo_propagate_init_add_literal(init_, freeze, &lit));
-        return lit;
+        return Detail::call<clingo_propagate_init_add_literal>(init_, freeze);
     }
 
     void add_minimize(SolverLiteral literal, Weight weight, Weight priority) const {
@@ -269,21 +210,15 @@ class PropagateInit {
 
     [[nodiscard]] auto add_weight_constraint(SolverLiteral literal, WeightedLiteralSpan literals, Weight bound,
                                              WeightConstraintType type, bool compare_equal) const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_propagate_init_add_weight_constraint(
-            init_, literal, literals.data(), literals.size(), bound, type, compare_equal, &res));
-        return res;
+        return Detail::call<clingo_propagate_init_add_weight_constraint>(init_, literal, literals.data(),
+                                                                         literals.size(), bound, type, compare_equal);
     }
 
     void freeze_literal(SolverLiteral literal) const {
         Detail::handle_error(clingo_propagate_init_freeze_literal(init_, literal));
     }
 
-    [[nodiscard]] auto propagate() const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_propagate_init_propagate(init_, &res));
-        return res;
-    }
+    [[nodiscard]] auto propagate() const -> bool { return Detail::call<clingo_propagate_init_propagate>(init_); }
 
     void remove_watch(SolverLiteral literal, std::optional<ProgramId> thread_id) const {
         if (thread_id) {
@@ -294,9 +229,7 @@ class PropagateInit {
     }
 
     [[nodiscard]] auto solver_literal(ProgramLiteral literal) const -> SolverLiteral {
-        clingo_literal_t res = 0;
-        Detail::handle_error(clingo_propagate_init_solver_literal(init_, literal, &res));
-        return res;
+        return Detail::call<clingo_propagate_init_solver_literal>(init_, literal);
     }
 
   private:
@@ -308,16 +241,12 @@ class PropagateControl {
     explicit PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
 
     [[nodiscard]] auto add_literal() const -> SolverLiteral {
-        clingo_literal_t lit = 0;
-        Detail::handle_error(clingo_propagate_control_add_literal(ctl_, &lit));
-        return lit;
+        return Detail::call<clingo_propagate_control_add_literal>(ctl_);
     }
 
     [[nodiscard]] auto add_clause(ProgramLiteralSpan literals, ClauseFlags flags) const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_propagate_control_add_clause(ctl_, literals.data(), literals.size(),
-                                                                 static_cast<clingo_clause_type_t>(flags), &res));
-        return res;
+        return Detail::call<clingo_propagate_control_add_clause>(ctl_, literals.data(), literals.size(),
+                                                                 static_cast<clingo_clause_type_t>(flags));
     }
 
     [[nodiscard]] auto add_nogood(SolverLiteralSpan literals, ClauseFlags flags) const -> bool {
@@ -329,32 +258,20 @@ class PropagateControl {
     }
 
     [[nodiscard]] auto has_watch(SolverLiteral literal) const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_propagate_control_has_watch(ctl_, literal, &res));
-        return res;
+        return Detail::call<clingo_propagate_control_has_watch>(ctl_, literal);
     }
 
-    [[nodiscard]] auto propagate() const -> bool {
-        auto res = false;
-        Detail::handle_error(clingo_propagate_control_propagate(ctl_, &res));
-        return res;
-    }
+    [[nodiscard]] auto propagate() const -> bool { return Detail::call<clingo_propagate_control_propagate>(ctl_); }
 
     void remove_watch(SolverLiteral lit) const {
         Detail::handle_error(clingo_propagate_control_remove_watch(ctl_, lit));
     }
 
     [[nodiscard]] auto assignment() const -> Assignment {
-        clingo_assignment_t const *assignment = nullptr;
-        Detail::handle_error(clingo_propagate_control_assignment(ctl_, &assignment));
-        return Assignment{assignment};
+        return Assignment{Detail::call<clingo_propagate_control_assignment>(ctl_)};
     }
 
-    [[nodiscard]] auto thread_id() const -> ProgramId {
-        uint32_t id = 0;
-        Detail::handle_error(clingo_propagate_control_thread_id(ctl_, &id));
-        return id;
-    }
+    [[nodiscard]] auto thread_id() const -> ProgramId { return Detail::call<clingo_propagate_control_thread_id>(ctl_); }
 
   private:
     clingo_propagate_control_t *ctl_;
@@ -415,11 +332,9 @@ static constexpr auto c_propagator = clingo_propagator_t{
     [](clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data) {
         auto &self = *static_cast<Propagator *>(data);
         try {
-            uint32_t thread_id = 0;
-            Detail::handle_error(clingo_propagate_control_thread_id(control, &thread_id));
-            clingo_assignment_t const *assignment = nullptr;
-            Detail::handle_error(clingo_propagate_control_assignment(control, &assignment));
-            self.undo(thread_id, Assignment(assignment), SolverLiteralSpan{changes, size});
+            uint32_t thread_id = Detail::call<clingo_propagate_control_thread_id>(control);
+            clingo_assignment_t const *assignment = Detail::call<clingo_propagate_control_assignment>(control);
+            self.undo(thread_id, Assignment{assignment}, SolverLiteralSpan{changes, size});
         } catch (std::exception const &e) {
             printf("panic: %s\n", e.what());
             std::abort();

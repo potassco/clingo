@@ -62,30 +62,20 @@ class Symbol {
         return reinterpret_cast<Symbol const *>(sym);
     }
 
-    [[nodiscard]] auto number() const -> int {
-        int res = 0;
-        Detail::handle_error(clingo_symbol_number(rep_, &res));
-        return res;
-    }
+    [[nodiscard]] auto number() const -> int { return Detail::call<clingo_symbol_number>(rep_); }
     [[nodiscard]] auto name() const -> std::string_view {
-        clingo_string_t res;
-        Detail::handle_error(clingo_symbol_name(rep_, &res));
-        return {res.data, res.size};
+        auto [data, size] = Detail::call<clingo_symbol_name>(rep_);
+        return {data, size};
     }
     [[nodiscard]] auto string() const -> std::string_view {
-        clingo_string_t res;
-        Detail::handle_error(clingo_symbol_string(rep_, &res));
-        return {res.data, res.size};
+        auto [data, size] = Detail::call<clingo_symbol_string>(rep_);
+        return {data, size};
     }
-    [[nodiscard]] auto is_positive() const -> bool {
-        bool res = false;
-        Detail::handle_error(clingo_symbol_is_positive(rep_, &res));
-        return res;
-    }
+    [[nodiscard]] auto is_positive() const -> bool { return Detail::call<clingo_symbol_is_positive>(rep_); }
     [[nodiscard]] auto is_negative() const -> bool { return !is_positive(); }
     [[nodiscard]] auto arguments() const -> SymbolSpan {
-        size_t n = 0;
         clingo_symbol_t const *res = nullptr;
+        size_t n = 0;
         Detail::handle_error(clingo_symbol_arguments(rep_, &res, &n));
         return {cpp_cast(res), n};
     }
@@ -127,9 +117,7 @@ inline auto Number(int num) -> Symbol {
 }
 
 inline auto Number(Library const &lib, std::string_view str) -> Symbol {
-    clingo_symbol_t sym = 0;
-    Detail::handle_error(clingo_symbol_create_number_str(c_cast(lib), str.data(), str.size(), &sym));
-    return Symbol{sym, false};
+    return Symbol{Detail::call<clingo_symbol_create_number_str>(c_cast(lib), str.data(), str.size()), false};
 }
 
 inline auto Supremum() -> Symbol {
@@ -141,17 +129,14 @@ inline auto Infimum() -> Symbol {
 }
 
 inline auto String(Library const &lib, std::string_view str) -> Symbol {
-    clingo_symbol_t sym = 0;
-    Detail::handle_error(clingo_symbol_create_string(c_cast(lib), str.data(), str.size(), &sym));
-    return Symbol{sym, false};
+    return Symbol{Detail::call<clingo_symbol_create_string>(c_cast(lib), str.data(), str.size()), false};
 }
 
 inline auto Function(Library const &lib, std::string_view str, SymbolSpan arguments = {}, bool is_postitve = true)
     -> Symbol {
-    clingo_symbol_t sym = 0;
-    Detail::handle_error(clingo_symbol_create_function(c_cast(lib), str.data(), str.size(), c_cast(arguments.data()),
-                                                       arguments.size(), is_postitve, &sym));
-    return Symbol{sym, false};
+    return Symbol{Detail::call<clingo_symbol_create_function>(c_cast(lib), str.data(), str.size(),
+                                                              c_cast(arguments.data()), arguments.size(), is_postitve),
+                  false};
 }
 
 inline auto Function(Library const &lib, std::string_view str, SymbolList arguments, bool is_postitve = true)
@@ -160,9 +145,8 @@ inline auto Function(Library const &lib, std::string_view str, SymbolList argume
 }
 
 inline auto Tuple(Library const &lib, SymbolSpan arguments = {}) -> Symbol {
-    clingo_symbol_t sym = 0;
-    Detail::handle_error(clingo_symbol_create_tuple(c_cast(lib), c_cast(arguments.data()), arguments.size(), &sym));
-    return Symbol{sym, false};
+    return Symbol{Detail::call<clingo_symbol_create_tuple>(c_cast(lib), c_cast(arguments.data()), arguments.size()),
+                  false};
 }
 
 } // namespace Clingo
