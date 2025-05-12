@@ -167,83 +167,40 @@ auto version() -> std::tuple<int, int, int> {
 
 // definition of StringBuilder
 
-StringBuilder::StringBuilder() {
-    handle_error(clingo_string_builder_new(&bld_));
-}
-
-StringBuilder::StringBuilder(StringBuilder const &other) {
-    handle_error(clingo_string_builder_copy(other, &bld_));
-}
-
-auto StringBuilder::operator=(StringBuilder const &other) -> StringBuilder & {
-    if (this != &other) {
-        clingo_string_builder_free(bld_);
-        handle_error(clingo_string_builder_copy(other, &bld_));
-    }
-    return *this;
-}
-
-StringBuilder::~StringBuilder() noexcept {
-    clingo_string_builder_free(bld_);
-}
-
 auto StringBuilder::str() const -> std::string_view {
     clingo_string_t str;
-    handle_error(clingo_string_builder_string(bld_, &str));
+    handle_error(clingo_string_builder_string(bld_.get(), &str));
     return std::string_view{str.data, str.size};
 }
 
 // definition of position
 
-Position::Position(clingo_position_t const *pos) {
-    handle_error(clingo_position_copy(pos, &pos_));
-}
-
 Position::Position(Library &lib, std::string_view file, size_t line, size_t column) {
-    handle_error(clingo_position_new(lib, file.data(), file.size(), line, column, &pos_));
+    clingo_position_t const *pos = nullptr;
+    handle_error(clingo_position_new(lib, file.data(), file.size(), line, column, &pos));
+    pos_ = value_handle<Traits>{pos, false};
 }
 
-Position::Position(Position const &other) {
-    handle_error(clingo_position_copy(other, &pos_));
-}
-
-Position::Position(Position &&other) noexcept : pos_{std::exchange(other.pos_, nullptr)} {
-}
-
-auto Position::operator=(Position const &other) -> Position & {
-    if (this != &other) {
-        clingo_position_free(pos_);
-        handle_error(clingo_position_copy(other, &pos_));
-    }
-    return *this;
-}
-
-auto Position::operator=(Position &&other) noexcept -> Position & {
-    std::swap(pos_, other.pos_);
-    return *this;
-}
-
-Position::~Position() noexcept {
-    clingo_position_free(pos_);
+Position::Position(clingo_position_t const *pos) : pos_{pos, true} {
 }
 
 auto Position::file() const -> std::string_view {
     clingo_string_t val;
-    clingo_position_file(pos_, &val);
+    clingo_position_file(pos_.get(), &val);
     return {val.data, val.size};
 }
 
 auto Position::line() const -> size_t {
-    return clingo_position_line(pos_);
+    return clingo_position_line(pos_.get());
 }
 
 auto Position::column() const -> size_t {
-    return clingo_position_column(pos_);
+    return clingo_position_column(pos_.get());
 }
 
 auto Position::str() const -> std::string_view {
     auto *bld = string_builder();
-    handle_error(clingo_position_to_string(pos_, bld));
+    handle_error(clingo_position_to_string(pos_.get(), bld));
     clingo_string_t str;
     handle_error(clingo_string_builder_string(bld, &str));
     return {str.data, str.size};
@@ -257,7 +214,7 @@ auto Position::repr() const -> std::string {
 }
 
 auto Position::hash() const -> size_t {
-    return clingo_position_hash(pos_);
+    return clingo_position_hash(pos_.get());
 }
 
 auto operator==(Position const &a, Position const &b) -> bool {
@@ -270,49 +227,26 @@ auto operator<=>(Position const &a, Position const &b) -> std::strong_ordering {
 
 // definition of location
 
-Location::Location(clingo_location_t const *loc) {
-    handle_error(clingo_location_copy(loc, &loc_));
+Location::Location(clingo_location_t const *loc) : loc_{loc, true} {
 }
 
 Location::Location(Position const &begin, Position const &end) {
-    handle_error(clingo_location_new(begin, end, &loc_));
-}
-
-Location::Location(Location const &other) {
-    handle_error(clingo_location_copy(other, &loc_));
-}
-
-Location::Location(Location &&other) noexcept : loc_{std::exchange(other.loc_, nullptr)} {
-}
-
-auto Location::operator=(Location const &other) -> Location & {
-    if (this != &other) {
-        clingo_location_free(loc_);
-        handle_error(clingo_location_copy(other, &loc_));
-    }
-    return *this;
-}
-
-auto Location::operator=(Location &&other) noexcept -> Location & {
-    std::swap(loc_, other.loc_);
-    return *this;
-}
-
-Location::~Location() noexcept {
-    clingo_location_free(loc_);
+    clingo_location_t const *loc = nullptr;
+    handle_error(clingo_location_new(begin, end, &loc));
+    loc_ = value_handle<Traits>{loc, false};
 }
 
 auto Location::begin() const -> Position {
-    return Position{clingo_location_begin(loc_)};
+    return Position{clingo_location_begin(loc_.get())};
 }
 
 auto Location::end() const -> Position {
-    return Position{clingo_location_end(loc_)};
+    return Position{clingo_location_end(loc_.get())};
 }
 
 auto Location::str() const -> std::string_view {
     auto *bld = string_builder();
-    handle_error(clingo_location_to_string(loc_, bld));
+    handle_error(clingo_location_to_string(loc_.get(), bld));
     clingo_string_t str;
     handle_error(clingo_string_builder_string(bld, &str));
     return {str.data, str.size};
@@ -325,7 +259,7 @@ auto Location::repr() const -> std::string {
 }
 
 auto Location::hash() const -> size_t {
-    return clingo_location_hash(loc_);
+    return clingo_location_hash(loc_.get());
 }
 
 auto operator==(Location const &a, Location const &b) -> bool {

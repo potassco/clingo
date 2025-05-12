@@ -35,6 +35,157 @@ auto compare(T const &t, std::variant<Ts...> const &v) {
 
 } // namespace Detail
 
+template <typename> struct funptr_traits;
+
+template <typename R, typename... As> struct funptr_traits<R (*)(As...)> {
+    using return_type = R;
+    using args_tuple = std::tuple<As...>;
+    template <std::size_t N> using arg = std::tuple_element_t<N, args_tuple>;
+
+    static constexpr std::size_t arity = sizeof...(As);
+};
+
+template <class T> struct value_handle {
+  public:
+    using pointer = typename T::pointer;
+
+    value_handle() = default;
+
+    value_handle(const value_handle &other) : ptr_{other ? T::copy(other.ptr_) : nullptr} {}
+
+    value_handle(value_handle &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {}
+
+    explicit value_handle(pointer ptr, bool copy) : ptr_{copy && ptr != nullptr ? T::copy(ptr) : ptr} {}
+
+    ~value_handle() {
+        if (*this) {
+            T::free(ptr_);
+        }
+    }
+
+    auto operator=(const value_handle &other) -> value_handle & {
+        if (this != &other) {
+            if (*this) {
+                T::free(ptr_);
+            }
+            ptr_ = other ? T::copy(other.ptr_) : nullptr;
+        }
+        return *this;
+    }
+
+    auto operator=(value_handle &&other) noexcept -> value_handle & {
+        if (this != &other) {
+            if (*this) {
+                T::free(ptr_);
+            }
+            ptr_ = std::exchange(other.ptr_, nullptr);
+        }
+        return *this;
+    }
+
+    [[nodiscard]] auto get() const -> pointer { return ptr_; }
+    explicit operator bool() const { return ptr_ != nullptr; }
+
+  private:
+    pointer ptr_ = nullptr;
+};
+
+template <class T, class P> class registered_handle {
+  private:
+    friend T;
+
+    registered_handle() = default;
+
+    registered_handle(registered_handle const &other) = delete; // NOLINT
+
+    auto operator=(registered_handle const &other) -> registered_handle & = delete; // NOLINT
+
+    registered_handle(registered_handle &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {
+        auto it = registry.find(ptr_);
+        assert(it != registry.end());
+        it->second = static_cast<T *>(this);
+    }
+
+    auto operator=(registered_handle &&other) noexcept -> registered_handle & {
+        if (this != &other) {
+            assert(ptr_ == nullptr || ptr_ != other.ptr_);
+            registry.erase(ptr_);
+            T::release(ptr_);
+            ptr_ = std::exchange(other.ptr_, nullptr);
+            if (ptr_ != nullptr) {
+                auto it = registry.find(get());
+                it->second = static_cast<T *>(this);
+            }
+        }
+        return *this;
+    }
+    ~registered_handle() noexcept {
+        registry.erase(ptr_);
+        T::release(ptr_);
+    }
+    explicit registered_handle(P *ptr, bool inc = true) : ptr_{ptr} {
+        T::acquire(ptr_, inc);
+        if (ptr_ != nullptr) {
+            registry.emplace(ptr_, static_cast<T *>(this));
+        }
+    }
+
+    [[nodiscard]] auto get() const noexcept -> P * { return ptr_; }
+    void reset(std::nullptr_t = nullptr) noexcept {
+        registry.erase(ptr_);
+        T::release(ptr_);
+        ptr_ = nullptr;
+    }
+    void reset(P *ptr, bool inc = true) {
+        registry.erase(ptr_);
+        T::release(ptr_);
+        ptr_ = ptr;
+        T::acquire(ptr_, inc);
+        if (ptr_ != nullptr) {
+            registry.emplace(ptr_, static_cast<T *>(this));
+        }
+    }
+
+    static auto from_registry(P *ptr) -> T * {
+        if (auto it = registry.find(ptr); it != registry.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
+
+    static std::unordered_map<P *, T *> registry;
+    P *ptr_ = nullptr;
+};
+
+template <class T, class P> std::unordered_map<P *, T *> registered_handle<T, P>::registry;
+
+template <class T> class reference_keeper {
+  public:
+    void tie(py::handle obj) { ref_.append(obj); }
+
+    static void setup(PyHeapTypeObject *heap_type) {
+        auto *type = &heap_type->ht_type;
+        type->tp_flags |= Py_TPFLAGS_HAVE_GC;
+        type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
+            auto &self = py::cast<T &>(py::handle(self_base));
+            Py_VISIT(self.ref_.ptr());
+            return 0;
+        };
+        type->tp_clear = [](PyObject *self_base) -> int {
+            auto &self = py::cast<T &>(py::handle(self_base));
+            Py_CLEAR(self.ref_.ptr());
+            return 0;
+        };
+    }
+
+  private:
+    friend T;
+
+    reference_keeper() = default;
+
+    py::list ref_;
+};
+
 // NOLINTBEGIN
 // A compile time string literal.
 template <unsigned N> struct FixedString {

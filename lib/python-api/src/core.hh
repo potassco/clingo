@@ -48,100 +48,15 @@ static constexpr size_t default_message_limit = 25;
 class Library;
 using PyLibrary = Annotation<Library>;
 
-template <class T, class P> class registered_handle {
-  private:
-    friend T;
-
-    registered_handle() = default;
-
-    registered_handle(registered_handle const &other) = delete; // NOLINT
-
-    auto operator=(registered_handle const &other) -> registered_handle & = delete; // NOLINT
-
-    registered_handle(registered_handle &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {
-        auto it = registry.find(ptr_);
-        assert(it != registry.end());
-        it->second = static_cast<T *>(this);
+template <auto Copy, auto Free> struct value_handle_traits {
+    using pointer = typename std::remove_pointer_t<typename funptr_traits<decltype(Copy)>::template arg<1>>;
+    using const_pointer = typename funptr_traits<decltype(Copy)>::template arg<0>;
+    static auto copy(pointer p) -> pointer {
+        auto res = pointer{};
+        handle_error(Copy(p, &res));
+        return res;
     }
-
-    auto operator=(registered_handle &&other) noexcept -> registered_handle & {
-        if (this != &other) {
-            assert(ptr_ == nullptr || ptr_ != other.ptr_);
-            registry.erase(ptr_);
-            T::release(ptr_);
-            ptr_ = std::exchange(other.ptr_, nullptr);
-            if (ptr_ != nullptr) {
-                auto it = registry.find(get());
-                it->second = static_cast<T *>(this);
-            }
-        }
-        return *this;
-    }
-    ~registered_handle() noexcept {
-        registry.erase(ptr_);
-        T::release(ptr_);
-    }
-    explicit registered_handle(P *ptr, bool inc = true) : ptr_{ptr} {
-        T::acquire(ptr_, inc);
-        if (ptr_ != nullptr) {
-            registry.emplace(ptr_, static_cast<T *>(this));
-        }
-    }
-
-    [[nodiscard]] auto get() const noexcept -> P * { return ptr_; }
-    void reset(std::nullptr_t = nullptr) noexcept {
-        registry.erase(ptr_);
-        T::release(ptr_);
-        ptr_ = nullptr;
-    }
-    void reset(P *ptr, bool inc = true) {
-        registry.erase(ptr_);
-        T::release(ptr_);
-        ptr_ = ptr;
-        T::acquire(ptr_, inc);
-        if (ptr_ != nullptr) {
-            registry.emplace(ptr_, static_cast<T *>(this));
-        }
-    }
-
-    static auto from_registry(P *ptr) -> T * {
-        if (auto it = registry.find(ptr); it != registry.end()) {
-            return it->second;
-        }
-        return nullptr;
-    }
-
-    static std::unordered_map<P *, T *> registry;
-    P *ptr_ = nullptr;
-};
-
-template <class T, class P> std::unordered_map<P *, T *> registered_handle<T, P>::registry;
-
-template <class T> class reference_keeper {
-  public:
-    void tie(py::handle obj) { ref_.append(obj); }
-
-    static void setup(PyHeapTypeObject *heap_type) {
-        auto *type = &heap_type->ht_type;
-        type->tp_flags |= Py_TPFLAGS_HAVE_GC;
-        type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
-            auto &self = py::cast<T &>(py::handle(self_base));
-            Py_VISIT(self.ref_.ptr());
-            return 0;
-        };
-        type->tp_clear = [](PyObject *self_base) -> int {
-            auto &self = py::cast<T &>(py::handle(self_base));
-            Py_CLEAR(self.ref_.ptr());
-            return 0;
-        };
-    }
-
-  private:
-    friend T;
-
-    reference_keeper() = default;
-
-    py::list ref_;
+    static void free(const_pointer p) noexcept { Free(p); }
 };
 
 class Library : public registered_handle<Library, clingo_lib_t>, public reference_keeper<Library> {
@@ -168,18 +83,14 @@ static constexpr auto code_base = 36;
 
 class StringBuilder {
   public:
-    StringBuilder();
-    StringBuilder(StringBuilder const &other);
-    auto operator=(StringBuilder const &other) -> StringBuilder &;
-    ~StringBuilder() noexcept;
-
     [[nodiscard]] auto str() const -> std::string_view;
 
-    operator clingo_string_builder_t *() { return bld_; };
-    operator clingo_string_builder_t const *() const { return bld_; };
+    operator clingo_string_builder_t *() { return bld_.get(); };
+    operator clingo_string_builder_t const *() const { return bld_.get(); };
 
   private:
-    clingo_string_builder_t *bld_ = nullptr;
+    using Traits = value_handle_traits<clingo_string_builder_copy, clingo_string_builder_free>;
+    value_handle<Traits> bld_;
 };
 
 //! Get a thread local string builder.
@@ -189,11 +100,6 @@ class Position {
   public:
     explicit Position(clingo_position_t const *pos);
     Position(Library &lib, std::string_view, size_t line, size_t column);
-    Position(Position const &other);
-    Position(Position &&other) noexcept;
-    auto operator=(Position const &other) -> Position &;
-    auto operator=(Position &&other) noexcept -> Position &;
-    ~Position() noexcept;
 
     [[nodiscard]] auto file() const -> std::string_view;
     [[nodiscard]] auto line() const -> size_t;
@@ -205,21 +111,17 @@ class Position {
     friend auto operator==(Position const &a, Position const &b) -> bool;
     friend auto operator<=>(Position const &a, Position const &b) -> std::strong_ordering;
 
-    operator clingo_position_t const *() const { return pos_; };
+    operator clingo_position_t const *() const { return pos_.get(); };
 
   private:
-    clingo_position_t const *pos_ = nullptr;
+    using Traits = value_handle_traits<clingo_position_copy, clingo_position_free>;
+    value_handle<Traits> pos_;
 };
 
 class Location {
   public:
     explicit Location(clingo_location_t const *loc);
     Location(Position const &begin, Position const &end);
-    Location(Location const &other);
-    Location(Location &&other) noexcept;
-    auto operator=(Location const &other) -> Location &;
-    auto operator=(Location &&other) noexcept -> Location &;
-    ~Location() noexcept;
 
     [[nodiscard]] auto begin() const -> Position;
     [[nodiscard]] auto end() const -> Position;
@@ -230,10 +132,11 @@ class Location {
     friend auto operator==(Location const &a, Location const &b) -> bool;
     friend auto operator<=>(Location const &a, Location const &b) -> std::strong_ordering;
 
-    operator clingo_location_t const *() const { return loc_; };
+    operator clingo_location_t const *() const { return loc_.get(); };
 
   private:
-    clingo_location_t const *loc_ = nullptr;
+    using Traits = value_handle_traits<clingo_location_copy, clingo_location_free>;
+    value_handle<Traits> loc_;
 };
 
 void register_core(pybind11::module &m);
