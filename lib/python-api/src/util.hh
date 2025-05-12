@@ -161,19 +161,19 @@ template <class T, class P> std::unordered_map<P *, T *> registered_handle<T, P>
 
 template <class T> class reference_keeper {
   public:
-    void tie(py::handle obj) { ref_.append(obj); }
+    void tie(py::handle obj) { list_.append(obj); }
 
     static void setup(PyHeapTypeObject *heap_type) {
         auto *type = &heap_type->ht_type;
         type->tp_flags |= Py_TPFLAGS_HAVE_GC;
         type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
             auto &self = py::cast<T &>(py::handle(self_base));
-            Py_VISIT(self.ref_.ptr());
+            Py_VISIT(self.list_.ptr());
             return 0;
         };
         type->tp_clear = [](PyObject *self_base) -> int {
             auto &self = py::cast<T &>(py::handle(self_base));
-            Py_CLEAR(self.ref_.ptr());
+            Py_CLEAR(self.list_.ptr());
             return 0;
         };
     }
@@ -183,7 +183,7 @@ template <class T> class reference_keeper {
 
     reference_keeper() = default;
 
-    py::list ref_;
+    py::list list_;
 };
 
 // NOLINTBEGIN

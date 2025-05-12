@@ -15,15 +15,14 @@ struct Flag {
 class Options {
   public:
     using Parser = std::function<bool(std::string_view)>;
-    using ParserList = std::forward_list<Annotation<Parser>>;
 
-    Options(clingo_options_t *opts, ParserList &parsers) : opts_{opts}, parsers_{&parsers} {}
+    Options(clingo_options_t *opts, py::list &parsers) : opts_{opts}, parsers_{&parsers} {}
 
     void add(std::string_view group, std::string_view option, std::string_view description, Annotation<Parser> parser,
              bool multi, std::optional<std::string_view> argument) {
-        parsers_->emplace_front(std::move(parser));
+        parsers_->append(parser);
         static constexpr auto cparser = [](char const *value, size_t size, void *data, bool *result) -> bool {
-            auto &parser = *static_cast<ParserList::value_type *>(data);
+            auto parser = py::handle{static_cast<PyObject *>(data)};
             CLINGO_TRY {
                 *result = py::cast<Parser>(parser)({value, size});
             }
@@ -31,8 +30,8 @@ class Options {
         };
         handle_error(clingo_options_add(opts_, group.data(), group.size(), option.data(), option.size(),
                                         description.data(), description.size(), cparser,
-                                        static_cast<void *>(&parsers_->front()), multi,
-                                        argument ? argument->data() : nullptr, argument ? argument->size() : 0));
+                                        static_cast<void *>(parser.ptr()), multi, argument ? argument->data() : nullptr,
+                                        argument ? argument->size() : 0));
     }
 
     void add_flag(std::string_view group, std::string_view option, std::string_view description,
@@ -48,10 +47,10 @@ class Options {
     //! The C options object.
     clingo_options_t *opts_;
     //! The list of parsers.
-    ParserList *parsers_;
+    py::list *parsers_;
 };
 
-class App {
+class App : public reference_keeper<App> {
   public:
     App(std::optional<std::string> program_name, std::optional<std::string> version)
         : program_name_{std::move(program_name)}, version_{std::move(version)} {}
@@ -89,23 +88,6 @@ class App {
             has_override_("print_model") ? print_model_ : nullptr,
             has_override_("register_options") ? register_options_ : nullptr,
             has_override_("validate_options") ? validate_options_ : nullptr,
-        };
-    }
-
-    static void setup(PyHeapTypeObject *heap_type) {
-        auto *type = &heap_type->ht_type;
-        type->tp_flags |= Py_TPFLAGS_HAVE_GC;
-        type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
-            auto &self = py::cast<App &>(py::handle(self_base));
-            for (auto const &parser : self.parsers_) {
-                Py_VISIT(parser.ptr());
-            }
-            return 0;
-        };
-        type->tp_clear = [](PyObject *self_base) -> int {
-            auto &self = py::cast<App &>(py::handle(self_base));
-            self.parsers_.clear();
-            return 0;
         };
     }
 
@@ -160,7 +142,7 @@ class App {
     static auto register_options_(clingo_options_t *options, void *data) -> bool {
         auto &app = *static_cast<App *>(data);
         CLINGO_TRY {
-            app.register_options(Options{options, app.parsers_});
+            app.register_options(Options{options, app.list_});
         }
         CLINGO_CATCH;
     }
@@ -182,8 +164,6 @@ class App {
         return true;
     }
 
-    //! The list of option parsers.
-    Options::ParserList parsers_;
     //! The applications name.
     std::optional<std::string> program_name_;
     //! The applications version.
