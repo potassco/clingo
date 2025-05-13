@@ -4,7 +4,7 @@
 
 #include "parser_state.hh"
 
-namespace Clingo::Input::Parse {
+namespace CppClingo::Input::Parse {
 
 auto check_relation(TokenType token) -> std::optional<Relation> {
     switch (token) {
@@ -98,4 +98,4 @@ auto parse_literal(ParserState &state) -> std::optional<Lit> {
     return cont_literal(state, std::move(pos), sign);
 }
 
-} // namespace Clingo::Input::Parse
+} // namespace CppClingo::Input::Parse

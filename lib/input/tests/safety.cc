@@ -4,7 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 namespace {
 
@@ -89,4 +89,4 @@ TEST_CASE("check_safety") {
     REQUIRE(cs_stm("#heuristic p(X) : X=Y, not q(Y). [X@Y,Z]") == "<unsafe>");
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

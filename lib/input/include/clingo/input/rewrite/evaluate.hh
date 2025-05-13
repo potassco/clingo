@@ -4,7 +4,7 @@
 
 #include <clingo/util/unordered_map.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_evaluate
 //! @{
@@ -26,4 +26,4 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

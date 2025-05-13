@@ -2,7 +2,7 @@
 
 #include "parser_state.hh"
 
-namespace Clingo::Input::Parse {
+namespace CppClingo::Input::Parse {
 
 namespace {
 
@@ -894,4 +894,4 @@ auto parse_program_parts(ParserState &state, TokenType end) -> std::optional<Pro
     return state.separated_until(parse_program_param, TokenType::comma, end);
 }
 
-} // namespace Clingo::Input::Parse
+} // namespace CppClingo::Input::Parse

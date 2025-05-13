@@ -7,7 +7,7 @@
 
 // NOLINTBEGIN(readability-magic-numbers)
 
-namespace Clingo {
+namespace CppClingo {
 
 // Note: to enable ADL for catch
 using SL = std::initializer_list<Symbol>;
@@ -276,4 +276,4 @@ TEST_CASE("symbol_shared") {
 
 } // namespace Test
 
-} // namespace Clingo
+} // namespace CppClingo

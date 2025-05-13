@@ -5,7 +5,7 @@
 
 #include <sstream>
 
-namespace Clingo::Util::Test {
+namespace CppClingo::Util::Test {
 
 using IS = interval_set<int>;
 using LB = IS::left_bound;
@@ -256,4 +256,4 @@ TEST_CASE("intervals", "[base]") {
 
 // NOLINTEND(modernize-use-designated-initializers,readability-magic-numbers)
 
-} // namespace Clingo::Util::Test
+} // namespace CppClingo::Util::Test

@@ -6,7 +6,7 @@
 
 #include <clingo/util/small_vector.hh>
 
-namespace Clingo {
+namespace CppClingo {
 
 //! @addtogroup core_output
 //! @{
@@ -254,4 +254,4 @@ using UOutputStm = std::unique_ptr<OutputStm>;
 
 //! @}
 
-} // namespace Clingo
+} // namespace CppClingo

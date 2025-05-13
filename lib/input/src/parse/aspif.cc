@@ -3,7 +3,7 @@
 
 #include "parser_state.hh"
 
-namespace Clingo::Input::Parse {
+namespace CppClingo::Input::Parse {
 
 namespace {
 
@@ -494,7 +494,7 @@ class AspifParser {
         }
     }
 
-    auto external_type_() -> Clingo::ExternalType {
+    auto external_type_() -> CppClingo::ExternalType {
         auto v = expect_unsigned_();
         if (v > max_external_type) {
             GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected external type `" << v << "`";
@@ -717,4 +717,4 @@ auto parse_aspif(ParserState &state) -> bool {
     return AspifParser{state}.parse();
 }
 
-} // namespace Clingo::Input::Parse
+} // namespace CppClingo::Input::Parse

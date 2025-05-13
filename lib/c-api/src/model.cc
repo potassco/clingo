@@ -4,27 +4,27 @@
 
 #include "lib.hh"
 
-auto cpp_cast(clingo_model_t *model) -> Clingo::Control::Model * {
+auto cpp_cast(clingo_model_t *model) -> CppClingo::Control::Model * {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::Model *>(model);
+    return reinterpret_cast<CppClingo::Control::Model *>(model);
 }
 
-auto cpp_cast(clingo_model_t const *model) -> Clingo::Control::Model const * {
+auto cpp_cast(clingo_model_t const *model) -> CppClingo::Control::Model const * {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::Model const *>(model);
+    return reinterpret_cast<CppClingo::Control::Model const *>(model);
 }
 
-auto cpp_cast(clingo_solve_control_t *control) -> Clingo::Control::SolveControl * {
+auto cpp_cast(clingo_solve_control_t *control) -> CppClingo::Control::SolveControl * {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::SolveControl *>(control);
+    return reinterpret_cast<CppClingo::Control::SolveControl *>(control);
 }
 
-auto cpp_cast(clingo_solve_control_t const *control) -> Clingo::Control::SolveControl const * {
+auto cpp_cast(clingo_solve_control_t const *control) -> CppClingo::Control::SolveControl const * {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::SolveControl const *>(control);
+    return reinterpret_cast<CppClingo::Control::SolveControl const *>(control);
 }
 
-auto c_cast(Clingo::Control::SolveControl *control) -> clingo_solve_control_t * {
+auto c_cast(CppClingo::Control::SolveControl *control) -> clingo_solve_control_t * {
     // NOLINTNEXTLINE
     return reinterpret_cast<clingo_solve_control_t *>(control);
 }
@@ -45,8 +45,8 @@ extern "C" auto clingo_model_symbols(clingo_model_t const *model, clingo_show_ty
                                      clingo_symbol_callback_t callback, void *data) -> bool {
     CLINGO_TRY {
         auto const *mdl = cpp_cast(model);
-        auto flags = static_cast<Clingo::Control::SymbolSelectFlags>(show);
-        Clingo::SymbolVec res;
+        auto flags = static_cast<CppClingo::Control::SymbolSelectFlags>(show);
+        CppClingo::SymbolVec res;
         mdl->symbols(flags, res);
         handle_error(callback(c_cast(res.data()), res.size(), data));
     }

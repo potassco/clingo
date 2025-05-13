@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_immutable
 //! @{
@@ -168,4 +168,4 @@ template <class T, class... Ts> auto make_immutable_array(Ts &&...args) -> immut
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

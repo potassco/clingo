@@ -3,7 +3,7 @@
 #include <clingo/input/rewrite/analyze.hh>
 #include <clingo/input/rewrite/rewrite_theory.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -33,4 +33,4 @@ auto rewrite_theory(RewriteContext &ctx, Stm const &stm) -> std::optional<Stm> {
     return ParseTheory{ctx.logger(), ctx.parser()}.transform(stm);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

@@ -8,7 +8,7 @@
 
 // NOLINTBEGIN(readability-magic-numbers)
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 namespace {
 
@@ -124,6 +124,6 @@ TEST_CASE("evaluate_const") {
     }
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test
 
 // NOLINTEND(readability-magic-numbers)

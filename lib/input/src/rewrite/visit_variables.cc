@@ -2,7 +2,7 @@
 
 #include <clingo/input/rewrite/visit_variables.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -133,4 +133,4 @@ void visit_variables(Stm const &stm, VarVisitFun fun, VariableContext ctx) {
     VisitVariables{std::move(fun), ctx}.visit(stm);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

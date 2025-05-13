@@ -4,7 +4,7 @@
 
 #include <clingo/core/logger.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_check
 //! @{
@@ -22,4 +22,4 @@ auto check_statement(Logger &log, Stm const &stm) -> bool;
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

@@ -18,7 +18,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
     CLINGO_TRY {
         using namespace Potassco::ProgramOptions;
 
-        auto opts = Clingo::CAPI::ClingoOptions{lib->log, *lib->store};
+        auto opts = CppClingo::CAPI::ClingoOptions{lib->log, *lib->store};
         auto slv_cfg = std::make_unique<Clasp::Cli::ClaspCliConfig>();
         auto clasp = std::make_unique<Clasp::ClaspFacade>();
 
@@ -28,12 +28,13 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         auto group_basic = OptionGroup{"Basic Options"};
         group_basic.addOptions() //
             ("mode",
-             storeTo(opts.mode() = Clingo::Control::AppMode::solve, values<Clingo::Control::AppMode>({
-                                                                        {"parse", Clingo::Control::AppMode::parse},
-                                                                        {"rewrite", Clingo::Control::AppMode::rewrite},
-                                                                        {"ground", Clingo::Control::AppMode::ground},
-                                                                        {"solve", Clingo::Control::AppMode::solve},
-                                                                    })),
+             storeTo(opts.mode() = CppClingo::Control::AppMode::solve,
+                     values<CppClingo::Control::AppMode>({
+                         {"parse", CppClingo::Control::AppMode::parse},
+                         {"rewrite", CppClingo::Control::AppMode::rewrite},
+                         {"ground", CppClingo::Control::AppMode::ground},
+                         {"solve", CppClingo::Control::AppMode::solve},
+                     })),
              "Run in {parse|rewrite|ground|solve} mode");
         ctx.add(group_basic);
         slv_cfg->addOptions(ctx);
@@ -59,11 +60,11 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         slv_cfg->finalize(pc.parsed(), Clasp::ProblemType::asp, true);
 
         // setup control
-        if (opts.mode() == Clingo::Control::AppMode::solve) {
+        if (opts.mode() == CppClingo::Control::AppMode::solve) {
             clasp->startAsp(*slv_cfg, !opts.solver_options().single_shot);
         }
-        auto slv = std::make_unique<Clingo::Control::Solver>(*clasp, *slv_cfg, lib->log, *lib->store, lib->scripts,
-                                                             opts.rewrite_options(), opts.solver_options(), nullptr);
+        auto slv = std::make_unique<CppClingo::Control::Solver>(*clasp, *slv_cfg, lib->log, *lib->store, lib->scripts,
+                                                                opts.rewrite_options(), opts.solver_options(), nullptr);
         opts.apply(*slv);
         *control = new clingo_control{lib, std::move(slv), std::move(slv_cfg), std::move(clasp)};
     }
@@ -92,8 +93,8 @@ extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mo
 extern "C" auto clingo_control_parse_files(clingo_control_t *control, clingo_string_t const *files, size_t size)
     -> bool {
     CLINGO_TRY {
-        auto vec = Clingo::Util::transform(std::span{files, size},
-                                           [](auto const &x) { return std::string_view{x.data, x.size}; });
+        auto vec = CppClingo::Util::transform(std::span{files, size},
+                                              [](auto const &x) { return std::string_view{x.data, x.size}; });
         control->slv->parse(vec);
     }
     CLINGO_CATCH;
@@ -119,7 +120,7 @@ extern "C" void clingo_control_interrupt(clingo_control_t *control) {
 
 namespace {
 
-class Context : public Clingo::Ground::ScriptCallback {
+class Context : public CppClingo::Ground::ScriptCallback {
   public:
     Context(clingo_lib_t *lib, clingo_ground_callback_t cb, void *data) : lib_{lib}, cb_{cb}, data_{data} {}
 
@@ -128,8 +129,8 @@ class Context : public Clingo::Ground::ScriptCallback {
         return true;
     }
 
-    void do_call(Clingo::Location const &loc, std::string_view name, Clingo::SymbolSpan args,
-                 Clingo::SymbolVec &out) override {
+    void do_call(CppClingo::Location const &loc, std::string_view name, CppClingo::SymbolSpan args,
+                 CppClingo::SymbolVec &out) override {
         auto c_name = std::string{name};
         handle_error(cb_(lib_, c_cast(&loc), c_name.data(), c_name.size(), c_cast(args.data()), args.size(), data_,
                          &Context::sym_cb_, &out));
@@ -137,7 +138,7 @@ class Context : public Clingo::Ground::ScriptCallback {
 
     static auto sym_cb_(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> bool {
         CLINGO_TRY {
-            auto *out = static_cast<Clingo::SymbolVec *>(data);
+            auto *out = static_cast<CppClingo::SymbolVec *>(data);
             auto const *it = cpp_cast(symbols);
             out->insert(out->end(), it, std::next(it, static_cast<ssize_t>(symbols_size)));
         }
@@ -214,14 +215,14 @@ extern "C" auto clingo_control_set_parts(clingo_control_t *control, clingo_part_
     CLINGO_CATCH;
 }
 
-auto c_cast(Clingo::Input::ConstMap const *map) {
+auto c_cast(CppClingo::Input::ConstMap const *map) {
     // NOLINTNEXTLINE
     return reinterpret_cast<clingo_const_map_t const *>(map);
 }
 
 auto cpp_cast(clingo_const_map_t const *map) {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Input::ConstMap const *>(map);
+    return reinterpret_cast<CppClingo::Input::ConstMap const *>(map);
 }
 
 extern "C" auto clingo_control_const_map(clingo_control_t *control, clingo_const_map_t const **map) -> bool {

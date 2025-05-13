@@ -5,7 +5,7 @@
 #include <potassco/program_opts/program_options.h>
 #include <potassco/program_opts/typed_value.h>
 
-namespace Clingo::CAPI {
+namespace CppClingo::CAPI {
 
 namespace {
 
@@ -183,9 +183,9 @@ class ClingoOptions {
     Input::Parser parser_;
     Input::RewriteOptions rewrite_opts_;
     Control::SolverOptions solver_opts_;
-    std::vector<Clingo::Input::SharedSig> show_;
+    std::vector<CppClingo::Input::SharedSig> show_;
     std::optional<Control::ProgramParamVec> parts_;
     std::vector<std::pair<SharedString, SharedSymbol>> const_defs_;
 };
 
-} // namespace Clingo::CAPI
+} // namespace CppClingo::CAPI

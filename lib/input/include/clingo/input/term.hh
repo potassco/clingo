@@ -14,7 +14,7 @@
 #include <utility>
 #include <variant>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_term
 //! @{
@@ -24,7 +24,7 @@ using VariableSet = StringSet;
 //! A vector of variable names.
 using VariableVec = StringVec;
 
-using Clingo::location;
+using CppClingo::location;
 
 class TermVariable;
 class TermSymbol;
@@ -383,4 +383,4 @@ inline auto operator<=>(TermBinary const &a, TermBinary const &b) -> std::strong
     return a.compare(b);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

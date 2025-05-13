@@ -7,7 +7,7 @@
 
 #include <pybind11/pybind11.h>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace py = pybind11;
 
@@ -33,4 +33,4 @@ auto convert_stm(clingo_ast_t *ast) -> py::object;
 
 void register_ast(pybind11::module &m);
 
-} // namespace Clingo::Python
+} // namespace PyClingo

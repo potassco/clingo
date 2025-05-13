@@ -2,7 +2,7 @@
 
 #include <typeindex>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 // definition of TheoryTermSymbol
 
@@ -170,4 +170,4 @@ auto TheoryTermFunction::do_compare_to(TheoryTerm const &other) const -> std::st
     return std::type_index(typeid(this)) <=> std::type_index(typeid(other));
 }
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

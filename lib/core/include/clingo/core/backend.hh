@@ -5,7 +5,7 @@
 
 #include <clingo/util/small_vector.hh>
 
-namespace Clingo {
+namespace CppClingo {
 
 //! @addtogroup core_output
 //! @{
@@ -289,4 +289,4 @@ using UTheoryBackend = std::unique_ptr<TheoryBackend>;
 
 //! @}
 
-} // namespace Clingo
+} // namespace CppClingo

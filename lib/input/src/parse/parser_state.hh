@@ -13,7 +13,7 @@
 
 #include <deque>
 
-namespace Clingo::Input::Parse {
+namespace CppClingo::Input::Parse {
 
 //! The available tokens produced by the lexer.
 enum class TokenType : uint8_t {
@@ -896,4 +896,4 @@ auto parse_aspif(ParserState &state) -> bool;
 //! Scan next statement.
 auto scan_statement(ParserState &state) -> std::pair<std::optional<Stm>, bool>;
 
-} // namespace Clingo::Input::Parse
+} // namespace CppClingo::Input::Parse

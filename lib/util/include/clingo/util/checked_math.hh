@@ -13,7 +13,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_math
 //! @{
@@ -213,4 +213,4 @@ template <std::signed_integral S> auto check_pow(S a, S b) -> std::optional<S> {
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

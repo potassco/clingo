@@ -5,7 +5,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 namespace {
 
@@ -210,4 +210,4 @@ TEST_CASE("dependency") {
     }
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

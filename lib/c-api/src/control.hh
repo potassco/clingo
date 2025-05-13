@@ -17,7 +17,7 @@ struct clingo_control {
         clingo_lib_acquire(lib);
     }
     //! Construct a control that owns the given clasp and clingo objects.
-    clingo_control(clingo_lib_t *lib, std::unique_ptr<Clingo::Control::Solver> slv,
+    clingo_control(clingo_lib_t *lib, std::unique_ptr<CppClingo::Control::Solver> slv,
                    std::unique_ptr<Clasp::ClaspConfig> cfg, std::unique_ptr<Clasp::ClaspFacade> clasp)
         : lib{lib}, slv{slv.release()}, cfg{cfg.release()}, clasp{clasp.release()}, own{true} {
         assert(lib != nullptr);
@@ -43,7 +43,7 @@ struct clingo_control {
     //! Bind the control object to the clasp and clingo objects.
     //!
     //! The control will not own these objects and not delete them.
-    void bind(Clingo::Control::Solver *slv, Clasp::ClaspConfig *cfg, Clasp::ClaspFacade *clasp) {
+    void bind(CppClingo::Control::Solver *slv, Clasp::ClaspConfig *cfg, Clasp::ClaspFacade *clasp) {
         assert(!own);
         this->slv = slv;
         this->cfg = cfg;
@@ -53,20 +53,20 @@ struct clingo_control {
         own = false;
     }
     clingo_lib_t *lib;
-    Clingo::Control::Solver *slv = nullptr;
+    CppClingo::Control::Solver *slv = nullptr;
     Clasp::ClaspConfig *cfg = nullptr;
     Clasp::ClaspFacade *clasp = nullptr;
     std::atomic<size_t> ref_count = 1;
     bool own = false;
 };
 
-inline auto convert(Clingo::Input::ProgramParamVec const &parts) -> std::vector<clingo_part_t> {
-    return Clingo::Util::transform(parts, [](auto const &part) {
+inline auto convert(CppClingo::Input::ProgramParamVec const &parts) -> std::vector<clingo_part_t> {
+    return CppClingo::Util::transform(parts, [](auto const &part) {
         return clingo_part_t{part.first->data(), part.first->size(), c_cast(part.second.data()), part.second.size()};
     });
 }
 
-inline auto convert(std::optional<Clingo::Input::ProgramParamVec> const &parts) {
+inline auto convert(std::optional<CppClingo::Input::ProgramParamVec> const &parts) {
     if (parts) {
         return convert(*parts);
     }
@@ -75,12 +75,12 @@ inline auto convert(std::optional<Clingo::Input::ProgramParamVec> const &parts) 
 }
 
 inline auto convert(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size)
-    -> Clingo::Input::ProgramParamVec {
-    auto make_part = [&](auto const &sym) { return Clingo::SharedSymbol{Clingo::Symbol::from_rep(sym)}; };
+    -> CppClingo::Input::ProgramParamVec {
+    auto make_part = [&](auto const &sym) { return CppClingo::SharedSymbol{CppClingo::Symbol::from_rep(sym)}; };
     auto make_parts = [&](auto const &part) {
-        return Clingo::Input::ProgramParam{
+        return CppClingo::Input::ProgramParam{
             control->lib->store->string({part.name, part.name_size}),
-            Clingo::Util::transform(part.params, part.params + part.params_size, make_part)};
+            CppClingo::Util::transform(part.params, part.params + part.params_size, make_part)};
     };
-    return Clingo::Util::transform(parts, parts + parts_size, make_parts);
+    return CppClingo::Util::transform(parts, parts + parts_size, make_parts);
 }

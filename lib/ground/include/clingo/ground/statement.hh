@@ -8,7 +8,7 @@
 
 #include <memory_resource>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_stm
 //! @{
@@ -324,4 +324,4 @@ class StmProject : public Stm {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

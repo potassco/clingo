@@ -3,7 +3,7 @@
 #include <clingo/ground/instantiator.hh>
 #include <clingo/ground/term.hh>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_theory
 //! @{
@@ -134,4 +134,4 @@ class TheoryTermFunction : public TheoryTerm {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

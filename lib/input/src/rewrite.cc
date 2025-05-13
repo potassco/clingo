@@ -15,7 +15,7 @@
 
 #include <clingo/core/logger.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
     ctx.init(select_variables(stm, VariableContext::all), "__A_");
@@ -95,4 +95,4 @@ void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
     }
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

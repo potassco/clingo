@@ -3,7 +3,7 @@
 #include <clingo/util/macro.hh>
 #include <clingo/util/record.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @ingroup input_language
 //!
@@ -46,7 +46,7 @@ constexpr auto a_weight = Util::Record::AttributeName<32>{};
 //! @}
 
 //! A record that friend declares comparison operators.
-template <class T> class RecursiveExpression : public Clingo::Util::Record::Base<T> {
+template <class T> class RecursiveExpression : public CppClingo::Util::Record::Base<T> {
   public:
     GRINGO_IGNORE_NON_TEMPLATE_FRIEND_B
     //! Compare two records.
@@ -57,7 +57,7 @@ template <class T> class RecursiveExpression : public Clingo::Util::Record::Base
 };
 
 //! A record that friend declares and defines comparison operators.
-template <class T> class Expression : public Clingo::Util::Record::Base<T> {
+template <class T> class Expression : public CppClingo::Util::Record::Base<T> {
   public:
     //! Compare two records.
     friend auto operator==(T const &a, T const &b) -> bool { return a.equal(b); }
@@ -67,4 +67,4 @@ template <class T> class Expression : public Clingo::Util::Record::Base<T> {
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

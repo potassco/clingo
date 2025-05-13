@@ -11,7 +11,7 @@
 #include <limits>
 #include <memory_resource>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_matcher
 //! @{
@@ -624,4 +624,4 @@ template <IsEval Expr> auto make_once_matcher(Expr const &expr, typename Expr::K
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

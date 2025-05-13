@@ -5,7 +5,7 @@
 #include <clingo/util/enum.hh>
 #include <clingo/util/optional.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_rewrite
 //! @{
@@ -80,4 +80,4 @@ using SimplifyTermResult = Util::ResultState<Term, bool>;
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

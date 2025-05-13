@@ -7,7 +7,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace Clingo::Util::Record {
+namespace CppClingo::Util::Record {
 
 //! @addtogroup util_record
 //! @{
@@ -219,4 +219,4 @@ template <class Rec> class Base {
 
 //! @}
 
-} // namespace Clingo::Util::Record
+} // namespace CppClingo::Util::Record

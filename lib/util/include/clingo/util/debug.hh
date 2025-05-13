@@ -1,6 +1,6 @@
 #include <string>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_debug
 //! @{
@@ -17,10 +17,10 @@ inline auto replace_all(std::string str, std::string_view from, const std::strin
 
 //! Replaces complex types used in this project by shorter aliases.
 inline auto type_short(std::string sig) -> std::string {
-    sig = replace_all(
-        std::move(sig),
-        "std::variant<Clingo::Input::LiteralBoolean, Clingo::Input::LiteralRelation, Clingo::Input::LiteralSymbolic>",
-        "Clingo::Input::Literal");
+    sig = replace_all(std::move(sig),
+                      "std::variant<CppClingo::Input::LiteralBoolean, CppClingo::Input::LiteralRelation, "
+                      "CppClingo::Input::LiteralSymbolic>",
+                      "CppClingo::Input::Literal");
     return sig;
 }
 
@@ -47,4 +47,4 @@ template <class T> constexpr auto type_name() -> std::string_view {
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

@@ -4,7 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 namespace {
 
@@ -105,4 +105,4 @@ TEST_CASE("unpool_relations_stms") {
     REQUIRE_THROWS(unpool_statement(":- not X<Y<Z; #false: X<Y<Z."));
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

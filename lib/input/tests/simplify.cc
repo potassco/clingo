@@ -5,7 +5,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 namespace {
 
@@ -375,4 +375,4 @@ TEST_CASE("simplify_weak") {
             ". [__A_0@__A_1,__A_2], U");
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

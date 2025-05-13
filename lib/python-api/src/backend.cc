@@ -6,7 +6,7 @@
 #include "iterable.hh" // IWYU pragma: keep
 #include "util.hh"
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 // Backend
 
@@ -237,7 +237,7 @@ void BackendManager::exit([[maybe_unused]] std::optional<pybind11::type> const &
 }
 
 void register_backend(pybind11::module &m) {
-    using namespace Clingo::Python;
+    using namespace PyClingo;
 
     auto backend = m.def_submodule("backend", R"(
 Functions and classes to observe or add ground statements.
@@ -644,4 +644,4 @@ A context manager to initialize and finalize a backend.
              "Finalize the backend.");
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

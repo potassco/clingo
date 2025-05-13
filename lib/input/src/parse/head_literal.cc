@@ -4,7 +4,7 @@
 
 #include "parser_state.hh"
 
-namespace Clingo::Input::Parse {
+namespace CppClingo::Input::Parse {
 
 namespace {
 
@@ -223,4 +223,4 @@ auto parse_head_literal(ParserState &state) -> std::optional<HdLit> {
                                         "<aggregate-function>", "<term>");
 }
 
-} // namespace Clingo::Input::Parse
+} // namespace CppClingo::Input::Parse

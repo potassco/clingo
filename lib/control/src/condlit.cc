@@ -8,7 +8,7 @@
 
 #include <clingo/util/type_traits.hh>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit) {
     auto vars_body = Ground::VariableSet{};
@@ -209,4 +209,4 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit) {
     }
 }
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

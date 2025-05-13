@@ -2,7 +2,7 @@
 
 #include <clingo/input/program.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_rewrite
 //! @{
@@ -133,4 +133,4 @@ class IESolver {
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

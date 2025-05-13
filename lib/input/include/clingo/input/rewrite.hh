@@ -2,7 +2,7 @@
 
 #include <clingo/input/rewrite/rewrite_context.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 class TheoryAtomParser;
 
@@ -17,4 +17,4 @@ void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms);
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

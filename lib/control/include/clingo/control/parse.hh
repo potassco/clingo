@@ -12,7 +12,7 @@
 #include <fstream>
 #include <iostream>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 //! @addtogroup control
 //! @{
@@ -26,9 +26,9 @@ enum class BuiltinIncludes : uint8_t {
 CLINGO_ENABLE_BITSET_ENUM(BuiltinIncludes);
 
 //! A sequences of program parameter vectors to ground and solve incrementally.
-using Clingo::Input::ProgramParamVec;
+using CppClingo::Input::ProgramParamVec;
 
-using ProgramParams = std::pair<Clingo::Input::Precedence, std::optional<ProgramParamVec>>;
+using ProgramParams = std::pair<CppClingo::Input::Precedence, std::optional<ProgramParamVec>>;
 
 //! A helper for parsing.
 //!
@@ -178,4 +178,4 @@ class ParseHelper {
 
 //! @}
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

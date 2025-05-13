@@ -10,7 +10,7 @@
 
 #include <clingo/input/rewrite/analyze.hh>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 //! @addtogroup control
 //! @{
@@ -47,7 +47,7 @@ template <class F, bool stratify = false> class BuilderLit {
             }
             auto lhs = build_term(ctx_->var_map(), lit.lhs());
             auto const &rng = std::get<Input::TermFunction>(lit.rhs().front().second);
-            auto args = Clingo::Util::transform(rng.pool().front().elems(), [this](auto const &elem) {
+            auto args = CppClingo::Util::transform(rng.pool().front().elems(), [this](auto const &elem) {
                 return build_term(ctx_->var_map(), std::get<Input::Term>(elem));
             });
             cb_(std::make_unique<Ground::LitExternal>(*ctx_->context(), lit.loc(), rng.name(), std::move(lhs),
@@ -106,4 +106,4 @@ template <class F> void build_stratified_lit(BuildContext &ctx, Input::Lit const
 
 //! @}
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

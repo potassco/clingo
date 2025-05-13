@@ -4,7 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Ground::Test {
+namespace CppClingo::Ground::Test {
 
 // NOLINTBEGIN(readability-magic-numbers,bugprone-unchecked-optional-access)
 
@@ -83,11 +83,11 @@ TEST_CASE("ground_matcher") {
     }
 
     SECTION("interval") {
-        ass = {std::nullopt, std::make_optional(Clingo::SymbolStore::num_ref(1))};
+        ass = {std::nullopt, std::make_optional(CppClingo::SymbolStore::num_ref(1))};
         std::vector<bool> const bound = {false, true};
         auto lhs = std::make_unique<TermVariable>(0);
         auto lower = std::make_unique<TermVariable>(1);
-        auto upper = std::make_unique<TermSymbol>(Clingo::SymbolStore::num_ref(3));
+        auto upper = std::make_unique<TermSymbol>(CppClingo::SymbolStore::num_ref(3));
         auto matcher = make_interval_matcher(bound, *lhs, *lower, *upper);
         matcher->match(ctx);
         REQUIRE(matcher->next(ctx));
@@ -97,32 +97,32 @@ TEST_CASE("ground_matcher") {
         REQUIRE(matcher->next(ctx));
         REQUIRE(ass[0] == store->num_ref(3));
         REQUIRE(!matcher->next(ctx));
-        ass[1] = Clingo::SymbolStore::num_ref(3);
+        ass[1] = CppClingo::SymbolStore::num_ref(3);
         matcher->match(ctx);
         REQUIRE(matcher->next(ctx));
         REQUIRE(ass[0] == store->num_ref(3));
         REQUIRE(!matcher->next(ctx));
-        ass[1] = Clingo::SymbolStore::num_ref(4);
+        ass[1] = CppClingo::SymbolStore::num_ref(4);
         matcher->match(ctx);
         REQUIRE(!matcher->next(ctx));
     }
 
     SECTION("comp") {
-        ass = {std::make_optional(Clingo::SymbolStore::num_ref(1))};
+        ass = {std::make_optional(CppClingo::SymbolStore::num_ref(1))};
         std::vector<bool> const bound = {true};
         auto lower = std::make_unique<TermVariable>(0);
-        auto upper = std::make_unique<TermSymbol>(Clingo::SymbolStore::num_ref(2));
+        auto upper = std::make_unique<TermSymbol>(CppClingo::SymbolStore::num_ref(2));
         auto matcher = make_comp_matcher(bound, *lower, Relation::less, *upper);
         matcher->match(ctx);
         REQUIRE(matcher->next(ctx));
         REQUIRE(!matcher->next(ctx));
-        ass[0] = Clingo::SymbolStore::num_ref(2);
+        ass[0] = CppClingo::SymbolStore::num_ref(2);
         matcher->match(ctx);
         REQUIRE(!matcher->next(ctx));
     }
 
     SECTION("assign") {
-        ass = {std::nullopt, std::make_optional(Clingo::SymbolStore::num_ref(1))};
+        ass = {std::nullopt, std::make_optional(CppClingo::SymbolStore::num_ref(1))};
         std::vector<bool> const bound = {false, true};
         auto lower = std::make_unique<TermVariable>(0);
         auto upper = std::make_unique<TermVariable>(1);
@@ -131,7 +131,7 @@ TEST_CASE("ground_matcher") {
         REQUIRE(matcher->next(ctx));
         REQUIRE(ass[0] == store->num_ref(1));
         REQUIRE(!matcher->next(ctx));
-        ass[1] = Clingo::SymbolStore::num_ref(2);
+        ass[1] = CppClingo::SymbolStore::num_ref(2);
         matcher->match(ctx);
         REQUIRE(matcher->next(ctx));
         REQUIRE(ass[0] == store->num_ref(2));
@@ -152,25 +152,25 @@ TEST_CASE("ground_matcher") {
         matcher->init(ctx, 0);
         base.add(sym(3), StateAtom::derived, gen);
         base.add(sym(4), StateAtom::fact, gen);
-        ass[0] = Clingo::SymbolStore::num_ref(0);
+        ass[0] = CppClingo::SymbolStore::num_ref(0);
         matcher->match(ctx);
         REQUIRE(matcher->next(ctx));
         REQUIRE(symbol == store->fun_ref(name, SymbolVec{*ass[0]}, false));
         REQUIRE(!matcher->next(ctx));
-        ass[0] = Clingo::SymbolStore::num_ref(1);
+        ass[0] = CppClingo::SymbolStore::num_ref(1);
         matcher->match(ctx);
         REQUIRE(!matcher->next(ctx));
-        ass[0] = Clingo::SymbolStore::num_ref(2);
-        matcher->match(ctx);
-        REQUIRE(matcher->next(ctx));
-        REQUIRE(symbol == store->fun_ref(name, SymbolVec{*ass[0]}, false));
-        REQUIRE(!matcher->next(ctx));
-        ass[0] = Clingo::SymbolStore::num_ref(3);
+        ass[0] = CppClingo::SymbolStore::num_ref(2);
         matcher->match(ctx);
         REQUIRE(matcher->next(ctx));
         REQUIRE(symbol == store->fun_ref(name, SymbolVec{*ass[0]}, false));
         REQUIRE(!matcher->next(ctx));
-        ass[0] = Clingo::SymbolStore::num_ref(4);
+        ass[0] = CppClingo::SymbolStore::num_ref(3);
+        matcher->match(ctx);
+        REQUIRE(matcher->next(ctx));
+        REQUIRE(symbol == store->fun_ref(name, SymbolVec{*ass[0]}, false));
+        REQUIRE(!matcher->next(ctx));
+        ass[0] = CppClingo::SymbolStore::num_ref(4);
         matcher->match(ctx);
         REQUIRE(!matcher->next(ctx));
     }
@@ -185,7 +185,7 @@ TEST_CASE("ground_matcher") {
         base.add(sym(1, 1), StateAtom::derived, gen);
         base.add(sym(2, 2), StateAtom::derived, gen);
         base.add(sym(1, 3), StateAtom::derived, gen);
-        auto a1 = std::make_unique<TermSymbol>(Clingo::SymbolStore::num_ref(1));
+        auto a1 = std::make_unique<TermSymbol>(CppClingo::SymbolStore::num_ref(1));
         auto a2 = std::make_unique<TermVariable>(0);
         auto term = std::make_unique<TermFunction>(name, Util::make_vec<UTerm>(std::move(a1), std::move(a2)));
         std::vector<bool> const bound = {false};
@@ -233,13 +233,13 @@ TEST_CASE("ground_matcher") {
             return store->fun_ref(name, SymbolVec{store->num_ref(a), store->num_ref(b), store->num_ref(c)}, false);
         };
         ass = {std::nullopt, std::nullopt, std::nullopt};
-        ass[0] = Clingo::SymbolStore::num_ref(1);
+        ass[0] = CppClingo::SymbolStore::num_ref(1);
         auto base = AtomBase{};
         // join: X=1, f(1,X,Y), f(1,Y,Z)
-        auto a1 = std::make_unique<TermSymbol>(Clingo::SymbolStore::num_ref(1));
+        auto a1 = std::make_unique<TermSymbol>(CppClingo::SymbolStore::num_ref(1));
         auto a2 = std::make_unique<TermVariable>(0);
         auto a3 = std::make_unique<TermVariable>(1);
-        auto b1 = std::make_unique<TermSymbol>(Clingo::SymbolStore::num_ref(1));
+        auto b1 = std::make_unique<TermSymbol>(CppClingo::SymbolStore::num_ref(1));
         auto b2 = std::make_unique<TermVariable>(1);
         auto b3 = std::make_unique<TermVariable>(2);
         auto t1 =
@@ -297,4 +297,4 @@ TEST_CASE("ground_matcher") {
 
 // NOLINTEND(readability-magic-numbers,bugprone-unchecked-optional-access)
 
-} // namespace Clingo::Ground::Test
+} // namespace CppClingo::Ground::Test

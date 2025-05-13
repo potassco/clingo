@@ -17,7 +17,7 @@
 
 namespace {
 
-using namespace Clingo::Input;
+using namespace CppClingo::Input;
 
 class AppOptions {
   public:
@@ -117,7 +117,7 @@ class AppAdapter {
 
     [[nodiscard]] auto has_print_model() const -> bool { return app_ != nullptr && app_->print_model != nullptr; }
 
-    template <class T> void print_model(Clingo::Control::Model &mdl, T &prt) const {
+    template <class T> void print_model(CppClingo::Control::Model &mdl, T &prt) const {
         assert(has_print_model());
         auto cprt = [](void *data) -> bool {
             CLINGO_TRY {
@@ -135,7 +135,7 @@ class AppAdapter {
     void main(clingo_control_t *ctl, std::span<std::string const> const &input) {
         assert(has_main());
         auto vec =
-            Clingo::Util::transform(input, [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
+            CppClingo::Util::transform(input, [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
         handle_error(app_->main(ctl, vec.data(), vec.size(), data_));
     }
 
@@ -155,7 +155,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     [[nodiscard]] auto getUsage() const -> std::string_view override { return "[number] [options] [files]"; }
 
   private:
-    using AppMode = Clingo::Control::AppMode;
+    using AppMode = CppClingo::Control::AppMode;
     enum class Mode : uint8_t {
         parse = static_cast<uint8_t>(AppMode::parse),
         rewrite = static_cast<uint8_t>(AppMode::rewrite),
@@ -212,7 +212,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                 void printModelValues(Clasp::OutputTable const &out, Clasp::Model const &mdl) override {
                     auto prt = [&]() { BaseType::printModelValues(out, mdl); };
                     // NOTE: the function can only be called while the solve handle is alive
-                    auto guard = Clingo::Control::unlock_guard{self_->ctl_->slv->get_lock()};
+                    auto guard = CppClingo::Control::unlock_guard{self_->ctl_->slv->get_lock()};
                     self_->app_.print_model(self_->ctl_->slv->map_model(mdl), prt);
                 }
                 ClingoApp *self_;
@@ -228,14 +228,14 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                 clasp.startAsp(claspConfig_, false);
             }
             opts_.mode() = static_cast<AppMode>(mode_);
-            auto slv = Clingo::Control::Solver{clasp,
-                                               claspConfig_,
-                                               ctl_->lib->log,
-                                               *ctl_->lib->store,
-                                               ctl_->lib->scripts,
-                                               opts_.rewrite_options(),
-                                               opts_.solver_options(),
-                                               stdout};
+            auto slv = CppClingo::Control::Solver{clasp,
+                                                  claspConfig_,
+                                                  ctl_->lib->log,
+                                                  *ctl_->lib->store,
+                                                  ctl_->lib->scripts,
+                                                  opts_.rewrite_options(),
+                                                  opts_.solver_options(),
+                                                  stdout};
             opts_.apply(slv);
             // NOTE: member for createTextOutput
             ctl_->bind(&slv, &slv.clasp_config(), &slv.clasp_facade());
@@ -256,11 +256,11 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         void operator()(clingo_control_t *ctl) const { clingo_control_release(ctl); }
     };
 
-    Clingo::LogLevel log_level_ = Clingo::LogLevel::info;
+    CppClingo::LogLevel log_level_ = CppClingo::LogLevel::info;
     Mode mode_ = Mode::solve;
     std::unique_ptr<clingo_control_t, release_control> ctl_;
     AppAdapter app_;
-    Clingo::CAPI::ClingoOptions opts_;
+    CppClingo::CAPI::ClingoOptions opts_;
 };
 
 } // namespace
@@ -303,9 +303,9 @@ extern "C" auto clingo_main(clingo_lib_t *lib, clingo_string_t const *arguments,
             return fail_arguments();
         }
         auto capp = ClingoApp{*lib, app, data};
-        auto args = Clingo::Util::transform(std::span{arguments, size},
-                                            [](auto const &str) { return std::string{str.data, str.size}; });
-        auto cargs = Clingo::Util::transform(args, [](auto const &str) { return str.c_str(); });
+        auto args = CppClingo::Util::transform(std::span{arguments, size},
+                                               [](auto const &str) { return std::string{str.data, str.size}; });
+        auto cargs = CppClingo::Util::transform(args, [](auto const &str) { return str.c_str(); });
         auto res = capp.main(cargs);
         if (code != nullptr) {
             *code = res;

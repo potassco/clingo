@@ -9,7 +9,7 @@
 
 #include <span>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 class Atom {
   public:
@@ -181,4 +181,4 @@ auto convert(Base base, MixedLitSpan const &lits, bool flip) -> LitVec;
 
 void register_base(pybind11::module &m);
 
-} // namespace Clingo::Python
+} // namespace PyClingo

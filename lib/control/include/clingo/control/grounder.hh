@@ -7,7 +7,7 @@
 
 #include <clingo/core/output.hh>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 //! @addtogroup control
 //! @{
@@ -67,4 +67,4 @@ class Grounder {
 
 //! @}
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

@@ -10,7 +10,7 @@
 
 #include <utility>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace {
 
@@ -284,7 +284,7 @@ void reg_script(Annotation<Library> const &lib, Annotation<Script> const &script
 }
 
 void reg_python(Annotation<Library> const &lib) {
-    using Script = Clingo::Python::MainScript;
+    using Script = PyClingo::MainScript;
     auto &c_lib = py::cast<Library &>(lib);
     auto c_script = clingo_script_t{Script::c_execute, Script::c_call, Script::c_callable, Script::main, Script::c_name,
                                     Script::c_version, nullptr};
@@ -296,7 +296,7 @@ void reg_python(Annotation<Library> const &lib) {
 } // namespace
 
 auto register_python(clingo_lib_t *lib) -> bool {
-    using Script = Clingo::Python::MainScript;
+    using Script = PyClingo::MainScript;
     auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::main,
                                     Script::c_name,    Script::c_version, Script::c_free};
     auto script = std::make_unique<Script>(true);
@@ -428,4 +428,4 @@ Args:
 )"_d);
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

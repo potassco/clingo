@@ -13,7 +13,7 @@
 
 #include <iostream>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 void UnprocessedProgram::mark(SymbolCollector &gc) const {
     for (auto const &[part, stms, facts] : parts_) {
@@ -72,7 +72,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
     // process meta statements
     std::vector<StmConst> const_stms;
     for (auto const &stm : prg.meta_stms()) {
-        Clingo::Input::analyze(stm, provide_, depend_);
+        CppClingo::Input::analyze(stm, provide_, depend_);
         std::visit(
             [&, this]<class T>(T const &stm) {
                 if constexpr (Util::is_among_v<T, StmTheory>) {
@@ -128,7 +128,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
             rewrite(ctx, stm, res_part.stms);
             auto jt = res_part.stms.begin() + n;
             for (auto it = jt, ie = res_part.stms.end(); it != ie; ++it) {
-                Clingo::Input::analyze(*it, provide_, depend_);
+                CppClingo::Input::analyze(*it, provide_, depend_);
                 if (auto fact = is_fact(store, *it); fact) {
                     res_part.facts.emplace_back(fact.value());
                 } else {
@@ -254,7 +254,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
             }
         }
     }
-    return bld.components(Clingo::Input::analyze(store, stms));
+    return bld.components(CppClingo::Input::analyze(store, stms));
 }
 
 void Program::mark(SymbolCollector &gc) const {
@@ -271,4 +271,4 @@ void Program::mark_sig(Input::Sig const &sig) {
     }
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

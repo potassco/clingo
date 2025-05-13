@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_algorithm
 //! @{
@@ -131,4 +131,4 @@ template <class Callback> inline void Graph::tarjan(Callback cb) {
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

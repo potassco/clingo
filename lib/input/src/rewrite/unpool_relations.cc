@@ -8,7 +8,7 @@
 #include <clingo/util/optional.hh>
 #include <clingo/util/type_traits.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -401,4 +401,4 @@ struct UnpoolStatement {
     return stms;
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

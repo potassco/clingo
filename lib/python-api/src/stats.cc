@@ -1,7 +1,7 @@
 #include "stats.hh"
 #include "core.hh"
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace {
 
@@ -282,4 +282,4 @@ Args:
         .def_property("value", &Stats::get_value, &Stats::set_value, R"(Get/set the value of the stats object.)");
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

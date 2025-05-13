@@ -12,7 +12,7 @@
 
 #include "visit.hh"
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -544,4 +544,4 @@ void extract_can_fail(Term const &term, std::vector<Term> &result) {
     ExtractCanFail{result}.visit(term);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

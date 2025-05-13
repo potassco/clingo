@@ -5,7 +5,7 @@
 #include <optional>
 #include <utility>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @ingroup input_aggregate
 //! @{
@@ -126,4 +126,4 @@ using BdLitSetAggregate = SetAggregate<true>;
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

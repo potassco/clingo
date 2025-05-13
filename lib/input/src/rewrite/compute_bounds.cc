@@ -6,7 +6,7 @@
 #include <clingo/util/type_traits.hh>
 #include <utility>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -643,4 +643,4 @@ class ComputeBounds {
     return ComputeBounds{ctx}(stm);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

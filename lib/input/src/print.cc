@@ -8,7 +8,7 @@
 #include <cstring>
 #include <sstream>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -1451,4 +1451,4 @@ auto to_string(Stm const &stm) -> std::string {
     return out.str();
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

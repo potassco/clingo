@@ -4,7 +4,7 @@
 
 #include <cstdint>
 
-namespace Clingo::Output {
+namespace CppClingo::Output {
 
 enum AggregateMonotonicity : uint8_t { monotone, antimonotone, convex, nonmonotone };
 enum AggregateWeightType : uint8_t { mixed, positive, negative };
@@ -34,4 +34,4 @@ class AggregateAnalyzer {
     AggregateTruth truth_ = AggregateTruth::unknown;
 };
 
-} // namespace Clingo::Output
+} // namespace CppClingo::Output

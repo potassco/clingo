@@ -5,7 +5,7 @@
 #include <clingo/control/statement.hh>
 #include <clingo/control/theory.hh>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 namespace {
 
@@ -170,4 +170,4 @@ void build_stm(BuildContext &ctx, Input::Stm const &stm) {
     std::visit(BuilderStm{ctx}, stm);
 }
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

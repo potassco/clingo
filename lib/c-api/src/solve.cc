@@ -4,19 +4,19 @@
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
-auto c_cast(Clingo::Control::Model const *model) -> clingo_model_t const * {
+auto c_cast(CppClingo::Control::Model const *model) -> clingo_model_t const * {
     return reinterpret_cast<clingo_model_t const *>(model); // NOLINT
 }
 
-auto c_cast(Clingo::Control::SolveHandle *hnd) -> clingo_solve_handle_t * {
+auto c_cast(CppClingo::Control::SolveHandle *hnd) -> clingo_solve_handle_t * {
     return reinterpret_cast<clingo_solve_handle_t *>(hnd); // NOLINT
 }
 
-auto cpp_cast(clingo_solve_handle_t *hnd, bool not_null = true) -> Clingo::Control::SolveHandle * {
+auto cpp_cast(clingo_solve_handle_t *hnd, bool not_null = true) -> CppClingo::Control::SolveHandle * {
     if (hnd == nullptr && not_null) {
         throw std::runtime_error("solve handle is null");
     }
-    return reinterpret_cast<Clingo::Control::SolveHandle *>(hnd); // NOLINT
+    return reinterpret_cast<CppClingo::Control::SolveHandle *>(hnd); // NOLINT
 }
 
 extern "C" auto clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result) -> bool {
@@ -84,11 +84,11 @@ extern "C" auto clingo_solve_handle_close(clingo_solve_handle_t *handle) -> bool
 
 namespace {
 
-class SolveEventHandler : public Clingo::Control::EventHandler {
+class SolveEventHandler : public CppClingo::Control::EventHandler {
   public:
     SolveEventHandler(clingo_solve_event_callback_t notify, void *data) : notify_{notify}, data_{data} {}
 
-    auto do_on_model(Clingo::Control::Model &m) -> bool override {
+    auto do_on_model(CppClingo::Control::Model &m) -> bool override {
         bool goon = true;
         handle_error(notify_(clingo_solve_event_type_model, &m, data_, &goon));
         return goon;
@@ -106,7 +106,7 @@ class SolveEventHandler : public Clingo::Control::EventHandler {
         } res{bound.data(), bound.size()};
         handle_error(notify_(clingo_solve_event_type_unsat, &res, data_, &goon));
     }
-    void do_on_finish(Clingo::Control::SolveResult res) override {
+    void do_on_finish(CppClingo::Control::SolveResult res) override {
         bool goon = true;
         auto data = static_cast<clingo_solve_result_bitset_t>(res);
         handle_error(notify_(clingo_solve_event_type_finish, &data, data_, &goon));
@@ -125,15 +125,15 @@ extern "C" auto clingo_control_solve(clingo_control_t *control, clingo_solve_mod
     -> bool {
     CLINGO_TRY {
         *handle = nullptr;
-        auto cpp_mode = Clingo::Control::SolveMode::none;
+        auto cpp_mode = CppClingo::Control::SolveMode::none;
         if ((mode & clingo_solve_mode_yield) != 0) {
-            cpp_mode |= Clingo::Control::SolveMode::yield;
+            cpp_mode |= CppClingo::Control::SolveMode::yield;
         }
         if ((mode & clingo_solve_mode_async) != 0) {
-            cpp_mode |= Clingo::Control::SolveMode::async;
+            cpp_mode |= CppClingo::Control::SolveMode::async;
         }
         auto cpp_assumptions = std::span{assumptions, assumptions_size};
-        auto cpp_eh = Clingo::Control::UEventHandler{};
+        auto cpp_eh = CppClingo::Control::UEventHandler{};
         if (notify != nullptr) {
             cpp_eh = std::make_unique<SolveEventHandler>(notify, data);
         }

@@ -6,7 +6,7 @@
 
 #include <utility>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_literal
 //! @{
@@ -157,4 +157,4 @@ class CondLit : public Expression<CondLit> {
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

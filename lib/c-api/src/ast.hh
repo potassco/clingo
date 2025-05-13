@@ -4,11 +4,11 @@
 
 #include <clingo/ast.h>
 
-struct clingo_program : public Clingo::SymbolOwner {
+struct clingo_program : public CppClingo::SymbolOwner {
     clingo_program(clingo_lib_t *lib);
     ~clingo_program() noexcept override;
 
-    void mark(Clingo::SymbolCollector &gc) const override;
+    void mark(CppClingo::SymbolCollector &gc) const override;
     clingo_lib_t *lib;
-    Clingo::Input::UnprocessedProgram program;
+    CppClingo::Input::UnprocessedProgram program;
 };

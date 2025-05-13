@@ -4,7 +4,7 @@
 
 #include <functional>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_visit_variables
 //! @{
@@ -68,4 +68,4 @@ template <class T>
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

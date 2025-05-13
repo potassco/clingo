@@ -4,7 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 namespace {
 
@@ -205,4 +205,4 @@ TEST_CASE("unpool_statement") {
     REQUIRE_THROWS(unpool_statement(":- p(X): q(Y); r(X;Y)."));
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

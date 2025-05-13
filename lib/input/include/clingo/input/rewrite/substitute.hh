@@ -2,7 +2,7 @@
 
 #include <clingo/input/rewrite/rewrite_context.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_rewrite
 //! @{
@@ -39,4 +39,4 @@ auto substitute(RewriteContext &ctx, Stm const &stm) -> Util::ResultState<Stm, T
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

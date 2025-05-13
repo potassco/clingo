@@ -4,7 +4,7 @@
 
 // NOLINTBEGIN(readability-magic-numbers)
 
-namespace Clingo::Test {
+namespace CppClingo::Test {
 
 TEST_CASE("number_construct") {
     Number a{1};
@@ -161,6 +161,6 @@ TEST_CASE("number_op") {
     REQUIRE(get_sign(-big) == -1);
 }
 
-} // namespace Clingo::Test
+} // namespace CppClingo::Test
 
 // NOLINTEND(readability-magic-numbers)

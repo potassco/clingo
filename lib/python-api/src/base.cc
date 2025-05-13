@@ -5,7 +5,7 @@
 #include "iterable.hh" // IWYU pragma: keep
 #include "util.hh"
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 // Atom
 
@@ -342,7 +342,7 @@ auto convert(Base base, MixedLitSpan const &lits, bool flip) -> LitVec {
 }
 
 void register_base(pybind11::module &m) {
-    using namespace Clingo::Python;
+    using namespace PyClingo;
 
     auto base = m.def_submodule("base", R"(
 Functions and classes to work with atom and term bases.
@@ -505,4 +505,4 @@ Returns:
         .def_property_readonly("theory", &Base::theory, "The theory base.");
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

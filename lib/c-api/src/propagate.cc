@@ -67,7 +67,7 @@ auto map(Potassco::TruthValue value) -> clingo_truth_value_t {
     return static_cast<clingo_truth_value_t>(value);
 }
 
-class ClingoPropagator : public Clingo::Control::Propagator {
+class ClingoPropagator : public CppClingo::Control::Propagator {
   public:
     ClingoPropagator(clingo_control_t *ctl, clingo_propagator_t prop, void *data)
         : ctl_{ctl}, prop_(prop), data_(data) {}

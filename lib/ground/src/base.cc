@@ -1,6 +1,6 @@
 #include <clingo/ground/base.hh>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 // #define DEBUG_PROJECTION
 
@@ -99,4 +99,4 @@ void Bases::clear_aux() {
     aux_.clear();
 }
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

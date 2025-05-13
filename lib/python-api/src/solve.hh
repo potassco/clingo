@@ -8,7 +8,7 @@
 
 #include <pybind11/pybind11.h>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 class SolveResult {
   public:
@@ -105,4 +105,4 @@ using SSolveHandle = std::shared_ptr<SolveHandle>;
 
 void register_solve(pybind11::module &m);
 
-} // namespace Clingo::Python
+} // namespace PyClingo

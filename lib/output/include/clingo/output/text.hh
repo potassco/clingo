@@ -2,7 +2,7 @@
 
 #include <clingo/core/output.hh>
 
-namespace Clingo::Output {
+namespace CppClingo::Output {
 
 //! @addtogroup output
 //! @{
@@ -12,4 +12,4 @@ auto make_text_output(Util::OutputBuffer &out) -> UOutputStm;
 
 //! @}
 
-} // namespace Clingo::Output
+} // namespace CppClingo::Output

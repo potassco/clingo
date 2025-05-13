@@ -7,7 +7,7 @@
 
 #include <utility>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace {
 
@@ -482,4 +482,4 @@ See also: `clingo.control.Control.interrupt`
             "Get an iterator over the models.");
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

@@ -10,11 +10,11 @@
 #include <stdexcept> // IWYU pragma: keep
 
 struct clingo_lib {
-    clingo_lib(Clingo::Logger log, std::unique_ptr<Clingo::SymbolStore> store, void *data, bool fast_release)
+    clingo_lib(CppClingo::Logger log, std::unique_ptr<CppClingo::SymbolStore> store, void *data, bool fast_release)
         : log{std::move(log)}, store{std::move(store)}, data{data}, fast_release{fast_release} {}
-    Clingo::Logger log;
-    Clingo::Control::Scripts scripts;
-    std::unique_ptr<Clingo::SymbolStore> store;
+    CppClingo::Logger log;
+    CppClingo::Control::Scripts scripts;
+    std::unique_ptr<CppClingo::SymbolStore> store;
     void *data;
     clingo_lib_t *next_ = nullptr;
     std::atomic<size_t> ref_count = 1;
@@ -26,33 +26,33 @@ static constexpr auto c_cast(std::strong_ordering cmp) noexcept -> int {
     return (cmp < 0) ? -1 : ((cmp == 0) ? 0 : 1);
 }
 
-inline auto c_cast(Clingo::Location const *loc) -> clingo_location_t const * {
+inline auto c_cast(CppClingo::Location const *loc) -> clingo_location_t const * {
     // NOLINTNEXTLINE
     return reinterpret_cast<clingo_location_t const *>(loc);
 }
 
-inline auto cpp_cast(clingo_location const *loc) -> Clingo::Location const * {
+inline auto cpp_cast(clingo_location const *loc) -> CppClingo::Location const * {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Location const *>(loc);
+    return reinterpret_cast<CppClingo::Location const *>(loc);
 }
 
-inline auto c_cast(Clingo::Symbol const *sym) -> clingo_symbol_t const * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<clingo_symbol_t const *>(sym);
-}
-
-inline auto c_cast(Clingo::SharedSymbol const *sym) -> clingo_symbol_t const * {
+inline auto c_cast(CppClingo::Symbol const *sym) -> clingo_symbol_t const * {
     // NOLINTNEXTLINE
     return reinterpret_cast<clingo_symbol_t const *>(sym);
 }
 
-inline auto cpp_cast(clingo_symbol_t sym) -> Clingo::Symbol {
-    return Clingo::Symbol::from_rep(sym);
+inline auto c_cast(CppClingo::SharedSymbol const *sym) -> clingo_symbol_t const * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_symbol_t const *>(sym);
 }
 
-inline auto cpp_cast(clingo_symbol_t const *sym) -> Clingo::Symbol const * {
+inline auto cpp_cast(clingo_symbol_t sym) -> CppClingo::Symbol {
+    return CppClingo::Symbol::from_rep(sym);
+}
+
+inline auto cpp_cast(clingo_symbol_t const *sym) -> CppClingo::Symbol const * {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Symbol const *>(sym);
+    return reinterpret_cast<CppClingo::Symbol const *>(sym);
 }
 
 inline auto map(clingo_weighted_literal_t const *lits, size_t size) -> Potassco::WeightLitSpan {

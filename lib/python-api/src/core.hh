@@ -20,7 +20,7 @@
 
 // NOLINTEND(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace py = pybind11;
 
@@ -154,7 +154,7 @@ using IdSpan = std::span<clingo_id_t>;
 using WeightLitVec = std::vector<clingo_weighted_literal_t>;
 using WeightLitSpan = std::span<clingo_weighted_literal_t const>;
 
-} // namespace Clingo::Python
+} // namespace PyClingo
 
 namespace pybind11::detail {
 

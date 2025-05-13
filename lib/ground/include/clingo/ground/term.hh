@@ -11,7 +11,7 @@
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/unordered_map.hh>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_term
 //! @{
@@ -377,11 +377,12 @@ template <class... T>
 inline auto expect(EvalContext const &ctx, Location const &loc, bool &logged, T &&...args) -> bool {
     if (!logged && ctx.log().check(MessageCode::info_operation_undefined)) {
         logged = true;
-        (Clingo::Report(ctx.log(), MessageCode::info_operation_undefined, loc).out() << ... << std::forward<T>(args));
+        (CppClingo::Report(ctx.log(), MessageCode::info_operation_undefined, loc).out()
+         << ... << std::forward<T>(args));
     }
     return false;
 }
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

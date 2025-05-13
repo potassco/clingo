@@ -5,7 +5,7 @@
 
 #include <utility>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_theory
 //! @{
@@ -334,4 +334,4 @@ inline auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b
     return a.compare(b);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

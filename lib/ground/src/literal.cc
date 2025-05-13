@@ -5,7 +5,7 @@
 
 #include <typeindex>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 static constexpr double score_fast = -1.0;
 static constexpr double score_maybe_fast = -0.1;
@@ -918,4 +918,4 @@ auto LitSimpleAggr::do_compare_to(Lit const &other) const -> std::weak_ordering 
     return this <=> &other;
 }
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

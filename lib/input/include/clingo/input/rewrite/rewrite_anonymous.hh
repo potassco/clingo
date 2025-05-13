@@ -2,7 +2,7 @@
 
 #include <clingo/input/program.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_rewrite
 //! @{
@@ -27,4 +27,4 @@ namespace Clingo::Input {
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

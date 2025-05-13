@@ -8,7 +8,7 @@
 #include <atomic>
 #include <memory>
 
-namespace Clingo {
+namespace CppClingo {
 
 namespace {
 
@@ -1086,4 +1086,4 @@ auto bigint_refcount(uint64_t repr) -> std::atomic_size_t & {
 
 // NOLINTEND(readability-magic-numbers,cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr,cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-} // namespace Clingo
+} // namespace CppClingo

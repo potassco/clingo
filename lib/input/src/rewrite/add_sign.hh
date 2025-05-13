@@ -2,7 +2,7 @@
 
 #include <clingo/input/body_literal.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! Add a sign to the literal.
 [[nodiscard]] auto add_sign(Lit const &lit, Sign sign, std::optional<Position> pos = std::nullopt)
@@ -12,4 +12,4 @@ namespace Clingo::Input {
 [[nodiscard]] auto add_sign(BdLit const &lit, Sign sign, std::optional<Position> pos = std::nullopt)
     -> std::optional<BdLit>;
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

@@ -6,7 +6,7 @@
 
 #include <utility>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_head
 //! @{
@@ -133,4 +133,4 @@ using HdLitArray = Util::immutable_array<HdLit>;
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

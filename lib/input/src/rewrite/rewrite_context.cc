@@ -5,7 +5,7 @@
 #include <clingo/input/rewrite/analyze.hh>
 #include <clingo/input/rewrite/rewrite_context.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -248,4 +248,4 @@ auto TheoryAtomParser::has_error() const -> bool {
     return has_error_;
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

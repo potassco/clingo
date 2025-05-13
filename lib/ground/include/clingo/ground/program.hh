@@ -4,7 +4,7 @@
 
 #include <clingo/util/enum.hh>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_stm
 //! @{
@@ -30,4 +30,4 @@ class Component {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

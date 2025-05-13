@@ -3,7 +3,7 @@
 #include <clingo/input/rewrite/analyze.hh>
 #include <clingo/input/rewrite/project_anonymous.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -132,4 +132,4 @@ auto project_anonymous(Stm const &stm) -> std::optional<Stm> {
     return ProjectAnonymous{}.transform(stm);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

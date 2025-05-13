@@ -5,7 +5,7 @@
 
 #include <utility>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_statement
 //! @{
@@ -831,4 +831,4 @@ using StmVec = std::vector<Stm>;
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

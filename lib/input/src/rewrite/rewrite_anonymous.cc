@@ -3,7 +3,7 @@
 #include <clingo/input/rewrite/rewrite_anonymous.hh>
 #include <clingo/input/rewrite/visit_variables.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -64,4 +64,4 @@ class RewriteAnonymous : public Transformer<RewriteAnonymous> {
     return RewriteAnonymous{gen}.transform(stm);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

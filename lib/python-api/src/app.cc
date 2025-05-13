@@ -4,7 +4,7 @@
 #include "control.hh"
 #include "util.hh"
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace {
 
@@ -223,7 +223,7 @@ auto convert_options(py::handle hnd) -> clingo_options_t * {
 }
 
 void register_app(pybind11::module &m) {
-    using namespace Clingo::Python;
+    using namespace PyClingo;
 
     auto app = m.def_submodule("app", R"(
 Module to create custom clingo-based applications.
@@ -434,4 +434,4 @@ Returns:
         .def("_pyclingo", &pyentry);
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

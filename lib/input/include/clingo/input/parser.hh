@@ -7,7 +7,7 @@
 
 #include <istream>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace Parse {
 
@@ -76,4 +76,4 @@ class Parser {
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

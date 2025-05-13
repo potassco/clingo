@@ -7,7 +7,7 @@
 #include <optional>
 #include <vector>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 namespace Detail {
 
@@ -275,4 +275,4 @@ template <class T> ResultVec(immutable_array<T> const &) -> ResultVec<T, false>;
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

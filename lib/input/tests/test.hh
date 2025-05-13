@@ -13,7 +13,7 @@
 #include <span>
 #include <sstream>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 template <class T> inline auto opt_value(T &&opt) {
     REQUIRE(opt);
@@ -171,4 +171,4 @@ template <class T> auto to_str(T const &value, char const *sep = ", ") -> std::s
     return Print{sep}(value);
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

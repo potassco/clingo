@@ -13,7 +13,7 @@
 
 #include <deque>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -372,7 +372,7 @@ class Unifier {
                                 v_a.loc(),
                                 TermBinary{v_a.loc(), TermSymbol{v_a.loc(), store_->num_ref(Number(1))},
                                            BinaryOperator::times, a},
-                                BinaryOperator::plus, TermSymbol{v_a.loc(), Clingo::SymbolStore::num_ref(0)}});
+                                BinaryOperator::plus, TermSymbol{v_a.loc(), CppClingo::SymbolStore::num_ref(0)}});
                             return unify_(terms_.back(), b);
                         } else {
                             if (a == b) {
@@ -847,4 +847,4 @@ void analyze(Stm const &stm, SharedSigSet &provide, Util::ordered_map<SharedSig,
     AnalyzeVisitor{provide, depend}.visit(stm);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

@@ -10,7 +10,7 @@
 
 #include <memory_resource>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 // Outline:
 // - rules:
@@ -326,4 +326,4 @@ class StmHdTheory : public Stm {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

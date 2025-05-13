@@ -10,25 +10,25 @@
 
 auto cpp_cast(clingo_base_t const *base) {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(base);
+    return reinterpret_cast<CppClingo::Control::BaseView const *>(base);
 }
 
 auto cpp_cast(clingo_atom_base_t const *base) {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Ground::AtomBase const *>(base);
+    return reinterpret_cast<CppClingo::Ground::AtomBase const *>(base);
 }
 
 auto cpp_cast(clingo_term_base_t const *base) {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(base);
+    return reinterpret_cast<CppClingo::Control::BaseView const *>(base);
 }
 
 auto cpp_cast(clingo_theory_base_t const *base) {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BaseView const *>(base);
+    return reinterpret_cast<CppClingo::Control::BaseView const *>(base);
 }
 
-auto get_base(clingo_base_t const *base) -> Clingo::Ground::Bases const & {
+auto get_base(clingo_base_t const *base) -> CppClingo::Ground::Bases const & {
     return cpp_cast(base)->bases();
 }
 
@@ -164,7 +164,7 @@ extern "C" auto clingo_atom_base_symbol(clingo_atom_base_t const *atoms, size_t 
             return fail_arguments();
         }
         if (index < cpp_cast(atoms)->size()) {
-            *symbol = Clingo::Symbol::to_rep(cpp_cast(atoms)->nth(index)->first);
+            *symbol = CppClingo::Symbol::to_rep(cpp_cast(atoms)->nth(index)->first);
         } else {
             return fail_with(clingo_result_range, "index out of range");
         }
@@ -224,7 +224,7 @@ extern "C" auto clingo_term_base_symbol(clingo_term_base_t const *terms, size_t 
             return fail_arguments();
         }
         if (index < cpp_cast(terms)->term_base().size()) {
-            *term = Clingo::Symbol::to_rep(cpp_cast(terms)->term_base().symbol(index));
+            *term = CppClingo::Symbol::to_rep(cpp_cast(terms)->term_base().symbol(index));
         } else {
             return fail_with(clingo_result_range, "index out of range");
         }
@@ -401,11 +401,11 @@ class TheoryPrinter {
                 break;
             }
             case Potassco::TheoryTermType::compound: {
-                using Clingo::Util::p_range;
+                using CppClingo::Util::p_range;
                 auto args = x.terms();
                 if (x.isFunction()) {
                     auto const *name = data_().getTerm(x.function()).symbol();
-                    if (Clingo::Input::is_theory_operator(name)) {
+                    if (CppClingo::Input::is_theory_operator(name)) {
                         assert(!args.empty() && args.size() <= 2);
                         *out_ << "(";
                         if (args.size() >= 2) {
@@ -427,7 +427,7 @@ class TheoryPrinter {
         }
     }
     void elem(clingo_id_t id) const {
-        using Clingo::Util::p_range;
+        using CppClingo::Util::p_range;
         auto const &x = data_().getElement(id);
         *out_ << p_range(x.terms(), [this]([[maybe_unused]] auto &out, auto const &y) { term(y); });
         auto cond = element_condition(theory_, id);
@@ -466,7 +466,7 @@ class TheoryPrinter {
 
   private:
     clingo_theory_base_t const *theory_;
-    Clingo::Util::OutputBuffer *out_;
+    CppClingo::Util::OutputBuffer *out_;
 };
 
 } // namespace

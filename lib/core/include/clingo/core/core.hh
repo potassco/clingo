@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <ostream>
 
-namespace Clingo {
+namespace CppClingo {
 
 //! @addtogroup core
 //! @{
@@ -185,4 +185,4 @@ using TheorySigVec = std::vector<TheorySig>;
 
 //! @}
 
-} // namespace Clingo
+} // namespace CppClingo

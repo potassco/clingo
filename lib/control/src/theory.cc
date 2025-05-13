@@ -4,7 +4,7 @@
 
 #include <clingo/ground/theory_atom.hh>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 // Outline for body atoms:
 //
@@ -111,4 +111,4 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitTheoryAtom const &lit) {
     ctx.body().emplace_back(std::make_unique<Ground::LitBdTheory>(state, lit.sign()));
 }
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

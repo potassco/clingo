@@ -6,7 +6,7 @@
 
 #include "iterable.hh"
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 class Config {
   public:
@@ -43,4 +43,4 @@ class Config {
 
 void register_config(pybind11::module &m);
 
-} // namespace Clingo::Python
+} // namespace PyClingo

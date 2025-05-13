@@ -6,7 +6,7 @@
 
 #include <ranges>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 namespace {
 
@@ -952,4 +952,4 @@ void StmProject::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unuse
                               [[maybe_unused]] Queue &queue) {
 }
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

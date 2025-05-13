@@ -1,6 +1,6 @@
 #include <clingo/core/core.hh>
 
-namespace Clingo {
+namespace CppClingo {
 
 auto operator-(Sign a) -> Sign {
     switch (a) {
@@ -247,4 +247,4 @@ auto operator<<(Util::OutputBuffer &out, ExternalType type) -> Util::OutputBuffe
     return out;
 }
 
-} // namespace Clingo
+} // namespace CppClingo

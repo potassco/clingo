@@ -4,7 +4,7 @@
 
 #include <tsl/hopscotch_map.h>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_container
 //! @{
@@ -18,4 +18,4 @@ using unordered_map = tsl::hopscotch_map<Key, T, Hash, KeyEqual, Allocator, Neig
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

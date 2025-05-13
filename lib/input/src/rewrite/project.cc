@@ -7,7 +7,7 @@
 
 #include <algorithm>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -293,15 +293,15 @@ auto project(RewriteOptions const &opts, Stm const &stm) -> std::optional<Stm> {
     }
     if (opts.project_anonymous) {
         if (res.has_value()) {
-            auto tmp = Clingo::Input::project_anonymous(res.value());
+            auto tmp = CppClingo::Input::project_anonymous(res.value());
             if (tmp.has_value()) {
                 res = std::move(tmp);
             }
         } else {
-            res = Clingo::Input::project_anonymous(stm);
+            res = CppClingo::Input::project_anonymous(stm);
         }
     }
     return res;
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

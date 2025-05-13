@@ -12,7 +12,7 @@
 #include <memory_resource>
 #include <utility>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_literal
 //! @{
@@ -404,4 +404,4 @@ class LitSimpleAggr : public Lit {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

@@ -6,7 +6,7 @@
 
 #include <utility>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_body
 //! @{
@@ -119,4 +119,4 @@ using BdLitArray = Util::immutable_array<BdLit>;
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

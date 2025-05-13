@@ -2,7 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Util::Test {
+namespace CppClingo::Util::Test {
 
 namespace {
 
@@ -38,4 +38,4 @@ TEST_CASE("record") {
     REQUIRE(moves == 2);
 }
 
-} // namespace Clingo::Util::Test
+} // namespace CppClingo::Util::Test

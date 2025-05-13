@@ -8,7 +8,7 @@
 #include <span>
 #include <string>
 
-namespace Clingo {
+namespace CppClingo {
 
 //! @addtogroup core_number
 //! @{
@@ -286,4 +286,4 @@ using NumberSpan = std::span<Number const>;
 
 //! @}
 
-} // namespace Clingo
+} // namespace CppClingo

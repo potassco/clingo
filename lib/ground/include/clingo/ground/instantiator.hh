@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_instantiator
 //! @{
@@ -229,4 +229,4 @@ class Queue {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

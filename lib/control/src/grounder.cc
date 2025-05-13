@@ -19,7 +19,7 @@
 
 #include <iostream>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 namespace {
 
@@ -137,7 +137,7 @@ class Builder : public Input::DependencyBuilder {
 } // namespace
 
 //! Class storing/hiding relevant state for grounding.
-struct Grounder::Impl : Clingo::SymbolOwner {
+struct Grounder::Impl : CppClingo::SymbolOwner {
     //! Construct the grounder implementation.
     Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
         : log{&log}, store{&store}, prg{opts}, out{&out} {
@@ -444,4 +444,4 @@ auto Grounder::log() const -> Logger & {
     return *impl_->log;
 }
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

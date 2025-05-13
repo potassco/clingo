@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <variant>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace py = pybind11;
 
@@ -421,4 +421,4 @@ auto make_comparable_base(pybind11::class_<T, O...> cls) -> pybind11::class_<T, 
     return make_comparable<T>(std::move(cls));
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

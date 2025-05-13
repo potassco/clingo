@@ -4,7 +4,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_algorithm
 //! @{
@@ -70,4 +70,4 @@ using std::unreachable;
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

@@ -8,7 +8,7 @@
 #include "propagate.hh"
 #include "util.hh"
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace {
 
@@ -447,7 +447,7 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
 }
 
 void register_propagate(pybind11::module &m) {
-    using namespace Clingo::Python;
+    using namespace PyClingo;
     auto propagate = m.def_submodule("propagate", R"(
 Functions and classes to implement custom propagators.
 
@@ -978,4 +978,4 @@ Returns:
 )"_d);
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

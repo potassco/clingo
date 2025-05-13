@@ -8,7 +8,7 @@
 #include <span>
 #include <utility>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 auto ConstMap::contains(key_type name) const -> bool {
     bool found = false;
@@ -253,7 +253,7 @@ void Control::set_parts(std::optional<PartSpan> parts) {
 void Control::register_propagator(Annotation<Propagator> const &propagator) {
     auto &prop = propagator.cast<Propagator &>();
     tie(propagator);
-    Clingo::Python::register_propagator(get(), prop);
+    PyClingo::register_propagator(get(), prop);
 }
 
 void Control::release(clingo_control_t *ctl) noexcept {
@@ -513,4 +513,4 @@ Args:
         .def_property("parts", &Control::parts, &Control::set_parts, R"(Get/set the program parts to ground.)");
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

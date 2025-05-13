@@ -2,7 +2,7 @@
 
 #include <type_traits> // IWYU pragma: keep
 
-namespace Clingo {
+namespace CppClingo {
 
 //! @addtogroup util_enum
 //! @{
@@ -55,4 +55,4 @@ namespace Clingo {
 
 //! @}
 
-} // namespace Clingo
+} // namespace CppClingo

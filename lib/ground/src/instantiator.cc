@@ -4,7 +4,7 @@
 
 #include <clingo/util/print.hh>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 void Instantiator::BackjumpMatcher::init(InstantiationContext const &ctx, size_t gen) {
     matcher_->init(ctx, gen);
@@ -188,4 +188,4 @@ auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
     return true;
 }
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

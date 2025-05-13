@@ -6,7 +6,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 namespace {
 
@@ -50,4 +50,4 @@ TEST_CASE("rewrite_substitute") {
     REQUIRE(rewrite_program({"p(Y) :- X=10, Y = #sum { X: X=11; Z: Z=2; Z: Z=3 }."}) == SV{"#program base.", "p(5)."});
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

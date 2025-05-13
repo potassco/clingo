@@ -5,7 +5,7 @@
 #include <clingo/ground/body_aggregate.hh>
 #include <clingo/ground/head_aggregate.hh>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 namespace {
 
@@ -349,4 +349,4 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
     }
 }
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

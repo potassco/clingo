@@ -4,7 +4,7 @@
 
 #include <clingo/util/type_traits.hh>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 namespace {
 
@@ -198,4 +198,4 @@ auto build_theory_term(Util::unordered_map<String, size_t> const &var_map, Input
     return std::visit(BuilderTheoryTerm{var_map}, term);
 }
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

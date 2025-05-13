@@ -6,7 +6,7 @@
 #include <clingo/input/rewrite/substitute.hh>
 #include <clingo/input/rewrite/visit_variables.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -619,4 +619,4 @@ auto substitute(RewriteContext &ctx, Stm const &stm) -> Util::ResultState<Stm, T
     return res;
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

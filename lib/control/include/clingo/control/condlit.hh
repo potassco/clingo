@@ -4,7 +4,7 @@
 
 #include <clingo/input/literal.hh>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 //! @addtogroup control
 //! @{
@@ -17,4 +17,4 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit);
 
 //! @}
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

@@ -13,7 +13,7 @@
 #include <variant>
 #include <vector>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_hash
 //! @{
@@ -370,4 +370,4 @@ static constexpr unsigned int default_neighborhood_size = 62;
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

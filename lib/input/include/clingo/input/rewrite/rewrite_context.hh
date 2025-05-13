@@ -5,7 +5,7 @@
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/unordered_map.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_rewrite
 //! @{
@@ -189,4 +189,4 @@ class RewriteContext {
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

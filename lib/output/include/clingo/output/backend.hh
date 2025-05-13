@@ -8,7 +8,7 @@
 #include <clingo/util/ordered_map.hh>
 #include <clingo/util/unordered_map.hh>
 
-namespace Clingo::Output {
+namespace CppClingo::Output {
 
 //! @addtogroup output
 //! @{
@@ -156,4 +156,4 @@ auto make_backend_output(SymbolStore &store, ProgramBackend &backend, TheoryData
 
 //! @}
 
-} // namespace Clingo::Output
+} // namespace CppClingo::Output

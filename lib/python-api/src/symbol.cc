@@ -3,7 +3,7 @@
 
 #include <sstream>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 static constexpr int decimal_base = 10;
 
@@ -387,4 +387,4 @@ Args:
 )"_d);
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

@@ -40,15 +40,15 @@ extern "C" void clingo_result_string(clingo_result_t code, clingo_string_t *valu
     value->size = str.size();
 }
 
-static_assert(static_cast<int>(Clingo::MessageCode::trace) == clingo_message_trace);
-static_assert(static_cast<int>(Clingo::MessageCode::debug) == clingo_message_debug);
-static_assert(static_cast<int>(Clingo::MessageCode::info) == clingo_message_info);
-static_assert(static_cast<int>(Clingo::MessageCode::info_operation_undefined) == clingo_message_operation_undefined);
-static_assert(static_cast<int>(Clingo::MessageCode::info_atom_undefined) == clingo_message_atom_undefined);
-static_assert(static_cast<int>(Clingo::MessageCode::info_file_included) == clingo_message_file_included);
-static_assert(static_cast<int>(Clingo::MessageCode::info_global_variable) == clingo_message_global_variable);
-static_assert(static_cast<int>(Clingo::MessageCode::warn) == clingo_message_warn);
-static_assert(static_cast<int>(Clingo::MessageCode::error) == clingo_message_error);
+static_assert(static_cast<int>(CppClingo::MessageCode::trace) == clingo_message_trace);
+static_assert(static_cast<int>(CppClingo::MessageCode::debug) == clingo_message_debug);
+static_assert(static_cast<int>(CppClingo::MessageCode::info) == clingo_message_info);
+static_assert(static_cast<int>(CppClingo::MessageCode::info_operation_undefined) == clingo_message_operation_undefined);
+static_assert(static_cast<int>(CppClingo::MessageCode::info_atom_undefined) == clingo_message_atom_undefined);
+static_assert(static_cast<int>(CppClingo::MessageCode::info_file_included) == clingo_message_file_included);
+static_assert(static_cast<int>(CppClingo::MessageCode::info_global_variable) == clingo_message_global_variable);
+static_assert(static_cast<int>(CppClingo::MessageCode::warn) == clingo_message_warn);
+static_assert(static_cast<int>(CppClingo::MessageCode::error) == clingo_message_error);
 
 extern "C" void clingo_message_string(clingo_message_t code, clingo_string_t *value) {
     auto str = [code]() -> std::string_view {
@@ -101,21 +101,21 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t leve
             }
         };
         std::shared_ptr<LH> lh;
-        Clingo::Logger::Printer prt = nullptr;
+        CppClingo::Logger::Printer prt = nullptr;
         if (logger != nullptr) {
             lh = std::make_shared<LH>(*logger, data);
             if (logger->log != nullptr) {
-                prt = [lh](Clingo::MessageCode code, std::string_view msg) {
+                prt = [lh](CppClingo::MessageCode code, std::string_view msg) {
                     lh->log.log(static_cast<clingo_message_t>(code), msg.data(), msg.size(), lh->data);
                 };
             }
         }
-        *lib = std::make_unique<clingo_lib>(Clingo::Logger{std::move(prt), limit},
-                                            Clingo::make_symbol_store((flags & clingo_lib_flags_slotted) != 0,
-                                                                      (flags & clingo_lib_flags_shared) != 0),
+        *lib = std::make_unique<clingo_lib>(CppClingo::Logger{std::move(prt), limit},
+                                            CppClingo::make_symbol_store((flags & clingo_lib_flags_slotted) != 0,
+                                                                         (flags & clingo_lib_flags_shared) != 0),
                                             data, (flags & clingo_lib_flags_fast_release) != 0)
                    .release();
-        (*lib)->log.set_level(static_cast<Clingo::LogLevel>(level));
+        (*lib)->log.set_level(static_cast<CppClingo::LogLevel>(level));
     }
     CLINGO_CATCH;
 }
@@ -140,8 +140,8 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
     if (lib != nullptr) {
         // reset logger and scripts in case they are holding symbols
         // the store might be kept alive if it is still holding symbols
-        lib->log = Clingo::Logger{};
-        lib->scripts = Clingo::Control::Scripts{};
+        lib->log = CppClingo::Logger{};
+        lib->scripts = CppClingo::Control::Scripts{};
         auto res = lib->store->gc();
         if (get<0>(res) > 0 || get<1>(res) > 0) {
             auto lck = std::unique_lock(gc_mut);
@@ -177,9 +177,9 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
 }
 
 extern "C" void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char const *message, size_t size) {
-    auto c = static_cast<Clingo::MessageCode>(code);
+    auto c = static_cast<CppClingo::MessageCode>(code);
     if (lib != nullptr && lib->log.check(c)) {
-        Clingo::Report(lib->log, c).out() << std::string_view{message, size};
+        CppClingo::Report(lib->log, c).out() << std::string_view{message, size};
     }
 }
 
@@ -188,14 +188,14 @@ extern "C" void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char
 extern "C" auto clingo_string_builder_new(clingo_string_builder_t **bld) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE
-        *bld = c_cast(new Clingo::Util::OutputBuffer{});
+        *bld = c_cast(new CppClingo::Util::OutputBuffer{});
     }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_string_builder_copy(clingo_string_builder_t const *src, clingo_string_builder_t **dst) -> bool {
     CLINGO_TRY {
-        auto oss = std::make_unique<Clingo::Util::OutputBuffer>();
+        auto oss = std::make_unique<CppClingo::Util::OutputBuffer>();
         *oss << cpp_cast(src)->view();
         *dst = c_cast(oss.release());
     }
@@ -225,21 +225,21 @@ extern "C" void clingo_string_builder_clear(clingo_string_builder_t *bld) {
 
 // definition of position
 
-static auto c_cast(Clingo::Position const *pos) -> clingo_position_t const * {
+static auto c_cast(CppClingo::Position const *pos) -> clingo_position_t const * {
     // NOLINTNEXTLINE
     return reinterpret_cast<clingo_position_t const *>(pos);
 }
 
-static auto cpp_cast(clingo_position_t const *pos) -> Clingo::Position const * {
+static auto cpp_cast(clingo_position_t const *pos) -> CppClingo::Position const * {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Position const *>(pos);
+    return reinterpret_cast<CppClingo::Position const *>(pos);
 }
 
 extern "C" auto clingo_position_new(clingo_lib_t *lib, char const *file, size_t size, size_t line, size_t column,
                                     clingo_position_t const **pos) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE
-        *pos = c_cast(new Clingo::Position{*lib->store->string(std::string_view{file, size}), line, column});
+        *pos = c_cast(new CppClingo::Position{*lib->store->string(std::string_view{file, size}), line, column});
     }
     CLINGO_CATCH;
 }
@@ -247,7 +247,7 @@ extern "C" auto clingo_position_new(clingo_lib_t *lib, char const *file, size_t 
 extern "C" auto clingo_position_copy(clingo_position_t const *src, clingo_position_t const **dst) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE
-        *dst = src != nullptr ? c_cast(new Clingo::Position{*cpp_cast(src)}) : nullptr;
+        *dst = src != nullptr ? c_cast(new CppClingo::Position{*cpp_cast(src)}) : nullptr;
     }
     CLINGO_CATCH;
 }
@@ -273,7 +273,7 @@ extern "C" auto clingo_position_column(clingo_position_t const *pos) -> size_t {
 
 extern "C" auto clingo_position_hash(clingo_position_t const *pos) -> size_t {
     const auto *p = cpp_cast(pos);
-    return Clingo::Util::value_hash_record<Clingo::Position>(p->file(), p->line(), p->column());
+    return CppClingo::Util::value_hash_record<CppClingo::Position>(p->file(), p->line(), p->column());
 }
 
 extern "C" auto clingo_position_equal(clingo_position_t const *a, clingo_position_t const *b) -> bool {
@@ -297,7 +297,7 @@ extern "C" auto clingo_location_new(clingo_position_t const *begin, clingo_posit
                                     clingo_location_t const **loc) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE
-        *loc = c_cast(new Clingo::Location{*cpp_cast(begin), *cpp_cast(end)});
+        *loc = c_cast(new CppClingo::Location{*cpp_cast(begin), *cpp_cast(end)});
     }
     CLINGO_CATCH;
 }
@@ -305,7 +305,7 @@ extern "C" auto clingo_location_new(clingo_position_t const *begin, clingo_posit
 extern "C" auto clingo_location_copy(clingo_location_t const *src, clingo_location_t const **dst) -> bool {
     CLINGO_TRY {
         // NOLINTNEXTLINE
-        *dst = src != nullptr ? c_cast(new Clingo::Location{*cpp_cast(src)}) : nullptr;
+        *dst = src != nullptr ? c_cast(new CppClingo::Location{*cpp_cast(src)}) : nullptr;
     }
     CLINGO_CATCH;
 }
@@ -325,8 +325,8 @@ extern "C" auto clingo_location_end(clingo_location_t const *loc) -> clingo_posi
 
 extern "C" auto clingo_location_hash(clingo_location_t const *loc) -> size_t {
     auto const *l = cpp_cast(loc);
-    return Clingo::Util::value_hash_record<Clingo::Location>(clingo_position_hash(c_cast(&l->begin())),
-                                                             clingo_position_hash(c_cast(&l->end())));
+    return CppClingo::Util::value_hash_record<CppClingo::Location>(clingo_position_hash(c_cast(&l->begin())),
+                                                                   clingo_position_hash(c_cast(&l->end())));
 }
 
 extern "C" auto clingo_location_equal(clingo_location_t const *a, clingo_location_t const *b) -> bool {

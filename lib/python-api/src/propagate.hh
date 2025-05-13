@@ -6,7 +6,7 @@
 
 #include "core.hh"
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 class PropagateInit;
 class PropagateControl;
@@ -39,4 +39,4 @@ void register_propagator(clingo_control_t *ctl, Propagator &propagator);
 
 void register_propagate(pybind11::module &m);
 
-} // namespace Clingo::Python
+} // namespace PyClingo

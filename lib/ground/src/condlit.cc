@@ -7,7 +7,7 @@
 
 #include <typeindex>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 // StateAtomCondLit
 
@@ -697,4 +697,4 @@ auto StmCondLit::do_priority() const -> size_t {
     return prio_;
 }
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

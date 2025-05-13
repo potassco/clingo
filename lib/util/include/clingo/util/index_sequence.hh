@@ -4,7 +4,7 @@
 #include <tuple>
 #include <vector>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_container
 //! @{
@@ -115,4 +115,4 @@ template <class T> class index_sequence {
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

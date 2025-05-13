@@ -11,7 +11,7 @@
 
 // NOLINTBEGIN(readability-convert-member-functions-to-static,performance-enum-size)
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace py = pybind11;
 
@@ -9413,6 +9413,6 @@ Args:
     statement: The statement to add.)doc");
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo
 
 // NOLINTEND(readability-convert-member-functions-to-static,performance-enum-size)

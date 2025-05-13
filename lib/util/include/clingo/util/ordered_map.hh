@@ -4,7 +4,7 @@
 
 #include <tsl/ordered_map.h>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_container
 //! @{
@@ -17,4 +17,4 @@ using ordered_map = tsl::ordered_map<Key, T, Hash, KeyEqual, Allocator, ValueTyp
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

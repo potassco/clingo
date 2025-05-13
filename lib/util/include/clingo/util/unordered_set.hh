@@ -4,7 +4,7 @@
 
 #include <clingo/util/hash.hh>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_container
 //! @{
@@ -17,4 +17,4 @@ using unordered_set = tsl::hopscotch_set<Key, Hash, KeyEqual, Allocator, Neighbo
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

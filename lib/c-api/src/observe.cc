@@ -37,7 +37,7 @@ auto map(Potassco::TruthValue val) -> clingo_external_type_t {
             return clingo_external_type_release;
         }
     }
-    Clingo::Util::unreachable();
+    CppClingo::Util::unreachable();
 }
 
 auto map(Potassco::DomModifier val) -> clingo_heuristic_type_t {
@@ -61,7 +61,7 @@ auto map(Potassco::DomModifier val) -> clingo_heuristic_type_t {
             return clingo_heuristic_type_true;
         }
     }
-    Clingo::Util::unreachable();
+    CppClingo::Util::unreachable();
 }
 
 class Observer : public Potassco::AbstractProgram {
@@ -181,7 +181,7 @@ namespace {
 
 class ExtendedAspifWriter : public Potassco::AspifOutput {
   public:
-    ExtendedAspifWriter(Clingo::Control::SymbolTable &sym_tab, Clingo::Control::BaseView &view, std::ostream &out)
+    ExtendedAspifWriter(CppClingo::Control::SymbolTable &sym_tab, CppClingo::Control::BaseView &view, std::ostream &out)
         : Potassco::AspifOutput{out}, sym_tab_{&sym_tab} {
         sym_tab_->init(view, out);
     }
@@ -209,7 +209,7 @@ class ExtendedAspifWriter : public Potassco::AspifOutput {
     }
 
   private:
-    Clingo::Control::SymbolTable *sym_tab_;
+    CppClingo::Control::SymbolTable *sym_tab_;
 };
 
 } // namespace

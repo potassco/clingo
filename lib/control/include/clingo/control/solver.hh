@@ -7,7 +7,7 @@
 #include <clasp/clasp_facade.h>
 #include <clasp/cli/clasp_options.h>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 //! @addtogroup control
 //! @{
@@ -549,7 +549,7 @@ template <class M> class unlock_guard {
 class SymbolTable {
   public:
     //! Initialize the table before output.
-    void init(Clingo::Control::BaseView &view, std::ostream &out);
+    void init(CppClingo::Control::BaseView &view, std::ostream &out);
     //! Output ids of shown terms in extended aspif format.
     void begin_step();
     //! Output atoms in extended aspif format.
@@ -565,13 +565,13 @@ class SymbolTable {
         size_t index : (8 * sizeof(size_t)) - 2 = 0;
     };
 
-    auto output(Clingo::Symbol const &sym) -> State &;
+    auto output(CppClingo::Symbol const &sym) -> State &;
 
-    Clingo::Control::BaseView *view_ = nullptr;
+    CppClingo::Control::BaseView *view_ = nullptr;
     std::ostream *out_ = nullptr;
     size_t ids_ = 0;
     std::vector<size_t> buf_;
-    Clingo::Util::unordered_map<Clingo::SharedSymbol, State> done_;
+    CppClingo::Util::unordered_map<CppClingo::SharedSymbol, State> done_;
 };
 //! A unique pointer to a symbol table.
 using USymbolTable = std::unique_ptr<SymbolTable>;
@@ -755,4 +755,4 @@ class Solver : public BaseView {
 
 //! @}
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

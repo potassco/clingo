@@ -12,7 +12,7 @@
 #include <iostream>
 #endif
 
-namespace Clingo::Output {
+namespace CppClingo::Output {
 
 namespace {
 
@@ -1540,7 +1540,7 @@ class OutputBackend : public OutputStm, OutputTheory {
                 max_.add(bld_, lit, elems, guards);
                 break;
             }
-            case Clingo::AggregateFunction::count: {
+            case CppClingo::AggregateFunction::count: {
                 assert(false);
             }
         }
@@ -1794,4 +1794,4 @@ auto make_backend_output(SymbolStore &store, ProgramBackend &backend, TheoryData
     return std::make_unique<OutputBackend>(store, backend, theory);
 }
 
-} // namespace Clingo::Output
+} // namespace CppClingo::Output

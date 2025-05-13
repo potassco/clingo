@@ -9,7 +9,7 @@
 #include <memory_resource>
 #include <ostream>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_bdaggr
 //! @{
@@ -443,4 +443,4 @@ class LitBdAggrStrat : public Lit {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

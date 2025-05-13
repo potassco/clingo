@@ -6,7 +6,7 @@
 
 #include <cstring>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_analyze
 //! @{
@@ -189,4 +189,4 @@ void extract_can_fail(Term const &term, std::vector<Term> &result);
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

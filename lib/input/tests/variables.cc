@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 namespace {
 
@@ -40,4 +40,4 @@ TEST_CASE("variables_term") {
     REQUIRE(variables_term("f(X,Z;X,Y,Z;X,Y)") == "[X, Y, Z]");
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

@@ -4,7 +4,7 @@
 
 #include <clingo/input/theory.hh>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 //! @addtogroup control
 //! @{
@@ -17,4 +17,4 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitTheoryAtom const &lit);
 
 //! @}
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

@@ -4,7 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 TEST_CASE("parsev2") {
     std::vector<std::pair<MessageCode, std::string>> messages;
@@ -473,4 +473,4 @@ TEST_CASE("parsev2") {
     }
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

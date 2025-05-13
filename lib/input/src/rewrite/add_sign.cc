@@ -4,7 +4,7 @@
 
 #include <utility>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -54,4 +54,4 @@ auto add_sign(BdLit const &lit, Sign sign, std::optional<Position> pos) -> std::
     return std::nullopt;
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

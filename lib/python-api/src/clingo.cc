@@ -15,7 +15,7 @@
 
 #include <pybind11/pybind11.h>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 void register_clingo(pybind11::module &m) {
     m.doc() = R"doc(
@@ -126,19 +126,19 @@ information.
 ...         print(hnd.get())
 ```
 )doc"_d;
-    Clingo::Python::register_core(m);
-    Clingo::Python::register_symbol(m);
-    Clingo::Python::register_ast(m);
-    Clingo::Python::register_base(m);
-    Clingo::Python::register_backend(m);
-    Clingo::Python::register_solve(m);
-    Clingo::Python::register_config(m);
-    Clingo::Python::register_stats(m);
-    Clingo::Python::register_propagate(m);
-    Clingo::Python::register_control(m);
-    Clingo::Python::register_script(m);
-    Clingo::Python::register_app(m);
-    Clingo::Python::register_theory(m);
+    PyClingo::register_core(m);
+    PyClingo::register_symbol(m);
+    PyClingo::register_ast(m);
+    PyClingo::register_base(m);
+    PyClingo::register_backend(m);
+    PyClingo::register_solve(m);
+    PyClingo::register_config(m);
+    PyClingo::register_stats(m);
+    PyClingo::register_propagate(m);
+    PyClingo::register_control(m);
+    PyClingo::register_script(m);
+    PyClingo::register_app(m);
+    PyClingo::register_theory(m);
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

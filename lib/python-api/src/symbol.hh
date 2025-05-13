@@ -6,7 +6,7 @@
 
 #include <pybind11/pybind11.h>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace py = pybind11;
 
@@ -74,4 +74,4 @@ inline auto c_cast(Symbol *sym) {
     return reinterpret_cast<clingo_symbol_t *>(sym);
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

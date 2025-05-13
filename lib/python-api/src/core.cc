@@ -3,7 +3,7 @@
 
 #include <sstream>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 void raise_error() {
     clingo_string_t str;
@@ -393,4 +393,4 @@ Args:
         .def("__repr__", &Location::repr);
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

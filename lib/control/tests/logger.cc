@@ -6,7 +6,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Test {
+namespace CppClingo::Test {
 
 TEST_CASE("logger_test") {
     auto store = make_symbol_store(true, false);
@@ -67,4 +67,4 @@ TEST_CASE("logger_test") {
     REQUIRE(std::get<1>(res) == 0); // no symbols
 }
 
-} // namespace Clingo::Test
+} // namespace CppClingo::Test

@@ -10,7 +10,7 @@
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/small_vector.hh>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_base
 //! @{
@@ -442,4 +442,4 @@ using UStateVec = std::vector<UState>;
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

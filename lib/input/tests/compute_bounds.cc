@@ -5,7 +5,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 namespace {
 
@@ -54,4 +54,4 @@ TEST_CASE("compute_bounds") {
     REQUIRE(cb_stm(":~ X>=1; X<=3. [1,X]") == " :~ X=1..3. [1,X]");
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

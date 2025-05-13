@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <clingo/util/small_vector.hh>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_container
 //! @{
@@ -316,4 +316,4 @@ template <class T> class interval_set {
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

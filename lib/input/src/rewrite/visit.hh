@@ -11,7 +11,7 @@
 
 #include <clingo/input/program.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace Detail {
 
@@ -182,4 +182,4 @@ template <class T> class Visitor {
     void accept_(StmConst const &stm) const { visit(stm.value()); }
 };
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

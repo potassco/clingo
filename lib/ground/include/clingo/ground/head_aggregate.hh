@@ -9,7 +9,7 @@
 #include <memory_resource>
 #include <ostream>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 // Outline:
 // - A :- B.
@@ -381,4 +381,4 @@ class LitHdAggr : public Lit, private MatchHdAggr {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

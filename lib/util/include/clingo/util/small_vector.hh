@@ -8,7 +8,7 @@
 #include <memory>
 #include <utility>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_container
 //! @{
@@ -362,4 +362,4 @@ class small_vector {
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

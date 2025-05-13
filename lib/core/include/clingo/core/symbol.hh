@@ -9,7 +9,7 @@
 #include <ostream>
 #include <span>
 
-namespace Clingo {
+namespace CppClingo {
 
 //! @addtogroup core_symbol
 //! @{
@@ -143,7 +143,7 @@ class SharedString {
     }
 
     //! Compute the hash of the string.
-    [[nodiscard]] auto hash() const -> size_t { return Clingo::Util::value_hash(ref_); }
+    [[nodiscard]] auto hash() const -> size_t { return CppClingo::Util::value_hash(ref_); }
 
     //! Equality compare two strings.
     friend auto operator==(SharedString const &a, SharedString const &b) -> bool { return a.ref_ == b.get(); }
@@ -250,7 +250,7 @@ class Symbol {
     [[nodiscard]] auto has_classical_sign() const -> bool;
 
     //! Compute the hash of the symbol.
-    [[nodiscard]] auto hash() const -> size_t { return Clingo::Util::value_hash(rep_); }
+    [[nodiscard]] auto hash() const -> size_t { return CppClingo::Util::value_hash(rep_); }
 
     //! Get the signature of the symbol.
     //!
@@ -365,7 +365,7 @@ class SharedSymbol {
     }
 
     //! Compute the hash of the symbol.
-    [[nodiscard]] auto hash() const -> size_t { return Clingo::Util::value_hash(ref_); }
+    [[nodiscard]] auto hash() const -> size_t { return CppClingo::Util::value_hash(ref_); }
 
     //! Compare two symbols.
     friend auto compare(SharedSymbol const &a, SharedSymbol const &b) -> int { return compare(a.get(), b.get()); }
@@ -617,4 +617,4 @@ class NameGen {
 
 //! @}
 
-} // namespace Clingo
+} // namespace CppClingo

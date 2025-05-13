@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace Detail {
 
@@ -144,4 +144,4 @@ template <class T, class E, class U, class... A> auto unpool_rewrite(E const &ex
         std::move(args)...);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

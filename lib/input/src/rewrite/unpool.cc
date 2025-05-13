@@ -13,7 +13,7 @@
 
 #include <algorithm>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -33,7 +33,7 @@ class LiteralToTuple {
         std::ranges::sort(var_vec);
         std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{location(orig), Clingo::SymbolStore::num_ref(n)});
+        res.emplace_back(TermSymbol{location(orig), CppClingo::SymbolStore::num_ref(n)});
         for (auto const &var : var_vec) {
             res.emplace_back(TermVariable{location(orig), var});
         }
@@ -66,7 +66,7 @@ class LiteralToTuple {
                 break;
             }
         }
-        res.emplace_back(TermSymbol{lit.loc(), Clingo::SymbolStore::num_ref(i)});
+        res.emplace_back(TermSymbol{lit.loc(), CppClingo::SymbolStore::num_ref(i)});
         res.emplace_back(lit.term());
         return res;
     }
@@ -608,4 +608,4 @@ auto unpool(RewriteContext &ctx, Stm const &stm) -> std::optional<StmVec> {
     return stms;
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

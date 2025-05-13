@@ -4,7 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 namespace {
 
@@ -54,4 +54,4 @@ TEST_CASE("rewrite_theory") {
             "&p { (- ((x + y) + (z - (a - (b - c))))) } < (((x / (y / z)) * a) * c).");
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

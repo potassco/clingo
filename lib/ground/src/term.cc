@@ -5,7 +5,7 @@
 
 #include <typeindex>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 namespace {
 
@@ -416,15 +416,15 @@ auto TermBinary::do_score([[maybe_unused]] double size, [[maybe_unused]] std::ve
 }
 
 auto TermBinary::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
-    return (sym.type() == Clingo::SymbolType::number ||
+    return (sym.type() == CppClingo::SymbolType::number ||
             expect(ctx, loc_lhs_ + loc_rhs_, logged_, "number expected (got ", sym, ")")) &&
            eval(ctx) == sym;
 }
 
 auto TermBinary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
-    if (auto lhs = lhs_->eval(ctx); lhs && (lhs->type() == Clingo::SymbolType::number ||
+    if (auto lhs = lhs_->eval(ctx); lhs && (lhs->type() == CppClingo::SymbolType::number ||
                                             expect(ctx, loc_lhs_, logged_, "number expected (got ", *lhs, ")"))) {
-        if (auto rhs = rhs_->eval(ctx); rhs && (rhs->type() == Clingo::SymbolType::number ||
+        if (auto rhs = rhs_->eval(ctx); rhs && (rhs->type() == CppClingo::SymbolType::number ||
                                                 expect(ctx, loc_rhs_, logged_, "number expected (got ", *rhs, ")"))) {
             auto &store = ctx.store();
             switch (op_) {
@@ -740,4 +740,4 @@ auto TermFunction::do_compare_to([[maybe_unused]] Term const &other) const -> st
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

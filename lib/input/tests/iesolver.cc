@@ -4,7 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 // NOLINTBEGIN(readability-magic-numbers)
 
@@ -45,4 +45,4 @@ TEST_CASE("iesolver") {
 
 // NOLINTEND(readability-magic-numbers)
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

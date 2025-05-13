@@ -11,7 +11,7 @@
 #include <variant>
 #include <vector>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace Detail {
 
@@ -286,4 +286,4 @@ template <class T> class Transformer {
     }
 };
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

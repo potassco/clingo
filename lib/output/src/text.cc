@@ -5,7 +5,7 @@
 #include <clingo/util/type_traits.hh>
 #include <clingo/util/unordered_map.hh>
 
-namespace Clingo::Output {
+namespace CppClingo::Output {
 
 namespace {
 
@@ -563,4 +563,4 @@ auto make_text_output(Util::OutputBuffer &out) -> UOutputStm {
     return std::make_unique<OutputText>(out);
 }
 
-} // namespace Clingo::Output
+} // namespace CppClingo::Output

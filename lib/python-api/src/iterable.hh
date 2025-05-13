@@ -6,7 +6,7 @@
 #include <span>
 #include <vector>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace py = pybind11;
 
@@ -66,27 +66,27 @@ template <class T, class A = std::allocator<T>> class Iterable {
     Vector vec_;
 };
 
-} // namespace Clingo::Python
+} // namespace PyClingo
 
 namespace pybind11::detail {
 
-template <typename T> struct handle_type_name<Clingo::Python::Sequence<T>> {
+template <typename T> struct handle_type_name<PyClingo::Sequence<T>> {
     static constexpr auto name = const_name("Sequence[") + make_caster<T>::name + const_name("]");
 };
 
-template <typename T> struct handle_type_name<Clingo::Python::Annotation<T>> {
+template <typename T> struct handle_type_name<PyClingo::Annotation<T>> {
     static constexpr auto name = make_caster<T>::name;
 };
 
-template <Clingo::Python::StringLiteral L> struct handle_type_name<Clingo::Python::TypeHint<L>> {
+template <PyClingo::StringLiteral L> struct handle_type_name<PyClingo::TypeHint<L>> {
     static constexpr auto name = const_name(L.value);
 };
 
-template <typename T, typename A> class type_caster<Clingo::Python::Iterable<T, A>> {
+template <typename T, typename A> class type_caster<PyClingo::Iterable<T, A>> {
   public:
     using value_conv = make_caster<T>;
     using value_type = std::remove_cv_t<T>;
-    using type = Clingo::Python::Iterable<T, A>;
+    using type = PyClingo::Iterable<T, A>;
 
     PYBIND11_TYPE_CASTER(type, _("Iterable[") + value_conv::name + _("]"));
 

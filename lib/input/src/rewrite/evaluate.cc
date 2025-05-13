@@ -8,7 +8,7 @@
 #include <clingo/util/checked_math.hh>
 #include <clingo/util/graph.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -458,4 +458,4 @@ auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, Term const &
     return std::visit(Evaluate{log, store, map, nullptr}, term);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

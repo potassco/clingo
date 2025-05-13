@@ -77,7 +77,7 @@ namespace {
 class fill {
   public:
     fill(size_t n, char c = ' ') : n_{n}, c_{c} {}
-    friend auto operator<<(Clingo::Util::OutputBuffer &out, fill const &x) -> Clingo::Util::OutputBuffer & {
+    friend auto operator<<(CppClingo::Util::OutputBuffer &out, fill const &x) -> CppClingo::Util::OutputBuffer & {
         std::ranges::fill(out.reserve(static_cast<ssize_t>(x.n_)), x.c_);
         return out;
     }
@@ -89,7 +89,7 @@ class fill {
 
 struct ConfigPrinter {
   public:
-    explicit ConfigPrinter(Clasp::Cli::ClaspCliConfig const *cfg, Clingo::Util::OutputBuffer *out)
+    explicit ConfigPrinter(Clasp::Cli::ClaspCliConfig const *cfg, CppClingo::Util::OutputBuffer *out)
         : cfg_{cfg}, out_{out} {}
 
     auto str(clingo_id_t key) {
@@ -109,7 +109,7 @@ struct ConfigPrinter {
         if (vals >= 0) {
             if (vals > 0) {
                 cfg_->getValue(key, val);
-                *out_ << fi() << Clingo::Util::p_quoted(val) << "\n";
+                *out_ << fi() << CppClingo::Util::p_quoted(val) << "\n";
             } else {
                 *out_ << fi() << "null\n";
             }
@@ -145,7 +145,7 @@ struct ConfigPrinter {
     }
 
     Clasp::Cli::ClaspCliConfig const *cfg_;
-    Clingo::Util::OutputBuffer *out_;
+    CppClingo::Util::OutputBuffer *out_;
     std::string val;
 };
 

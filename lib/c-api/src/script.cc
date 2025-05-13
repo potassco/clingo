@@ -5,7 +5,7 @@
 
 namespace {
 
-class CScript : public Clingo::Control::Script {
+class CScript : public CppClingo::Control::Script {
   public:
     CScript(clingo_lib *lib, clingo_script_t script, void *data) : lib_{lib}, script_{script}, data_{data} {}
     ~CScript() noexcept override {
@@ -17,14 +17,14 @@ class CScript : public Clingo::Control::Script {
   private:
     void do_exec(std::string_view code) override { script_.execute(code.data(), code.size(), data_); }
 
-    void do_main(Clingo::Control::Solver &slv) override {
+    void do_main(CppClingo::Control::Solver &slv) override {
         class main_guard {
           public:
-            main_guard(Clingo::Control::Solver &slv) : slv_{&slv} { slv_->block_main(true); }
+            main_guard(CppClingo::Control::Solver &slv) : slv_{&slv} { slv_->block_main(true); }
             ~main_guard() { slv_->block_main(false); }
 
           private:
-            Clingo::Control::Solver *slv_;
+            CppClingo::Control::Solver *slv_;
         } guard{slv};
         auto *ctl = static_cast<clingo_control_t *>(slv.user_data());
         handle_error(script_.main(lib_, ctl, data_));
@@ -36,18 +36,18 @@ class CScript : public Clingo::Control::Script {
         return res;
     }
 
-    using CBData = std::pair<CScript *, Clingo::SymbolVec &>;
+    using CBData = std::pair<CScript *, CppClingo::SymbolVec &>;
 
     static auto cb(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> bool {
         auto &[self, out] = *static_cast<CBData *>(data);
         CLINGO_TRY {
-            append_n(symbols, symbols_size, out, [](auto sym) { return Clingo::Symbol::from_rep(sym); });
+            append_n(symbols, symbols_size, out, [](auto sym) { return CppClingo::Symbol::from_rep(sym); });
         }
         CLINGO_CATCH;
     }
 
-    void do_call(Clingo::Location const &loc, std::string_view name, Clingo::SymbolSpan args,
-                 Clingo::SymbolVec &out) override {
+    void do_call(CppClingo::Location const &loc, std::string_view name, CppClingo::SymbolSpan args,
+                 CppClingo::SymbolVec &out) override {
         auto data = CBData{this, out};
         handle_error(script_.call(lib_, c_cast(&loc), name.data(), name.size(), c_cast(args.data()), args.size(), &cb,
                                   &data, data_));

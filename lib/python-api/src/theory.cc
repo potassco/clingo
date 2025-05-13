@@ -6,7 +6,7 @@
 
 #include <clingo/theory.h>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace {
 
@@ -208,7 +208,7 @@ class Theory {
 };
 
 void register_theory(pybind11::module &m) {
-    using namespace Clingo::Python;
+    using namespace PyClingo;
 
     auto theory = m.def_submodule("theory", R"(
 This module allows for using theories implemented in C from Python.
@@ -310,4 +310,4 @@ Returns:
                                "Check whether the theory supports symbol value assigments.");
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

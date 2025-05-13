@@ -14,7 +14,7 @@
 #include <ctime>
 #include <utility>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -40,8 +40,8 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
 //! Ensure that the term only matches numbers.
 [[nodiscard]] auto as_linear_term(Term term) -> Term {
     auto loc = location(term);
-    term = TermBinary(loc, TermSymbol{loc, Clingo::SymbolStore::num_ref(1)}, BinaryOperator::times, std::move(term));
-    return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, Clingo::SymbolStore::num_ref(0)});
+    term = TermBinary(loc, TermSymbol{loc, CppClingo::SymbolStore::num_ref(1)}, BinaryOperator::times, std::move(term));
+    return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, CppClingo::SymbolStore::num_ref(0)});
 }
 
 //! Introduce a fresh variable for the given term.
@@ -1061,7 +1061,7 @@ class LiteralToTuple {
 
     auto operator()(LitBool const &lit) -> TermArray {
         ++n_;
-        return Util::make_vec<Term>(TermSymbol{lit.loc(), Clingo::SymbolStore::num_ref(n_)});
+        return Util::make_vec<Term>(TermSymbol{lit.loc(), CppClingo::SymbolStore::num_ref(n_)});
     }
 
     auto operator()(LitComparison const &lit) -> TermArray {
@@ -1071,7 +1071,7 @@ class LiteralToTuple {
         std::ranges::sort(var_vec);
         std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{lit.loc(), Clingo::SymbolStore::num_ref(n_)});
+        res.emplace_back(TermSymbol{lit.loc(), CppClingo::SymbolStore::num_ref(n_)});
         for (auto const &var : var_vec) {
             res.emplace_back(TermVariable{lit.loc(), var});
         }
@@ -1096,7 +1096,7 @@ class LiteralToTuple {
                 break;
             }
         }
-        res.emplace_back(TermSymbol{lit.loc(), Clingo::SymbolStore::num_ref(i)});
+        res.emplace_back(TermSymbol{lit.loc(), CppClingo::SymbolStore::num_ref(i)});
         res.emplace_back(lit.term());
         return res;
     }
@@ -1862,4 +1862,4 @@ class SimplifyStatement {
     return SimplifyStatement{ctx}(stm);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

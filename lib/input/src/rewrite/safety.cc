@@ -8,7 +8,7 @@
 #include <clingo/util/print.hh>
 #include <clingo/util/type_traits.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -480,4 +480,4 @@ auto check_safety(Logger &log, Stm const &stm) -> Util::ResultState<Stm> {
     return CheckGlobal{log, global}(stm);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

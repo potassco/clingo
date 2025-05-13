@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <clingo/input/rewrite/iesolver.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -276,4 +276,4 @@ auto IESolver::update_slack_(IETerm const &term, Number &slack) -> bool {
     return false;
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

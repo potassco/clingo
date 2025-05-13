@@ -2,7 +2,7 @@
 
 #include <clingo/input/statement.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_print
 //! @{
@@ -382,4 +382,4 @@ auto to_string(Stm const &stm) -> std::string;
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

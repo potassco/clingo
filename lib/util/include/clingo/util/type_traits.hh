@@ -2,7 +2,7 @@
 
 #include <type_traits>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_traits
 //! @{
@@ -15,4 +15,4 @@ template <class S, class... L> inline constexpr bool matches = is_among_v<std::r
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

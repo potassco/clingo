@@ -8,7 +8,7 @@
 
 #include <memory_resource>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_assignaggr
 //! @{
@@ -393,4 +393,4 @@ class LitAssignAggrStrat : public Lit, private MatchAssignAggr {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

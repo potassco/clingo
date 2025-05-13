@@ -9,18 +9,18 @@ namespace {
 
 auto cpp_cast(clingo_backend_t *backend) {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clingo::Control::BackendHandle *>(backend);
+    return reinterpret_cast<CppClingo::Control::BackendHandle *>(backend);
 }
 
 auto get_program(clingo_backend_t *backend) -> Clasp::Asp::LogicProgram & {
     return cpp_cast(backend)->program();
 }
 
-auto get_theory(clingo_backend_t *backend) -> Clingo::Output::TheoryData & {
+auto get_theory(clingo_backend_t *backend) -> CppClingo::Output::TheoryData & {
     return cpp_cast(backend)->theory();
 }
 
-auto get_store(clingo_backend_t *backend) -> Clingo::SymbolStore & {
+auto get_store(clingo_backend_t *backend) -> CppClingo::SymbolStore & {
     return cpp_cast(backend)->store();
 }
 
@@ -66,16 +66,16 @@ auto map(clingo_heuristic_type_e type) -> Potassco::DomModifier {
     throw std::runtime_error("invalid type");
 }
 
-auto map(clingo_theory_sequence_type_e type) -> Clingo::TheoryTermTupleType {
+auto map(clingo_theory_sequence_type_e type) -> CppClingo::TheoryTermTupleType {
     switch (type) {
         case clingo_theory_sequence_type_tuple: {
-            return Clingo::TheoryTermTupleType::tuple;
+            return CppClingo::TheoryTermTupleType::tuple;
         }
         case clingo_theory_sequence_type_list: {
-            return Clingo::TheoryTermTupleType::list;
+            return CppClingo::TheoryTermTupleType::list;
         }
         case clingo_theory_sequence_type_set: {
-            return Clingo::TheoryTermTupleType::set;
+            return CppClingo::TheoryTermTupleType::set;
         }
     }
     throw std::runtime_error("invalid type");
@@ -281,8 +281,8 @@ extern "C" auto clingo_backend_theory_atom(clingo_backend_t *backend, clingo_sym
         if (backend == nullptr || (elements == nullptr && size > 0)) {
             return fail_arguments();
         }
-        auto op = Clingo::SharedString{};
-        auto guard = std::optional<std::pair<Clingo::String, clingo_id_t>>{};
+        auto op = CppClingo::SharedString{};
+        auto guard = std::optional<std::pair<CppClingo::String, clingo_id_t>>{};
         if (operator_name != nullptr) {
             op = get_store(backend).string(std::string_view{operator_name->data, operator_name->size});
             guard.emplace(*op, right_hand_side_id);

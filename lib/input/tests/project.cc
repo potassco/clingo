@@ -4,7 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Clingo::Input::Test {
+namespace CppClingo::Input::Test {
 
 namespace {
 
@@ -108,4 +108,4 @@ TEST_CASE("project_statement") {
     REQUIRE(project_statement("#const x=42.") == "#const x=42. [default]");
 }
 
-} // namespace Clingo::Input::Test
+} // namespace CppClingo::Input::Test

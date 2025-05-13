@@ -9,7 +9,7 @@
 #include <string_view>
 #include <vector>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_print
 //! @{
@@ -295,4 +295,4 @@ inline auto p_quoted(std::string_view str) {
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

@@ -6,7 +6,7 @@
 #include <clingo/input/term.hh>
 #include <clingo/input/theory.hh>
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 //! @addtogroup control
 //! @{
@@ -29,4 +29,4 @@ auto build_theory_term(Util::unordered_map<String, size_t> const &var_map, Input
 
 //! @}
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

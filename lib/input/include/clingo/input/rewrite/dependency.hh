@@ -5,7 +5,7 @@
 #include <clingo/util/enum.hh>
 #include <clingo/util/ordered_map.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_rewrite
 //! @{
@@ -68,4 +68,4 @@ void visualize(Components const &comps, std::ostream &out);
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

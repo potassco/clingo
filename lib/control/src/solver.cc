@@ -13,7 +13,7 @@
 #include <iostream>
 #endif
 
-namespace Clingo::Control {
+namespace CppClingo::Control {
 
 namespace {
 
@@ -94,17 +94,17 @@ class ProgramBackendImpl : public ProgramBackend {
 
     void do_heuristic(prg_lit_t atom, int32_t weight, int32_t prio, HeuristicType type, PrgLitSpan body) override {
         assert(atom > 0);
-        static_assert(static_cast<unsigned>(Clingo::HeuristicType::init) ==
+        static_assert(static_cast<unsigned>(CppClingo::HeuristicType::init) ==
                       static_cast<unsigned>(Clasp::DomModType::init));
-        static_assert(static_cast<unsigned>(Clingo::HeuristicType::factor) ==
+        static_assert(static_cast<unsigned>(CppClingo::HeuristicType::factor) ==
                       static_cast<unsigned>(Clasp::DomModType::factor));
-        static_assert(static_cast<unsigned>(Clingo::HeuristicType::false_) ==
+        static_assert(static_cast<unsigned>(CppClingo::HeuristicType::false_) ==
                       static_cast<unsigned>(Clasp::DomModType::false_));
-        static_assert(static_cast<unsigned>(Clingo::HeuristicType::level) ==
+        static_assert(static_cast<unsigned>(CppClingo::HeuristicType::level) ==
                       static_cast<unsigned>(Clasp::DomModType::level));
-        static_assert(static_cast<unsigned>(Clingo::HeuristicType::sign) ==
+        static_assert(static_cast<unsigned>(CppClingo::HeuristicType::sign) ==
                       static_cast<unsigned>(Clasp::DomModType::sign));
-        static_assert(static_cast<unsigned>(Clingo::HeuristicType::true_) ==
+        static_assert(static_cast<unsigned>(CppClingo::HeuristicType::true_) ==
                       static_cast<unsigned>(Clasp::DomModType::true_));
         prg_->addDomHeuristic(atom, static_cast<Clasp::DomModType>(type), weight, prio, body);
     }
@@ -916,7 +916,7 @@ void Scripts::do_call(Location const &loc, std::string_view name, SymbolSpan arg
     }
 }
 
-void SymbolTable::init(Clingo::Control::BaseView &view, std::ostream &out) {
+void SymbolTable::init(CppClingo::Control::BaseView &view, std::ostream &out) {
     buf_.clear();
     view_ = &view;
     out_ = &out;
@@ -949,32 +949,32 @@ void SymbolTable::end_step() {
     }
 }
 
-auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
+auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
     auto [it, ins] = done_.try_emplace(sym);
     if (ins) {
         switch (sym.type()) {
-            case Clingo::SymbolType::inf: {
+            case CppClingo::SymbolType::inf: {
                 auto id = it.value().index = ids_++;
                 *out_ << "4 3 " << id << " 0\n";
                 break;
             }
-            case Clingo::SymbolType::sup: {
+            case CppClingo::SymbolType::sup: {
                 auto id = it.value().index = ids_++;
                 *out_ << "4 3 " << id << " 1" << "\n";
                 break;
             }
-            case Clingo::SymbolType::number: {
+            case CppClingo::SymbolType::number: {
                 auto id = it.value().index = ids_++;
                 *out_ << "4 4 " << id << " " << sym.num() << "\n";
                 break;
             }
-            case Clingo::SymbolType::string: {
+            case CppClingo::SymbolType::string: {
                 auto id = it.value().index = ids_++;
                 auto str = sym.str().view();
                 *out_ << "4 5 " << id << " " << str.size() << " " << str << "\n";
                 break;
             }
-            case Clingo::SymbolType::tuple: {
+            case CppClingo::SymbolType::tuple: {
                 auto args = sym.args();
                 auto size = static_cast<ssize_t>(buf_.size());
                 for (auto const &arg : args) {
@@ -991,11 +991,11 @@ auto SymbolTable::output(Clingo::Symbol const &sym) -> State & {
                 *out_ << "\n";
                 break;
             }
-            case Clingo::SymbolType::function: {
+            case CppClingo::SymbolType::function: {
                 auto args = sym.args();
                 auto size = static_cast<ssize_t>(buf_.size());
                 // NOTE: conversion from string to symbol is fast
-                size_t name = output(Clingo::SymbolStore::str_ref(sym.name())).index;
+                size_t name = output(CppClingo::SymbolStore::str_ref(sym.name())).index;
                 for (auto const &arg : args) {
                     buf_.push_back(output(arg).index);
                 }
@@ -1083,9 +1083,9 @@ void Solver::incmode_() {
         return true;
     };
     while (cont()) {
-        using Param = Clingo::Input::ProgramParam;
-        Clingo::Input::ProgramParamVec parts;
-        auto num = Clingo::SymbolStore::num(Util::safe_cast<int32_t>(step));
+        using Param = CppClingo::Input::ProgramParam;
+        CppClingo::Input::ProgramParamVec parts;
+        auto num = CppClingo::SymbolStore::num(Util::safe_cast<int32_t>(step));
         parts.emplace_back(Param{part_check, {num}});
         if (step > 0) {
             parts.emplace_back(Param{part_step, {num}});
@@ -1265,4 +1265,4 @@ void Solver::prepare_() {
     state_ = State::grounded;
 }
 
-} // namespace Clingo::Control
+} // namespace CppClingo::Control

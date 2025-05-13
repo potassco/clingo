@@ -3,7 +3,7 @@
 #include <cassert>
 #include <string_view>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 void quote(std::string_view in, auto out) {
     for (auto c : in) {
@@ -70,4 +70,4 @@ void unquote(std::string_view in, auto out) {
     }
 }
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

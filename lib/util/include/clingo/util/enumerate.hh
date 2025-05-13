@@ -3,7 +3,7 @@
 #include <concepts>
 #include <iterator>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_algorithm
 //! @{
@@ -156,4 +156,4 @@ template <std::integral T> enumerate(T begin, T end) -> enumerate<T>;
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

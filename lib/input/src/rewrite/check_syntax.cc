@@ -9,7 +9,7 @@
 
 #include <algorithm>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -297,4 +297,4 @@ auto check_statement(Logger &log, Stm const &stm) -> bool {
     return CheckSyntax{log}(stm);
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

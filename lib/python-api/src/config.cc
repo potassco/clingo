@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 auto Config::type_() -> clingo_config_type_bitset_t {
     clingo_config_type_bitset_t type = 0;
@@ -207,4 +207,4 @@ Notes:
         .def_property_readonly("attributes", &Config::attrs, R"(Get the attribute names of nested configurations.)");
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

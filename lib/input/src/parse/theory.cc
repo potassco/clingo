@@ -2,7 +2,7 @@
 
 #include "parser_state.hh"
 
-namespace Clingo::Input::Parse {
+namespace CppClingo::Input::Parse {
 
 namespace {
 
@@ -343,4 +343,4 @@ auto parse_theory_atom(ParserState &state)
     return std::make_tuple(std::move(name), std::move(elems), std::move(rguard), std::move(end));
 }
 
-} // namespace Clingo::Input::Parse
+} // namespace CppClingo::Input::Parse

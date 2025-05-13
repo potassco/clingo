@@ -6,7 +6,7 @@
 #include <iterator>
 #include <stdexcept>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace Detail {
 
@@ -190,4 +190,4 @@ auto make_mapping(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
     return cls;
 }
 
-} // namespace Clingo::Python
+} // namespace PyClingo

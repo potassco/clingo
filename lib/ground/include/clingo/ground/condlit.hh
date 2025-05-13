@@ -5,7 +5,7 @@
 
 #include <clingo/util/enumerate.hh>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_bdcondlit
 //! @{
@@ -491,4 +491,4 @@ class StmCondLit : public Stm {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

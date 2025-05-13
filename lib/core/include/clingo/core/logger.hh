@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <unistd.h>
 
-namespace Clingo {
+namespace CppClingo {
 
 //! @addtogroup core_logger
 //! @{
@@ -212,22 +212,22 @@ inline auto Logger::message_prefix(MessageCode code) const -> std::string_view {
 
 //! Report messages of the given type.
 #define GRINGO_REPORT(p, id)                                                                                           \
-    if ((p).check(::Clingo::MessageCode::id))                                                                          \
-    Clingo::Report(p, ::Clingo::MessageCode::id).out()
+    if ((p).check(::CppClingo::MessageCode::id))                                                                       \
+    CppClingo::Report(p, ::CppClingo::MessageCode::id).out()
 
 //! Report messages of the given type and location.
 #define GRINGO_REPORT_LOC(p, id, loc)                                                                                  \
-    if ((p).check(::Clingo::MessageCode::id))                                                                          \
-    Clingo::Report(p, ::Clingo::MessageCode::id, loc).out()
+    if ((p).check(::CppClingo::MessageCode::id))                                                                       \
+    CppClingo::Report(p, ::CppClingo::MessageCode::id, loc).out()
 
 //! Report message of the given type given as string.
 #define GRINGO_REPORT_STR(p, id, msg)                                                                                  \
-    if ((p).check(::Clingo::MessageCode::id)) {                                                                        \
-        (p).print(::Clingo::MessageCode::id, msg);                                                                     \
+    if ((p).check(::CppClingo::MessageCode::id)) {                                                                     \
+        (p).print(::CppClingo::MessageCode::id, msg);                                                                  \
     }
 
 // NOLINTEND(cppcoreguidelines-macro-usage)
 
 //! @}
 
-} // namespace Clingo
+} // namespace CppClingo

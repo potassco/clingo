@@ -14,7 +14,7 @@
 
 // NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-constant-array-index,performance-no-int-to-ptr)
 
-namespace Clingo {
+namespace CppClingo {
 
 static_assert(sizeof(size_t) <= sizeof(uint64_t));
 
@@ -1178,6 +1178,6 @@ auto compare(Symbol const &a, Symbol const &b) -> int {
     return 0;
 }
 
-} // namespace Clingo
+} // namespace CppClingo
 
 // NOLINTEND(readability-magic-numbers,modernize-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-constant-array-index,performance-no-int-to-ptr)

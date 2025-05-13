@@ -8,7 +8,7 @@
 #include "base.hh"
 #include "symbol.hh"
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 class Observer {
   public:
@@ -71,4 +71,4 @@ class BackendManager {
 
 void register_backend(pybind11::module &m);
 
-} // namespace Clingo::Python
+} // namespace PyClingo

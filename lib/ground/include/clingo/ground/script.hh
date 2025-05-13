@@ -3,7 +3,7 @@
 #include <clingo/core/location.hh>
 #include <clingo/core/logger.hh>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_script
 //! @{
@@ -43,4 +43,4 @@ class ScriptCallback {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

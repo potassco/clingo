@@ -9,7 +9,7 @@
 #include <memory_resource>
 #include <ostream>
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 //! @addtogroup ground_hdcondlit
 //! @{
@@ -286,4 +286,4 @@ class LitDisjunction : public Lit, private MatchDisjunction {
 
 //! @}
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

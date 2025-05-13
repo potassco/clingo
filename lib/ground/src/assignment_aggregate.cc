@@ -8,7 +8,7 @@
 #include <iostream>
 #endif
 
-namespace Clingo::Ground {
+namespace CppClingo::Ground {
 
 // definition of AtomAssignAggr
 
@@ -746,4 +746,4 @@ auto LitAssignAggrStrat::do_compare_to(Lit const &other) const -> std::weak_orde
     return this <=> &other;
 }
 
-} // namespace Clingo::Ground
+} // namespace CppClingo::Ground

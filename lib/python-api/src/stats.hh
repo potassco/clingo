@@ -4,7 +4,7 @@
 
 #include <pybind11/pybind11.h>
 
-namespace Clingo::Python {
+namespace PyClingo {
 
 namespace py = pybind11;
 
@@ -63,4 +63,4 @@ class Stats {
 
 void register_stats(pybind11::module &m);
 
-} // namespace Clingo::Python
+} // namespace PyClingo

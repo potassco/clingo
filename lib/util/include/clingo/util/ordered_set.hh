@@ -4,7 +4,7 @@
 
 #include <tsl/ordered_set.h>
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_container
 //! @{
@@ -16,4 +16,4 @@ using ordered_set = tsl::ordered_set<Key, Hash, KeyEqual, Allocator, ValueTypeCo
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util

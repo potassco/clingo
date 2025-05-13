@@ -4,7 +4,7 @@
 
 #include "parse/parser_state.hh"
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 namespace {
 
@@ -120,4 +120,4 @@ auto Parser::scan() -> std::pair<std::optional<Stm>, bool> {
     }
 }
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

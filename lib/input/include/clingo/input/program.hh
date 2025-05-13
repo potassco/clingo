@@ -8,7 +8,7 @@
 #include <clingo/util/ordered_map.hh>
 #include <clingo/util/ordered_set.hh>
 
-namespace Clingo::Input {
+namespace CppClingo::Input {
 
 //! @addtogroup input_program
 //! @{
@@ -241,4 +241,4 @@ class Program {
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace CppClingo::Input

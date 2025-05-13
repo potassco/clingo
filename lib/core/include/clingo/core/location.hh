@@ -6,7 +6,7 @@
 #include <optional>
 #include <variant>
 
-namespace Clingo {
+namespace CppClingo {
 
 //! @addtogroup core_location
 //! @{
@@ -133,4 +133,4 @@ auto location(std::variant<T...> const &x) -> Location const & {
 
 //! @}
 
-} // namespace Clingo
+} // namespace CppClingo

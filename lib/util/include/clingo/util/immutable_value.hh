@@ -7,7 +7,7 @@
 #include <memory>
 #endif
 
-namespace Clingo::Util {
+namespace CppClingo::Util {
 
 //! @addtogroup util_immutable
 //! @{
@@ -158,4 +158,4 @@ template <class X, class Y>
 
 //! @}
 
-} // namespace Clingo::Util
+} // namespace CppClingo::Util
