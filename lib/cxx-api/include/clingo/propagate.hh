@@ -314,7 +314,7 @@ class Heuristic : public Propagator {
 
 namespace Detail {
 
-static constexpr auto c_propagator = clingo_propagator_t{
+inline static constexpr auto c_propagator = clingo_propagator_t{
     [](clingo_propagate_init_t *init, void *data) -> bool {
         auto &self = *static_cast<Propagator *>(data);
         CLINGO_TRY {
@@ -351,7 +351,7 @@ static constexpr auto c_propagator = clingo_propagator_t{
     [](void *data) { std::ignore = std::make_unique<Propagator>(*static_cast<Propagator *>(data)); },
 };
 
-static constexpr auto c_heuristic = clingo_propagator_t{
+inline static constexpr auto c_heuristic = clingo_propagator_t{
     c_propagator.init,
     c_propagator.propagate,
     c_propagator.undo,

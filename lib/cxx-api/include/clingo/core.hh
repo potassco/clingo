@@ -416,7 +416,7 @@ enum class LibraryFlags : clingo_lib_flags_t {
 };
 CLINGO_ENABLE_BITSET_ENUM(LibraryFlags);
 
-constexpr size_t default_message_limit = 25;
+inline constexpr size_t default_message_limit = 25;
 
 using Logger = std::function<void(MessageCode, std::string_view)>;
 

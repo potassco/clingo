@@ -603,7 +603,7 @@ class RewriteContext {
     Detail::unique_handle<clingo_ast_rewrite_context_t, clingo_ast_rewrite_context_free> ctx_;
 };
 
-auto rewrite(RewriteContext &ctx, Node const &stm) -> std::vector<Node> {
+inline auto rewrite(RewriteContext &ctx, Node const &stm) -> std::vector<Node> {
     auto arr = Detail::Array{};
     Detail::handle_error(clingo_ast_rewrite(c_cast(ctx), c_cast(stm), &arr.value, &arr.size));
     return Detail::transform(std::span{arr.value, arr.size},

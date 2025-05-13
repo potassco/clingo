@@ -129,8 +129,8 @@ static constexpr clingo_application_t c_app = {
 
 } // namespace Detail
 
-auto main(Library &lib, std::span<std::string_view const> arguments, App *app = nullptr, bool raise_errors = false)
-    -> int {
+inline auto main(Library &lib, std::span<std::string_view const> arguments, App *app = nullptr,
+                 bool raise_errors = false) -> int {
     auto code = 1;
     try {
         auto c_args = Detail::transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
