@@ -95,6 +95,9 @@ class Symbol {
         return type() == SymbolType::function && this->name() == name && arguments().size() == arity &&
                positive == is_positive();
     }
+    [[nodiscard]] auto match(size_t arity) const -> bool {
+        return type() == SymbolType::tuple && arguments().size() == arity;
+    }
     [[nodiscard]] auto hash() const noexcept -> size_t { return clingo_symbol_hash(rep_); }
 
     friend auto operator==(Symbol const &a, Symbol const &b) noexcept -> bool {
@@ -147,6 +150,14 @@ inline auto Function(Library const &lib, std::string_view str, SymbolList argume
 inline auto Tuple(Library const &lib, SymbolSpan arguments = {}) -> Symbol {
     return Symbol{Detail::call<clingo_symbol_create_tuple>(c_cast(lib), c_cast(arguments.data()), arguments.size()),
                   false};
+}
+
+inline auto Tuple(Library const &lib, SymbolList arguments = {}) -> Symbol {
+    return Tuple(lib, std::span{arguments.begin(), arguments.end()});
+}
+
+inline auto parse_term(Library const &lib, std::string_view str) -> Symbol {
+    return Symbol{Detail::call<clingo_parse_term>(c_cast(lib), str.data(), str.size()), false};
 }
 
 } // namespace Clingo
