@@ -10,6 +10,7 @@ Checks: >
   -bugprone-chained-comparison,
   -bugprone-easily-swappable-parameters,
   -bugprone-macro-parentheses,
+  -bugprone-unchecked-optional-access,
   -bugprone-unhandled-self-assignment,
   -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-do-while,

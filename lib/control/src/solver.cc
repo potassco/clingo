@@ -727,7 +727,7 @@ class SolveHandleImpl : public SolveHandle {
     }
     auto do_model() -> Model const * override {
         auto guard = unlock_guard{eh_.get_lock()};
-        return eh_.model().set_model(hnd_.model()) ? &eh_.model() : nullptr;
+        return eh_.model().set_model(hnd_.model(), false) ? &eh_.model() : nullptr;
     }
     auto do_last() -> Model const * override { return eh_.model().set_last() ? &eh_.model() : nullptr; }
     auto do_core() -> PrgLitSpan override {
@@ -1159,6 +1159,9 @@ auto Solver::solve(UEventHandler handler, PrgLitSpan assumptions, SolveMode mode
             theory_->reset();
             if (mdl_ == nullptr) {
                 mdl_ = std::make_unique<ModelImpl>(grd_.base(), terms_, *clasp_);
+            } else {
+                // NOLINTNEXTLINE
+                static_cast<ModelImpl *>(mdl_.get())->set_model(nullptr);
             }
             // NOLINTNEXTLINE
             return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), static_cast<ModelImpl &>(*mdl_), mode,

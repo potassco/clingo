@@ -4,8 +4,6 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-// NOLINTBEGIN(readability-magic-numbers)
-
 namespace Clingo::Test {
 
 TEST_CASE("number symbols", "[cxx][symbol][number]") {
@@ -103,5 +101,3 @@ TEST_CASE("hash functions", "[cxx][symbol][hash]") {
 }
 
 } // namespace Clingo::Test
-
-// NOLINTEND(readability-magic-numbers)

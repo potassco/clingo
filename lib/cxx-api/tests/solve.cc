@@ -1,4 +1,6 @@
 #include <clingo/control.hh>
+#include <clingo/core.hh>
+#include <clingo/solve.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -7,6 +9,8 @@
 #include <vector>
 
 namespace Clingo::Test {
+
+namespace {
 
 class MCB : public SolveEventHandler {
   public:
@@ -28,6 +32,21 @@ class MCB : public SolveEventHandler {
     auto do_model(Model &model) -> bool override { return MCB::model(static_cast<ConstModel &>(model)); }
     std::vector<std::vector<std::string>> *models_;
 };
+
+class Extender : public SolveEventHandler {
+  public:
+    Extender(Library &lib) : lib_{&lib} {}
+
+  private:
+    auto do_model(Model &model) -> bool override {
+        auto sym = [&](std::string_view name) { return Function(*lib_, name, {}); };
+        model.extend(std::array{sym("b"), sym("c")});
+        return true;
+    }
+    Library *lib_;
+};
+
+} // namespace
 
 TEST_CASE("solve basic", "[cxx][solve][basic]") {
     auto expected = std::vector<std::vector<std::string>>{{"a"}, {"b"}};
@@ -103,36 +122,40 @@ TEST_CASE("solve assume", "[cxx][solve][assume]") {
     }
 }
 
-/*
-TEST_CASE("solve extend", "[solve][extend]") {
-    Clingo::Control ctl({"0"});
-    ctl.add("base", {}, "a(1).");
+TEST_CASE("solve extend base", "[cxx][solve][extend][base]") {
+    auto lib = Library{};
+    auto ctl = Control{lib, {"0"}};
+    ctl.parse_string("a.");
     ctl.ground({{"base", {}}});
-
-    bool found_a1 = false;
-    ctl.solve([&](Clingo::Model &m) {
-           for (auto &sym : m.symbols(Clingo::ShowType::Shown)) {
-               if (sym.to_string() == "a(1)")
-                   found_a1 = true;
-           }
-       })
-        .get();
-    REQUIRE(found_a1);
-
-    ctl.add("step", {"t"}, "a(t+1).");
-    ctl.ground({{"step", {Clingo::Number(1)}}});
-
-    bool found_a2 = false;
-    ctl.solve([&](Clingo::Model &m) {
-           for (auto &sym : m.symbols(Clingo::ShowType::Shown)) {
-               if (sym.to_string() == "a(2)")
-                   found_a2 = true;
-           }
-       })
-        .get();
-    REQUIRE(found_a2);
+    {
+        auto ext = Extender{lib};
+        auto hnd = ctl.solve(ext, {});
+        REQUIRE(hnd.get().satisfiable());
+        REQUIRE(hnd.last()->symbols(ShowFlags::theory).size() == 2);
+        REQUIRE(hnd.last()->symbols(ShowFlags::shown).size() == 3);
+        REQUIRE(hnd.last()->to_string() == "a, b, c");
+    }
 }
 
+TEST_CASE("solve extend yield", "[solve][extend][yield]") {
+    auto lib = Library{};
+    auto ctl = Control{lib, {"0"}};
+    ctl.parse_string("a.");
+    ctl.ground({{"base", {}}});
+    auto models = std::vector<std::vector<std::string>>{};
+    {
+        auto ext = Extender{lib};
+        auto mcb = MCB{models};
+        auto hnd = ctl.solve(ext, {}, SolveFlags::yield);
+        for (auto &&mdl : hnd) {
+            mcb.model(mdl);
+        }
+        REQUIRE(hnd.get().satisfiable());
+    }
+    REQUIRE(models == std::vector<std::vector<std::string>>{{"a", "b", "c"}});
+}
+
+/*
 TEST_CASE("solve consequence", "[solve][consequence]") {
     Clingo::Control ctl({"0"});
     ctl.add("base", {}, "a. b :- a.");

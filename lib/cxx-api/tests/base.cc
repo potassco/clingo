@@ -3,8 +3,6 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-// NOLINTBEGIN(readability-magic-numbers,bugprone-unchecked-optional-access)
-
 namespace Clingo::Test {
 
 TEST_CASE("cxx-base") {
@@ -26,5 +24,3 @@ TEST_CASE("cxx-base") {
 }
 
 } // namespace Clingo::Test
-
-// NOLINTEND(readability-magic-numbers,bugprone-unchecked-optional-access)

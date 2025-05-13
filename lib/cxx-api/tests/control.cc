@@ -2,8 +2,6 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-// NOLINTBEGIN(readability-magic-numbers)
-
 namespace Clingo::Test {
 
 auto ctx(std::string_view name, SymbolSpan params) -> SymbolVector {
@@ -43,5 +41,3 @@ TEST_CASE("cxx-control") {
 }
 
 } // namespace Clingo::Test
-
-// NOLINTEND(readability-magic-numbers)

@@ -66,6 +66,7 @@ enum class ShowFlags : clingo_show_type_bitset_t {
     terms = clingo_show_type_terms,   //!< Select all terms.
     theory = clingo_show_type_theory, //!< Select symbols added by theory.
 };
+CLINGO_ENABLE_BITSET_ENUM(ShowFlags);
 
 class ConstModel {
   public:
