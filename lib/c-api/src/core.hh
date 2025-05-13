@@ -4,6 +4,8 @@
 
 #include <clingo/util/print.hh>
 
+namespace CppClingo::CAPI {
+
 inline static auto c_cast(CppClingo::Util::OutputBuffer *buf) -> clingo_string_builder_t * {
     // NOLINTNEXTLINE
     return reinterpret_cast<clingo_string_builder_t *>(buf);
@@ -23,3 +25,5 @@ inline static auto cpp_cast(clingo_string_builder_t *buf) -> CppClingo::Util::Ou
     // NOLINTNEXTLINE
     return reinterpret_cast<CppClingo::Util::OutputBuffer *>(buf);
 }
+
+} // namespace CppClingo::CAPI

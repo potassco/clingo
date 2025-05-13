@@ -24,11 +24,15 @@
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 
+using namespace CppClingo::CAPI;
+
+namespace CppClingo::CAPI {
 namespace {
 
 class ASTVec;
 
 }
+} // namespace CppClingo::CAPI
 
 struct clingo_ast {
   public:
@@ -63,6 +67,7 @@ struct clingo_ast {
     std::shared_ptr<void const> ptr_;
 };
 
+namespace CppClingo::CAPI {
 namespace {
 
 class ASTVec {
@@ -936,6 +941,7 @@ template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&..
 }
 
 } // namespace
+} // namespace CppClingo::CAPI
 
 template <class V>
 auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, CppClingo::Input::Projection const &> {

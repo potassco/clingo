@@ -7,9 +7,7 @@
 
 namespace CppClingo::CAPI {
 
-namespace {
-
-auto split(std::string_view const &source, char const *delimiter = " ") -> std::vector<std::string_view> {
+inline auto split(std::string_view const &source, char const *delimiter = " ") -> std::vector<std::string_view> {
     std::vector<std::string_view> results;
     size_t prev = 0;
     size_t next = 0;
@@ -24,8 +22,6 @@ auto split(std::string_view const &source, char const *delimiter = " ") -> std::
     }
     return results;
 }
-
-} // namespace
 
 class ClingoOptions {
   public:

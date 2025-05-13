@@ -13,6 +13,54 @@
 #include "lib.hh"
 #include "opts.hh"
 
+using namespace CppClingo::CAPI;
+
+namespace CppClingo::CAPI {
+namespace {
+
+class Context : public CppClingo::Ground::ScriptCallback {
+  public:
+    Context(clingo_lib_t *lib, clingo_ground_callback_t cb, void *data) : lib_{lib}, cb_{cb}, data_{data} {}
+
+  private:
+    auto do_callable([[maybe_unused]] std::string_view name, [[maybe_unused]] size_t args) -> bool override {
+        return true;
+    }
+
+    void do_call(CppClingo::Location const &loc, std::string_view name, CppClingo::SymbolSpan args,
+                 CppClingo::SymbolVec &out) override {
+        auto c_name = std::string{name};
+        handle_error(cb_(lib_, c_cast(&loc), c_name.data(), c_name.size(), c_cast(args.data()), args.size(), data_,
+                         &Context::sym_cb_, &out));
+    }
+
+    static auto sym_cb_(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> bool {
+        CLINGO_TRY {
+            auto *out = static_cast<CppClingo::SymbolVec *>(data);
+            auto const *it = cpp_cast(symbols);
+            out->insert(out->end(), it, std::next(it, static_cast<ssize_t>(symbols_size)));
+        }
+        CLINGO_CATCH;
+    }
+
+    clingo_lib_t *lib_;
+    clingo_ground_callback_t cb_;
+    void *data_;
+};
+
+auto c_cast(CppClingo::Input::ConstMap const *map) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_const_map_t const *>(map);
+}
+
+auto cpp_cast(clingo_const_map_t const *map) {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<CppClingo::Input::ConstMap const *>(map);
+}
+
+} // namespace
+} // namespace CppClingo::CAPI
+
 extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arguments, size_t size,
                                    clingo_control_t **control) -> bool {
     CLINGO_TRY {
@@ -118,40 +166,6 @@ extern "C" void clingo_control_interrupt(clingo_control_t *control) {
     control->slv->interrupt();
 }
 
-namespace {
-
-class Context : public CppClingo::Ground::ScriptCallback {
-  public:
-    Context(clingo_lib_t *lib, clingo_ground_callback_t cb, void *data) : lib_{lib}, cb_{cb}, data_{data} {}
-
-  private:
-    auto do_callable([[maybe_unused]] std::string_view name, [[maybe_unused]] size_t args) -> bool override {
-        return true;
-    }
-
-    void do_call(CppClingo::Location const &loc, std::string_view name, CppClingo::SymbolSpan args,
-                 CppClingo::SymbolVec &out) override {
-        auto c_name = std::string{name};
-        handle_error(cb_(lib_, c_cast(&loc), c_name.data(), c_name.size(), c_cast(args.data()), args.size(), data_,
-                         &Context::sym_cb_, &out));
-    }
-
-    static auto sym_cb_(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> bool {
-        CLINGO_TRY {
-            auto *out = static_cast<CppClingo::SymbolVec *>(data);
-            auto const *it = cpp_cast(symbols);
-            out->insert(out->end(), it, std::next(it, static_cast<ssize_t>(symbols_size)));
-        }
-        CLINGO_CATCH;
-    }
-
-    clingo_lib_t *lib_;
-    clingo_ground_callback_t cb_;
-    void *data_;
-};
-
-} // namespace
-
 extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t size,
                                       clingo_ground_callback_t ground_callback, void *data) -> bool {
     CLINGO_TRY {
@@ -213,16 +227,6 @@ extern "C" auto clingo_control_set_parts(clingo_control_t *control, clingo_part_
         }
     }
     CLINGO_CATCH;
-}
-
-auto c_cast(CppClingo::Input::ConstMap const *map) {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<clingo_const_map_t const *>(map);
-}
-
-auto cpp_cast(clingo_const_map_t const *map) {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<CppClingo::Input::ConstMap const *>(map);
 }
 
 extern "C" auto clingo_control_const_map(clingo_control_t *control, clingo_const_map_t const **map) -> bool {

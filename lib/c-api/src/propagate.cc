@@ -5,8 +5,11 @@
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
+using namespace CppClingo::CAPI;
+
 using PotasscoCheckMode = Potassco::PropagatorCheckMode;
 using PotasscoUndoMode = Potassco::PropagatorUndoMode;
+
 struct clingo_propagate_init {
     static_assert(static_cast<clingo_propagator_check_mode_t>(PotasscoCheckMode::fixpoint) ==
                   clingo_propagator_check_mode_fixpoint);
@@ -28,6 +31,7 @@ struct clingo_propagate_init {
     Potassco::AbstractPropagator::Init *init;
 };
 
+namespace CppClingo::CAPI {
 namespace {
 
 auto cpp_cast(clingo_assignment_t const *assignment) -> Potassco::AbstractAssignment const * {
@@ -120,6 +124,7 @@ class ClingoPropagator : public CppClingo::Control::Propagator {
 };
 
 } // namespace
+} // namespace CppClingo::CAPI
 
 extern "C" auto clingo_assignment_decision_level(clingo_assignment_t const *assignment, uint32_t *level) -> bool {
     CLINGO_TRY {

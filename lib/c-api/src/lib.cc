@@ -1,5 +1,8 @@
 #include "lib.hh"
 
+using namespace CppClingo::CAPI;
+
+namespace CppClingo::CAPI {
 namespace {
 
 class Error {
@@ -90,19 +93,6 @@ class Error {
 
 } // namespace
 
-extern "C" auto clingo_set_error(clingo_result_t code, char const *message, size_t size) -> bool {
-    Error::instance().set(code, message, size);
-    return false;
-}
-
-extern "C" void clingo_get_error(clingo_result_t *code, clingo_string_t *message) {
-    Error::instance().get(code, message);
-}
-
-extern "C" void clingo_clear_error(void) {
-    Error::instance().clear();
-}
-
 void handle_error_no_code(bool res) {
     if (!res) {
         raise_error();
@@ -126,4 +116,19 @@ void raise_error() {
 
 auto store_error() -> bool {
     return Error::instance().store();
+}
+
+} // namespace CppClingo::CAPI
+
+extern "C" auto clingo_set_error(clingo_result_t code, char const *message, size_t size) -> bool {
+    Error::instance().set(code, message, size);
+    return false;
+}
+
+extern "C" void clingo_get_error(clingo_result_t *code, clingo_string_t *message) {
+    Error::instance().get(code, message);
+}
+
+extern "C" void clingo_clear_error(void) {
+    Error::instance().clear();
 }

@@ -3,6 +3,9 @@
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
+using namespace CppClingo::CAPI;
+
+namespace CppClingo::CAPI {
 namespace {
 
 class CScript : public CppClingo::Control::Script {
@@ -59,6 +62,7 @@ class CScript : public CppClingo::Control::Script {
 };
 
 } // namespace
+} // namespace CppClingo::CAPI
 
 extern "C" auto clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script, void *data) -> bool {
     CLINGO_TRY {

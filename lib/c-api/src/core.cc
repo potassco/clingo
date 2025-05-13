@@ -6,6 +6,8 @@
 #include <cstring>
 #include <mutex>
 
+using namespace CppClingo::CAPI;
+
 extern "C" void clingo_version(int *major, int *minor, int *revision) {
     *major = CLINGO_VERSION_MAJOR;
     *minor = CLINGO_VERSION_MINOR;

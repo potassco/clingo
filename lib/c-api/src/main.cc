@@ -15,6 +15,9 @@
 #include <forward_list>
 #include <utility>
 
+using namespace CppClingo::CAPI;
+
+namespace CppClingo::CAPI {
 namespace {
 
 using namespace CppClingo::Input;
@@ -264,6 +267,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 };
 
 } // namespace
+} // namespace CppClingo::CAPI
 
 extern "C" auto clingo_options_add(clingo_options_t *options, char const *group, size_t group_size, char const *option,
                                    size_t option_size, char const *description, size_t description_size,

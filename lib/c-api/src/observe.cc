@@ -10,6 +10,9 @@
 
 #include <fstream>
 
+using namespace CppClingo::CAPI;
+
+namespace CppClingo::CAPI {
 namespace {
 
 auto map(Potassco::WeightLitSpan lits) -> clingo_weighted_literal_t * {
@@ -155,30 +158,6 @@ class Observer : public Potassco::AbstractProgram {
     void *data_;
 };
 
-} // namespace
-
-extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observer_t const *observer, void *data,
-                                       bool preprocess) -> bool {
-    CLINGO_TRY {
-        if (control == nullptr || observer == nullptr) {
-            return fail_arguments();
-        }
-        // NOLINTNEXTLINE
-        auto &prg = const_cast<Clasp::Asp::LogicProgram &>(control->slv->clasp_program());
-        if (preprocess) {
-            prg.endProgram();
-        }
-
-        // NOLINTNEXTLINE
-        auto const &base = reinterpret_cast<clingo_base_t const &>(*control->slv);
-        Observer obs{base, *observer, data};
-        prg.accept(obs, true);
-    }
-    CLINGO_CATCH;
-}
-
-namespace {
-
 class ExtendedAspifWriter : public Potassco::AspifOutput {
   public:
     ExtendedAspifWriter(CppClingo::Control::SymbolTable &sym_tab, CppClingo::Control::BaseView &view, std::ostream &out)
@@ -213,6 +192,27 @@ class ExtendedAspifWriter : public Potassco::AspifOutput {
 };
 
 } // namespace
+} // namespace CppClingo::CAPI
+
+extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observer_t const *observer, void *data,
+                                       bool preprocess) -> bool {
+    CLINGO_TRY {
+        if (control == nullptr || observer == nullptr) {
+            return fail_arguments();
+        }
+        // NOLINTNEXTLINE
+        auto &prg = const_cast<Clasp::Asp::LogicProgram &>(control->slv->clasp_program());
+        if (preprocess) {
+            prg.endProgram();
+        }
+
+        // NOLINTNEXTLINE
+        auto const &base = reinterpret_cast<clingo_base_t const &>(*control->slv);
+        Observer obs{base, *observer, data};
+        prg.accept(obs, true);
+    }
+    CLINGO_CATCH;
+}
 
 extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const *path, size_t size,
                                            clingo_write_aspif_mode_t mode) -> bool {

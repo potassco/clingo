@@ -8,6 +8,11 @@
 #include "core.hh"
 #include "lib.hh"
 
+using namespace CppClingo::CAPI;
+
+namespace CppClingo::CAPI {
+namespace {
+
 auto cpp_cast(clingo_base_t const *base) {
     // NOLINTNEXTLINE
     return reinterpret_cast<CppClingo::Control::BaseView const *>(base);
@@ -43,6 +48,107 @@ auto get_theory(clingo_theory_base_t const *theory) -> Potassco::TheoryData cons
 auto get_program(clingo_theory_base_t const *theory) -> Clasp::Asp::LogicProgram const & {
     return cpp_cast(theory)->clasp_program();
 }
+
+[[nodiscard]] auto element_condition(clingo_theory_base_t const *theory, clingo_id_t id)
+    -> std::span<clingo_literal_t const> {
+    static thread_local auto cond = Potassco::LitVec{};
+    cond.clear();
+    get_program(theory).extractCondition(get_theory(theory).getElement(id).condition(), cond);
+    return cond;
+}
+
+[[nodiscard]] auto get_atom(clingo_theory_base_t const *theory, clingo_id_t id) -> Potassco::TheoryAtom const & {
+    auto atoms = get_theory(theory).atoms();
+    return id < atoms.size() ? *atoms[id] : throw std::range_error("atom index out of range");
+}
+
+class TheoryPrinter {
+  public:
+    TheoryPrinter(clingo_theory_base_t const *theory, clingo_string_builder_t *builder)
+        : theory_{theory}, out_{CAPI::cpp_cast(builder)} {}
+
+    void term(clingo_id_t id) const {
+        auto x = data_().getTerm(id);
+        switch (x.type()) {
+            case Potassco::TheoryTermType::number: {
+                *out_ << x.number();
+                break;
+            }
+            case Potassco::TheoryTermType::symbol: {
+                *out_ << x.symbol();
+                break;
+            }
+            case Potassco::TheoryTermType::compound: {
+                using CppClingo::Util::p_range;
+                auto args = x.terms();
+                if (x.isFunction()) {
+                    auto const *name = data_().getTerm(x.function()).symbol();
+                    if (CppClingo::Input::is_theory_operator(name)) {
+                        assert(!args.empty() && args.size() <= 2);
+                        *out_ << "(";
+                        if (args.size() >= 2) {
+                            term(args.front());
+                        }
+                        *out_ << name;
+                        if (!args.empty()) {
+                            term(args.back());
+                        }
+                        *out_ << ")";
+                        break;
+                    }
+                    *out_ << name;
+                }
+                auto p = Potassco::parens(x.isFunction() ? Potassco::TupleType::paren : x.tuple());
+                *out_ << p[0] << p_range(args, [this]([[maybe_unused]] auto &out, auto const &y) { term(y); }) << p[1];
+                break;
+            }
+        }
+    }
+    void elem(clingo_id_t id) const {
+        using CppClingo::Util::p_range;
+        auto const &x = data_().getElement(id);
+        *out_ << p_range(x.terms(), [this]([[maybe_unused]] auto &out, auto const &y) { term(y); });
+        auto cond = element_condition(theory_, id);
+        if (!cond.empty()) {
+            *out_ << ": " << p_range(cond, ", ", [](auto &out, auto const &y) {
+                // NOTE: the previous clingo version made more effort here
+                // a straight-forward implementation would have to loop over the atom base
+                out << "<literal: " << y << ">";
+            });
+        }
+    }
+
+    void atom(clingo_id_t id) const {
+        auto const &atom = get_atom(theory_, id);
+        *out_ << "&";
+        term(atom.term());
+        *out_ << " {";
+        char const *sep = " ";
+        for (auto const &x : atom.elements()) {
+            *out_ << sep;
+            sep = "; ";
+            elem(x);
+        }
+        *out_ << " }";
+        if (auto const *guard = atom.guard(); guard != nullptr) {
+            *out_ << " ";
+            term(*guard);
+        }
+        if (auto const *rhs = atom.rhs(); rhs != nullptr) {
+            *out_ << " ";
+            term(*rhs);
+        }
+    }
+
+    [[nodiscard]] auto data_() const -> Potassco::TheoryData const & { return get_theory(theory_); }
+
+  private:
+    clingo_theory_base_t const *theory_;
+    CppClingo::Util::OutputBuffer *out_;
+};
+
+} // namespace
+} // namespace CppClingo::CAPI
 
 extern "C" auto clingo_base_atoms_size(clingo_base_t const *base, size_t *size) -> bool {
     CLINGO_TRY {
@@ -368,108 +474,6 @@ extern "C" auto clingo_theory_base_term_arguments(clingo_theory_base_t const *th
     }
     CLINGO_CATCH;
 }
-
-namespace {
-
-[[nodiscard]] auto element_condition(clingo_theory_base_t const *theory, clingo_id_t id)
-    -> std::span<clingo_literal_t const> {
-    static thread_local auto cond = Potassco::LitVec{};
-    cond.clear();
-    get_program(theory).extractCondition(get_theory(theory).getElement(id).condition(), cond);
-    return cond;
-}
-
-[[nodiscard]] auto get_atom(clingo_theory_base_t const *theory, clingo_id_t id) -> Potassco::TheoryAtom const & {
-    auto atoms = get_theory(theory).atoms();
-    return id < atoms.size() ? *atoms[id] : throw std::range_error("atom index out of range");
-}
-
-class TheoryPrinter {
-  public:
-    TheoryPrinter(clingo_theory_base_t const *theory, clingo_string_builder_t *builder)
-        : theory_{theory}, out_{cpp_cast(builder)} {}
-
-    void term(clingo_id_t id) const {
-        auto x = data_().getTerm(id);
-        switch (x.type()) {
-            case Potassco::TheoryTermType::number: {
-                *out_ << x.number();
-                break;
-            }
-            case Potassco::TheoryTermType::symbol: {
-                *out_ << x.symbol();
-                break;
-            }
-            case Potassco::TheoryTermType::compound: {
-                using CppClingo::Util::p_range;
-                auto args = x.terms();
-                if (x.isFunction()) {
-                    auto const *name = data_().getTerm(x.function()).symbol();
-                    if (CppClingo::Input::is_theory_operator(name)) {
-                        assert(!args.empty() && args.size() <= 2);
-                        *out_ << "(";
-                        if (args.size() >= 2) {
-                            term(args.front());
-                        }
-                        *out_ << name;
-                        if (!args.empty()) {
-                            term(args.back());
-                        }
-                        *out_ << ")";
-                        break;
-                    }
-                    *out_ << name;
-                }
-                auto p = Potassco::parens(x.isFunction() ? Potassco::TupleType::paren : x.tuple());
-                *out_ << p[0] << p_range(args, [this]([[maybe_unused]] auto &out, auto const &y) { term(y); }) << p[1];
-                break;
-            }
-        }
-    }
-    void elem(clingo_id_t id) const {
-        using CppClingo::Util::p_range;
-        auto const &x = data_().getElement(id);
-        *out_ << p_range(x.terms(), [this]([[maybe_unused]] auto &out, auto const &y) { term(y); });
-        auto cond = element_condition(theory_, id);
-        if (!cond.empty()) {
-            *out_ << ": " << p_range(cond, ", ", [](auto &out, auto const &y) {
-                // NOTE: the previous clingo version made more effort here
-                // a straight-forward implementation would have to loop over the atom base
-                out << "<literal: " << y << ">";
-            });
-        }
-    }
-
-    void atom(clingo_id_t id) const {
-        auto const &atom = get_atom(theory_, id);
-        *out_ << "&";
-        term(atom.term());
-        *out_ << " {";
-        char const *sep = " ";
-        for (auto const &x : atom.elements()) {
-            *out_ << sep;
-            sep = "; ";
-            elem(x);
-        }
-        *out_ << " }";
-        if (auto const *guard = atom.guard(); guard != nullptr) {
-            *out_ << " ";
-            term(*guard);
-        }
-        if (auto const *rhs = atom.rhs(); rhs != nullptr) {
-            *out_ << " ";
-            term(*rhs);
-        }
-    }
-
-    [[nodiscard]] auto data_() const -> Potassco::TheoryData const & { return get_theory(theory_); }
-
-  private:
-    clingo_theory_base_t const *theory_;
-    CppClingo::Util::OutputBuffer *out_;
-};
-
-} // namespace
 
 extern "C" auto clingo_theory_base_term_to_string(clingo_theory_base_t const *theory, clingo_id_t term,
                                                   clingo_string_builder_t *builder) -> bool {

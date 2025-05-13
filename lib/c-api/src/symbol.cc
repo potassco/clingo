@@ -5,6 +5,8 @@
 
 #include <clingo/input/rewrite/evaluate.hh>
 
+using namespace CppClingo::CAPI;
+
 extern "C" void clingo_symbol_acquire(clingo_symbol_t symbol) {
     CppClingo::Symbol::from_rep(symbol).acquire();
 }

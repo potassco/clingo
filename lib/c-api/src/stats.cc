@@ -3,6 +3,11 @@
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
+using namespace CppClingo::CAPI;
+
+namespace CppClingo::CAPI {
+namespace {
+
 inline auto cpp_cast(clingo_stats_t const *config) -> Potassco::AbstractStatistics const * {
     // NOLINTNEXTLINE
     return reinterpret_cast<Potassco::AbstractStatistics const *>(config);
@@ -11,11 +16,6 @@ inline auto cpp_cast(clingo_stats_t const *config) -> Potassco::AbstractStatisti
 inline auto cpp_cast(clingo_stats_t *config) -> Potassco::AbstractStatistics * {
     // NOLINTNEXTLINE
     return reinterpret_cast<Potassco::AbstractStatistics *>(config);
-}
-
-inline auto c_cast(Potassco::AbstractStatistics *config) -> clingo_stats_t * {
-    // NOLINTNEXTLINE
-    return reinterpret_cast<clingo_stats_t *>(config);
 }
 
 inline auto c_cast(Potassco::AbstractStatistics const *config) -> clingo_stats_t const * {
@@ -54,6 +54,9 @@ inline auto c_cast(Potassco::StatisticsType type) -> clingo_stats_type_e {
         }
     }
 }
+
+} // namespace
+} // namespace CppClingo::CAPI
 
 extern "C" auto clingo_stats_root(clingo_stats_t const *stats, uint64_t *key) -> bool {
     CLINGO_TRY {

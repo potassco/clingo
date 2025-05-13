@@ -4,6 +4,11 @@
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
+using namespace CppClingo::CAPI;
+
+namespace CppClingo::CAPI {
+namespace {
+
 auto c_cast(CppClingo::Control::Model const *model) -> clingo_model_t const * {
     return reinterpret_cast<clingo_model_t const *>(model); // NOLINT
 }
@@ -18,6 +23,42 @@ auto cpp_cast(clingo_solve_handle_t *hnd, bool not_null = true) -> CppClingo::Co
     }
     return reinterpret_cast<CppClingo::Control::SolveHandle *>(hnd); // NOLINT
 }
+
+class SolveEventHandler : public CppClingo::Control::EventHandler {
+  public:
+    SolveEventHandler(clingo_solve_event_callback_t notify, void *data) : notify_{notify}, data_{data} {}
+
+    auto do_on_model(CppClingo::Control::Model &m) -> bool override {
+        bool goon = true;
+        handle_error(notify_(clingo_solve_event_type_model, &m, data_, &goon));
+        return goon;
+    }
+
+    void do_on_stats(Potassco::AbstractStatistics &stats) override {
+        bool goon = true;
+        handle_error(notify_(clingo_solve_event_type_stats, &stats, data_, &goon));
+    }
+    void do_on_unsat(Clasp::SumView bound) override {
+        bool goon = true;
+        struct res {
+            int64_t const *data;
+            size_t size;
+        } res{bound.data(), bound.size()};
+        handle_error(notify_(clingo_solve_event_type_unsat, &res, data_, &goon));
+    }
+    void do_on_finish(CppClingo::Control::SolveResult res) override {
+        bool goon = true;
+        auto data = static_cast<clingo_solve_result_bitset_t>(res);
+        handle_error(notify_(clingo_solve_event_type_finish, &data, data_, &goon));
+    }
+
+  private:
+    clingo_solve_event_callback_t notify_;
+    void *data_;
+};
+
+} // namespace
+} // namespace CppClingo::CAPI
 
 extern "C" auto clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result) -> bool {
     CLINGO_TRY {
@@ -81,43 +122,6 @@ extern "C" auto clingo_solve_handle_close(clingo_solve_handle_t *handle) -> bool
     }
     CLINGO_CATCH;
 }
-
-namespace {
-
-class SolveEventHandler : public CppClingo::Control::EventHandler {
-  public:
-    SolveEventHandler(clingo_solve_event_callback_t notify, void *data) : notify_{notify}, data_{data} {}
-
-    auto do_on_model(CppClingo::Control::Model &m) -> bool override {
-        bool goon = true;
-        handle_error(notify_(clingo_solve_event_type_model, &m, data_, &goon));
-        return goon;
-    }
-
-    void do_on_stats(Potassco::AbstractStatistics &stats) override {
-        bool goon = true;
-        handle_error(notify_(clingo_solve_event_type_stats, &stats, data_, &goon));
-    }
-    void do_on_unsat(Clasp::SumView bound) override {
-        bool goon = true;
-        struct res {
-            int64_t const *data;
-            size_t size;
-        } res{bound.data(), bound.size()};
-        handle_error(notify_(clingo_solve_event_type_unsat, &res, data_, &goon));
-    }
-    void do_on_finish(CppClingo::Control::SolveResult res) override {
-        bool goon = true;
-        auto data = static_cast<clingo_solve_result_bitset_t>(res);
-        handle_error(notify_(clingo_solve_event_type_finish, &data, data_, &goon));
-    }
-
-  private:
-    clingo_solve_event_callback_t notify_;
-    void *data_;
-};
-
-} // namespace
 
 extern "C" auto clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode,
                                      clingo_literal_t const *assumptions, size_t assumptions_size,

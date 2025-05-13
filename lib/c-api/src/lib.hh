@@ -21,6 +21,8 @@ struct clingo_lib {
     bool fast_release;
 };
 
+namespace CppClingo::CAPI {
+
 static constexpr auto c_cast(std::strong_ordering cmp) noexcept -> int {
     // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     return (cmp < 0) ? -1 : ((cmp == 0) ? 0 : 1);
@@ -95,3 +97,5 @@ template <typename In, typename C, typename Pred> auto append_n(In begin, size_t
     return true
 
 // NOLINTEND(cppcoreguidelines-macro-usage)
+
+} // namespace CppClingo::CAPI

@@ -5,6 +5,8 @@
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"
 
+namespace CppClingo::CAPI {
+
 namespace {
 
 auto cpp_cast(clingo_backend_t *backend) {
@@ -82,6 +84,10 @@ auto map(clingo_theory_sequence_type_e type) -> CppClingo::TheoryTermTupleType {
 }
 
 } // namespace
+
+} // namespace CppClingo::CAPI
+
+using namespace CppClingo::CAPI;
 
 extern "C" auto clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend) -> bool {
     CLINGO_TRY {

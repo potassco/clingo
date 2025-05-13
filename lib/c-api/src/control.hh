@@ -60,6 +60,8 @@ struct clingo_control {
     bool own = false;
 };
 
+namespace CppClingo::CAPI {
+
 inline auto convert(CppClingo::Input::ProgramParamVec const &parts) -> std::vector<clingo_part_t> {
     return CppClingo::Util::transform(parts, [](auto const &part) {
         return clingo_part_t{part.first->data(), part.first->size(), c_cast(part.second.data()), part.second.size()};
@@ -84,3 +86,5 @@ inline auto convert(clingo_control_t *control, clingo_part_t const *parts, size_
     };
     return CppClingo::Util::transform(parts, parts + parts_size, make_parts);
 }
+
+} // namespace CppClingo::CAPI

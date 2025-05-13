@@ -4,6 +4,11 @@
 
 #include "lib.hh"
 
+using namespace CppClingo::CAPI;
+
+namespace CppClingo::CAPI {
+namespace {
+
 auto cpp_cast(clingo_model_t *model) -> CppClingo::Control::Model * {
     // NOLINTNEXTLINE
     return reinterpret_cast<CppClingo::Control::Model *>(model);
@@ -29,18 +34,23 @@ auto c_cast(CppClingo::Control::SolveControl *control) -> clingo_solve_control_t
     return reinterpret_cast<clingo_solve_control_t *>(control);
 }
 
+} // namespace
+} // namespace CppClingo::CAPI
+
 extern "C" auto clingo_model_type(clingo_model_t const *model, clingo_model_type_t *type) -> bool {
     CLINGO_TRY {
         *type = static_cast<clingo_model_type_t>(cpp_cast(model)->type());
     }
     CLINGO_CATCH;
 }
+
 extern "C" auto clingo_model_number(clingo_model_t const *model, uint64_t *number) -> bool {
     CLINGO_TRY {
         *number = cpp_cast(model)->number();
     }
     CLINGO_CATCH;
 }
+
 extern "C" auto clingo_model_symbols(clingo_model_t const *model, clingo_show_type_bitset_t show,
                                      clingo_symbol_callback_t callback, void *data) -> bool {
     CLINGO_TRY {
