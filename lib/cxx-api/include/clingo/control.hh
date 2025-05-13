@@ -158,6 +158,10 @@ class Control {
             clingo_control_ground(ctl_.get(), c_parts.data(), c_parts.size(), ctx ? &ctx_ : nullptr, &ctx));
     }
 
+    void ground(std::initializer_list<Part> parts, Context ctx = nullptr) const {
+        ground(PartSpan{parts}, std::move(ctx));
+    }
+
     [[nodiscard]] auto base() const -> Base { return Base{Detail::call<clingo_control_base>(ctl_.get())}; }
 
     [[nodiscard]] auto stats() const -> ConstStats {

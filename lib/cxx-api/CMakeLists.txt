@@ -11,6 +11,7 @@ if(PARSER_BUILD_TESTS)
         "tests/base.cc"
         "tests/control.cc"
         "tests/symbol.cc"
+        "tests/solve.cc"
     )
     clingo_target_properties(test_cxx-api test/cxx-api tests)
     target_include_directories(test_cxx-api PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
