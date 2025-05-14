@@ -124,34 +124,6 @@ void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
         clingo_control_ground(get(), parts->data(), parts->size(), !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
 }
 
-/*
-auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> bool {
-    auto *eh = static_cast<SolveHandle *>(data);
-    CLINGO_TRY {
-        if (eh->mdl_ && type == clingo_solve_event_type_model) {
-            auto mdl = Model{static_cast<clingo_model_t *>(event)};
-            auto ret = (*eh->mdl_)(mdl);
-            *goon = ret ? *ret : true;
-        }
-        if (eh->stats_ && type == clingo_solve_event_type_stats) {
-            auto *c_stats = static_cast<clingo_stats_t *>(event);
-            uint64_t root = 0;
-            handle_error(clingo_stats_root(c_stats, &root));
-            uint64_t step = 0;
-            std::string_view user_step = "user_step";
-            std::string_view user_accu = "user_accu";
-            handle_error(clingo_stats_map_add_subkey(c_stats, root, user_step.data(), user_step.size(),
-                                                     clingo_stats_type_map, &step));
-            uint64_t accu = 0;
-            handle_error(clingo_stats_map_add_subkey(c_stats, root, user_accu.data(), user_accu.size(),
-                                                     clingo_stats_type_map, &accu));
-            (*eh->stats_)(Stats{c_stats, step}, Stats{c_stats, accu});
-        }
-    }
-    CLINGO_CATCH;
-}
-*/
-
 auto Control::base() -> Base {
     clingo_base_t const *base = nullptr;
     clingo_control_base(get(), &base);
@@ -210,7 +182,7 @@ auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<Mo
         mode |= clingo_solve_mode_async;
     }
     auto c_event_handler = clingo_solve_event_handler_t{
-        hnd->mdl_ ? [](clingo_model_t *model, void *data, bool *goon) {
+        hnd->mdl_ ? +[](clingo_model_t *model, void *data, bool *goon) {
             CLINGO_TRY {
                 auto guard = py::gil_scoped_acquire{};
                 auto *hnd = static_cast<SolveHandle *>(data);
@@ -220,7 +192,7 @@ auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<Mo
             }
             CLINGO_CATCH;
         } : nullptr,
-        hnd->unsat_ ? [](int64_t const *values, size_t size, void *data) -> bool {
+        hnd->unsat_ ? +[](int64_t const *values, size_t size, void *data) -> bool {
             CLINGO_TRY {
                 auto guard = py::gil_scoped_acquire{};
                 auto *hnd = static_cast<SolveHandle *>(data);
@@ -230,7 +202,7 @@ auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<Mo
             CLINGO_CATCH;
 
         } : nullptr,
-        hnd->stats_ ? [](clingo_stats_t *stats, void *data) -> bool {
+        hnd->stats_ ? +[](clingo_stats_t *stats, void *data) -> bool {
             CLINGO_TRY {
                 auto guard = py::gil_scoped_acquire{};
                 auto *hnd = static_cast<SolveHandle *>(data);
@@ -248,7 +220,7 @@ auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<Mo
             }
             CLINGO_CATCH;
         } : nullptr,
-        hnd->finish_ ? [](clingo_solve_result_bitset_t result, void *data) -> void {
+        hnd->finish_ ? +[](clingo_solve_result_bitset_t result, void *data) -> void {
             try {
                 auto guard = py::gil_scoped_acquire{};
                 auto *hnd = static_cast<SolveHandle *>(data);

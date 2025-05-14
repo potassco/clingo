@@ -1,5 +1,6 @@
 #include <clingo/app.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <span>
