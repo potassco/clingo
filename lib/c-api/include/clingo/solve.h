@@ -1,6 +1,7 @@
 #ifndef CLINGO_SOLVE_H
 #define CLINGO_SOLVE_H
 
+#include "clingo/stats.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -67,34 +68,13 @@ enum clingo_solve_mode_e {
 //! Corresponding type to ::clingo_solve_mode_e.
 typedef unsigned clingo_solve_mode_bitset_t;
 
-//! Enumeration of solve events.
-enum clingo_solve_event_type_e {
-    clingo_solve_event_type_model = 0,  //!< Issued if a model is found.
-    clingo_solve_event_type_unsat = 1,  //!< Issued if an optimization problem is found unsatisfiable.
-    clingo_solve_event_type_stats = 2,  //!< Issued when the stats can be updated.
-    clingo_solve_event_type_finish = 3, //!< Issued if the search has completed.
-};
-//! Corresponding type to ::clingo_solve_event_type_e.
-typedef unsigned clingo_solve_event_type_t;
-
-//! Callback function called during search to notify when the search is finished or a model is ready.
-//!
-//! If a (non-recoverable) clingo API function fails in this callback, it must return false.
-//! In case of errors not related to clingo, set error code ::clingo_result_unknown and return false to stop solving
-//! with an error.
-//!
-//! The event is either a pointer to a model, a pointer to an int64_t* and a size_t, a pointer to two stats objects
-//! (per step and accumulated stats), or a solve result.
-//!
-//! @attention If the search is finished, the model is NULL.
-//!
-//! @param[in] event the current event.
-//! @param[in] data user data of the callback
-//! @param[out] goon can be set to false to stop solving
-//! @return wether the call was successful
-//!
-//! @see clingo_control_solve()
-typedef bool (*clingo_solve_event_callback_t)(clingo_solve_event_type_t type, void *event, void *data, bool *goon);
+typedef struct clingo_solve_event_handler {
+    bool (*model)(clingo_model_t *model, void *data, bool *goon);
+    bool (*unsat)(int64_t const *values, size_t size, void *data);
+    bool (*stats)(clingo_stats_t *stats, void *data);
+    void (*finish)(clingo_solve_result_bitset_t result, void *data);
+    void (*free)(void *data);
+} clingo_solve_event_handler_t;
 
 //! Search handle to a solve call.
 //!
@@ -178,13 +158,13 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *
 //! @param[in] mode configures the search mode
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
-//! @param[in] notify the event handler to register
+//! @param[in] handler the event handler to register
 //! @param[in] data the user data for the event handler
 //! @param[out] handle handle to the current search to enumerate models
 //! @return wether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode,
                                                     clingo_literal_t const *assumptions, size_t assumptions_size,
-                                                    clingo_solve_event_callback_t notify, void *data,
+                                                    clingo_solve_event_handler_t const *handler, void *data,
                                                     clingo_solve_handle_t **handle);
 
 //! @}

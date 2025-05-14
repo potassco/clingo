@@ -94,14 +94,14 @@ class SolveHandle {
     void close();
 
     auto handle() -> clingo_solve_handle_t *& { return hnd_; }
-    static auto c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> bool;
 
   private:
+    friend class Control;
+
     clingo_solve_handle_t *hnd_ = nullptr;
     std::optional<ModelCallback> mdl_;
     std::optional<StatsCallback> stats_;
 };
-using SSolveHandle = std::shared_ptr<SolveHandle>;
 
 void register_solve(pybind11::module &m);
 

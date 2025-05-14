@@ -48,7 +48,7 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     void join(Program &prg);
     void ground(std::optional<PartSpan> parts, py::handle ctx);
     auto solve(MixedLitSpan const &assumptions, std::optional<ModelCallback> on_model,
-               std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle;
+               std::optional<StatsCallback> on_stats, bool yield, bool async) -> std::unique_ptr<SolveHandle>;
     auto base() -> Base;
     void observe(Observer &obs, bool preprocess);
     auto backend() -> BackendManager;

@@ -171,13 +171,13 @@ class SolveEventHandler {
     auto model(Model &model) -> bool { return do_model(model); }
     void unsat(SumSpan lower_bound) { do_unsat(lower_bound); }
     void stats(Stats step, Stats accu) { do_stats(step, accu); }
-    void finish(SolveResult result) { do_finish(result); }
+    void finish(SolveResult result) noexcept { do_finish(result); }
 
   private:
     virtual auto do_model([[maybe_unused]] Model &model) -> bool { return true; }
     virtual void do_unsat([[maybe_unused]] SumSpan lower_bound) {}
     virtual void do_stats([[maybe_unused]] Stats step, [[maybe_unused]] Stats accu) {}
-    virtual void do_finish([[maybe_unused]] SolveResult result) {}
+    virtual void do_finish([[maybe_unused]] SolveResult result) noexcept {}
 };
 
 class SolveHandle {
@@ -230,39 +230,39 @@ class SolveHandle {
     using reference = iterator::reference;
     using pointer = iterator::pointer;
 
-    explicit SolveHandle(SolveEventHandler *seh = nullptr) : data_{std::make_unique<Data>(seh)} {}
+    explicit SolveHandle(clingo_solve_handle_t *hnd) : hnd_{hnd} {}
 
-    friend auto c_cast(SolveHandle const &x) -> clingo_solve_handle_t * { return x.data_->hnd; }
+    friend auto c_cast(SolveHandle const &x) -> clingo_solve_handle_t * { return x.hnd_.get(); }
 
     [[nodiscard]] auto get() const -> SolveResult {
-        return SolveResult{Detail::call<clingo_solve_handle_get>(data_->hnd)};
+        return SolveResult{Detail::call<clingo_solve_handle_get>(hnd_.get())};
     }
 
-    void cancel() { Detail::handle_error(clingo_solve_handle_cancel(data_->hnd)); }
+    void cancel() { Detail::handle_error(clingo_solve_handle_cancel(hnd_.get())); }
 
-    void close() { data_->close(); }
+    void close() { Detail::handle_error(clingo_solve_handle_close(hnd_.release())); }
 
-    void resume() { Detail::handle_error(clingo_solve_handle_resume(data_->hnd)); }
+    void resume() { Detail::handle_error(clingo_solve_handle_resume(hnd_.get())); }
 
     [[nodiscard]] auto model() -> std::optional<ConstModel> {
-        clingo_model_t const *mdl = Detail::call<clingo_solve_handle_model>(data_->hnd);
+        clingo_model_t const *mdl = Detail::call<clingo_solve_handle_model>(hnd_.get());
         return mdl != nullptr ? std::make_optional<ConstModel>(mdl) : std::nullopt;
     }
 
     [[nodiscard]] auto last() const -> std::optional<ConstModel> {
-        clingo_model_t const *mdl = Detail::call<clingo_solve_handle_last>(data_->hnd);
+        clingo_model_t const *mdl = Detail::call<clingo_solve_handle_last>(hnd_.get());
         return mdl != nullptr ? std::make_optional<ConstModel>(mdl) : std::nullopt;
     }
 
     [[nodiscard]] auto core() const -> ProgramLiteralSpan {
         auto const *lits = static_cast<clingo_literal_t *>(nullptr);
         auto size = size_t{0};
-        Detail::handle_error(clingo_solve_handle_core(data_->hnd, &lits, &size));
+        Detail::handle_error(clingo_solve_handle_core(hnd_.get(), &lits, &size));
         return {lits, size};
     }
 
     [[nodiscard]] auto wait(std::optional<double> timeout) -> bool {
-        return Detail::call<clingo_solve_handle_wait>(data_->hnd, timeout ? *timeout : -1);
+        return Detail::call<clingo_solve_handle_wait>(hnd_.get(), timeout ? *timeout : -1);
     }
 
     [[nodiscard]] auto begin() -> iterator { return iterator{*this}; }
@@ -274,73 +274,71 @@ class SolveHandle {
   private:
     friend class Control;
 
-    struct Data {
-        Data(SolveEventHandler *seh) : seh{seh} {
+    struct Free {
+        Free() {
             // NOTE: We assume that solve is only called during normal
             // operation - not during exception handling.
             assert(std::uncaught_exceptions() == 0);
         }
-        ~Data() noexcept(false) {
+        void operator()(clingo_solve_handle_t *hnd) const noexcept(false) {
             try {
                 // NOTE: currently the solve handle calls cancel and then
                 // deletes clasp's underlying solve handle. I am not sure
                 // whether this can actually throw or not.
-                close();
+                Detail::handle_error(clingo_solve_handle_close(hnd));
             } catch (...) {
                 if (std::uncaught_exceptions() == 1) {
                     throw;
                 }
             }
         }
-        void close() { Detail::handle_error(clingo_solve_handle_close(std::exchange(hnd, nullptr))); }
-
-        SolveEventHandler *seh;
-        clingo_solve_handle_t *hnd = nullptr;
     };
 
-    static auto c_event_handler_(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> bool {
-        auto *hnd = static_cast<Data *>(data);
-        assert(hnd != nullptr && hnd->seh);
-        CLINGO_TRY {
-            switch (static_cast<clingo_solve_event_type_e>(type)) {
-                case clingo_solve_event_type_model: {
-                    auto mdl = Model{static_cast<clingo_model_t *>(event)};
-                    *goon = hnd->seh->model(mdl);
-                    break;
-                }
-                case clingo_solve_event_type_stats: {
-                    auto *c_stats = static_cast<clingo_stats_t *>(event);
-                    std::string_view user_step = "user_step";
-                    std::string_view user_accu = "user_accu";
-                    uint64_t root = Detail::call<clingo_stats_root>(c_stats);
-                    uint64_t step = Detail::call<clingo_stats_map_add_subkey>(c_stats, root, user_step.data(),
-                                                                              user_step.size(), clingo_stats_type_map);
-                    uint64_t accu = Detail::call<clingo_stats_map_add_subkey>(c_stats, root, user_accu.data(),
-                                                                              user_accu.size(), clingo_stats_type_map);
-                    hnd->seh->stats(Stats{c_stats, step}, Stats{c_stats, accu});
-                    break;
-                }
-                case clingo_solve_event_type_finish: {
-                    auto res = *static_cast<SolveResult *>(data);
-                    hnd->seh->finish(res);
-                    break;
-                }
-                case clingo_solve_event_type_unsat: {
-                    struct res {
-                        int64_t const *data;
-                        size_t size;
-                    } *res = static_cast<struct res *>(data);
-                    hnd->seh->unsat({res->data, res->size});
-                    break;
-                }
-            }
-        }
-        CLINGO_CATCH;
-    }
-
-    std::unique_ptr<Data> data_;
+    std::unique_ptr<clingo_solve_handle_t, Free> hnd_;
 };
 static_assert(std::input_iterator<SolveHandle::iterator>);
 static_assert(std::sentinel_for<SolveHandle::sentinel, SolveHandle::iterator>);
+
+static constexpr clingo_solve_event_handler_t c_event_handler{
+    [](clingo_model_t *model, void *data, bool *goon) -> bool {
+        CLINGO_TRY {
+            auto *hnd = static_cast<SolveEventHandler *>(data);
+            assert(hnd != nullptr);
+            auto mdl = Model{model};
+            *goon = hnd->model(mdl);
+            return true;
+        }
+        CLINGO_CATCH;
+    },
+    [](int64_t const *values, size_t size, void *data) -> bool {
+        CLINGO_TRY {
+            auto *hnd = static_cast<SolveEventHandler *>(data);
+            assert(hnd != nullptr);
+            hnd->unsat({values, size});
+        }
+        CLINGO_CATCH;
+    },
+    [](clingo_stats_t *stats, void *data) -> bool {
+        CLINGO_TRY {
+            auto *hnd = static_cast<SolveEventHandler *>(data);
+            assert(hnd != nullptr);
+            std::string_view user_step = "user_step";
+            std::string_view user_accu = "user_accu";
+            uint64_t root = Detail::call<clingo_stats_root>(stats);
+            uint64_t step = Detail::call<clingo_stats_map_add_subkey>(stats, root, user_step.data(), user_step.size(),
+                                                                      clingo_stats_type_map);
+            uint64_t accu = Detail::call<clingo_stats_map_add_subkey>(stats, root, user_accu.data(), user_accu.size(),
+                                                                      clingo_stats_type_map);
+            hnd->stats(Stats{stats, step}, Stats{stats, accu});
+        }
+        CLINGO_CATCH;
+    },
+    [](clingo_solve_result_bitset_t result, void *data) -> void {
+        auto *hnd = static_cast<SolveEventHandler *>(data);
+        assert(hnd != nullptr);
+        hnd->finish(static_cast<SolveResult>(result));
+    },
+    nullptr,
+};
 
 } // namespace Clingo

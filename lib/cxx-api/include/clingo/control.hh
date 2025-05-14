@@ -274,12 +274,11 @@ class Control {
 
     [[nodiscard]] auto solve_(SolveEventHandler *handler, ProgramLiteralSpan const &assumptions, SolveFlags flags) const
         -> SolveHandle {
-        auto res = SolveHandle{handler};
-        Detail::handle_error(clingo_control_solve(ctl_.get(), static_cast<clingo_solve_mode_bitset_t>(flags),
-                                                  assumptions.data(), assumptions.size(),
-                                                  handler != nullptr ? &SolveHandle::c_event_handler_ : nullptr,
-                                                  handler != nullptr ? res.data_.get() : nullptr, &res.data_->hnd));
-        return res;
+        clingo_solve_handle_t *res = nullptr;
+        Detail::handle_error(clingo_control_solve(
+            ctl_.get(), static_cast<clingo_solve_mode_bitset_t>(flags), assumptions.data(), assumptions.size(),
+            handler != nullptr ? &c_event_handler : nullptr, handler != nullptr ? handler : nullptr, &res));
+        return SolveHandle{res};
     }
 
     Detail::intrusive_handle<Control, clingo_control_t> ctl_;

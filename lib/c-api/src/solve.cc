@@ -13,6 +13,15 @@ auto c_cast(CppClingo::Control::Model const *model) -> clingo_model_t const * {
     return reinterpret_cast<clingo_model_t const *>(model); // NOLINT
 }
 
+auto c_cast(CppClingo::Control::Model *model) -> clingo_model_t * {
+    return reinterpret_cast<clingo_model_t *>(model); // NOLINT
+}
+
+auto c_cast(Potassco::AbstractStatistics *config) -> clingo_stats_t * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_stats_t *>(config);
+}
+
 auto c_cast(CppClingo::Control::SolveHandle *hnd) -> clingo_solve_handle_t * {
     return reinterpret_cast<clingo_solve_handle_t *>(hnd); // NOLINT
 }
@@ -26,34 +35,43 @@ auto cpp_cast(clingo_solve_handle_t *hnd, bool not_null = true) -> CppClingo::Co
 
 class SolveEventHandler : public CppClingo::Control::EventHandler {
   public:
-    SolveEventHandler(clingo_solve_event_callback_t notify, void *data) : notify_{notify}, data_{data} {}
+    SolveEventHandler(clingo_solve_event_handler_t const &hnd, void *data) : hnd_{hnd}, data_{data} {}
+
+    ~SolveEventHandler() override {
+        if (hnd_.free != nullptr) {
+            hnd_.free(data_);
+        }
+    }
 
     auto do_on_model(CppClingo::Control::Model &m) -> bool override {
         bool goon = true;
-        handle_error(notify_(clingo_solve_event_type_model, &m, data_, &goon));
+        if (hnd_.model != nullptr) {
+            handle_error(hnd_.model(c_cast(&m), data_, &goon));
+        }
         return goon;
     }
 
     void do_on_stats(Potassco::AbstractStatistics &stats) override {
-        bool goon = true;
-        handle_error(notify_(clingo_solve_event_type_stats, &stats, data_, &goon));
+        if (hnd_.stats != nullptr) {
+            handle_error(hnd_.stats(c_cast(&stats), data_));
+        }
     }
+
     void do_on_unsat(Clasp::SumView bound) override {
-        bool goon = true;
-        struct res {
-            int64_t const *data;
-            size_t size;
-        } res{bound.data(), bound.size()};
-        handle_error(notify_(clingo_solve_event_type_unsat, &res, data_, &goon));
+        if (hnd_.unsat != nullptr) {
+
+            handle_error(hnd_.unsat(bound.data(), bound.size(), data_));
+        }
     }
+
     void do_on_finish(CppClingo::Control::SolveResult res) override {
-        bool goon = true;
-        auto data = static_cast<clingo_solve_result_bitset_t>(res);
-        handle_error(notify_(clingo_solve_event_type_finish, &data, data_, &goon));
+        if (hnd_.finish != nullptr) {
+            hnd_.finish(static_cast<clingo_solve_result_bitset_t>(res), data_);
+        }
     }
 
   private:
-    clingo_solve_event_callback_t notify_;
+    clingo_solve_event_handler_t hnd_;
     void *data_;
 };
 
@@ -125,8 +143,8 @@ extern "C" auto clingo_solve_handle_close(clingo_solve_handle_t *handle) -> bool
 
 extern "C" auto clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode,
                                      clingo_literal_t const *assumptions, size_t assumptions_size,
-                                     clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle)
-    -> bool {
+                                     clingo_solve_event_handler_t const *handler, void *data,
+                                     clingo_solve_handle_t **handle) -> bool {
     CLINGO_TRY {
         *handle = nullptr;
         auto cpp_mode = CppClingo::Control::SolveMode::none;
@@ -138,8 +156,8 @@ extern "C" auto clingo_control_solve(clingo_control_t *control, clingo_solve_mod
         }
         auto cpp_assumptions = std::span{assumptions, assumptions_size};
         auto cpp_eh = CppClingo::Control::UEventHandler{};
-        if (notify != nullptr) {
-            cpp_eh = std::make_unique<SolveEventHandler>(notify, data);
+        if (handler != nullptr) {
+            cpp_eh = std::make_unique<SolveEventHandler>(*handler, data);
         }
         control->slv->get_lock().enable((mode & clingo_solve_mode_lock) != 0);
         *handle = c_cast(control->slv->solve(std::move(cpp_eh), cpp_assumptions, cpp_mode).release());

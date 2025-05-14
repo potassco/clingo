@@ -125,6 +125,7 @@ void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
         clingo_control_ground(get(), parts->data(), parts->size(), !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
 }
 
+/*
 auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) -> bool {
     auto *eh = static_cast<SolveHandle *>(data);
     CLINGO_TRY {
@@ -150,6 +151,7 @@ auto SolveHandle::c_event_handler(clingo_solve_event_type_t type, void *event, v
     }
     CLINGO_CATCH;
 }
+*/
 
 auto Control::base() -> Base {
     clingo_base_t const *base = nullptr;
@@ -183,9 +185,9 @@ auto Control::stats() -> py::dict {
 }
 
 auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback> on_model,
-                    std::optional<StatsCallback> on_stats, bool yield, bool async) -> SSolveHandle {
+                    std::optional<StatsCallback> on_stats, bool yield, bool async) -> std::unique_ptr<SolveHandle> {
     auto release = py::gil_scoped_release{};
-    auto res = std::make_shared<SolveHandle>(std::move(on_model), std::move(on_stats));
+    auto res = std::make_unique<SolveHandle>(std::move(on_model), std::move(on_stats));
     auto mode = clingo_solve_mode_bitset_t{0};
     if (yield) {
         mode |= clingo_solve_mode_yield;
@@ -193,9 +195,40 @@ auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback
     if (async) {
         mode |= clingo_solve_mode_async;
     }
+    auto c_event_handler = clingo_solve_event_handler_t{
+        res->mdl_ ? [](clingo_model_t *model, void *data, bool *goon) {
+            CLINGO_TRY {
+                auto *hnd = static_cast<SolveHandle *>(data);
+                auto mdl = Model{model};
+                auto res = hnd->mdl_.value()(mdl);
+                *goon = !res || *res;
+            }
+            CLINGO_CATCH;
+        } : nullptr,
+        nullptr,
+        res->stats_ ? [](clingo_stats_t *stats, void *data) -> bool {
+            CLINGO_TRY {
+                auto *hnd = static_cast<SolveHandle *>(data);
+                uint64_t root = 0;
+                handle_error(clingo_stats_root(stats, &root));
+                uint64_t step = 0;
+                std::string_view user_step = "user_step";
+                std::string_view user_accu = "user_accu";
+                handle_error(clingo_stats_map_add_subkey(stats, root, user_step.data(), user_step.size(),
+                                                         clingo_stats_type_map, &step));
+                uint64_t accu = 0;
+                handle_error(clingo_stats_map_add_subkey(stats, root, user_accu.data(), user_accu.size(),
+                                                         clingo_stats_type_map, &accu));
+                (*hnd->stats_)(Stats{stats, step}, Stats{stats, accu});
+            }
+            CLINGO_CATCH;
+        } : nullptr,
+        nullptr,
+        nullptr,
+    };
     auto ass = convert(base(), assumptions, false);
-    handle_error(clingo_control_solve(get(), mode, ass.data(), assumptions.size(), &SolveHandle::c_event_handler,
-                                      res.get(), &res->handle()));
+    handle_error(
+        clingo_control_solve(get(), mode, ass.data(), assumptions.size(), &c_event_handler, res.get(), &res->handle()));
     return res;
 }
 

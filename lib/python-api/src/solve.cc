@@ -29,7 +29,7 @@ class ModelIterator {
     using reference = Model &;
 
     ModelIterator() = default;
-    ModelIterator(SSolveHandle hnd) : hnd_(std::move(hnd)) { operator++(); }
+    ModelIterator(SolveHandle *hnd) : hnd_(hnd) { operator++(); }
 
     // NOLINTBEGIN(bugprone-unchecked-optional-access)
     auto operator*() -> reference { return mdl_.value(); }
@@ -37,11 +37,11 @@ class ModelIterator {
     // NOLINTEND(bugprone-unchecked-optional-access)
 
     auto operator++() -> ModelIterator & {
-        if (hnd_) {
+        if (hnd_ != nullptr) {
             hnd_->resume();
             mdl_ = hnd_->model();
             if (!mdl_) {
-                hnd_.reset();
+                hnd_ = nullptr;
             }
         }
         return *this;
@@ -60,7 +60,7 @@ class ModelIterator {
     }
 
   private:
-    SSolveHandle hnd_;
+    SolveHandle *hnd_ = nullptr;
     std::optional<Model> mdl_;
 };
 
@@ -414,7 +414,7 @@ Args:
         .def_property_readonly("exhausted", &SolveResult::exhausted, R"(Whether all models have been enumerated.)")
         .def_property_readonly("interrupted", &SolveResult::interrupted, R"(Whether the search was interrupted.)");
 
-    py::class_<SolveHandle, SSolveHandle>(solve, "SolveHandle", R"(
+    py::class_<SolveHandle>(solve, "SolveHandle", R"(
 An object to interact with a running search.
 
 It can be used to control solving, like, retrieving models or cancelling a
@@ -469,16 +469,15 @@ Cancel the running search.
 See also: `clingo.control.Control.interrupt`
 )"_d)
         .def(
-            "__enter__", [&](SSolveHandle hnd) -> SSolveHandle { return hnd; }, "Start the search.")
+            "__enter__", [&](SolveHandle *hnd) -> SolveHandle * { return hnd; }, "Start the search.")
         .def(
             "__exit__",
-            [&](SSolveHandle const &hnd, [[maybe_unused]] const std::optional<pybind11::type> &type,
+            [&](SolveHandle *hnd, [[maybe_unused]] const std::optional<pybind11::type> &type,
                 [[maybe_unused]] const std::optional<pybind11::object> &value,
                 [[maybe_unused]] const std::optional<pybind11::object> &traceback) { hnd->close(); },
             "Stop the search closing the handle.")
         .def(
-            "__iter__",
-            [&](SSolveHandle const &hnd) { return pybind11::make_iterator(ModelIterator{hnd}, ModelIterator{}); },
+            "__iter__", [&](SolveHandle *hnd) { return pybind11::make_iterator(ModelIterator{hnd}, ModelIterator{}); },
             "Get an iterator over the models.");
 }
 

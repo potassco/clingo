@@ -47,17 +47,14 @@ out:
     return res;
 }
 
-bool on_model(clingo_solve_event_type_t type, void *event, void *data, bool *goon) {
+bool on_model(clingo_model_t *mdl, void *data, bool *goon) {
     (void)data;
-    if (type == clingo_solve_event_type_model) {
-        printf("Answer:");
-        clingo_model_t *mdl = (clingo_model_t *)(event);
-        bool res = clingo_model_symbols(mdl, clingo_show_type_shown, print_symbols, NULL);
-        if (!res) {
-            return res;
-        }
-        printf("\n");
+    printf("Answer:");
+    bool res = clingo_model_symbols(mdl, clingo_show_type_shown, print_symbols, NULL);
+    if (!res) {
+        return res;
     }
+    printf("\n");
     *goon = true;
     return true;
 }
@@ -75,11 +72,13 @@ int main(int argc, char *argv[]) {
     char const *prg = "1 {a; b} 1.";
     handle_error(clingo_control_parse_string(ctl, prg, strlen(prg)));
 
-    clingo_part_t parts[] = {{"base", 4, NULL, 0}};
+    clingo_part_t const parts[] = {{"base", 4, NULL, 0}};
     handle_error(clingo_control_ground(ctl, parts, 1, NULL, NULL));
 
+    clingo_solve_event_handler_t const seh = {on_model, NULL, NULL, NULL, NULL};
+
     clingo_solve_handle_t *hnd = NULL;
-    handle_error(clingo_control_solve(ctl, clingo_solve_mode_async, NULL, 0, on_model, NULL, &hnd));
+    handle_error(clingo_control_solve(ctl, clingo_solve_mode_async, NULL, 0, &seh, NULL, &hnd));
 
     clingo_solve_result_bitset_t res = 0;
     clingo_solve_handle_get(hnd, &res);
