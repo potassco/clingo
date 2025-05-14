@@ -84,6 +84,7 @@ TEST_CASE("solve yield", "[cxx][solve][yield]") {
     REQUIRE(models == std::vector<std::vector<std::string>>{{"a"}, {"b"}});
 }
 
+#ifndef EMSCRIPTEN
 TEST_CASE("solve async", "[cxx][solve][async]") {
     auto lib = Library{};
     auto ctl = Control{lib, {"0"}};
@@ -101,6 +102,7 @@ TEST_CASE("solve async", "[cxx][solve][async]") {
     }
     REQUIRE(models == std::vector<std::vector<std::string>>{{"a"}, {"b"}});
 }
+#endif
 
 TEST_CASE("solve assume", "[cxx][solve][assume]") {
     auto lib = Library{};
