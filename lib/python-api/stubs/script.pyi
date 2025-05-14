@@ -118,7 +118,7 @@ class Script:
             A list of symbols.
         """
 
-    def callable(self, name: str, arguments: int) -> bool:
+    def callable(self, name: str, arguments: typing.SupportsInt) -> bool:
         """
         Check if a function with the given signature is callable.
 

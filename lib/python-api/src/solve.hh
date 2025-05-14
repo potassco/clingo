@@ -72,6 +72,8 @@ class Model {
 
 using StatsCallback = std::function<void(Stats, Stats)>;
 using ModelCallback = std::function<std::optional<bool>(Model &)>;
+using UnsatCallback = std::function<void(std::span<int64_t>)>;
+using FinishCallback = std::function<void(SolveResult)>;
 
 class SolveHandle : public reference_keeper<SolveHandle> {
   public:
@@ -99,7 +101,9 @@ class SolveHandle : public reference_keeper<SolveHandle> {
 
     clingo_solve_handle_t *hnd_ = nullptr;
     py::handle mdl_;
+    py::handle unsat_;
     py::handle stats_;
+    py::handle finish_;
 };
 
 void register_solve(pybind11::module &m);

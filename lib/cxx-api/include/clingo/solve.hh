@@ -299,7 +299,9 @@ class SolveHandle {
 static_assert(std::input_iterator<SolveHandle::iterator>);
 static_assert(std::sentinel_for<SolveHandle::sentinel, SolveHandle::iterator>);
 
-static constexpr clingo_solve_event_handler_t c_event_handler{
+namespace Detail {
+
+static constexpr clingo_solve_event_handler_t c_solve_event_handler{
     [](clingo_model_t *model, void *data, bool *goon) -> bool {
         CLINGO_TRY {
             auto *hnd = static_cast<SolveEventHandler *>(data);
@@ -340,5 +342,7 @@ static constexpr clingo_solve_event_handler_t c_event_handler{
     },
     nullptr,
 };
+
+} // namespace Detail
 
 } // namespace Clingo

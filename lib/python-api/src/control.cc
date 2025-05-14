@@ -184,7 +184,9 @@ auto Control::stats() -> py::dict {
 }
 
 auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
-                    Annotation<std::optional<StatsCallback>> on_stats, bool yield, bool async)
+                    Annotation<std::optional<UnsatCallback>> on_unsat,
+                    Annotation<std::optional<StatsCallback>> on_stats,
+                    Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
     -> Annotation<SolveHandle> {
     auto res = py::cast(std::make_unique<SolveHandle>());
     auto *hnd = res.cast<SolveHandle *>();
@@ -197,7 +199,9 @@ auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<Mo
         }
     };
     store(on_model, hnd->mdl_);
+    store(on_unsat, hnd->unsat_);
     store(on_stats, hnd->stats_);
+    store(on_finish, hnd->finish_);
     auto mode = clingo_solve_mode_bitset_t{0};
     if (yield) {
         mode |= clingo_solve_mode_yield;
@@ -216,7 +220,16 @@ auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<Mo
             }
             CLINGO_CATCH;
         } : nullptr,
-        nullptr,
+        hnd->unsat_ ? [](int64_t const *values, size_t size, void *data) -> bool {
+            CLINGO_TRY {
+                auto guard = py::gil_scoped_acquire{};
+                auto *hnd = static_cast<SolveHandle *>(data);
+                assert(hnd != nullptr);
+                hnd->unsat_(std::span{values, size});
+            }
+            CLINGO_CATCH;
+
+        } : nullptr,
         hnd->stats_ ? [](clingo_stats_t *stats, void *data) -> bool {
             CLINGO_TRY {
                 auto guard = py::gil_scoped_acquire{};
@@ -235,7 +248,18 @@ auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<Mo
             }
             CLINGO_CATCH;
         } : nullptr,
-        nullptr,
+        hnd->finish_ ? [](clingo_solve_result_bitset_t result, void *data) -> void {
+            try {
+                auto guard = py::gil_scoped_acquire{};
+                auto *hnd = static_cast<SolveHandle *>(data);
+                assert(hnd != nullptr);
+                hnd->finish_(static_cast<SolveResult>(result));
+            }
+            catch (std::exception &e) {
+                printf("panic: %s\n", e.what());
+                std::abort();
+            }
+        } : nullptr,
         nullptr,
     };
     auto ass = convert(base(), assumptions, false);
@@ -464,7 +488,8 @@ Args:
 		grounding.
 )"_d)
         .def("solve", &Control::solve, py::arg("assumptions") = MixedLitSpan{}, py::arg("on_model") = std::nullopt,
-             py::arg("on_stats") = std::nullopt, py::arg("yield_") = false, py::arg("async_") = false, R"(
+             py::arg("on_unsat") = std::nullopt, py::arg("on_stats") = std::nullopt,
+             py::arg("on_finish") = std::nullopt, py::arg("yield_") = false, py::arg("async_") = false, R"(
 Solve the current ground program.
 
 This function runs the solver on the current ground program, optionally  using
@@ -494,9 +519,6 @@ Args:
     on_finish:
 		Optional callback called once search has finished. A
 		`clingo.solve.SolveResult` is passed to the callback.
-    on_core:
-        Optional callback invoked when an unsatisfiable core is found.
-        It receives the subset of assumptions that caused unsatisfiability.
     yield_:
 		If `True`, the returned `clingo.solve.SolveHandle` is iterable,
 		yielding  `clingo.solve.Model` objects during solving.
