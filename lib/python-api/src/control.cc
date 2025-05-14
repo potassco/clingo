@@ -6,7 +6,6 @@
 #include <clingo/solve.h>
 
 #include <span>
-#include <utility>
 
 namespace PyClingo {
 
@@ -184,10 +183,21 @@ auto Control::stats() -> py::dict {
     return Stats{const_cast<clingo_stats_t *>(stats), key}.nestify();
 }
 
-auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback> on_model,
-                    std::optional<StatsCallback> on_stats, bool yield, bool async) -> std::unique_ptr<SolveHandle> {
-    auto release = py::gil_scoped_release{};
-    auto res = std::make_unique<SolveHandle>(std::move(on_model), std::move(on_stats));
+auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
+                    Annotation<std::optional<StatsCallback>> on_stats, bool yield, bool async)
+    -> Annotation<SolveHandle> {
+    auto res = py::cast(std::make_unique<SolveHandle>());
+    auto *hnd = res.cast<SolveHandle *>();
+    auto store = [&]<class T>(Annotation<std::optional<T>> &src, py::handle &dst) -> void {
+        if (!src.is_none()) {
+            // keep the callback alive
+            hnd->tie(src);
+            // store a reference to the callback
+            dst = src;
+        }
+    };
+    store(on_model, hnd->mdl_);
+    store(on_stats, hnd->stats_);
     auto mode = clingo_solve_mode_bitset_t{0};
     if (yield) {
         mode |= clingo_solve_mode_yield;
@@ -196,18 +206,20 @@ auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback
         mode |= clingo_solve_mode_async;
     }
     auto c_event_handler = clingo_solve_event_handler_t{
-        res->mdl_ ? [](clingo_model_t *model, void *data, bool *goon) {
+        hnd->mdl_ ? [](clingo_model_t *model, void *data, bool *goon) {
             CLINGO_TRY {
+                auto guard = py::gil_scoped_acquire{};
                 auto *hnd = static_cast<SolveHandle *>(data);
                 auto mdl = Model{model};
-                auto res = hnd->mdl_.value()(mdl);
+                auto res = (*hnd->mdl_)(mdl).cast<std::optional<bool>>();
                 *goon = !res || *res;
             }
             CLINGO_CATCH;
         } : nullptr,
         nullptr,
-        res->stats_ ? [](clingo_stats_t *stats, void *data) -> bool {
+        hnd->stats_ ? [](clingo_stats_t *stats, void *data) -> bool {
             CLINGO_TRY {
+                auto guard = py::gil_scoped_acquire{};
                 auto *hnd = static_cast<SolveHandle *>(data);
                 uint64_t root = 0;
                 handle_error(clingo_stats_root(stats, &root));
@@ -227,8 +239,11 @@ auto Control::solve(MixedLitSpan const &assumptions, std::optional<ModelCallback
         nullptr,
     };
     auto ass = convert(base(), assumptions, false);
-    handle_error(
-        clingo_control_solve(get(), mode, ass.data(), assumptions.size(), &c_event_handler, res.get(), &res->handle()));
+    {
+        auto guard = py::gil_scoped_release{};
+        handle_error(
+            clingo_control_solve(get(), mode, ass.data(), assumptions.size(), &c_event_handler, hnd, &hnd->handle()));
+    }
     return res;
 }
 

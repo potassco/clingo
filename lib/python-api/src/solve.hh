@@ -73,10 +73,9 @@ class Model {
 using StatsCallback = std::function<void(Stats, Stats)>;
 using ModelCallback = std::function<std::optional<bool>(Model &)>;
 
-class SolveHandle {
+class SolveHandle : public reference_keeper<SolveHandle> {
   public:
-    SolveHandle(std::optional<ModelCallback> mdl, std::optional<StatsCallback> stats)
-        : mdl_{std::move(mdl)}, stats_{std::move(stats)} {}
+    SolveHandle() = default;
     SolveHandle(SolveHandle const &other) = delete;
     SolveHandle(SolveHandle &&other) noexcept = delete;
     auto operator=(SolveHandle const &other) -> SolveHandle & = delete;
@@ -99,8 +98,8 @@ class SolveHandle {
     friend class Control;
 
     clingo_solve_handle_t *hnd_ = nullptr;
-    std::optional<ModelCallback> mdl_;
-    std::optional<StatsCallback> stats_;
+    py::handle mdl_;
+    py::handle stats_;
 };
 
 void register_solve(pybind11::module &m);

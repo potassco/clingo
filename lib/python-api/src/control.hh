@@ -47,8 +47,8 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     void write_aspif(std::string_view path, bool symbols, bool append, std::optional<bool> preamble, bool preprocess);
     void join(Program &prg);
     void ground(std::optional<PartSpan> parts, py::handle ctx);
-    auto solve(MixedLitSpan const &assumptions, std::optional<ModelCallback> on_model,
-               std::optional<StatsCallback> on_stats, bool yield, bool async) -> std::unique_ptr<SolveHandle>;
+    auto solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
+               Annotation<std::optional<StatsCallback>> on_stats, bool yield, bool async) -> Annotation<SolveHandle>;
     auto base() -> Base;
     void observe(Observer &obs, bool preprocess);
     auto backend() -> BackendManager;
