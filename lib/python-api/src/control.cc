@@ -265,8 +265,9 @@ auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<Mo
     auto ass = convert(base(), assumptions, false);
     {
         auto guard = py::gil_scoped_release{};
-        handle_error(
-            clingo_control_solve(get(), mode, ass.data(), assumptions.size(), &c_event_handler, hnd, &hnd->handle()));
+        auto has_handler = hnd->mdl_ || hnd->unsat_ || hnd->stats_ || hnd->finish_;
+        handle_error(clingo_control_solve(get(), mode, ass.data(), assumptions.size(),
+                                          has_handler ? &c_event_handler : nullptr, hnd, &hnd->handle()));
     }
     return res;
 }

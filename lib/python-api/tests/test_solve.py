@@ -48,9 +48,12 @@ class TestSolve:
 
         # default
         mcb = MCB()
-        with ctl.solve(on_model=mcb) as hnd:
+        ofr = []
+        with ctl.solve(on_model=mcb, on_finish=ofr.append) as hnd:
             assert hnd.get().satisfiable
         assert mcb.symbols == res
+        assert len(ofr) == 1
+        assert ofr[0].satisfiable
 
         # yield
         mcb = MCB()
@@ -152,6 +155,21 @@ class TestSolve:
             assert last.optimality_proven
             assert last.cost == [1]
             assert last.priorities == [0]
+
+    def test_unsat(self):
+        """
+        Test lower bounds reported during optimization.
+        """
+        ctl = Control(self.lib, ["--opt-str=usc,oll,0", "--stats=2"])
+        ctl.parse_string(
+            "1 { p(X); q(X) } 1 :- X=1..3. #minimize { 1,p,X: p(X); 1,q,X: q(X) }.",
+        )
+        ctl.ground()
+        lower = []
+        with ctl.solve(on_unsat=lower.append) as hnd:
+            assert hnd.get().satisfiable
+        assert ctl.stats["summary"]["lower"] == [3.0]
+        assert lower == [[1], [2], [3]]
 
     def test_consequence(self):
         """
