@@ -27,19 +27,6 @@ inline auto c_cast(Clasp::Cli::ClaspCliConfig *config) -> clingo_config_t * {
     return reinterpret_cast<clingo_config_t *>(config);
 }
 
-class fill {
-  public:
-    fill(size_t n, char c = ' ') : n_{n}, c_{c} {}
-    friend auto operator<<(CppClingo::Util::OutputBuffer &out, fill const &x) -> CppClingo::Util::OutputBuffer & {
-        std::ranges::fill(out.reserve(static_cast<ssize_t>(x.n_)), x.c_);
-        return out;
-    }
-
-  private:
-    size_t n_;
-    char c_;
-};
-
 struct ConfigPrinter {
   public:
     explicit ConfigPrinter(Clasp::Cli::ClaspCliConfig const *cfg, CppClingo::Util::OutputBuffer *out)
@@ -73,7 +60,7 @@ struct ConfigPrinter {
                 *out_ << fi() << name << ":";
                 auto sub_key = cfg_->getKey(key, name);
                 int sub_vals = 0;
-                cfg_->getKeyInfo(key, nullptr, nullptr, nullptr, &sub_vals);
+                cfg_->getKeyInfo(sub_key, nullptr, nullptr, nullptr, &sub_vals);
                 if (sub_vals >= 0) {
                     *out_ << " ";
                     str_(sub_key, 0, indent + name.size() + 2);

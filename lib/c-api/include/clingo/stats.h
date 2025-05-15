@@ -73,6 +73,17 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_stats_root(clingo_stats_t const *stats, ui
 //! @return wether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_stats_type(clingo_stats_t const *stats, uint64_t key, clingo_stats_type_t *type);
 
+//! Get a string representation of the statistics.
+//!
+//! The representation is in a YAML-like format.
+//!
+//! @param stats the stats
+//! @param key the key
+//! @param builder the builder
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_to_string(clingo_stats_t const *stats, uint64_t key,
+                                                      clingo_string_builder_t *builder);
+
 //! @name Functions to access arrays
 //! @{
 

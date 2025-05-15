@@ -153,6 +153,16 @@ class OutputBuffer {
         return out;
     }
 
+    //! Append the given double to the buffer.
+    friend auto operator<<(OutputBuffer &out, double value) -> OutputBuffer & {
+        static constexpr ssize_t n = 32;
+        auto *begin = out.ensure_(n);
+        auto *end = std::next(begin, n);
+        auto [res, ec] = std::to_chars(begin, end, value);
+        out.size_ += std::distance(begin, res);
+        return out;
+    }
+
     //! Append the given string to the buffer.
     friend auto operator<<(OutputBuffer &out, char const *str) -> OutputBuffer & {
         out.append(str);

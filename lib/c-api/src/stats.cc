@@ -1,6 +1,7 @@
 #include "clingo/stats.h"
 
 #include "control.hh" // IWYU pragma: keep
+#include "core.hh"
 #include "lib.hh"
 
 using namespace CppClingo::CAPI;
@@ -183,6 +184,76 @@ extern "C" auto clingo_stats_value_set(clingo_stats_t *stats, uint64_t key, doub
             return fail_arguments();
         }
         cpp_cast(stats)->set(key, value);
+    }
+    CLINGO_CATCH;
+}
+
+namespace CppClingo::CAPI {
+namespace {
+
+class ToString {
+  public:
+    using Key = Potassco::AbstractStatistics::Key_t;
+    using Type = Potassco::AbstractStatistics::Type;
+
+    ToString(Potassco::AbstractStatistics const *stats, Util::OutputBuffer *buf) : stats_{stats}, buf_{buf} {}
+
+    void str(Key key) const {
+        buf_->reset();
+        str_(key, 0, 0);
+    }
+
+  private:
+    void str_(Key key, size_t first_indent, size_t indent) const {
+        auto fi = [&, first = true]() mutable { return fill(std::exchange(first, false) ? first_indent : indent); };
+        switch (stats_->type(key)) {
+            case Potassco::AbstractStatistics::Type::value: {
+                *buf_ << fi() << stats_->value(key) << "\n";
+                break;
+            }
+            case Potassco::AbstractStatistics::Type::map: {
+                auto size = stats_->size(key);
+                for (size_t i = 0; i < size; ++i) {
+                    auto name = std::string_view{stats_->key(key, i)};
+                    *buf_ << fi() << name << ":";
+                    auto sub_key = stats_->get(key, name);
+                    if (stats_->type(sub_key) == Potassco::AbstractStatistics::Type::value) {
+                        *buf_ << " ";
+                        str_(sub_key, 0, indent + name.size() + 2);
+                    } else {
+                        *buf_ << "\n";
+                        str_(sub_key, indent + 2, indent + 2);
+                    }
+                }
+                break;
+            }
+            case Potassco::AbstractStatistics::Type::array: {
+                size_t size = stats_->size(key);
+                if (size > 0) {
+                    for (size_t i = 0; i != size; ++i) {
+                        *buf_ << fi() << "- ";
+                        auto sub_key = stats_->at(key, i);
+                        str_(sub_key, 0, indent + 2);
+                    }
+                } else {
+                    *buf_ << fi() << "[]\n";
+                }
+                break;
+            }
+        }
+    }
+
+    Potassco::AbstractStatistics const *stats_;
+    Util::OutputBuffer *buf_;
+};
+
+} // namespace
+} // namespace CppClingo::CAPI
+
+extern "C" auto clingo_stats_to_string(clingo_stats_t const *stats, uint64_t key, clingo_string_builder_t *builder)
+    -> bool {
+    CLINGO_TRY {
+        ToString{cpp_cast(stats), cpp_cast(builder)}.str(key);
     }
     CLINGO_CATCH;
 }

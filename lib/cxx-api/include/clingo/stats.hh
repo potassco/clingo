@@ -37,6 +37,12 @@ class ConstStats {
         throw std::bad_variant_access();
     }
 
+    [[nodiscard]] auto to_string() -> std::string {
+        auto bld = StringBuilder{};
+        Detail::handle_error(clingo_stats_to_string(stats_, key_, c_cast(bld)));
+        return std::string{bld.str()};
+    }
+
   private:
     friend class Stats;
 
@@ -177,7 +183,7 @@ class ConstStatsMap {
 };
 
 [[nodiscard]] inline auto ConstStats::map() const -> ConstStatsMap {
-    if (type() == StatsType::array) {
+    if (type() == StatsType::map) {
         return ConstStatsMap{stats_, key_};
     }
     throw std::bad_variant_access{};
@@ -216,7 +222,7 @@ class StatsMap : public ConstStatsMap {
 };
 
 [[nodiscard]] inline auto Stats::map() const -> StatsMap {
-    if (type() == StatsType::array) {
+    if (type() == StatsType::map) {
         return StatsMap{stats_(), key_};
     }
     throw std::bad_variant_access{};
