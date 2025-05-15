@@ -33,6 +33,15 @@ class MCB : public SolveEventHandler {
     std::vector<std::vector<std::string>> *models_;
 };
 
+class UCB : public SolveEventHandler {
+  public:
+    UCB(std::vector<std::vector<Sum>> &bounds) : bounds_{&bounds} { bounds_->clear(); }
+
+  private:
+    void do_unsat(SumSpan lower_bound) override { bounds_->emplace_back(lower_bound.begin(), lower_bound.end()); }
+    std::vector<std::vector<Sum>> *bounds_;
+};
+
 class Extender : public SolveEventHandler {
   public:
     Extender(Library &lib) : lib_{&lib} {}
@@ -139,7 +148,7 @@ TEST_CASE("solve extend base", "[cxx][solve][extend][base]") {
     }
 }
 
-TEST_CASE("solve extend yield", "[solve][extend][yield]") {
+TEST_CASE("solve extend yield", "[cxx][solve][extend][yield]") {
     auto lib = Library{};
     auto ctl = Control{lib, {"0"}};
     ctl.parse_string("a.");
@@ -155,6 +164,21 @@ TEST_CASE("solve extend yield", "[solve][extend][yield]") {
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == std::vector<std::vector<std::string>>{{"a", "b", "c"}});
+}
+
+TEST_CASE("solve unsat", "[cxx][solve][unsat]") {
+    auto lib = Library{};
+    auto ctl = Control{lib, {"--opt-str=usc,oll,0", "--stats=2"}};
+    ctl.parse_string("1 { p(X); q(X) } 1 :- X=1..3. #minimize { 1,p,X: p(X); 1,q,X: q(X) }.");
+    ctl.ground();
+    auto bounds = std::vector<std::vector<Sum>>{};
+    {
+        auto ucb = UCB{bounds};
+        auto hnd = ctl.solve(ucb);
+        REQUIRE(hnd.get().satisfiable());
+    }
+    // TODO: REQUIRE(ctl.stats().map()["summary"].map()["lower"].array()[0].value() == 3.0);
+    REQUIRE(bounds == std::vector<std::vector<Sum>>{{1}, {2}, {3}});
 }
 
 /*

@@ -237,9 +237,13 @@ class Control:
             tuple[clingo.symbol.Symbol, bool] | typing.SupportsInt
         ] = [],
         on_model: typing.Callable[[clingo.solve.Model], bool | None] | None = None,
+        on_unsat: (
+            typing.Callable[[typing.Sequence[typing.SupportsInt]], None] | None
+        ) = None,
         on_stats: (
             typing.Callable[[clingo.stats.Stats, clingo.stats.Stats], None] | None
         ) = None,
+        on_finish: typing.Callable[[clingo.solve.SolveResult], None] | None = None,
         yield_: bool = False,
         async_: bool = False,
     ) -> clingo.solve.SolveHandle:
@@ -273,9 +277,6 @@ class Control:
             on_finish:
                         Optional callback called once search has finished. A
                         `clingo.solve.SolveResult` is passed to the callback.
-            on_core:
-                Optional callback invoked when an unsatisfiable core is found.
-                It receives the subset of assumptions that caused unsatisfiability.
             yield_:
                         If `True`, the returned `clingo.solve.SolveHandle` is iterable,
                         yielding  `clingo.solve.Model` objects during solving.
