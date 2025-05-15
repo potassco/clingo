@@ -42,9 +42,9 @@ class UCB : public SolveEventHandler {
     std::vector<std::vector<Sum>> *bounds_;
 };
 
-class Extender : public SolveEventHandler {
+class ECB : public SolveEventHandler {
   public:
-    Extender(Library &lib) : lib_{&lib} {}
+    ECB(Library &lib) : lib_{&lib} {}
 
   private:
     auto do_model(Model &model) -> bool override {
@@ -139,7 +139,7 @@ TEST_CASE("solve extend base", "[cxx][solve][extend][base]") {
     ctl.parse_string("a.");
     ctl.ground({{"base", {}}});
     {
-        auto ext = Extender{lib};
+        auto ext = ECB{lib};
         auto hnd = ctl.solve(ext, {});
         REQUIRE(hnd.get().satisfiable());
         REQUIRE(hnd.last()->symbols(ShowFlags::theory).size() == 2);
@@ -155,7 +155,7 @@ TEST_CASE("solve extend yield", "[cxx][solve][extend][yield]") {
     ctl.ground({{"base", {}}});
     auto models = std::vector<std::vector<std::string>>{};
     {
-        auto ext = Extender{lib};
+        auto ext = ECB{lib};
         auto mcb = MCB{models};
         auto hnd = ctl.solve(ext, {}, SolveFlags::yield);
         for (auto &&mdl : hnd) {
@@ -177,32 +177,52 @@ TEST_CASE("solve unsat", "[cxx][solve][unsat]") {
         auto hnd = ctl.solve(ucb);
         REQUIRE(hnd.get().satisfiable());
     }
-    // TODO: REQUIRE(ctl.stats().map()["summary"].map()["lower"].array()[0].value() == 3.0);
+    REQUIRE(ctl.stats().map()["summary"].map()["lower"].array()[0].value() == 3.0);
     REQUIRE(bounds == std::vector<std::vector<Sum>>{{1}, {2}, {3}});
 }
 
-/*
-TEST_CASE("solve consequence", "[solve][consequence]") {
-    Clingo::Control ctl({"0"});
-    ctl.add("base", {}, "a. b :- a.");
-    ctl.ground({{"base", {}}});
+TEST_CASE("solve consequence", "[cxx][solve][consequence]") {
+    auto lib = Library{};
+    auto ctl = Control(lib, {"--enum-mode=brave"});
+    ctl.parse_string("a. 1 {b; c} 1. {d}. :- d, b. :- d, c.");
+    ctl.ground();
 
-    // Consequence API is a bit different in C++
-    // This is a sketch; you may need to adapt for actual C++ API
-    std::vector<Clingo::Symbol> atoms = {ctl.symbolic_atoms().symbol(ctl.symbolic_atoms().find("a")),
-                                         ctl.symbolic_atoms().symbol(ctl.symbolic_atoms().find("b"))};
-    std::vector<Clingo::Symbol> consequences;
-    ctl.consequences(Clingo::LiteralSpan{}, atoms, [&](Clingo::Consequences &cons) {
-        for (auto &sym : cons.added()) {
-            consequences.push_back(sym);
+    auto lit = [&, base = ctl.base()](std::string_view name) {
+        return base.get(Function(lib, name, {})).value().literal();
+    };
+    auto a = lit("a");
+    auto b = lit("b");
+    auto c = lit("c");
+    auto d = lit("d");
+    {
+        auto hnd = ctl.solve({});
+        auto it = hnd.begin();
+        REQUIRE(it != hnd.end());
+        auto n1 = b;
+        auto n2 = c;
+        if (it->is_true(c)) {
+            std::swap(n1, n2);
         }
-    });
-    REQUIRE(std::find_if(consequences.begin(), consequences.end(),
-                         [](const Clingo::Symbol &s) { return s.to_string() == "a"; }) != consequences.end());
-    REQUIRE(std::find_if(consequences.begin(), consequences.end(),
-                         [](const Clingo::Symbol &s) { return s.to_string() == "b"; }) != consequences.end());
+        REQUIRE(it->type() == ModelType::brave_consequences);
+        REQUIRE(it->is_consequence(a) == true);
+        REQUIRE(it->is_consequence(n1) == true);
+        REQUIRE(!it->is_consequence(n2).has_value());
+        REQUIRE(!it->is_consequence(d).has_value());
+        REQUIRE(++it != hnd.end());
+        REQUIRE(it->type() == ModelType::brave_consequences);
+        REQUIRE(it->is_consequence(a) == true);
+        REQUIRE(it->is_consequence(n1) == true);
+        REQUIRE(it->is_consequence(n2) == true);
+        REQUIRE(!it->is_consequence(d).has_value());
+        REQUIRE(++it == hnd.end());
+        REQUIRE(hnd.last().has_value());
+        REQUIRE(hnd.last()->type() == ModelType::brave_consequences);
+        REQUIRE(hnd.last()->is_consequence(a) == true);
+        REQUIRE(hnd.last()->is_consequence(n1) == true);
+        REQUIRE(hnd.last()->is_consequence(n2) == true);
+        REQUIRE(hnd.last()->is_consequence(d) == false);
+        REQUIRE(hnd.get().satisfiable());
+    }
 }
-
-*/
 
 } // namespace Clingo::Test
