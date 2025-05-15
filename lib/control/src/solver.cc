@@ -580,12 +580,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     //! This initializes the underlying solve handle, which in turn starts
     //! solving.
     EventHandlerAdapter(CallbackLock &lock, Logger &logger, ModelImpl &mdl, Control::UEventHandler eh)
-        : lock_{&lock}, logger_{&logger}, mdl_{&mdl}, eh_{std::move(eh)} {
-        if (eh_) {
-            mdl.clasp().ctx.setEventHandler(this);
-        }
-    }
-    ~EventHandlerAdapter() override { mdl_->clasp().ctx.setEventHandler(nullptr); }
+        : lock_{&lock}, logger_{&logger}, mdl_{&mdl}, eh_{std::move(eh)} {}
 
     //! Intercept and report models.
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
@@ -703,7 +698,7 @@ class SolveHandleImpl : public SolveHandle {
   public:
     SolveHandleImpl(CallbackLock &lock, Logger &log, ModelImpl &mdl, SolveMode mode, UEventHandler eh,
                     std::function<void()> simplify)
-        : eh_{lock, log, mdl, std::move(eh)}, hnd_{mdl.clasp().solve(convert(mode), {})},
+        : eh_{lock, log, mdl, std::move(eh)}, hnd_{mdl.clasp().solve(convert(mode), {}, &eh_)},
           simplify_{std::move(simplify)} {}
 
     ~SolveHandleImpl() override { cancel(); }
