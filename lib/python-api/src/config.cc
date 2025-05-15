@@ -1,9 +1,6 @@
 #include "config.hh"
 #include "core.hh"
 
-#include <iomanip>
-#include <sstream>
-
 namespace PyClingo {
 
 auto Config::type_() -> clingo_config_type_bitset_t {

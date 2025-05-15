@@ -54,6 +54,7 @@ class Stats {
     auto nestify() -> py::object;
     void update(py::handle value) { update_(value, false); }
     void update_(py::handle value, bool init);
+    auto str() -> std::string_view;
     auto c_ptr() -> clingo_stats_t * { return stats_; }
 
   private:

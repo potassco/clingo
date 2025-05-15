@@ -110,6 +110,14 @@ void Stats::set_value(double value) {
     }
 }
 
+auto Stats::str() -> std::string_view {
+    auto *bld = string_builder();
+    handle_error(clingo_stats_to_string(stats_, key_, bld));
+    clingo_string_t res;
+    handle_error(clingo_string_builder_string(bld, &res));
+    return {res.data, res.size};
+}
+
 auto Stats::nestify() -> py::object {
     switch (type()) {
         case StatsType::value: {
@@ -276,6 +284,7 @@ Args:
         return an updated value. If there is no previous value, `None` is
         passed as argument.
 )"_d)
+        .def("__str__", &Stats::str, R"(A readable representation to inspect the statistics.)")
         .def_property_readonly("type", &Stats::type, R"(Get the type of the stats object.)")
         .def_property_readonly("array", &Stats::array, R"(Get an array of stats objects.)")
         .def_property_readonly("map", &Stats::map, R"(Get a map of stats objects.)")

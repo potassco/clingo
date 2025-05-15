@@ -88,6 +88,11 @@ class Stats:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
+    def __str__(self) -> str:
+        """
+        A readable representation to inspect the statistics.
+        """
+
     def nestify(self) -> typing.Any:
         """
         Convert the statistics object into a nested structure consisting of sequencens,
