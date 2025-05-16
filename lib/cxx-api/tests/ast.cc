@@ -15,8 +15,14 @@ struct Fixture {
 
     template <T Type, class... As> auto node(As &&...args) { return N::create<Type>(lib, std::forward<As>(args)...); }
 
-    [[nodiscard]] auto sym(const std::string_view val) const -> N {
-        return N::create<T::term_symbolic>(lib, loc, parse_term(lib, val));
+    [[nodiscard]] auto parse_sym(const std::string_view val) const -> Symbol { return Clingo::parse_term(lib, val); }
+
+    [[nodiscard]] auto parse_term(const std::string_view val) const -> N {
+        return AST::parse(lib, val, AST::ParseType::term);
+    }
+
+    [[nodiscard]] auto parse_lit(const std::string_view val) const -> N {
+        return AST::parse(lib, val, AST::ParseType::literal);
     }
 
     Library lib;
@@ -116,7 +122,7 @@ TEST_CASE_METHOD(Fixture, "ast variable", "[cxx][ast][variable]") {
 }
 
 TEST_CASE_METHOD(Fixture, "ast term symbolic", "[cxx][ast][term_symbolic]") {
-    auto s = parse_term(lib, "f(1,2)");
+    auto s = parse_sym("f(1,2)");
     auto p = node<T::term_symbolic>(loc, s);
 
     REQUIRE((p.location(A::location) == loc));
@@ -125,7 +131,7 @@ TEST_CASE_METHOD(Fixture, "ast term symbolic", "[cxx][ast][term_symbolic]") {
 }
 
 TEST_CASE_METHOD(Fixture, "ast term absolute", "[cxx][ast][term_absolute]") {
-    auto p = node<T::term_absolute>(loc, std::array{sym("1"), sym("-2")});
+    auto p = node<T::term_absolute>(loc, std::array{parse_term("1"), parse_term("-2")});
 
     REQUIRE((p.location(A::location) == loc));
     REQUIRE(p.nodes(A::pool).size() == 2);
@@ -133,584 +139,435 @@ TEST_CASE_METHOD(Fixture, "ast term absolute", "[cxx][ast][term_absolute]") {
 }
 
 TEST_CASE_METHOD(Fixture, "ast term unary", "[cxx][ast][term_unary]") {
-    // TODO: decide how to handle the enums
-    auto p = node<T::term_unary_operation>(loc, 0, sym("-2"));
+    auto p = node<T::term_unary_operation>(loc, AST::UnaryOperator::minus, parse_term("-2"));
     REQUIRE((p.location(A::location) == loc));
-    REQUIRE(p.number(A::operator_type) == 0);
-    REQUIRE(p.node(A::right) == sym("-2"));
+    REQUIRE(p.number(A::operator_type) == AST::UnaryOperator::minus);
+    REQUIRE(p.node(A::right) == parse_term("-2"));
     REQUIRE(p.to_string() == "-(-2)");
 }
 
-/*
-TEST_CASE_METHOD(ASTFixture, "TermBinaryOperation", "[ast]") {
-    auto p = ast::create<ast::term_binary_operation>(loc, sym("1"), ast::binary_operator::plus, sym("-2"));
-    REQUIRE(p.location() == loc);
-    REQUIRE(p.left().to_string() == "1");
-    REQUIRE(p.operator_type() == ast::binary_operator::plus);
-    REQUIRE(p.right().to_string() == "-2");
+TEST_CASE_METHOD(Fixture, "ast term binary", "[cxx][ast][term_binary]") {
+    auto p = node<T::term_binary_operation>(loc, parse_term("1"), AST::BinaryOperator::plus, parse_term("-2"));
+    REQUIRE((p.location(A::location) == loc));
+    REQUIRE(p.node(A::left).to_string() == "1");
+    REQUIRE(p.number(A::operator_type) == AST::BinaryOperator::plus);
+    REQUIRE(p.node(A::right).to_string() == "-2");
     REQUIRE(p.to_string() == "1+(-2)");
 }
 
-TEST_CASE_METHOD(ASTFixture, "TermTuple", "[ast]") {
-    auto a = std::vector<ast::Term>{
-        ast::create<ast::argument_tuple>(std::vector{ sym("1"), sym("2") }),
-        sym("3")
-    };
-    auto p = ast::create<ast::term_tuple>(loc, a);
-    REQUIRE(p.location() == loc);
-    REQUIRE(p.pool() == a);
+TEST_CASE_METHOD(Fixture, "ast term tuple", "[cxx][ast][term_tuple]") {
+    auto a = std::array{node<T::argument_tuple>(std::array{parse_term("1"), parse_term("2")}), parse_term("3")};
+    auto p = node<T::term_tuple>(loc, a);
+    REQUIRE((p.location(A::location) == loc));
+    REQUIRE(std::ranges::equal(p.nodes(A::pool), a));
     REQUIRE(p.to_string() == "(1,2;3)");
 }
 
-TEST_CASE_METHOD(ASTFixture, "TermFunction", "[ast]") {
-    auto a = std::vector{
-        ast::create<ast::argument_tuple>(std::vector{ sym("1"), sym("2") }),
-        ast::create<ast::argument_tuple>(std::vector{ sym("3"), ast::Projection(lib, loc) })
-    };
-    auto p = ast::create<ast::term_function>(loc, "f", a, true);
-    auto q = ast::create<ast::term_function>(loc, "f", std::vector<ast::ArgumentTuple>{});
-    REQUIRE(p.location() == loc);
-    REQUIRE(p.name() == "f");
-    REQUIRE(p.pool() == a);
-    REQUIRE(p.external());
-    REQUIRE(!q.external());
+TEST_CASE_METHOD(Fixture, "ast term function", "[cxx][ast][term_tuple]") {
+    auto a = std::array{node<T::argument_tuple>(std::vector{parse_term("1"), parse_term("2")}),
+                        node<T::argument_tuple>(std::vector{parse_term("3"), node<T::projection>(loc)})};
+    auto p = node<T::term_function>(loc, "f", a, true);
+    auto q = node<T::term_function>(loc, "f", std::array<N, 0>{}, false);
+    REQUIRE((p.location(A::location) == loc));
+    REQUIRE(p.string(A::name) == "f");
+    REQUIRE(std::ranges::equal(p.nodes(A::pool), a));
+    REQUIRE(p.number(A::external));
+    REQUIRE(!q.number(A::external));
     REQUIRE(p.to_string() == "@f(1,2;3,*)");
 }
-*/
+
+TEST_CASE_METHOD(Fixture, "ast theory variable", "[cxx][ast][theory_variable]") {
+    auto x = node<T::theory_term_variable>(loc, "X", false);
+    auto a = node<T::theory_term_variable>(loc, "_", true);
+
+    REQUIRE((x.location(A::location) == loc));
+    REQUIRE(x.string(A::name) == "X");
+    REQUIRE_FALSE(x.number(A::anonymous) == 1);
+    REQUIRE((a.string(A::name) == "_"));
+    REQUIRE_FALSE(a.number(A::anonymous) == 0);
+
+    REQUIRE(x.to_string() == "X");
+    REQUIRE(a.to_string() == "_");
+}
+
+TEST_CASE_METHOD(Fixture, "ast theory term symbolic", "[cxx][ast][theory_term_symbolic]") {
+    auto s = parse_sym("f(1,2)");
+    auto p = node<T::theory_term_symbolic>(loc, s);
+
+    REQUIRE((p.location(A::location) == loc));
+    REQUIRE(p.symbol(A::symbol) == s);
+    REQUIRE(p.to_string() == "f(1,2)");
+}
+
+TEST_CASE_METHOD(Fixture, "ast theory term tuple", "[cxx][ast][theory_term_tuple]") {
+    auto p = node<T::theory_term_symbolic>(loc, parse_sym("p(1,2)"));
+    auto q = node<T::theory_term_symbolic>(loc, parse_sym("q"));
+    auto a = std::array{p, q};
+    auto b = node<T::theory_term_tuple>(loc, AST::TheoryTupleType::set, a);
+
+    REQUIRE((b.location(A::location) == loc));
+    REQUIRE(std::ranges::equal(b.nodes(A::arguments), a));
+    REQUIRE(b.number(A::tuple_type) == AST::TheoryTupleType::set);
+    REQUIRE(b.to_string() == "{p(1,2),q}");
+}
+
+TEST_CASE_METHOD(Fixture, "ast theory term function", "[cxx][ast][theory_term_function]") {
+    auto p = node<T::theory_term_symbolic>(loc, parse_sym("p(1,2)"));
+    auto q = node<T::theory_term_symbolic>(loc, parse_sym("q"));
+    auto a = std::array{p, q};
+    auto b = node<T::theory_term_function>(loc, "a", a);
+    auto c = node<T::theory_term_function>(loc, "++", a);
+    auto d = node<T::theory_term_function>(loc, "not", std::array{q});
+
+    REQUIRE((b.location(A::location) == loc));
+    REQUIRE((c.location(A::location) == loc));
+    REQUIRE(b.string(A::name) == "a");
+    REQUIRE(c.string(A::name) == "++");
+    REQUIRE(d.string(A::name) == "not");
+    REQUIRE(std::ranges::equal(b.nodes(A::arguments), a));
+    REQUIRE(std::ranges::equal(c.nodes(A::arguments), a));
+    REQUIRE(b.to_string() == "a(p(1,2),q)");
+    REQUIRE(c.to_string() == "(p(1,2) ++ q)");
+    REQUIRE(d.to_string() == "(not q)");
+}
+
+TEST_CASE_METHOD(Fixture, "ast theory term unparsed", "[cxx][ast][theory_term_unparsed]") {
+    auto p = node<T::theory_term_symbolic>(loc, parse_sym("p(1,2)"));
+    auto q = node<T::theory_term_symbolic>(loc, parse_sym("q"));
+    auto a = node<T::unparsed_element>(std::array{"+", "-"}, p);
+    auto b = node<T::unparsed_element>(std::array{"*"}, q);
+    auto x = node<T::theory_term_unparsed>(loc, std::array{a, b});
+
+    REQUIRE((x.location(A::location) == loc));
+    REQUIRE((p.location(A::location) == loc));
+    REQUIRE((q.location(A::location) == loc));
+    REQUIRE(std::ranges::equal(a.strings(A::operators), std::array{"+", "-"}));
+    REQUIRE(std::ranges::equal(b.strings(A::operators), std::array{"*"}));
+    REQUIRE(a.node(A::term) == p);
+    REQUIRE(b.node(A::term) == q);
+    REQUIRE(std::ranges::equal(x.nodes(A::elements), std::array{a, b}));
+    REQUIRE(a.to_string() == "+ - p(1,2)");
+    REQUIRE(b.to_string() == "* q");
+    REQUIRE(x.to_string() == "(+ - p(1,2) * q)");
+}
+
+TEST_CASE_METHOD(Fixture, "ast literal boolean", "[cxx][ast][literal_boolean]") {
+    auto p = node<T::literal_boolean>(loc, AST::Sign::single, true);
+
+    REQUIRE((p.location(A::location) == loc));
+    REQUIRE(p.number(A::sign) == AST::Sign::single);
+    REQUIRE(p.number(A::value) == 1);
+    REQUIRE(p.to_string() == "not #true");
+}
+
+TEST_CASE_METHOD(Fixture, "ast literal symbolic", "[cxx][ast][literal_symbolic]") {
+    auto a = parse_term("-f(X)");
+    auto p = node<T::literal_symbolic>(loc, AST::Sign::single, a);
+
+    REQUIRE((p.location(A::location) == loc));
+    REQUIRE(p.number(A::sign) == AST::Sign::single);
+    REQUIRE(p.node(A::atom) == a);
+    REQUIRE(p.to_string() == "not -f(X)");
+}
+
+TEST_CASE_METHOD(Fixture, "ast literal comparison", "[cxx][ast][literal_comparison]") {
+    auto a = parse_term("X");
+    auto b = node<T::right_guard>(AST::Relation::less, parse_term("Y"));
+    auto c = node<T::right_guard>(AST::Relation::less_equal, parse_term("Z"));
+    auto p = node<T::literal_comparison>(loc, AST::Sign::single, a, std::array{b, c});
+
+    REQUIRE((p.location(A::location) == loc));
+    REQUIRE(p.number(A::sign) == AST::Sign::single);
+    REQUIRE(p.node(A::left) == a);
+    REQUIRE(std::ranges::equal(p.nodes(A::right), std::array{b, c}));
+    REQUIRE(p.to_string() == "not X<Y<=Z");
+}
+
+TEST_CASE_METHOD(Fixture, "ast body simple literal", "[cxx][ast][body_simple_literal]") {
+    const auto *s = "not p(X)";
+    auto lit = parse_lit(s);
+    auto p = node<T::body_simple_literal>(lit);
+
+    REQUIRE(p.node(A::literal) == lit);
+    REQUIRE(p.to_string() == s);
+}
+
+TEST_CASE_METHOD(Fixture, "ast body conditional literal", "[cxx][ast][body_conditional_literal]") {
+    auto s = parse_lit("not p(X)");
+    auto t = parse_lit("r(X)");
+    auto p = node<T::body_conditional_literal>(loc, s, std::array{t});
+
+    REQUIRE((p.location(A::location) == loc));
+    REQUIRE(p.node(A::literal) == s);
+    REQUIRE(std::ranges::equal(p.nodes(A::condition), std::array{t}));
+    REQUIRE(p.to_string() == "not p(X): r(X)");
+}
+
+TEST_CASE_METHOD(Fixture, "ast body set aggregate", "[cxx][ast][body_set_aggregate]") {
+    auto t1 = parse_term("5");
+    auto l1 = parse_lit("not p(X)");
+    auto l2 = parse_lit("r(X)");
+    auto e1 = node<T::set_aggregate_element>(loc, l1, std::array{l2});
+    auto lg1 = node<T::left_guard>(t1, AST::Relation::less);
+    auto rg1 = node<T::right_guard>(AST::Relation::less_equal, t1);
+    auto a1 = node<T::body_set_aggregate>(loc, AST::Sign::single, std::nullopt, std::array{e1}, std::nullopt);
+    auto a2 = node<T::body_set_aggregate>(loc, AST::Sign::no_sign, std::make_optional(lg1), std::array{e1}, rg1);
+
+    REQUIRE((e1.location(A::location) == loc));
+    REQUIRE(e1.node(A::literal) == l1);
+    REQUIRE(std::ranges::equal(e1.nodes(A::condition), std::array{l2}));
+    REQUIRE(lg1.node(A::term) == t1);
+    REQUIRE(lg1.number(A::relation) == AST::Relation::less);
+    REQUIRE(rg1.node(A::term) == t1);
+    REQUIRE(rg1.number(A::relation) == AST::Relation::less_equal);
+    REQUIRE((a1.location(A::location) == loc));
+    REQUIRE(a1.number(A::sign) == AST::Sign::single);
+    REQUIRE(!a1.optional_node(A::left).has_value());
+    REQUIRE(std::ranges::equal(a1.nodes(A::elements), std::array{e1}));
+    REQUIRE(!a1.optional_node(A::right).has_value());
+    REQUIRE((a2.location(A::location) == loc));
+    REQUIRE(a2.number(A::sign) == AST::Sign::no_sign);
+    REQUIRE(a2.node(A::left) == lg1);
+    REQUIRE(std::ranges::equal(a2.nodes(A::elements), std::array{e1}));
+    REQUIRE(a2.node(A::right) == rg1);
+    REQUIRE(e1.to_string() == "not p(X): r(X)");
+    REQUIRE(lg1.to_string() == "5 < ");
+    REQUIRE(rg1.to_string() == " <= 5");
+    REQUIRE(a1.to_string() == "not { not p(X): r(X) }");
+    REQUIRE(a2.to_string() == "5 < { not p(X): r(X) } <= 5");
+}
+
+TEST_CASE_METHOD(Fixture, "ast body aggregate", "[cxx][ast][body_aggregate]") {
+    auto t1 = parse_term("5");
+    auto t2 = parse_term("X");
+    auto l1 = parse_lit("not p(X)");
+    auto l2 = parse_lit("r(X)");
+    auto e1 = node<T::body_aggregate_element>(loc, std::array{t1, t2}, std::array{l1, l2});
+    auto lg1 = node<T::left_guard>(t1, AST::Relation::less);
+    auto rg1 = node<T::right_guard>(AST::Relation::less_equal, t1);
+
+    auto a1 = node<T::body_aggregate>(loc, AST::Sign::single, std::nullopt, AST::AggregateFunction::count,
+                                      std::array{e1}, std::nullopt);
+    auto a2 = node<T::body_aggregate>(loc, AST::Sign::no_sign, lg1, AST::AggregateFunction::sum, std::array{e1}, rg1);
+
+    REQUIRE((e1.location(A::location) == loc));
+    REQUIRE(std::ranges::equal(e1.nodes(A::tuple), std::array{t1, t2}));
+    REQUIRE(std::ranges::equal(e1.nodes(A::condition), std::array{l1, l2}));
+    REQUIRE((a1.location(A::location) == loc));
+    REQUIRE(a1.number(A::sign) == AST::Sign::single);
+    REQUIRE(!a1.optional_node(A::left).has_value());
+    REQUIRE(a1.number(A::function) == AST::AggregateFunction::count);
+    REQUIRE(std::ranges::equal(a1.nodes(A::elements), std::array{e1}));
+    REQUIRE(!a1.optional_node(A::right).has_value());
+    REQUIRE((a2.location(A::location) == loc));
+    REQUIRE(a2.number(A::sign) == AST::Sign::no_sign);
+    REQUIRE(a2.node(A::left) == lg1);
+    REQUIRE(a2.number(A::function) == AST::AggregateFunction::sum);
+    REQUIRE(std::ranges::equal(a2.nodes(A::elements), std::array{e1}));
+    REQUIRE(a2.node(A::right) == rg1);
+    REQUIRE(e1.to_string() == "5,X: not p(X), r(X)");
+    REQUIRE(a1.to_string() == "not #count { 5,X: not p(X), r(X) }");
+    REQUIRE(a2.to_string() == "5 < #sum { 5,X: not p(X), r(X) } <= 5");
+}
+
+TEST_CASE_METHOD(Fixture, "ast body theory atom", "[cxx][ast][body_theory_atom]") {
+    auto t1 = parse_term("f(X)");
+    auto tt1 = node<T::theory_term_symbolic>(loc, parse_sym("f(1,2)"));
+    auto tt2 = node<T::theory_term_symbolic>(loc, parse_sym("5"));
+    auto l1 = parse_lit("not p(X)");
+    auto l2 = parse_lit("r(X)");
+    auto e1 = node<T::theory_atom_element>(loc, std::array{tt1, tt2}, std::array{l1, l2});
+    auto rg1 = node<T::theory_right_guard>("<>", tt2);
+
+    auto a1 = node<T::body_theory_atom>(loc, AST::Sign::single, t1, std::array{e1}, rg1);
+    auto a2 = node<T::body_theory_atom>(loc, AST::Sign::single, t1, std::array{e1}, std::nullopt);
+
+    REQUIRE(rg1.string(A::theory_operator) == "<>");
+    REQUIRE(rg1.node(A::term) == tt2);
+    REQUIRE((e1.location(A::location) == loc));
+    REQUIRE(std::ranges::equal(e1.nodes(A::tuple), std::array{tt1, tt2}));
+    REQUIRE(std::ranges::equal(e1.nodes(A::condition), std::array{l1, l2}));
+    REQUIRE((a1.location(A::location) == loc));
+    REQUIRE(a1.number(A::sign) == AST::Sign::single);
+    REQUIRE(a1.node(A::name) == t1);
+    REQUIRE(std::ranges::equal(a1.nodes(A::elements), std::array{e1}));
+    REQUIRE(a1.node(A::right) == rg1);
+    REQUIRE(!a2.optional_node(A::right).has_value());
+    REQUIRE(e1.to_string() == "f(1,2),5: not p(X), r(X)");
+    REQUIRE(rg1.to_string() == " <> 5");
+    REQUIRE(a1.to_string() == "not &f(X) { f(1,2),5: not p(X), r(X) } <> 5");
+}
+
+TEST_CASE_METHOD(Fixture, "ast head simple literal", "[cxx][ast][head_simple_literal]") {
+    auto lit = parse_lit("p(X)");
+    auto h = node<T::head_simple_literal>(lit);
+
+    REQUIRE(h.node(A::literal) == lit);
+    REQUIRE(h.to_string() == "p(X)");
+}
+
+TEST_CASE_METHOD(Fixture, "ast head disjunction", "[cxx][ast][head_disjunction]") {
+    auto l1 = parse_lit("not p(X)");
+    auto l2 = parse_lit("r(X)");
+    auto l3 = node<T::head_conditional_literal>(loc, l2, std::array{l1});
+
+    auto p = node<T::head_disjunction>(loc, std::array{l2, l3});
+
+    REQUIRE((l3.location(A::location) == loc));
+    REQUIRE(l3.node(A::literal) == l2);
+    REQUIRE(std::ranges::equal(l3.nodes(A::condition), std::array{l1}));
+
+    REQUIRE((p.location(A::location) == loc));
+    REQUIRE(std::ranges::equal(p.nodes(A::elements), std::array{l2, l3}));
+    REQUIRE(p.to_string() == "r(X); r(X): not p(X)");
+}
+
+TEST_CASE_METHOD(Fixture, "ast head set aggregate", "[cxx][ast][head_set_aggregate]") {
+    auto t1 = parse_term("5");
+    auto l1 = parse_lit("not p(X)");
+    auto l2 = parse_lit("r(X)");
+    auto e1 = node<T::set_aggregate_element>(loc, l1, std::array{l2});
+    auto lg1 = node<T::left_guard>(t1, AST::Relation::less);
+    auto rg1 = node<T::right_guard>(AST::Relation::less_equal, t1);
+    auto a1 = node<T::head_set_aggregate>(loc, std::nullopt, std::array{e1}, std::nullopt);
+    auto a2 = node<T::head_set_aggregate>(loc, std::make_optional(lg1), std::array{e1}, rg1);
+
+    REQUIRE((e1.location(A::location) == loc));
+    REQUIRE(e1.node(A::literal) == l1);
+    REQUIRE(std::ranges::equal(e1.nodes(A::condition), std::array{l2}));
+    REQUIRE(lg1.node(A::term) == t1);
+    REQUIRE(lg1.number(A::relation) == AST::Relation::less);
+    REQUIRE(rg1.node(A::term) == t1);
+    REQUIRE(rg1.number(A::relation) == AST::Relation::less_equal);
+    REQUIRE((a1.location(A::location) == loc));
+    REQUIRE(!a1.optional_node(A::left).has_value());
+    REQUIRE(std::ranges::equal(a1.nodes(A::elements), std::array{e1}));
+    REQUIRE(!a1.optional_node(A::right).has_value());
+    REQUIRE((a2.location(A::location) == loc));
+    REQUIRE(a2.node(A::left) == lg1);
+    REQUIRE(std::ranges::equal(a2.nodes(A::elements), std::array{e1}));
+    REQUIRE(a2.node(A::right) == rg1);
+    REQUIRE(e1.to_string() == "not p(X): r(X)");
+    REQUIRE(lg1.to_string() == "5 < ");
+    REQUIRE(rg1.to_string() == " <= 5");
+    REQUIRE(a1.to_string() == "{ not p(X): r(X) }");
+    REQUIRE(a2.to_string() == "5 < { not p(X): r(X) } <= 5");
+}
+
+TEST_CASE_METHOD(Fixture, "ast head aggregate", "[cxx][ast][head_aggregate]") {
+    auto t1 = parse_term("5");
+    auto t2 = parse_term("X");
+    auto l1 = parse_lit("not p(X)");
+    auto l2 = parse_lit("r(X)");
+    auto l3 = parse_lit("q(X)");
+    auto e1 = node<T::head_aggregate_element>(loc, std::array{t1, t2}, l3, std::array{l1, l2});
+    auto lg1 = node<T::left_guard>(t1, AST::Relation::less);
+    auto rg1 = node<T::right_guard>(AST::Relation::less_equal, t1);
+
+    auto a1 = node<T::head_aggregate>(loc, std::nullopt, AST::AggregateFunction::count, std::array{e1}, std::nullopt);
+    auto a2 = node<T::head_aggregate>(loc, lg1, AST::AggregateFunction::sum, std::array{e1}, rg1);
+
+    REQUIRE((e1.location(A::location) == loc));
+    REQUIRE(std::ranges::equal(e1.nodes(A::tuple), std::array{t1, t2}));
+    REQUIRE(e1.node(A::literal) == l3);
+    REQUIRE(std::ranges::equal(e1.nodes(A::condition), std::array{l1, l2}));
+    REQUIRE((a1.location(A::location) == loc));
+    REQUIRE(!a1.optional_node(A::left).has_value());
+    REQUIRE(a1.number(A::function) == AST::AggregateFunction::count);
+    REQUIRE(std::ranges::equal(a1.nodes(A::elements), std::array{e1}));
+    REQUIRE(!a1.optional_node(A::right).has_value());
+    REQUIRE((a2.location(A::location) == loc));
+    REQUIRE(a2.node(A::left) == lg1);
+    REQUIRE(a2.number(A::function) == AST::AggregateFunction::sum);
+    REQUIRE(std::ranges::equal(a2.nodes(A::elements), std::array{e1}));
+    REQUIRE(a2.node(A::right) == rg1);
+    REQUIRE(e1.to_string() == "5,X: q(X): not p(X), r(X)");
+    REQUIRE(a1.to_string() == "#count { 5,X: q(X): not p(X), r(X) }");
+    REQUIRE(a2.to_string() == "5 < #sum { 5,X: q(X): not p(X), r(X) } <= 5");
+}
+
+TEST_CASE_METHOD(Fixture, "ast head theory atom", "[cxx][ast][head_theory_atom]") {
+    auto t1 = parse_term("f(X)");
+    auto tt1 = node<T::theory_term_symbolic>(loc, parse_sym("f(1,2)"));
+    auto tt2 = node<T::theory_term_symbolic>(loc, parse_sym("5"));
+    auto l1 = parse_lit("not p(X)");
+    auto l2 = parse_lit("r(X)");
+    auto e1 = node<T::theory_atom_element>(loc, std::array{tt1, tt2}, std::array{l1, l2});
+    auto rg1 = node<T::theory_right_guard>("<>", tt2);
+
+    auto a1 = node<T::head_theory_atom>(loc, t1, std::array{e1}, rg1);
+    auto a2 = node<T::head_theory_atom>(loc, t1, std::array{e1}, std::nullopt);
+
+    REQUIRE(rg1.string(A::theory_operator) == "<>");
+    REQUIRE(rg1.node(A::term) == tt2);
+    REQUIRE((e1.location(A::location) == loc));
+    REQUIRE(std::ranges::equal(e1.nodes(A::tuple), std::array{tt1, tt2}));
+    REQUIRE(std::ranges::equal(e1.nodes(A::condition), std::array{l1, l2}));
+    REQUIRE((a1.location(A::location) == loc));
+    REQUIRE(a1.node(A::name) == t1);
+    REQUIRE(std::ranges::equal(a1.nodes(A::elements), std::array{e1}));
+    REQUIRE(a1.node(A::right) == rg1);
+    REQUIRE(!a2.optional_node(A::right).has_value());
+    REQUIRE(e1.to_string() == "f(1,2),5: not p(X), r(X)");
+    REQUIRE(rg1.to_string() == " <> 5");
+    REQUIRE(a1.to_string() == "&f(X) { f(1,2),5: not p(X), r(X) } <> 5");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement rule", "[cxx][ast][statement_rule]") {
+    auto h = node<T::head_simple_literal>(parse_lit("not q(X)"));
+    auto b = node<T::body_simple_literal>(parse_lit("p(X)"));
+    auto r = node<T::statement_rule>(loc, h, std::array{b});
+
+    REQUIRE((r.location(A::location) == loc));
+    REQUIRE(r.node(A::head) == h);
+    REQUIRE(std::ranges::equal(r.nodes(A::body), std::array{b}));
+    REQUIRE(r.to_string() == "not q(X) :- p(X).");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement theory", "[cxx][ast][statement_theory]") {
+    auto od1 = node<T::theory_operator_definition>(loc, "+", 3, AST::TheoryOperatorType::binary_left);
+    REQUIRE((od1.location(A::location) == loc));
+    REQUIRE(od1.string(A::name) == "+");
+    REQUIRE(od1.number(A::priority) == 3);
+    REQUIRE(od1.number(A::operator_type) == AST::TheoryOperatorType::binary_left);
+    REQUIRE(od1.to_string() == "+ : 3, binary, left");
+
+    auto td1 = node<T::theory_term_definition>(loc, "t", std::array{od1});
+    REQUIRE((td1.location(A::location) == loc));
+    REQUIRE(td1.string(A::name) == "t");
+    REQUIRE(std::ranges::equal(td1.nodes(A::operators), std::array{od1}));
+    REQUIRE(td1.to_string() == "t { + : 3, binary, left }");
+
+    auto gd1 = node<T::theory_guard_definition>(std::array{"+", "-"}, "t");
+    REQUIRE(std::ranges::equal(gd1.strings(A::operators), std::array{"+", "-"}));
+    REQUIRE(gd1.string(A::term) == "t");
+    REQUIRE(gd1.to_string() == "{+,-}, t");
+
+    auto ad1 = node<T::theory_atom_definition>(loc, "p", 1, "t", std::nullopt, AST::TheoryAtomType::directive);
+    auto ad2 = node<T::theory_atom_definition>(loc, "p", 1, "t", gd1, AST::TheoryAtomType::directive);
+    REQUIRE((ad1.location(A::location) == loc));
+    REQUIRE(ad1.string(A::name) == "p");
+    REQUIRE(ad1.number(A::arity) == 1);
+    REQUIRE(ad1.string(A::term) == "t");
+    REQUIRE(!ad1.optional_node(A::guard).has_value());
+    REQUIRE(ad1.number(A::atom_type) == AST::TheoryAtomType::directive);
+    REQUIRE(ad2.node(A::guard) == gd1);
+    REQUIRE(ad1.to_string() == "&p/1: t, directive");
+    REQUIRE(ad2.to_string() == "&p/1: t, {+,-}, t, directive");
+
+    auto d1 = node<T::statement_theory>(loc, "t", std::array{td1}, std::array{ad1, ad2});
+    REQUIRE((d1.location(A::location) == loc));
+    REQUIRE(d1.string(A::name) == "t");
+    REQUIRE(std::ranges::equal(d1.nodes(A::terms), std::array{td1}));
+    REQUIRE(std::ranges::equal(d1.nodes(A::atoms), std::array{ad1, ad2}));
+    REQUIRE(d1.to_string() == "#theory t {\n"
+                              "  t { + : 3, binary, left };\n"
+                              "  &p/1: t, directive;\n"
+                              "  &p/1: t, {+,-}, t, directive\n"
+                              "}.");
+}
+
 /*
-    def test_binary(self):
-        """
-        Test binary term.
-        """
-        p = ast.TermBinaryOperation(
-            self.lib, self.loc, self.sym("1"), ast.BinaryOperator.Plus, self.sym("-2")
-        )
-
-        assert p.location == self.loc
-        assert p.left == self.sym("1")
-        assert p.operator_type == ast.BinaryOperator.Plus
-        assert p.right == self.sym("-2")
-        assert str(p) == "1+(-2)"
-
-    def test_tuple(self):
-        """
-        Test tuple term.
-        """
-        a = [
-            ast.ArgumentTuple(self.lib, [self.sym("1"), self.sym("2")]),
-            self.sym("3"),
-        ]
-        p = ast.TermTuple(
-            self.lib,
-            self.loc,
-            a,
-        )
-
-        assert p.location == self.loc
-        assert p.pool == a
-        assert str(p) == "(1,2;3)"
-
-    def test_function(self):
-        """
-        Test function term.
-        """
-        a = [
-            ast.ArgumentTuple(self.lib, [self.sym("1"), self.sym("2")]),
-            ast.ArgumentTuple(
-                self.lib, [self.sym("3"), ast.Projection(self.lib, self.loc)]
-            ),
-        ]
-        p = ast.TermFunction(self.lib, self.loc, "f", a, True)
-        q = ast.TermFunction(self.lib, self.loc, "f", [ast.ArgumentTuple(self.lib)])
-
-        assert p.location == self.loc
-        assert p.name == "f"
-        assert p.pool == a
-        assert p.external
-        assert not q.external
-        assert str(p) == "@f(1,2;3,*)"
-
-    def test_theory_variable(self):
-        """
-        Test theory variable terms.
-        """
-        x = ast.TheoryTermVariable(self.lib, self.loc, "X", False)
-        a = ast.TheoryTermVariable(self.lib, self.loc, "_", True)
-
-        assert x.location == self.loc
-        assert x.name == "X"
-        assert not x.anonymous
-        assert a.name == "_"
-        assert a.anonymous
-        assert str(x) == "X"
-        assert str(a) == "_"
-
-    def test_theory_symbol(self):
-        """
-        Test theory_symbolic term.
-        """
-        s = parse_term(self.lib, "f(1,2)")
-        p = ast.TheoryTermSymbolic(self.lib, self.loc, s)
-
-        assert p.location == self.loc
-        assert p.symbol == s
-        assert str(p) == "f(1,2)"
-
-    def test_theory_tuple(self):
-        """
-        Test theory tuple term.
-        """
-        p = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "p(1,2)"))
-        q = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
-        a = [p, q]
-        b = ast.TheoryTermTuple(self.lib, self.loc, ast.TheoryTupleType.Set, a)
-
-        assert b.location == self.loc
-        assert b.arguments == a
-        assert b.tuple_type == ast.TheoryTupleType.Set
-        assert str(b) == "{p(1,2),q}"
-
-    def test_theory_function(self):
-        """
-        Test theory function term.
-        """
-        p = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "p(1,2)"))
-        q = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
-        a = [p, q]
-        b = ast.TheoryTermFunction(self.lib, self.loc, "a", a)
-        c = ast.TheoryTermFunction(self.lib, self.loc, "++", a)
-        d = ast.TheoryTermFunction(self.lib, self.loc, "not", [q])
-
-        assert b.location == self.loc
-        assert c.location == self.loc
-        assert b.name == "a"
-        assert c.name == "++"
-        assert b.arguments == a
-        assert c.arguments == a
-        assert str(b) == "a(p(1,2),q)"
-        assert str(c) == "(p(1,2) ++ q)"
-        assert str(d) == "(not q)"
-
-    def test_theory_unparsed(self):
-        """
-        Test theory function term.
-        """
-        p = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "p(1,2)"))
-        q = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
-
-        a = ast.UnparsedElement(self.lib, ["+", "-"], p)
-        b = ast.UnparsedElement(self.lib, ["*"], q)
-
-        x = ast.TheoryTermUnparsed(self.lib, self.loc, [a, b])
-
-        assert x.location == self.loc
-        assert p.location == self.loc
-        assert q.location == self.loc
-        assert a.operators == ["+", "-"]
-        assert b.operators == ["*"]
-        assert a.term == p
-        assert b.term == q
-        assert x.elements == [a, b]
-        assert str(a) == "+ - p(1,2)"
-        assert str(b) == "* q"
-        assert str(x) == "(+ - p(1,2) * q)"
-
-    def test_boolean(self):
-        """
-        Test Boolean literal.
-        """
-        p = ast.LiteralBoolean(self.lib, self.loc, ast.Sign.Single, True)
-
-        assert p.location == self.loc
-        assert p.sign == ast.Sign.Single
-        assert p.value
-        assert str(p) == "not #true"
-
-    def test_symbolic_literal(self):
-        """
-        Test symbolic literal.
-        """
-        a = ast.parse_term(self.lib, "-f(X)")
-        p = ast.LiteralSymbolic(self.lib, self.loc, ast.Sign.Single, a)
-
-        assert p.location == self.loc
-        assert p.sign == ast.Sign.Single
-        assert p.atom == a
-        assert str(p) == "not -f(X)"
-
-    def test_comparison_literal(self):
-        """
-        Test comparison literal.
-        """
-        a = ast.parse_term(self.lib, "X")
-        b = ast.RightGuard(self.lib, ast.Relation.Less, ast.parse_term(self.lib, "Y"))
-        c = ast.RightGuard(
-            self.lib, ast.Relation.LessEqual, ast.parse_term(self.lib, "Z")
-        )
-        p = ast.LiteralComparison(self.lib, self.loc, ast.Sign.Single, a, [b, c])
-
-        assert p.location == self.loc
-        assert p.sign == ast.Sign.Single
-        assert p.left == a
-        assert p.right == [b, c]
-        assert str(p) == "not X<Y<=Z"
-
-    def test_head_simple_literal(self):
-        """
-        Test simple head literal.
-        """
-        s = "not p(X)"
-        p = ast.HeadSimpleLiteral(self.lib, ast.parse_literal(self.lib, s))
-        q = ast.parse_literal(self.lib, s)
-
-        assert p.literal == q
-        assert str(p) == s
-
-    def test_head_disjunction(self):
-        """
-        Test head disjunction literal.
-        """
-        l1 = ast.parse_literal(self.lib, "not p(X)")
-        l2 = ast.parse_literal(self.lib, "r(X)")
-        l3 = ast.HeadConditionalLiteral(self.lib, self.loc, l2, [l1])
-
-        p = ast.HeadDisjunction(self.lib, self.loc, [l2, l3])
-
-        assert l3.location == self.loc
-        assert l3.literal == l2
-        assert l3.condition == [l1]
-
-        assert p.location == self.loc
-        assert p.elements == [l2, l3]
-        assert str(p) == "r(X); r(X): not p(X)"
-
-    def test_head_set_aggregate(self):
-        """
-        Test head set aggregate.
-        """
-        t1 = ast.parse_term(self.lib, "5")
-        l1 = ast.parse_literal(self.lib, "not p(X)")
-        l2 = ast.parse_literal(self.lib, "r(X)")
-        e1 = ast.SetAggregateElement(self.lib, self.loc, l1, [l2])
-        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
-        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
-        a1 = ast.HeadSetAggregate(self.lib, self.loc, None, [e1], None)
-        a2 = ast.HeadSetAggregate(self.lib, self.loc, lg1, [e1], rg1)
-
-        assert a1.location == self.loc
-        assert a1.left is None
-        assert a1.elements == [e1]
-        assert a1.right is None
-
-        assert a2.location == self.loc
-        assert a2.left == lg1
-        assert a2.elements == [e1]
-        assert a2.right == rg1
-
-        assert str(e1) == "not p(X): r(X)"
-        assert str(lg1) == "5 < "
-        assert str(rg1) == " <= 5"
-        assert str(a1) == "{ not p(X): r(X) }"
-        assert str(a2) == "5 < { not p(X): r(X) } <= 5"
-
-    def test_head_aggregate(self):
-        """
-        Test head aggregate.
-        """
-        t1 = ast.parse_term(self.lib, "5")
-        t2 = ast.parse_term(self.lib, "X")
-        l1 = ast.parse_literal(self.lib, "not p(X)")
-        l2 = ast.parse_literal(self.lib, "r(X)")
-        l3 = ast.parse_literal(self.lib, "q(X)")
-        e1 = ast.HeadAggregateElement(self.lib, self.loc, [t1, t2], l3, [l1, l2])
-        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
-        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
-        a1 = ast.HeadAggregate(
-            self.lib,
-            self.loc,
-            None,
-            ast.AggregateFunction.Count,
-            [e1],
-            None,
-        )
-        a2 = ast.HeadAggregate(
-            self.lib,
-            self.loc,
-            lg1,
-            ast.AggregateFunction.Sum,
-            [e1],
-            rg1,
-        )
-
-        assert e1.location == self.loc
-        assert e1.tuple == [t1, t2]
-        assert e1.condition == [l1, l2]
-
-        assert a1.location == self.loc
-        assert a1.left is None
-        assert a1.function == ast.AggregateFunction.Count
-        assert a1.elements == [e1]
-        assert a1.right is None
-
-        assert a2.location == self.loc
-        assert a2.left == lg1
-        assert a2.function == ast.AggregateFunction.Sum
-        assert a2.elements == [e1]
-        assert a2.right == rg1
-
-        assert str(e1), "5,X: q(X): not p(X) == r(X)"
-        assert str(a1), "#count { 5,X: q(X): not p(X) == r(X) }"
-        assert str(a2), "5 < #sum { 5,X: q(X): not p(X) == r(X) } <= 5"
-
-    def test_head_theory_atom(self):
-        """
-        Test head theory atom.
-        """
-        t1 = ast.parse_term(self.lib, "f(X)")
-        tt1 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "f(1,2)"))
-        tt2 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "5"))
-        l1 = ast.parse_literal(self.lib, "not p(X)")
-        l2 = ast.parse_literal(self.lib, "r(X)")
-        e1 = ast.TheoryAtomElement(self.lib, self.loc, [tt1, tt2], [l1, l2])
-        rg1 = ast.TheoryRightGuard(self.lib, "<>", tt2)
-        a1 = ast.HeadTheoryAtom(self.lib, self.loc, t1, [e1], rg1)
-        a2 = ast.HeadTheoryAtom(self.lib, self.loc, t1, [e1], None)
-
-        assert rg1.theory_operator == "<>"
-        assert rg1.term == tt2
-
-        assert e1.location == self.loc
-        assert e1.tuple == [tt1, tt2]
-        assert e1.condition == [l1, l2]
-
-        assert a1.location == self.loc
-        assert a1.name == t1
-        assert a1.elements == [e1]
-        assert a1.right == rg1
-
-        assert a2.right is None
-
-        assert str(e1), "f(1,2),5: not p(X) == r(X)"
-        assert str(rg1) == " <> 5"
-        assert str(a1), "&f(X) { f(1,2),5: not p(X) == r(X) } <> 5"
-
-    def test_body_simple_literal(self):
-        """
-        Test simple body literal.
-        """
-        s = "not p(X)"
-        p = ast.BodySimpleLiteral(self.lib, ast.parse_literal(self.lib, s))
-        q = ast.parse_literal(self.lib, s)
-
-        assert p.literal == q
-        assert str(p) == s
-
-    def test_body_conditional_literal(self):
-        """
-        Test body conditional literal.
-        """
-        s = ast.parse_literal(self.lib, "not p(X)")
-        t = ast.parse_literal(self.lib, "r(X)")
-        p = ast.BodyConditionalLiteral(self.lib, self.loc, s, [t])
-
-        assert p.location == self.loc
-        assert p.literal == s
-        assert p.condition == [t]
-        assert str(p) == "not p(X): r(X)"
-
-    def test_body_set_aggregate(self):
-        """
-        Test body set aggregate.
-        """
-        t1 = ast.parse_term(self.lib, "5")
-        l1 = ast.parse_literal(self.lib, "not p(X)")
-        l2 = ast.parse_literal(self.lib, "r(X)")
-        e1 = ast.SetAggregateElement(self.lib, self.loc, l1, [l2])
-        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
-        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
-        a1 = ast.BodySetAggregate(self.lib, self.loc, ast.Sign.Single, None, [e1], None)
-        a2 = ast.BodySetAggregate(self.lib, self.loc, ast.Sign.NoSign, lg1, [e1], rg1)
-
-        assert e1.location == self.loc
-        assert e1.literal == l1
-        assert e1.condition == [l2]
-
-        assert lg1.term == t1
-        assert lg1.relation == ast.Relation.Less
-
-        assert rg1.term == t1
-        assert rg1.relation == ast.Relation.LessEqual
-
-        assert a1.location == self.loc
-        assert a1.sign == ast.Sign.Single
-        assert a1.left is None
-        assert a1.elements == [e1]
-        assert a1.right is None
-
-        assert a2.location == self.loc
-        assert a2.sign == ast.Sign.NoSign
-        assert a2.left == lg1
-        assert a2.elements == [e1]
-        assert a2.right == rg1
-
-        assert str(e1) == "not p(X): r(X)"
-        assert str(lg1) == "5 < "
-        assert str(rg1) == " <= 5"
-        assert str(a1) == "not { not p(X): r(X) }"
-        assert str(a2) == "5 < { not p(X): r(X) } <= 5"
-
-    def test_body_aggregate(self):
-        """
-        Test body aggregate.
-        """
-        t1 = ast.parse_term(self.lib, "5")
-        t2 = ast.parse_term(self.lib, "X")
-        l1 = ast.parse_literal(self.lib, "not p(X)")
-        l2 = ast.parse_literal(self.lib, "r(X)")
-        e1 = ast.BodyAggregateElement(self.lib, self.loc, [t1, t2], [l1, l2])
-        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
-        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
-        a1 = ast.BodyAggregate(
-            self.lib,
-            self.loc,
-            ast.Sign.Single,
-            None,
-            ast.AggregateFunction.Count,
-            [e1],
-            None,
-        )
-        a2 = ast.BodyAggregate(
-            self.lib,
-            self.loc,
-            ast.Sign.NoSign,
-            lg1,
-            ast.AggregateFunction.Sum,
-            [e1],
-            rg1,
-        )
-
-        assert e1.location == self.loc
-        assert e1.tuple == [t1, t2]
-        assert e1.condition == [l1, l2]
-
-        assert a1.location == self.loc
-        assert a1.sign == ast.Sign.Single
-        assert a1.left is None
-        assert a1.function == ast.AggregateFunction.Count
-        assert a1.elements == [e1]
-        assert a1.right is None
-
-        assert a2.location == self.loc
-        assert a2.sign == ast.Sign.NoSign
-        assert a2.left == lg1
-        assert a2.function == ast.AggregateFunction.Sum
-        assert a2.elements == [e1]
-        assert a2.right == rg1
-
-        assert str(e1), "5,X: not p(X) == r(X)"
-        assert str(a1), "not #count { 5,X: not p(X) == r(X) }"
-        assert str(a2), "5 < #sum { 5,X: not p(X) == r(X) } <= 5"
-
-    def test_body_theory_atom(self):
-        """
-        Test body theory atom.
-        """
-        t1 = ast.parse_term(self.lib, "f(X)")
-        tt1 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "f(1,2)"))
-        tt2 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "5"))
-        l1 = ast.parse_literal(self.lib, "not p(X)")
-        l2 = ast.parse_literal(self.lib, "r(X)")
-        e1 = ast.TheoryAtomElement(self.lib, self.loc, [tt1, tt2], [l1, l2])
-        rg1 = ast.TheoryRightGuard(self.lib, "<>", tt2)
-        a1 = ast.BodyTheoryAtom(self.lib, self.loc, ast.Sign.Single, t1, [e1], rg1)
-        a2 = ast.BodyTheoryAtom(self.lib, self.loc, ast.Sign.Single, t1, [e1], None)
-
-        assert rg1.theory_operator == "<>"
-        assert rg1.term == tt2
-
-        assert e1.location == self.loc
-        assert e1.tuple == [tt1, tt2]
-        assert e1.condition == [l1, l2]
-
-        assert a1.location == self.loc
-        assert a1.sign == ast.Sign.Single
-        assert a1.name == t1
-        assert a1.elements == [e1]
-        assert a1.right == rg1
-
-        assert a2.right is None
-
-        assert str(e1), "f(1,2),5: not p(X) == r(X)"
-        assert str(rg1) == " <> 5"
-        assert str(a1), "not &f(X) { f(1,2),5: not p(X) == r(X) } <> 5"
-
-    def test_statement_rule(self):
-        """
-        Test rule.
-        """
-        h = ast.HeadSimpleLiteral(self.lib, ast.parse_literal(self.lib, "not q(X)"))
-        b = ast.BodySimpleLiteral(self.lib, ast.parse_literal(self.lib, "p(X)"))
-        r = ast.StatementRule(self.lib, self.loc, h, [b])
-
-        assert r.head == h
-        assert r.body == [b]
-        assert str(r) == "not q(X) :- p(X)."
-
-    def test_statement_theory(self):
-        """
-        Test theory definition.
-        """
-        od1 = ast.TheoryOperatorDefinition(
-            self.lib, self.loc, "+", 3, ast.TheoryOperatorType.BinaryLeft
-        )
-
-        assert od1.location == self.loc
-        assert od1.name == "+"
-        assert od1.priority == 3
-        assert od1.operator_type == ast.TheoryOperatorType.BinaryLeft
-        assert str(od1), "+ : 3, binary == left"
-
-        td1 = ast.TheoryTermDefinition(self.lib, self.loc, "t", [od1])
-        assert td1.location == self.loc
-        assert td1.name == "t"
-        assert td1.operators == [od1]
-        assert str(td1), "t { + : 3, binary == left }"
-
-        gd1 = ast.TheoryGuardDefinition(self.lib, ["+", "-"], "t")
-        assert gd1.operators == ["+", "-"]
-        assert gd1.term == "t"
-        assert str(gd1), "{+,-} == t"
-
-        ad1 = ast.TheoryAtomDefinition(
-            self.lib, self.loc, "p", 1, "t", None, ast.TheoryAtomType.Directive
-        )
-        ad2 = ast.TheoryAtomDefinition(
-            self.lib, self.loc, "p", 1, "t", gd1, ast.TheoryAtomType.Directive
-        )
-        assert ad1.location == self.loc
-        assert ad1.name == "p"
-        assert ad1.arity == 1
-        assert ad1.term == "t"
-        assert ad1.guard is None
-        assert ad1.atom_type == ast.TheoryAtomType.Directive
-        assert ad2.guard == gd1
-        assert str(ad1), "&p/1: t == directive"
-        assert str(ad2), "&p/1: t, {+,-}, t == directive"
-
-        d1 = ast.StatementTheory(self.lib, self.loc, "t", [td1], [ad1, ad2])
-        assert d1.location == self.loc
-        assert d1.name == "t"
-        assert d1.terms == [td1]
-        assert d1.atoms, [ad1 == ad2]
-        assert str(d1) == dedent(
-            """\
-            #theory t {
-              t { + : 3, binary, left };
-              &p/1: t, directive;
-              &p/1: t, {+,-}, t, directive
-            }."""
-        )
-
     def test_statement_optimize(self):
         """
         Test optimization statements.

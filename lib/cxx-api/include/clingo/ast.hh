@@ -7,8 +7,88 @@
 #include <clingo/ast.h>
 
 #include <cassert>
+#include <utility>
 
 namespace Clingo::AST {
+
+namespace UnaryOperator {
+inline constexpr int minus = 0;
+inline constexpr int negation = 1;
+} // namespace UnaryOperator
+
+namespace BinaryOperator {
+inline constexpr int and_ = 0;
+inline constexpr int division = 1;
+inline constexpr int minus = 2;
+inline constexpr int modulo = 3;
+inline constexpr int multiplication = 4;
+inline constexpr int or_ = 5;
+inline constexpr int plus = 6;
+inline constexpr int power = 7;
+inline constexpr int xor_ = 8;
+} // namespace BinaryOperator
+
+namespace Sign {
+inline constexpr int no_sign = 0;
+inline constexpr int single = 1;
+inline constexpr int double_ = 2;
+} // namespace Sign
+
+namespace Relation {
+inline constexpr int equal = 0;
+inline constexpr int not_equal = 1;
+inline constexpr int less = 2;
+inline constexpr int less_equal = 3;
+inline constexpr int greater = 4;
+inline constexpr int greater_equal = 5;
+} // namespace Relation
+
+namespace AggregateFunction {
+inline constexpr int count = 0;
+inline constexpr int sum = 1;
+inline constexpr int sump = 2;
+inline constexpr int min = 3;
+inline constexpr int max = 4;
+} // namespace AggregateFunction
+
+namespace TheoryOperatorType {
+inline constexpr int unary = 0;
+inline constexpr int binary_left = 1;
+inline constexpr int binary_right = 2;
+} // namespace TheoryOperatorType
+
+namespace TheoryTupleType {
+inline constexpr int tuple = 0;
+inline constexpr int set = 1;
+inline constexpr int list = 2;
+} // namespace TheoryTupleType
+
+namespace TheoryAtomType {
+inline constexpr int head = 0;
+inline constexpr int body = 1;
+inline constexpr int any = 2;
+inline constexpr int directive = 3;
+} // namespace TheoryAtomType
+
+namespace OptimizeType {
+inline constexpr int minimize = 0;
+inline constexpr int maximize = 1;
+} // namespace OptimizeType
+
+namespace IncludeType {
+inline constexpr int system = 0;
+inline constexpr int inbuild = 1;
+} // namespace IncludeType
+
+namespace Precedence {
+inline constexpr int default_ = 0;
+inline constexpr int override = 1;
+} // namespace Precedence
+
+namespace CommentType {
+inline constexpr int line = 0;
+inline constexpr int block = 1;
+} // namespace CommentType
 
 enum class Attribute : clingo_ast_attribute_t {
     anonymous = clingo_ast_attribute_anonymous,
@@ -263,6 +343,8 @@ class Node {
     template <class Arg> [[nodiscard]] static auto convert_(Arg const &arg) -> decltype(auto) {
         if constexpr (Detail::is_contiguous_range_over<Arg, char> || std::is_same_v<Arg, char const *>) {
             return std::string_view{arg};
+        } else if constexpr (Detail::is_range_over<Arg, char const *>) {
+            return Detail::transform(arg, [](auto str) { return clingo_string_t{str, std::strlen(str)}; });
         } else if constexpr (Detail::is_range_over<Arg, std::string_view>) {
             return Detail::transform(arg, [](auto str) { return clingo_string_t{str.data(), str.size()}; });
         } else if constexpr (std::is_same_v<Arg, bool>) {
@@ -287,8 +369,11 @@ class Node {
             static_assert(Type == Detail::Arg::string_array);
             return std::make_tuple(std::ranges::data(arg), std::ranges::size(arg));
         } else if constexpr (std::is_same_v<Arg, Node>) {
-            static_assert(Type == Detail::Arg::node);
+            static_assert(Type == Detail::Arg::node || Type == Detail::Arg::optional_node);
             return std::make_tuple(c_cast(arg));
+        } else if constexpr (std::is_same_v<Arg, std::nullopt_t>) {
+            static_assert(Type == Detail::Arg::optional_node);
+            return std::make_tuple(nullptr);
         } else if constexpr (std::is_same_v<Arg, std::optional<Node>>) {
             static_assert(Type == Detail::Arg::optional_node);
             return std::make_tuple(arg ? c_cast(*arg) : nullptr);
