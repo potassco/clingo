@@ -420,9 +420,9 @@ class TestAST:
         assert a2.elements == [e1]
         assert a2.right == rg1
 
-        assert str(e1), "5,X: q(X): not p(X) == r(X)"
-        assert str(a1), "#count { 5,X: q(X): not p(X) == r(X) }"
-        assert str(a2), "5 < #sum { 5,X: q(X): not p(X) == r(X) } <= 5"
+        assert str(e1) == "5,X: q(X): not p(X), r(X)"
+        assert str(a1) == "#count { 5,X: q(X): not p(X), r(X) }"
+        assert str(a2) == "5 < #sum { 5,X: q(X): not p(X), r(X) } <= 5"
 
     def test_head_theory_atom(self):
         """
@@ -452,9 +452,9 @@ class TestAST:
 
         assert a2.right is None
 
-        assert str(e1), "f(1,2),5: not p(X) == r(X)"
+        assert str(e1) == "f(1,2),5: not p(X), r(X)"
         assert str(rg1) == " <> 5"
-        assert str(a1), "&f(X) { f(1,2),5: not p(X) == r(X) } <> 5"
+        assert str(a1) == "&f(X) { f(1,2),5: not p(X), r(X) } <> 5"
 
     def test_body_simple_literal(self):
         """
@@ -569,9 +569,9 @@ class TestAST:
         assert a2.elements == [e1]
         assert a2.right == rg1
 
-        assert str(e1), "5,X: not p(X) == r(X)"
-        assert str(a1), "not #count { 5,X: not p(X) == r(X) }"
-        assert str(a2), "5 < #sum { 5,X: not p(X) == r(X) } <= 5"
+        assert str(e1) == "5,X: not p(X), r(X)"
+        assert str(a1) == "not #count { 5,X: not p(X), r(X) }"
+        assert str(a2) == "5 < #sum { 5,X: not p(X), r(X) } <= 5"
 
     def test_body_theory_atom(self):
         """
@@ -602,9 +602,9 @@ class TestAST:
 
         assert a2.right is None
 
-        assert str(e1), "f(1,2),5: not p(X) == r(X)"
+        assert str(e1) == "f(1,2),5: not p(X), r(X)"
         assert str(rg1) == " <> 5"
-        assert str(a1), "not &f(X) { f(1,2),5: not p(X) == r(X) } <> 5"
+        assert str(a1) == "not &f(X) { f(1,2),5: not p(X), r(X) } <> 5"
 
     def test_statement_rule(self):
         """
@@ -630,18 +630,18 @@ class TestAST:
         assert od1.name == "+"
         assert od1.priority == 3
         assert od1.operator_type == ast.TheoryOperatorType.BinaryLeft
-        assert str(od1), "+ : 3, binary == left"
+        assert str(od1) == "+ : 3, binary, left"
 
         td1 = ast.TheoryTermDefinition(self.lib, self.loc, "t", [od1])
         assert td1.location == self.loc
         assert td1.name == "t"
         assert td1.operators == [od1]
-        assert str(td1), "t { + : 3, binary == left }"
+        assert str(td1) == "t { + : 3, binary, left }"
 
         gd1 = ast.TheoryGuardDefinition(self.lib, ["+", "-"], "t")
         assert gd1.operators == ["+", "-"]
         assert gd1.term == "t"
-        assert str(gd1), "{+,-} == t"
+        assert str(gd1) == "{+,-}, t"
 
         ad1 = ast.TheoryAtomDefinition(
             self.lib, self.loc, "p", 1, "t", None, ast.TheoryAtomType.Directive
@@ -656,8 +656,8 @@ class TestAST:
         assert ad1.guard is None
         assert ad1.atom_type == ast.TheoryAtomType.Directive
         assert ad2.guard == gd1
-        assert str(ad1), "&p/1: t == directive"
-        assert str(ad2), "&p/1: t, {+,-}, t == directive"
+        assert str(ad1) == "&p/1: t, directive"
+        assert str(ad2) == "&p/1: t, {+,-}, t, directive"
 
         d1 = ast.StatementTheory(self.lib, self.loc, "t", [td1], [ad1, ad2])
         assert d1.location == self.loc
@@ -695,8 +695,8 @@ class TestAST:
         e2 = ast.OptimizeElement(self.lib, t2, [l1, l2])
         assert e1.tuple == t1
         assert e1.condition == [l1, l2]
-        assert str(e1), "5,X,Y: p(X) == q(X)"
-        assert str(e2), "5@2,X,Y: p(X) == q(X)"
+        assert str(e1) == "5,X,Y: p(X), q(X)"
+        assert str(e2) == "5@2,X,Y: p(X), q(X)"
 
         so1 = ast.StatementOptimize(
             self.lib, self.loc, [e1, e2], ast.OptimizeType.Minimize

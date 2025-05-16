@@ -25,6 +25,10 @@ struct Fixture {
         return AST::parse(lib, val, AST::ParseType::literal);
     }
 
+    [[nodiscard]] auto parse_blit(const std::string_view val) const -> N {
+        return AST::parse(lib, val, AST::ParseType::body_literal);
+    }
+
     Library lib;
     Location loc{Position{lib, "<a>", 1, 2}, Position{lib, "<b>", 3, 4}};
 };
@@ -567,20 +571,246 @@ TEST_CASE_METHOD(Fixture, "ast statement theory", "[cxx][ast][statement_theory]"
                               "}.");
 }
 
+TEST_CASE_METHOD(Fixture, "ast statement optimize", "[cxx][ast][statement_optimize]") {
+    auto weight = parse_term("5");
+    auto priority = parse_term("2");
+
+    std::vector terms{parse_term("X"), parse_term("Y")};
+
+    auto t1 = node<T::optimize_tuple>(weight, std::nullopt, terms);
+    auto t2 = node<T::optimize_tuple>(weight, priority, terms);
+
+    REQUIRE(t1.node(A::weight) == weight);
+    REQUIRE(!t1.optional_node(A::priority).has_value());
+    REQUIRE(std::ranges::equal(t1.nodes(A::terms), terms));
+    REQUIRE(t2.node(A::priority) == priority);
+    REQUIRE(t1.to_string() == "5,X,Y");
+    REQUIRE(t2.to_string() == "5@2,X,Y");
+
+    auto l1 = parse_lit("p(X)");
+    auto l2 = parse_lit("q(X)");
+
+    auto e1 = node<T::optimize_element>(t1, std::vector{l1, l2});
+    auto e2 = node<T::optimize_element>(t2, std::vector{l1, l2});
+
+    REQUIRE(e1.node(A::tuple) == t1);
+    REQUIRE(std::ranges::equal(e1.nodes(A::condition), std::vector{l1, l2}));
+    REQUIRE(e1.to_string() == "5,X,Y: p(X), q(X)");
+    REQUIRE(e2.to_string() == "5@2,X,Y: p(X), q(X)");
+
+    auto so1 = node<T::statement_optimize>(loc, std::vector{e1, e2}, AST::OptimizeType::minimize);
+    REQUIRE((so1.location(A::location) == loc));
+    REQUIRE(std::ranges::equal(so1.nodes(A::elements), std::vector{e1, e2}));
+    REQUIRE(so1.number(A::optimize_type) == AST::OptimizeType::minimize);
+    REQUIRE(so1.to_string() == "#minimize { 5,X,Y: p(X), q(X); 5@2,X,Y: p(X), q(X) }.");
+
+    std::vector body{node<T::body_simple_literal>(l1), node<T::body_simple_literal>(l2)};
+
+    auto sw1 = node<T::statement_weak_constraint>(loc, body, t1);
+    REQUIRE(std::ranges::equal(sw1.nodes(A::body), body));
+    REQUIRE(sw1.node(A::tuple) == t1);
+    REQUIRE(sw1.to_string() == " :~ p(X); q(X). [5,X,Y]");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement show", "[cxx][ast][statement_show]") {
+    auto t1 = parse_term("-p(X)");
+    auto l1 = parse_blit("q(X)");
+    auto l2 = parse_blit("p(X)");
+
+    auto s1 = node<T::statement_show>(loc, t1, std::vector{l1, l2});
+    REQUIRE((s1.location(A::location) == loc));
+    REQUIRE(s1.node(A::term) == t1);
+    REQUIRE(std::ranges::equal(s1.nodes(A::body), std::vector{l1, l2}));
+    REQUIRE(s1.to_string() == "#show -p(X): q(X); p(X).");
+
+    auto s2 = node<T::statement_show_signature>(loc, "p", 2, false);
+    auto s3 = node<T::statement_show_signature>(loc, "q", 2, true);
+    REQUIRE((s2.location(A::location) == loc));
+    REQUIRE(s2.string(A::name) == "p");
+    REQUIRE(s2.number(A::arity) == 2);
+    REQUIRE(s2.number(A::sign) == 0);
+    REQUIRE(s3.number(A::sign) == 1);
+    REQUIRE(s2.to_string() == "#show p/2.");
+    REQUIRE(s3.to_string() == "#show -q/2.");
+
+    auto s4 = node<T::statement_show_nothing>(loc);
+    REQUIRE(s4.to_string() == "#show.");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement project", "[cxx][ast][statement_project]") {
+    auto t1 = parse_term("-p(X)");
+    auto l1 = parse_blit("q(X)");
+    auto l2 = parse_blit("p(X)");
+
+    auto s1 = node<T::statement_project>(loc, t1, std::vector{l1, l2});
+    REQUIRE((s1.location(A::location) == loc));
+    REQUIRE(s1.node(A::atom) == t1);
+    REQUIRE(std::ranges::equal(s1.nodes(A::body), std::vector{l1, l2}));
+    REQUIRE(s1.to_string() == "#project -p(X): q(X); p(X).");
+
+    auto s2 = node<T::statement_project_signature>(loc, "p", 2, false);
+    auto s3 = node<T::statement_project_signature>(loc, "q", 2, true);
+    REQUIRE((s2.location(A::location) == loc));
+    REQUIRE(s2.string(A::name) == "p");
+    REQUIRE(s2.number(A::arity) == 2);
+    REQUIRE(s2.number(A::sign) == 0);
+    REQUIRE(s3.number(A::sign) == 1);
+    REQUIRE(s2.to_string() == "#project p/2.");
+    REQUIRE(s3.to_string() == "#project -q/2.");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement defined", "[cxx][ast][statement_defined]") {
+    auto s2 = node<T::statement_defined>(loc, "p", 2, false);
+    auto s3 = node<T::statement_defined>(loc, "q", 2, true);
+
+    REQUIRE((s2.location(A::location) == loc));
+    REQUIRE(s2.string(A::name) == "p");
+    REQUIRE(s2.number(A::arity) == 2);
+    REQUIRE(s2.number(A::sign) == 0);
+    REQUIRE(s3.number(A::sign) == 1);
+    REQUIRE(s2.to_string() == "#defined p/2.");
+    REQUIRE(s3.to_string() == "#defined -q/2.");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement external", "[cxx][ast][statement_external]") {
+    auto t1 = parse_term("-p(X)");
+    auto t2 = parse_term("true");
+    auto l1 = parse_blit("q(X)");
+    auto l2 = parse_blit("p(X)");
+
+    auto s1 = node<T::statement_external>(loc, t1, std::vector{l1, l2}, std::nullopt);
+    auto s2 = node<T::statement_external>(loc, t1, std::vector{l1, l2}, t2);
+
+    REQUIRE((s1.location(A::location) == loc));
+    REQUIRE(s1.node(A::atom) == t1);
+    REQUIRE(std::ranges::equal(s1.nodes(A::body), std::vector{l1, l2}));
+    REQUIRE(!s1.optional_node(A::external_type).has_value());
+
+    REQUIRE(s2.node(A::external_type) == t2);
+
+    REQUIRE(s1.to_string() == "#external -p(X): q(X); p(X).");
+    REQUIRE(s2.to_string() == "#external -p(X): q(X); p(X). [true]");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement edge", "[cxx][ast][statement_edge]") {
+    auto u1 = parse_term("u");
+    auto v1 = parse_term("v");
+    auto u2 = parse_term("x");
+    auto v2 = parse_term("y");
+
+    auto e1 = node<T::edge>(u1, v1);
+    auto e2 = node<T::edge>(u2, v2);
+
+    REQUIRE(e1.node(A::u) == u1);
+    REQUIRE(e1.node(A::v) == v1);
+    REQUIRE(e2.node(A::u) == u2);
+    REQUIRE(e2.node(A::v) == v2);
+    REQUIRE(e1.to_string() == "u,v");
+    REQUIRE(e2.to_string() == "x,y");
+
+    auto l1 = parse_blit("q(X)");
+    auto l2 = parse_blit("p(X)");
+
+    auto s1 = node<T::statement_edge>(loc, std::vector{e1, e2}, std::vector{l1, l2});
+    REQUIRE((s1.location(A::location) == loc));
+    REQUIRE(std::ranges::equal(s1.nodes(A::pool), std::vector{e1, e2}));
+    REQUIRE(std::ranges::equal(s1.nodes(A::body), std::vector{l1, l2}));
+    REQUIRE(s1.to_string() == "#edge (u,v;x,y): q(X); p(X).");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement heuristic", "[cxx][ast][statement_heuristic]") {
+    auto a = parse_term("a");
+    auto w = parse_term("w");
+    auto p = parse_term("p");
+    auto m = parse_term("m");
+
+    auto l1 = parse_blit("q(X)");
+    auto l2 = parse_blit("p(X)");
+
+    auto s1 = node<T::statement_heuristic>(loc, a, std::vector{l1, l2}, w, m, std::nullopt);
+    auto s2 = node<T::statement_heuristic>(loc, a, std::vector{l1, l2}, w, m, p);
+
+    REQUIRE(s1.node(A::atom) == a);
+    REQUIRE(s1.node(A::weight) == w);
+    REQUIRE(s1.node(A::modifier) == m);
+    REQUIRE(!s1.optional_node(A::priority).has_value());
+
+    REQUIRE(s2.node(A::priority) == p);
+
+    REQUIRE(s1.to_string() == "#heuristic a: q(X); p(X). [w,m]");
+    REQUIRE(s2.to_string() == "#heuristic a: q(X); p(X). [w@p,m]");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement include", "[cxx][ast][statement_include]") {
+    auto s1 = node<T::statement_include>(loc, "file", AST::IncludeType::system);
+
+    REQUIRE((s1.location(A::location) == loc));
+    REQUIRE(s1.string(A::value) == "file");
+    REQUIRE(s1.number(A::include_type) == AST::IncludeType::system);
+    REQUIRE(s1.to_string() == R"(#include "file".)");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement program", "[cxx][ast][statement_program]") {
+    auto args = std::array<std::string_view, 2>{"t", "k"};
+    auto s1 = node<T::statement_program>(loc, "step", args);
+
+    REQUIRE((s1.location(A::location) == loc));
+    REQUIRE(s1.string(A::name) == "step");
+    REQUIRE(std::ranges::equal(s1.strings(A::arguments), args));
+    REQUIRE(s1.to_string() == "#program step(t,k).");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement script", "[cxx][ast][statement_script]") {
+    auto s1 = node<T::statement_script>(loc, "def p(x): return x", "python");
+
+    REQUIRE((s1.location(A::location) == loc));
+    REQUIRE(s1.string(A::value) == "def p(x): return x");
+    REQUIRE(s1.string(A::script_type) == "python");
+    REQUIRE(s1.to_string() == "#script (python)def p(x): return x#end.");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement const", "[cxx][ast][statement_const]") {
+    auto t1 = parse_term("f(2+3)");
+    auto s1 = node<T::statement_const>(loc, "x", t1, AST::Precedence::override);
+
+    REQUIRE((s1.location(A::location) == loc));
+    REQUIRE(s1.string(A::name) == "x");
+    REQUIRE(s1.node(A::value) == t1);
+    REQUIRE(s1.number(A::precedence) == AST::Precedence::override);
+    REQUIRE(s1.to_string() == "#const x=f(2+3). [override]");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement parts", "[cxx][ast][statement_parts]") {
+    auto t1 = parse_sym("1");
+    auto t2 = parse_sym("2");
+    auto terms = std::array{t1, t2};
+
+    auto e1 = node<T::program_part>("base", std::array<Symbol, 0>{});
+    auto e2 = node<T::program_part>("step", terms);
+
+    auto s1 = node<T::statement_parts>(loc, std::array{e1, e2}, AST::Precedence::override);
+
+    REQUIRE((s1.location(A::location) == loc));
+    REQUIRE(e1.string(A::name) == "base");
+    REQUIRE(e1.symbols(A::arguments).empty());
+    REQUIRE(e2.string(A::name) == "step");
+    REQUIRE(std::ranges::equal(e2.symbols(A::arguments), terms));
+    REQUIRE(s1.number(A::precedence) == AST::Precedence::override);
+    REQUIRE(std::ranges::equal(s1.nodes(A::elements), std::vector{e1, e2}));
+    REQUIRE(s1.to_string() == "#parts base,step(1,2). [override]");
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement comment", "[cxx][ast][statement_comment]") {
+    // Create StatementComment with value and comment type
+    auto s1 = node<T::statement_comment>(loc, "% something arbitrary", AST::CommentType::line);
+
+    REQUIRE((s1.location(A::location) == loc));
+    REQUIRE(s1.string(A::value) == "% something arbitrary");
+    REQUIRE(s1.number(A::comment_type) == AST::CommentType::line);
+    REQUIRE(s1.to_string() == "% something arbitrary");
+}
+
 // TODO:
-// - test_statement_optimize
-// - test_statement_show
-// - test_statement_project
-// - test_statement_defined
-// - test_statement_external
-// - test_statement_edge
-// - test_statement_heuristic
-// - test_statement_include
-// - test_statement_program
-// - test_statement_script
-// - test_statement_const
-// - test_statement_parts
-// - test_statement_comment
 // - test_parse
 // - test_rewrite
 // - test_scan
