@@ -61,7 +61,8 @@ class AtomBase {
         return Detail::call<clingo_atom_base_find>(base_, *c_cast(&symbol)) < size();
     }
 
-    [[nodiscard]] auto get(key_type const &symbol, std::optional<mapped_type> def) const -> std::optional<mapped_type> {
+    [[nodiscard]] auto get(key_type const &symbol, std::optional<mapped_type> def = std::nullopt) const
+        -> std::optional<mapped_type> {
         auto index = Detail::call<clingo_atom_base_find>(base_, *c_cast(&symbol));
         return index < size() ? std::make_optional<mapped_type>(base_, index) : def;
     }
@@ -139,7 +140,8 @@ class TermBase {
         return Detail::call<clingo_term_base_find>(base_, *c_cast(&symbol)) < size();
     }
 
-    [[nodiscard]] auto get(key_type const &symbol, std::optional<mapped_type> def) const -> std::optional<mapped_type> {
+    [[nodiscard]] auto get(key_type const &symbol, std::optional<mapped_type> def = std::nullopt) const
+        -> std::optional<mapped_type> {
         auto index = Detail::call<clingo_term_base_find>(base_, *c_cast(&symbol));
         return index < size() ? std::make_optional<mapped_type>(*base_, index) : def;
     }
