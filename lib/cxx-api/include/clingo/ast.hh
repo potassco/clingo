@@ -604,7 +604,7 @@ class Scanner {
 
         friend auto operator==(iterator const &a, [[maybe_unused]] sentinel const &b) -> bool {
             assert(a.scanner_ != nullptr);
-            return a.scanner_->value_.has_value();
+            return !a.scanner_->value_.has_value();
         }
 
       private:

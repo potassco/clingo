@@ -288,7 +288,7 @@ TEST_CASE_METHOD(Fixture, "ast literal comparison", "[cxx][ast][literal_comparis
 }
 
 TEST_CASE_METHOD(Fixture, "ast body simple literal", "[cxx][ast][body_simple_literal]") {
-    const auto *s = "not p(X)";
+    auto const *s = "not p(X)";
     auto lit = parse_lit(s);
     auto p = node<T::body_simple_literal>(lit);
 
@@ -801,7 +801,6 @@ TEST_CASE_METHOD(Fixture, "ast statement parts", "[cxx][ast][statement_parts]") 
 }
 
 TEST_CASE_METHOD(Fixture, "ast statement comment", "[cxx][ast][statement_comment]") {
-    // Create StatementComment with value and comment type
     auto s1 = node<T::statement_comment>(loc, "% something arbitrary", AST::CommentType::line);
 
     REQUIRE((s1.location(A::location) == loc));
@@ -810,12 +809,133 @@ TEST_CASE_METHOD(Fixture, "ast statement comment", "[cxx][ast][statement_comment
     REQUIRE(s1.to_string() == "% something arbitrary");
 }
 
-// TODO:
-// - test_parse
-// - test_rewrite
-// - test_scan
-// - test_visit
-// - test_transform
-// - test_cmp
+TEST_CASE_METHOD(Fixture, "ast parse", "[cxx][ast][parse]") {
+    auto expr = std::string_view{};
+
+    expr = "-f(X+Y,3)";
+    REQUIRE(AST::parse(lib, expr, AST::ParseType::term).to_string() == expr);
+
+    expr = "(f ** X)";
+    REQUIRE(AST::parse(lib, expr, AST::ParseType::theory_term).to_string() == expr);
+
+    expr = "not not p(X+2)";
+    REQUIRE(AST::parse(lib, expr, AST::ParseType::literal).to_string() == expr);
+
+    expr = "a; b: c";
+    REQUIRE(AST::parse(lib, expr, AST::ParseType::head_literal).to_string() == expr);
+
+    expr = "b: c";
+    REQUIRE(AST::parse(lib, expr, AST::ParseType::body_literal).to_string() == expr);
+
+    expr = "a; b: c :- d: e.";
+    REQUIRE(AST::parse(lib, expr, AST::ParseType::statement).to_string() == expr);
+}
+
+TEST_CASE_METHOD(Fixture, "ast rewrite", "[cxx][ast][rewrite]") {
+    auto simp = [&](const std::string_view stm, std::initializer_list<std::string_view const> params = {}) {
+        auto ctx = AST::RewriteContext{lib};
+        ctx.project_anonymous(true);
+        for (auto const &param : params) {
+            ctx.add_param(param);
+        }
+
+        auto parsed = AST::parse(lib, stm);
+        auto rewritten = AST::rewrite(ctx, parsed);
+
+        auto res = std::vector<std::string>{};
+        for (auto const &stmt : rewritten) {
+            res.push_back(stmt.to_string());
+        }
+        return res;
+    };
+
+    std::string_view stm;
+
+    stm = "a; b: c :- d: e.";
+    REQUIRE(std::ranges::equal(simp(stm), std::array{stm}));
+
+    stm = "p(X;Y) :- q(X,2*3); r(Y).";
+    REQUIRE(std::ranges::equal(simp(stm), std::array{"p(X) :- q(X,6); r(*).", "p(Y) :- q(*,6); r(Y)."}));
+
+    stm = "p(X;Y) :- q(X+1,2*3), r(Y,t+1).";
+    REQUIRE(std::ranges::equal(simp(stm, {"t"}),
+                               std::array{"p(X) :- q(1*X+1,6); r(*,1*t+1).", "p(Y) :- q(1*X+1,6); r(Y,1*t+1)."}));
+
+    stm = "p(t).";
+    REQUIRE(std::ranges::equal(simp(stm, {"t"}), std::array{"p(t)."}));
+
+    stm = " :- not p(_).";
+    REQUIRE(std::ranges::equal(simp(stm, {"t"}), std::array{" :- not p(*)."}));
+
+    stm = "p(1;t) :- #false: p(t).";
+    REQUIRE(std::ranges::equal(simp(stm, {"t"}), std::array{"p(1) :- #false: p(t).", "p(t) :- #false: p(t)."}));
+}
+
+TEST_CASE_METHOD(Fixture, "ast statement scanner", "[cxx][ast][scanner]") {
+    auto scanner = AST::Scanner(lib, "a. b. c.");
+    auto res = std::vector<std::string>{};
+    for (auto const &stm : scanner) {
+        res.emplace_back(stm.to_string());
+    }
+    REQUIRE(std::ranges::equal(res, std::array{"a.", "b.", "c."}));
+}
+
+TEST_CASE_METHOD(Fixture, "ast term variable comparison", "[cxx][ast][term_variable][cmp]") {
+    auto x = node<T::term_variable>(loc, "X", false);
+    auto a = node<T::term_variable>(loc, "_", true);
+
+    REQUIRE(x == x);
+    REQUIRE(a != x);
+
+    REQUIRE(x < a);
+    REQUIRE(x <= a);
+    REQUIRE(a > x);
+    REQUIRE(a >= x);
+
+    auto hasher = std::hash<N>{};
+    REQUIRE(hasher(x) == hasher(x));
+    REQUIRE(hasher(x) != hasher(a));
+}
+
+TEST_CASE_METHOD(Fixture, "ast visit", "[cxx][ast][visit]") {
+    auto stm = AST::parse(lib, "a :- b.");
+    auto trail = std::vector<std::string>{};
+    AST::Visitor visit = [&](AST::Node const &node) {
+        trail.emplace_back(node.to_string());
+        node.accept(visit);
+    };
+    visit(stm);
+    REQUIRE(std::ranges::equal(trail, std::array{"a :- b.", "a", "a", "a", "b", "b", "b"}));
+}
+
+TEST_CASE_METHOD(Fixture, "ast transform", "[cxx][ast][transform]") {
+    auto var_x = AST::Node::create<T::term_variable>(lib, loc, "X", false);
+    REQUIRE(var_x.to_string() == "X");
+    auto var_y = var_x.update<T::term_variable>(lib, []<A attr>() {
+        if constexpr (attr == A::name) {
+            return std::string_view{"Y"};
+        }
+    });
+    REQUIRE(var_y.to_string() == "Y");
+
+    AST::Transformer trans = [&](AST::Node const &node) -> std::optional<AST::Node> {
+        if (node.type() == T::term_variable) {
+            return node.update<T::term_variable>(lib, [&]<A attr>() {
+                if constexpr (attr == A::name) {
+                    return node.string(attr) == "X" ? "Y" : "Z";
+                }
+            });
+        }
+        return node.accept(lib, trans);
+    };
+    auto var_z = trans(var_y);
+    REQUIRE(var_z.has_value());
+    REQUIRE(var_z->to_string() == "Z");
+    auto stm_xy = AST::parse(lib, "a(X) :- b(Y).");
+    REQUIRE(stm_xy.to_string() == "a(X) :- b(Y).");
+    auto stm_yz = trans(stm_xy);
+    REQUIRE(stm_yz.has_value());
+    REQUIRE(stm_yz->to_string() == "a(Y) :- b(Z).");
+}
 
 } // namespace Clingo::Test
