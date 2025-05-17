@@ -12,7 +12,6 @@ import pytest
 from clingo.app import App, AppOptions, Flag, clingo_main
 from clingo.control import Control
 from clingo.core import Library, MessageType
-from clingo.symbol import Symbol
 from util import MCB
 
 

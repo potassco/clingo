@@ -17,8 +17,8 @@ class Options {
 
     friend auto c_cast(Options const &x) -> clingo_options_t * { return x.opts_; }
 
-    void add(std::string_view group, std::string_view option, std::string_view description, Parser parser, bool multi,
-             std::optional<std::string_view> argument) {
+    void add(std::string_view group, std::string_view option, std::string_view description, Parser parser,
+             bool multi = false, std::optional<std::string_view> argument = std::nullopt) {
         parsers_->emplace_front(std::move(parser));
         static constexpr auto cparser = [](char const *value, size_t size, void *data, bool *result) -> bool {
             auto &parser = *static_cast<Parser *>(data);
@@ -52,7 +52,7 @@ class App {
     auto program_version() noexcept -> std::string_view { return do_version(); }
     void main(Control const &control, std::span<std::string_view const> files) { do_main(control, files); }
     void print_model(ConstModel model, ModelPrinter const &printer) { do_print_model(model, printer); }
-    void register_options([[maybe_unused]] Options options) {}
+    void register_options(Options options) { do_register_options(options); }
     void validate_options() { do_validate_options(); }
 
   private:
@@ -113,12 +113,12 @@ static constexpr clingo_application_t c_app = {
         CLINGO_CATCH;
     },
     [](void *data) -> bool {
-        auto &app = *static_cast<App *>(data);
+        auto &app_data = *static_cast<AppData *>(data);
         try {
-            app.validate_options();
+            app_data.app->validate_options();
         } catch (std::invalid_argument &e) {
             // Report option validation errors right away.
-            auto str = app.program_name();
+            auto str = app_data.app->program_name();
             fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)str.size(), str.data(), e.what());
             return store_error();
         } catch (...) {

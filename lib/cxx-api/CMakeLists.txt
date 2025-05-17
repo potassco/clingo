@@ -8,7 +8,6 @@ if(PARSER_BUILD_TESTS)
     add_executable(test_cxx-api
         "tests/ast.cc"
         "tests/aspif.cc"
-        "tests/app.cc"
         "tests/base.cc"
         "tests/control.cc"
         "tests/symbol.cc"
@@ -18,4 +17,10 @@ if(PARSER_BUILD_TESTS)
     target_include_directories(test_cxx-api PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_cxx-api PRIVATE clingo::cxx-api Catch2::Catch2WithMain)
     catch_discover_tests(test_cxx-api)
+
+    add_executable(test_cxx-app "tests/app.cc")
+    clingo_target_properties(test_cxx-app test/cxx-api tests)
+    target_include_directories(test_cxx-app PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+    target_link_libraries(test_cxx-app PRIVATE clingo::cxx-api)
+    add_test(NAME test_cxx-app COMMAND test_cxx-app)
 endif()
