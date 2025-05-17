@@ -7,6 +7,7 @@ target_link_libraries(clingo_cxx-api INTERFACE clingo)
 if(PARSER_BUILD_TESTS)
     add_executable(test_cxx-api
         "tests/ast.cc"
+        "tests/aspif.cc"
         "tests/app.cc"
         "tests/base.cc"
         "tests/control.cc"
