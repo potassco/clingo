@@ -62,7 +62,7 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) -> int {
     try {
         auto tmp = TempFile{"1 {a; b; c(1/0)}."};
         auto app = AppTest{};
-        auto arg = std::array<std::string_view, 5>{tmp.path().c_str(), "--outf=3", "--test=x", "--flag", "0"};
+        auto arg = std::to_array<std::string_view>({tmp.path().c_str(), "--outf=3", "--test=x", "--flag", "0"});
 
         auto logger = [&](MessageCode code, std::string_view msg) {
             if (code == MessageCode::operation_undefined) {
