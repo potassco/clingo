@@ -129,8 +129,8 @@ class TestBase:
         term_q = base[fun_q]
         term_r = base[Function(self.lib, "q", [Number(self.lib, 3)])]
         assert term_q.symbol == fun_q
-        assert len(term_q.condition or []) == 1
-        assert len(term_r.condition or []) == 2
+        assert len(term_q.condition) == 1
+        assert len(term_r.condition) == 2
 
     def test_theory_base(self):
         """
