@@ -67,6 +67,7 @@ class Config : public ConstConfig {
 
     [[nodiscard]] auto array() const -> ConfigArray;
     [[nodiscard]] auto map() const -> ConfigMap;
+    using ConstConfig::value;
     void value(std::string_view value) const {
         if (intersects(type(), ConfigType::value)) {
             Detail::handle_error(clingo_config_value_set(cfg_(), key_, value.data(), value.size()));
@@ -138,7 +139,7 @@ class ConfigArray : public ConstConfigArray {
 };
 
 [[nodiscard]] inline auto Config::array() const -> ConfigArray {
-    if (type() == ConfigType::array) {
+    if (intersects(type(), ConfigType::array)) {
         return ConfigArray{cfg_(), key_};
     }
     throw std::bad_variant_access{};
