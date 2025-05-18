@@ -5,13 +5,24 @@ namespace PyClingo {
 
 namespace {
 
-auto get_type(py::handle value) {
-    if (py::isinstance<py::sequence>(value)) {
-        return py::hasattr(value, "items") ? StatsType::map : StatsType::array;
+auto get_type(py::handle value, std::optional<Stats> old_value) -> std::pair<StatsType, py::object> {
+    py::object new_value = py::none{};
+    if (PyCallable_Check(value.ptr()) == 1) {
+        new_value = value(old_value ? old_value->nestify() : py::none{});
+    } else {
+        new_value = py::reinterpret_borrow<py::object>(value);
     }
-    if (PyCallable_Check(value.ptr()) == 1 || py::isinstance<py::float_>(value) || py::isinstance<py::int_>(value) ||
-        py::hasattr(value, "__float__")) {
-        return StatsType::value;
+    if (py::isinstance<py::dict>(new_value)) {
+        return {StatsType::map, std::move(new_value)};
+    }
+    if (py::isinstance<py::sequence>(new_value)) {
+        // NOTE: we check for an items method to also support user defined maps
+        auto t = py::hasattr(new_value, "items") ? StatsType::map : StatsType::array;
+        return {t, std::move(new_value)};
+    }
+    if (py::isinstance<py::float_>(new_value) || py::isinstance<py::int_>(new_value) ||
+        py::hasattr(new_value, "__float__")) {
+        return {StatsType::value, std::move(new_value)};
     }
     throw py::type_error{"expected sequence, mapping, or float"};
 }
@@ -40,8 +51,9 @@ void StatsArray::set(size_t index, py::handle value) {
 
 void StatsArray::append(py::handle value) {
     uint64_t subkey = 0;
-    handle_error(clingo_stats_array_push(stats_, key_, static_cast<clingo_stats_type_t>(get_type(value)), &subkey));
-    Stats{stats_, subkey}.update_(value, true);
+    auto [subtype, subval] = get_type(value, std::nullopt);
+    handle_error(clingo_stats_array_push(stats_, key_, static_cast<clingo_stats_type_t>(subtype), &subkey));
+    Stats{stats_, subkey}.update_(std::move(subval), true);
 }
 
 auto StatsMap::len() -> size_t {
@@ -66,11 +78,12 @@ auto StatsMap::contains(std::string_view name) -> bool {
 }
 
 void StatsMap::set(std::string_view name, py::handle value) {
-    auto has_key = contains(name);
+    auto old = contains(name) ? std::optional{get(name)} : std::nullopt;
+    auto [subtype, subval] = get_type(value, old);
     uint64_t subkey = 0;
     handle_error(clingo_stats_map_add_subkey(stats_, key_, name.data(), name.size(),
-                                             static_cast<clingo_stats_type_t>(get_type(value)), &subkey));
-    Stats{stats_, subkey}.update_(value, !has_key);
+                                             static_cast<clingo_stats_type_t>(subtype), &subkey));
+    Stats{stats_, subkey}.update_(std::move(subval), !old.has_value());
 }
 
 auto Stats::type() -> StatsType {

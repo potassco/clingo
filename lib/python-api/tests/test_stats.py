@@ -5,6 +5,7 @@ Unit tests for the clingo.stats module.
 import pytest
 from clingo.control import Control
 from clingo.core import Library
+from clingo.stats import Stats
 from util import MCB
 
 
@@ -66,7 +67,19 @@ class TestStats:
         ctl.parse_string("1 { a; b; c; d } 1.")
         ctl.ground()
         mcb = MCB()
-        with ctl.solve(on_model=mcb) as hnd:
+
+        def on_stats(step: Stats, accu: Stats):
+            step.update({"a": 10.0})
+            step.update({"b": [10.0]})
+            step.update({"c": {"x": 1.0}})
+            accu.update({"Test": {"x": 10.0, "y": [1.0, 2.0, 3.0]}})
+            accu.update({"Test": {"x": lambda x: x + 2}})
+            accu.update({"Test": {"y": lambda x: [y + 1 for y in x]}})
+
+        with ctl.solve(on_model=mcb, on_stats=on_stats) as hnd:
             assert hnd.get().satisfiable
         assert mcb.symbols == res
-        # TODO: add tests
+
+        stats = ctl.stats
+        assert stats["user_step"] == {"a": 10.0, "b": [10.0], "c": {"x": 1.0}}
+        assert stats["user_accu"] == {"Test": {"x": 12.0, "y": [2.0, 3.0, 4.0]}}
