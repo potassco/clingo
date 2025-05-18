@@ -1,4 +1,5 @@
 ---
+InheritParentConfig: true
 Checks: >
   bugprone-*,
   clang-analyzer-*,
@@ -21,16 +22,3 @@ Checks: >
   -readability-suspicious-call-argument,
   -cppcoreguidelines-owning-memory,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic
-
-WarningsAsErrors: ""
-HeaderFilterRegex: ""
-FormatStyle: none
-CheckOptions:
-  - {
-      key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor,
-      value: true,
-    }
-  - {
-      key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted,
-      value: true,
-    }
