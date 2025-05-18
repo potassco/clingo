@@ -556,4 +556,18 @@ class Location {
     Detail::value_handle<Traits> loc_;
 };
 
+namespace Version {
+inline constexpr int major = CLINGO_VERSION_MAJOR;
+inline constexpr int minor = CLINGO_VERSION_MINOR;
+inline constexpr int revision = CLINGO_VERSION_REVISION;
+}; // namespace Version
+
+inline auto version() -> std::tuple<int, int, int> {
+    int major = 0;
+    int minor = 0;
+    int revision = 0;
+    clingo_version(&major, &minor, &revision);
+    return {major, minor, revision};
+}
+
 } // namespace Clingo

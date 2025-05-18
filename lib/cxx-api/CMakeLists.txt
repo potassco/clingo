@@ -13,6 +13,7 @@ if(PARSER_BUILD_TESTS)
         "tests/base.cc"
         "tests/config.cc"
         "tests/control.cc"
+        "tests/core.cc"
         "tests/solve.cc"
         "tests/symbol.cc"
     )
