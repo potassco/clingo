@@ -9,6 +9,7 @@ if(PARSER_BUILD_TESTS)
         "tests/asp.cc"
         "tests/aspif.cc"
         "tests/ast.cc"
+        "tests/backend.cc"
         "tests/base.cc"
         "tests/control.cc"
         "tests/solve.cc"

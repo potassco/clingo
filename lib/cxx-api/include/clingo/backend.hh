@@ -85,12 +85,12 @@ class ProgramBackend : private TheoryBackend {
         return Detail::call<clingo_backend_add_atom>(backend_.get(), symbol ? c_cast(&symbol.value()) : nullptr);
     }
 
-    void rule(ProgramAtomSpan head, ProgramLiteralSpan body, bool choice) const {
+    void rule(ProgramAtomSpan head, ProgramLiteralSpan body = {}, bool choice = false) const {
         Detail::handle_error(
             clingo_backend_rule(backend_.get(), choice, head.data(), head.size(), body.data(), body.size()));
     }
 
-    void weight_rule(ProgramAtomSpan head, Weight lower, WeightedLiteralSpan body, bool choice) const {
+    void weight_rule(ProgramAtomSpan head, Weight lower, WeightedLiteralSpan body, bool choice = false) const {
         Detail::handle_error(clingo_backend_weight_rule(backend_.get(), choice, head.data(), head.size(), lower,
                                                         body.data(), body.size()));
     }
