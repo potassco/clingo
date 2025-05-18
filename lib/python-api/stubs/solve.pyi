@@ -116,11 +116,11 @@ class ModelType:
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
     def __index__(self) -> int: ...
-    def __init__(self, value: typing.SupportsInt) -> None: ...
+    def __init__(self, value: int) -> None: ...
     def __int__(self) -> int: ...
     def __ne__(self, arg0: typing.Any) -> bool: ...
     def __repr__(self) -> str: ...
-    def __setstate__(self, state: typing.SupportsInt) -> None: ...
+    def __setstate__(self, state: int) -> None: ...
     def __str__(self) -> str: ...
     @property
     def name(self) -> str: ...
@@ -160,7 +160,7 @@ class Model:
                 symbols: The symbols to add to the model.
         """
 
-    def is_consequence(self, literal: typing.SupportsInt) -> bool | None:
+    def is_consequence(self, literal: int) -> bool | None:
         """
         Check if the given program literal is a consequence.
 
@@ -181,7 +181,7 @@ class Model:
             Whether the given program literal is a consequence.
         """
 
-    def is_true(self, literal: typing.SupportsInt) -> bool:
+    def is_true(self, literal: int) -> bool:
         """
         Check if the given program literal is true.
 
@@ -262,8 +262,7 @@ class SolveControl:
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def add_clause(
-        self,
-        clause: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | typing.SupportsInt],
+        self, clause: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
     ) -> None:
         """
         Add a clause that applies to the current solving step during the search.
@@ -273,8 +272,7 @@ class SolveControl:
         """
 
     def add_nogood(
-        self,
-        nogood: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | typing.SupportsInt],
+        self, nogood: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
     ) -> None:
         """
         Add a nogood that applies to the current solving step during the search.

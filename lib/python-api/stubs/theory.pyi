@@ -29,7 +29,7 @@ class Theory:
         """
 
     def assignment(
-        self, thread_id: typing.SupportsInt
+        self, thread_id: int
     ) -> typing.Iterator[
         tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]
     ]:
@@ -156,7 +156,7 @@ class Theory:
         """
 
     def value(
-        self, thread_id: typing.SupportsInt, symbol: clingo.symbol.Symbol
+        self, thread_id: int, symbol: clingo.symbol.Symbol
     ) -> clingo.symbol.Symbol | int | float | None:
         """
         Get the value of the symbol in the assignment of the given thread.

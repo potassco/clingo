@@ -200,9 +200,9 @@ class TestWriteAspif:
             self.ctl.solve(on_model=mcb)
             assert mcb.symbols == [[], ["a"], ["b"]]
 
-    def test_heurisitc(self):
+    def test_theory(self):
         """
-        Test heuristic statements.
+        Test theory statements.
         """
         with self.parse(
             """\

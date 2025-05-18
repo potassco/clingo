@@ -101,11 +101,11 @@ class CheckMode:
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
     def __index__(self) -> int: ...
-    def __init__(self, value: typing.SupportsInt) -> None: ...
+    def __init__(self, value: int) -> None: ...
     def __int__(self) -> int: ...
     def __ne__(self, arg0: typing.Any) -> bool: ...
     def __repr__(self) -> str: ...
-    def __setstate__(self, state: typing.SupportsInt) -> None: ...
+    def __setstate__(self, state: int) -> None: ...
     def __str__(self) -> str: ...
     @property
     def name(self) -> str: ...
@@ -134,11 +134,11 @@ class UndoMode:
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
     def __index__(self) -> int: ...
-    def __init__(self, value: typing.SupportsInt) -> None: ...
+    def __init__(self, value: int) -> None: ...
     def __int__(self) -> int: ...
     def __ne__(self, arg0: typing.Any) -> bool: ...
     def __repr__(self) -> str: ...
-    def __setstate__(self, state: typing.SupportsInt) -> None: ...
+    def __setstate__(self, state: int) -> None: ...
     def __str__(self) -> str: ...
     @property
     def name(self) -> str: ...
@@ -176,11 +176,11 @@ class WeightConstraintType:
     def __getstate__(self) -> int: ...
     def __hash__(self) -> int: ...
     def __index__(self) -> int: ...
-    def __init__(self, value: typing.SupportsInt) -> None: ...
+    def __init__(self, value: int) -> None: ...
     def __int__(self) -> int: ...
     def __ne__(self, arg0: typing.Any) -> bool: ...
     def __repr__(self) -> str: ...
-    def __setstate__(self, state: typing.SupportsInt) -> None: ...
+    def __setstate__(self, state: int) -> None: ...
     def __str__(self) -> str: ...
     @property
     def name(self) -> str: ...
@@ -208,12 +208,12 @@ class Assignment:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __contains__(self, value: typing.SupportsInt) -> bool:
+    def __contains__(self, value: int) -> bool:
         """
         Get a reverse iterator for the sequence.
         """
 
-    def __getitem__(self, index: typing.SupportsInt) -> int:
+    def __getitem__(self, index: int) -> int:
         """
         Get the value at the given index.
         """
@@ -233,12 +233,12 @@ class Assignment:
         Get a reverse iterator for the sequence.
         """
 
-    def count(self, value: typing.SupportsInt) -> int:
+    def count(self, value: int) -> int:
         """
         Count how often the given value occurs in the sequence.
         """
 
-    def decision(self, level: typing.SupportsInt) -> int:
+    def decision(self, level: int) -> int:
         """
         Returns the decision literal of the given level.
 
@@ -251,12 +251,12 @@ class Assignment:
             The decision literal.
         """
 
-    def index(self, value: typing.SupportsInt) -> int:
+    def index(self, value: int) -> int:
         """
         Get the index of the given value in the sequence.
         """
 
-    def is_false(self, literal: typing.SupportsInt) -> bool:
+    def is_false(self, literal: int) -> bool:
         """
         Check if the given literal is false.
 
@@ -266,7 +266,7 @@ class Assignment:
             Whether the literal is false.
         """
 
-    def is_fixed(self, literal: typing.SupportsInt) -> bool:
+    def is_fixed(self, literal: int) -> bool:
         """
         Checks if the truth value of the literal is fixed.
 
@@ -276,7 +276,7 @@ class Assignment:
             Whether the literal is fixed.
         """
 
-    def is_free(self, literal: typing.SupportsInt) -> bool:
+    def is_free(self, literal: int) -> bool:
         """
         Check if the given literal is free.
 
@@ -286,7 +286,7 @@ class Assignment:
             Whether the literal is free.
         """
 
-    def is_true(self, literal: typing.SupportsInt) -> bool:
+    def is_true(self, literal: int) -> bool:
         """
         Check if the given literal is true.
 
@@ -296,7 +296,7 @@ class Assignment:
             Whether the literal is true.
         """
 
-    def level(self, literal: typing.SupportsInt) -> int:
+    def level(self, literal: int) -> int:
         """
         Returns the decision level of the given literal.
 
@@ -309,7 +309,7 @@ class Assignment:
             The decision level of the literal.
         """
 
-    def value(self, literal: typing.SupportsInt) -> bool | None:
+    def value(self, literal: int) -> bool | None:
         """
         Returns the truth value of the literal, or None if unassigned.
 
@@ -364,10 +364,7 @@ class PropagateControl:
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def add_clause(
-        self,
-        literals: typing.Sequence[typing.SupportsInt],
-        tag: bool = False,
-        lock: bool = False,
+        self, literals: typing.Sequence[int], tag: bool = False, lock: bool = False
     ) -> bool:
         """
         Add a clause to the solver.
@@ -401,10 +398,7 @@ class PropagateControl:
         """
 
     def add_nogood(
-        self,
-        literals: typing.Sequence[typing.SupportsInt],
-        tag: bool = False,
-        lock: bool = False,
+        self, literals: typing.Sequence[int], tag: bool = False, lock: bool = False
     ) -> bool:
         """
         A shortcut for `add_clause([-literal for literal in literals], tag, lock)`.
@@ -421,7 +415,7 @@ class PropagateControl:
             Whether the nogood could be integrated without conflict.
         """
 
-    def add_watch(self, literal: typing.SupportsInt) -> None:
+    def add_watch(self, literal: int) -> None:
         """
         Add a watch for the given solver literal.
 
@@ -429,7 +423,7 @@ class PropagateControl:
             literal: The literal to watch.
         """
 
-    def has_watch(self, literal: typing.SupportsInt) -> bool:
+    def has_watch(self, literal: int) -> bool:
         """
         Check if a watch exists for the given solver literal.
 
@@ -452,7 +446,7 @@ class PropagateControl:
             True if propagation was successful, False otherwise.
         """
 
-    def remove_watch(self, literal: typing.SupportsInt) -> None:
+    def remove_watch(self, literal: int) -> None:
         """
         Remove the watch for the given literal.
 
@@ -484,7 +478,7 @@ class PropagateInit:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def add_clause(self, literals: typing.Sequence[typing.SupportsInt]) -> bool:
+    def add_clause(self, literals: typing.Sequence[int]) -> bool:
         """
         Add a clause to the solver.
 
@@ -513,12 +507,7 @@ class PropagateInit:
             The newly added solver literal.
         """
 
-    def add_minimize(
-        self,
-        literal: typing.SupportsInt,
-        weight: typing.SupportsInt,
-        priority: typing.SupportsInt = 0,
-    ) -> None:
+    def add_minimize(self, literal: int, weight: int, priority: int = 0) -> None:
         """
         Add a weighted literal to minimize to the solver.
 
@@ -531,9 +520,7 @@ class PropagateInit:
                 The priority of the literal.
         """
 
-    def add_watch(
-        self, literal: typing.SupportsInt, thread_id: typing.SupportsInt | None = None
-    ) -> None:
+    def add_watch(self, literal: int, thread_id: int | None = None) -> None:
         """
         Add a watch for the given solver literal.
 
@@ -546,9 +533,9 @@ class PropagateInit:
 
     def add_weight_constraint(
         self,
-        literal: typing.SupportsInt,
+        literal: int,
         literals: typing.Sequence[tuple[int, int]],
-        bound: typing.SupportsInt,
+        bound: int,
         type: WeightConstraintType = WeightConstraintType.Equivalence,
         compare_equal: bool = False,
     ) -> bool:
@@ -573,7 +560,7 @@ class PropagateInit:
             Whether the weight constraint could be added without conflict.
         """
 
-    def freeze_literal(self, literal: typing.SupportsInt) -> None:
+    def freeze_literal(self, literal: int) -> None:
         """
         Freeze the given literal.
 
@@ -595,9 +582,7 @@ class PropagateInit:
             True if propagation was successful, False otherwise.
         """
 
-    def remove_watch(
-        self, literal: typing.SupportsInt, thread_id: typing.SupportsInt | None = None
-    ) -> None:
+    def remove_watch(self, literal: int, thread_id: int | None = None) -> None:
         """
         Remove the watch for the given literal.
 
@@ -609,7 +594,7 @@ class PropagateInit:
                 all threads.
         """
 
-    def solver_literal(self, literal: typing.SupportsInt) -> int:
+    def solver_literal(self, literal: int) -> int:
         """
         Map the given program literal to a solver literal.
 
@@ -688,12 +673,7 @@ class Propagator:
                 The propagate control object for managing propagation.
         """
 
-    def decide(
-        self,
-        thread_id: typing.SupportsInt,
-        assignment: Assignment,
-        fallback: typing.SupportsInt,
-    ) -> int:
+    def decide(self, thread_id: int, assignment: Assignment, fallback: int) -> int:
         """
         Make a decision on the next literal to assign.
 
@@ -725,7 +705,7 @@ class Propagator:
         """
 
     def propagate(
-        self, control: PropagateControl, changes: typing.Sequence[typing.SupportsInt]
+        self, control: PropagateControl, changes: typing.Sequence[int]
     ) -> None:
         """
         Propagate given a set of changes.
@@ -744,10 +724,7 @@ class Propagator:
         """
 
     def undo(
-        self,
-        thread_id: typing.SupportsInt,
-        assignment: Assignment,
-        changes: typing.Sequence[typing.SupportsInt],
+        self, thread_id: int, assignment: Assignment, changes: typing.Sequence[int]
     ) -> None:
         """
         Undo previous assignments.
@@ -783,13 +760,13 @@ class Trail:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __contains__(self, value: typing.SupportsInt) -> bool:
+    def __contains__(self, value: int) -> bool:
         """
         Get a reverse iterator for the sequence.
         """
 
     @typing.overload
-    def __getitem__(self, index: typing.SupportsInt) -> int:
+    def __getitem__(self, index: int) -> int:
         """
         Get the value at the given index.
         """
@@ -815,7 +792,7 @@ class Trail:
         Get a reverse iterator for the sequence.
         """
 
-    def begin(self, level: typing.SupportsInt) -> int:
+    def begin(self, level: int) -> int:
         """
         Get the index of the first literal on the given level.
 
@@ -827,12 +804,12 @@ class Trail:
             The index of the decision literal.
         """
 
-    def count(self, value: typing.SupportsInt) -> int:
+    def count(self, value: int) -> int:
         """
         Count how often the given value occurs in the sequence.
         """
 
-    def end(self, level: typing.SupportsInt) -> int:
+    def end(self, level: int) -> int:
         """
         Get the index after the last literal on the given level.
 
@@ -842,12 +819,12 @@ class Trail:
             The index after the last literal.
         """
 
-    def index(self, value: typing.SupportsInt) -> int:
+    def index(self, value: int) -> int:
         """
         Get the index of the given value in the sequence.
         """
 
-    def level(self, level: typing.SupportsInt) -> typing.Sequence[int]:
+    def level(self, level: int) -> typing.Sequence[int]:
         """
         Get the literals assigned at the given decision level.
 
@@ -869,13 +846,13 @@ class _TrailView:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __contains__(self, value: typing.SupportsInt) -> bool:
+    def __contains__(self, value: int) -> bool:
         """
         Get a reverse iterator for the sequence.
         """
 
     @typing.overload
-    def __getitem__(self, index: typing.SupportsInt) -> int:
+    def __getitem__(self, index: int) -> int:
         """
         Get the value at the given index.
         """
@@ -901,12 +878,12 @@ class _TrailView:
         Get a reverse iterator for the sequence.
         """
 
-    def count(self, value: typing.SupportsInt) -> int:
+    def count(self, value: int) -> int:
         """
         Count how often the given value occurs in the sequence.
         """
 
-    def index(self, value: typing.SupportsInt) -> int:
+    def index(self, value: int) -> int:
         """
         Get the index of the given value in the sequence.
         """

@@ -46,9 +46,8 @@ class TestStats:
         ctl.ground()
         mcb = MCB()
         with ctl.solve(on_model=mcb, async_=True) as hnd:
-            # FIXME: maybe enable again
-            # with pytest.raises(ValueError):
-            #    _ = ctl.stats
+            with pytest.raises(ValueError):
+                _ = ctl.stats
             assert hnd.get().satisfiable
         assert mcb.symbols == res
         stats = ctl.stats

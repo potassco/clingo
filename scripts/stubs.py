@@ -232,6 +232,7 @@ class Rewriter:
                     path = os.path.join(root, file)
                     with open(path, "r", encoding="utf8") as hnd:
                         content = hnd.read()
+                    content = content.replace("typing.SupportsInt", "int")
                     content = self.enums_to_top(content)
                     if self.python:
                         content = self.doc_enums(content)
