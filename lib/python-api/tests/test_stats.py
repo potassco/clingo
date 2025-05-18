@@ -45,9 +45,11 @@ class TestStats:
         ctl.parse_string("1 { a; b; c; d } 1.")
         ctl.ground()
         mcb = MCB()
-        with ctl.solve(on_model=mcb, async_=True) as hnd:
+        with ctl.solve(on_model=mcb, async_=True, yield_=True) as hnd:
             with pytest.raises(ValueError):
                 _ = ctl.stats
+            for _ in hnd:
+                pass
             assert hnd.get().satisfiable
         assert mcb.symbols == res
         stats = ctl.stats
