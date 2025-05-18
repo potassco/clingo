@@ -94,7 +94,6 @@ class ConstConfigArray {
     explicit ConstConfigArray(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
 
     [[nodiscard]] auto at(size_t index) const -> ConstConfig { return ConstConfig{cfg_, at_(index)}; }
-    [[nodiscard]] auto operator[](size_t index) const -> ConstConfig { return at(index); }
     [[nodiscard]] auto size() const -> size_t { return Detail::call<clingo_config_array_size>(cfg_, key_); }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
@@ -128,7 +127,6 @@ class ConfigArray : public ConstConfigArray {
     explicit ConfigArray(clingo_config_t *stats, ProgramId key) : ConstConfigArray{stats, key} {}
 
     [[nodiscard]] auto at(size_t index) const -> Config { return Config{cfg_(), at_(index)}; }
-    [[nodiscard]] auto operator[](size_t index) const -> Config { return at(index); }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 
@@ -164,7 +162,7 @@ class ConstConfigMap {
         auto [name, subkey] = at_(index);
         return {name, ConstConfig{cfg_, subkey}};
     }
-    [[nodiscard]] auto operator[](std::string_view name) const -> ConstConfig { return ConstConfig{cfg_, at_(name)}; }
+    [[nodiscard]] auto get(std::string_view name) const -> ConstConfig { return ConstConfig{cfg_, at_(name)}; }
     [[nodiscard]] auto contains(std::string_view name) const -> bool {
         return Detail::call<clingo_config_map_has_subkey>(cfg_, key_, name.data(), name.size());
     }
@@ -212,7 +210,7 @@ class ConfigMap : public ConstConfigMap {
         auto [name, subkey] = at_(index);
         return {name, Config{cfg_(), subkey}};
     }
-    [[nodiscard]] auto operator[](std::string_view name) const -> Config { return Config{cfg_(), at_(name)}; }
+    [[nodiscard]] auto get(std::string_view name) const -> Config { return Config{cfg_(), at_(name)}; }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 

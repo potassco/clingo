@@ -44,8 +44,9 @@ class TheoryBackend {
                                                            condition.size());
     }
 
-    [[nodiscard]] auto atom(std::optional<ProgramAtom> atom, Symbol const &name, ProgramIdSpan elements,
-                            std::optional<std::pair<std::string_view, ProgramId>> const &guard) const -> ProgramId {
+    [[nodiscard]] auto atom(std::optional<ProgramAtom> atom, Symbol const &name, ProgramIdSpan elements = {},
+                            std::optional<std::pair<std::string_view, ProgramId>> const &guard = std::nullopt) const
+        -> ProgramId {
         auto op = clingo_string_t{guard ? guard->first.data() : nullptr, guard ? guard->first.size() : 0};
         return Detail::call<clingo_backend_theory_atom>(backend_.get(), c_cast(name), elements.data(), elements.size(),
                                                         guard ? &op : nullptr, guard ? guard->second : 0,
@@ -95,7 +96,7 @@ class ProgramBackend : private TheoryBackend {
                                                         body.data(), body.size()));
     }
 
-    void minimize(WeightedLiteralSpan literals, Weight priority) const {
+    void minimize(WeightedLiteralSpan literals, Weight priority = 0) const {
         Detail::handle_error(clingo_backend_minimize(backend_.get(), priority, literals.data(), literals.size()));
     }
 
@@ -111,8 +112,8 @@ class ProgramBackend : private TheoryBackend {
         Detail::handle_error(clingo_backend_assume(backend_.get(), literals.data(), literals.size()));
     }
 
-    void heuristic(ProgramAtom atom, HeuristicType type, int bias, unsigned priority,
-                   ProgramLiteralSpan condition) const {
+    void heuristic(ProgramAtom atom, HeuristicType type, int bias, unsigned priority = 0,
+                   ProgramLiteralSpan condition = {}) const {
         Detail::handle_error(clingo_backend_heuristic(backend_.get(), atom, static_cast<clingo_heuristic_type_t>(type),
                                                       bias, priority, condition.data(), condition.size()));
     }
