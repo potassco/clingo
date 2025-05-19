@@ -14,6 +14,7 @@ if(PARSER_BUILD_TESTS)
         "tests/config.cc"
         "tests/control.cc"
         "tests/core.cc"
+        "tests/incremental.cc"
         "tests/solve.cc"
         "tests/symbol.cc"
     )
