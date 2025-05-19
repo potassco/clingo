@@ -348,7 +348,7 @@ inline static constexpr auto c_propagator = clingo_propagator_t{
         CLINGO_CATCH;
     },
     nullptr,
-    [](void *data) { std::ignore = std::make_unique<Propagator>(*static_cast<Propagator *>(data)); },
+    [](void *data) { std::ignore = std::unique_ptr<Propagator>(static_cast<Propagator *>(data)); },
 };
 
 inline static constexpr auto c_heuristic = clingo_propagator_t{

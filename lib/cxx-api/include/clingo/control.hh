@@ -247,7 +247,7 @@ class Control {
             clingo_control_register_propagator(ctl_.get(), &Detail::c_propagator, propagator.release()));
     }
 
-    void register_propagator(std::unique_ptr<Heuristic> heuristic) const {
+    void register_heuristic(std::unique_ptr<Heuristic> heuristic) const {
         Detail::handle_error(clingo_control_register_propagator(ctl_.get(), &Detail::c_heuristic, heuristic.release()));
     }
 

@@ -3,6 +3,7 @@
 #include <clingo/propagate.hh>
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <catch2/matchers/catch_matchers_exception.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 
@@ -68,9 +69,61 @@ class AIFFBPropagator : public Propagator {
     SolverLiteral slit_a = 0;
     SolverLiteral slit_b = 0;
     ProgramId n_threads = 1;
-    ProgramId fail_thread = -1;
+    ProgramId fail_thread = std::numeric_limits<ProgramId>::max();
     std::vector<std::string> errors;
     std::optional<std::barrier<>> barrier;
+};
+
+class AssertingPropagator : public Heuristic {
+  public:
+    AssertingPropagator(bool lock = false) : lock_(lock) {}
+
+    void do_init(PropagateInit init) override {
+        auto lit = [&](std::string_view name) {
+            for (auto base = init.base().get(std::make_pair(name, 0)); auto const &[_, atom] : *base) {
+                return init.solver_literal(atom.literal());
+            }
+            throw std::logic_error{"must not happend"};
+        };
+        start_lit_ = lit("start");
+        end_lit_ = lit("end");
+        value_lit_ = lit("value");
+
+        auto lits = std::vector<int>{start_lit_, end_lit_, value_lit_};
+        std::ranges::sort(lits);
+        for (int lit : lits) {
+            init.add_watch(lit);
+            init.add_watch(-lit);
+        }
+    }
+
+    void do_propagate(PropagateControl control, SolverLiteralSpan changes) override {
+        REQUIRE(!changes.empty());
+        auto ass = control.assignment();
+        if (ass.is_false(value_lit_) && ass.is_false(end_lit_)) {
+            auto nogood = std::array{start_lit_, -end_lit_, -value_lit_};
+            auto dl = ass.decision_level();
+            REQUIRE(!control.add_nogood(nogood, lock_ ? ClauseFlags::lock : ClauseFlags::none));
+            REQUIRE(ass.decision_level() == dl);
+        }
+    }
+
+    auto do_decide(ProgramId thread_id, Assignment assignment, SolverLiteral fallback) -> int override {
+        REQUIRE(thread_id == 0);
+        if (assignment.is_free(end_lit_)) {
+            return -end_lit_;
+        }
+        if (assignment.is_free(value_lit_)) {
+            return -value_lit_;
+        }
+        return fallback;
+    }
+
+  private:
+    int start_lit_ = 0;
+    int end_lit_ = 0;
+    int value_lit_ = 0;
+    bool lock_ = false;
 };
 
 struct Fixture {
@@ -128,4 +181,15 @@ TEST_CASE_METHOD(Fixture, "propagate exception", "[cxx][propagator][exception]")
     }
 }
 
+TEST_CASE_METHOD(Fixture, "propagate asserting", "[cxx][propagator][asserting]") {
+    bool locked = GENERATE(false, true);
+
+    auto prop = std::make_unique<AssertingPropagator>(locked);
+    ctl.register_heuristic(std::move(prop));
+    ctl.parse_string("start. {value}. {end}.");
+    ctl.ground();
+
+    auto hnd = ctl.solve();
+    REQUIRE(hnd.get().satisfiable());
+}
 } // namespace Clingo::Test
