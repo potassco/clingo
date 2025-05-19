@@ -1,20 +1,10 @@
 #include <clingo/app.hh>
 #include <clingo/control.hh>
 
+#include <catch2/catch_test_macros.hpp>
+
 #include "cbs.hh"
 #include "tempfile.hh"
-
-#include <iostream>
-#include <string>
-
-#define ASSERT_MSG(cond, msg)                                                                                          \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            std::cerr << "Assertion failed: " << msg << "\n";                                                          \
-            std::cerr.flush();                                                                                         \
-            std::abort();                                                                                              \
-        }                                                                                                              \
-    } while (0)
 
 namespace Clingo::Test {
 
@@ -23,7 +13,7 @@ class AppTest : public App {
     AppTest() { events.reserve(5); }
     auto parse_test(std::string_view value) -> bool {
         events.emplace_back("parse");
-        ASSERT_MSG(value == "x", "parse_test: expected value 'x', got '" << value << "'");
+        REQUIRE(value == "x");
         return true;
     }
 
@@ -45,7 +35,7 @@ class AppTest : public App {
 
     void do_validate_options() override {
         events.emplace_back("validate");
-        ASSERT_MSG(flag, "validate_options: flag must be true");
+        REQUIRE(flag);
     }
 
     std::vector<std::vector<std::string>> models;
@@ -53,44 +43,29 @@ class AppTest : public App {
     bool flag = false;
 };
 
-} // namespace Clingo::Test
+TEST_CASE("app", "[cxx][app]") {
+    auto tmp = TempFile{"1 {a; b; c(1/0)}."};
+    auto app = AppTest{};
+    auto arg = std::to_array<std::string_view>({tmp.path().c_str(), "--outf=3", "--test=x", "--flag", "0"});
 
-auto main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) -> int {
-    using namespace Clingo;
-    using namespace Clingo::Test;
+    auto logger = [&](MessageCode code, std::string_view msg) {
+        if (code == MessageCode::operation_undefined) {
+            app.events.emplace_back("logger");
+            REQUIRE(msg.find("operation undefined") != std::string::npos);
+        }
+    };
 
-    try {
-        auto tmp = TempFile{"1 {a; b; c(1/0)}."};
-        auto app = AppTest{};
-        auto arg = std::to_array<std::string_view>({tmp.path().c_str(), "--outf=3", "--test=x", "--flag", "0"});
+    auto lib = Library(LibraryFlags::none, logger);
+    auto ret = Clingo::main(lib, arg, &app);
 
-        auto logger = [&](MessageCode code, std::string_view msg) {
-            if (code == MessageCode::operation_undefined) {
-                app.events.emplace_back("logger");
-                ASSERT_MSG(msg.find("operation undefined") != std::string::npos,
-                           "logger: expected 'operation undefined' in message, got: " << msg);
-            }
-        };
-
-        auto lib = Library(LibraryFlags::none, logger);
-        auto ret = Clingo::main(lib, arg, &app);
-
-        ASSERT_MSG(ret == 30, "Expected return code 30, got " << ret);
-        ASSERT_MSG(app.events.size() >= 5, "Expected at least 5 events, got " << app.events.size());
-        ASSERT_MSG(app.events[0] == "register", "First event should be 'register', got '" << app.events[0] << "'");
-        ASSERT_MSG(app.events[1] == "parse", "Second event should be 'parse', got '" << app.events[1] << "'");
-        ASSERT_MSG(app.events[2] == "validate", "Third event should be 'validate', got '" << app.events[2] << "'");
-        ASSERT_MSG(app.events[3] == "main", "Fourth event should be 'main', got '" << app.events[3] << "'");
-        ASSERT_MSG(app.events[4] == "logger", "Fifth event should be 'logger', got '" << app.events[4] << "'");
-        auto res = std::vector<std::vector<std::string>>{{"a"}, {"a", "b"}, {"b"}};
-        ASSERT_MSG(app.models == res, "Model results do not match expected output.");
-
-        std::cout << "All assertions passed!\n";
-    } catch (std::exception const &e) {
-        std::cerr << "Unexpected exception: " << e.what() << "\n";
-        std::cerr.flush();
-        std::abort();
-    }
-
-    return 0;
+    REQUIRE(ret == 30);
+    REQUIRE(app.events.size() >= 5);
+    REQUIRE(app.events[0] == "register");
+    REQUIRE(app.events[1] == "parse");
+    REQUIRE(app.events[2] == "validate");
+    REQUIRE(app.events[3] == "main");
+    REQUIRE(app.events[4] == "logger");
+    REQUIRE(app.models == MV{{"a"}, {"a", "b"}, {"b"}});
 }
+
+} // namespace Clingo::Test
