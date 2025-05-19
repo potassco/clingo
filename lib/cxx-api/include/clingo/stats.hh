@@ -6,8 +6,6 @@
 
 namespace Clingo {
 
-// TODO: a to string would be nice
-
 enum class StatsType : clingo_stats_type_t {
     value = clingo_stats_type_value,
     array = clingo_stats_type_array,
@@ -29,7 +27,11 @@ class ConstStats {
     }
 
     [[nodiscard]] auto array() const -> ConstStatsArray;
+    [[nodiscard]] auto at(size_t index) const -> ConstStats;
+    [[nodiscard]] auto operator[](size_t index) const -> ConstStats { return at(index); }
     [[nodiscard]] auto map() const -> ConstStatsMap;
+    [[nodiscard]] auto get(std::string_view name) const -> ConstStats;
+    [[nodiscard]] auto operator[](std::string_view name) const -> ConstStats { return get(name); }
     [[nodiscard]] auto value() const -> double {
         if (type() == StatsType::value) {
             return Detail::call<clingo_stats_value_get>(stats_, key_);
@@ -56,7 +58,11 @@ class Stats : public ConstStats {
     friend auto c_cast(Stats const &stats) -> clingo_stats_t * { return stats.stats_(); }
 
     [[nodiscard]] auto array() const -> StatsArray;
+    [[nodiscard]] auto at(size_t index) const -> Stats;
+    [[nodiscard]] auto operator[](size_t index) const -> Stats { return at(index); }
     [[nodiscard]] auto map() const -> StatsMap;
+    [[nodiscard]] auto get(std::string_view name) const -> Stats;
+    [[nodiscard]] auto operator[](std::string_view name) const -> Stats { return get(name); }
     void value(double value) const {
         if (type() == StatsType::value) {
             Detail::handle_error(clingo_stats_value_set(stats_(), key_, value));
@@ -99,11 +105,15 @@ class ConstStatsArray {
     uint64_t key_;
 };
 
-[[nodiscard]] inline auto ConstStats::array() const -> ConstStatsArray {
+inline auto ConstStats::array() const -> ConstStatsArray {
     if (type() == StatsType::array) {
         return ConstStatsArray{stats_, key_};
     }
     throw std::bad_variant_access{};
+}
+
+inline auto ConstStats::at(size_t index) const -> ConstStats {
+    return array().at(index);
 }
 
 class StatsArray : public ConstStatsArray {
@@ -133,11 +143,14 @@ class StatsArray : public ConstStatsArray {
     }
 };
 
-[[nodiscard]] inline auto Stats::array() const -> StatsArray {
+inline auto Stats::array() const -> StatsArray {
     if (type() == StatsType::array) {
         return StatsArray{stats_(), key_};
     }
     throw std::bad_variant_access{};
+}
+inline auto Stats::at(size_t index) const -> Stats {
+    return array().at(index);
 }
 
 class ConstStatsMap {
@@ -158,7 +171,8 @@ class ConstStatsMap {
         auto [name, subkey] = at_(index);
         return {name, ConstStats{stats_, subkey}};
     }
-    [[nodiscard]] auto operator[](std::string_view name) const -> ConstStats { return ConstStats{stats_, at_(name)}; }
+    [[nodiscard]] auto operator[](std::string_view name) const -> ConstStats { return get(name); }
+    [[nodiscard]] auto get(std::string_view name) const -> ConstStats { return ConstStats{stats_, at_(name)}; }
     [[nodiscard]] auto contains(std::string_view name) const -> bool {
         return Detail::call<clingo_stats_map_has_subkey>(stats_, key_, name.data(), name.size());
     }
@@ -182,11 +196,15 @@ class ConstStatsMap {
     uint64_t key_;
 };
 
-[[nodiscard]] inline auto ConstStats::map() const -> ConstStatsMap {
+inline auto ConstStats::map() const -> ConstStatsMap {
     if (type() == StatsType::map) {
         return ConstStatsMap{stats_, key_};
     }
     throw std::bad_variant_access{};
+}
+
+inline auto ConstStats::get(std::string_view name) const -> ConstStats {
+    return map().get(name);
 }
 
 class StatsMap : public ConstStatsMap {
@@ -206,7 +224,8 @@ class StatsMap : public ConstStatsMap {
         auto [name, subkey] = at_(index);
         return {name, Stats{stats_(), subkey}};
     }
-    [[nodiscard]] auto operator[](std::string_view name) const -> Stats { return Stats{stats_(), at_(name)}; }
+    [[nodiscard]] auto operator[](std::string_view name) const -> Stats { return get(name); }
+    [[nodiscard]] auto get(std::string_view name) const -> Stats { return Stats{stats_(), at_(name)}; }
     [[nodiscard]] auto insert(std::string_view name, StatsType type) const -> Stats {
         return Stats{stats_(), Detail::call<clingo_stats_map_add_subkey>(stats_(), key_, name.data(), name.size(),
                                                                          static_cast<clingo_stats_type_t>(type))};
@@ -221,11 +240,15 @@ class StatsMap : public ConstStatsMap {
     }
 };
 
-[[nodiscard]] inline auto Stats::map() const -> StatsMap {
+inline auto Stats::map() const -> StatsMap {
     if (type() == StatsType::map) {
         return StatsMap{stats_(), key_};
     }
     throw std::bad_variant_access{};
+}
+
+inline auto Stats::get(std::string_view name) const -> Stats {
+    return map().get(name);
 }
 
 } // namespace Clingo

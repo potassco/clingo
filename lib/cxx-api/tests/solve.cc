@@ -158,7 +158,7 @@ TEST_CASE("solve unsat", "[cxx][solve][unsat]") {
         auto hnd = ctl.solve(ucb);
         REQUIRE(hnd.get().satisfiable());
     }
-    REQUIRE(ctl.stats().map()["summary"].map()["lower"].array()[0].value() == 3.0);
+    REQUIRE(ctl.stats()["summary"]["lower"][0].value() == 3.0);
     REQUIRE(bounds == std::vector<std::vector<Sum>>{{1}, {2}, {3}});
 }
 

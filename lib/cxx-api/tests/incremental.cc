@@ -2,6 +2,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include "cbs.hh"
+
 namespace Clingo::Test {
 
 namespace {
@@ -41,6 +43,42 @@ TEST_CASE_METHOD(Fixture, "incremental", "[cxx][incremental][simplify]") {
     REQUIRE(bp->size() == 1);
     REQUIRE(bq->size() == 2);
     REQUIRE(!bse.contains(sp2));
+}
+
+TEST_CASE_METHOD(Fixture, "incremental minimize", "[cxx][incremental][simplify][minimize]") {
+    auto solve_cfg = ctl.config()["solve"];
+    solve_cfg["opt_mode"].value("optN");
+    solve_cfg["models"].value("0");
+    ctl.parse_string(R"(
+        {a; b}.
+        #minimize { 1: a; 2 : not b }.)");
+    ctl.ground();
+    auto models = MV{};
+    {
+        auto mcb = MCB{models};
+        auto hnd = ctl.solve(mcb);
+        REQUIRE(hnd.get().satisfiable());
+    }
+    REQUIRE(models == MV{{"b"}});
+    REQUIRE(ctl.stats()["summary"]["costs"][0].value() == 0.0);
+    ctl.parse_string("#program x. :- not a. :- not b.");
+    ctl.ground({{"x", {}}});
+    {
+        auto mcb = MCB{models};
+        auto hnd = ctl.solve(mcb);
+        REQUIRE(hnd.get().satisfiable());
+    }
+    REQUIRE(models == MV{{"a", "b"}});
+    REQUIRE(ctl.stats()["summary"]["costs"][0].value() == 1.0);
+    ctl.parse_string("#program y. {c}. #minimize{ 1: b; 2 : not c }.");
+    ctl.ground({{"y", {}}});
+    {
+        auto mcb = MCB{models};
+        auto hnd = ctl.solve(mcb);
+        REQUIRE(hnd.get().satisfiable());
+    }
+    REQUIRE(models == MV{{"a", "b", "c"}});
+    REQUIRE(ctl.stats()["summary"]["costs"][0].value() == 1.0);
 }
 
 } // namespace Clingo::Test
