@@ -38,7 +38,7 @@ class AppTest : public App {
         REQUIRE(flag);
     }
 
-    std::vector<std::vector<std::string>> models;
+    MV models;
     std::vector<std::string> events;
     bool flag = false;
 };

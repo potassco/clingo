@@ -236,7 +236,7 @@ class Control {
         return ConstMap{Detail::call<clingo_control_const_map>(ctl_.get())};
     }
 
-    void observe(Observer &obs, bool preprocess) const { obs.observe(ctl_.get(), preprocess); }
+    void observe(Observer &obs, bool preprocess = true) const { obs.observe(ctl_.get(), preprocess); }
 
     [[nodiscard]] auto backend() const -> ProgramBackend {
         return ProgramBackend{Detail::call<clingo_control_backend>(ctl_.get())};
