@@ -424,7 +424,7 @@ class Library {
   public:
     Library(LibraryFlags flags = LibraryFlags::none, Logger logger = nullptr, LogLevel level = LogLevel::info,
             size_t limit = default_message_limit) {
-        auto log = std::make_unique<Logger>(logger ? std::move(logger) : nullptr);
+        auto log = logger ? std::make_unique<Logger>(std::move(logger)) : nullptr;
         rep_.reset(Detail::call<clingo_lib_new>(static_cast<clingo_lib_flags_t>(flags),
                                                 static_cast<clingo_log_level_t>(level), log ? &c_logger : nullptr,
                                                 log.release(), limit),
