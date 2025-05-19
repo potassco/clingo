@@ -409,7 +409,7 @@ TEST_CASE_METHOD(Fixture, "aspif theory", "[cxx][aspif][theory]") {
     for (const auto &atom : ctl.base().theory()) {
         theory_atoms.push_back(atom.to_string());
     }
-    std::sort(theory_atoms.begin(), theory_atoms.end());
+    std::ranges::sort(theory_atoms);
     REQUIRE(theory_atoms == std::vector<std::string>{
                                 "&p { (1,2,3) }",
                                 "&p { 1 }",
