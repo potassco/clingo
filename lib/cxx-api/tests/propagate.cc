@@ -41,13 +41,19 @@ class AIFFBPropagator : public Propagator {
     void do_check(PropagateControl control) override {
         for (int p : {slit_a, slit_b}) {
             if (!control.has_watch(p)) {
+                auto lock = std::lock_guard{mut};
                 errors.push_back("solver " + std::to_string(control.thread_id()) + " misses watch " +
                                  std::to_string(p));
             }
         }
         if (barrier) {
             barrier->arrive_and_wait();
-            barrier.reset();
+            {
+                auto lock = std::lock_guard{mut};
+                if (barrier) {
+                    barrier.reset();
+                }
+            }
             if (control.thread_id() == fail_thread) {
                 throw std::runtime_error("Forcing error on solver " + std::to_string(control.thread_id()));
             }
@@ -57,7 +63,7 @@ class AIFFBPropagator : public Propagator {
     void do_propagate(PropagateControl control, SolverLiteralSpan changes) override {
         auto propagate = [&](auto p, auto q) {
             if (std::ranges::find(changes, p) != changes.end()) {
-                REQUIRE(control.assignment().is_true(p));
+                assert(control.assignment().is_true(p));
                 auto clause = std::vector{-p, q};
                 std::ignore = control.add_clause(clause, ClauseFlags::tag);
             }
@@ -72,6 +78,7 @@ class AIFFBPropagator : public Propagator {
     ProgramId fail_thread = std::numeric_limits<ProgramId>::max();
     std::vector<std::string> errors;
     std::optional<std::barrier<>> barrier;
+    std::mutex mut;
 };
 
 class AssertingPropagator : public Heuristic {
@@ -165,7 +172,7 @@ TEST_CASE_METHOD(Fixture, "propagate exception", "[cxx][propagator][exception]")
     ctl.parse_string("1 { a; b }.");
     ctl.ground();
 
-    for (ProgramId n : {3, 1}) {
+    for (ProgramId n : {8, 1}) {
         ctl.config()["solve"]["parallel_mode"].value(std::to_string(n));
         ref.fail_thread = n - 1;
         auto models = MV{};
