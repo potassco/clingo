@@ -200,7 +200,7 @@ class PropagateInit {
         Detail::handle_error(clingo_propagate_init_add_minimize(init_, literal, weight, priority));
     }
 
-    void add_watch(SolverLiteral literal, std::optional<ProgramId> thread_id) const {
+    void add_watch(SolverLiteral literal, std::optional<ProgramId> thread_id = std::nullopt) const {
         if (thread_id) {
             Detail::handle_error(clingo_propagate_init_add_watch_to_thread(init_, literal, *thread_id));
         } else {

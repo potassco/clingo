@@ -13,6 +13,7 @@
 namespace Clingo::Test {
 
 namespace {
+
 class ExampleObserver : public Observer {
   public:
     void do_init_program(bool incremental) override {
@@ -82,7 +83,6 @@ class ExampleObserver : public Observer {
     std::vector<std::tuple<int, int, std::vector<int>>> edges;
     std::vector<std::tuple<int, ExternalType>> externals;
     std::vector<std::tuple<int, HeuristicType, int, unsigned, std::vector<int>>> heuristics;
-    std::optional<bool> incremental;
     std::vector<std::tuple<std::vector<std::pair<int, int>>, int>> minimizes;
     std::vector<std::vector<int>> projections;
     std::vector<std::tuple<std::vector<int>, std::vector<int>, bool>> rules;
@@ -90,6 +90,7 @@ class ExampleObserver : public Observer {
     std::vector<std::string> symbols;
     int begin_steps = 0;
     int end_steps = 0;
+    std::optional<bool> incremental;
 };
 
 struct Fixture {
