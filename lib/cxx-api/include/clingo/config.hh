@@ -47,6 +47,7 @@ class ConstConfig {
         }
         throw std::bad_variant_access();
     }
+    [[nodiscard]] auto operator*() const -> std::optional<std::string_view> { return value(); }
     [[nodiscard]] auto description() const -> std::string_view {
         auto [data, size] = Detail::call<clingo_config_description>(cfg_, key_);
         return {data, size};
@@ -82,6 +83,10 @@ class Config : public ConstConfig {
         } else {
             throw std::bad_variant_access{};
         }
+    }
+    auto operator=(std::string_view value) -> Config & {
+        this->value(value);
+        return *this;
     }
 
   private:

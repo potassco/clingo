@@ -18,8 +18,6 @@ template <typename T, typename V>
 concept is_range_over =
     std::ranges::forward_range<T> && std::is_same_v<std::remove_const_t<std::ranges::range_value_t<T>>, V>;
 
-template <typename> inline constexpr bool always_false = false;
-
 template <typename T, typename U>
 concept not_same_as = !std::same_as<T, U>;
 

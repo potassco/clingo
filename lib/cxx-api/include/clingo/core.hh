@@ -17,6 +17,8 @@ namespace Clingo {
 
 namespace Detail {
 
+template <typename> inline constexpr bool always_false = false;
+
 #define CLINGO_ENABLE_BITSET_ENUM(E, ...)                                                                              \
     [[nodiscard]] CLINGO_ENUM_OP(~, (E a), __VA_ARGS__)->E {                                                           \
         return static_cast<E>(~static_cast<std::underlying_type_t<E>>(a));                                             \

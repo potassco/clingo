@@ -21,9 +21,9 @@ enum class PropagatorUndoMode : clingo_propagator_undo_mode_t {
 
 //! Enumeration of weight_constraint_types.
 enum WeightConstraintType : clingo_weight_constraint_type_t {
-    clingo_weight_constraint_type_implication_left = -1, //!< the weight constraint implies the literal
-    clingo_weight_constraint_type_implication_right = 1, //!< the literal implies the weight constraint
-    clingo_weight_constraint_type_equivalence = 0,       //!< the weight constraint is equivalent to the literal
+    implication_left = clingo_weight_constraint_type_implication_left,   //!< the weight constraint implies the literal
+    implication_right = clingo_weight_constraint_type_implication_right, //!< the literal implies the weight constraint
+    equivalence = clingo_weight_constraint_type_equivalence, //!< the weight constraint is equivalent to the literal
 };
 
 enum ClauseFlags : clingo_clause_type_t {
@@ -44,9 +44,11 @@ class Trail {
 
     explicit Trail(clingo_assignment_t const *assignment) : assignment_{assignment} {}
 
-    [[nodiscard]] auto operator[](size_type index) const -> value_type {
+    [[nodiscard]] auto at(size_type index) const -> value_type {
         return Detail::call<clingo_assignment_trail_at>(assignment_, index);
     }
+
+    [[nodiscard]] auto operator[](size_type index) const -> value_type { return at(index); }
 
     [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_assignment_trail_size>(assignment_); }
 
@@ -244,12 +246,12 @@ class PropagateControl {
         return Detail::call<clingo_propagate_control_add_literal>(ctl_);
     }
 
-    [[nodiscard]] auto add_clause(ProgramLiteralSpan literals, ClauseFlags flags) const -> bool {
+    [[nodiscard]] auto add_clause(SolverLiteralSpan literals, ClauseFlags flags = ClauseFlags::none) const -> bool {
         return Detail::call<clingo_propagate_control_add_clause>(ctl_, literals.data(), literals.size(),
                                                                  static_cast<clingo_clause_type_t>(flags));
     }
 
-    [[nodiscard]] auto add_nogood(SolverLiteralSpan literals, ClauseFlags flags) const -> bool {
+    [[nodiscard]] auto add_nogood(SolverLiteralSpan literals, ClauseFlags flags = ClauseFlags::none) const -> bool {
         return add_clause(Detail::transform(literals, [](auto const &lit) { return -lit; }), flags);
     }
 

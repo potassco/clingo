@@ -133,19 +133,189 @@ class AssertingPropagator : public Heuristic {
     bool lock_ = false;
 };
 
+class InitPropagator : public Propagator {
+  public:
+    void do_init(PropagateInit init) override {
+        auto lib = init.library();
+        auto a = init.base().get(Function(lib, "a"));
+        auto b = init.base().get(Function(lib, "b"));
+        auto c = init.base().get(Function(lib, "c"));
+        REQUIRE((a && b && c));
+
+        int lit_a = init.solver_literal(a->literal());
+        int lit_b = init.solver_literal(b->literal());
+        int lit_c = init.solver_literal(c->literal());
+
+        int lit = init.add_literal(false);
+
+        // a <=> b
+        std::ignore = init.add_clause(std::array{lit_a, -lit});
+        std::ignore = init.add_clause(std::array{lit, -lit_a});
+        std::ignore = init.add_clause(std::array{lit_b, -lit});
+        std::ignore = init.add_clause(std::array{lit, -lit_b});
+
+        // c <=> {a, b} >= 2
+        std::ignore = init.add_weight_constraint(lit_c, std::to_array<WeightedLiteral>({{lit_a, 1}, {lit_b, 1}}), 2,
+                                                 WeightConstraintType::equivalence, false);
+
+        init.add_minimize(lit_a, -1, 0);
+
+        REQUIRE(init.propagate());
+        REQUIRE(init.base().size() == 3);
+
+        // Assignment checks
+        auto ass = init.assignment();
+        REQUIRE(ass.value(lit_a) == std::nullopt);
+        REQUIRE(!ass.is_true(lit_a));
+        REQUIRE(!ass.is_false(lit_a));
+        REQUIRE(!ass.is_fixed(lit_a));
+        REQUIRE(ass.decision_level() == 0);
+        REQUIRE(ass.contains(lit_a));
+        REQUIRE(!ass.has_conflict());
+        REQUIRE(!ass.is_total());
+        REQUIRE(ass.root_level() == 0);
+        REQUIRE(ass.size() == 5);
+        REQUIRE(std::distance(ass.begin(), ass.end()) == 5);
+    }
+};
+
+class AddLiteralPropagator : public Propagator {
+  public:
+    void do_check(PropagateControl control) override {
+        if (!added_) {
+            added_ = true;
+            int lit = control.add_literal();
+            REQUIRE(!control.has_watch(lit));
+            control.add_watch(lit);
+            REQUIRE(control.has_watch(lit));
+            control.remove_watch(lit);
+            REQUIRE(!control.has_watch(lit));
+        }
+    }
+
+  private:
+    bool added_ = false;
+};
+
+class HeuristicPropagator : public Heuristic {
+  public:
+    void do_init(PropagateInit init) override {
+        auto lib = init.library();
+        auto a = init.base().get(Function(lib, "a"));
+        auto b = init.base().get(Function(lib, "b"));
+        REQUIRE((a && b));
+        lit_a_ = init.solver_literal(a->literal());
+        lit_b_ = init.solver_literal(b->literal());
+    }
+
+    auto do_decide(ProgramId thread_id, Assignment assignment, SolverLiteral fallback) -> int override {
+        REQUIRE(thread_id == 0);
+        if (assignment.is_free(lit_a_)) {
+            return lit_a_;
+        }
+        if (assignment.is_free(lit_b_)) {
+            return -lit_b_;
+        }
+        return fallback;
+    }
+
+  private:
+    SolverLiteral lit_a_ = 0;
+    SolverLiteral lit_b_ = 0;
+};
+
+class PropagateControlPropagator : public Propagator {
+  public:
+    void do_init(PropagateInit init) override {
+        auto lib = init.library();
+        auto ass = init.assignment();
+        init.check_mode(PropgatorCheckMode::none);
+        REQUIRE(init.check_mode() == PropgatorCheckMode::none);
+        REQUIRE(init.number_of_threads() == 1);
+        REQUIRE(ass.size() >= 1);
+
+        auto a = init.base().get(Function(lib, "a"));
+        REQUIRE(a);
+        lit_a_ = init.solver_literal(a->literal());
+        REQUIRE(ass.contains(lit_a_));
+        REQUIRE(ass.contains(-lit_a_));
+        init.add_watch(-lit_a_);
+    }
+
+    void do_propagate(PropagateControl control, SolverLiteralSpan changes) override {
+        auto ass = control.assignment();
+        auto trail = ass.trail();
+        auto lvl = ass.decision_level();
+
+        REQUIRE(std::ranges::find(changes, -lit_a_) != changes.end());
+        REQUIRE(lvl >= 1);
+        REQUIRE(ass.level(lit_a_) >= 1);
+        REQUIRE(trail.size() >= 1);
+        REQUIRE(std::distance(trail.begin(), trail.end()) >= 1);
+        REQUIRE(*(trail.begin(lvl)) == -lit_a_);
+        REQUIRE(std::vector<SolverLiteral>{trail.begin(lvl), trail.end(lvl)} == std::vector<SolverLiteral>{-lit_a_});
+        REQUIRE(ass.decision(lvl) == -lit_a_);
+        REQUIRE(control.thread_id() == 0);
+        REQUIRE(control.has_watch(-lit_a_));
+        REQUIRE(control.propagate());
+        REQUIRE(!control.add_clause(std::array{lit_a_}));
+    }
+
+    void do_undo(ProgramId thread_id, Assignment assignment, SolverLiteralSpan changes) override {
+        REQUIRE(assignment.size() > 0);
+        REQUIRE(thread_id == 0);
+        REQUIRE(std::ranges::find(changes, -lit_a_) != changes.end());
+    }
+
+  private:
+    SolverLiteral lit_a_ = 0;
+};
+
+class ModePropagator : public Propagator {
+  public:
+    void do_init(PropagateInit init) override {
+        init.check_mode(PropgatorCheckMode::fixpoint);
+        init.undo_mode(PropagatorUndoMode::always);
+
+        REQUIRE(init.check_mode() == PropgatorCheckMode::fixpoint);
+        REQUIRE(init.undo_mode() == PropagatorUndoMode::always);
+    }
+
+    void do_check(PropagateControl control) override {
+        ++num_check;
+        auto dl = control.assignment().decision_level();
+        REQUIRE(level.back() <= dl);
+        if (level.back() != dl) {
+            level.emplace_back(dl);
+        }
+    }
+
+    void do_undo(ProgramId thread_id, Assignment assignment, SolverLiteralSpan changes) override {
+        REQUIRE(thread_id == 0);
+        REQUIRE(assignment.size() >= 0);
+        REQUIRE(changes.empty());
+        ++num_undo;
+        REQUIRE(level.size() >= 2);
+        level.pop_back();
+    }
+
+    SolverLiteral num_check = 0;
+    SolverLiteral num_undo = 0;
+    std::vector<ProgramId> level = {0};
+};
+
 struct Fixture {
     Library lib;
-    Control ctl{lib};
+    Control ctl{lib, {"0"}};
 
     static auto lit(ProgramAtom atom) -> ProgramLiteral { return static_cast<ProgramLiteral>(atom); }
 };
 
 } // namespace
 
-TEST_CASE_METHOD(Fixture, "propagate a iff b", "[cxx][propagator]") {
+TEST_CASE_METHOD(Fixture, "propagate a iff b", "[cxx][propagate]") {
     auto prop = std::make_unique<AIFFBPropagator>();
-    auto &ref = *prop;
-    ctl.register_propagator(std::move(prop));
+    auto &ref = ctl.register_propagator(std::move(prop));
     ctl.parse_string("1 { a; b }.");
     ctl.ground();
 
@@ -163,12 +333,11 @@ TEST_CASE_METHOD(Fixture, "propagate a iff b", "[cxx][propagator]") {
     }
 }
 
-TEST_CASE_METHOD(Fixture, "propagate exception", "[cxx][propagator][exception]") {
+TEST_CASE_METHOD(Fixture, "propagate exception", "[cxx][propagate][exception]") {
     using namespace Catch::Matchers;
 
     auto prop = std::make_unique<AIFFBPropagator>();
-    auto &ref = *prop;
-    ctl.register_propagator(std::move(prop));
+    auto &ref = ctl.register_propagator(std::move(prop));
     ctl.parse_string("1 { a; b }.");
     ctl.ground();
 
@@ -188,15 +357,91 @@ TEST_CASE_METHOD(Fixture, "propagate exception", "[cxx][propagator][exception]")
     }
 }
 
-TEST_CASE_METHOD(Fixture, "propagate asserting", "[cxx][propagator][asserting]") {
+TEST_CASE_METHOD(Fixture, "propagate asserting", "[cxx][propagate][asserting]") {
     bool locked = GENERATE(false, true);
 
     auto prop = std::make_unique<AssertingPropagator>(locked);
-    ctl.register_heuristic(std::move(prop));
+    ctl.register_propagator(std::move(prop));
     ctl.parse_string("start. {value}. {end}.");
     ctl.ground();
 
     auto hnd = ctl.solve();
     REQUIRE(hnd.get().satisfiable());
 }
+
+TEST_CASE_METHOD(Fixture, "propagate init", "[cxx][propagate][init]") {
+    ctl.config()["solve"]["opt_mode"] = "optN";
+    ctl.parse_string("{a; b; c}.");
+    ctl.ground();
+
+    ctl.register_propagator(std::make_unique<InitPropagator>());
+
+    auto models = MV{};
+    {
+        auto mcb = MCB{models};
+        auto hnd = ctl.solve(mcb);
+        REQUIRE(hnd.get().satisfiable());
+    }
+
+    REQUIRE(models == MV{{"a", "b", "c"}});
+}
+
+TEST_CASE_METHOD(Fixture, "propagate add_literal", "[cxx][propagate][add_literal]") {
+    ctl.register_propagator(std::make_unique<AddLiteralPropagator>());
+
+    auto models = MV{};
+    {
+        auto mcb = MCB{models};
+        auto hnd = ctl.solve(mcb);
+        REQUIRE(hnd.get().satisfiable());
+    }
+
+    REQUIRE(models == MV{{}, {}});
+}
+
+TEST_CASE_METHOD(Fixture, "propagate heuristic", "[cxx][propagate][heuristic]") {
+    ctl.config()["solve"]["models"] = "1";
+    ctl.parse_string("{a;b}.");
+    ctl.ground();
+
+    ctl.register_propagator(std::make_unique<HeuristicPropagator>());
+
+    auto models = MV{};
+    {
+        auto mcb = MCB{models};
+        auto hnd = ctl.solve(mcb);
+        REQUIRE(hnd.get().satisfiable());
+    }
+
+    REQUIRE(models == MV{{"a"}});
+}
+
+TEST_CASE_METHOD(Fixture, "propagate control", "[cxx][propagate][control]") {
+    ctl.parse_string("{a}.");
+    ctl.ground();
+
+    ctl.register_propagator(std::make_unique<PropagateControlPropagator>());
+
+    MV models;
+    {
+        auto mcb = MCB{models};
+        auto hnd = ctl.solve(mcb);
+        REQUIRE(hnd.get().satisfiable());
+    }
+
+    REQUIRE(models == MV{{"a"}});
+}
+
+TEST_CASE_METHOD(Fixture, "propagate mode", "[cxx][propagate][mode]") {
+    auto prop = std::make_unique<ModePropagator>();
+    auto &ref = ctl.register_propagator(std::move(prop));
+
+    ctl.parse_string("{a; b; c}.");
+    ctl.main();
+
+    REQUIRE(ref.level == std::vector<ProgramId>{0});
+    REQUIRE(ref.num_check >= 16);
+    REQUIRE(ref.num_undo >= 8);
+}
+
 } // namespace Clingo::Test

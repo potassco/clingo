@@ -242,13 +242,19 @@ class Control {
         return ProgramBackend{Detail::call<clingo_control_backend>(ctl_.get())};
     }
 
-    void register_propagator(std::unique_ptr<Propagator> propagator) const {
-        Detail::handle_error(
-            clingo_control_register_propagator(ctl_.get(), &Detail::c_propagator, propagator.release()));
-    }
-
-    void register_heuristic(std::unique_ptr<Heuristic> heuristic) const {
-        Detail::handle_error(clingo_control_register_propagator(ctl_.get(), &Detail::c_heuristic, heuristic.release()));
+    template <class T> auto register_propagator(std::unique_ptr<T> propagator) const -> T & {
+        assert(propagator != nullptr);
+        auto &res = *propagator;
+        if constexpr (std::is_base_of_v<Heuristic, T>) {
+            Detail::handle_error(
+                clingo_control_register_propagator(ctl_.get(), &Detail::c_heuristic, propagator.release()));
+        } else if constexpr (std::is_base_of_v<Propagator, T>) {
+            Detail::handle_error(
+                clingo_control_register_propagator(ctl_.get(), &Detail::c_propagator, propagator.release()));
+        } else {
+            static_assert(Detail::always_false<T>, "propagator or heuristic expected");
+        }
+        return res;
     }
 
     void join(AST::Program const &prg) const { Detail::join(ctl_.get(), c_cast(prg)); }
