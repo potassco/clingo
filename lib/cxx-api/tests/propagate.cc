@@ -229,8 +229,8 @@ class PropagateControlPropagator : public Propagator {
     void do_init(PropagateInit init) override {
         auto lib = init.library();
         auto ass = init.assignment();
-        init.check_mode(PropgatorCheckMode::none);
-        REQUIRE(init.check_mode() == PropgatorCheckMode::none);
+        init.check_mode(PropagatorCheckMode::none);
+        REQUIRE(init.check_mode() == PropagatorCheckMode::none);
         REQUIRE(init.number_of_threads() == 1);
         REQUIRE(ass.size() >= 1);
 
@@ -274,10 +274,10 @@ class PropagateControlPropagator : public Propagator {
 class ModePropagator : public Propagator {
   public:
     void do_init(PropagateInit init) override {
-        init.check_mode(PropgatorCheckMode::fixpoint);
+        init.check_mode(PropagatorCheckMode::fixpoint);
         init.undo_mode(PropagatorUndoMode::always);
 
-        REQUIRE(init.check_mode() == PropgatorCheckMode::fixpoint);
+        REQUIRE(init.check_mode() == PropagatorCheckMode::fixpoint);
         REQUIRE(init.undo_mode() == PropagatorUndoMode::always);
     }
 

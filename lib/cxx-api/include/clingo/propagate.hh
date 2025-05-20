@@ -7,7 +7,7 @@
 
 namespace Clingo {
 
-enum class PropgatorCheckMode : clingo_propagator_check_mode_t {
+enum class PropagatorCheckMode : clingo_propagator_check_mode_t {
     none = clingo_propagator_check_mode_none,         //!< do not call check at all
     total = clingo_propagator_check_mode_total,       //!< call check on total assignments
     fixpoint = clingo_propagator_check_mode_fixpoint, //!< call check on propagation fixpoints
@@ -168,11 +168,11 @@ class PropagateInit {
 
     [[nodiscard]] auto base() const -> Base { return Base{Detail::call<clingo_propagate_init_base>(init_)}; }
 
-    [[nodiscard]] auto check_mode() const -> PropgatorCheckMode {
-        return static_cast<PropgatorCheckMode>(Detail::call<clingo_propagate_init_get_check_mode>(init_));
+    [[nodiscard]] auto check_mode() const -> PropagatorCheckMode {
+        return static_cast<PropagatorCheckMode>(Detail::call<clingo_propagate_init_get_check_mode>(init_));
     }
 
-    void check_mode(PropgatorCheckMode mode) {
+    void check_mode(PropagatorCheckMode mode) {
         Detail::handle_error(
             clingo_propagate_init_set_check_mode(init_, static_cast<clingo_propagator_check_mode_t>(mode)));
     }
@@ -194,7 +194,7 @@ class PropagateInit {
         return Detail::call<clingo_propagate_init_add_clause>(init_, literals.data(), literals.size());
     }
 
-    [[nodiscard]] auto add_literal(bool freeze) const -> SolverLiteral {
+    [[nodiscard]] auto add_literal(bool freeze = true) const -> SolverLiteral {
         return Detail::call<clingo_propagate_init_add_literal>(init_, freeze);
     }
 

@@ -109,18 +109,22 @@ class Observer {
         Detail::handle_error(clingo_control_observe(ctl, &cobs, static_cast<void *>(this), preprocess));
     }
 
-    virtual void do_init_program(bool incremental) = 0;
-    virtual void do_begin_step() = 0;
-    virtual void do_end_step(Base base) = 0;
-    virtual void do_rule(ProgramAtomSpan head, ProgramLiteralSpan body, bool choice) = 0;
-    virtual void do_weight_rule(ProgramAtomSpan head, Weight lower, WeightedLiteralSpan body, bool choice) = 0;
-    virtual void do_minimize(WeightedLiteralSpan literals, Weight priority) = 0;
-    virtual void do_project(ProgramAtomSpan atoms) = 0;
-    virtual void do_external(ProgramAtom atom, ExternalType type) = 0;
-    virtual void do_assume(ProgramLiteralSpan literals) = 0;
-    virtual void do_heuristic(ProgramAtom atom, HeuristicType type, int bias, unsigned priority,
-                              ProgramLiteralSpan condition) = 0;
-    virtual void do_edge(int node_u, int node_v, ProgramLiteralSpan condition) = 0;
+    virtual void do_init_program([[maybe_unused]] bool incremental) {}
+    virtual void do_begin_step() {}
+    virtual void do_end_step([[maybe_unused]] Base base) {}
+    virtual void do_rule([[maybe_unused]] ProgramAtomSpan head, [[maybe_unused]] ProgramLiteralSpan body,
+                         [[maybe_unused]] bool choice) {}
+    virtual void do_weight_rule([[maybe_unused]] ProgramAtomSpan head, [[maybe_unused]] Weight lower,
+                                [[maybe_unused]] WeightedLiteralSpan body, [[maybe_unused]] bool choice) {}
+    virtual void do_minimize([[maybe_unused]] WeightedLiteralSpan literals, [[maybe_unused]] Weight priority) {}
+    virtual void do_project([[maybe_unused]] ProgramAtomSpan atoms) {}
+    virtual void do_external([[maybe_unused]] ProgramAtom atom, [[maybe_unused]] ExternalType type) {}
+    virtual void do_assume([[maybe_unused]] ProgramLiteralSpan literals) {}
+    virtual void do_heuristic([[maybe_unused]] ProgramAtom atom, [[maybe_unused]] HeuristicType type,
+                              [[maybe_unused]] int bias, [[maybe_unused]] unsigned priority,
+                              [[maybe_unused]] ProgramLiteralSpan condition) {}
+    virtual void do_edge([[maybe_unused]] int node_u, [[maybe_unused]] int node_v,
+                         [[maybe_unused]] ProgramLiteralSpan condition) {}
 };
 
 } // namespace Clingo
