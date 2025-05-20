@@ -167,7 +167,10 @@ class Model : public ConstModel {
 
 class SolveEventHandler {
   public:
+    SolveEventHandler() = default;
+    SolveEventHandler(SolveEventHandler &&other) = delete;
     virtual ~SolveEventHandler() = default;
+
     auto model(Model &model) -> bool { return do_model(model); }
     void unsat(SumSpan lower_bound) { do_unsat(lower_bound); }
     void stats(Stats step, Stats accu) { do_stats(step, accu); }

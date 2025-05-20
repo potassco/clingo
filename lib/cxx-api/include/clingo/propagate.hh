@@ -281,6 +281,8 @@ class PropagateControl {
 
 class Propagator {
   public:
+    Propagator() = default;
+    Propagator(Propagator &&other) = delete;
     virtual ~Propagator() = default;
 
     void init(PropagateInit init) { do_init(init); }
@@ -303,6 +305,10 @@ class Propagator {
 
 class Heuristic : public Propagator {
   public:
+    Heuristic() = default;
+    Heuristic(Heuristic &&other) = delete;
+
+    auto operator=(Heuristic const &other) -> Heuristic & = delete;
     auto decide(ProgramId thread_id, Assignment assignment, SolverLiteral literal) -> SolverLiteral {
         return do_decide(thread_id, assignment, literal);
     }

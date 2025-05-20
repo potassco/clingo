@@ -10,6 +10,8 @@ namespace Clingo {
 
 class Script {
   public:
+    Script() = default;
+    Script(Script &&other) = delete;
     virtual ~Script() = default;
 
     void execute(std::string_view code) { do_execute(code); }

@@ -9,7 +9,10 @@ namespace Clingo {
 
 class Observer {
   public:
+    Observer() = default;
+    Observer(Observer &&other) = delete;
     virtual ~Observer() = default;
+
     void init_program(bool incremental) { do_init_program(incremental); }
     void begin_step() { do_begin_step(); }
     void end_step(Base base) { do_end_step(base); }

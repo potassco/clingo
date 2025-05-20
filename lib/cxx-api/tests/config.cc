@@ -35,6 +35,8 @@ TEST_CASE_METHOD(Fixture, "config base", "[cxx][config][base]") {
     REQUIRE(root_map.get("solver").array().size() >= 1);
     auto solver_map = root_map.get("solver").array().at(0).map();
     REQUIRE(std::ranges::find(solver_map, "heuristic", [](auto const &x) { return x.first; }) != solver_map.end());
+    cfg["solve"]["models"] = "3";
+    REQUIRE(*cfg["solve"]["models"] == "3");
 }
 
 TEST_CASE_METHOD(Fixture, "config solve", "[cxx][config][solve]") {

@@ -242,18 +242,12 @@ class Control {
         return ProgramBackend{Detail::call<clingo_control_backend>(ctl_.get())};
     }
 
-    template <class T> auto register_propagator(std::unique_ptr<T> propagator) const -> T & {
+    template <std::derived_from<Propagator> T> auto register_propagator(std::unique_ptr<T> propagator) const -> T & {
         assert(propagator != nullptr);
         auto &res = *propagator;
-        if constexpr (std::is_base_of_v<Heuristic, T>) {
-            Detail::handle_error(
-                clingo_control_register_propagator(ctl_.get(), &Detail::c_heuristic, propagator.release()));
-        } else if constexpr (std::is_base_of_v<Propagator, T>) {
-            Detail::handle_error(
-                clingo_control_register_propagator(ctl_.get(), &Detail::c_propagator, propagator.release()));
-        } else {
-            static_assert(Detail::always_false<T>, "propagator or heuristic expected");
-        }
+        Detail::handle_error(clingo_control_register_propagator(
+            ctl_.get(), std::is_base_of_v<Heuristic, T> ? &Detail::c_heuristic : &Detail::c_propagator,
+            propagator.release()));
         return res;
     }
 

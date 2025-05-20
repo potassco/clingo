@@ -38,6 +38,7 @@ class ConstStats {
         }
         throw std::bad_variant_access();
     }
+    [[nodiscard]] auto operator*() const -> double { return value(); }
 
     [[nodiscard]] auto to_string() -> std::string {
         auto bld = StringBuilder{};
@@ -69,6 +70,10 @@ class Stats : public ConstStats {
         } else {
             throw std::bad_variant_access{};
         }
+    }
+    auto operator=(double value) const -> Stats { // NOLINT
+        this->value(value);
+        return *this;
     }
 
   private:

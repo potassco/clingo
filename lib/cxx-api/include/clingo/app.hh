@@ -47,7 +47,10 @@ using ModelPrinter = std::function<void()>;
 
 class App {
   public:
+    App() = default;
+    App(App &&other) = delete;
     virtual ~App() = default;
+
     auto program_name() noexcept -> std::string_view { return do_program_name(); }
     auto program_version() noexcept -> std::string_view { return do_version(); }
     void main(Control const &control, std::span<std::string_view const> files) { do_main(control, files); }

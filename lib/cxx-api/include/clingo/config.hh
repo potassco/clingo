@@ -84,7 +84,7 @@ class Config : public ConstConfig {
             throw std::bad_variant_access{};
         }
     }
-    auto operator=(std::string_view value) -> Config & {
+    auto operator=(std::string_view value) const -> Config { // NOLINT
         this->value(value);
         return *this;
     }

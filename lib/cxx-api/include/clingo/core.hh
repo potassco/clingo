@@ -19,6 +19,7 @@ namespace Detail {
 
 template <typename> inline constexpr bool always_false = false;
 
+#ifndef __clang_analyzer__
 #define CLINGO_ENABLE_BITSET_ENUM(E, ...)                                                                              \
     [[nodiscard]] CLINGO_ENUM_OP(~, (E a), __VA_ARGS__)->E {                                                           \
         return static_cast<E>(~static_cast<std::underlying_type_t<E>>(a));                                             \
@@ -51,8 +52,22 @@ template <typename> inline constexpr bool always_false = false;
         return static_cast<std::underlying_type_t<E>>(a & b) != 0;                                                     \
     }                                                                                                                  \
     static_assert(std::is_enum_v<E>)
-
 #define CLINGO_ENUM_OP(op, arg, ...) [[maybe_unused]] inline __VA_ARGS__ constexpr auto operator op arg noexcept
+#else
+#define CLINGO_ENABLE_BITSET_ENUM(E, ...)                                                                              \
+    [[nodiscard]] CLINGO_ENUM_OP(~, (E a), __VA_ARGS__)->E;                                                            \
+    [[nodiscard]] CLINGO_ENUM_OP(|, (E a, E b), __VA_ARGS__)->E;                                                       \
+    CLINGO_ENUM_OP(|=, (E & a, E b), __VA_ARGS__)->E &;                                                                \
+    [[nodiscard]] CLINGO_ENUM_OP(&, (E a, E b), __VA_ARGS__)->E;                                                       \
+    CLINGO_ENUM_OP(&=, (E & a, E b), __VA_ARGS__)->E &;                                                                \
+    [[nodiscard]] CLINGO_ENUM_OP(-, (E a, E b), __VA_ARGS__)->E;                                                       \
+    CLINGO_ENUM_OP(-=, (E & a, E b), __VA_ARGS__)->E &;                                                                \
+    [[nodiscard]] CLINGO_ENUM_OP(^, (E a, E b), __VA_ARGS__)->E;                                                       \
+    CLINGO_ENUM_OP(^=, (E & a, E b), __VA_ARGS__)->E &;                                                                \
+    [[nodiscard]] [[maybe_unused]] __VA_ARGS__ auto intersects(E a, E b) -> bool;                                      \
+    static_assert(std::is_enum_v<E>)
+#define CLINGO_ENUM_OP(op, arg, ...) [[maybe_unused]] __VA_ARGS__ auto operator op arg noexcept
+#endif
 
 #define CLINGO_TRY try
 #define CLINGO_CATCH                                                                                                   \
