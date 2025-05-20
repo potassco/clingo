@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <clingo/control.hh>
 
 #include <catch2/catch_test_macros.hpp>
@@ -15,7 +14,6 @@ struct Fixture {
     Library lib;
     Control ctl = Control(lib, {"0", "--opt-mode=optN"});
     MV models;
-    int n = 0;
 
     [[nodiscard]] auto parse(std::string_view content, bool symbols = false) const -> TempFile {
         auto ctl = Control{lib};

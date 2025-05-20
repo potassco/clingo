@@ -64,6 +64,7 @@ class Stats : public ConstStats {
     [[nodiscard]] auto map() const -> StatsMap;
     [[nodiscard]] auto get(std::string_view name) const -> Stats;
     [[nodiscard]] auto operator[](std::string_view name) const -> Stats { return get(name); }
+    using ConstStats::value;
     void value(double value) const {
         if (type() == StatsType::value) {
             Detail::handle_error(clingo_stats_value_set(stats_(), key_, value));
@@ -137,6 +138,16 @@ class StatsArray : public ConstStatsArray {
     [[nodiscard]] auto push(StatsType type) const -> Stats {
         return Stats{stats_(),
                      Detail::call<clingo_stats_array_push>(stats_(), key_, static_cast<clingo_stats_type_t>(type))};
+    }
+    [[nodiscard]] auto ensure(size_t index, StatsType type) const -> Stats {
+        size_t n = size();
+        if (index < n) {
+            return at(n);
+        }
+        for (size_t n = size(); index < n; ++index) {
+            std::ignore = push(type);
+        }
+        return push(type);
     }
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
