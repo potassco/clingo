@@ -17,6 +17,7 @@ namespace Clingo::Test {
 
 class TempFile {
   public:
+    explicit TempFile() : filename_{create_()} {}
     explicit TempFile(std::string_view content) : filename_{create_()} {
         auto ofs = std::ofstream{filename_};
         if (!ofs) {
