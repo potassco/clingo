@@ -40,6 +40,7 @@ struct Part {
     SymbolVector params;
 };
 using PartSpan = std::span<Part const>;
+using PartList = std::initializer_list<Part>;
 using PartVector = std::vector<Part>;
 
 class ConstMap {
@@ -213,6 +214,8 @@ class Control {
         }
         return std::nullopt;
     }
+
+    void parts(PartList parts) const { this->parts(std::span{parts.begin(), parts.end()}); }
 
     void parts(std::optional<PartSpan> parts) const {
         if (parts) {

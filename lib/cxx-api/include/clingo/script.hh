@@ -96,8 +96,10 @@ static constexpr clingo_script_t c_script = {
 
 } // namespace Detail
 
-inline void register_script(Library const &lib, std::unique_ptr<Script> script) {
+template <std::derived_from<Script> T> auto register_script(Library const &lib, std::unique_ptr<T> script) -> T & {
+    auto &res = *script;
     Detail::handle_error(clingo_script_register(c_cast(lib), &Detail::c_script, script.release()));
+    return res;
 }
 
 } // namespace Clingo
