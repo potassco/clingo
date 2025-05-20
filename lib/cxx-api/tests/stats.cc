@@ -50,7 +50,11 @@ TEST_CASE_METHOD(Fixture, "stats solve", "[cxx][stats][solve]") {
     ctl.ground();
     {
         auto mcb = MCB{models};
+#ifndef __EMSCRIPTEN__
         auto hnd = ctl.solve(mcb, {}, SolveFlags::async | SolveFlags::yield);
+#else
+        auto hnd = ctl.solve(mcb, {}, SolveFlags::yield);
+#endif
         REQUIRE_THROWS_AS(ctl.stats(), std::invalid_argument);
         for ([[maybe_unused]] auto const &mdl : hnd) {
         }
@@ -58,7 +62,12 @@ TEST_CASE_METHOD(Fixture, "stats solve", "[cxx][stats][solve]") {
     }
     REQUIRE(models == MV{{"a"}, {"b"}, {"c"}, {"d"}});
     auto stats = ctl.stats();
+    printf("%s\n", stats.to_string().c_str());
+    REQUIRE(*stats["solving"]["solvers"]["choices"] > 0);
+#ifndef __EMSCRIPTEN__
+    // NOTE: no cpu time in wasm
     REQUIRE(*stats["summary"]["times"]["cpu"] > 0);
+#endif
 }
 
 TEST_CASE_METHOD(Fixture, "stats user", "[cxx][stats][user]") {

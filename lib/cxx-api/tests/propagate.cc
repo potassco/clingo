@@ -320,7 +320,13 @@ TEST_CASE_METHOD(Fixture, "propagate a iff b", "[cxx][propagate]") {
     ctl.ground();
 
     for (ProgramId n : {1, 3}) {
+#ifdef __EMSCRIPTEN__
+        if (n > 1) {
+            continue;
+        }
+#endif
         ctl.config()["solve"]["parallel_mode"].value(std::to_string(n));
+
         auto models = MV{};
         {
             auto mcb = MCB{models};
@@ -342,6 +348,11 @@ TEST_CASE_METHOD(Fixture, "propagate exception", "[cxx][propagate][exception]") 
     ctl.ground();
 
     for (ProgramId n : {8, 1}) {
+#ifdef __EMSCRIPTEN__
+        if (n > 1) {
+            continue;
+        }
+#endif
         ctl.config()["solve"]["parallel_mode"].value(std::to_string(n));
         ref.fail_thread = n - 1;
         auto models = MV{};
