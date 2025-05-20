@@ -56,6 +56,12 @@ class ErrorApp : public App {
 } // namespace
 
 /*
+
+add_test(NAME test_cxx-app-error-main COMMAND test_cxx-app-error main)
+add_test(NAME test_cxx-app-error-validate COMMAND test_cxx-app-error validate)
+
+set_tests_properties(my_app_test PROPERTIES PASS_REGULAR_EXPRESSION "Expected output")
+
 def run_app_test(self, mode, pattern: str):
     output = subprocess.run(
         [sys.executable, __file__, "test-error-app", mode],
