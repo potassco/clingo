@@ -24,3 +24,5 @@ endif()
 add_subdirectory(clasp)
 set_property(TARGET libclasp PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET libpotassco PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+clingo_install_target(libclasp libpotassco potassco_default_warnings imath ordered_map hopscotch_map extra)

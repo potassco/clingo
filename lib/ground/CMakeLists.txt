@@ -23,6 +23,7 @@ if (PARSER_PROFILE)
     target_compile_definitions(clingo_ground PUBLIC "PARSER_PROFILE")
     target_link_libraries(clingo_ground PUBLIC Gperftools::Profiler)
 endif()
+clingo_install_target(clingo_ground extra)
 
 if (PARSER_BUILD_TESTS)
     add_executable(test_ground

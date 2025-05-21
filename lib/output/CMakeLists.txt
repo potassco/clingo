@@ -7,3 +7,4 @@ clingo_target_properties(clingo_output lib/output)
 target_include_directories(clingo_output
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(clingo_output PUBLIC clingo::core)
+clingo_install_target(clingo_output extra)

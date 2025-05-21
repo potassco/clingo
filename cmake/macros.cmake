@@ -83,3 +83,35 @@ function(clingo_target_properties target folder)
         PDB_OUTPUT_DIRECTORY "${base_dir}/bin"
     )
 endfunction()
+
+function(clingo_install_target)
+    set(targets ${ARGV})
+    list(POP_BACK targets install_type)
+
+    if ("${install_type}" STREQUAL "extra" AND PARSER_INSTALL_EXTRA)
+        install(
+            TARGETS ${targets}
+            EXPORT clingo-targets
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        )
+    elseif (("${install_type}" STREQUAL "default" OR "${install_type}" STREQUAL "binary") AND PARSER_INSTALL_DEFAULT)
+        install(
+                TARGETS ${targets}
+                EXPORT clingo-targets
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+            )
+    elseif (("${install_type}" STREQUAL "default" OR "${install_type}" STREQUAL "wheel") AND PARSER_INSTALL_WHEEL)
+        install(TARGETS ${targets}
+                RUNTIME DESTINATION .
+                LIBRARY DESTINATION .
+                ARCHIVE DESTINATION .
+                INCLUDES DESTINATION .
+            )
+    endif()
+endfunction()

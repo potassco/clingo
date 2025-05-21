@@ -7,3 +7,4 @@ target_include_directories(clingo-bin PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 target_link_libraries(clingo-bin PRIVATE clingo clingo::python)
+clingo_install_target(clingo-bin binary)

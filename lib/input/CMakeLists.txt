@@ -39,6 +39,7 @@ target_include_directories(clingo_input
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
 target_link_libraries(clingo_input PUBLIC clingo::core)
+clingo_install_target(clingo_input extra)
 
 if (PARSER_BUILD_TESTS)
     add_executable(test_input
