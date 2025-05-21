@@ -68,7 +68,7 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) -> int {
         }
         auto *str = args[1];
         constexpr std::array<std::string_view, 6> allowed = {"i", "m", "p", "r", "o", "v"};
-        if (std::ranges::all_of(allowed, [&](std::string_view val) { return str != val; })) {
+        if (std::ranges::none_of(allowed, [&](std::string_view val) { return str == val; })) {
             throw std::invalid_argument{"One of 'i', 'm', 'p', 'r', 'o', 'v' expected."};
         }
         auto lib = Library{};
