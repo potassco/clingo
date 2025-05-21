@@ -5,6 +5,7 @@
 #include <clingo/base.h>
 
 #include <cassert>
+#include <tuple>
 
 namespace Clingo {
 

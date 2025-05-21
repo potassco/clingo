@@ -7,6 +7,7 @@
 #include <clingo/ast.h>
 
 #include <cassert>
+#include <cstring>
 #include <utility>
 
 namespace Clingo::AST {

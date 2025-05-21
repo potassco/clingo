@@ -38,8 +38,8 @@ TEST_CASE_METHOD(Fixture, "incremental", "[cxx][incremental][simplify]") {
     ctl.parse_string("#program x. :- p(2).");
     ctl.ground({{"x", {}}});
     REQUIRE(ctl.solve().get().satisfiable());
-    auto bp = bse.get(std::tuple{"p", 1});
-    auto bq = bse.get(std::tuple{"q", 1});
+    auto bp = bse.get(std::pair{"p", 1});
+    auto bq = bse.get(std::pair{"q", 1});
     REQUIRE(bp->size() == 1);
     REQUIRE(bq->size() == 2);
     REQUIRE(!bse.contains(sp2));
