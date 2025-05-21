@@ -212,11 +212,9 @@ extern "C" auto clingo_config_map_subkey_name(clingo_config_t const *config, cli
         if (config == nullptr || name == nullptr) {
             return fail_arguments();
         }
-        name->data = cpp_cast(config)->getSubkey(key, offset);
-        if (name->data == nullptr) {
-            return fail_arguments();
-        }
-        name->size = std::strlen(name->data);
+        auto str = cpp_cast(config)->getSubkey(key, offset);
+        name->data = str.data();
+        name->size = str.size();
     }
     CLINGO_CATCH;
 }

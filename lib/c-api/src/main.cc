@@ -29,20 +29,20 @@ class AppOptions {
     void add_option(std::string_view group, std::string_view option, std::string_view description, OptionParser parser,
                     std::optional<std::string_view> argument, bool multi = false) {
         using namespace Potassco::ProgramOptions;
-        auto value = std::unique_ptr<Value>(parse(std::move(parser)));
+        auto value = parse(std::move(parser));
         if (argument) {
-            value->arg(strings_.emplace_front(*argument).c_str());
+            value.arg(strings_.emplace_front(*argument).c_str());
         }
         if (multi) {
-            value->composing();
+            value.composing();
         }
         add_option_value_(group, option, std::move(value), description);
     }
 
     void add_flag(std::string_view group, std::string_view option, std::string_view description, bool &target) {
         using namespace Potassco::ProgramOptions;
-        std::unique_ptr<Value> value{flag(target)};
-        value->negatable();
+        auto value{flag(target)};
+        value.negatable();
         add_option_value_(group, option, std::move(value), description);
     }
 
@@ -53,10 +53,10 @@ class AppOptions {
     }
 
   private:
-    void add_option_value_(std::string_view group, std::string_view option,
-                           std::unique_ptr<Potassco::ProgramOptions::Value> value, std::string_view description) {
+    void add_option_value_(std::string_view group, std::string_view option, Potassco::ProgramOptions::ValueDesc value,
+                           std::string_view description) {
         auto init = add_option_group_(group).addOptions();
-        init(strings_.emplace_front(option).c_str(), value.release(), strings_.emplace_front(description).c_str());
+        init(strings_.emplace_front(option).c_str(), std::move(value), strings_.emplace_front(description).c_str());
     }
 
     auto add_option_group_(std::string_view group) -> Potassco::ProgramOptions::OptionGroup & {

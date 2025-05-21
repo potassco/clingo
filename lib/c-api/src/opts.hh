@@ -117,11 +117,11 @@ class ClingoOptions {
 
         auto group_grounder = OptionGroup{"Grounder Options"};
         group_grounder.addOptions() //
-            ("-c,const", parse(parse_const)->arg("<id>=<term>")->composing(),
-             "Replace term occurrences of <id> with <term>")                                      //
-            ("parts", parse(parse_parts), "Parse comma-separated program parts to ground")        //
-            ("imin", parse(parse_imin)->arg("<n>"), "Minimum number of steps for incmode")        //
-            ("imax", parse(parse_imax)->arg("{none|<n>}"), "Maximum number of steps for incmode") //
+            ("-c,const", parse(parse_const).arg("<id>=<term>").composing(),
+             "Replace term occurrences of <id> with <term>")                                     //
+            ("parts", parse(parse_parts), "Parse comma-separated program parts to ground")       //
+            ("imin", parse(parse_imin).arg("<n>"), "Minimum number of steps for incmode")        //
+            ("imax", parse(parse_imax).arg("{none|<n>}"), "Maximum number of steps for incmode") //
             ("istop",
              storeTo(solver_opts_.istop, values<Control::IStop>({{"none", Control::IStop::none},
                                                                  {"sat", Control::IStop::sat},
@@ -146,7 +146,7 @@ class ClingoOptions {
         group_basic.addOptions()                                                                   //
             ("single-shot", flag(solver_opts_.single_shot = false), "Force single shot solving")   //
             ("@1,log-level", parse(parse_level), "Select log level {error|warn|info|debug|trace}") //
-            ("@1-W,info", parse(parse_info)->composing(), R"(Enable/disable specific info messages:
+            ("@1-W,info", parse(parse_info).composing(), R"(Enable/disable specific info messages:
       none                    : disable all
       all                     : enable all
       [no-]atom-undefined     : a :- b.
