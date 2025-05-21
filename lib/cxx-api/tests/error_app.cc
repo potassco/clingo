@@ -6,8 +6,6 @@ namespace Clingo::Test {
 namespace {
 
 class ErrorApp : public App {
-    std::string mode_;
-
   public:
     explicit ErrorApp(std::string mode) : mode_(std::move(mode)) {}
 
@@ -51,6 +49,9 @@ class ErrorApp : public App {
         control.parse_files(files);
         control.main();
     }
+
+  private:
+    std::string mode_;
 };
 
 } // namespace
@@ -95,3 +96,18 @@ def error_app_main(mode: str):
 */
 
 } // namespace Clingo::Test
+
+auto main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) -> int {
+    using namespace Clingo;
+    auto args = std::span{argv, static_cast<size_t>(argc)};
+    try {
+        if (args.size() != 2) {
+            throw std::invalid_argument{"Exactly one argument expected."};
+        }
+        auto lib = Library{};
+        auto app = Test::ErrorApp{args[1]};
+        main(lib, {"--test", "value"}, &app);
+    } catch (std::exception const &e) {
+        printf("ERROR: %s\n", e.what());
+    }
+}

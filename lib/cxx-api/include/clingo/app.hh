@@ -132,7 +132,7 @@ static constexpr clingo_application_t c_app = {
 
 } // namespace Detail
 
-inline auto main(Library &lib, std::span<std::string_view const> arguments, App *app = nullptr,
+inline auto main(Library &lib, std::span<std::string_view const> arguments = {}, App *app = nullptr,
                  bool raise_errors = false) -> int {
     auto code = 1;
     try {
@@ -149,6 +149,11 @@ inline auto main(Library &lib, std::span<std::string_view const> arguments, App 
         fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
     }
     return code;
+}
+
+inline auto main(Library &lib, std::initializer_list<std::string_view const> arguments, App *app = nullptr,
+                 bool raise_errors = false) -> int {
+    return main(lib, std::span{arguments}, app, raise_errors);
 }
 
 } // namespace Clingo
