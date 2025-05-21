@@ -55,16 +55,11 @@ TEST_CASE("app", "[cxx][app]") {
         }
     };
 
-    auto lib = Library(LibraryFlags::none, logger);
+    auto lib = Library{LibraryFlags::none, logger};
     auto ret = Clingo::main(lib, arg, &app);
 
     REQUIRE(ret == 30);
-    REQUIRE(app.events.size() >= 5);
-    REQUIRE(app.events[0] == "register");
-    REQUIRE(app.events[1] == "parse");
-    REQUIRE(app.events[2] == "validate");
-    REQUIRE(app.events[3] == "main");
-    REQUIRE(app.events[4] == "logger");
+    REQUIRE(app.events == std::vector<std::string>{"register", "parse", "validate", "main", "logger"});
     REQUIRE(app.models == MV{{"a"}, {"a", "b"}, {"b"}});
 }
 
