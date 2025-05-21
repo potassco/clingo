@@ -292,7 +292,7 @@ class ModePropagator : public Propagator {
 
     void do_undo(ProgramId thread_id, Assignment assignment, SolverLiteralSpan changes) override {
         REQUIRE(thread_id == 0);
-        REQUIRE(assignment.size() >= 0);
+        REQUIRE(assignment.size() > 0);
         REQUIRE(changes.empty());
         ++num_undo;
         REQUIRE(level.size() >= 2);

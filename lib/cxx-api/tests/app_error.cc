@@ -11,7 +11,7 @@ class ErrorApp : public App {
   public:
     explicit ErrorApp(std::string mode) : mode_(std::move(mode)) {}
 
-    auto parse_option(std::string_view value) -> bool {
+    auto parse_option([[maybe_unused]] std::string_view value) -> bool {
         assert(value.size() >= 0);
         if (mode_.find('o') != std::string::npos) {
             throw std::runtime_error("option");

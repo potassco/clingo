@@ -1,9 +1,24 @@
 add_library(clingo_cxx-api INTERFACE)
 add_library(clingo::cxx-api ALIAS clingo_cxx-api)
 clingo_target_properties(clingo_cxx-api lib/cxx-api)
-target_include_directories(clingo_cxx-api INTERFACE "include")
+target_include_directories(clingo_cxx-api INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 target_link_libraries(clingo_cxx-api INTERFACE clingo)
 
+if (DEFINED SKBUILD AND PARSER_BUILD_SHARED)
+    install(DIRECTORY include/ DESTINATION . FILES_MATCHING PATTERN "*.hh")
+endif()
+if (NOT DEFINED SKBUILD)
+    install(TARGETS clingo_cxx-api
+        EXPORT clingo-targets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.hh")
+endif()
 if(PARSER_BUILD_TESTS)
     add_executable(test_cxx-api
         "tests/asp.cc"

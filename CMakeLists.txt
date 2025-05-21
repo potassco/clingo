@@ -5,6 +5,7 @@ project(CLINGO VERSION "1.0" LANGUAGES C CXX)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(macros)
 include(CMakeDependentOption)
+include(GNUInstallDirs)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS OFF)
@@ -56,6 +57,13 @@ if (EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -sDISABLE_EXCEPTION_CATCHING=0")
 endif()
 
+if (NOT DEFINED SKBUILD)
+    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_FULL_LIBDIR}" isSystemDir)
+    if(isSystemDir EQUAL -1)
+        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}")
+    endif()
+endif()
+
 if (PARSER_BUILD_TESTS)
     set(LIB_POTASSCO_SETUP_CATCH2 TRUE)
     enable_testing()
@@ -77,4 +85,12 @@ if (PARSER_BUILD_APP)
 endif()
 if (PARSER_BUILD_WEB)
     add_subdirectory(web)
+endif()
+
+if (NOT DEFINED SKBUILD)
+    install(EXPORT clingo-targets
+        FILE ClingoTargets.cmake
+        NAMESPACE clingo::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/clingo
+    )
 endif()

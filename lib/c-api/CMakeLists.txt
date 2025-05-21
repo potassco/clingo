@@ -21,7 +21,10 @@ add_library(clingo ${libtype}
     "src/symbol.cc"
     )
 clingo_target_properties(clingo "lib/clingo")
-target_include_directories(clingo PUBLIC "include")
+target_include_directories(clingo PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 target_link_libraries(clingo PRIVATE clingo::control)
 string(TOLOWER "${CMAKE_BUILD_TYPE}" build_type)
 if(build_type STREQUAL "debug")
@@ -29,6 +32,16 @@ if(build_type STREQUAL "debug")
 endif()
 if (DEFINED SKBUILD AND PARSER_BUILD_SHARED)
     install(TARGETS clingo LIBRARY DESTINATION .)
+    install(DIRECTORY include/ DESTINATION . FILES_MATCHING PATTERN "*.h")
+endif()
+if (NOT DEFINED SKBUILD)
+    install(TARGETS clingo
+        EXPORT clingo-targets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h")
 endif()
 if (PARSER_USE_VISIBILITY)
     target_compile_definitions(clingo PUBLIC CLINGO_BUILD_LIBRARY)
