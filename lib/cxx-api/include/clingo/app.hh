@@ -117,17 +117,10 @@ static constexpr clingo_application_t c_app = {
     },
     [](void *data) -> bool {
         auto &app_data = *static_cast<AppData *>(data);
-        try {
+        CLINGO_TRY {
             app_data.app->validate_options();
-        } catch (std::invalid_argument &e) {
-            // Report option validation errors right away.
-            auto str = app_data.app->program_name();
-            fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)str.size(), str.data(), e.what());
-            return store_error();
-        } catch (...) {
-            return store_error();
         }
-        return true;
+        CLINGO_CATCH;
     }};
 
 } // namespace Detail

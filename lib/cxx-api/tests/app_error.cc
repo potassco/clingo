@@ -1,6 +1,8 @@
 #include <clingo/app.hh>
 #include <utility>
 
+#include "tempfile.hh"
+
 namespace Clingo::Test {
 
 namespace {
@@ -21,8 +23,8 @@ class ErrorApp : public App {
         if (mode_.find('v') != std::string::npos) {
             throw std::runtime_error("validate");
         }
-        if (mode_.find('V') != std::string::npos) {
-            throw std::invalid_argument("Validate");
+        if (mode_.find('i') != std::string::npos) {
+            throw std::invalid_argument("invalid");
         }
     }
 
@@ -42,7 +44,6 @@ class ErrorApp : public App {
     }
 
     void do_main(const Control &control, std::span<const std::string_view> files) override {
-        assert(files.size() == 0);
         if (mode_.find('m') != std::string::npos) {
             throw std::runtime_error("main");
         }
@@ -56,45 +57,6 @@ class ErrorApp : public App {
 
 } // namespace
 
-/*
-
-add_test(NAME test_cxx-app-error-main COMMAND test_cxx-app-error main)
-add_test(NAME test_cxx-app-error-validate COMMAND test_cxx-app-error validate)
-
-set_tests_properties(my_app_test PROPERTIES PASS_REGULAR_EXPRESSION "Expected output")
-
-def run_app_test(self, mode, pattern: str):
-    output = subprocess.run(
-        [sys.executable, __file__, "test-error-app", mode],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=10,
-    ).stderr
-    return bool(re.search(pattern, output, re.DOTALL))
-
-@pytest.mark.parametrize(
-    "mode",
-    [
-        "main",
-        "validate",
-        "register",
-        "print",
-        "option",
-    ],
-)
-def test_error_app(self, mode):
-    msg = f"mode `{mode}` failed"
-    assert self.run_app_test(mode[0], f"RuntimeError: {mode}"), msg
-
-def test_error_validate(self):
-    assert self.run_app_test("V", re.escape("*** ERROR: (test): Validate"))
-
-def error_app_main(mode: str):
-    with Library() as lib:
-        clingo_main(lib, ["--test", "value"], ErrorApp(mode))
-*/
-
 } // namespace Clingo::Test
 
 auto main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) -> int {
@@ -104,9 +66,15 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) -> int {
         if (args.size() != 2) {
             throw std::invalid_argument{"Exactly one argument expected."};
         }
+        auto *str = args[1];
+        constexpr std::array<std::string_view, 6> allowed = {"i", "m", "p", "r", "o", "v"};
+        if (std::ranges::all_of(allowed, [&](std::string_view val) { return str != val; })) {
+            throw std::invalid_argument{"One of 'i', 'm', 'p', 'r', 'o', 'v' expected."};
+        }
         auto lib = Library{};
-        auto app = Test::ErrorApp{args[1]};
-        main(lib, {"--test", "value"}, &app);
+        auto app = Test::ErrorApp{str};
+        auto tmp = Test::TempFile{"a."};
+        main(lib, {"--test", "value", tmp.path().c_str()}, &app);
     } catch (std::exception const &e) {
         printf("ERROR: %s\n", e.what());
     }

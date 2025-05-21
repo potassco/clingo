@@ -41,8 +41,22 @@ if(PARSER_BUILD_TESTS)
     target_link_libraries(test_cxx-app PRIVATE clingo::cxx-api Catch2::Catch2WithMain)
     catch_discover_tests(test_cxx-app)
 
-    add_executable(test_cxx-app-error "tests/error_app.cc")
+    add_executable(test_cxx-app-error "tests/app_error.cc")
     clingo_target_properties(test_cxx-app-error test/cxx-api tests)
     target_include_directories(test_cxx-app-error PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_cxx-app-error PRIVATE clingo::cxx-api)
+
+    function(add_clingo_error_test error)
+        string(SUBSTRING ${error} 0 1 arg)
+        set(test_name "test_cxx-app-error-${error}")
+        add_test(NAME ${test_name} COMMAND test_cxx-app-error ${arg})
+        set_tests_properties(${test_name} PROPERTIES
+            PASS_REGULAR_EXPRESSION "\\*\\*\\* ERROR: \\(clingo\\): ${error}"
+    )
+    endfunction()
+
+    set(CLINGO_ERROR_WORDS main print register validate option invalid)
+    foreach(error IN LISTS CLINGO_ERROR_WORDS)
+        add_clingo_error_test(${error})
+    endforeach()
 endif()
