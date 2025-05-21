@@ -35,9 +35,9 @@ add_library(clingo_input STATIC
     )
 add_library(clingo::input ALIAS clingo_input)
 clingo_target_properties(clingo_input lib/input)
-target_include_directories(clingo_input PUBLIC "include"
-    PRIVATE
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
+target_include_directories(clingo_input
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
 target_link_libraries(clingo_input PUBLIC clingo::core)
 
 if (PARSER_BUILD_TESTS)

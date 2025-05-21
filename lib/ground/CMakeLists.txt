@@ -16,7 +16,8 @@ add_library(clingo_ground STATIC
     )
 add_library(clingo::ground ALIAS clingo_ground)
 clingo_target_properties(clingo_ground lib/ground)
-target_include_directories(clingo_ground PUBLIC "include")
+target_include_directories(clingo_ground
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(clingo_ground PUBLIC clingo::core)
 if (PARSER_PROFILE)
     target_compile_definitions(clingo_ground PUBLIC "PARSER_PROFILE")

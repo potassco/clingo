@@ -52,6 +52,18 @@ if (DEFINED SKBUILD)
     endif()
 endif()
 
+set(PARSER_INSTALL_DEFAULT OFF)
+set(PARSER_INSTALL_EXTRA OFF)
+set(PARSER_INSTALL_WHEEL OFF)
+if (NOT DEFINED SKBUILD)
+    set(PARSER_INSTALL_DEFAULT ON)
+    if (NOT PARSER_BUILD_SHARED)
+        set(PARSER_INSTALL_EXTRA ON)
+    endif()
+elseif (PARSER_BUILD_SHARED)
+    set(PARSER_INSTALL_WHEEL ON)
+endif()
+
 if (EMSCRIPTEN)
     message(STATUS "Configuring for esmcripten")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -sDISABLE_EXCEPTION_CATCHING=0")
@@ -87,7 +99,46 @@ if (PARSER_BUILD_WEB)
     add_subdirectory(web)
 endif()
 
-if (NOT DEFINED SKBUILD)
+if (PARSER_INSTALL_WHEEL)
+    install(TARGETS clingo clingo_python_module clingo_cxx-api
+        RUNTIME DESTINATION .
+        LIBRARY DESTINATION .
+        ARCHIVE DESTINATION .
+        INCLUDES DESTINATION .
+    )
+    install(DIRECTORY lib/python-api/stubs/ DESTINATION clingo-stubs)
+    if (PARSER_BUILD_SHARED)
+        if (APPLE)
+            set_target_properties(clingo_python_module PROPERTIES INSTALL_RPATH "@loader_path" BUILD_WITH_INSTALL_RPATH TRUE)
+        elseif (UNIX)
+            set_target_properties(clingo_python_module PROPERTIES INSTALL_RPATH "$ORIGIN" BUILD_WITH_INSTALL_RPATH TRUE)
+        endif()
+        install(DIRECTORY lib/c-api/include DESTINATION . FILES_MATCHING PATTERN "*.h")
+        install(DIRECTORY lib/cxx-api/include DESTINATION . FILES_MATCHING PATTERN "*.hh")
+    endif()
+endif()
+if (PARSER_INSTALL_EXTRA)
+    install(
+        TARGETS clingo_util clingo_core  clingo_control clingo_input clingo_output clingo_ground
+        EXPORT clingo-targets
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+    install(TARGETS libclasp libpotassco potassco_default_warnings imath ordered_map hopscotch_map EXPORT clingo-targets)
+endif()
+if (PARSER_INSTALL_DEFAULT)
+    install(
+        TARGETS clingo clingo_cxx-api clingo-bin
+        EXPORT clingo-targets
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+    install(DIRECTORY lib/c-api/include DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h")
+    install(DIRECTORY lib/cxx-api/include DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.hh")
     install(EXPORT clingo-targets
         FILE ClingoTargets.cmake
         NAMESPACE clingo::

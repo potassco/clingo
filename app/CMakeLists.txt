@@ -7,7 +7,3 @@ target_include_directories(clingo-bin PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 target_link_libraries(clingo-bin PRIVATE clingo clingo::python)
-
-if (NOT DEFINED SKBUILD)
-    install(TARGETS clingo-bin RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-endif()

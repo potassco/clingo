@@ -1,7 +1,8 @@
 add_library(clingo_util INTERFACE)
 add_library(clingo::util ALIAS clingo_util)
 clingo_target_properties(clingo_util lib/util)
-target_include_directories(clingo_util INTERFACE "include")
+target_include_directories(clingo_util
+    INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(clingo_util INTERFACE tsl::hopscotch_map tsl::ordered_map)
 
 if (PARSER_BUILD_TESTS)

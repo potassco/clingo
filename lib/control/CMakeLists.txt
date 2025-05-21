@@ -8,7 +8,9 @@ add_library(clingo_control STATIC
     "src/term.cc")
 add_library(clingo::control ALIAS clingo_control)
 clingo_target_properties(clingo_control lib/control)
-target_include_directories(clingo_control PUBLIC "include")
+target_include_directories(clingo_control PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
 target_link_libraries(clingo_control PUBLIC clingo::input clingo::ground clingo::output libclasp)
 
 if(PARSER_BUILD_TESTS)

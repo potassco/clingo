@@ -30,19 +30,6 @@ string(TOLOWER "${CMAKE_BUILD_TYPE}" build_type)
 if(build_type STREQUAL "debug")
     target_compile_definitions(clingo PRIVATE CLINGO_DEBUG)
 endif()
-if (DEFINED SKBUILD AND PARSER_BUILD_SHARED)
-    install(TARGETS clingo LIBRARY DESTINATION .)
-    install(DIRECTORY include/ DESTINATION . FILES_MATCHING PATTERN "*.h")
-endif()
-if (NOT DEFINED SKBUILD)
-    install(TARGETS clingo
-        EXPORT clingo-targets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h")
-endif()
 if (PARSER_USE_VISIBILITY)
     target_compile_definitions(clingo PUBLIC CLINGO_BUILD_LIBRARY)
 else()

@@ -5,7 +5,8 @@ add_library(clingo_core STATIC
     )
 add_library(clingo::core ALIAS clingo_core)
 clingo_target_properties(clingo_core lib/core)
-target_include_directories(clingo_core PUBLIC "include")
+target_include_directories(clingo_core
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(clingo_core PUBLIC clingo::util tsl::hopscotch_map tsl::ordered_map PRIVATE imath::imath)
 
 if (PARSER_BUILD_TESTS)

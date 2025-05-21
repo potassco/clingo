@@ -7,18 +7,6 @@ target_include_directories(clingo_cxx-api INTERFACE
 )
 target_link_libraries(clingo_cxx-api INTERFACE clingo)
 
-if (DEFINED SKBUILD AND PARSER_BUILD_SHARED)
-    install(DIRECTORY include/ DESTINATION . FILES_MATCHING PATTERN "*.hh")
-endif()
-if (NOT DEFINED SKBUILD)
-    install(TARGETS clingo_cxx-api
-        EXPORT clingo-targets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.hh")
-endif()
 if(PARSER_BUILD_TESTS)
     add_executable(test_cxx-api
         "tests/asp.cc"
