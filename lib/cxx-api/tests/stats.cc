@@ -62,7 +62,6 @@ TEST_CASE_METHOD(Fixture, "stats solve", "[cxx][stats][solve]") {
     }
     REQUIRE(models == MV{{"a"}, {"b"}, {"c"}, {"d"}});
     auto stats = ctl.stats();
-    printf("%s\n", stats.to_string().c_str());
     REQUIRE(*stats["solving"]["solvers"]["choices"] > 0);
 #ifndef __EMSCRIPTEN__
     // NOTE: no cpu time in wasm
