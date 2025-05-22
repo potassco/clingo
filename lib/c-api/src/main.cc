@@ -31,7 +31,7 @@ class AppOptions {
         using namespace Potassco::ProgramOptions;
         auto value = parse(std::move(parser));
         if (argument) {
-            value.arg(strings_.emplace_front(*argument).c_str());
+            value.arg(*argument);
         }
         if (multi) {
             value.composing();
@@ -56,7 +56,7 @@ class AppOptions {
     void add_option_value_(std::string_view group, std::string_view option, Potassco::ProgramOptions::ValueDesc value,
                            std::string_view description) {
         auto init = add_option_group_(group).addOptions();
-        init(strings_.emplace_front(option).c_str(), std::move(value), strings_.emplace_front(description).c_str());
+        init(option, std::move(value), description);
     }
 
     auto add_option_group_(std::string_view group) -> Potassco::ProgramOptions::OptionGroup & {
@@ -71,7 +71,6 @@ class AppOptions {
     }
 
     std::forward_list<Potassco::ProgramOptions::OptionGroup> groups_;
-    std::forward_list<std::string> strings_;
 };
 
 auto c_cast(AppOptions *opts) -> clingo_options_t * {
