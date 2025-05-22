@@ -1,11 +1,15 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-project(CLINGO VERSION "1.0" LANGUAGES C CXX)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/lib/c-api/include/clingo/core.h" CLINGO_VERSION_LINE REGEX "#define CLINGO_VERSION ")
+string(REGEX REPLACE "#define CLINGO_VERSION[ \t]+\"([^\"]+)\"" "\\1" CLINGO_VERSION "${CLINGO_VERSION_LINE}")
+
+project(CLINGO VERSION "${CLINGO_VERSION}" LANGUAGES C CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(macros)
 include(CMakeDependentOption)
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS OFF)
@@ -100,9 +104,25 @@ if (CLINGO_BUILD_WEB)
 endif()
 
 if (CLINGO_INSTALL_DEFAULT)
+    configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/clingo-config.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/clingo-config.cmake"
+        INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/clingo"
+    )
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/clingo-config-version.cmake"
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY AnyNewerVersion
+    )
+    install(
+        FILES
+            "${CMAKE_CURRENT_BINARY_DIR}/clingo-config.cmake"
+            "${CMAKE_CURRENT_BINARY_DIR}/clingo-config-version.cmake"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/clingo"
+    )
     install(EXPORT clingo-targets
-        FILE ClingoTargets.cmake
+        FILE clingo-targets.cmake
         NAMESPACE clingo::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/clingo
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/clingo"
     )
 endif()
