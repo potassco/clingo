@@ -208,9 +208,9 @@ class StateHdAggr::AtomKey {
     auto syms() -> Symbol const * { return syms_; }
 
   private:
-    GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
+    CLINGO_IGNORE_ZERO_SIZED_ARRAY_B
     Symbol syms_[0];
-    GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+    CLINGO_IGNORE_ZERO_SIZED_ARRAY_E
 };
 
 StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, EvalContext const &ctx, AggregateFunction fun,

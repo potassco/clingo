@@ -885,7 +885,7 @@ void Scripts::do_exec(Location const &loc, Logger &log, std::string_view name, s
         }
     }
     if (!found) {
-        GRINGO_REPORT_LOC(log, error, loc) << "script support for '" << name << "' not available";
+        CLINGO_REPORT_LOC(log, error, loc) << "script support for '" << name << "' not available";
         throw std::runtime_error("script support not available");
     }
 }
@@ -1247,7 +1247,7 @@ void Solver::simplify_() {
         }
         return val == trueValue(slit) ? TruthValue::top : TruthValue::bot;
     };
-    GRINGO_REPORT(grd_.log(), debug) << "simplify...";
+    CLINGO_REPORT(grd_.log(), debug) << "simplify...";
     size_t rem = 0;
     size_t fact = 0;
     for (auto const &base : grd_.base().atoms()) {
@@ -1256,8 +1256,8 @@ void Solver::simplify_() {
     for (auto const &base : grd_.base().projected()) {
         base.second->p_base().simplify(value, rem, fact);
     }
-    GRINGO_REPORT(grd_.log(), debug) << "  removed: " << rem;
-    GRINGO_REPORT(grd_.log(), debug) << "  fact: " << fact;
+    CLINGO_REPORT(grd_.log(), debug) << "  removed: " << rem;
+    CLINGO_REPORT(grd_.log(), debug) << "  fact: " << fact;
     out_->simplify(value);
 }
 

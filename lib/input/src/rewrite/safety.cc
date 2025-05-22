@@ -229,10 +229,10 @@ template <class Span>
     nodes.reserve(2 * lits.size());
     done.resize(lits.size(), false);
     size_t index = 0;
-    GRINGO_REPORT(log, trace) << "literal dependencies";
+    CLINGO_REPORT(log, trace) << "literal dependencies";
     for (auto const &lit : lits) {
         auto add_node = [&log, &lit, &nodes, &index](StringVec provide, StringVec depend, bool swap) {
-            GRINGO_REPORT(log, trace) << "  " << lit << ", {" << Util::p_range(provide) << "}, {"
+            CLINGO_REPORT(log, trace) << "  " << lit << ", {" << Util::p_range(provide) << "}, {"
                                       << Util::p_range(depend) << "}";
             nodes.emplace_back(lit, index, std::move(provide), std::move(depend), swap);
         };
@@ -240,7 +240,7 @@ template <class Span>
         ++index;
     }
 
-    GRINGO_REPORT(log, trace) << "literal order";
+    CLINGO_REPORT(log, trace) << "literal order";
     for (auto it = nodes.begin(); it != nodes.end();) {
         auto jt = std::stable_partition(nodes.begin(), nodes.end(),
                                         [&provided](auto const &node) { return is_provided(provided, node.depend); });
@@ -249,7 +249,7 @@ template <class Span>
         }
         for (; it != jt; ++it) {
             if (!done[it->done]) {
-                GRINGO_REPORT(log, trace) << "  " << *it->lit;
+                CLINGO_REPORT(log, trace) << "  " << *it->lit;
                 done[it->done] = true;
                 provided.insert(it->provide.begin(), it->provide.end());
                 if (&res_body.current() == it->lit && !it->swap) {
@@ -293,7 +293,7 @@ void report(Logger &log, VariableSet const &vars, VariableSet const &bound, auto
                  [&bound](auto const &var) { return !bound.contains(var); });
     std::ranges::sort(unsafe);
     unsafe.erase(std::ranges::unique(unsafe).begin(), unsafe.end());
-    GRINGO_REPORT_LOC(log, error, location(x)) << "unsafe variables in:\n"
+    CLINGO_REPORT_LOC(log, error, location(x)) << "unsafe variables in:\n"
                                                << "  " << x << "\n"
                                                << "note: the following variables are unsafe:\n"
                                                << "  " << Util::p_range(unsafe, ", ");

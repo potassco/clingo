@@ -48,12 +48,12 @@ constexpr auto a_weight = Util::Record::AttributeName<32>{};
 //! A record that friend declares comparison operators.
 template <class T> class RecursiveExpression : public CppClingo::Util::Record::Base<T> {
   public:
-    GRINGO_IGNORE_NON_TEMPLATE_FRIEND_B
+    CLINGO_IGNORE_NON_TEMPLATE_FRIEND_B
     //! Compare two records.
     friend auto operator==(T const &a, T const &b) -> bool;
     //! Compare two records.
     friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering;
-    GRINGO_IGNORE_NON_TEMPLATE_FRIEND_E
+    CLINGO_IGNORE_NON_TEMPLATE_FRIEND_E
 };
 
 //! A record that friend declares and defines comparison operators.

@@ -72,9 +72,9 @@ class Builder : public Input::DependencyBuilder {
     auto do_components(Input::Components const &comps) -> bool override {
         auto lin = Ground::Linearizer{*mbr_};
         for (auto const &ref_comps : comps) {
-            GRINGO_REPORT(*log_, debug) << "  component";
+            CLINGO_REPORT(*log_, debug) << "  component";
             for (auto const &ref_comp : ref_comps) {
-                GRINGO_REPORT(*log_, debug) << "    refined component";
+                CLINGO_REPORT(*log_, debug) << "    refined component";
                 // A component is classified w.r.t. to previously accumulated
                 // atoms. It is domain if it is positive (i.e., contains no
                 // negative cycle) and all bases it depends on are domain.
@@ -109,7 +109,7 @@ class Builder : public Input::DependencyBuilder {
                 auto queue = Ground::Queue{};
                 lin.start(queue);
                 for (auto const &stm : gcomp.stms()) {
-                    GRINGO_REPORT(*log_, debug) << "      " << *stm;
+                    CLINGO_REPORT(*log_, debug) << "      " << *stm;
                     lin.prepare(*stm, stm->body(), stm->important());
                 }
                 if (!queue.process(*log_, *store_, *out_)) {
@@ -150,15 +150,15 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
 
     //! Mark symbols held by the grounder protecting them from garbage collection.
     void mark(SymbolCollector &gc) const override {
-        GRINGO_REPORT(*log, trace) << "mark owners";
+        CLINGO_REPORT(*log, trace) << "mark owners";
         for (auto const &[key, base] : bases.atoms()) {
-            GRINGO_REPORT(*log, trace) << "  mark domain: " << (std::get<2>(key) ? "-" : "") << std::get<0>(key) << "/"
+            CLINGO_REPORT(*log, trace) << "  mark domain: " << (std::get<2>(key) ? "-" : "") << std::get<0>(key) << "/"
                                        << std::get<1>(key);
             gc.mark(std::get<0>(key));
             base->mark(gc);
         }
         for (auto const &[key, state] : bases.projected()) {
-            GRINGO_REPORT(*log, trace) << "  mark projection domain: " << *key;
+            CLINGO_REPORT(*log, trace) << "  mark projection domain: " << *key;
             state->p_base().mark(gc);
         }
         unprocessed_prg.mark(gc);
@@ -303,7 +303,7 @@ void Grounder::join(Input::UnprocessedProgram const &prg) {
 }
 
 auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinIncludes {
-    GRINGO_REPORT(*impl_->log, debug) << "parsing...";
+    CLINGO_REPORT(*impl_->log, debug) << "parsing...";
 #ifdef PARSER_PROFILE
     auto prof = Profiler{"clingo-parse.prof"};
 #endif
@@ -321,7 +321,7 @@ auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinI
 
 auto Grounder::parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code, ProgramBackend *prg,
                      TheoryBackend *thy) -> BuiltinIncludes {
-    GRINGO_REPORT(*impl_->log, debug) << "parsing...";
+    CLINGO_REPORT(*impl_->log, debug) << "parsing...";
 #ifdef PARSER_PROFILE
     auto prof = Profiler{"clingo-parse.prof"};
 #endif
@@ -348,7 +348,7 @@ auto Grounder::parse(std::span<std::string_view const> const &files, Ground::Scr
 
 void Grounder::prepare_() {
     if (!impl_->unprocessed_prg.empty()) {
-        GRINGO_REPORT(*impl_->log, debug) << "preparing...";
+        CLINGO_REPORT(*impl_->log, debug) << "preparing...";
         if (impl_->is_sat) {
             GCLock lock{*impl_->store};
             impl_->prg.join(*impl_->log, *impl_->store, impl_->unprocessed_prg);
@@ -364,7 +364,7 @@ auto Grounder::const_map() -> Input::ConstMap const & {
 
 auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context) -> bool {
     prepare_();
-    GRINGO_REPORT(*impl_->log, debug) << "grounding...";
+    CLINGO_REPORT(*impl_->log, debug) << "grounding...";
     GCLock lock{*impl_->store};
 #ifdef PARSER_PROFILE
     auto prof = Profiler{"clingo-ground.prof"};

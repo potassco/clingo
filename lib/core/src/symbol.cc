@@ -255,9 +255,9 @@ template <class T> class RefCounted {
 
     std::atomic_size_t mutable ref_count_;
     size_t hash_ = 0;
-    GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
+    CLINGO_IGNORE_ZERO_SIZED_ARRAY_B
     T data_[0];
-    GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+    CLINGO_IGNORE_ZERO_SIZED_ARRAY_E
 };
 
 using SymbolArray = RefCounted<Symbol>;

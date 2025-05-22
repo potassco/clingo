@@ -425,10 +425,10 @@ class MatcherCondLitStrat : public OnceMatcher {
         }
         auto [it, ins] = state_->add_empty(ctx.ass());
         if (ins) {
-            GRINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
+            CLINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
             state_->base_empty().update(1);
             std::ignore = inst_.instantiate(ctx.log(), ctx.store(), ctx.out());
-            GRINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
+            CLINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
             std::ignore = state_->propagate();
         }
         return !it.value().is_false();

@@ -211,17 +211,17 @@ inline auto Logger::message_prefix(MessageCode code) const -> std::string_view {
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 
 //! Report messages of the given type.
-#define GRINGO_REPORT(p, id)                                                                                           \
+#define CLINGO_REPORT(p, id)                                                                                           \
     if ((p).check(::CppClingo::MessageCode::id))                                                                       \
     CppClingo::Report(p, ::CppClingo::MessageCode::id).out()
 
 //! Report messages of the given type and location.
-#define GRINGO_REPORT_LOC(p, id, loc)                                                                                  \
+#define CLINGO_REPORT_LOC(p, id, loc)                                                                                  \
     if ((p).check(::CppClingo::MessageCode::id))                                                                       \
     CppClingo::Report(p, ::CppClingo::MessageCode::id, loc).out()
 
 //! Report message of the given type given as string.
-#define GRINGO_REPORT_STR(p, id, msg)                                                                                  \
+#define CLINGO_REPORT_STR(p, id, msg)                                                                                  \
     if ((p).check(::CppClingo::MessageCode::id)) {                                                                     \
         (p).print(::CppClingo::MessageCode::id, msg);                                                                  \
     }

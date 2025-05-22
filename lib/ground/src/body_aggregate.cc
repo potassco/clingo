@@ -249,9 +249,9 @@ class StateBdAggr::AtomKey {
     auto syms() -> Symbol const * { return syms_; }
 
   private:
-    GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
+    CLINGO_IGNORE_ZERO_SIZED_ARRAY_B
     Symbol syms_[0];
-    GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+    CLINGO_IGNORE_ZERO_SIZED_ARRAY_E
 };
 
 StateBdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, EvalContext const &ctx, AggregateFunction fun,
@@ -748,11 +748,11 @@ class MatcherBdAggrStrat : public OnceMatcher {
                     *jt++ = *ass[var];
                 }
                 // ground elems
-                GRINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
+                CLINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
                 for (auto &inst : insts_) {
                     std::ignore = inst.instantiate(ctx.log(), ctx.store(), ctx.out());
                 }
-                GRINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
+                CLINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
                 // propagate aggregate
                 std::ignore = state_->propagate();
                 // ensure that base comprises all atoms

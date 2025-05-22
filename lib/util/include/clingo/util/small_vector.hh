@@ -345,7 +345,7 @@ class small_vector {
 
     friend auto operator==(small_vector const &lhs, small_vector const &rhs) { return std::ranges::equal(lhs, rhs); }
 
-    GRINGO_IGNORE_UNION_B
+    CLINGO_IGNORE_UNION_B
     uintptr_t begin_ = 1;
     union {
         struct {
@@ -357,7 +357,7 @@ class small_vector {
             pointer cap_;
         };
     };
-    GRINGO_IGNORE_UNION_E
+    CLINGO_IGNORE_UNION_E
 };
 
 //! @}

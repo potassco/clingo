@@ -256,7 +256,7 @@ class Evaluate {
             val = std::nullopt;
         }
         if (!val.has_value()) {
-            GRINGO_REPORT_LOC(*log_, info_operation_undefined, location(term)) << "operation undefined:\n"
+            CLINGO_REPORT_LOC(*log_, info_operation_undefined, location(term)) << "operation undefined:\n"
                                                                                << "  |" << val.value() << "|\n"
                                                                                << ErrorContext{root_};
             return std::nullopt;
@@ -277,7 +277,7 @@ class Evaluate {
                 lp = "(";
                 rp = ")";
             }
-            GRINGO_REPORT_LOC(*log_, info_operation_undefined, location(term))
+            CLINGO_REPORT_LOC(*log_, info_operation_undefined, location(term))
                 << "operation undefined:\n"
                 << "  " << term.op() << lp << rhs.value() << rp << "\n"
                 << ErrorContext{root_};
@@ -299,7 +299,7 @@ class Evaluate {
                 lp = "(";
                 rp = ")";
             }
-            GRINGO_REPORT_LOC(*log_, info_operation_undefined, location(term))
+            CLINGO_REPORT_LOC(*log_, info_operation_undefined, location(term))
                 << "operation undefined:\n"
                 << "  " << lhs.value() << term.op() << lp << rhs.value() << rp << "\n"
                 << ErrorContext{root_};
@@ -395,7 +395,7 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const
                 res.first.value() = id_stm;
             } else if (stm_b.type() == stm_a.type()) {
                 ret = false;
-                GRINGO_REPORT_LOC(log, error, location(stm_a))
+                CLINGO_REPORT_LOC(log, error, location(stm_a))
                     << "redefinition of constant:\n"
                     << "  " << stm_a << "\n"
                     << location(stm_b) << ": note: redefinition of constant:\n"
@@ -421,7 +421,7 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const
                         if (it->second.first.type() < stm.type()) {
                             it.value() = std::pair(stm, SharedSymbol(*value));
                         } else if (it->second.first.type() == stm.type()) {
-                            GRINGO_REPORT_LOC(log, error, location(stm))
+                            CLINGO_REPORT_LOC(log, error, location(stm))
                                 << "redefinition of constant:\n"
                                 << "  " << stm << "\n"
                                 << location(it->second.first) << ": note: redefinition of constant:\n"
@@ -445,7 +445,7 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const
                 }
                 oss << "  " << stms[id_stm] << "\n";
             }
-            GRINGO_REPORT_STR(log, error, oss.str());
+            CLINGO_REPORT_STR(log, error, oss.str());
             ret = false;
         }
     });

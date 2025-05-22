@@ -55,7 +55,7 @@ class ParseHelper {
             parser_.init(std::cin, *store_->string("-"));
             process_(root_);
         } else {
-            GRINGO_REPORT(*log_, info_file_included) << "file already included: -";
+            CLINGO_REPORT(*log_, info_file_included) << "file already included: -";
         }
     }
 
@@ -83,7 +83,7 @@ class ParseHelper {
                     includes |= BuiltinIncludes::incmode;
                 } else {
                     parse_error_ = true;
-                    GRINGO_REPORT_LOC(*log_, error, include.loc()) << "unknown include: " << include.value();
+                    CLINGO_REPORT_LOC(*log_, error, include.loc()) << "unknown include: " << include.value();
                 }
             }
         }
@@ -115,16 +115,16 @@ class ParseHelper {
                     parser_.init(fin_, *store_->string(rel.c_str()));
                     process_(path.parent_path());
                 } else {
-                    GRINGO_REPORT(*log_, info_file_included) << "file already included: " << rel;
+                    CLINGO_REPORT(*log_, info_file_included) << "file already included: " << rel;
                 }
             } else {
-                GRINGO_REPORT(*log_, error) << "cannot include directory: " << rel;
+                CLINGO_REPORT(*log_, error) << "cannot include directory: " << rel;
                 parse_error_ = true;
             }
             return true;
         }
         if (required) {
-            GRINGO_REPORT(*log_, error) << "file not found: " << path;
+            CLINGO_REPORT(*log_, error) << "file not found: " << path;
             parse_error_ = true;
         }
         return false;
@@ -146,7 +146,7 @@ class ParseHelper {
                     parts_->second.emplace(parts->elems());
                     parts_->first = parts->type();
                 } else if (parts_->first == parts->type()) {
-                    GRINGO_REPORT_LOC(*log_, error, parts->loc())
+                    CLINGO_REPORT_LOC(*log_, error, parts->loc())
                         << "multiple parts directives with the same precedence: " << *stm;
                     parse_error_ = true;
                 }

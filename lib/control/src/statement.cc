@@ -15,7 +15,7 @@ class BuilderHdLit {
     BuilderHdLit(BuildContext &ctx) : ctx_{&ctx} {}
 
     void operator()(Input::HdLitSetAggregate const &lit) const {
-        GRINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "unexpected set aggregate " << lit;
+        CLINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "unexpected set aggregate " << lit;
         throw std::logic_error("unexpected set aggregate");
     }
     void operator()(Input::HdLitTheoryAtom const &lit) const { build_hd_lit(*ctx_, lit); }
@@ -35,7 +35,7 @@ class BuilderBdLit {
   public:
     BuilderBdLit(BuildContext &ctx) : ctx_{&ctx} {}
     void operator()(Input::BdLitSetAggregate const &lit) const {
-        GRINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "unexpected set aggregate " << lit;
+        CLINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "unexpected set aggregate " << lit;
         throw std::logic_error("unexpected set aggregate");
     }
     void operator()(Input::BdLitTheoryAtom const &lit) const { build_bd_lit(*ctx_, lit); }
@@ -58,7 +58,7 @@ class BuilderStm {
         static_assert(Util::matches<T, Input::StmComment, Input::StmConst, Input::StmParts, Input::StmDefined,
                                     Input::StmInclude, Input::StmOptimize, Input::StmProgram, Input::StmProjectSig,
                                     Input::StmScript, Input::StmShowNothing, Input::StmShowSig, Input::StmTheory>);
-        GRINGO_REPORT(ctx_->logger(), error) << "unexpected statement: " << stm;
+        CLINGO_REPORT(ctx_->logger(), error) << "unexpected statement: " << stm;
         throw std::logic_error("unexpected statement");
     }
 

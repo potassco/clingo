@@ -172,9 +172,9 @@ void StateTheory::insert_elem(EvalContext const &ctx, AtomMap::iterator it, UThe
 }
 
 void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
-    GRINGO_REPORT(log, debug) << "    delayed statements";
+    CLINGO_REPORT(log, debug) << "    delayed statements";
     for (auto const &stm : elems_) {
-        GRINGO_REPORT(log, debug) << "      " << *stm;
+        CLINGO_REPORT(log, debug) << "      " << *stm;
     }
     auto ass = Assignment{};
     auto lin = Linearizer{*mbr_};

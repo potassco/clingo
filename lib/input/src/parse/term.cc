@@ -848,7 +848,7 @@ auto parse_symbol(ParserState &state) -> std::optional<SharedSymbol> {
                         cont_sym_expr(state);
                         continue;
                     }
-                    GRINGO_REPORT(state.log(), info_operation_undefined) << "operation undefined:\n"
+                    CLINGO_REPORT(state.log(), info_operation_undefined) << "operation undefined:\n"
                                                                          << "  |" << sym << "|\n";
                 }
                 return std::nullopt;

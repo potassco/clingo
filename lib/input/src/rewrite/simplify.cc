@@ -441,7 +441,7 @@ class SimplifyTerm {
             // the argument evaluated to a symbol
             if constexpr (std::is_same_v<T, TermResultSymbol>) {
                 if (res.type() != SymbolType::number) {
-                    GRINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
+                    CLINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
                                                                                             << "  " << term << "\n";
                     return TermResultFail{};
                 }
@@ -455,7 +455,7 @@ class SimplifyTerm {
             // the argument did not change
             if constexpr (std::is_same_v<T, TermResultUnchanged>) {
                 if (res == TermType::symbolic || res == TermType::tuple) {
-                    GRINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
+                    CLINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
                                                                                             << "  " << term << "\n";
                     return TermResultFail{};
                 }
@@ -465,7 +465,7 @@ class SimplifyTerm {
             if constexpr (std::is_same_v<T, TermResultChanged>) {
                 // handle invalid terms
                 if (res.type == TermType::symbolic || res.type == TermType::tuple) {
-                    GRINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
+                    CLINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
                                                                                             << "  " << term << "\n";
                     return TermResultFail{};
                 }
@@ -493,7 +493,7 @@ class SimplifyTerm {
                 // we can always evaluate constants
                 auto opt_sym = evaluate(ctx_->store(), term.op(), res);
                 if (!opt_sym.has_value()) {
-                    GRINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
+                    CLINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
                                                                                             << "  " << term << "\n";
                     return TermResultFail{};
                 }
@@ -511,7 +511,7 @@ class SimplifyTerm {
             // get type of term based on the given type of its argument
             auto check_type = [this, &term](TermType type) -> std::optional<TermType> {
                 if (type == TermType::tuple || (term.op() == UnaryOperator::negate && type == TermType::symbolic)) {
-                    GRINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
+                    CLINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
                                                                                             << "  " << term << "\n";
                     return std::nullopt;
                 }
@@ -591,7 +591,7 @@ class SimplifyTerm {
             auto simplify = [&, this]<class L, class R>(L &&res_lhs, R &&res_rhs) -> TermResult {
                 // check arguments
                 if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
-                    GRINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
+                    CLINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
                                                                                             << "  " << term << "\n";
                     return {};
                 }
@@ -619,7 +619,7 @@ class SimplifyTerm {
         auto simplify = [&, this]<class T, class U>(T res_lhs, U res_rhs) -> TermResult {
             // check arguments
             if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
-                GRINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
+                CLINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
                                                                                         << "  " << term << "\n";
                 return {};
             }
@@ -628,7 +628,7 @@ class SimplifyTerm {
             if constexpr (std::is_same_v<T, Symbol> && std::is_same_v<U, Symbol>) {
                 auto res = evaluate(ctx_->store(), res_lhs, term.op(), res_rhs);
                 if (!res.has_value()) {
-                    GRINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
+                    CLINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
                                                                                             << "  " << term << "\n";
                     return TermResultFail{};
                 }
@@ -1450,7 +1450,7 @@ template <bool head>
         auto const &tuple = (res_elem ? *res_elem : elem).tuple();
         if (state_elem == TruthValue::bot || !check_tuple(lit.fun(), tuple)) {
             if (state_elem != TruthValue::bot) {
-                GRINGO_REPORT_LOC(ctx.logger(), info_operation_undefined, elem.loc())
+                CLINGO_REPORT_LOC(ctx.logger(), info_operation_undefined, elem.loc())
                     << "aggregate function undefined for tuple:\n"
                     << "  " << elem << "\n";
             }

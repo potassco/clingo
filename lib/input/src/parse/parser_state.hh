@@ -654,11 +654,11 @@ class ParserState {
 
     //! Check if the current token is among the given ones.
     auto expect(auto... expected) {
-        GRINGO_IGNORE_PAR_EQ_B
+        CLINGO_IGNORE_PAR_EQ_B
         if (((token_ == expected) || ...)) {
             return true;
         }
-        GRINGO_IGNORE_PAR_EQ_E
+        CLINGO_IGNORE_PAR_EQ_E
         return this->expected(expected...);
     }
 

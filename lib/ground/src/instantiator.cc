@@ -92,27 +92,27 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
     auto ib = matchers_.rbegin();
     auto ctx = EvalContext{log, store, out, ass_};
     it->match(ctx);
-    GRINGO_REPORT(log, trace) << "  instantiate: " << *this;
+    CLINGO_REPORT(log, trace) << "  instantiate: " << *this;
     do {
-        GRINGO_REPORT(log, trace) << "    start at " << std::distance(it, ie) - 1;
+        CLINGO_REPORT(log, trace) << "    start at " << std::distance(it, ie) - 1;
         if (it->next(ctx)) {
             for (--it; it->first(ctx); --it) {
             }
-            GRINGO_REPORT(log, trace) << "    advanced to " << std::distance(it, ie) - 1;
+            CLINGO_REPORT(log, trace) << "    advanced to " << std::distance(it, ie) - 1;
         }
         if (it == ib) {
-            GRINGO_REPORT(log, trace) << "    solution";
+            CLINGO_REPORT(log, trace) << "    solution";
             if (!icb_->report(ctx)) {
                 return false;
             }
         }
-        GRINGO_REPORT(log, trace) << "    block: " << Util::p_range(it->depend());
+        CLINGO_REPORT(log, trace) << "    block: " << Util::p_range(it->depend());
         for (auto idx : it->depend()) {
             matchers_[idx].block();
         }
         for (++it; it != ie && it->backjumpable(); ++it) {
         }
-        GRINGO_REPORT(log, trace) << "    backjumped to " << std::distance(it, ie) - 1;
+        CLINGO_REPORT(log, trace) << "    backjumped to " << std::distance(it, ie) - 1;
     } while (it != ie);
     return true;
 }
@@ -160,14 +160,14 @@ void Queue::propagate(size_t index) {
 
 auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
     // ground
-    GRINGO_REPORT(log, debug) << "      instantiators: ";
+    CLINGO_REPORT(log, debug) << "      instantiators: ";
     for (auto i = size_t{0}; i < insts_.size(); ++i) {
         enter_(i);
-        GRINGO_REPORT(log, debug) << "        " << insts_[i];
+        CLINGO_REPORT(log, debug) << "        " << insts_[i];
     }
     auto current = std::vector<Instantiator *>{};
     for (auto gen = size_t{0}; size_ > 0; ++gen) {
-        GRINGO_REPORT(log, trace) << "process generation: " << gen;
+        CLINGO_REPORT(log, trace) << "process generation: " << gen;
         for (auto &queue : queues_) {
             current.clear();
             current.swap(queue);

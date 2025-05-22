@@ -42,7 +42,7 @@ template <class F, bool stratify = false> class BuilderLit {
             cb_(std::make_unique<Ground::LitInterval>(std::move(lhs), std::move(lower), std::move(upper)));
         } else if (Input::is_external(lit.rhs().front().second)) {
             if (ctx_->context() == nullptr) {
-                GRINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "script context unavailable";
+                CLINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "script context unavailable";
                 throw std::runtime_error("script context unavailable");
             }
             auto lhs = build_term(ctx_->var_map(), lit.lhs());

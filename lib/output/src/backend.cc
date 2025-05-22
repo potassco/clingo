@@ -7,8 +7,8 @@
 #include <clingo/util/print.hh>
 #include <clingo/util/type_traits.hh>
 
-// #define GRINGO_DEBUG_AGGREGATES
-#ifdef GRINGO_DEBUG_AGGREGATES
+// #define CLINGO_DEBUG_AGGREGATES
+#ifdef CLINGO_DEBUG_AGGREGATES
 #include <iostream>
 #endif
 
@@ -703,7 +703,7 @@ class BuilderSum {
             }
         }
 
-#ifdef GRINGO_DEBUG_AGGREGATES
+#ifdef CLINGO_DEBUG_AGGREGATES
         std::cerr << "handle aggregate: \n";
         std::cerr << "  range: " << (range.left.inclusive ? "[" : "(") << range.left.bound << "," << range.right.bound
                   << (range.right.inclusive ? "]" : ")") << "\n";

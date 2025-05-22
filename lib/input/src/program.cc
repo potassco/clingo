@@ -178,7 +178,7 @@ void Program::check(Logger &log) {
     for (auto it = depend_.begin() + static_cast<ssize_t>(depend_offset_), ie = depend_.end(); it != ie; ++it) {
         if (!provide_.contains(it.key())) {
             auto const &[name, arity, sign] = it.key();
-            GRINGO_REPORT_LOC(log, info_atom_undefined, it.value())
+            CLINGO_REPORT_LOC(log, info_atom_undefined, it.value())
                 << "undefined predicate " << (sign ? "-" : "") << *name << "/" << arity;
         }
     }

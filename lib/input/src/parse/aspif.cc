@@ -131,7 +131,7 @@ class AspifParser {
     template <class... T> auto expect_(T... tokens) -> AspifToken {
         auto token = state_->lex_aspif();
         if (((token != tokens) && ...)) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
             throw aspif_error{};
         }
         return token;
@@ -139,7 +139,7 @@ class AspifParser {
 
     auto expect_str_() -> std::string_view {
         if (auto token = state_->lex_str(); token != AspifToken::str) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
             throw aspif_error{};
         }
         return state_->view();
@@ -149,7 +149,7 @@ class AspifParser {
         auto m = expect_unsigned_();
         expect_(AspifToken::space);
         if (auto token = state_->lex_str(m); token != AspifToken::str) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token " << token;
             throw aspif_error{};
         }
         return state_->view();
@@ -174,7 +174,7 @@ class AspifParser {
     auto expect_atom_() -> prg_lit_t {
         auto m = static_cast<prg_lit_t>(expect_unsigned_());
         if (m <= 0) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "invalid program atom";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "invalid program atom";
             throw aspif_error{};
         }
         return m;
@@ -205,7 +205,7 @@ class AspifParser {
     auto expect_lit_() -> prg_lit_t {
         auto lit = expect_signed_();
         if (lit == 0) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "invalid program literal";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "invalid program literal";
             throw aspif_error{};
         }
         return lit;
@@ -240,7 +240,7 @@ class AspifParser {
         if (token == AspifToken::str) {
             state_->lex_aspif(); // gobble newline
         } else {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token `" << token << "`";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected token `" << token << "`";
             throw std::runtime_error("parsing failed");
         }
     }
@@ -254,7 +254,7 @@ class AspifParser {
         expect_(AspifToken::space);
         auto revision = expect_unsigned_();
         if ((major != 1 && major != 2) || minor != 0) {
-            GRINGO_REPORT_LOC(state_->log(), error, loc + state_->loc())
+            CLINGO_REPORT_LOC(state_->log(), error, loc + state_->loc())
                 << "unsupported aspif version `" << major << "." << minor << "." << revision << "`";
             throw aspif_error{};
         }
@@ -267,7 +267,7 @@ class AspifParser {
                 }
                 case AspifToken::symbols: {
                     if (major == 1) {
-                        GRINGO_REPORT_LOC(state_->log(), error, loc + state_->loc()) << "unsupported tag `symbols`";
+                        CLINGO_REPORT_LOC(state_->log(), error, loc + state_->loc()) << "unsupported tag `symbols`";
                         throw aspif_error{};
                     }
                     symbol_ = true;
@@ -285,7 +285,7 @@ class AspifParser {
     auto rule_type_() -> RuleType {
         auto rt = expect_unsigned_();
         if (rt > max_rule_type) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected rule type `" << rt << "`";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected rule type `" << rt << "`";
             throw aspif_error{};
         }
         return static_cast<RuleType>(rt);
@@ -294,7 +294,7 @@ class AspifParser {
     auto body_type_() -> BodyType {
         auto bt = expect_unsigned_();
         if (bt > max_body_type) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected body type `" << bt << "`";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected body type `" << bt << "`";
             throw aspif_error{};
         }
         return static_cast<BodyType>(bt);
@@ -347,7 +347,7 @@ class AspifParser {
         state_symbol_.consume();
         auto sym = parse_symbol(state_symbol_);
         if (!sym || !state_symbol_.branch(Parse::TokenType::end)) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc())
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc())
                 << "parsing symbol failed: `" << state_->view() << "`";
             throw aspif_error{};
         }
@@ -357,7 +357,7 @@ class AspifParser {
     auto output_type_(OutputType max_type) -> OutputType {
         auto ot = expect_unsigned_();
         if (ot > static_cast<unsigned>(max_type)) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected output type `" << ot << "`";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected output type `" << ot << "`";
             throw aspif_error{};
         }
         return static_cast<OutputType>(ot);
@@ -411,7 +411,7 @@ class AspifParser {
             if (id < symbols_.size()) {
                 return symbols_.at(id);
             }
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unknown symbol id `" << id << "`";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unknown symbol id `" << id << "`";
             throw aspif_error{};
         };
         switch (type) {
@@ -439,7 +439,7 @@ class AspifParser {
                 expect_(AspifToken::space);
                 auto type = expect_unsigned_();
                 if (type > 1) {
-                    GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "expected inf or sup `" << type << "`";
+                    CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "expected inf or sup `" << type << "`";
                     throw aspif_error{};
                 }
                 add(type == 0 ? SymbolStore::inf() : SymbolStore::sup());
@@ -471,14 +471,14 @@ class AspifParser {
                 expect_(AspifToken::space);
                 auto sign = expect_unsigned_();
                 if (sign > 1) {
-                    GRINGO_REPORT_LOC(state_->log(), error, state_->loc())
+                    CLINGO_REPORT_LOC(state_->log(), error, state_->loc())
                         << "expected classical sign `" << sign << "`";
                     throw aspif_error{};
                 }
                 expect_(AspifToken::space);
                 auto name = get(expect_unsigned_());
                 if (name->type() != SymbolType::string) {
-                    GRINGO_REPORT_LOC(state_->log(), error, state_->loc())
+                    CLINGO_REPORT_LOC(state_->log(), error, state_->loc())
                         << "expected string instead of `" << *name << "`";
                     throw aspif_error{};
                 }
@@ -497,7 +497,7 @@ class AspifParser {
     auto external_type_() -> CppClingo::ExternalType {
         auto v = expect_unsigned_();
         if (v > max_external_type) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected external type `" << v << "`";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected external type `" << v << "`";
             throw aspif_error{};
         }
         return static_cast<ExternalType>(v);
@@ -514,7 +514,7 @@ class AspifParser {
     auto heuristic_type_() -> HeuristicType {
         auto type = expect_unsigned_();
         if (type > max_heuristic_type) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected heuristic type `" << type << "`";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected heuristic type `" << type << "`";
             throw aspif_error{};
         }
         return static_cast<HeuristicType>(type);
@@ -543,7 +543,7 @@ class AspifParser {
     auto theory_type_() -> TheoryType {
         auto type = expect_unsigned_();
         if (type == theory_type_reserved || type > max_theory_type) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected theory type `" << type << "`";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected theory type `" << type << "`";
             throw aspif_error{};
         }
         return static_cast<TheoryType>(type);
@@ -564,7 +564,7 @@ class AspifParser {
 
     auto theory_compound_type_(int type) -> TheoryTermTupleType {
         if (type >= 0 || type < -max_theory_compound_type) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected compound type `" << type << "`";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected compound type `" << type << "`";
             throw aspif_error{};
         }
         return static_cast<TheoryTermTupleType>(-type - 1);
@@ -643,7 +643,7 @@ class AspifParser {
 
     auto statement_type_(unsigned type) -> StatementType {
         if (type == 0 || type > max_statement_type) {
-            GRINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected statment type `" << type << "`";
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "unexpected statment type `" << type << "`";
             throw aspif_error{};
         }
         return static_cast<StatementType>(type);

@@ -210,9 +210,9 @@ class StateAssignAggr::AtomKey {
     auto syms() -> Symbol const * { return syms_; }
 
   private:
-    GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
+    CLINGO_IGNORE_ZERO_SIZED_ARRAY_B
     Symbol syms_[0];
-    GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+    CLINGO_IGNORE_ZERO_SIZED_ARRAY_E
 };
 
 StateAssignAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, EvalContext const &ctx, AggregateFunction fun,
@@ -644,11 +644,11 @@ class MatcherAssignAggrStrat : public Matcher {
                 *jt++ = *ctx.ass()[var];
             }
             // ground elems
-            GRINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
+            CLINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
             for (auto &inst : insts_) {
                 std::ignore = inst.instantiate(ctx.log(), ctx.store(), ctx.out());
             }
-            GRINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
+            CLINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
             // propagate aggregate
             std::ignore = state_->propagate(ctx.store());
             // ensure that base comprises all atoms

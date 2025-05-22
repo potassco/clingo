@@ -167,9 +167,9 @@ class StateBdAggr : public State {
         size_t n_;
         size_t atom_idx_;
         // NOLINTBEGIN
-        GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
+        CLINGO_IGNORE_ZERO_SIZED_ARRAY_B
         Symbol syms_[0];
-        GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+        CLINGO_IGNORE_ZERO_SIZED_ARRAY_E
         // NOLINTEND
     };
 

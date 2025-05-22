@@ -523,7 +523,7 @@ auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> boo
     if (!unsafe.empty()) {
         std::ranges::sort(unsafe);
         unsafe.erase(std::ranges::unique(unsafe).begin(), unsafe.end());
-        GRINGO_REPORT_LOC(log, error, location(stm)) << "unsafe variables in:\n"
+        CLINGO_REPORT_LOC(log, error, location(stm)) << "unsafe variables in:\n"
                                                      << "  " << stm << "\n"
                                                      << "note: the following variables are unsafe:\n"
                                                      << "  " << Util::p_range(unsafe, ", ");

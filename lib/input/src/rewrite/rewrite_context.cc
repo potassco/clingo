@@ -52,14 +52,14 @@ void TheoryTermParser::add(Logger &log, TheoryOpDefinition const &def) {
         arity = Arity::unary;
     }
     if (!table_.try_emplace(std::pair(SharedString(def.op()), arity), def.prio(), assoc).second) {
-        GRINGO_REPORT_LOC(log, error, def.loc()) << "duplicate operator definition `" << def.op() << "`";
+        CLINGO_REPORT_LOC(log, error, def.loc()) << "duplicate operator definition `" << def.op() << "`";
         has_error_ = true;
     }
 }
 
 void TheoryTermParser::check_operator(Logger &log, String op, Arity arity, Location const &loc) const {
     if (!table_.contains(std::pair(op, arity))) {
-        GRINGO_REPORT_LOC(log, error, loc) << "cannot parse operator `" << op << "`";
+        CLINGO_REPORT_LOC(log, error, loc) << "cannot parse operator `" << op << "`";
         has_error_ = true;
     }
 }
@@ -143,7 +143,7 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
                 term_parsers_.back().add(log, op_def);
             }
         } else {
-            GRINGO_REPORT_LOC(log, error, term_def.loc()) << "duplicate term definition `" << term_def.name() << "`";
+            CLINGO_REPORT_LOC(log, error, term_def.loc()) << "duplicate term definition `" << term_def.name() << "`";
             has_error_ = true;
         }
     }
@@ -155,7 +155,7 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
                 guard.emplace(SharedStringSet(rhs->ops().begin(), rhs->ops().end()),
                               std::distance(term_defs.begin(), it));
             } else {
-                GRINGO_REPORT_LOC(log, error, atom_def.loc()) << "term definition not found `" << rhs->term() << "`";
+                CLINGO_REPORT_LOC(log, error, atom_def.loc()) << "term definition not found `" << rhs->term() << "`";
                 has_error_ = true;
             }
         }
@@ -164,12 +164,12 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
                      .try_emplace(std::pair{atom_def.name(), static_cast<size_t>(atom_def.arity())}, atom_def.type(),
                                   std::distance(term_defs.begin(), it), std::move(guard))
                      .second) {
-                GRINGO_REPORT_LOC(log, error, atom_def.loc())
+                CLINGO_REPORT_LOC(log, error, atom_def.loc())
                     << "duplicate atom definition `" << atom_def.name() << "/" << atom_def.arity() << "`";
                 has_error_ = true;
             }
         } else {
-            GRINGO_REPORT_LOC(log, error, atom_def.loc()) << "term definition not found `" << atom_def.term() << "`";
+            CLINGO_REPORT_LOC(log, error, atom_def.loc()) << "term definition not found `" << atom_def.term() << "`";
             has_error_ = true;
         }
     }
@@ -187,7 +187,7 @@ auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom, bool
     }
     auto it = atom_table_.find(std::pair{name, arity});
     if (it == atom_table_.end()) {
-        GRINGO_REPORT_LOC(log, error, atom.loc()) << "atom definition not found `" << name << "/" << arity << "`";
+        CLINGO_REPORT_LOC(log, error, atom.loc()) << "atom definition not found `" << name << "/" << arity << "`";
         has_error_ = true;
         // maybe clear guard and elems...
         return std::nullopt;
@@ -195,20 +195,20 @@ auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom, bool
     auto const &[type, index, guard] = it->second;
     if constexpr (has_sign) {
         if (type == TheoryAtomType::head || type == TheoryAtomType::directive) {
-            GRINGO_REPORT_LOC(log, error, atom.loc()) << "theory atom may only occur in head";
+            CLINGO_REPORT_LOC(log, error, atom.loc()) << "theory atom may only occur in head";
             has_error_ = true;
             // maybe clear guard and elems...
             return std::nullopt;
         }
     } else {
         if (type == TheoryAtomType::body) {
-            GRINGO_REPORT_LOC(log, error, atom.loc()) << "theory atom may only occur in body";
+            CLINGO_REPORT_LOC(log, error, atom.loc()) << "theory atom may only occur in body";
             has_error_ = true;
             // maybe clear guard and elems...
             return std::nullopt;
         }
         if (type == TheoryAtomType::directive && !fact) {
-            GRINGO_REPORT_LOC(log, error, atom.loc()) << "theory atom must be a directive";
+            CLINGO_REPORT_LOC(log, error, atom.loc()) << "theory atom must be a directive";
             has_error_ = true;
             // maybe clear guard and elems...
             return std::nullopt;
@@ -218,14 +218,14 @@ auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom, bool
     auto rhs = std::optional<TheoryRGuard>{};
     if (atom.rhs()) {
         if (!guard) {
-            GRINGO_REPORT_LOC(log, error, atom.loc()) << "unexpected guard in theory atom";
+            CLINGO_REPORT_LOC(log, error, atom.loc()) << "unexpected guard in theory atom";
             has_error_ = true;
             // maybe clear guard and elems...
             return std::nullopt;
         }
         auto const &[guard_set, guard_index] = *guard;
         if (!guard_set.contains(atom.rhs()->op())) {
-            GRINGO_REPORT_LOC(log, error, atom.loc()) << "unexpected guard in theory atom";
+            CLINGO_REPORT_LOC(log, error, atom.loc()) << "unexpected guard in theory atom";
             has_error_ = true;
             // maybe clear guard and elems...
             return std::nullopt;
