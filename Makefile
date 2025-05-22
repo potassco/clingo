@@ -28,7 +28,7 @@ build/debug/CMakeCache.txt: .venv
 		-DCMAKE_C_COMPILER="$(CLANG_CC)" \
 		-DCMAKE_BUILD_TYPE=debug \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=On \
-		-DPARSER_BUILD_TESTS=On \
+		-DCLINGO_BUILD_TESTS=On \
 		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
 		-DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
 		-DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld" \
@@ -42,7 +42,7 @@ release:
 	mkdir -p build/$@
 	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
-		-DPARSER_BUILD_TESTS=On \
+		-DCLINGO_BUILD_TESTS=On \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
 		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic"
 	$(MAKE) -C build/$@
@@ -52,7 +52,7 @@ release_lto:
 	mkdir -p build/$@
 	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
-		-DPARSER_BUILD_TESTS=On \
+		-DCLINGO_BUILD_TESTS=On \
 		-DCMAKE_CXX_FLAGS="-flto=auto -fuse-linker-plugin -Wall -Wextra -pedantic" \
 		-DCMAKE_C_FLAGS="-flto=auto -fuse-linker-plugin -Wall -Wextra -pedantic"
 	$(MAKE) -C build/$@
@@ -62,7 +62,7 @@ release_clang:
 	mkdir -p build/$@
 	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
-		-DPARSER_BUILD_TESTS=On \
+		-DCLINGO_BUILD_TESTS=On \
 		-DCMAKE_CXX_COMPILER="$(CLANG_CXX)" \
 		-DCMAKE_C_COMPILER="$(CLANG_CC)" \
 		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
@@ -77,7 +77,7 @@ release_clang_lto:
 	mkdir -p build/$@
 	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
-		-DPARSER_BUILD_TESTS=On \
+		-DCLINGO_BUILD_TESTS=On \
 		-DCMAKE_CXX_COMPILER="$(CLANG_CXX)" \
 		-DCMAKE_C_COMPILER="$(CLANG_CC)" \
 		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
@@ -92,8 +92,8 @@ profile:
 	mkdir -p build/$@
 	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
-		-DPARSER_BUILD_TESTS=On \
-		-DPARSER_PROFILE=ON \
+		-DCLINGO_BUILD_TESTS=On \
+		-DCLINGO_PROFILE=ON \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
 		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic"
 	$(MAKE) -C build/$@
@@ -103,8 +103,8 @@ web:
 	mkdir -p build/$@
 	. emsdk_env.sh && emcmake cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
-		-DPARSER_BUILD_TESTS=On \
-		-DPARSER_BUILD_WEB=On \
+		-DCLINGO_BUILD_TESTS=On \
+		-DCLINGO_BUILD_WEB=On \
 		-DCMAKE_EXE_LINKER_FLAGS="" \
 		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic" \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic"

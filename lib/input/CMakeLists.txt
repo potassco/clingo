@@ -41,7 +41,7 @@ target_include_directories(clingo_input
 target_link_libraries(clingo_input PUBLIC clingo::core)
 clingo_install_target(clingo_input extra)
 
-if (PARSER_BUILD_TESTS)
+if (CLINGO_BUILD_TESTS)
     add_executable(test_input
         "tests/compute_bounds.cc"
         "tests/dependency.cc"

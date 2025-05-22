@@ -6,7 +6,7 @@ target_include_directories(clingo_util
 target_link_libraries(clingo_util INTERFACE tsl::hopscotch_map tsl::ordered_map)
 clingo_install_target(clingo_util extra)
 
-if (PARSER_BUILD_TESTS)
+if (CLINGO_BUILD_TESTS)
     add_executable(test_util
         "tests/record.cc"
         "tests/interval_set.cc")

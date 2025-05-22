@@ -19,13 +19,13 @@ clingo_target_properties(clingo_ground lib/ground)
 target_include_directories(clingo_ground
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(clingo_ground PUBLIC clingo::core)
-if (PARSER_PROFILE)
-    target_compile_definitions(clingo_ground PUBLIC "PARSER_PROFILE")
+if (CLINGO_PROFILE)
+    target_compile_definitions(clingo_ground PUBLIC "CLINGO_PROFILE")
     target_link_libraries(clingo_ground PUBLIC Gperftools::Profiler)
 endif()
 clingo_install_target(clingo_ground extra)
 
-if (PARSER_BUILD_TESTS)
+if (CLINGO_BUILD_TESTS)
     add_executable(test_ground
         "tests/matcher.cc")
     clingo_target_properties(test_ground test/ground tests)

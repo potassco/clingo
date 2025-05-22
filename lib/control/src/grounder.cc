@@ -13,7 +13,7 @@
 #include <clingo/util/type_traits.hh>
 #include <clingo/util/unordered_map.hh>
 
-#ifdef PARSER_PROFILE
+#ifdef CLINGO_PROFILE
 #include <gperftools/profiler.h>
 #endif
 
@@ -23,7 +23,7 @@ namespace CppClingo::Control {
 
 namespace {
 
-#ifdef PARSER_PROFILE
+#ifdef CLINGO_PROFILE
 
 //! Simple profiler to restrict profiling to selected scopes.
 class Profiler {
@@ -304,7 +304,7 @@ void Grounder::join(Input::UnprocessedProgram const &prg) {
 
 auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinIncludes {
     CLINGO_REPORT(*impl_->log, debug) << "parsing...";
-#ifdef PARSER_PROFILE
+#ifdef CLINGO_PROFILE
     auto prof = Profiler{"clingo-parse.prof"};
 #endif
     auto ret = BuiltinIncludes::empty;
@@ -322,7 +322,7 @@ auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinI
 auto Grounder::parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code, ProgramBackend *prg,
                      TheoryBackend *thy) -> BuiltinIncludes {
     CLINGO_REPORT(*impl_->log, debug) << "parsing...";
-#ifdef PARSER_PROFILE
+#ifdef CLINGO_PROFILE
     auto prof = Profiler{"clingo-parse.prof"};
 #endif
     auto ret = BuiltinIncludes::empty;
@@ -366,7 +366,7 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
     prepare_();
     CLINGO_REPORT(*impl_->log, debug) << "grounding...";
     GCLock lock{*impl_->store};
-#ifdef PARSER_PROFILE
+#ifdef CLINGO_PROFILE
     auto prof = Profiler{"clingo-ground.prof"};
 #endif
     if (impl_->is_sat) {

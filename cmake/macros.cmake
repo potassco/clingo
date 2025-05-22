@@ -88,7 +88,7 @@ function(clingo_install_target)
     set(targets ${ARGV})
     list(POP_BACK targets install_type)
 
-    if ("${install_type}" STREQUAL "extra" AND PARSER_INSTALL_EXTRA)
+    if ("${install_type}" STREQUAL "extra" AND CLINGO_INSTALL_EXTRA)
         install(
             TARGETS ${targets}
             EXPORT clingo-targets
@@ -97,7 +97,7 @@ function(clingo_install_target)
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
             INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         )
-    elseif (("${install_type}" STREQUAL "default" OR "${install_type}" STREQUAL "binary") AND PARSER_INSTALL_DEFAULT)
+    elseif (("${install_type}" STREQUAL "default" OR "${install_type}" STREQUAL "binary") AND CLINGO_INSTALL_DEFAULT)
         install(
                 TARGETS ${targets}
                 EXPORT clingo-targets
@@ -106,7 +106,7 @@ function(clingo_install_target)
                 ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
                 INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
             )
-    elseif (("${install_type}" STREQUAL "default" OR "${install_type}" STREQUAL "wheel") AND PARSER_INSTALL_WHEEL)
+    elseif (("${install_type}" STREQUAL "default" OR "${install_type}" STREQUAL "wheel") AND CLINGO_INSTALL_WHEEL)
         install(TARGETS ${targets}
                 RUNTIME DESTINATION .
                 LIBRARY DESTINATION .

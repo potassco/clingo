@@ -10,7 +10,7 @@ target_include_directories(clingo_core
 target_link_libraries(clingo_core PUBLIC clingo::util tsl::hopscotch_map tsl::ordered_map PRIVATE imath::imath)
 clingo_install_target(clingo_core extra)
 
-if (PARSER_BUILD_TESTS)
+if (CLINGO_BUILD_TESTS)
     add_executable(test_core
         "tests/number.cc"
         "tests/symbol.cc")

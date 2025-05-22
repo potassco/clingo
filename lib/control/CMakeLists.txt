@@ -14,7 +14,7 @@ target_include_directories(clingo_control PUBLIC
 target_link_libraries(clingo_control PUBLIC clingo::input clingo::ground clingo::output libclasp)
 clingo_install_target(clingo_control extra)
 
-if(PARSER_BUILD_TESTS)
+if(CLINGO_BUILD_TESTS)
     add_executable(test_control
         "tests/logger.cc"
         "tests/text.cc")

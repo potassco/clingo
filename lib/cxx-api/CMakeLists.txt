@@ -7,15 +7,15 @@ target_include_directories(clingo_cxx-api INTERFACE
 )
 target_link_libraries(clingo_cxx-api INTERFACE clingo)
 clingo_install_target(clingo_cxx-api default)
-if (PARSER_INSTALL_DEFAULT)
+if (CLINGO_INSTALL_DEFAULT)
     install(DIRECTORY include DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.hh")
-elseif (PARSER_INSTALL_WHEEL AND PARSER_BUILD_SHARED)
+elseif (CLINGO_INSTALL_WHEEL AND CLINGO_BUILD_SHARED)
     install(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "*.hh")
 endif()
 
 
 
-if(PARSER_BUILD_TESTS)
+if(CLINGO_BUILD_TESTS)
     add_executable(test_cxx-api
         "tests/asp.cc"
         "tests/aspif.cc"
