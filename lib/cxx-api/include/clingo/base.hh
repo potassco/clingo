@@ -446,23 +446,23 @@ static_assert(std::random_access_iterator<Base::iterator>);
 namespace std {
 
 template <> struct hash<Clingo::Atom> {
-    auto operator()(Clingo::Atom const &x) const -> size_t { return x.hash(); }
+    auto operator()(Clingo::Atom const &x) const noexcept -> size_t { return x.hash(); }
 };
 
 template <> struct hash<Clingo::Term> {
-    auto operator()(Clingo::Term const &x) const -> size_t { return x.hash(); }
+    auto operator()(Clingo::Term const &x) const noexcept -> size_t { return x.hash(); }
 };
 
 template <> struct hash<Clingo::TheoryTerm> {
-    auto operator()(Clingo::TheoryTerm const &x) const -> size_t { return x.hash(); }
+    auto operator()(Clingo::TheoryTerm const &x) const noexcept -> size_t { return x.hash(); }
 };
 
 template <> struct hash<Clingo::TheoryElement> {
-    auto operator()(Clingo::TheoryElement const &x) const -> size_t { return x.hash(); }
+    auto operator()(Clingo::TheoryElement const &x) const noexcept -> size_t { return x.hash(); }
 };
 
 template <> struct hash<Clingo::TheoryAtom> {
-    auto operator()(Clingo::TheoryAtom const &x) const -> size_t { return x.hash(); }
+    auto operator()(Clingo::TheoryAtom const &x) const noexcept -> size_t { return x.hash(); }
 };
 
 } // namespace std

@@ -134,7 +134,7 @@ inline void handle_error(bool res) {
     }
 }
 
-// Similar to handle_error but also reraises if the code is succsess.
+// Similar to handle_error but also reraises if the code is success.
 inline void handle_error_no_code(bool res) {
     if (!res) {
         raise_error();
@@ -219,7 +219,7 @@ template <class T> struct value_handle {
 };
 
 template <auto Copy, auto Free> struct value_handle_traits {
-    using pointer = typename std::remove_pointer_t<typename funptr_traits<decltype(Copy)>::template arg<1>>;
+    using pointer = std::remove_pointer_t<typename funptr_traits<decltype(Copy)>::template arg<1>>;
     using const_pointer = typename funptr_traits<decltype(Copy)>::template arg<0>;
     static auto copy(pointer p) -> pointer {
         auto res = pointer{};
@@ -241,8 +241,6 @@ template <std::input_iterator It, std::sentinel_for<It> S, class Pred> auto tran
 
 //! Use std::transform to build a vector.
 template <std::ranges::input_range Rng, class Pred> auto transform(Rng &&rng, Pred pred) { // NOLINT
-    using std::begin;
-    using std::end;
     return transform(std::ranges::begin(rng), std::ranges::end(rng), pred);
 }
 
@@ -322,7 +320,7 @@ template <class Seq> class RandomAccessIterator {
     using pointer = typename Seq::pointer;
     using reference = typename Seq::reference;
 
-    // NOTE: Added to fullfil the sentinel_for concept; should not be used.
+    // NOTE: Added to fulfill the sentinel_for concept; should not be used.
     constexpr RandomAccessIterator() : view_{throw std::logic_error("invalid iterator")}, index_{0} {}
     constexpr RandomAccessIterator(Seq container, size_t index) noexcept : view_{std::move(container)}, index_{index} {}
     constexpr auto operator*() const -> reference { return view_.at(index_); }
@@ -578,7 +576,7 @@ namespace Version {
 inline constexpr int major = CLINGO_VERSION_MAJOR;
 inline constexpr int minor = CLINGO_VERSION_MINOR;
 inline constexpr int revision = CLINGO_VERSION_REVISION;
-}; // namespace Version
+} // namespace Version
 
 inline auto version() -> std::tuple<int, int, int> {
     int major = 0;

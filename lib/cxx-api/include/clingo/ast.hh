@@ -245,13 +245,13 @@ class Node {
 
     void accept(Visitor const &fun) const {
         auto t = type();
-        for (auto const arg : Detail::cons.at(static_cast<size_t>(t))) {
-            if (arg.type == Detail::Arg::node) {
-                visit(fun, node(static_cast<Attribute>(arg.attr)));
-            } else if (arg.type == Detail::Arg::optional_node) {
-                visit(fun, optional_node(static_cast<Attribute>(arg.attr)));
-            } else if (arg.type == Detail::Arg::node_array) {
-                visit(fun, nodes(static_cast<Attribute>(arg.attr)));
+        for (const auto [attr, type] : Detail::cons.at(static_cast<size_t>(t))) {
+            if (type == Detail::Arg::node) {
+                visit(fun, node(static_cast<Attribute>(attr)));
+            } else if (type == Detail::Arg::optional_node) {
+                visit(fun, optional_node(static_cast<Attribute>(attr)));
+            } else if (type == Detail::Arg::node_array) {
+                visit(fun, nodes(static_cast<Attribute>(attr)));
             }
         }
     }
