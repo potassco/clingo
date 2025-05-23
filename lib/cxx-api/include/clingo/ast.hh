@@ -245,7 +245,7 @@ class Node {
 
     void accept(Visitor const &fun) const {
         auto t = type();
-        for (const auto [attr, type] : Detail::cons.at(static_cast<size_t>(t))) {
+        for (auto const [attr, type] : Detail::cons.at(static_cast<size_t>(t))) {
             if (type == Detail::Arg::node) {
                 visit(fun, node(static_cast<Attribute>(attr)));
             } else if (type == Detail::Arg::optional_node) {
