@@ -194,6 +194,10 @@ class PropagateInit {
         return Detail::call<clingo_propagate_init_add_clause>(init_, literals.data(), literals.size());
     }
 
+    [[nodiscard]] auto add_clause(SolverLiteralList literals) const -> bool {
+        return add_clause(SolverLiteralSpan{literals});
+    }
+
     [[nodiscard]] auto add_literal(bool freeze = true) const -> SolverLiteral {
         return Detail::call<clingo_propagate_init_add_literal>(init_, freeze);
     }
@@ -249,6 +253,9 @@ class PropagateControl {
     [[nodiscard]] auto add_clause(SolverLiteralSpan literals, ClauseFlags flags = ClauseFlags::none) const -> bool {
         return Detail::call<clingo_propagate_control_add_clause>(ctl_, literals.data(), literals.size(),
                                                                  static_cast<clingo_clause_type_t>(flags));
+    }
+    [[nodiscard]] auto add_clause(SolverLiteralList literals, ClauseFlags flags = ClauseFlags::none) const -> bool {
+        return add_clause(SolverLiteralSpan{literals}, flags);
     }
 
     [[nodiscard]] auto add_nogood(SolverLiteralSpan literals, ClauseFlags flags = ClauseFlags::none) const -> bool {

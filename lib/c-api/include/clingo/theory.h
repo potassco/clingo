@@ -158,6 +158,8 @@ typedef struct clingo_theory {
     bool (*assignment_next)(void *self, uint32_t thread_id, bool *init, size_t *index, bool *has_value);
     //! Get the value assigned to the given index.
     //!
+    //! Note that the caller of this function is responsible to release symbols.
+    //!
     //! @param[in] self the self pointer
     //! @param[in] thread_id the thread that holds the assignment
     //! @param[in] index the index to lookup

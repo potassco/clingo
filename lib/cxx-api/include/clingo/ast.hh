@@ -224,7 +224,7 @@ auto transform(Transformer const &fun, std::vector<Node> nodes) -> std::optional
 
 class Node {
   public:
-    explicit Node(clingo_ast_t *ast) : ast_{ast, false} {}
+    explicit Node(clingo_ast_t *ast, bool copy = false) : ast_{ast, copy} {}
 
     [[nodiscard]] friend auto c_cast(Node const &x) -> clingo_ast_t * { return x.ast_.get(); }
 

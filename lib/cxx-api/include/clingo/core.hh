@@ -386,6 +386,7 @@ using ProgramLiteralVector = std::vector<ProgramLiteral>;
 
 using SolverLiteral = clingo_literal_t;
 using SolverLiteralSpan = std::span<SolverLiteral const>;
+using SolverLiteralList = std::initializer_list<SolverLiteral const>;
 using SolverLiteralVector = std::vector<SolverLiteral>;
 
 using Weight = clingo_weight_t;
