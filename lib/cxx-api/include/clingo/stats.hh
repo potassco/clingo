@@ -40,7 +40,7 @@ class ConstStats {
     }
     [[nodiscard]] auto operator*() const -> double { return value(); }
 
-    [[nodiscard]] auto to_string() -> std::string {
+    [[nodiscard]] auto to_string() const -> std::string {
         auto bld = StringBuilder{};
         Detail::handle_error(clingo_stats_to_string(stats_, key_, c_cast(bld)));
         return std::string{bld.str()};
@@ -142,9 +142,9 @@ class StatsArray : public ConstStatsArray {
     [[nodiscard]] auto ensure(size_t index, StatsType type) const -> Stats {
         size_t n = size();
         if (index < n) {
-            return at(n);
+            return at(index);
         }
-        for (size_t n = size(); index < n; ++index) {
+        for (; n < index; ++n) {
             std::ignore = push(type);
         }
         return push(type);

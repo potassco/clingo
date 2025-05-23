@@ -135,16 +135,16 @@ inline auto String(Library const &lib, std::string_view str) -> Symbol {
     return Symbol{Detail::call<clingo_symbol_create_string>(c_cast(lib), str.data(), str.size()), false};
 }
 
-inline auto Function(Library const &lib, std::string_view str, SymbolSpan arguments = {}, bool is_postitve = true)
+inline auto Function(Library const &lib, std::string_view str, SymbolSpan arguments = {}, bool is_positive = true)
     -> Symbol {
     return Symbol{Detail::call<clingo_symbol_create_function>(c_cast(lib), str.data(), str.size(),
-                                                              c_cast(arguments.data()), arguments.size(), is_postitve),
+                                                              c_cast(arguments.data()), arguments.size(), is_positive),
                   false};
 }
 
-inline auto Function(Library const &lib, std::string_view str, SymbolList arguments, bool is_postitve = true)
+inline auto Function(Library const &lib, std::string_view str, SymbolList arguments, bool is_positive = true)
     -> Symbol {
-    return Function(lib, str, std::span{arguments.begin(), arguments.end()}, is_postitve);
+    return Function(lib, str, std::span{arguments.begin(), arguments.end()}, is_positive);
 }
 
 inline auto Tuple(Library const &lib, SymbolSpan arguments = {}) -> Symbol {
@@ -165,7 +165,7 @@ inline auto parse_term(Library const &lib, std::string_view str) -> Symbol {
 namespace std {
 
 template <> struct hash<Clingo::Symbol> {
-    auto operator()(Clingo::Symbol const &sym) const -> size_t { return sym.hash(); }
+    auto operator()(Clingo::Symbol const &sym) const noexcept -> size_t { return sym.hash(); }
 };
 
 } // namespace std

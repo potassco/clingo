@@ -139,7 +139,7 @@ inline auto main(Library &lib, std::span<std::string_view const> arguments = {},
             throw;
         }
         auto name = app != nullptr ? app->program_name() : CLINGO_EXECUTABLE;
-        fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
+        fprintf(stderr, "*** ERROR: (%.*s): %s\n", static_cast<int>(name.size()), name.data(), e.what());
     }
     return code;
 }
