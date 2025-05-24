@@ -156,7 +156,7 @@ class Model : public ConstModel {
         Detail::handle_error(clingo_model_extend(mdl_(), c_cast(symbols.data()), symbols.size()));
     }
 
-    friend auto c_cast(Model const &x) -> clingo_model_t const * { return x.mdl_(); }
+    friend auto c_cast(Model const &x) -> clingo_model_t * { return x.mdl_(); }
 
   private:
     [[nodiscard]] auto mdl_() const -> clingo_model_t * {
@@ -171,13 +171,13 @@ class SolveEventHandler {
     SolveEventHandler(SolveEventHandler &&other) = delete;
     virtual ~SolveEventHandler() = default;
 
-    auto model(Model &model) -> bool { return do_model(model); }
+    auto model(Model model) -> bool { return do_model(model); }
     void unsat(SumSpan lower_bound) { do_unsat(lower_bound); }
     void stats(Stats step, Stats accu) { do_stats(step, accu); }
     void finish(SolveResult result) noexcept { do_finish(result); }
 
   private:
-    virtual auto do_model([[maybe_unused]] Model &model) -> bool { return true; }
+    virtual auto do_model([[maybe_unused]] Model model) -> bool { return true; }
     virtual void do_unsat([[maybe_unused]] SumSpan lower_bound) {}
     virtual void do_stats([[maybe_unused]] Stats step, [[maybe_unused]] Stats accu) {}
     virtual void do_finish([[maybe_unused]] SolveResult result) noexcept {}

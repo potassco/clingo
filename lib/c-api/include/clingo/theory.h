@@ -70,7 +70,7 @@ typedef struct clingo_theory {
     //! @param[out] minor the minor version component (optional)
     //! @param[out] revision the revision version component (optional)
     //! @return wether the call was successful
-    bool (*info)(void *self, char const **name, int *major, int *minor, int *revision);
+    bool (*info)(void *self, clingo_string_t *name, int *major, int *minor, int *revision);
     //! Destroy the theory.
     //!
     //! @param[in] self the self pointer
@@ -116,15 +116,17 @@ typedef struct clingo_theory {
     //!
     //! @param[in] self the self pointer
     //! @param[in] key the name of the option to set
-    //! @param[in] key the value to set
+    //! @param[in] key_size the size of the name
+    //! @param[in] value the value to set
+    //! @param[in] value_size the size of the value
     //! @return wether the call was successful
-    bool (*configure)(void *self, char const *key, char const *value);
+    bool (*configure)(void *self, char const *key, size_t key_size, char const *value, size_t value_size);
     //! Inform the theory that a model has been found.
     //!
     //! @param[in] self the self pointer
     //! @param[in] model the current model
     //! @return wether the call was successful
-    bool (*on_model)(void *self, clingo_model_t const *model);
+    bool (*on_model)(void *self, clingo_model_t *model);
     //! Add the theory's statistics to the given maps.
     //!
     //! @param[in] self the self pointer
@@ -152,8 +154,8 @@ typedef struct clingo_theory {
     //! @param[in] self the self pointer
     //! @param[in] thread_id the thread that holds the assignment
     //! @param[inout] init whether to advance or initialize the index
-    //! @param[out] index the resulting index (optional)
-    //! @param[out] has_value whether the index has a value (optional)
+    //! @param[out] index the resulting index
+    //! @param[out] has_value whether the index has a value
     //! @return wether the call was successful
     bool (*assignment_next)(void *self, uint32_t thread_id, bool *init, size_t *index, bool *has_value);
     //! Get the value assigned to the given index.

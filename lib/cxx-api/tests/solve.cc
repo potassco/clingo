@@ -28,7 +28,7 @@ class ECB : public SolveEventHandler {
     ECB(Library &lib) : lib_{&lib} {}
 
   private:
-    auto do_model(Model &model) -> bool override {
+    auto do_model(Model model) -> bool override {
         auto sym = [&](std::string_view name) { return Function(*lib_, name, {}); };
         model.extend(std::array{sym("b"), sym("c")});
         return true;

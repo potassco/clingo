@@ -160,7 +160,7 @@ TEST_CASE_METHOD(Fixture, "backend minimize", "[cxx][backend][minimize]") {
     {
         struct OM : SolveEventHandler {
             OM(std::optional<std::vector<std::string>> &model) : model{&model} {}
-            auto do_model(Model &model) -> bool override {
+            auto do_model(Model model) -> bool override {
                 std::vector<std::string> syms;
                 for (auto &sym : model.symbols(ShowFlags::shown)) {
                     syms.push_back(sym.to_string());

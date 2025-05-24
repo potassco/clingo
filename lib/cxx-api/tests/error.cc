@@ -110,7 +110,7 @@ TEST_CASE_METHOD(Fixture, "error on_model", "[cxx][error][on_model]") {
     ctl.ground();
 
     struct EH : SolveEventHandler {
-        auto do_model(Model &model) -> bool override { throw std::runtime_error(model.to_string()); };
+        auto do_model(Model model) -> bool override { throw std::runtime_error(model.to_string()); };
     } eh;
 
     REQUIRE_THROWS_MATCHES(ctl.solve(eh), std::runtime_error, MessageMatches(ContainsSubstring("a, b")));

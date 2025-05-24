@@ -83,14 +83,14 @@ class Theory {
         return std::make_tuple(major, minor, revision);
     }
 
-    auto name() -> auto const * {
+    auto name() -> std::string_view {
         if (theory_->info == nullptr) {
             PyErr_SetString(PyExc_NotImplementedError, "info not implemented");
             throw py::error_already_set();
         }
-        char const *name = nullptr;
+        clingo_string_t name;
         handle_error(theory_->info(theory_->self, &name, nullptr, nullptr, nullptr));
-        return name;
+        return {name.data, name.size};
     }
 
     void register_theory(Control &ctl) {
@@ -117,15 +117,16 @@ class Theory {
         }
     }
 
-    void configure(std::string const &key, std::string const &value) {
+    void configure(std::string_view key, std::string_view value) {
         if (theory_->configure != nullptr) {
-            handle_error(theory_->configure(theory_->self, key.c_str(), value.c_str()));
+            handle_error(theory_->configure(theory_->self, key.data(), key.size(), value.data(), value.size()));
         }
     }
 
     void on_model(Model &model) {
         if (theory_->on_model != nullptr) {
-            handle_error(theory_->on_model(theory_->self, model.c_ptr()));
+            // NOLINTNEXTLINE
+            handle_error(theory_->on_model(theory_->self, const_cast<clingo_model_t *>(model.c_ptr())));
         }
     }
 

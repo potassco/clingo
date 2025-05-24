@@ -620,12 +620,12 @@ class Scanner {
         : lib_{std::move(lib)},
           scanner_{Detail::call<clingo_ast_scan_string>(c_cast(lib_), program.data(), program.size())} {}
 
-    explicit Scanner(Library &lib, StringSpan files) : lib_{lib} {
+    explicit Scanner(Library lib, StringSpan files) : lib_{std::move(lib)} {
         auto cfiles = Detail::transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
-        scanner_.reset(Detail::call<clingo_ast_scan_files>(c_cast(lib), cfiles.data(), cfiles.size()));
+        scanner_.reset(Detail::call<clingo_ast_scan_files>(c_cast(lib_), cfiles.data(), cfiles.size()));
     }
 
-    explicit Scanner(Library &lib, StringList files) : Scanner{lib, std::span{files}} {}
+    explicit Scanner(Library lib, StringList files) : Scanner{std::move(lib), std::span{files}} {}
 
     auto begin() -> iterator { return iterator{*this}; }
 
@@ -700,7 +700,7 @@ class Program {
   public:
     Program(Library const &lib) : prg_{Detail::call<clingo_program_new>(c_cast(lib))} {}
 
-    void add(Node const &stm) { Detail::handle_error(clingo_program_add(prg_.get(), c_cast(stm))); }
+    void add(Node const &stm) const { Detail::handle_error(clingo_program_add(prg_.get(), c_cast(stm))); }
 
     friend auto c_cast(Program const &x) -> clingo_program_t * { return x.prg_.get(); }
 

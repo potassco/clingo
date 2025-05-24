@@ -13,7 +13,7 @@ class MCB : public SolveEventHandler {
 
     using SolveEventHandler::model;
 
-    auto model(ConstModel &model) -> bool {
+    auto model(ConstModel model) -> bool {
         if (!proven && model.optimality_proven()) {
             models_->clear();
             proven = true;
@@ -27,7 +27,7 @@ class MCB : public SolveEventHandler {
     }
 
   private:
-    auto do_model(Model &model) -> bool override { return MCB::model(static_cast<ConstModel &>(model)); }
+    auto do_model(Model model) -> bool override { return MCB::model(static_cast<ConstModel>(model)); }
     MV *models_;
     bool proven = false;
 };
