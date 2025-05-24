@@ -152,7 +152,7 @@ inline auto Tuple(Library const &lib, SymbolSpan arguments = {}) -> Symbol {
                   false};
 }
 
-inline auto Tuple(Library const &lib, SymbolList arguments = {}) -> Symbol {
+inline auto Tuple(Library const &lib, SymbolList arguments) -> Symbol {
     return Tuple(lib, std::span{arguments.begin(), arguments.end()});
 }
 
