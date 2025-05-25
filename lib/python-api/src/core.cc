@@ -153,6 +153,10 @@ void Library::close() noexcept {
     reset();
 }
 
+auto Library::capsule() -> py::capsule {
+    return py::capsule{get(), "clingo_lib_t"};
+}
+
 Library::operator clingo_lib_t *() const {
     return get();
 }
@@ -338,6 +342,7 @@ Args:
     logger: A logger to emit/intercept messages.
     message_limit: The maximum number of messages to emit.
 )"_d)
+        .def("_capsule", &Library::capsule, "Get a capsule holding the underlying C library object.")
         .def(
             "__enter__", [](Library &lib) -> Library & { return lib; }, R"(
 Return self.

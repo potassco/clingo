@@ -114,6 +114,7 @@ class ASTBase {
     }
 
     friend auto c_cast(ASTBase const &x) -> clingo_ast_t *;
+    friend auto c_cast(ASTBase const *x) -> clingo_ast_t *;
 
   protected:
     ASTBase(clingo_ast_t *ast) : ast_{ast} {}
@@ -124,6 +125,10 @@ class ASTBase {
 
 auto c_cast(ASTBase const &x) -> clingo_ast_t * {
     return x.ast_;
+}
+
+auto c_cast(ASTBase const *x) -> clingo_ast_t * {
+    return x->ast_;
 }
 
 struct CString {
@@ -6481,8 +6486,14 @@ void add(Program &prg, Statement &stm) {
     handle_error(clingo_program_add(prg, c_cast(stm)));
 }
 
+template <typename Variant> struct pointer_variant;
+template <typename... Ts> struct pointer_variant<std::variant<Ts...>> {
+    using type = std::variant<std::add_pointer_t<Ts>...>;
+};
+template <typename Variant> using pointer_variant_t = typename pointer_variant<Variant>::type;
+
 auto convert_stm(py::handle hnd) -> clingo_ast_t * {
-    return c_cast(hnd.cast<ASTBase &>());
+    return c_cast(hnd.cast<pointer_variant_t<Statement>>());
 }
 
 auto convert_stm(clingo_ast_t *ast) -> py::object {

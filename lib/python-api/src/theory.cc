@@ -15,7 +15,7 @@ using AssignmentIterator = py::typing::Iterator<std::pair<Symbol, Value>>;
 class TheoryAssignment {
   public:
     TheoryAssignment(clingo_theory_t *theory, uint32_t thread_id) : theory_{theory}, thread_id_{thread_id} {
-        assert(theory_->assignment_next != nullptr || theory_->assignment_next != nullptr);
+        assert(theory_->assignment_next != nullptr && theory_->assignment_get_value != nullptr);
     }
     auto iter() -> AssignmentIterator { return py::cast(this); }
     auto next() -> std::pair<Symbol, Value> {
@@ -56,18 +56,13 @@ class TheoryAssignment {
 
 class Theory {
   public:
-    Theory(py::object ptr) : ptr_{std::move(ptr)}, theory_{static_cast<clingo_theory_t *>(ptr_.get_pointer())} {
+    Theory(py::object const &ptr)
+        : ptr_{ptr.cast<py::capsule>()}, theory_{static_cast<clingo_theory_t *>(ptr_.get_pointer())} {
         if (std::strcmp(ptr_.name(), "clingo_theory_t") != 0) {
             throw std::invalid_argument("clingo_theory_t pointer expected");
         }
         if (theory_ == nullptr) {
             throw std::invalid_argument{"theory must not be null"};
-        }
-    }
-
-    ~Theory() noexcept {
-        if (theory_->destroy != nullptr) {
-            theory_->destroy(theory_->self);
         }
     }
 
@@ -168,7 +163,9 @@ class Theory {
         return std::nullopt;
     }
 
-    auto has_assignment() -> bool { return theory_->assignment_next != nullptr && theory_->assignment_next != nullptr; }
+    auto has_assignment() -> bool {
+        return theory_->assignment_next != nullptr && theory_->assignment_get_value != nullptr;
+    }
 
     auto assignment(uint32_t thread_id) -> AssignmentIterator {
         if (!has_assignment()) {
@@ -269,6 +266,12 @@ See also: `clingo.app.App.register_options`
 Check the registered options.
 
 See also: `clingo.app.App.validate_options`
+)"_d)
+        .def("prepare", &Theory::prepare, py::arg("control"), R"(
+Prepare the theory for solving.
+
+Args:
+    control: The control object using for solving.
 )"_d)
         .def("on_model", &Theory::on_model, py::arg("model"), R"(
 Notify the theory about the given model.

@@ -65,6 +65,7 @@ class Library : public registered_handle<Library, clingo_lib_t>, public referenc
             size_t default_message_limit);
 
     void close() noexcept;
+    auto capsule() -> py::capsule;
 
     operator clingo_lib_t *() const;
 
