@@ -15,7 +15,7 @@ target_sources(imath INTERFACE
 target_include_directories(imath INTERFACE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/imath>")
 
-if (NOT PARSER_BUILD_WEB AND NOT DEFINED SKBUILD)
+if (NOT CLINGO_BUILD_WEB AND NOT DEFINED SKBUILD)
     list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/pytest-cmake/cmake")
     find_package(Pytest 8.0.0)
     add_subdirectory(pybind11)
