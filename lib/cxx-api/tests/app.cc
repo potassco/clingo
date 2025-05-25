@@ -1,5 +1,6 @@
 #include <clingo/app.hh>
 #include <clingo/control.hh>
+#include <clingo/theory.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
