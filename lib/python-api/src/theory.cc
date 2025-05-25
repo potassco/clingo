@@ -14,38 +14,59 @@ using Value = std::variant<Symbol, int, double>;
 using AssignmentIterator = py::typing::Iterator<std::pair<Symbol, Value>>;
 class TheoryAssignment {
   public:
-    TheoryAssignment(clingo_theory_t *theory, uint32_t thread_id) : theory_{theory}, thread_id_{thread_id} {
+    TheoryAssignment(clingo_theory_t const &theory, uint32_t thread_id) : theory_{&theory}, thread_id_{thread_id} {
         assert(theory_->assignment_next != nullptr && theory_->assignment_get_value != nullptr);
     }
-    auto iter() -> AssignmentIterator { return py::cast(this); }
-    auto next() -> std::pair<Symbol, Value> {
-        if (has_value_) {
-            handle_error(theory_->assignment_next(theory_, thread_id_, &init_, &index_, nullptr));
-            clingo_theory_value_t value;
-            clingo_symbol_t symbol = 0;
-            handle_error(
-                theory_->assignment_get_value(theory_->self, thread_id_, index_, &symbol, &value, &has_value_));
-            if (has_value_) {
-                // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
-                switch (static_cast<clingo_theory_value_type_e>(value.type)) {
-                    case clingo_theory_value_type_int: {
-                        return {Symbol{symbol, true}, value.int_number};
-                    }
-                    case clingo_theory_value_type_double: {
-                        return {Symbol{symbol, true}, value.double_number};
-                    }
-                    case clingo_theory_value_type_symbol: {
-                        return {Symbol{symbol, true}, Symbol{value.symbol, true}};
-                    }
-                }
+
+    auto lookup(Symbol const &symbol) -> std::optional<size_t> {
+        bool found = false;
+        size_t index = 0;
+        handle_error(theory_->lookup_symbol(theory_->self, *c_cast(&symbol), &index, &found));
+        return found ? std::optional{index} : std::nullopt;
+    }
+
+    auto at(size_t index) -> std::pair<Symbol, Value> {
+        clingo_theory_value_t value;
+        clingo_symbol_t symbol = 0;
+        bool has_value = true;
+        handle_error(theory_->assignment_get_value(theory_->self, thread_id_, index, &symbol, &value, &has_value));
+        if (!has_value) {
+            throw std::out_of_range{"invalid index"};
+        }
+        switch (static_cast<clingo_theory_value_type_e>(value.type)) {
+            case clingo_theory_value_type_int: {
+                // NOLINTNEXTLINE
+                return {Symbol{symbol, false}, value.int_number};
+            }
+            case clingo_theory_value_type_double: {
+                // NOLINTNEXTLINE
+                return {Symbol{symbol, false}, value.double_number};
+            }
+            case clingo_theory_value_type_symbol: {
+                // NOLINTNEXTLINE
+                return {Symbol{symbol, false}, Symbol{value.symbol, false}};
             }
         }
-        // NOLINTEND(cppcoreguidelines-pro-type-union-access)
+    }
+
+    auto iter() -> TheoryAssignment * {
+        init_ = true;
+        has_value_ = true;
+        index_ = 0;
+        return this;
+    }
+    auto next() -> std::pair<Symbol, Value> {
+        if (has_value_) {
+            handle_error(theory_->assignment_next(theory_->self, thread_id_, &init_, &index_, &has_value_));
+            if (has_value_) {
+                return at(index_);
+            }
+        }
         throw py::stop_iteration{};
     }
 
   private:
-    clingo_theory_t *theory_;
+    clingo_theory_t const *theory_;
     uint32_t thread_id_;
     bool init_ = true;
     bool has_value_ = true;
@@ -56,93 +77,102 @@ class TheoryAssignment {
 
 class Theory {
   public:
-    Theory(py::object const &ptr)
-        : ptr_{ptr.cast<py::capsule>()}, theory_{static_cast<clingo_theory_t *>(ptr_.get_pointer())} {
-        if (std::strcmp(ptr_.name(), "clingo_theory_t") != 0) {
+    Theory(Library const &lib, py::object const &ptr) {
+        auto cap = ptr.cast<py::capsule>();
+        if (std::strcmp(cap.name(), "clingo_theory_create") != 0) {
             throw std::invalid_argument("clingo_theory_t pointer expected");
         }
-        if (theory_ == nullptr) {
-            throw std::invalid_argument{"theory must not be null"};
+        // NOLINTNEXTLINE
+        auto create = reinterpret_cast<bool (*)(clingo_lib_t *, clingo_theory_t *)>(cap.get_pointer());
+        if (create == nullptr) {
+            throw std::invalid_argument{"create function must not be null"};
+        }
+        handle_error(create(lib, &theory_));
+    }
+
+    ~Theory() {
+        if (theory_.destroy != nullptr && theory_.self != nullptr) {
+            theory_.destroy(theory_.self);
         }
     }
 
-    auto version() {
-        if (theory_->info == nullptr) {
+    [[nodiscard]] auto version() const {
+        if (theory_.info == nullptr) {
             PyErr_SetString(PyExc_NotImplementedError, "info not implemented");
             throw py::error_already_set();
         }
         int major = 0;
         int minor = 0;
         int revision = 0;
-        handle_error(theory_->info(theory_->self, nullptr, &major, &minor, &revision));
+        handle_error(theory_.info(theory_.self, nullptr, &major, &minor, &revision));
         return std::make_tuple(major, minor, revision);
     }
 
-    auto name() -> std::string_view {
-        if (theory_->info == nullptr) {
+    [[nodiscard]] auto name() const -> std::string_view {
+        if (theory_.info == nullptr) {
             PyErr_SetString(PyExc_NotImplementedError, "info not implemented");
             throw py::error_already_set();
         }
         clingo_string_t name;
-        handle_error(theory_->info(theory_->self, &name, nullptr, nullptr, nullptr));
+        handle_error(theory_.info(theory_.self, &name, nullptr, nullptr, nullptr));
         return {name.data, name.size};
     }
 
-    void register_theory(Control &ctl) {
-        if (theory_->register_theory != nullptr) {
-            handle_error(theory_->register_theory(theory_->self, ctl.c_ptr()));
+    void register_theory(Control &ctl) const {
+        if (theory_.register_theory != nullptr) {
+            handle_error(theory_.register_theory(theory_.self, ctl.c_ptr()));
         }
     }
 
-    void prepare(Control &ctl) {
-        if (theory_->prepare != nullptr) {
-            handle_error(theory_->prepare(theory_->self, ctl.c_ptr()));
+    void prepare(Control &ctl) const {
+        if (theory_.prepare != nullptr) {
+            handle_error(theory_.prepare(theory_.self, ctl.c_ptr()));
         }
     }
 
-    void register_options(TypeHint<"clingo.app.AppOptions"> const &opts) {
-        if (theory_->register_options != nullptr) {
-            handle_error(theory_->register_options(theory_->self, convert_options(opts)));
+    void register_options(TypeHint<"clingo.app.AppOptions"> const &opts) const {
+        if (theory_.register_options != nullptr) {
+            handle_error(theory_.register_options(theory_.self, convert_options(opts)));
         }
     }
 
-    void validate_options() {
-        if (theory_->validate_options != nullptr) {
-            handle_error(theory_->validate_options(theory_->self));
+    void validate_options() const {
+        if (theory_.validate_options != nullptr) {
+            handle_error(theory_.validate_options(theory_.self));
         }
     }
 
-    void configure(std::string_view key, std::string_view value) {
-        if (theory_->configure != nullptr) {
-            handle_error(theory_->configure(theory_->self, key.data(), key.size(), value.data(), value.size()));
+    void configure(std::string_view key, std::string_view value) const {
+        if (theory_.configure != nullptr) {
+            handle_error(theory_.configure(theory_.self, key.data(), key.size(), value.data(), value.size()));
         }
     }
 
-    void on_model(Model &model) {
-        if (theory_->on_model != nullptr) {
+    void on_model(Model &model) const {
+        if (theory_.on_model != nullptr) {
             // NOLINTNEXTLINE
-            handle_error(theory_->on_model(theory_->self, const_cast<clingo_model_t *>(model.c_ptr())));
+            handle_error(theory_.on_model(theory_.self, const_cast<clingo_model_t *>(model.c_ptr())));
         }
     }
 
-    void on_stats(Stats &accu, [[maybe_unused]] Stats &step) {
+    void on_stats(Stats &accu, [[maybe_unused]] Stats &step) const {
         // NOTE: the accu and steps roots can be obtained from the stats object
         // in C. Both objects contain the same base C pointer.
-        if (theory_->on_stats != nullptr) {
-            handle_error(theory_->on_stats(theory_->self, accu.c_ptr()));
+        if (theory_.on_stats != nullptr) {
+            handle_error(theory_.on_stats(theory_.self, accu.c_ptr()));
         }
     }
 
-    auto value(uint32_t thread_id, Symbol &symbol) -> std::optional<Value> {
-        if (theory_->lookup_symbol != nullptr && theory_->assignment_get_value != nullptr) {
+    [[nodiscard]] auto value(uint32_t thread_id, Symbol &symbol) const -> std::optional<Value> {
+        if (theory_.lookup_symbol != nullptr && theory_.assignment_get_value != nullptr) {
             size_t index = 0;
             bool found = false;
-            handle_error(theory_->lookup_symbol(theory_->self, symbol.handle(), &index, &found));
+            handle_error(theory_.lookup_symbol(theory_.self, symbol.handle(), &index, &found));
             if (!found) {
                 return std::nullopt;
             }
             clingo_theory_value_t value;
-            handle_error(theory_->assignment_get_value(theory_->self, thread_id, index, nullptr, &value, &found));
+            handle_error(theory_.assignment_get_value(theory_.self, thread_id, index, nullptr, &value, &found));
             if (!found) {
                 return std::nullopt;
             }
@@ -163,16 +193,16 @@ class Theory {
         return std::nullopt;
     }
 
-    auto has_assignment() -> bool {
-        return theory_->assignment_next != nullptr && theory_->assignment_get_value != nullptr;
+    [[nodiscard]] auto has_assignment() const -> bool {
+        return theory_.assignment_next != nullptr && theory_.assignment_get_value != nullptr;
     }
 
-    auto assignment(uint32_t thread_id) -> AssignmentIterator {
+    [[nodiscard]] auto assignment(uint32_t thread_id) const -> TheoryAssignment {
         if (!has_assignment()) {
             PyErr_SetString(PyExc_NotImplementedError, "info not implemented");
             throw py::error_already_set();
         }
-        return py::cast(TheoryAssignment{theory_, thread_id});
+        return TheoryAssignment{theory_, thread_id};
     }
 
     using PyStatement = TypeHint<
@@ -183,10 +213,10 @@ class Theory {
         "clingo.ast.StatementHeuristic | clingo.ast.StatementScript | clingo.ast.StatementInclude | "
         "clingo.ast.StatementProgram | clingo.ast.StatementConst | clingo.ast.StatementComment">;
 
-    void rewrite(PyStatement const &stm, std::function<void(PyStatement const &)> fun) {
-        if (theory_->rewrite_ast != nullptr) {
-            handle_error(theory_->rewrite_ast(
-                theory_->self, convert_stm(stm),
+    void rewrite(PyStatement const &stm, std::function<void(PyStatement const &)> fun) const {
+        if (theory_.rewrite_ast != nullptr) {
+            handle_error(theory_.rewrite_ast(
+                theory_.self, convert_stm(stm),
                 [](clingo_ast *stm, void *data) -> bool {
                     CLINGO_TRY {
                         auto &fun = *static_cast<std::function<void(py::handle)> *>(data);
@@ -201,8 +231,7 @@ class Theory {
     }
 
   private:
-    py::capsule ptr_;
-    clingo_theory_t *theory_;
+    clingo_theory_t theory_{};
 };
 
 void register_theory(pybind11::module &m) {
@@ -212,18 +241,36 @@ void register_theory(pybind11::module &m) {
 This module allows for using theories implemented in C from Python.
 )"_d);
 
-    py::class_<TheoryAssignment>(theory, "_TheoryAssignment", "Internal class.")
+    py::class_<TheoryAssignment>(theory, "TheoryAssignment", "Assignment of theory values.")
+        .def("lookup", &TheoryAssignment::lookup, py::arg("symbol"), R"(
+Get the value index of the symbol in the assignment.
+
+Args:
+    symbol: The symbol to lookup.
+Returns:
+    The value or None if unnassigned.
+)"_d)
+        .def("at", &TheoryAssignment::at, py::arg("index"), R"(
+Get the value at the given index in the assignment.
+
+Args:
+    index: The index of the value
+Returns:
+    The value.
+)"_d)
         .def("__iter__", &TheoryAssignment::iter, "Return self.")
         .def("__next__", &TheoryAssignment::next, "Get the next symbol value pair.");
 
     py::class_<Theory>(theory, "Theory", R"(
 Object to call functions from a C-library implementing a custom theory.
 )"_d)
-        .def(py::init<py::object>(), py::arg("theory_pointer"), R"(
-Construct a theory object from the given pointer.
+        .def(py::init<Library const &, py::object>(), py::arg("library"), py::arg("create"), R"(
+Construct a theory object.
 
 Args:
-    theory_pointer: A capsule object holding a clingo_theory_t pointer.
+    library: Library object to store symbols in.
+    create:
+        A capsule object holding a function pointer to initialize the theory.
 )"_d)
         .def("register", &Theory::register_theory, py::arg("control"), R"(
 Register the theory with the given control object.
