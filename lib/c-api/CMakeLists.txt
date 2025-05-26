@@ -82,10 +82,9 @@ if (CLINGO_INSTALL_DEFAULT)
     clingo_install_target(clingo default)
     install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h")
 elseif (CLINGO_INSTALL_WHEEL AND CLINGO_BUILD_SHARED)
-    install(DIRECTORY include/ DESTINATION . FILES_MATCHING PATTERN "*.h")
+    install(DIRECTORY include/ DESTINATION clingo-include FILES_MATCHING PATTERN "*.h")
     install(
         TARGETS clingo
-        EXPORT clingo-targets
         RUNTIME DESTINATION "."
         LIBRARY DESTINATION ".")
 endif()
