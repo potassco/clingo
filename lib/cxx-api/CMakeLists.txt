@@ -1,4 +1,62 @@
+# [[[header: include
+set(ide_header_group "Header Files")
+set(header-group-clingo
+    "include/clingo/app.hh"
+    "include/clingo/ast.hh"
+    "include/clingo/backend.hh"
+    "include/clingo/base.hh"
+    "include/clingo/config.hh"
+    "include/clingo/control.hh"
+    "include/clingo/core.hh"
+    "include/clingo/observe.hh"
+    "include/clingo/propagate.hh"
+    "include/clingo/script.hh"
+    "include/clingo/solve.hh"
+    "include/clingo/stats.hh"
+    "include/clingo/symbol.hh"
+    "include/clingo/theory.hh")
+source_group("${ide_header_group}\\clingo" FILES ${header-group-clingo})
+set(header-group-clingo-detail
+    "include/clingo/detail/ast.hh")
+source_group("${ide_header_group}\\clingo\\detail" FILES ${header-group-clingo-detail})
+set(header
+    ${header-group-clingo}
+    ${header-group-clingo-detail})
+# ]]]
+# [[[test: tests
+set(ide_test_group "Test Files")
+set(test-group
+    "tests/app.cc"
+    "tests/app_error.cc"
+    "tests/asp.cc"
+    "tests/aspif.cc"
+    "tests/ast.cc"
+    "tests/backend.cc"
+    "tests/base.cc"
+    "tests/cbs.hh"
+    "tests/config.cc"
+    "tests/control.cc"
+    "tests/core.cc"
+    "tests/error.cc"
+    "tests/incremental.cc"
+    "tests/lp.hh"
+    "tests/observe.cc"
+    "tests/propagate.cc"
+    "tests/script.cc"
+    "tests/solve.cc"
+    "tests/stats.cc"
+    "tests/symbol.cc"
+    "tests/tempfile.hh"
+    "tests/write_aspif.cc")
+source_group("${ide_test_group}" FILES ${test-group})
+set(test
+    ${test-group})
+# ]]]
+
+list(FILTER test EXCLUDE REGEX "/(app|app_error)\\.cc$")
+
 add_library(clingo_cxx-api INTERFACE)
+target_sources(clingo_cxx-api PRIVATE ${header})
 add_library(clingo::cxx-api ALIAS clingo_cxx-api)
 clingo_target_properties(clingo_cxx-api lib/cxx-api)
 target_include_directories(clingo_cxx-api INTERFACE
@@ -14,25 +72,8 @@ elseif (CLINGO_INSTALL_WHEEL AND CLINGO_BUILD_SHARED)
 endif()
 
 if(CLINGO_BUILD_TESTS)
-    add_executable(test_cxx-api
-        "tests/asp.cc"
-        "tests/aspif.cc"
-        "tests/ast.cc"
-        "tests/backend.cc"
-        "tests/base.cc"
-        "tests/config.cc"
-        "tests/control.cc"
-        "tests/core.cc"
-        "tests/error.cc"
-        "tests/incremental.cc"
-        "tests/observe.cc"
-        "tests/propagate.cc"
-        "tests/script.cc"
-        "tests/solve.cc"
-        "tests/stats.cc"
-        "tests/symbol.cc"
-        "tests/write_aspif.cc"
-    )
+    add_executable(test_cxx-api)
+    target_sources(test_cxx-api PRIVATE ${test})
     clingo_target_properties(test_cxx-api test/cxx-api tests)
     target_include_directories(test_cxx-api PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_cxx-api PRIVATE clingo::cxx-api Catch2::Catch2WithMain)
@@ -44,13 +85,15 @@ if(CLINGO_BUILD_TESTS)
         catch_discover_tests(test_cxx-api WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../..")
     endif()
 
-    add_executable(test_cxx-app "tests/app.cc")
+    add_executable(test_cxx-app)
+    target_sources(test_cxx-app PRIVATE "tests/app.cc")
     clingo_target_properties(test_cxx-app test/cxx-api tests)
     target_include_directories(test_cxx-app PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_cxx-app PRIVATE clingo::cxx-api Catch2::Catch2WithMain)
     catch_discover_tests(test_cxx-app)
 
-    add_executable(test_cxx-app-error "tests/app_error.cc")
+    add_executable(test_cxx-app-error)
+    target_sources(test_cxx-app-error PRIVATE "tests/app_error.cc")
     clingo_target_properties(test_cxx-app-error test/cxx-api tests)
     target_include_directories(test_cxx-app-error PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_cxx-app-error PRIVATE clingo::cxx-api)

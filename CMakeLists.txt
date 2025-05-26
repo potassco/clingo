@@ -34,6 +34,10 @@ set(PYCLINGO_INSTALL "prefix" CACHE STRING
 set(PYCLINGO_INSTALL_DIR "" CACHE STRING
     "Advanced variable to manually configure where to install the Python module.")
 
+if(${CMAKE_VERSION} VERSION_LESS "3.26")
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+endif()
+
 if (CLINGO_USE_VISIBILITY)
     set(CMAKE_C_VISIBILITY_PRESET hidden)
     set(CMAKE_CXX_VISIBILITY_PRESET hidden)

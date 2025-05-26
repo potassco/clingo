@@ -1,4 +1,14 @@
-add_executable(clingo-bin "main.cc")
+# [[[source: .
+set(ide_source_group "Source Files")
+set(source-group
+    "main.cc")
+source_group("${ide_source_group}" FILES ${source-group})
+set(source
+    ${source-group})
+# ]]]
+
+add_executable(clingo-bin)
+target_sources(clingo-bin PRIVATE ${source})
 clingo_target_properties(clingo-bin bin/clingo)
 set_target_properties(clingo-bin PROPERTIES
     OUTPUT_NAME clingo

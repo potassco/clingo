@@ -1,26 +1,55 @@
+# [[[source: src
+set(ide_source_group "Source Files")
+set(source-group
+    "src/app.cc"
+    "src/app.hh"
+    "src/ast.cc"
+    "src/ast.hh"
+    "src/backend.cc"
+    "src/backend.hh"
+    "src/base.cc"
+    "src/base.hh"
+    "src/clingo.cc"
+    "src/clingo.hh"
+    "src/config.cc"
+    "src/config.hh"
+    "src/control.cc"
+    "src/control.hh"
+    "src/core.cc"
+    "src/core.hh"
+    "src/embed.cc"
+    "src/iterable.hh"
+    "src/iterator.hh"
+    "src/module.cc"
+    "src/propagate.cc"
+    "src/propagate.hh"
+    "src/script.cc"
+    "src/script.hh"
+    "src/solve.cc"
+    "src/solve.hh"
+    "src/stats.cc"
+    "src/stats.hh"
+    "src/symbol.cc"
+    "src/symbol.hh"
+    "src/theory.cc"
+    "src/theory.hh"
+    "src/util.hh")
+source_group("${ide_source_group}" FILES ${source-group})
+set(source
+    ${source-group})
+# ]]]
+
+list(FILTER source EXCLUDE REGEX "/(embed|module)\\.cc$")
+
 # functionality shared between embedded library and standalone module
-add_library(clingo_python STATIC
-    src/app.cc
-    src/ast.cc
-    src/backend.cc
-    src/base.cc
-    src/clingo.cc
-    src/config.cc
-    src/control.cc
-    src/core.cc
-    src/propagate.cc
-    src/script.cc
-    src/solve.cc
-    src/stats.cc
-    src/symbol.cc
-    src/theory.cc
-    )
+add_library(clingo_python STATIC)
+target_sources(clingo_python PRIVATE ${source})
 clingo_target_properties(clingo_python "lib/pyclingo")
 target_compile_definitions(clingo_python PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}")
 target_link_libraries(clingo_python PRIVATE pybind11::pybind11 clingo)
 
 # the standalone module
-pybind11_add_module(clingo_python_module src/module.cc)
+pybind11_add_module(clingo_python_module "src/module.cc")
 clingo_target_properties(clingo_python_module "lib/pyclingo-module" "python")
 set_target_properties(clingo_python_module PROPERTIES OUTPUT_NAME "clingo")
 target_link_libraries(clingo_python_module PRIVATE clingo clingo_python)
@@ -76,7 +105,8 @@ elseif(CLINGO_INSTALL_DEFAULT)
 endif()
 
 # the embedded library
-add_library(clingo_python_embed STATIC src/embed.cc)
+add_library(clingo_python_embed STATIC)
+target_sources(clingo_python_embed PRIVATE "include/embed.h" "src/embed.cc")
 add_library(clingo::python ALIAS clingo_python_embed)
 clingo_target_properties(clingo_python_embed "lib/pyclingo-embed")
 target_include_directories(clingo_python_embed PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)

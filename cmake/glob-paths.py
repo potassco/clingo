@@ -17,24 +17,18 @@ def find(path, target):
     header = {}
     output = ""
     for root, dirnames, filenames in os.walk(path):
-        if "tests" in dirnames:
-            dirnames.remove("tests")
-        if target == "header" and "src" in dirnames:
-            dirnames.remove("src")
         for filename in sorted(filenames):
             components = split_path(root)
             components.append(filename)
             if re.match(r"^.*\.(h|hh|hpp|c|cc|cpp)$", filename):
                 header.setdefault(root, "")
-                header[root] += '    "${{CMAKE_CURRENT_SOURCE_DIR}}/{src}"\n'.format(
-                    src="/".join(components)
-                )
+                header[root] += '    "{src}"\n'.format(src="/".join(components))
             elif re.match(r"^.*\.(yy)$", filename):
                 name, ext = os.path.splitext(filename)
                 path = "".join([d + "/" for d in components[:-1]])
                 header[os.path.join(root, name)] = (
                     """\
-    "${{CMAKE_CURRENT_SOURCE_DIR}}/{path}{name}{ext}"
+    "${path}{name}{ext}"
     ${{BISON_{name}_OUTPUTS}}
 """.format(
                         name=name, ext=ext, path=path
@@ -48,14 +42,14 @@ bison_target_or_gen("{path}{name}{ext}")
             elif re.match(r"^.*\.(xh|xch)$", filename):
                 header.setdefault(root, "")
                 name, ext = os.path.splitext(filename)
-                path = "".join(["/" + d for d in components[:-1]])
+                path = "/".join(components[:-1])
                 options = ""
                 if ext == ".xch":
                     options = " OPTIONS -c"
                 header[
                     root
                 ] += """\
-    "${{CMAKE_CURRENT_SOURCE_DIR}}{path}/{name}{ext}"
+    "{path}/{name}{ext}"
     ${{RE2C_{name}_OUTPUT}}
 """.format(
                     name=name, ext=ext, path=path
@@ -71,7 +65,7 @@ re2c_target_or_gen("{path}/{name}{ext}")
     groups = []
     for root in sorted(header):
         components = split_path(root)
-        if len(components) > 0 and components[0] == "src":
+        if len(components) > 0 and components[0] in ("src", "include", "tests"):
             del components[0]
         groups.append("-".join(["{}-group".format(target)] + components))
         output += "set({0}\n".format(groups[-1])

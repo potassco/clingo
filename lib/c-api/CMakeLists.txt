@@ -1,25 +1,65 @@
-if (CLINGO_BUILD_SHARED)
-    set(libtype SHARED)
-endif()
-
-add_library(clingo ${libtype}
+# [[[header: include
+set(ide_header_group "Header Files")
+set(header-group
+    "include/clingo.h")
+source_group("${ide_header_group}" FILES ${header-group})
+set(header-group-clingo
+    "include/clingo/app.h"
+    "include/clingo/ast.h"
+    "include/clingo/backend.h"
+    "include/clingo/base.h"
+    "include/clingo/config.h"
+    "include/clingo/control.h"
+    "include/clingo/core.h"
+    "include/clingo/model.h"
+    "include/clingo/observe.h"
+    "include/clingo/propagate.h"
+    "include/clingo/script.h"
+    "include/clingo/shared.h"
+    "include/clingo/solve.h"
+    "include/clingo/stats.h"
+    "include/clingo/symbol.h"
+    "include/clingo/theory.h")
+source_group("${ide_header_group}\\clingo" FILES ${header-group-clingo})
+set(header
+    ${header-group}
+    ${header-group-clingo})
+# ]]]
+# [[[source: src
+set(ide_source_group "Source Files")
+set(source-group
     "src/ast.cc"
+    "src/ast.hh"
     "src/ast_yaml.cc"
     "src/backend.cc"
     "src/base.cc"
     "src/config.cc"
     "src/control.cc"
+    "src/control.hh"
     "src/core.cc"
+    "src/core.hh"
     "src/lib.cc"
+    "src/lib.hh"
     "src/main.cc"
     "src/model.cc"
     "src/observe.cc"
+    "src/opts.hh"
     "src/propagate.cc"
     "src/script.cc"
     "src/solve.cc"
     "src/stats.cc"
-    "src/symbol.cc"
-    )
+    "src/symbol.cc")
+source_group("${ide_source_group}" FILES ${source-group})
+set(source
+    ${source-group})
+# ]]]
+
+if (CLINGO_BUILD_SHARED)
+    set(libtype SHARED)
+endif()
+
+add_library(clingo ${libtype})
+target_sources(clingo PRIVATE ${header} ${source})
 clingo_target_properties(clingo "lib/clingo")
 target_include_directories(clingo PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

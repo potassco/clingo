@@ -1,8 +1,39 @@
-add_library(clingo_core STATIC
+# [[[header: include
+set(ide_header_group "Header Files")
+set(header-group-clingo-core
+    "include/clingo/core/backend.hh"
+    "include/clingo/core/core.hh"
+    "include/clingo/core/location.hh"
+    "include/clingo/core/logger.hh"
+    "include/clingo/core/number.hh"
+    "include/clingo/core/output.hh"
+    "include/clingo/core/symbol.hh")
+source_group("${ide_header_group}\\clingo\\core" FILES ${header-group-clingo-core})
+set(header
+    ${header-group-clingo-core})
+# ]]]
+# [[[source: src
+set(ide_source_group "Source Files")
+set(source-group
     "src/core.cc"
     "src/number.cc"
-    "src/symbol.cc"
-    )
+    "src/symbol.cc")
+source_group("${ide_source_group}" FILES ${source-group})
+set(source
+    ${source-group})
+# ]]]
+# [[[test: tests
+set(ide_test_group "Test Files")
+set(test-group
+    "tests/number.cc"
+    "tests/symbol.cc")
+source_group("${ide_test_group}" FILES ${test-group})
+set(test
+    ${test-group})
+# ]]]
+
+add_library(clingo_core STATIC)
+target_sources(clingo_core PRIVATE ${header} ${source})
 add_library(clingo::core ALIAS clingo_core)
 clingo_target_properties(clingo_core lib/core)
 target_include_directories(clingo_core
@@ -11,9 +42,8 @@ target_link_libraries(clingo_core PUBLIC clingo::util tsl::hopscotch_map tsl::or
 clingo_install_target(clingo_core extra)
 
 if (CLINGO_BUILD_TESTS)
-    add_executable(test_core
-        "tests/number.cc"
-        "tests/symbol.cc")
+    add_executable(test_core)
+    target_sources(test_core PRIVATE ${test})
     clingo_target_properties(test_core test/core tests)
     target_include_directories(test_core PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_core PRIVATE clingo::core Catch2::Catch2WithMain)
