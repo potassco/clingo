@@ -11,7 +11,7 @@ set(CMAKE_EXE_LINKER_FLAGS "-s ENVIRONMENT=worker -s ALLOW_MEMORY_GROWTH=1 -s MO
 
 add_executable(clingo-web)
 target_sources(clingo-web PRIVATE ${source})
-clingo_target_properties(clingo-web web/clingo web)
+clingo_target_properties(clingo-web web web)
 set_target_properties(clingo-web PROPERTIES
     OUTPUT_NAME clingo
 )

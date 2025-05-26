@@ -9,7 +9,7 @@ set(source
 
 add_executable(clingo-bin)
 target_sources(clingo-bin PRIVATE ${source})
-clingo_target_properties(clingo-bin bin/clingo)
+clingo_target_properties(clingo-bin bin)
 set_target_properties(clingo-bin PROPERTIES
     OUTPUT_NAME clingo
 )

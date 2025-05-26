@@ -117,7 +117,7 @@ add_library(clingo_input STATIC)
 target_sources(clingo_input PRIVATE ${header} ${source})
 
 add_library(clingo::input ALIAS clingo_input)
-clingo_target_properties(clingo_input lib/input)
+clingo_target_properties(clingo_input lib)
 target_include_directories(clingo_input
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
@@ -127,7 +127,7 @@ clingo_install_target(clingo_input extra)
 if (CLINGO_BUILD_TESTS)
     add_executable(test_input)
     target_sources(test_input PRIVATE ${test})
-    clingo_target_properties(test_input test/input tests)
+    clingo_target_properties(test_input test tests)
     target_include_directories(test_input PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_input PRIVATE clingo::input Catch2::Catch2WithMain)
     catch_discover_tests(test_input)
