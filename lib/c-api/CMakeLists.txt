@@ -60,7 +60,7 @@ endif()
 
 add_library(clingo ${libtype})
 target_sources(clingo PRIVATE ${header} ${source})
-clingo_target_properties(clingo "lib")
+clingo_target_properties(TARGETS clingo FOLDER lib TYPE default)
 target_include_directories(clingo PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -79,7 +79,6 @@ if (CLINGO_USE_VERSION_SCRIPT AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|Apple
     set_target_properties(clingo PROPERTIES LINK_FLAGS "-Wl,--version-script='${CMAKE_SOURCE_DIR}/cmake/clingo.map'")
 endif()
 if (CLINGO_INSTALL_DEFAULT)
-    clingo_install_target(clingo default)
     install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h")
 elseif (CLINGO_INSTALL_WHEEL AND CLINGO_BUILD_SHARED)
     install(DIRECTORY include/ DESTINATION clingo-include FILES_MATCHING PATTERN "*.h")

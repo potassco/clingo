@@ -27,84 +27,51 @@ function(re2c_target_or_gen GRAMMAR)
     endif()
 endfunction()
 
-#[=======================================================================[.rst:
-.. command:: clingo_target_properties
+function(clingo_target_properties)
+    set(options)
+    set(single_values FOLDER TYPE SUBDIR)
+    set(multi_values TARGETS)
+    cmake_parse_arguments(clingo "${options}" "${single_values}" "${multi_values}" ${ARGV})
 
-Set output properties for a target, including output directories and FOLDER property.
-
-.. code-block:: cmake
-
-   clingo_target_properties(target folder [binary_subdir])
-
-``target``
-  The name of the target to set properties for.
-
-``folder``
-  The folder name for organizing targets in IDEs.
-
-``binary_subdir``
-  Optional. Subdirectory within "bin" for placing binaries. If not provided, binaries are placed directly in "bin".
-
-This function sets the following properties:
-- RUNTIME_OUTPUT_DIRECTORY
-- LIBRARY_OUTPUT_DIRECTORY
-- ARCHIVE_OUTPUT_DIRECTORY
-- PDB_OUTPUT_DIRECTORY
-- FOLDER
-- POSITION_INDEPENDENT_CODE
-
-It handles both single-config and multi-config generators, using the GENERATOR_IS_MULTI_CONFIG property to determine the appropriate output structure.
-
-Example usage:
-.. code-block:: cmake
-
-   add_executable(myapp main.cpp)
-   clingo_target_properties(myapp "MyApps")
-
-   add_library(mylib SHARED lib.cpp)
-   clingo_target_properties(mylib "MyLibraries" "plugins")
-#]=======================================================================]
-function(clingo_target_properties target folder)
     set(binary_subdir "bin")
-    if(${ARGC} GREATER 2)
-        set(binary_subdir "bin/${ARGV2}")
+    if(clingo_SUBDIR)
+        set(binary_subdir "bin/${clingo_SUBDIR}")
     endif()
+
     get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
     set(base_dir "${CMAKE_BINARY_DIR}")
-    if (is_multi_config)
+    if(is_multi_config)
         set(base_dir "${base_dir}/$<CONFIG>")
     endif()
-    set_target_properties("${target}" PROPERTIES
-        FOLDER "${folder}"
+
+    if (clingo_FOLDER)
+        set_target_properties(${clingo_TARGETS} PROPERTIES
+        FOLDER "${clingo_FOLDER}"
         POSITION_INDEPENDENT_CODE ON
         RUNTIME_OUTPUT_DIRECTORY "${base_dir}/${binary_subdir}"
         LIBRARY_OUTPUT_DIRECTORY "${base_dir}/${binary_subdir}"
         ARCHIVE_OUTPUT_DIRECTORY "${base_dir}/lib"
         PDB_OUTPUT_DIRECTORY "${base_dir}/bin"
     )
-endfunction()
+    endif()
 
-function(clingo_install_target)
-    set(targets ${ARGV})
-    list(POP_BACK targets install_type)
-
-    if ("${install_type}" STREQUAL "extra" AND CLINGO_INSTALL_EXTRA)
+    if(clingo_TYPE STREQUAL "extra" AND CLINGO_INSTALL_EXTRA)
         install(
-            TARGETS ${targets}
+            TARGETS ${clingo_TARGETS}
             EXPORT clingo-targets
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
             INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         )
-    elseif (("${install_type}" STREQUAL "default" OR "${install_type}" STREQUAL "binary") AND CLINGO_INSTALL_DEFAULT)
+    elseif(clingo_TYPE STREQUAL "default" AND CLINGO_INSTALL_DEFAULT)
         install(
-                TARGETS ${targets}
-                EXPORT clingo-targets
-                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-            )
+            TARGETS ${clingo_TARGETS}
+            EXPORT clingo-targets
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        )
     endif()
 endfunction()

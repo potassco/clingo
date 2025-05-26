@@ -9,7 +9,7 @@ set(source
 
 add_executable(clingo-bin)
 target_sources(clingo-bin PRIVATE ${source})
-clingo_target_properties(clingo-bin bin)
+clingo_target_properties(TARGETS clingo-bin FOLDER bin TYPE default)
 set_target_properties(clingo-bin PROPERTIES
     OUTPUT_NAME clingo
 )
@@ -17,4 +17,3 @@ target_include_directories(clingo-bin PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 target_link_libraries(clingo-bin PRIVATE clingo clingo::python)
-clingo_install_target(clingo-bin binary)

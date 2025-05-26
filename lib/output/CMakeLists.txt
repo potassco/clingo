@@ -21,8 +21,7 @@ set(source
 add_library(clingo_output STATIC)
 target_sources(clingo_output PRIVATE ${header} ${source})
 add_library(clingo::output ALIAS clingo_output)
-clingo_target_properties(clingo_output lib)
+clingo_target_properties(TARGETS clingo_output FOLDER lib TYPE extra)
 target_include_directories(clingo_output
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(clingo_output PUBLIC clingo::core)
-clingo_install_target(clingo_output extra)

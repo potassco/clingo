@@ -35,16 +35,15 @@ set(test
 add_library(clingo_core STATIC)
 target_sources(clingo_core PRIVATE ${header} ${source})
 add_library(clingo::core ALIAS clingo_core)
-clingo_target_properties(clingo_core lib)
+clingo_target_properties(TARGETS clingo_core FOLDER lib TYPE extra)
 target_include_directories(clingo_core
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(clingo_core PUBLIC clingo::util tsl::hopscotch_map tsl::ordered_map PRIVATE imath::imath)
-clingo_install_target(clingo_core extra)
 
 if (CLINGO_BUILD_TESTS)
     add_executable(test_core)
     target_sources(test_core PRIVATE ${test})
-    clingo_target_properties(test_core test tests)
+    clingo_target_properties(TARGETS test_core FOLDER test SUBDIR tests)
     target_include_directories(test_core PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_core PRIVATE clingo::core Catch2::Catch2WithMain)
     catch_discover_tests(test_core)

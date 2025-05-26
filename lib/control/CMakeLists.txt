@@ -42,17 +42,16 @@ set(test
 add_library(clingo_control STATIC)
 target_sources(clingo_control PRIVATE ${header} ${source})
 add_library(clingo::control ALIAS clingo_control)
-clingo_target_properties(clingo_control lib)
+clingo_target_properties(TARGETS clingo_control FOLDER lib TYPE extra)
 target_include_directories(clingo_control PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 target_link_libraries(clingo_control PUBLIC clingo::input clingo::ground clingo::output libclasp)
-clingo_install_target(clingo_control extra)
 
 if(CLINGO_BUILD_TESTS)
     add_executable(test_control)
     target_sources(test_control PRIVATE ${test})
-    clingo_target_properties(test_control test tests)
+    clingo_target_properties(TARGETS test_control FOLDER test SUBDIR tests)
     target_include_directories(test_control PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_control PRIVATE clingo::control Catch2::Catch2WithMain)
     catch_discover_tests(test_control)
