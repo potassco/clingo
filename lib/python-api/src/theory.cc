@@ -46,6 +46,9 @@ class TheoryAssignment {
                 // NOLINTNEXTLINE
                 return {Symbol{symbol, false}, Symbol{value.symbol, false}};
             }
+            default: {
+                throw std::logic_error{"invalid type"};
+            }
         }
     }
 

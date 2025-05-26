@@ -27,6 +27,13 @@ cmake_dependent_option(CLINGO_BUILD_SHARED "build clingo as shared library" ON "
 cmake_dependent_option(CLINGO_USE_VERSION_SCRIPT "use a version script to hide C++ symbols" ON "CLINGO_BUILD_SHARED" OFF)
 cmake_dependent_option(CLINGO_USE_VISIBILITY "enable visibility attributes" ON "CLINGO_BUILD_SHARED" OFF)
 
+set(PYCLINGO_INSTALL "prefix" CACHE STRING
+    "Configure where to install the Python module. Can be set to \"user\" (to \
+    install in the user prefix), \"system\" (to install in the system \
+    \"prefix\"), or \"prefix\" (to install into the installation prefix).")
+set(PYCLINGO_INSTALL_DIR "" CACHE STRING
+    "Advanced variable to manually configure where to install the Python module.")
+
 if (CLINGO_USE_VISIBILITY)
     set(CMAKE_C_VISIBILITY_PRESET hidden)
     set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -54,6 +61,10 @@ if (DEFINED SKBUILD)
     if (EMSCRIPTEN)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -sSIDE_MODULE=1")
     endif()
+endif()
+
+if (NOT CLINGO_BUILD_WEB AND NOT DEFINED SKBUILD)
+    find_package(Python COMPONENTS Interpreter Development Development.Module)
 endif()
 
 set(CLINGO_INSTALL_DEFAULT OFF)

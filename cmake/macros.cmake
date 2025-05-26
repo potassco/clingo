@@ -106,12 +106,5 @@ function(clingo_install_target)
                 ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
                 INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
             )
-    elseif (("${install_type}" STREQUAL "default" OR "${install_type}" STREQUAL "wheel") AND CLINGO_INSTALL_WHEEL)
-        install(TARGETS ${targets}
-                RUNTIME DESTINATION .
-                LIBRARY DESTINATION .
-                ARCHIVE DESTINATION .
-                INCLUDES DESTINATION .
-            )
     endif()
 endfunction()
