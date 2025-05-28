@@ -24,7 +24,6 @@ requirements:
 
 build:
   number: {{ build }}
-  skip: True [win and vc<14]
 
 test:
   commands:
