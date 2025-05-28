@@ -112,7 +112,7 @@ class ParseHelper {
             if (!std::filesystem::is_directory(path)) {
                 if (seen_.emplace(path).second) {
                     fin_.open(rel);
-                    parser_.init(fin_, *store_->string(rel.c_str()));
+                    parser_.init(fin_, *store_->string(rel.string()));
                     process_(path.parent_path());
                 } else {
                     CLINGO_REPORT(*log_, info_file_included) << "file already included: " << rel;

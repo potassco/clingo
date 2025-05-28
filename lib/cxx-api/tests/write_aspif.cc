@@ -20,7 +20,7 @@ struct Fixture {
         ctl.parse_string(content);
         ctl.ground();
         auto tmp = TempFile{};
-        ctl.write_aspif(tmp.path().c_str(),
+        ctl.write_aspif(tmp.path().string(),
                         (symbols ? WriteAspifFlags::symbols : WriteAspifFlags::none) | WriteAspifFlags::preamble_auto);
         return tmp;
     }
@@ -31,7 +31,7 @@ struct Fixture {
 TEST_CASE_METHOD(Fixture, "write_aspif rule", "[cxx][write_aspif][rule]") {
     {
         auto tmp = parse("a. {b}. c :- b.");
-        ctl.parse_files({tmp.path().c_str()});
+        ctl.parse_files({tmp.path().string()});
     }
     {
         auto mcb = MCB(models);
@@ -46,7 +46,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif aggregate", "[cxx][write_aspif][aggregate
     ctl = Control(lib, {"0", "--trans-ext", "no"});
     {
         auto tmp = parse("{a;b;c}. :- 2 {a;b;c} 2.");
-        ctl.parse_files({tmp.path().c_str()});
+        ctl.parse_files({tmp.path().string()});
     }
     {
         auto mcb = MCB(models);
@@ -59,7 +59,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif aggregate", "[cxx][write_aspif][aggregate
 TEST_CASE_METHOD(Fixture, "write_aspif disjunction", "[cxx][write_aspif][disjunction]") {
     {
         auto tmp = parse("a | b | c. a :- b. b :- a.");
-        ctl.parse_files({tmp.path().c_str()});
+        ctl.parse_files({tmp.path().string()});
     }
     {
         auto mcb = MCB(models);
@@ -72,7 +72,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif disjunction", "[cxx][write_aspif][disjunc
 TEST_CASE_METHOD(Fixture, "write_aspif minimize", "[cxx][write_aspif][minimize]") {
     {
         auto tmp = parse("#minimize { 1:a; 2:b; 3:c }. 1 {a; b; c}. :- a, not b, not c. :- b, not a, not c.");
-        ctl.parse_files({tmp.path().c_str()});
+        ctl.parse_files({tmp.path().string()});
     }
     {
         auto mcb = MCB(models);
@@ -86,7 +86,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif project", "[cxx][write_aspif][project]") 
     ctl.config()["solve"]["project"] = "1";
     {
         auto tmp = parse("1 {a; b; c}. #show a/0. #project a/0. #project b/0.");
-        ctl.parse_files({tmp.path().c_str()});
+        ctl.parse_files({tmp.path().string()});
     }
     {
         auto mcb = MCB(models);
@@ -100,7 +100,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif output", "[cxx][write_aspif][output]") {
     bool symbols = GENERATE(false, true);
     {
         auto tmp = parse("1 {a; x}. #show a/0. #show b : x. #show c : a, x.", symbols);
-        ctl.parse_files({tmp.path().c_str()});
+        ctl.parse_files({tmp.path().string()});
     }
     {
         auto mcb = MCB(models);
@@ -113,7 +113,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif output", "[cxx][write_aspif][output]") {
 TEST_CASE_METHOD(Fixture, "write_aspif external", "[cxx][write_aspif][external]") {
     {
         auto tmp = parse("#external a. [true] #external b. [false] #external c. [free]");
-        ctl.parse_files({tmp.path().c_str()});
+        ctl.parse_files({tmp.path().string()});
     }
     {
         auto mcb = MCB(models);
@@ -130,7 +130,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif heuristic", "[cxx][write_aspif][heuristic
         auto tmp = parse("{a; b}.\n"
                          "#heuristic a. [1,true]\n"
                          "#heuristic b. [0,false]\n");
-        ctl.parse_files({tmp.path().c_str()});
+        ctl.parse_files({tmp.path().string()});
     }
     {
         auto mcb = MCB(models);
@@ -145,7 +145,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif edge", "[cxx][write_aspif][edge]") {
         auto tmp = parse("{a; b}.\n"
                          "#edge (a,b) : a.\n"
                          "#edge (b,a) : b.\n");
-        ctl.parse_files({tmp.path().c_str()});
+        ctl.parse_files({tmp.path().string()});
     }
     {
         auto mcb = MCB(models);
@@ -163,7 +163,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif theory", "[cxx][write_aspif][theory]") {
                          "}.\n"
                          "&p{ 1,f(1+2),[1],{2},(3,),(4) }.\n"
                          "&p{} < 2.\n");
-        ctl.parse_files({tmp.path().c_str()});
+        ctl.parse_files({tmp.path().string()});
     }
     auto atoms = std::vector<std::string>{};
     for (auto const &atom : ctl.base().theory()) {

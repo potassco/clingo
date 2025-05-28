@@ -50,6 +50,7 @@ target_link_libraries(clingo_python PRIVATE pybind11::pybind11 clingo)
 
 # the standalone module
 pybind11_add_module(clingo_python_module "src/module.cc")
+set_target_properties(clingo_python_module PROPERTIES IMPORT_LIBRARY "clingo_python_module.lib")
 clingo_target_properties(TARGETS clingo_python_module FOLDER lib SUBDIR python)
 set_target_properties(clingo_python_module PROPERTIES OUTPUT_NAME "clingo")
 target_link_libraries(clingo_python_module PRIVATE clingo clingo_python)

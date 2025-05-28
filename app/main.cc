@@ -5,6 +5,7 @@
 #include <cstring>
 #include <span>
 #include <vector>
+#include <iterator>
 
 #ifndef CLINGO_PYTHON_ENABLED
 #define CLINGO_PYTHON_ENABLED 0

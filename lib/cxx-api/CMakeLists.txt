@@ -89,7 +89,7 @@ if(CLINGO_BUILD_TESTS)
     clingo_target_properties(TARGETS test_cxx-app FOLDER test SUBDIR tests)
     target_include_directories(test_cxx-app PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_link_libraries(test_cxx-app PRIVATE clingo::cxx-api Catch2::Catch2WithMain)
-    catch_discover_tests(test_cxx-app)
+    catch_discover_tests(test_cxx-app PROPERTIES)
 
     add_executable(test_cxx-app-error)
     target_sources(test_cxx-app-error PRIVATE "tests/app_error.cc")

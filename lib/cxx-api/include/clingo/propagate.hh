@@ -83,8 +83,12 @@ class Assignment {
 
     [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_assignment_size>(assignment_); }
 
-    [[nodiscard]] auto operator[](size_type size) const -> value_type {
+    [[nodiscard]] auto at(size_type size) const -> value_type {
         return Detail::call<clingo_assignment_at>(assignment_, size);
+    }
+
+    [[nodiscard]] auto operator[](size_type size) const -> value_type {
+        return at(size);
     }
 
     [[nodiscard]] auto decision(ProgramId level) const -> SolverLiteral {

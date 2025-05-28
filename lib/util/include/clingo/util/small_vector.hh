@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <memory>
 #include <utility>
+#include <iterator>
 
 namespace CppClingo::Util {
 
