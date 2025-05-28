@@ -80,4 +80,5 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) -> int {
     } catch (std::exception const &e) {
         printf("ERROR: %s\n", e.what());
     }
+    return 0;
 }
