@@ -976,7 +976,7 @@ auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
             }
             case CppClingo::SymbolType::tuple: {
                 auto args = sym.args();
-                auto size = static_cast<ssize_t>(buf_.size());
+                auto size = static_cast<std::ptrdiff_t>(buf_.size());
                 for (auto const &arg : args) {
                     buf_.push_back(output(arg).index);
                 }
@@ -993,7 +993,7 @@ auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
             }
             case CppClingo::SymbolType::function: {
                 auto args = sym.args();
-                auto size = static_cast<ssize_t>(buf_.size());
+                auto size = static_cast<std::ptrdiff_t>(buf_.size());
                 // NOTE: conversion from string to symbol is fast
                 size_t name = output(CppClingo::SymbolStore::str_ref(sym.name())).index;
                 for (auto const &arg : args) {

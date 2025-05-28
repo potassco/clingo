@@ -572,7 +572,7 @@ class ParserState {
     //! Add a statement.
     void push_stm(Stm stm) {
         // Note: insertion is avoidable (but should also not be harmful here)
-        stms_.insert(std::next(stms_.begin(), static_cast<ssize_t>(mark_)), std::move(stm));
+        stms_.insert(std::next(stms_.begin(), static_cast<std::ptrdiff_t>(mark_)), std::move(stm));
         ++mark_;
     }
 

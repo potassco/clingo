@@ -43,7 +43,7 @@ auto AtomDisjunction::elems() const -> std::span<size_t const> {
 }
 
 auto AtomDisjunction::todo() -> std::span<size_t const> {
-    return std::span{std::next(elems_.begin(), static_cast<ssize_t>(propagated_)), elems_.end()};
+    return std::span{std::next(elems_.begin(), static_cast<std::ptrdiff_t>(propagated_)), elems_.end()};
 }
 
 auto AtomDisjunction::uid() const -> std::optional<size_t> {

@@ -86,14 +86,14 @@ class OutputBuffer {
 
     //! Append a string to the buffer.
     void append(char const *str) {
-        auto n = static_cast<ssize_t>(std::strlen(str));
+        auto n = static_cast<std::ptrdiff_t>(std::strlen(str));
         std::copy(str, std::next(str, n), ensure_(n));
         size_ += n;
     }
 
     //! Append a string to the buffer.
     void append(std::string_view str) {
-        auto n = static_cast<ssize_t>(str.length());
+        auto n = static_cast<std::ptrdiff_t>(str.length());
         std::ranges::copy(str, ensure_(n));
         size_ += n;
     }
@@ -118,7 +118,7 @@ class OutputBuffer {
     //! Append n bytes at the end of the buffer.
     //!
     //! The returned span should be filled by the calling code.
-    auto reserve(ssize_t n) -> std::span<char> {
+    auto reserve(std::ptrdiff_t n) -> std::span<char> {
         auto *begin = ensure_(n);
         size_ += n;
         return {begin, std::next(begin, n)};
@@ -127,7 +127,7 @@ class OutputBuffer {
     //! Trim trailing zeros.
     //!
     //! @note Workaround for mp_int_string_len providing too high length values.
-    void trim_zero(ssize_t len) {
+    void trim_zero(std::ptrdiff_t len) {
         auto sp = std::span{buf_.data(), static_cast<size_t>(size_)};
         auto ie = sp.end();
         auto ib = sp.begin() + (size_ - len);
@@ -155,7 +155,7 @@ class OutputBuffer {
 
     //! Append the given double to the buffer.
     friend auto operator<<(OutputBuffer &out, double value) -> OutputBuffer & {
-        static constexpr ssize_t n = 32;
+        static constexpr std::ptrdiff_t n = 32;
         auto *begin = out.ensure_(n);
         auto *end = std::next(begin, n);
         auto [res, ec] = std::to_chars(begin, end, value);
@@ -170,9 +170,9 @@ class OutputBuffer {
     }
 
   private:
-    auto limit_() -> char * { return std::next(buf_.data(), static_cast<ssize_t>(buf_.size())); }
+    auto limit_() -> char * { return std::next(buf_.data(), static_cast<std::ptrdiff_t>(buf_.size())); }
 
-    auto ensure_(ssize_t n) -> char * {
+    auto ensure_(std::ptrdiff_t n) -> char * {
         auto m = size_ + n;
         assert(n >= 0 && m >= 0);
         if (buf_.size() < static_cast<size_t>(m)) {
@@ -183,7 +183,7 @@ class OutputBuffer {
     }
 
     std::vector<char> buf_;
-    ssize_t size_ = 0;
+    std::ptrdiff_t size_ = 0;
     FILE *out_;
 };
 

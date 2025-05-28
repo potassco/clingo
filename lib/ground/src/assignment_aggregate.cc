@@ -68,8 +68,8 @@ void AtomAssignAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact
             } else {
                 auto m = std::ssize(vals);
                 auto n = std::ssize(vals);
-                auto p = static_cast<ssize_t>(propagated_vals_);
-                for (auto i = ssize_t{0}; i < n; ++i) {
+                auto p = static_cast<std::ptrdiff_t>(propagated_vals_);
+                for (auto i = std::ptrdiff_t{0}; i < n; ++i) {
                     if (i == p) {
                         m = std::ssize(vals);
                     }
@@ -101,7 +101,7 @@ void AtomAssignAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact
 
 auto AtomAssignAggr::todo_values() -> std::variant<NumberSpan, SymbolSpan> {
     return std::visit(
-        [p = static_cast<ssize_t>(propagated_vals_)](auto const &x) -> std::variant<NumberSpan, SymbolSpan> {
+        [p = static_cast<std::ptrdiff_t>(propagated_vals_)](auto const &x) -> std::variant<NumberSpan, SymbolSpan> {
             return std::span{std::next(x.begin(), p), x.end()};
         },
         values_);
@@ -136,7 +136,7 @@ void AtomAssignAggr::dequeue() {
 }
 
 auto AtomAssignAggr::todo() -> std::span<size_t const> {
-    return std::span{elems_.begin() + static_cast<ssize_t>(propagated_), elems_.end()};
+    return std::span{elems_.begin() + static_cast<std::ptrdiff_t>(propagated_), elems_.end()};
 }
 
 // definition of BaseAssignAggr

@@ -121,7 +121,7 @@ template <typename T, typename A> class type_caster<PyClingo::Iterable<T, A>> {
             if (!py_value) {
                 return {};
             }
-            PyList_SET_ITEM(l.ptr(), static_cast<ssize_t>(index++), py_value.release().ptr());
+            PyList_SET_ITEM(l.ptr(), static_cast<std::ptrdiff_t>(index++), py_value.release().ptr());
         }
         return l.release();
     }
@@ -157,7 +157,7 @@ template <typename T> struct type_caster<std::span<T>> {
             if (!py_item) {
                 return {};
             }
-            PyList_SET_ITEM(result.ptr(), static_cast<ssize_t>(index++), py_item.release().ptr());
+            PyList_SET_ITEM(result.ptr(), static_cast<std::ptrdiff_t>(index++), py_item.release().ptr());
         }
         return result.release();
     }

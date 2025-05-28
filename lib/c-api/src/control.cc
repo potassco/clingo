@@ -38,7 +38,7 @@ class Context : public CppClingo::Ground::ScriptCallback {
         CLINGO_TRY {
             auto *out = static_cast<CppClingo::SymbolVec *>(data);
             auto const *it = cpp_cast(symbols);
-            out->insert(out->end(), it, std::next(it, static_cast<ssize_t>(symbols_size)));
+            out->insert(out->end(), it, std::next(it, static_cast<std::ptrdiff_t>(symbols_size)));
         }
         CLINGO_CATCH;
     }

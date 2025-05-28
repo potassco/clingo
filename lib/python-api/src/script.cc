@@ -79,7 +79,7 @@ class MainScript {
         auto *self = cast(data);
         CLINGO_TRY {
             if (self->py_) {
-                auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
+                auto args = transform(arguments, std::next(arguments, static_cast<std::ptrdiff_t>(arguments_size)),
                                       [](auto sym) { return Symbol{sym, true}; });
                 auto gil = py::gil_scoped_acquire{};
                 auto syms = self->py_->call(self->get_lib(lib), {name, name_size}, args);
@@ -189,7 +189,7 @@ class Script {
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data) -> bool {
         auto &self = get_self(data);
         CLINGO_TRY {
-            auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
+            auto args = transform(arguments, std::next(arguments, static_cast<std::ptrdiff_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
             auto gil = py::gil_scoped_acquire{};
             auto syms = self.call(get_lib(lib), {name, name_size}, args).cast<std::variant<SymbolVec, Symbol>>();

@@ -211,7 +211,7 @@ struct BindVals {
     void match(size_t vars, size_t begin, SymbolVec::iterator &it) {
         it = symbols_.begin();
         if (begin > 0) {
-            auto n = static_cast<ssize_t>(vars + 1);
+            auto n = static_cast<std::ptrdiff_t>(vars + 1);
             std::advance(it, offset_);
             for (; it != symbols_.end() && Symbol::to_rep(*it) < begin; it += n, offset_ += n) {
             }

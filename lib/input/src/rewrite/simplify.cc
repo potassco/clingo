@@ -250,7 +250,7 @@ class SimplifyTerm {
     //! Otherwise, each element is either a projection, a symbol if it could
     //! evaluated right away, or a term in case of some other simplification.
     auto handle_tuple(SimplifyTermFlags flags, ArgumentTuple const &tuple, bool &constant) const -> TupleResult {
-        auto n = ssize_t{0};
+        auto n = std::ptrdiff_t{0};
 
         TupleResult res_tuple = TupleResultUnchanged{};
 

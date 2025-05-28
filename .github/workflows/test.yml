@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - wip
+      - wip-20
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          #- os: ubuntu-latest
+          #  generator: "Ninja Multi-Config"
+          #- os: macos-latest
+          #  generator: "Ninja Multi-Config"
+          - os: windows-latest
+            generator: "Visual Studio 17 2022"
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: build-env
+          use-mamba: true
+
+      - name: Install dependencies
+        run: |
+          $pkgs = @('cmake', 'ninja', 'pytest', 'python', 'c-compiler', 'cxx-compiler')
+          if (-not $IsWindows) {
+            $pkgs += 're2c'
+          }
+          mamba install $pkgs
+
+      - name: Install re2c
+        if: runner.os == 'Windows'
+        run: |
+          git clone https://github.com/skvadrik/re2c.git
+          cmake -S re2c -B re2c/build -G "${{ matrix.generator }}" `
+            -DCMAKE_INSTALL_PREFIX="$env:CONDA_PREFIX" `
+            -DRE2C_BUILD_RE2D=OFF `
+            -DRE2C_BUILD_RE2GO=OFF `
+            -DRE2C_BUILD_RE2HS=OFF `
+            -DRE2C_BUILD_RE2JAVA=OFF `
+            -DRE2C_BUILD_RE2JS=OFF `
+            -DRE2C_BUILD_RE2OCAML=OFF `
+            -DRE2C_BUILD_RE2PY=OFF `
+            -DRE2C_BUILD_RE2RUST=OFF `
+            -DRE2C_BUILD_RE2SWIFT=OFF `
+            -DRE2C_BUILD_RE2V=OFF `
+            -DRE2C_BUILD_RE2ZIG=OFF
+          cmake --build re2c/build --config Release
+          cmake --install re2c/build --config Release
+
+      - name: Configure (CMake)
+        run: |
+          if ($IsMacOS) {
+              $env:CC = "$env:CONDA_PREFIX/bin/clang"
+              $env:CXX = "$env:CONDA_PREFIX/bin/clang++"
+          }
+          cmake -S . -B build -G "${{ matrix.generator }}" `
+            -DCMAKE_INSTALL_PREFIX="$env:CONDA_PREFIX" `
+            -DCLINGO_BUILD_TESTS=On `
+            -DCLINGO_BUILD_APP=On `
+            -DCLINGO_BUILD_EXAMPLES=On `
+            -DCLASP_BUILD_TESTS=On `
+            -DCLASP_BUILD_EXAMPLES=On `
+            -DLIB_POTASSCO_BUILD_TESTS=On
+
+      - name: Build
+        run: |
+          cmake --build build --config Release
+
+      - name: Test
+        run: |
+          ctest --test-dir build -C Release --verbose
+
+      - name: Install
+        run: |
+          cmake --install build --config Release
+          clingo --version
+          clasp --version
+          lpconvert --version

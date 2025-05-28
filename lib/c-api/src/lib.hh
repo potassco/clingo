@@ -27,7 +27,7 @@ class fill {
   public:
     fill(size_t n, char c = ' ') : n_{n}, c_{c} {}
     friend auto operator<<(CppClingo::Util::OutputBuffer &out, fill const &x) -> CppClingo::Util::OutputBuffer & {
-        std::ranges::fill(out.reserve(static_cast<ssize_t>(x.n_)), x.c_);
+        std::ranges::fill(out.reserve(static_cast<std::ptrdiff_t>(x.n_)), x.c_);
         return out;
     }
 

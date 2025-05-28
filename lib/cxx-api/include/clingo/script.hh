@@ -52,7 +52,7 @@ static constexpr clingo_script_t c_script = {
        void *symbol_callback_data, void *data) -> bool {
         CLINGO_TRY {
             auto &self = *static_cast<Script *>(data);
-            auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
+            auto args = transform(arguments, std::next(arguments, static_cast<std::ptrdiff_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
             auto cpp_lib = Library{lib, true};
             // TODO: string_view

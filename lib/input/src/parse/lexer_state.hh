@@ -58,7 +58,7 @@ class LexerState {
         buffer_.assign(in.begin(), in.end());
         buffer_.resize(in.size() + padding, '\0');
         token_ = column_ = cursor_ = marker_ = ctxmarker_ = buffer_.data();
-        limit_ = std::next(buffer_.data(), static_cast<ssize_t>(in.size() + padding));
+        limit_ = std::next(buffer_.data(), static_cast<std::ptrdiff_t>(in.size() + padding));
     }
 
     //! Move construct a lexer state.
@@ -177,7 +177,7 @@ inline auto LexerState::fill(size_t n, size_t padding) -> bool {
         limit_ = buffer_.data() + (limit_ - buffer);
     }
 
-    auto read = static_cast<ssize_t>(buffer_.size() - used - padding);
+    auto read = static_cast<std::ptrdiff_t>(buffer_.size() - used - padding);
     limit_ += in_->read(limit_, read).gcount();
 
     if (limit_ < buffer_.data() + buffer_.size() - padding) {

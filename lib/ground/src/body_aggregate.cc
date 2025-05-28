@@ -125,7 +125,7 @@ auto AtomBdAggr::elems() const -> std::span<size_t const> {
 }
 
 auto AtomBdAggr::todo() -> std::span<size_t const> {
-    return std::span{elems_.begin() + static_cast<ssize_t>(propagated_), elems_.end()};
+    return std::span{elems_.begin() + static_cast<std::ptrdiff_t>(propagated_), elems_.end()};
 }
 
 auto AtomBdAggr::uid() const -> std::optional<size_t> {

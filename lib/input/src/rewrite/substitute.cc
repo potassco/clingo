@@ -44,7 +44,7 @@ class MapParams : public Transformer<MapParams> {
         std::optional<std::vector<std::variant<TermType, Symbol>>> res_args;
         bool constant = true;
         {
-            ssize_t i = 0;
+            std::ptrdiff_t i = 0;
             for (auto arg : args) {
                 auto res_arg = accept<plain_term>(loc, arg);
                 if (res_arg.has_value() || res_args.has_value()) {

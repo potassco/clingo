@@ -54,12 +54,12 @@ class AssignmentAnalyzer {
                 return false;
             });
         }
-        return {trail_.begin() + static_cast<ssize_t>(extra), trail_.end()};
+        return {trail_.begin() + static_cast<std::ptrdiff_t>(extra), trail_.end()};
     }
 
     //! Undo the last propagate.
     void backtrack() {
-        for (auto it = trail_.begin() + static_cast<ssize_t>(last_), ie = trail_.end(); it != ie; ++it) {
+        for (auto it = trail_.begin() + static_cast<std::ptrdiff_t>(last_), ie = trail_.end(); it != ie; ++it) {
             vars_[*it].bound = false;
         }
         trail_.resize(last_);
