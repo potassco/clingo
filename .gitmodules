@@ -12,10 +12,10 @@
 	url = ../../pybind/pybind11.git
 [submodule "doc/doxygen-awesome-css"]
 	path = doc/doxygen-awesome-css
-	url = https://github.com/jothepro/doxygen-awesome-css.git
+	url = ../../jothepro/doxygen-awesome-css.git
 [submodule "third_party/clasp"]
 	path = third_party/clasp
-	url = ../../potassco/clasp
+	url = ../../potassco/clasp.git
 [submodule "third_party/pytest-cmake"]
 	path = third_party/pytest-cmake
-	url = ../../python-cmake/pytest-cmake
+	url = ../../python-cmake/pytest-cmake.git
