@@ -47,7 +47,6 @@ jobs:
             pkgs+=(re2c)
           fi
           mamba install "${pkgs[@]}"
-          ls -l "$CONDA_PREFIX/lib"
 
       - name: Install re2c
         if: runner.os == 'Windows'
