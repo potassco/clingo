@@ -70,10 +70,6 @@ jobs:
 
       - name: Configure
         run: |
-          #if [[ "$RUNNER_OS" == "macOS" ]]; then
-          #  export CC="$CONDA_PREFIX/bin/clang"
-          #  export CXX="$CONDA_PREFIX/bin/clang++"
-          #fi
           cmake -S . -B build -G "${{ matrix.generator }}" \
             -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
             -DCLINGO_BUILD_TESTS=On \
@@ -85,7 +81,6 @@ jobs:
 
       - name: Build
         run: |
-          printenv
           cmake --build build --config Release
 
       - name: Test
