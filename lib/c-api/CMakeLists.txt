@@ -61,6 +61,15 @@ endif()
 add_library(clingo ${libtype})
 target_sources(clingo PRIVATE ${header} ${source})
 clingo_target_properties(TARGETS clingo FOLDER lib TYPE default)
+if (WIN32 AND CLINGO_BUILD_SHARED)
+add_custom_command(
+    TARGET clingo POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:clingo>/tests"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:clingo>/python"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "$<TARGET_FILE_DIR:clingo>/tests/"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "$<TARGET_FILE_DIR:clingo>/python/"
+)
+endif()
 target_include_directories(clingo PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>

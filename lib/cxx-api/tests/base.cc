@@ -3,6 +3,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
+
 namespace Clingo::Test {
 
 namespace {

@@ -9,7 +9,7 @@ extern "C" {
 
 // NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 
-CLINGO_VISIBILITY_DEFAULT bool clingo_register_python(clingo_lib_t *lib);
+bool clingo_register_python(clingo_lib_t *lib);
 
 // NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 

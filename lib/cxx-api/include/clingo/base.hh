@@ -54,8 +54,10 @@ class AtomBase {
     [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_atom_base_size>(base_); }
 
     [[nodiscard]] auto at(size_t index) const -> value_type {
-        auto atom = Atom{base_, index};
-        return index < size() ? value_type{atom.symbol(), atom} : throw std::out_of_range{"index out of range"};
+        if (auto atom = Atom{base_, index}; index < size()) {
+            return value_type{atom.symbol(), atom};
+        }
+        throw std::out_of_range{"index out of range"};
     }
 
     [[nodiscard]] auto contains(key_type const &symbol) const -> bool {

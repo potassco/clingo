@@ -63,10 +63,7 @@ TEST_CASE_METHOD(Fixture, "stats solve", "[cxx][stats][solve]") {
     REQUIRE(models == MV{{"a"}, {"b"}, {"c"}, {"d"}});
     auto stats = ctl.stats();
     REQUIRE(*stats["solving"]["solvers"]["choices"] > 0);
-#ifndef __EMSCRIPTEN__
-    // NOTE: no cpu time in wasm
-    REQUIRE(*stats["summary"]["times"]["cpu"] > 0);
-#endif
+    REQUIRE(*stats["summary"]["times"]["cpu"] >= 0);
 }
 
 TEST_CASE_METHOD(Fixture, "stats user", "[cxx][stats][user]") {

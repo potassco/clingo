@@ -7,6 +7,8 @@
 #include "cbs.hh"
 #include "tempfile.hh"
 
+#include <array>
+
 namespace Clingo::Test {
 
 class AppTest : public App {
@@ -47,7 +49,8 @@ class AppTest : public App {
 TEST_CASE("app", "[cxx][app]") {
     auto tmp = TempFile{"1 {a; b; c(1/0)}."};
     auto app = AppTest{};
-    auto arg = std::to_array<std::string_view>({tmp.path().c_str(), "--outf=3", "--test=x", "--flag", "0"});
+    auto str = tmp.path().string();
+    auto arg = std::array<std::string_view, 5>({str, "--outf=3", "--test=x", "--flag", "0"});
 
     auto logger = [&](MessageCode code, std::string_view msg) {
         if (code == MessageCode::operation_undefined) {

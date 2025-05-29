@@ -15,10 +15,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          #- os: ubuntu-latest
-          #  generator: "Ninja Multi-Config"
-          #- os: macos-latest
-          #  generator: "Ninja Multi-Config"
+          - os: ubuntu-latest
+            generator: "Ninja Multi-Config"
+          - os: macos-latest
+            generator: "Ninja Multi-Config"
           - os: windows-latest
             generator: "Visual Studio 17 2022"
     defaults:
@@ -26,12 +26,12 @@ jobs:
         shell: pwsh
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Set up Miniconda
+      - name: Miniconda
         uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-version: latest
@@ -40,7 +40,7 @@ jobs:
           activate-environment: build-env
           use-mamba: true
 
-      - name: Install dependencies
+      - name: Dependencies
         run: |
           $pkgs = @('cmake', 'ninja', 'pytest', 'python', 'c-compiler', 'cxx-compiler')
           if (-not $IsWindows) {
@@ -68,7 +68,7 @@ jobs:
           cmake --build re2c/build --config Release
           cmake --install re2c/build --config Release
 
-      - name: Configure (CMake)
+      - name: Configure
         run: |
           if ($IsMacOS) {
               $env:CC = "$env:CONDA_PREFIX/bin/clang"
@@ -89,7 +89,7 @@ jobs:
 
       - name: Test
         run: |
-          ctest --test-dir build -C Release --verbose
+          ctest --test-dir build -C Release --output-on-failure
 
       - name: Install
         run: |

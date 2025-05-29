@@ -7,7 +7,11 @@
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#ifndef _WIN32
 #include <unistd.h>
+#else
+#define isatty(X) false
+#endif
 
 namespace CppClingo {
 

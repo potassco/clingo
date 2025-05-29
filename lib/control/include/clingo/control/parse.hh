@@ -108,20 +108,22 @@ class ParseHelper {
     auto process_path_(std::filesystem::path path, bool required) -> bool {
         if (std::filesystem::exists(path)) {
             path = std::filesystem::canonical(path);
-            auto rel = path.lexically_relative(root_);
+            auto rel = path.root_name() == root_.root_name() ? path.lexically_relative(root_) : path;
             if (!std::filesystem::is_directory(path)) {
                 if (seen_.emplace(path).second) {
                     fin_.open(rel);
-                    parser_.init(fin_, *store_->string(rel.c_str()));
+                    parser_.init(fin_, *store_->string(rel.string()));
                     process_(path.parent_path());
                 } else {
                     CLINGO_REPORT(*log_, info_file_included) << "file already included: " << rel;
                 }
-            } else {
+                return true;
+            }
+            if (required) {
                 CLINGO_REPORT(*log_, error) << "cannot include directory: " << rel;
                 parse_error_ = true;
             }
-            return true;
+            return false;
         }
         if (required) {
             CLINGO_REPORT(*log_, error) << "file not found: " << path;

@@ -6,8 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef _MSC_VER
 #define GC(f) __attribute__((cleanup(f)))
-
+#else
+#define GC(f)
+#endif
 void free_lib(clingo_lib_t **lib) {
     clingo_lib_release(*lib);
 }

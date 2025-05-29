@@ -279,8 +279,9 @@ c
         auto hnd = ctl.solve(mcb);
         REQUIRE(hnd.get().satisfiable());
     }
+    const auto *res = R"(p(#inf,#sup,"a\"b\nc",f(1),(1,),()))";
     REQUIRE(models == std::vector<std::vector<std::string>>{
-                          {R"(p(#inf,#sup,"a\"b\nc",f(1),(1,),()))"},
+                          {res},
                       });
 }
 

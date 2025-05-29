@@ -30,8 +30,10 @@ auto AtomBase::size() const -> size_t {
 }
 
 auto AtomBase::at(size_t index) const -> value_type {
-    auto atom = Atom{base_, index};
-    return index < size() ? value_type{atom.symbol(), atom} : throw py::index_error{"index out of range"};
+    if (auto atom = Atom{base_, index}; index < size()) {
+        return value_type{atom.symbol(), atom};
+    }
+    throw py::index_error{"index out of range"};
 }
 
 auto AtomBase::get(key_type const &symbol, std::optional<mapped_type> def) const -> std::optional<mapped_type> {
@@ -76,8 +78,10 @@ auto TermBase::size() const -> size_t {
 }
 
 auto TermBase::at(size_t index) const -> value_type {
-    auto term = Term{*base_, index};
-    return index < size() ? value_type{term.symbol(), term} : throw py::index_error{"index out of range"};
+    if (auto term = Term{*base_, index}; index < size()) {
+        return value_type{term.symbol(), term};
+    }
+    throw py::index_error{"index out of range"};
 }
 
 auto TermBase::contains(key_type const &symbol) const -> bool {

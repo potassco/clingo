@@ -567,6 +567,9 @@ enum class ParseType : clingo_ast_parse_type_t {
 class Scanner {
   public:
     struct sentinel {};
+
+    class iterator;
+    friend auto operator==(iterator const &a, [[maybe_unused]] sentinel const &b) -> bool;
     class iterator {
       public:
         using iterator_category = std::input_iterator_tag;

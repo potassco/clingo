@@ -1,7 +1,9 @@
 #include <clingo/app.hh>
-#include <utility>
 
 #include "tempfile.hh"
+
+#include <array>
+#include <utility>
 
 namespace Clingo::Test {
 
@@ -74,8 +76,9 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) -> int {
         auto lib = Library{};
         auto app = Test::ErrorApp{str};
         auto tmp = Test::TempFile{"a."};
-        main(lib, {"--test", "value", tmp.path().c_str()}, &app);
+        main(lib, {"--test", "value", tmp.path().string()}, &app);
     } catch (std::exception const &e) {
         printf("ERROR: %s\n", e.what());
     }
+    return 0;
 }

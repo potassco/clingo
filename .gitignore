@@ -20,3 +20,6 @@ CMakeLists.txt.user
 __pycache__
 compile_commands.json
 wheelhouse
+/.vs
+/out/build/x64-Debug
+/CMakeSettings.json

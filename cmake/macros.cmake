@@ -34,8 +34,10 @@ function(clingo_target_properties)
     cmake_parse_arguments(clingo "${options}" "${single_values}" "${multi_values}" ${ARGV})
 
     set(binary_subdir "bin")
+    set(library_subdir "lib")
     if(clingo_SUBDIR)
         set(binary_subdir "bin/${clingo_SUBDIR}")
+        set(library_subdir "lib/${clingo_SUBDIR}")
     endif()
 
     get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -50,9 +52,8 @@ function(clingo_target_properties)
         POSITION_INDEPENDENT_CODE ON
         RUNTIME_OUTPUT_DIRECTORY "${base_dir}/${binary_subdir}"
         LIBRARY_OUTPUT_DIRECTORY "${base_dir}/${binary_subdir}"
-        ARCHIVE_OUTPUT_DIRECTORY "${base_dir}/lib"
-        PDB_OUTPUT_DIRECTORY "${base_dir}/bin"
-    )
+        ARCHIVE_OUTPUT_DIRECTORY "${base_dir}/${library_subdir}"
+        PDB_OUTPUT_DIRECTORY "${base_dir}/${binary_subdir}")
     endif()
 
     if(clingo_TYPE STREQUAL "extra" AND CLINGO_INSTALL_EXTRA)

@@ -1,5 +1,10 @@
 #include <clingo/ast.h>
 
+#ifdef _WIN32
+extern "C" auto clingo_ast_type_info_yaml() -> char const * {
+    return "not available";
+}
+#else
 extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     return R"yaml(unary_operator:
   type: enum
@@ -1194,3 +1199,4 @@ statement_comment:
       doc: The type of the comment.
 )yaml";
 }
+#endif

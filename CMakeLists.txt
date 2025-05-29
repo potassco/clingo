@@ -6,10 +6,10 @@ string(REGEX REPLACE "#define CLINGO_VERSION[ \t]+\"([^\"]+)\"" "\\1" CLINGO_VER
 project(CLINGO VERSION "${CLINGO_VERSION}" LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_EXTENSIONS OFF)
+set(CMAKE_C_EXTENSIONS ON)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -95,6 +95,10 @@ endif()
 
 if (CLINGO_PROFILE)
     find_package(Gperftools REQUIRED)
+endif()
+
+if (MSVC)
+    add_compile_options(/bigobj)
 endif()
 
 find_package(RE2C "2.0" REQUIRED)

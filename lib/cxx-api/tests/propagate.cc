@@ -9,7 +9,9 @@
 
 #include "cbs.hh"
 
+#include <array>
 #include <barrier>
+#include <mutex>
 
 namespace Clingo::Test {
 

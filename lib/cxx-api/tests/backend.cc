@@ -6,6 +6,8 @@
 
 #include "cbs.hh"
 
+#include <array>
+
 namespace Clingo::Test {
 
 namespace {
