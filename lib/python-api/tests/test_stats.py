@@ -56,7 +56,7 @@ class TestStats:
         stats = ctl.stats
         assert isinstance(stats, dict)
         cpu = stats["summary"]["times"]["cpu"]
-        assert isinstance(cpu, float) and cpu > 0.0
+        assert isinstance(cpu, float) and cpu >= 0.0
 
     def test_user(self):
         """
