@@ -47,6 +47,7 @@ jobs:
             $pkgs += 're2c'
           }
           mamba install $pkgs
+          Get-ChildItem -Path $env:CONDA_PREFIX/lib
 
       - name: Install re2c
         if: runner.os == 'Windows'
@@ -85,6 +86,7 @@ jobs:
 
       - name: Build
         run: |
+          Get-ChildItem Env:
           cmake --build build --config Release
 
       - name: Test
