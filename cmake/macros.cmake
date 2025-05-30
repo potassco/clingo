@@ -41,19 +41,19 @@ function(clingo_target_properties)
     endif()
 
     get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-    set(base_dir "${CMAKE_BINARY_DIR}")
     if(is_multi_config)
-        set(base_dir "${base_dir}/$<CONFIG>")
+        set(binary_subdir "${binary_subdir}/$<CONFIG>")
+        set(library_subdir "${library_subdir}/$<CONFIG>")
     endif()
 
     if (clingo_FOLDER)
         set_target_properties(${clingo_TARGETS} PROPERTIES
         FOLDER "${clingo_FOLDER}"
         POSITION_INDEPENDENT_CODE ON
-        RUNTIME_OUTPUT_DIRECTORY "${base_dir}/${binary_subdir}"
-        LIBRARY_OUTPUT_DIRECTORY "${base_dir}/${binary_subdir}"
-        ARCHIVE_OUTPUT_DIRECTORY "${base_dir}/${library_subdir}"
-        PDB_OUTPUT_DIRECTORY "${base_dir}/${binary_subdir}")
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${binary_subdir}"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${binary_subdir}"
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${library_subdir}"
+        PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${binary_subdir}")
     endif()
 
     if(clingo_TYPE STREQUAL "extra" AND CLINGO_INSTALL_EXTRA)
