@@ -9,7 +9,7 @@ set(source
 
 add_executable(clingo-bin)
 target_sources(clingo-bin PRIVATE ${source})
-clingo_target_properties(TARGETS clingo-bin FOLDER bin TYPE default)
+clingo_target_properties(TARGETS clingo-bin FOLDER exe TYPE default)
 set_target_properties(clingo-bin PROPERTIES
     OUTPUT_NAME clingo
 )
