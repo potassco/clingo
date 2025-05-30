@@ -13,11 +13,11 @@ requirements:
   build:
   - cmake
   - ninja
-  - re2c
-  - pytest
+  - re2c  # [not win]
   - {{ compiler('c') }}
   - {{ compiler('cxx') }}
   host:
+  - pytest
   - python
   run:
   - python

@@ -1,0 +1,114 @@
+name: Conda
+
+on:
+  workflow_dispatch:
+    inputs:
+      is_release:
+        description: "Release build"
+        required: true
+        type: boolean
+      build_number:
+        description: "Build number"
+        required: true
+        type: string
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Version
+        shell: bash -l {0}
+        run: |
+          VERSION=$(python -c "import re; print(next(re.finditer(r'CLINGO_VERSION \"([0-9.]+)\"', open('lib/c-api/include/clingo/core.h').read())).group(1))")
+          echo "VERSION_NUMBER=$VERSION" >> $GITHUB_ENV
+
+      - name: Build number
+        shell: bash -l {0}
+        run: |
+          if [ "${{ inputs.build_number }}" == "auto" ]; then
+            echo "BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
+          else
+            echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
+          fi
+
+      - name: Windows re2c
+        if: ${{ runner.os == 'windows' }}
+        shell: powershell
+        run: |
+          choco install re2c
+
+      - name: MacOS SDK
+        if: ${{ runner.os == 'macos' }}
+        shell: bash -l {0}
+        run: |
+          curl -LO https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz
+          sudo tar xf MacOSX11.3.sdk.tar.xz -C /opt
+
+      - name: Conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: conda-build
+          auto-update-conda: true
+
+      - name: Setup
+        shell: bash -l {0}
+        run: |
+          conda install conda-build
+
+      - name: Build
+        shell: bash -l {0}
+        run: |
+          conda build .github/conda \
+            --output-folder ./artifacts \
+            --python "${{ matrix.python-version }}"
+          find artifacts -type f ! -name "*.conda" -delete
+          find artifacts -type d -empty -delete
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: conda-packages-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: artifacts
+
+  upload:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dowload
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: conda-upload
+          auto-update-conda: true
+
+      - name: Install
+        shell: bash -l {0}
+        run: |
+          conda install anaconda-client
+
+      - name: Upload
+        if: false
+        shell: bash -l {0}
+        run: |
+          find artifacts -type f -name "*.conda" | while read -r file; do
+            python -m anaconda upload --force "$file" --user YOUR_ANACONDA_USERNAME --token ${{ secrets.ANACONDA_TOKEN }}
+          done

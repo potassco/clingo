@@ -1,16 +1,9 @@
-mkdir build
-
-cmake -G "Ninja" -H. -Bbuild ^
-    -DCMAKE_CXX_COMPILER="%CXX%" ^
-    -DCMAKE_C_COMPILER="%CC%" ^
-    -DCMAKE_BUILD_TYPE=Release ^
-    -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
+cmake -G "Visual Studio 17 2022" -S . -B build ^
     -DPython_ROOT_DIR="%PREFIX%" ^
     -DPython_EXECUTABLE="%PYTHON%" ^
-    -DCLINGO_BUILD_WITH_PYTHON=ON ^
-    -DCLINGO_BUILD_WITH_LUA=OFF ^
+    -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
     -DCLINGO_MANAGE_RPATH=OFF ^
-    -DPYCLINGO_INSTALL="system"
+    -DCMAKE_INSTALL_LIBDIR="lib"
 
-cmake --build build
-cmake --build build --target install
+cmake --build build --config Release
+cmake --build build --target install --config Release

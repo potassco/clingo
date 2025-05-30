@@ -1,7 +1,6 @@
-python:
-  - 3.13
-
-# from https://github.com/phracker/MacOSX-SDKs
 CONDA_BUILD_SYSROOT:
-  - /opt/MacOSX10.9.sdk # [osx and not arm64]
-  - /opt/MacOSX11.3.sdk # [osx and arm64]
+  - /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk # [osx]
+MACOSX_DEPLOYMENT_TARGET:
+  - "14" # [osx]
+cxx_compiler_version:
+  - 18 # [osx]

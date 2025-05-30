@@ -2,6 +2,8 @@
 
 set -ex
 
+env
+
 mkdir -p build
 cd build
 

@@ -234,3 +234,42 @@ class TestSolve:
             assert last
             assert last.symbols(theory=True) == [sym("b"), sym("c")]
             assert last.symbols(shown=True) == [sym("a"), sym("b"), sym("c")]
+
+    def test_cautious_consequences(self):
+        """
+        Test is_consequence function of model.
+        """
+
+        def lookup(m: Model, name: str):
+            return m.control.base[Function(self.lib, name)].literal
+
+        def on_model(m: Model):
+            a = lookup(m, "a")
+            b = lookup(m, "b")
+            c = lookup(m, "c")
+            ca = m.is_consequence(a)
+            cb = m.is_consequence(b)
+            cc = m.is_consequence(c)
+            nca = m.is_consequence(-a)
+            ncb = m.is_consequence(-b)
+            ncc = m.is_consequence(-c)
+            assert ca is True
+            assert nca is False
+            assert ncb is False
+            assert ncc is False
+            if m.number == 1:
+                assert ncb is None or ncb is False
+                assert ncc is None or ncc is False
+                assert cb is None or cb is False
+                assert cc is None or cc is False
+                assert cb != cc
+            if m.number == 2:
+                assert cb is False
+                assert cc is False
+
+        ctl = Control(self.lib, [])
+        ctl.config.solve.enum_mode = "cautious"
+        ctl.parse_string("a. b | c.")
+        ctl.ground([("base", [])])
+        with ctl.solve(on_model=on_model) as hnd:
+            assert hnd.get().satisfiable
