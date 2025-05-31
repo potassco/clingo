@@ -63,7 +63,7 @@ struct clingo_control {
 namespace CppClingo::CAPI {
 
 inline auto convert(CppClingo::Input::ProgramParamVec const &parts) -> std::vector<clingo_part_t> {
-    return CppClingo::Util::transform(parts, [](auto const &part) {
+    return CppClingo::Util::to_vec(parts, [](auto const &part) {
         return clingo_part_t{part.first->data(), part.first->size(), c_cast(part.second.data()), part.second.size()};
     });
 }
@@ -82,9 +82,9 @@ inline auto convert(clingo_control_t *control, clingo_part_t const *parts, size_
     auto make_parts = [&](auto const &part) {
         return CppClingo::Input::ProgramParam{
             control->lib->store->string({part.name, part.name_size}),
-            CppClingo::Util::transform(part.params, part.params + part.params_size, make_part)};
+            CppClingo::Util::to_vec(part.params, part.params + part.params_size, make_part)};
     };
-    return CppClingo::Util::transform(parts, parts + parts_size, make_parts);
+    return CppClingo::Util::to_vec(parts, parts + parts_size, make_parts);
 }
 
 } // namespace CppClingo::CAPI

@@ -48,7 +48,7 @@ template <std::signed_integral S> auto check_add(S a, S b) -> std::optional<S> {
     if constexpr (std::is_same_v<S, int32_t>) {
         int64_t tmp = static_cast<int64_t>(a) + b;
         if (check_cast<int32_t>(tmp)) {
-            return tmp;
+            return static_cast<int32_t>(tmp);
         }
         return std::nullopt;
     } else {
@@ -77,7 +77,7 @@ template <std::signed_integral S> auto check_sub(S a, S b) -> std::optional<S> {
     if constexpr (std::is_same_v<S, int32_t>) {
         int64_t tmp = static_cast<int64_t>(a) - b;
         if (check_cast<int32_t>(tmp)) {
-            return tmp;
+            return static_cast<int32_t>(tmp);
         }
         return std::nullopt;
     } else {
@@ -126,7 +126,7 @@ template <std::signed_integral S> auto check_mul(S a, S b) -> std::optional<S> {
     if constexpr (std::is_same_v<S, int32_t>) {
         int64_t tmp = static_cast<int64_t>(a) * b;
         if (check_cast<int32_t>(tmp)) {
-            return tmp;
+            return static_cast<int32_t>(tmp);
         }
         return std::nullopt;
     } else {

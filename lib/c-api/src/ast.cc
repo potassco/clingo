@@ -922,8 +922,8 @@ auto convert(clingo_location_t const *loc) -> CppClingo::Location const & {
 
 auto convert(clingo_symbol_t const *symbols, size_t size) -> CppClingo::SharedSymbolVec {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return CppClingo::Util::transform(
-        symbols, symbols + size, [](auto sym) { return CppClingo::SharedSymbol{CppClingo::Symbol::from_rep(sym)}; });
+    return CppClingo::Util::to_vec(symbols, symbols + size,
+                                   [](auto sym) { return CppClingo::SharedSymbol{CppClingo::Symbol::from_rep(sym)}; });
 }
 
 auto convert(clingo_lib_t *lib, clingo_string_t const *array, size_t size) -> CppClingo::SharedStringArray {

@@ -137,7 +137,7 @@ class AppAdapter {
     void main(clingo_control_t *ctl, std::span<std::string const> const &input) {
         assert(has_main());
         auto vec =
-            CppClingo::Util::transform(input, [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
+            CppClingo::Util::to_vec(input, [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
         handle_error(app_->main(ctl, vec.data(), vec.size(), data_));
     }
 
@@ -306,9 +306,9 @@ extern "C" auto clingo_main(clingo_lib_t *lib, clingo_string_t const *arguments,
             return fail_arguments();
         }
         auto capp = ClingoApp{*lib, app, data};
-        auto args = CppClingo::Util::transform(std::span{arguments, size},
-                                               [](auto const &str) { return std::string{str.data, str.size}; });
-        auto cargs = CppClingo::Util::transform(args, [](auto const &str) { return str.c_str(); });
+        auto args = CppClingo::Util::to_vec(std::span{arguments, size},
+                                            [](auto const &str) { return std::string{str.data, str.size}; });
+        auto cargs = CppClingo::Util::to_vec(args, [](auto const &str) { return str.c_str(); });
         auto res = capp.main(cargs);
         if (code != nullptr) {
             *code = res;

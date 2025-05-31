@@ -28,24 +28,57 @@ template <class T, class... Ts> auto make_vec(Ts &&...args) -> std::vector<T> {
     return res;
 }
 
-//! Use std::transform to build a vector.
-template <class It, class Pred> auto transform(It begin, It end, Pred pred) {
-    auto p = std::vector<std::invoke_result_t<Pred, typename std::iterator_traits<It>::value_type>>{};
-    p.reserve(std::distance(begin, end));
-    std::transform(begin, end, std::back_inserter(p), pred);
+//! Map a range into a vector using a transformation function.
+template <class Container, std::input_iterator It, std::sentinel_for<It> Sent, typename Pred>
+void into_vec(Container &vec, It first, Sent last, Pred &&pred) {
+    vec.clear();
+    if constexpr (requires { vec.reserve(std::distance(first, last)); }) {
+        vec.reserve(std::distance(first, last));
+    }
+    std::ranges::transform(first, last, std::back_inserter(vec), std::forward<Pred>(pred));
+}
+
+//! Map a range into a vector using a transformation function.
+template <class Container, class Rng, class Pred> void into_vec(Container &vec, Rng &&rng, Pred &&pred) { // NOLINT
+    into_vec(vec, std::ranges::begin(rng), std::ranges::end(rng), std::forward<Pred>(pred));
+}
+
+//! Use a transformation function to build a vector from a range.
+template <class Container, std::input_iterator It, std::sentinel_for<It> Sent, typename Pred, typename... Args>
+auto to_vec(It begin, Sent end, Pred &&pred, Args &&...args) {
+    Container p(std::forward<Args>(args)...);
+    if constexpr (requires { p.reserve(std::distance(begin, end)); }) {
+        p.reserve(std::distance(begin, end));
+    }
+    std::transform(begin, end, std::back_inserter(p), std::forward<Pred>(pred));
     return p;
+}
+
+//! Use a transformation function to build a vector from a range.
+template <template <class, class...> class Container = std::vector, std::input_iterator It, std::sentinel_for<It> Sent,
+          typename Pred, typename... Args>
+auto to_vec(It begin, Sent end, Pred &&pred, Args &&...args) {
+    using InputType = std::iter_value_t<It>;
+    using OutputType = std::invoke_result_t<Pred, InputType>;
+    return to_vec<Container<OutputType, Args...>>(begin, end, std::forward<Pred>(pred), std::forward<Args>(args)...);
+}
+
+//! Use std::transform to build a vector.
+template <template <class, class...> class Container = std::vector, std::ranges::input_range Rng, typename Pred,
+          typename... Args>
+auto to_vec(Rng &&rng, Pred pred, Args &&...args) { // NOLINT
+    return to_vec<Container>(std::ranges::begin(rng), std::ranges::end(rng), pred, std::forward<Args>(args)...);
+}
+
+//! Use std::transform to build a vector.
+template <class Container, std::ranges::input_range Rng, typename Pred, typename... Args>
+auto to_vec(Rng &&rng, Pred pred, Args &&...args) { // NOLINT
+    return to_vec<Container>(std::ranges::begin(rng), std::ranges::end(rng), pred, std::forward<Args>(args)...);
 }
 
 //! Use std::transform to build a vector.
 template <class It, class Pred> auto transform_n(It begin, size_t n, Pred pred) {
-    return transform(begin, begin + n, pred);
-}
-
-//! Use std::transform to build a vector.
-template <class Rng, class Pred> auto transform(Rng const &rng, Pred pred) {
-    using std::begin;
-    using std::end;
-    return transform(begin(rng), end(rng), pred);
+    return to_vec(begin, begin + n, pred);
 }
 
 //! Remove all elements from the vector matching the given predicate.

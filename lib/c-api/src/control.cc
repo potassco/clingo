@@ -141,8 +141,8 @@ extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mo
 extern "C" auto clingo_control_parse_files(clingo_control_t *control, clingo_string_t const *files, size_t size)
     -> bool {
     CLINGO_TRY {
-        auto vec = CppClingo::Util::transform(std::span{files, size},
-                                              [](auto const &x) { return std::string_view{x.data, x.size}; });
+        auto vec = CppClingo::Util::to_vec(std::span{files, size},
+                                           [](auto const &x) { return std::string_view{x.data, x.size}; });
         control->slv->parse(vec);
     }
     CLINGO_CATCH;

@@ -66,6 +66,14 @@ auto uid_to_atom(size_t uid) -> prg_lit_t {
     return static_cast<int32_t>(uid);
 }
 
+//! Convert a uid to an id.
+//!
+//! @param uid the uid to convert
+//! @return the resulting id
+auto uid_to_id(size_t uid) -> prg_id_t {
+    return static_cast<prg_id_t>(uid);
+}
+
 //! Convert a number into an integer.
 //!
 //! Throws a range error if the number cannot be converted into a 32 bit
@@ -327,7 +335,7 @@ class BuilderBase {
     //! @param name the name
     //! @return the id of the vertex
     auto vertex(Symbol name) -> prg_id_t {
-        auto [it, ins] = vertices_.emplace(name, vertices_.size());
+        auto [it, ins] = vertices_.emplace(name, static_cast<prg_id_t>(vertices_.size()));
         if (ins && vertices_.size() > 1 && it.value() == 0) {
             throw std::range_error("maximum number of vertices exceeded");
         }
@@ -540,7 +548,7 @@ template <class Sym> class BuilderMinMax {
                     get<0>(elems_[it.value()]) = std::min<Sym>(get<0>(elems_[it.value()]), tup.front());
                 } else {
                     // add weight literal pairs
-                    lits_.assign(conds.begin(), conds.end());
+                    Util::into_vec(lits_, conds, uid_to_id);
                     elems_.emplace_back(tup.front(), bld.clause({lits_.begin(), lits_.end()}, ClauseType::disjunctive));
                 }
             }
@@ -893,7 +901,7 @@ class BuilderSum {
                     if (auto [it, ins] = cond_map_.try_emplace(conds, elems_.size()); !ins) {
                         get<0>(elems_[it.value()]) += num;
                     } else {
-                        lits_.assign(conds.begin(), conds.end());
+                        Util::into_vec(lits_, conds, uid_to_id);
                         elems_.emplace_back(std::move(num),
                                             bld.clause({lits_.begin(), lits_.end()}, ClauseType::disjunctive));
                     }
@@ -1128,7 +1136,7 @@ class BuilderDisjunction {
                 } else {
                     auto x = bld.next_lit();
                     auto y = bld.next_lit();
-                    lits_.assign(conds.begin(), conds.end());
+                    Util::into_vec(lits_, conds, uid_to_atom);
                     auto c = bld.clause(lits_, ClauseType::disjunctive);
                     bld.mark(c, EQType::implication);
                     hd_.emplace_back(x);
@@ -1145,7 +1153,7 @@ class BuilderDisjunction {
                     elems_.emplace_back(a, x, c);
                 }
             } else {
-                lits_.assign(conds.begin(), conds.end());
+                Util::into_vec(lits_, conds, uid_to_atom);
                 bd_.emplace_back(bld.negate(bld.clause(lits_, ClauseType::disjunctive)));
                 bld.mark(bd_.back(), EQType::implication);
             }
@@ -1617,24 +1625,25 @@ class OutputBackend : public OutputStm, OutputTheory {
     auto do_num(Number const &val) -> size_t override { return theory_->num(num_to_int(val)); }
 
     auto do_fun(String name, IndexSpan args) -> size_t override {
-        return theory_->fun(name, {args.begin(), args.end()});
+        return theory_->fun(name, Util::to_vec<TheoryData::IdVec>(args.begin(), args.end(), uid_to_id));
     }
 
     auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override {
-        return theory_->tup(type, {args.begin(), args.end()});
+        return theory_->tup(type, Util::to_vec(args, uid_to_id));
     }
 
     auto do_sym(Symbol sym) -> size_t override { return theory_->sym(sym); }
 
     auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
         auto lits = bld_.cond(uid_to_lit(cond));
-        return theory_->elem({tuple.begin(), tuple.end()}, {lits.begin(), lits.end()});
+        return theory_->elem(Util::to_vec<TheoryData::IdVec>(tuple, uid_to_id), {lits.begin(), lits.end()});
     }
 
     void do_atom(OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
         auto new_lit = type != OutputTheory::AtomType::directive ? static_cast<prg_lit_t>(atom_uid) : 0;
         auto old_lit = theory_->atom([atom_uid]() { return static_cast<prg_lit_t>(atom_uid); }, name,
-                                     {elems.begin(), elems.end()}, Util::transform(guard, [](auto const &guard) {
+                                     Util::to_vec<TheoryData::IdVec>(elems, uid_to_id),
+                                     Util::transform(guard, [](auto const &guard) {
                                          return std::pair{guard.first, static_cast<prg_id_t>(guard.second)};
                                      }));
         // handle directives
