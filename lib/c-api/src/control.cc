@@ -291,13 +291,13 @@ extern "C" auto clingo_const_map_size(clingo_const_map_t const *map, size_t *siz
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_control_discard(clingo_control_t *ctl, clingo_discard_type_t type) -> bool {
+extern "C" auto clingo_control_discard(clingo_control_t *control, clingo_discard_type_t type) -> bool {
     CLINGO_TRY {
         if ((type & clingo_discard_type_e::minimize) != 0) {
-            ctl->clasp->asp()->removeMinimize();
+            control->clasp->asp()->removeMinimize();
         }
         if ((type & clingo_discard_type_e::project) != 0) {
-            ctl->clasp->asp()->removeProject();
+            control->clasp->asp()->removeProject();
         }
     }
     CLINGO_CATCH;

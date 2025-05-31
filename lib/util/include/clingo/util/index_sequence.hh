@@ -14,18 +14,27 @@ namespace CppClingo::Util {
 //! Consecutive integers are stored in an interval.
 template <class T> class index_sequence {
   public:
+    //! Const iterator for index sequence.
     class iterator {
       public:
+        //! The iterator category.
         using iterator_category = std::forward_iterator_tag;
+        //! The value type.
         using value_type = T;
+        //! The difference type.
         using difference_type = std::ptrdiff_t;
+        //! The reference type.
         using reference = T;
+        //! The pointer type.
         using pointer = void;
 
+        //! Construct an end iterator.
         iterator() = default;
 
+        //! Get the current value.
         auto operator*() const -> reference { return std::get<2>(*it_) + static_cast<T>(idx_); }
 
+        //! Increment the iterator.
         auto operator++() -> iterator & {
             ++idx_;
             if (idx_ == std::get<1>(*it_)) {
@@ -34,14 +43,17 @@ template <class T> class index_sequence {
             return *this;
         }
 
+        //! Post increment the iterator.
         auto operator++(int) -> iterator {
             auto tmp = *this;
             ++(*this);
             return tmp;
         }
 
+        //! Compare two iterators.
         auto operator==(const iterator &other) const -> bool { return idx_ == other.idx_; }
 
+        //! Compare two iterators.
         auto operator!=(const iterator &other) const -> bool { return !(*this == other); }
 
       private:

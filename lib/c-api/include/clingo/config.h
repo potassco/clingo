@@ -114,7 +114,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_size(clingo_config_t const *con
 //! @param[in] config the target configuration
 //! @param[in] key the key
 //! @param[in] name the name to look up the subkey
-//! @param[in] name the size of the name
+//! @param[in] size the size of the name
 //! @param[out] result whether the key is in the map
 //! @return wether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_has_subkey(clingo_config_t const *config, clingo_id_t key,
@@ -152,6 +152,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_at(clingo_config_t const *confi
 //! @param[in] config the target configuration
 //! @param[in] key the key
 //! @param[out] value the resulting string value
+//! @param[out] has_value whether the config entry has a value
 //! @return wether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_value_get(clingo_config_t const *config, clingo_id_t key,
                                                        clingo_string_t *value, bool *has_value);
@@ -161,6 +162,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_value_get(clingo_config_t const *co
 //! @param[in] config the target configuration
 //! @param[in] key the key
 //! @param[in] value the value to set
+//! @param[in] size the size of the value
 //! @return wether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_value_set(clingo_config_t *config, clingo_id_t key, char const *value,
                                                        size_t size);

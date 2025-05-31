@@ -153,6 +153,7 @@ enum clingo_log_level_e {
 //! Corresponding type to ::clingo_log_level_e.
 typedef int clingo_log_level_t;
 
+//! The clingo logger.
 typedef struct clingo_logger {
     //! Callback to intercept messages.
     //!
@@ -216,6 +217,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_message_string(clingo_message_t code, clin
 //! @param[in] level the log level for the message logger
 //! @param[in] logger callback functions for warnings and info messages
 //! @param[in] data user data for the logger callback
+//! @param[in] limit the message limit
 //! @param[out] lib the resulting library object
 //! @return wether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t level,
@@ -314,7 +316,6 @@ CLINGO_VISIBILITY_DEFAULT void clingo_position_free(clingo_position_t const *pos
 //!
 //! @param[in] pos the position
 //! @param[out] value the file name
-//! @return the file name
 CLINGO_VISIBILITY_DEFAULT void clingo_position_file(clingo_position_t const *pos, clingo_string_t *value);
 //! Get the line number of the position.
 //!

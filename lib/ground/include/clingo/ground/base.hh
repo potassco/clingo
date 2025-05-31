@@ -308,6 +308,13 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
     //! Returns the index of the first atom not previously projected.
     [[nodiscard]] auto mark_projected() -> size_t { return std::exchange(project_offset_, size()); }
 
+    //! Simplify the atom base.
+    //!
+    //! Removes false atoms and marks facts based on the predicat.
+    //!
+    //! @param pred a predicate  to obtain a truth value
+    //! @param rem the number of removed atoms
+    //! @param fact the number of atoms that became facts
     template <class Pred> void simplify(Pred const &pred, size_t &rem, size_t &fact) {
         // NOTE: the show offset can be zero for auxiliary domains
         assert(show_offset_ == 0 || show_offset_ == size());

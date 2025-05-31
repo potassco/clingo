@@ -67,8 +67,6 @@ class ProgramBackend {
     }
 
     //! Finalize the current grounding step.
-    //!
-    //! @param last indicate that this is the last step in series of steps to be merged
     void end() { do_end(); }
 
     //! Return a fresh (positive) literal.
@@ -90,6 +88,7 @@ class ProgramBackend {
     //! @param head the literal that is derived
     //! @param body the weighted body literals
     //! @param bound the lower bound of the constraint
+    //! @param choice whether the rule has a choice head
     void bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, int32_t bound, bool choice) {
         assert(std::ranges::all_of(head, [](auto const &x) { return x > 0; }));
         do_bd_aggr(head, body, bound, choice);
@@ -183,9 +182,8 @@ class ProgramBackend {
 
     //! Minimize the given weighted literals.
     //!
-    //! @param lit the literal to minimize
-    //! @param weight the weight of the literal
     //! @param priority the priority of the literal
+    //! @param body the weighted literals of the minimize constraint
     void minimize(prg_weight_t priority, WeightedPrgLitSpan body) { do_minimize(priority, body); }
 
   private:

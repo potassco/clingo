@@ -114,6 +114,7 @@ typedef struct clingo_const_map clingo_const_map_t;
 //!
 //! @param[in] map the target
 //! @param[in] name the name of the constant
+//! @param[in] name_size the size of the name
 //! @param[out] symbol the value of the constant
 //! @param[out] found whether the constant was found
 //! @return wether the call was successful
@@ -148,7 +149,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_size(clingo_const_map_t const *m
 //!
 //! @param[in] lib clingo library object
 //! @param[in] arguments string array of command line arguments
-//! @param[in] sizes the length of the strings
 //! @param[in] size size of the arguments array
 //! @param[out] control resulting control object
 //! @return wether the call was successful
@@ -263,7 +263,7 @@ typedef unsigned clingo_discard_type_t;
 //!
 //! @param[in] control the target control
 //! @param[in] type what to discard
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_discard(clingo_control_t *ctl, clingo_discard_type_t type);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_discard(clingo_control_t *control, clingo_discard_type_t type);
 
 //! Interrupt the running search.
 //!

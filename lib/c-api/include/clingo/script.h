@@ -64,13 +64,6 @@ typedef struct clingo_script {
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT bool clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script, void *data);
 
-//! Get the version of the registered scripting language.
-//!
-//! @param[in] lib the library object
-//! @param[in] name the name of the scripting language
-//! @return the version
-CLINGO_VISIBILITY_DEFAULT void clingo_script_version(clingo_lib_t *lib, char const *name, clingo_string_t *version);
-
 //! @}
 
 #ifdef __cplusplus

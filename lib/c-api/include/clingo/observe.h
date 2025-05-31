@@ -160,6 +160,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_observe(clingo_control_t *control,
 //!
 //! @param control the target control
 //! @param path the path to the file to write to
+//! @param size the size of the path
 //! @param mode control how to write
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_write_aspif(clingo_control_t *control, char const *path, size_t size,

@@ -50,7 +50,7 @@ class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
     std::vector<std::pair<std::string, UScript>> scripts_;
 };
 
-// Stop condition for incremental mode.
+//! Stop condition for incremental mode.
 enum class IStop : uint8_t {
     none,   //!< Do not consider solve result.
     sat,    //!< Stop when satisfiable.

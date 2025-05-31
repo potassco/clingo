@@ -68,11 +68,39 @@ enum clingo_solve_mode_e {
 //! Corresponding type to ::clingo_solve_mode_e.
 typedef unsigned clingo_solve_mode_bitset_t;
 
+//! The solve event handler interface.
 typedef struct clingo_solve_event_handler {
+    //! Call back to intercept models.
+    //!
+    //! @param model the model
+    //! @param data the user data
+    //! @param goon whether to stop or continue
+    //! @return whether the call was successful
     bool (*model)(clingo_model_t *model, void *data, bool *goon);
+    //! Callback to interept lower bounds.
+    //!
+    //! @param values the values of the current lower bound
+    //! @param size the number of values in the lower bound
+    //! @param data the user data
+    //! @return whether the call was successful
     bool (*unsat)(int64_t const *values, size_t size, void *data);
+    //! Callback to extend statistics.
+    //!
+    //! @param stats the stats object
+    //! @param data the user data
+    //! @return whether the call was successful
     bool (*stats)(clingo_stats_t *stats, void *data);
+    //! Callback to notify that the search has finished.
+    //!
+    //! This can be used for thread synchronization as the function is not
+    //! called in the main thread when solving asynchronously.
+    //!
+    //! @param result the solve result
+    //! @param data the user data
     void (*finish)(clingo_solve_result_bitset_t result, void *data);
+    //! Callback to free the userdata of the handler.
+    //!
+    //! @param data the user data
     void (*free)(void *data);
 } clingo_solve_event_handler_t;
 

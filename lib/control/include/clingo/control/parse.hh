@@ -28,6 +28,7 @@ CLINGO_ENABLE_BITSET_ENUM(BuiltinIncludes);
 //! A sequences of program parameter vectors to ground and solve incrementally.
 using CppClingo::Input::ProgramParamVec;
 
+//! A pair capturing a program `#parts` directive.
 using ProgramParams = std::pair<CppClingo::Input::Precedence, std::optional<ProgramParamVec>>;
 
 //! A helper for parsing.
