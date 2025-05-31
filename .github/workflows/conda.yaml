@@ -106,9 +106,8 @@ jobs:
           conda install anaconda-client
 
       - name: Upload
-        if: false
         shell: bash -l {0}
         run: |
           find artifacts -type f -name "*.conda" | while read -r file; do
-            python -m anaconda upload --force "$file" --user YOUR_ANACONDA_USERNAME --token ${{ secrets.ANACONDA_TOKEN }}
+            python -m anaconda upload --force "$file" --label dev-20 --user potassco --token ${{ secrets.ANACONDA_TOKEN }}
           done
