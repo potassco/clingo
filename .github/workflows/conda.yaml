@@ -3,10 +3,10 @@ name: Conda
 on:
   workflow_dispatch:
     inputs:
-      is_release:
-        description: "Release build"
+      label:
+        description: "Anaconda label"
         required: true
-        type: boolean
+        type: string
       build_number:
         description: "Build number"
         required: true
@@ -107,7 +107,8 @@ jobs:
 
       - name: Upload
         shell: bash -l {0}
+        env:
+          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
-          find artifacts -type f -name "*.conda" | while read -r file; do
-            python -m anaconda upload --force "$file" --label dev-20 --user potassco --token ${{ secrets.ANACONDA_TOKEN }}
-          done
+          files=( $(find artifacts -type f -name "*.conda") )
+          anaconda upload -l "${{ inputs.label }}" -u potassco --force "${files[@]}"
