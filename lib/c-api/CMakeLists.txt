@@ -62,22 +62,6 @@ add_library(clingo ${libtype})
 target_sources(clingo PRIVATE ${header} ${source})
 clingo_target_properties(TARGETS clingo FOLDER lib TYPE default)
 if (WIN32 AND CLINGO_BUILD_SHARED)
-    set(test_subdir "${CMAKE_BINARY_DIR}/bin/tests/")
-    set(python_subdir "${CMAKE_BINARY_DIR}/bin/python/")
-    get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-    if(is_multi_config)
-        set(test_subdir "${test_subdir}$<CONFIG>/")
-        set(python_subdir "${python_subdir}$<CONFIG>/")
-    endif()
-    add_custom_command(
-        TARGET clingo POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${test_subdir}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${python_subdir}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "${test_subdir}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "${python_subdir}"
-    )
-endif()
-if (WIN32 AND CLINGO_BUILD_SHARED)
     set(subdirs tests python examples)
     get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
     if(is_multi_config)
@@ -119,4 +103,21 @@ elseif (CLINGO_INSTALL_WHEEL AND CLINGO_BUILD_SHARED)
         TARGETS clingo
         RUNTIME DESTINATION "."
         LIBRARY DESTINATION ".")
+endif()
+
+if (CLINGO_BUILD_TESTS AND WIN32 AND CLINGO_BUILD_SHARED)
+    set(test_subdir "${CMAKE_BINARY_DIR}/bin/tests/")
+    set(python_subdir "${CMAKE_BINARY_DIR}/bin/python/")
+    get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+    if(is_multi_config)
+        set(test_subdir "${test_subdir}$<CONFIG>/")
+        set(python_subdir "${python_subdir}$<CONFIG>/")
+    endif()
+    add_custom_command(
+        TARGET clingo POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${test_subdir}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${python_subdir}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "${test_subdir}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "${python_subdir}"
+    )
 endif()

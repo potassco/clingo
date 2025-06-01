@@ -118,11 +118,8 @@ target_link_libraries(clingo_python_embed PRIVATE pybind11::embed clingo clingo_
 if (PYTEST_EXECUTABLE)
     pytest_discover_tests(
         test_pyclingo
-        PYTHON_PATH_PREPEND
-            $<TARGET_FILE_DIR:pyclingo>
-        LIBRARY_PATH_PREPEND
-            $<TARGET_FILE_DIR:clingo>
-        DEPENDS
-            pyclingo
+        PYTHON_PATH_PREPEND $<TARGET_FILE_DIR:pyclingo>
+        LIBRARY_PATH_PREPEND $<TARGET_FILE_DIR:clingo>
+        DEPENDS pyclingo
     )
 endif()
