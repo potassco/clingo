@@ -49,26 +49,26 @@ target_compile_definitions(clingo_python PRIVATE CLINGO_PYTHON_VERSION="${Python
 target_link_libraries(clingo_python PRIVATE pybind11::pybind11 clingo)
 
 # the standalone module
-pybind11_add_module(clingo_python_module "src/module.cc")
-set_target_properties(clingo_python_module PROPERTIES IMPORT_LIBRARY "clingo_python_module.lib")
-clingo_target_properties(TARGETS clingo_python_module FOLDER lib SUBDIR python)
-set_target_properties(clingo_python_module PROPERTIES OUTPUT_NAME "clingo")
-target_link_libraries(clingo_python_module PRIVATE clingo clingo_python)
+pybind11_add_module(pyclingo "src/module.cc")
+set_target_properties(pyclingo PROPERTIES IMPORT_LIBRARY "pyclingo.lib")
+clingo_target_properties(TARGETS pyclingo FOLDER lib SUBDIR python)
+set_target_properties(pyclingo PROPERTIES OUTPUT_NAME "clingo")
+target_link_libraries(pyclingo PRIVATE clingo clingo_python)
 if (CLINGO_USE_VERSION_SCRIPT AND UNIX AND NOT APPLE)
-    set_target_properties(clingo_python_module PROPERTIES LINK_FLAGS "-Wl,--version-script='${CMAKE_SOURCE_DIR}/cmake/pyclingo.map'")
+    set_target_properties(pyclingo PROPERTIES LINK_FLAGS "-Wl,--version-script='${CMAKE_SOURCE_DIR}/cmake/pyclingo.map'")
 endif()
 if (CLINGO_INSTALL_WHEEL)
     install(DIRECTORY stubs/ DESTINATION clingo-stubs)
-    install(TARGETS clingo_python_module
+    install(TARGETS pyclingo
         RUNTIME DESTINATION "."
         LIBRARY DESTINATION ".")
     if (CLINGO_BUILD_SHARED)
         if (APPLE)
-            set_target_properties(clingo_python_module
+            set_target_properties(pyclingo
                 PROPERTIES INSTALL_RPATH "@loader_path"
                 BUILD_WITH_INSTALL_RPATH TRUE)
         elseif (UNIX)
-            set_target_properties(clingo_python_module
+            set_target_properties(pyclingo
                 PROPERTIES INSTALL_RPATH "$ORIGIN"
                 BUILD_WITH_INSTALL_RPATH TRUE)
         endif()
@@ -100,7 +100,8 @@ elseif(CLINGO_INSTALL_DEFAULT)
         DESTINATION "${python_install_dir}/clingo-${CLINGO_VERSION}.dist-info")
     install(DIRECTORY stubs/ DESTINATION "${python_install_dir}/clingo-stubs")
     install(
-        TARGETS clingo_python_module
+        TARGETS pyclingo
+        EXPORT clingo-targets
         RUNTIME DESTINATION "${python_install_dir}"
         LIBRARY DESTINATION "${python_install_dir}")
 endif()
@@ -118,8 +119,10 @@ if (PYTEST_EXECUTABLE)
     pytest_discover_tests(
         test_pyclingo
         PYTHON_PATH_PREPEND
-            $<TARGET_FILE_DIR:clingo_python_module>
+            $<TARGET_FILE_DIR:pyclingo>
+        LIBRARY_PATH_PREPEND
+            $<TARGET_FILE_DIR:clingo>
         DEPENDS
-            clingo_python_module
+            pyclingo
     )
 endif()
