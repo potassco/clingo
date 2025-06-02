@@ -78,15 +78,15 @@ if(WIN32 AND CLINGO_BUILD_SHARED)
     endforeach()
 endif()
 target_include_directories(clingo PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(clingo PRIVATE clingo-control)
 string(TOLOWER "${CMAKE_BUILD_TYPE}" build_type)
 if(build_type STREQUAL "debug")
     target_compile_definitions(clingo PRIVATE CLINGO_DEBUG)
 endif()
 if(CLINGO_USE_VISIBILITY)
-    target_compile_definitions(clingo PRIVATE $<BUILD_INTERFACE:CLINGO_BUILD_LIBRARY>)
+    target_compile_definitions(clingo PRIVATE "$<BUILD_INTERFACE:CLINGO_BUILD_LIBRARY>")
 else()
     target_compile_definitions(clingo PUBLIC CLINGO_NO_VISIBILITY)
 endif()
