@@ -39,20 +39,19 @@ set(test
     ${test-group})
 # ]]]
 
-add_library(clingo_control STATIC)
-target_sources(clingo_control PRIVATE ${header} ${source})
-add_library(clingo::control ALIAS clingo_control)
-clingo_target_properties(TARGETS clingo_control FOLDER lib TYPE extra)
-target_include_directories(clingo_control PUBLIC
+add_library(clingo-control STATIC)
+target_sources(clingo-control PRIVATE ${header} ${source})
+clingo_target_properties(TARGETS clingo-control FOLDER lib TYPE extra)
+target_include_directories(clingo-control PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
-target_link_libraries(clingo_control PUBLIC clingo::input clingo::ground clingo::output libclasp)
+target_link_libraries(clingo-control PUBLIC clingo-input clingo-ground clingo-output libclasp)
 
 if(CLINGO_BUILD_TESTS)
-    add_executable(test_control)
-    target_sources(test_control PRIVATE ${test})
-    clingo_target_properties(TARGETS test_control FOLDER test SUBDIR tests)
-    target_include_directories(test_control PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
-    target_link_libraries(test_control PRIVATE clingo::control Catch2::Catch2WithMain)
-    catch_discover_tests(test_control)
+    add_executable(test_clingo-control)
+    target_sources(test_clingo-control PRIVATE ${test})
+    clingo_target_properties(TARGETS test_clingo-control FOLDER test SUBDIR tests)
+    target_include_directories(test_clingo-control PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+    target_link_libraries(test_clingo-control PRIVATE clingo-control Catch2::Catch2WithMain)
+    catch_discover_tests(test_clingo-control DL_PATH "$<TARGET_FILE_DIR:clingo>")
 endif()

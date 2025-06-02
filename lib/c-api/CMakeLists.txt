@@ -54,14 +54,14 @@ set(source
     ${source-group})
 # ]]]
 
-if (CLINGO_BUILD_SHARED)
+if(CLINGO_BUILD_SHARED)
     set(libtype SHARED)
 endif()
 
 add_library(clingo ${libtype})
 target_sources(clingo PRIVATE ${header} ${source})
 clingo_target_properties(TARGETS clingo FOLDER lib TYPE default)
-if (WIN32 AND CLINGO_BUILD_SHARED)
+if(WIN32 AND CLINGO_BUILD_SHARED)
     set(subdirs tests python examples)
     get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
     if(is_multi_config)
@@ -74,30 +74,28 @@ if (WIN32 AND CLINGO_BUILD_SHARED)
         add_custom_command(
             TARGET clingo POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory "${target_dir}"
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "${target_dir}"
-        )
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "${target_dir}")
     endforeach()
 endif()
 target_include_directories(clingo PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
-target_link_libraries(clingo PRIVATE clingo::control)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+target_link_libraries(clingo PRIVATE clingo-control)
 string(TOLOWER "${CMAKE_BUILD_TYPE}" build_type)
 if(build_type STREQUAL "debug")
     target_compile_definitions(clingo PRIVATE CLINGO_DEBUG)
 endif()
-if (CLINGO_USE_VISIBILITY)
+if(CLINGO_USE_VISIBILITY)
     target_compile_definitions(clingo PRIVATE $<BUILD_INTERFACE:CLINGO_BUILD_LIBRARY>)
 else()
     target_compile_definitions(clingo PUBLIC CLINGO_NO_VISIBILITY)
 endif()
-if (CLINGO_USE_VERSION_SCRIPT AND UNIX AND NOT APPLE)
+if(CLINGO_USE_VERSION_SCRIPT AND UNIX AND NOT APPLE)
     set_target_properties(clingo PROPERTIES LINK_FLAGS "-Wl,--version-script='${CMAKE_SOURCE_DIR}/cmake/clingo.map'")
 endif()
-if (CLINGO_INSTALL_DEFAULT)
+if(CLINGO_INSTALL_DEFAULT)
     install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h")
-elseif (CLINGO_INSTALL_WHEEL AND CLINGO_BUILD_SHARED)
+elseif(CLINGO_INSTALL_WHEEL AND CLINGO_BUILD_SHARED)
     install(DIRECTORY include/ DESTINATION clingo-include FILES_MATCHING PATTERN "*.h")
     install(
         TARGETS clingo
@@ -105,7 +103,7 @@ elseif (CLINGO_INSTALL_WHEEL AND CLINGO_BUILD_SHARED)
         LIBRARY DESTINATION ".")
 endif()
 
-if (CLINGO_BUILD_TESTS AND WIN32 AND CLINGO_BUILD_SHARED)
+if(CLINGO_BUILD_TESTS AND WIN32 AND CLINGO_BUILD_SHARED)
     set(test_subdir "${CMAKE_BINARY_DIR}/bin/tests/")
     set(python_subdir "${CMAKE_BINARY_DIR}/bin/python/")
     get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -118,6 +116,5 @@ if (CLINGO_BUILD_TESTS AND WIN32 AND CLINGO_BUILD_SHARED)
         COMMAND ${CMAKE_COMMAND} -E make_directory "${test_subdir}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${python_subdir}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "${test_subdir}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "${python_subdir}"
-    )
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "${python_subdir}")
 endif()

@@ -15,12 +15,14 @@ target_sources(imath INTERFACE
 target_include_directories(imath INTERFACE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/imath>")
 
-if (CLINGO_BUILD_TESTS AND NOT CLINGO_BUILD_WEB)
-    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/pytest-cmake/cmake")
-    find_package(Pytest 8.0.0)
-endif()
-if (NOT DEFINED SKBUILD)
-    add_subdirectory(pybind11)
+if(CLINGO_BUILD_PYTHON)
+    if(CLINGO_BUILD_TESTS)
+        list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/pytest-cmake/cmake")
+        find_package(Pytest 8.0.0)
+    endif()
+    if(NOT DEFINED SKBUILD)
+        add_subdirectory(pybind11)
+    endif()
 endif()
 
 add_subdirectory(clasp)

@@ -42,22 +42,22 @@ set(source
 list(FILTER source EXCLUDE REGEX "/(embed|module)\\.cc$")
 
 # functionality shared between embedded library and standalone module
-add_library(clingo_python STATIC)
-target_sources(clingo_python PRIVATE ${source})
-clingo_target_properties(TARGETS clingo_python FOLDER lib)
-target_compile_definitions(clingo_python PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}")
-target_link_libraries(clingo_python PRIVATE pybind11::pybind11 clingo)
+add_library(clingo-python STATIC)
+target_sources(clingo-python PRIVATE ${source})
+clingo_target_properties(TARGETS clingo-python FOLDER lib)
+target_compile_definitions(clingo-python PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}")
+target_link_libraries(clingo-python PRIVATE pybind11::pybind11 clingo)
 
 # the standalone module
 pybind11_add_module(pyclingo "src/module.cc")
 set_target_properties(pyclingo PROPERTIES IMPORT_LIBRARY "pyclingo.lib")
 clingo_target_properties(TARGETS pyclingo FOLDER lib SUBDIR python)
 set_target_properties(pyclingo PROPERTIES OUTPUT_NAME "clingo")
-target_link_libraries(pyclingo PRIVATE clingo clingo_python)
-if (CLINGO_USE_VERSION_SCRIPT AND UNIX AND NOT APPLE)
+target_link_libraries(pyclingo PRIVATE clingo clingo-python)
+if(CLINGO_USE_VERSION_SCRIPT AND UNIX AND NOT APPLE)
     set_target_properties(pyclingo PROPERTIES LINK_FLAGS "-Wl,--version-script='${CMAKE_SOURCE_DIR}/cmake/pyclingo.map'")
 endif()
-if (CLINGO_INSTALL_WHEEL)
+if(CLINGO_INSTALL_WHEEL)
     install(DIRECTORY stubs/ DESTINATION clingo-stubs)
     install(TARGETS pyclingo
         RUNTIME DESTINATION "."
@@ -107,19 +107,17 @@ elseif(CLINGO_INSTALL_DEFAULT)
 endif()
 
 # the embedded library
-add_library(clingo_python_embed STATIC)
-target_sources(clingo_python_embed PRIVATE "include/embed.h" "src/embed.cc")
-add_library(clingo::python ALIAS clingo_python_embed)
-clingo_target_properties(TARGETS clingo_python_embed FOLDER lib TYPE extra)
-target_include_directories(clingo_python_embed PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_compile_definitions(clingo_python_embed PUBLIC CLINGO_PYTHON_ENABLED)
-target_link_libraries(clingo_python_embed PRIVATE pybind11::embed clingo clingo_python)
+add_library(clingo-python-embed STATIC)
+target_sources(clingo-python-embed PRIVATE "include/embed.h" "src/embed.cc")
+clingo_target_properties(TARGETS clingo-python-embed FOLDER lib TYPE extra)
+target_include_directories(clingo-python-embed PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_compile_definitions(clingo-python-embed PUBLIC CLINGO_PYTHON_ENABLED)
+target_link_libraries(clingo-python-embed PRIVATE pybind11::embed clingo clingo-python)
 
-if (PYTEST_EXECUTABLE)
+if(CLINGO_BUILD_TESTS)
     pytest_discover_tests(
         test_pyclingo
         PYTHON_PATH_PREPEND $<TARGET_FILE_DIR:pyclingo>
         LIBRARY_PATH_PREPEND $<TARGET_FILE_DIR:clingo>
-        DEPENDS pyclingo
-    )
+        DEPENDS pyclingo)
 endif()

@@ -7,13 +7,9 @@ set(source
     ${source-group})
 # ]]]
 
-add_executable(clingo-bin)
-target_sources(clingo-bin PRIVATE ${source})
-clingo_target_properties(TARGETS clingo-bin FOLDER exe TYPE default)
-set_target_properties(clingo-bin PROPERTIES
-    OUTPUT_NAME clingo
-)
-target_include_directories(clingo-bin PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-)
-target_link_libraries(clingo-bin PRIVATE clingo clingo::python)
+add_executable(clingo-app)
+target_sources(clingo-app PRIVATE ${source})
+clingo_target_properties(TARGETS clingo-app FOLDER exe TYPE default)
+set_target_properties(clingo-app PROPERTIES OUTPUT_NAME clingo)
+target_include_directories(clingo-app PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+target_link_libraries(clingo-app PRIVATE clingo clingo-python-embed)

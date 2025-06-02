@@ -18,10 +18,9 @@ set(source
     ${source-group})
 # ]]]
 
-add_library(clingo_output STATIC)
-target_sources(clingo_output PRIVATE ${header} ${source})
-add_library(clingo::output ALIAS clingo_output)
-clingo_target_properties(TARGETS clingo_output FOLDER lib TYPE extra)
-target_include_directories(clingo_output
+add_library(clingo-output STATIC)
+target_sources(clingo-output PRIVATE ${header} ${source})
+clingo_target_properties(TARGETS clingo-output FOLDER lib TYPE extra)
+target_include_directories(clingo-output
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_link_libraries(clingo_output PUBLIC clingo::core)
+target_link_libraries(clingo-output PUBLIC clingo-core)

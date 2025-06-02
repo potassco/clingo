@@ -37,19 +37,18 @@ set(test
     ${test-group})
 # ]]]
 
-add_library(clingo_util INTERFACE)
-target_sources(clingo_util PRIVATE ${header})
-add_library(clingo::util ALIAS clingo_util)
-clingo_target_properties(TARGETS clingo_util FOLDER lib TYPE extra)
-target_include_directories(clingo_util
+add_library(clingo-util INTERFACE)
+target_sources(clingo-util PRIVATE ${header})
+clingo_target_properties(TARGETS clingo-util FOLDER lib TYPE extra)
+target_include_directories(clingo-util
     INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_link_libraries(clingo_util INTERFACE tsl::hopscotch_map tsl::ordered_map)
+target_link_libraries(clingo-util INTERFACE tsl::hopscotch_map tsl::ordered_map)
 
 if (CLINGO_BUILD_TESTS)
-    add_executable(test_util)
-    target_sources(test_util PRIVATE ${test})
-    clingo_target_properties(TARGETS test_util FOLDER test SUBDIR tests)
-    target_include_directories(test_util PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
-    target_link_libraries(test_util PRIVATE clingo::util Catch2::Catch2WithMain)
-    catch_discover_tests(test_util)
+    add_executable(test_clingo-util)
+    target_sources(test_clingo-util PRIVATE ${test})
+    clingo_target_properties(TARGETS test_clingo-util FOLDER test SUBDIR tests)
+    target_include_directories(test_clingo-util PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+    target_link_libraries(test_clingo-util PRIVATE clingo-util Catch2::Catch2WithMain)
+    catch_discover_tests(test_clingo-util DL_PATH "$<TARGET_FILE_DIR:clingo>")
 endif()
