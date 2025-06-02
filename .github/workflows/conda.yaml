@@ -46,13 +46,6 @@ jobs:
         run: |
           choco install re2c
 
-      - name: MacOS SDK
-        if: ${{ runner.os == 'macos' }}
-        shell: bash -l {0}
-        run: |
-          curl -LO https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz
-          sudo tar xf MacOSX11.3.sdk.tar.xz -C /opt
-
       - name: Conda
         uses: conda-incubator/setup-miniconda@v3
         with:

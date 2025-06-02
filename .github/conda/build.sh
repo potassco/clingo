@@ -2,25 +2,22 @@
 
 set -ex
 
-env
-
-mkdir -p build
-cd build
-
 if [ -z "${PYTHON}" ]; then
     PYTHON="$(which python)"
 fi
 
-cmake .. \
+cmake -S . -B build -G Ninja \
     -DCMAKE_CXX_COMPILER="${CXX}" \
     -DCMAKE_C_COMPILER="${CC}" \
+    -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+    -DCMAKE_INSTALL_LIBDIR="lib" \
+    -DCMAKE_BUILD_TYPE=Release \
     -DPython_ROOT_DIR="${PREFIX}" \
     -DPython_EXECUTABLE="${PYTHON}" \
-    -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
     -DCLINGO_MANAGE_RPATH=OFF \
-    -DPYCLINGO_INSTALL_DIR="${SP_DIR}" \
-    -DCMAKE_INSTALL_LIBDIR="lib" \
-    -DCMAKE_BUILD_TYPE=Release
+    -DCLINGO_BUILD_TESTS=ON \
+    -DPYCLINGO_INSTALL_DIR="${SP_DIR}"
 
-make -j"${CPU_COUNT}"
-make install
+cmake --build build
+ctest --test-dir build
+cmake --build build --target install

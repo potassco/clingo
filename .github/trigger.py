@@ -12,7 +12,7 @@ REPO = "clingo"
 OWNER = "potassco"
 API_URL = f"https://api.github.com/repos/{OWNER}/{REPO}"
 TOKEN_FILE = os.path.expanduser("~/.tokens")
-WORKFLOW_ID_RELEASE = "165237057"  # Adjust as needed
+WORKFLOW_ID_CONDA = "165237057"
 
 
 def get_token():
@@ -72,7 +72,7 @@ def main():
     Run the script.
     """
     parser = argparse.ArgumentParser(
-        description="Trigger GitHub Actions workflows for clingo (urllib.request version)."
+        description="Trigger GitHub Actions workflows for clingo."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -90,9 +90,9 @@ def main():
     if args.command == "list":
         list_workflows()
     elif args.command == "release":
-        dispatch_workflow(WORKFLOW_ID_RELEASE, args.branch, "main", args.build_number)
+        dispatch_workflow(WORKFLOW_ID_CONDA, args.branch, "main", args.build_number)
     elif args.command == "dev":
-        dispatch_workflow(WORKFLOW_ID_RELEASE, args.branch, "dev-20", "auto")
+        dispatch_workflow(WORKFLOW_ID_CONDA, args.branch, "dev-20", "auto")
     else:
         parser.print_help()
         sys.exit(1)

@@ -1,10 +1,12 @@
-cmake -G "Visual Studio 17 2022" -S . -B build ^
+cmake -S . -B build -G "Visual Studio 17 2022" ^
+    -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
+    -DCMAKE_INSTALL_LIBDIR="lib" ^
     -DPython_ROOT_DIR="%PREFIX%" ^
     -DPython_EXECUTABLE="%PYTHON%" ^
-    -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
-    -DPYCLINGO_INSTALL_DIR="%SP_DIR%" ^
     -DCLINGO_MANAGE_RPATH=OFF ^
-    -DCMAKE_INSTALL_LIBDIR="lib"
+    -DCLINGO_BUILD_TESTS=ON ^
+    -DPYCLINGO_INSTALL_DIR="%SP_DIR%"
 
 cmake --build build --config Release
+ctest --test-dir build -C Release
 cmake --build build --target install --config Release
