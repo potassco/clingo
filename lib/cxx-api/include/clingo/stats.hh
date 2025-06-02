@@ -36,7 +36,7 @@ class ConstStats {
         if (type() == StatsType::value) {
             return Detail::call<clingo_stats_value_get>(stats_, key_);
         }
-        throw std::bad_variant_access();
+        throw std::logic_error{"not a value"};
     }
     [[nodiscard]] auto operator*() const -> double { return value(); }
 
@@ -69,7 +69,7 @@ class Stats : public ConstStats {
         if (type() == StatsType::value) {
             Detail::handle_error(clingo_stats_value_set(stats_(), key_, value));
         } else {
-            throw std::bad_variant_access{};
+            throw std::logic_error{"not a value"};
         }
     }
     auto operator=(double value) const -> Stats { // NOLINT
@@ -115,7 +115,7 @@ inline auto ConstStats::array() const -> ConstStatsArray {
     if (type() == StatsType::array) {
         return ConstStatsArray{stats_, key_};
     }
-    throw std::bad_variant_access{};
+    throw std::logic_error{"not an array"};
 }
 
 inline auto ConstStats::at(size_t index) const -> ConstStats {
@@ -163,7 +163,7 @@ inline auto Stats::array() const -> StatsArray {
     if (type() == StatsType::array) {
         return StatsArray{stats_(), key_};
     }
-    throw std::bad_variant_access{};
+    throw std::logic_error{"not an array"};
 }
 inline auto Stats::at(size_t index) const -> Stats {
     return array().at(index);
@@ -216,7 +216,7 @@ inline auto ConstStats::map() const -> ConstStatsMap {
     if (type() == StatsType::map) {
         return ConstStatsMap{stats_, key_};
     }
-    throw std::bad_variant_access{};
+    throw std::logic_error{"not a map"};
 }
 
 inline auto ConstStats::get(std::string_view name) const -> ConstStats {
@@ -260,7 +260,7 @@ inline auto Stats::map() const -> StatsMap {
     if (type() == StatsType::map) {
         return StatsMap{stats_(), key_};
     }
-    throw std::bad_variant_access{};
+    throw std::logic_error{"not a map"};
 }
 
 inline auto Stats::get(std::string_view name) const -> Stats {
