@@ -45,7 +45,7 @@ class ConstConfig {
             }
             return std::nullopt;
         }
-        throw std::bad_variant_access();
+        throw std::logic_error{"not a value"};
     }
     [[nodiscard]] auto operator*() const -> std::optional<std::string_view> { return value(); }
     [[nodiscard]] auto description() const -> std::string_view {
@@ -81,7 +81,7 @@ class Config : public ConstConfig {
         if (intersects(type(), ConfigType::value)) {
             Detail::handle_error(clingo_config_value_set(cfg_(), key_, value.data(), value.size()));
         } else {
-            throw std::bad_variant_access{};
+            throw std::logic_error{"not a value"};
         }
     }
     auto operator=(std::string_view value) const -> Config { // NOLINT
@@ -127,7 +127,7 @@ inline auto ConstConfig::array() const -> ConstConfigArray {
     if (intersects(type(), ConfigType::array)) {
         return ConstConfigArray{cfg_, key_};
     }
-    throw std::bad_variant_access{};
+    throw std::logic_error{"not an array"};
 }
 
 inline auto ConstConfig::at(size_t index) const -> ConstConfig {
@@ -161,7 +161,7 @@ class ConfigArray : public ConstConfigArray {
     if (intersects(type(), ConfigType::array)) {
         return ConfigArray{cfg_(), key_};
     }
-    throw std::bad_variant_access{};
+    throw std::logic_error{"not an array"};
 }
 
 inline auto Config::at(size_t index) const -> Config {
@@ -215,7 +215,7 @@ inline auto ConstConfig::map() const -> ConstConfigMap {
     if (intersects(type(), ConfigType::map)) {
         return ConstConfigMap{cfg_, key_};
     }
-    throw std::bad_variant_access{};
+    throw std::logic_error{"not a map"};
 }
 
 inline auto ConstConfig::get(std::string_view name) const -> ConstConfig {
@@ -255,7 +255,7 @@ inline auto Config::map() const -> ConfigMap {
     if (intersects(type(), ConfigType::map)) {
         return ConfigMap{cfg_(), key_};
     }
-    throw std::bad_variant_access{};
+    throw std::logic_error{"not a map"};
 }
 
 inline auto Config::get(std::string_view name) const -> Config {
