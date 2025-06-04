@@ -38,7 +38,7 @@ jobs:
           channels: conda-forge
           channel-priority: strict
           activate-environment: build-env
-          use-mamba: true
+          auto-update-conda: true
 
       - name: Dependencies
         run: |
@@ -46,7 +46,7 @@ jobs:
           if [[ "$RUNNER_OS" != "Windows" ]]; then
             pkgs+=(re2c)
           fi
-          mamba install "${pkgs[@]}"
+          conda install "${pkgs[@]}"
 
       - name: Install re2c
         if: runner.os == 'Windows'
