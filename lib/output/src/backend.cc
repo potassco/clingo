@@ -178,6 +178,9 @@ class BuilderBase {
         return std::span{&lit, 1};
     }
 
+    //! Cond must not be called with rvalues.
+    auto cond(prg_lit_t &&) -> PrgLitSpan = delete;
+
     //! Compute the strongly connected components of the positive dependency graph.
     //!
     //! Component numbers are stored in the lit info vector. Trivial components
@@ -1635,7 +1638,8 @@ class OutputBackend : public OutputStm, OutputTheory {
     auto do_sym(Symbol sym) -> size_t override { return theory_->sym(sym); }
 
     auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
-        auto lits = bld_.cond(uid_to_lit(cond));
+        auto lit = uid_to_lit(cond);
+        auto lits = bld_.cond(lit);
         return theory_->elem(Util::to_vec<TheoryData::IdVec>(tuple, uid_to_id), {lits.begin(), lits.end()});
     }
 
