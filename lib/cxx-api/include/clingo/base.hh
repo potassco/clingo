@@ -750,10 +750,11 @@ class Base {
     //! @param sym the symbol to look for
     //! @param def the default value to return if the symbol is not found
     //! @return the atom base for the symbol, or the default value if not found
-    [[nodiscard]] auto get(Symbol const &sym, std::optional<mapped_type> def = std::nullopt) const
-        -> std::optional<mapped_type> {
+    [[nodiscard]] auto get(Symbol const &sym, std::optional<Atom> def = std::nullopt) const -> std::optional<Atom> {
         if (auto sig = sym.signature(); sig) {
-            return get(*sig, def);
+            if (auto base = get(*sig)) {
+                return base->get(sym, def);
+            }
         }
         return def;
     }
