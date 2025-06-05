@@ -12,6 +12,11 @@
 
 namespace Clingo::AST {
 
+//! @addtogroup cpp_ast
+//! Functions and data structures to work with program ASTs.
+//!
+//! @{
+
 namespace UnaryOperator {
 inline constexpr int minus = 0;
 inline constexpr int negation = 1;
@@ -91,6 +96,7 @@ inline constexpr int line = 0;
 inline constexpr int block = 1;
 } // namespace CommentType
 
+//! Enumeration of available ast attributes.
 enum class Attribute : clingo_ast_attribute_t {
     anonymous = clingo_ast_attribute_anonymous,
     arguments = clingo_ast_attribute_arguments,
@@ -135,6 +141,9 @@ enum class Attribute : clingo_ast_attribute_t {
     weight = clingo_ast_attribute_weight,
 };
 
+//! Enumeration of available ast node types.
+//!
+//! Each note type is associated with a set of attributes.
 enum class NodeType : clingo_ast_type_t {
     // terms
     projection = clingo_ast_type_projection,
@@ -212,22 +221,76 @@ enum class NodeType : clingo_ast_type_t {
 
 class Node;
 
+//! Function to visit ast nodes.
 using Visitor = std::function<void(Node const &)>;
+//! Visit the given node with the visitor.
+//!
+//! This function simply calls `fun(node)`.
+//!
+//! @param fun the visitor
+//! @param node the node to visit
 void visit(Visitor const &fun, Node const &node);
+//! Visit the given node with the visitor if engaged.
+//!
+//! @param fun the visitor
+//! @param node the node to visit
 void visit(Visitor const &fun, std::optional<Node> const &node);
+//! Visit the nodes in the given span with the visitor.
+//!
+//! @param fun the visitor
+//! @param nodes the node to visit
 void visit(Visitor const &fun, std::span<Node const> nodes);
 
+//! Function to transform ast nodes.
+//!
+//! The function can either return an updated node or return std::nullopt to
+//! keep it as is.
 using Transformer = std::function<std::optional<Node>(Node const &)>;
+//! Transform the given node with the transformer.
+//!
+//! This function simply calls `fun(node)`.
+//!
+//! @param fun the visitor
+//! @param node the node to transform
 auto transform(Transformer const &fun, Node const &node) -> std::optional<Node>;
+//! Transform the given node with the transformer if engaged.
+//!
+//! @param fun the visitor
+//! @param node the node to transform
 auto transform(Transformer const &fun, std::optional<Node> const &node) -> std::optional<std::optional<Node>>;
+//! Transform the nodes in the given span with the transformer.
+//!
+//! @param fun the visitor
+//! @param nodes the node to visit
 auto transform(Transformer const &fun, std::vector<Node> nodes) -> std::optional<std::vector<Node>>;
 
+//! Node capturing expressions in logic programs.
+//!
+//! Nodes are immutable objects supporting record updates.
+//!
+//! Refer to `lib/c-api/src/ast_yaml.cc` for node types and their arguments.
 class Node {
   public:
+    //! Construct a node form its C representation.
+    //!
+    //! If copy is true copies the given node or otherwise takes ownership.
+    //! Copying itself is cheap and just involves updating reference counts.
+    //!
+    //! For internal sue.
+    //!
+    //! @param ast the C ast
+    //! @param copy whether to copy
     explicit Node(clingo_ast_t *ast, bool copy = false) : ast_{ast, copy} {}
 
+    //! Cast the node to its underlying C representation.
     [[nodiscard]] friend auto c_cast(Node const &x) -> clingo_ast_t * { return x.ast_.get(); }
 
+    //! Construct a node of the given type.
+    //!
+    //! @tparam Type the type of the node
+    //! @param lib the library object to store symbols
+    //! @param args the attributes that make up the nodes
+    //! @return the constructed node
     template <NodeType Type, class... Args>
     [[nodiscard]] static auto create(Library const &lib, Args const &...args) -> Node {
         constexpr auto type = static_cast<size_t>(Type);
@@ -236,13 +299,31 @@ class Node {
         return Node{create_<type>(lib, std::make_index_sequence<Detail::cons.at(type).size()>(), args...)};
     }
 
+    //! Visit a node of the given type.
+    //!
+    //! The given type must correspond to the actual type of the node. The
+    //! given updater must be templated for the attributes of the node that are
+    //! to be changed. If the return type of this function is not void, it will
+    //! be used to update the respective attribute.
+    //!
+    //! @tparam Type the type of the node
+    //! @param lib the library object to store symbols
+    //! @param fun the templated updater
+    //! @return the updated node
     template <NodeType Type, class Updater>
     [[nodiscard]] auto update(Library const &lib, Updater const &fun) const -> Node {
+        assert(Type == type());
         constexpr auto type = static_cast<size_t>(Type);
         static_assert(type < Detail::cons.size(), "invalid type");
         return Node{update_<type>(lib, fun, std::make_index_sequence<Detail::cons.at(type).size()>())};
     }
 
+    //! Visit the direct children of the node with the given visitor.
+    //!
+    //! Note that the visitor is in charge of recursively visiting further
+    //! nodes.
+    //!
+    //! @param fun the visitor
     void accept(Visitor const &fun) const {
         auto t = type();
         for (auto const [attr, type] : Detail::cons.at(static_cast<size_t>(t))) {
@@ -256,25 +337,44 @@ class Node {
         }
     }
 
+    //! Transform the direct children of the node with the given transformer.
+    //!
+    //! @param lib the library object to store symbols
+    //! @param fun the transformer
     [[nodiscard]] auto accept(Library const &lib, Transformer const &fun) const -> std::optional<Node> {
         return dispatch_(lib, static_cast<size_t>(type()), fun, std::make_index_sequence<Detail::cons.size()>());
     }
 
+    //! Get the type of the node.
+    //!
+    //! @return the type
     [[nodiscard]] auto type() const -> NodeType {
         return static_cast<NodeType>(Detail::call<clingo_ast_get_type>(ast_.get()));
     }
 
+    //! Get the numeric value of the given attribute.
+    //!
+    //! @param attribute the attribute
+    //! @return the value
     [[nodiscard]] auto number(Attribute attribute) const -> int {
         return Detail::call<clingo_ast_attribute_get_number>(ast_.get(),
                                                              static_cast<clingo_ast_attribute_t>(attribute));
     }
 
+    //! Get the symbolic value of the given attribute.
+    //!
+    //! @param attribute the attribute
+    //! @return the value
     [[nodiscard]] auto symbol(Attribute attribute) const -> Symbol {
         return Symbol{
             Detail::call<clingo_ast_attribute_get_symbol>(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute)),
             true};
     }
 
+    //! Get the symbolic values of the given attribute.
+    //!
+    //! @param attribute the attribute
+    //! @return the value
     [[nodiscard]] auto symbols(Attribute attribute) const -> SymbolVector {
         clingo_symbol_t const *value = nullptr;
         size_t size = 0;
@@ -283,17 +383,29 @@ class Node {
         return Detail::transform(std::span{value, size}, [](auto x) { return Symbol{x, true}; });
     }
 
+    //! Get the location value of the given attribute.
+    //!
+    //! @param attribute the attribute
+    //! @return the value
     [[nodiscard]] auto location(Attribute attribute) const -> Location {
         return Location{Detail::call<clingo_ast_attribute_get_location>(
             ast_.get(), static_cast<clingo_ast_attribute_t>(attribute))};
     }
 
+    //! Get the string value of the given attribute.
+    //!
+    //! @param attribute the attribute
+    //! @return the value
     [[nodiscard]] auto string(Attribute attribute) const -> std::string_view {
         auto [data, size] =
             Detail::call<clingo_ast_attribute_get_string>(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute));
         return {data, size};
     }
 
+    //! Get the string values of the given attribute.
+    //!
+    //! @param attribute the attribute
+    //! @return the value
     [[nodiscard]] auto strings(Attribute attribute) const -> std::vector<std::string_view> {
         clingo_string_t const *value = nullptr;
         size_t size = 0;
@@ -302,6 +414,10 @@ class Node {
         return Detail::transform(std::span{value, size}, [](auto x) { return std::string_view{x.data, x.size}; });
     }
 
+    //! Get the node value of the given attribute.
+    //!
+    //! @param attribute the attribute
+    //! @return the value
     [[nodiscard]] auto node(Attribute attribute) const -> Node {
         clingo_ast_t *value =
             Detail::call<clingo_ast_attribute_get_ast>(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute));
@@ -311,12 +427,20 @@ class Node {
         return Node{value};
     }
 
+    //! Get the optional node value of the given attribute.
+    //!
+    //! @param attribute the attribute
+    //! @return the value
     [[nodiscard]] auto optional_node(Attribute attribute) const -> std::optional<Node> {
         clingo_ast_t *value =
             Detail::call<clingo_ast_attribute_get_ast>(ast_.get(), static_cast<clingo_ast_attribute_t>(attribute));
         return value != nullptr ? std::make_optional<Node>(value) : std::nullopt;
     }
 
+    //! Get the node values of the given attribute.
+    //!
+    //! @param attribute the attribute
+    //! @return the value
     [[nodiscard]] auto nodes(Attribute attribute) const -> std::vector<Node> {
         auto arr = Detail::Array{};
         Detail::handle_error(clingo_ast_attribute_get_ast_array(
@@ -325,16 +449,39 @@ class Node {
                                  [](auto *&node) { return Node{std::exchange(node, nullptr)}; });
     }
 
+    //! Get a string representation of the node.
+    //!
+    //! The string representation is intended to be parsable.
+    //!
+    //! @return the string representation
     [[nodiscard]] auto to_string() const -> std::string {
         auto bld = StringBuilder{};
         Detail::handle_error(clingo_ast_to_string(ast_.get(), c_cast(bld)));
         return std::string{bld.str()};
     }
 
+    //! Get a hash for the node.
+    //!
+    //! The hash is designed for usage in hash tables. There is also an
+    //! associated specialization for std::hash.
+    //!
+    //! @return the hash
     [[nodiscard]] auto hash() const noexcept -> size_t { return clingo_ast_hash(ast_.get()); }
+
+    //! Equality compare two nodes.
+    //!
+    //! @param a the first node
+    //! @param b the second node
+    //! @return whether the nodes are equal
     friend auto operator==(Node const &a, Node const &b) noexcept -> bool {
         return clingo_ast_equal(a.ast_.get(), b.ast_.get());
     }
+
+    //! Compare two nodes.
+    //!
+    //! @param a the first node
+    //! @param b the second node
+    //! @return the result of the comparison
     friend auto operator<=>(Node const &a, Node const &b) noexcept -> std::strong_ordering {
         return clingo_ast_compare(a.ast_.get(), b.ast_.get()) <=> 0;
     }
@@ -555,83 +702,156 @@ inline auto transform(Transformer const &fun, std::vector<Node> nodes) -> std::o
     return changed ? std::make_optional(std::move(nodes)) : std::nullopt;
 }
 
+//! Enumeration of expression types that can be parsed.
 enum class ParseType : clingo_ast_parse_type_t {
+    //! Parse a term.
     term = clingo_ast_parse_type_term,
+    //! Parse a theory term.
     theory_term = clingo_ast_parse_type_theory_term,
+    //! Parse a simple literal.
     literal = clingo_ast_parse_type_literal,
+    //! Parse a body literal.
     body_literal = clingo_ast_parse_type_body_literal,
+    //! Parse a head literal.
     head_literal = clingo_ast_parse_type_head_literal,
+    //! Parse a statement.
     statement = clingo_ast_parse_type_statement,
 };
 
+//! Scanner to parse sequences of statements.
 class Scanner {
   public:
     struct sentinel {};
 
     class iterator;
     friend auto operator==(iterator const &a, [[maybe_unused]] sentinel const &b) -> bool;
+    //! Input iterator over statements.
     class iterator {
       public:
+        //! The iterator category.
         using iterator_category = std::input_iterator_tag;
+        //! The difference type.
         using difference_type = std::ptrdiff_t;
+        //! The value type.
         using value_type = Node;
+        //! The pointer type.
         using pointer = Node *;
+        //! The reference type.
         using reference = Node &;
 
+        //! The default constructor.
+        //!
+        //! Only to fulfil the forward iterator concept; must not be used.
         iterator() = default;
 
-        explicit iterator(Scanner &hnd) : scanner_{&hnd} { operator++(); }
-
+        //! Get a reference to the current statement.
+        //!
+        //! @return a reference to the current statement
         auto operator*() const -> reference {
             assert(scanner_ != nullptr && scanner_->value_);
             return *scanner_->value_;
         }
 
+        //! Standard member access operator.
+        //!
+        //! @return a pointer to the current statement
         auto operator->() const -> pointer { return &**this; }
 
+        //! Advance to the next statement.
+        //!
+        //! @return a reference to self
         auto operator++() -> iterator & {
             assert(scanner_ != nullptr);
             scanner_->next_();
             return *this;
         }
 
+        //! Advance to the next statement.
+        //!
+        //! Implemented for completeness. All iterators have the same semantic
+        //! value.
+        //!
+        //! @return the previous iterator
         auto operator++(int) -> iterator {
             iterator tmp = *this;
             ++(*this);
             return tmp;
         }
 
+        //! Equality compare two iterators.
+        //!
+        //! Implemented for completeness. All iterators are equal.
+        //!
+        //! @param a the first iterator
+        //! @param b the second iterator
+        //! @return whether the iterators are equal
         friend auto operator==([[maybe_unused]] iterator const &a, [[maybe_unused]] iterator const &b) -> bool {
             assert(a.scanner_ == b.scanner_);
             return true;
         }
 
+        //! Check if the iterator has reached the end.
+        //!
+        //! @param a the first iterator
+        //! @param b the end sentinel
+        //! @return whether the iterator reached the end
         friend auto operator==(iterator const &a, [[maybe_unused]] sentinel const &b) -> bool {
             assert(a.scanner_ != nullptr);
             return !a.scanner_->value_.has_value();
         }
 
       private:
+        friend class Scanner;
+
+        //! Construct an iterator pointing to the next statement in the scanner.
+        //!
+        //! @param hnd the scanner
+        explicit iterator(Scanner &hnd) : scanner_{&hnd} { operator++(); }
+
         Scanner *scanner_ = nullptr;
     };
+    //! The difference type.
     using difference_type = iterator::difference_type;
+    //! The value type.
     using value_type = iterator::value_type;
+    //! The reference type.
     using reference = iterator::reference;
+    //! The pointer type.
     using pointer = iterator::pointer;
 
+    //! Construct a scanner for the given program.
+    //!
+    //! @param lib the library to store symbols
+    //! @param program the program to parse
     explicit Scanner(Library lib, std::string_view program)
         : lib_{std::move(lib)},
           scanner_{Detail::call<clingo_ast_scan_string>(c_cast(lib_), program.data(), program.size())} {}
 
+    //! Construct a scanner for the given files containing programs.
+    //!
+    //! @param lib the library to store symbols
+    //! @param files the files to parse
     explicit Scanner(Library lib, StringSpan files) : lib_{std::move(lib)} {
         auto cfiles = Detail::transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
         scanner_.reset(Detail::call<clingo_ast_scan_files>(c_cast(lib_), cfiles.data(), cfiles.size()));
     }
 
+    //! Construct a scanner for the given files containing programs.
+    //!
+    //! Convenience overload to pass lists of files.
+    //!
+    //! @param lib the library to store symbols
+    //! @param files the files to parse
     explicit Scanner(Library lib, StringList files) : Scanner{std::move(lib), std::span{files}} {}
 
+    //! Get an iterator to the first statement in the sequence.
+    //!
+    //! @return the iterator
     auto begin() -> iterator { return iterator{*this}; }
 
+    //! Get a sentinel for the end of the sequence.
+    //!
+    //! @return the sentinel
     auto end() -> sentinel {
         static_cast<void>(this);
         return sentinel{};
@@ -654,36 +874,70 @@ class Scanner {
 static_assert(std::input_iterator<Scanner::iterator>);
 static_assert(std::sentinel_for<Scanner::sentinel, Scanner::iterator>);
 
+//! The available projection modes.
 enum class ProjectionMode : clingo_projection_mode_t {
+    //! Do not project.
     disabled = clingo_projection_mode_disabled,
+    //! Only project anonymous variables.
     anonymous = clingo_projection_mode_anonymous,
+    //! Project pure variables (includes anonymous variables).
     pure = clingo_projection_mode_pure,
 };
 
+//! A context object for rewriting.
 class RewriteContext {
   public:
+    //! Construct the context.
+    //!
+    //! @param lib the library to store symbols
     explicit RewriteContext(Library const &lib) : ctx_{Detail::call<clingo_ast_rewrite_context_create>(c_cast(lib))} {}
 
+    //! Convert the context to its underlying C object.
     friend auto c_cast(RewriteContext const &x) -> clingo_ast_rewrite_context_t * { return x.ctx_.get(); }
 
+    //! Set the projection mode.
+    //!
+    //! @param value the projection mode
     void project_mode(ProjectionMode value) {
         clingo_ast_rewrite_context_set_project_mode(ctx_.get(), static_cast<clingo_projection_mode_t>(value));
     }
 
+    //! Get the projection mode.
+    //!
+    //! @return the projection mode
     auto project_mode() -> ProjectionMode {
         return static_cast<ProjectionMode>(clingo_ast_rewrite_context_get_project_mode(ctx_.get()));
     }
 
+    //! Enable projection of anonymous variables in negated literals.
+    //!
+    //! This exists mainly for backward compatibility with clingo 5. Program
+    //! should use the projection `*` instead.
+    //!
+    //! @param value whether to enable
     void project_anonymous(bool value) { clingo_ast_rewrite_context_set_project_anonymous(ctx_.get(), value); }
 
+    //! Check whether projection in negative literals is enabled.
+    //!
+    //! @return whether projection is enabled
     auto project_anonymous() -> bool { return clingo_ast_rewrite_context_get_project_mode(ctx_.get()) != 0; }
 
+    //! Protect a parameter from simplification.
+    //!
+    //! Parameters from const directives and program directives should be
+    //! projected before rewriting.
+    //!
+    //! @param name the name of the parameter to protect
     void add_param(std::string_view name) {
         Detail::handle_error(clingo_ast_rewrite_context_add_param(ctx_.get(), name.data(), name.size()));
     }
 
+    //! Clear previously protected parameters.
     void clear_params() { clingo_ast_rewrite_context_clear_params(ctx_.get()); }
 
+    //! Add a theory node that is used to rewrite theory atoms in statements.
+    //!
+    //! @param stm the theory statement
     void add_theory(Node const &stm) {
         Detail::handle_error(clingo_ast_rewrite_context_add_theory(ctx_.get(), c_cast(stm)));
     }
@@ -692,6 +946,13 @@ class RewriteContext {
     Detail::unique_handle<clingo_ast_rewrite_context_t, clingo_ast_rewrite_context_free> ctx_;
 };
 
+//! Rewrite a statement with the given rewrite context.
+//!
+//! Removes pools, simplifies arithmetics, parses theory atoms, etc.
+//!
+//! @param ctx the rewrite context
+//! @param stm the statement to rewrite
+//! @return the resulting statements
 inline auto rewrite(RewriteContext &ctx, Node const &stm) -> std::vector<Node> {
     auto arr = Detail::Array{};
     Detail::handle_error(clingo_ast_rewrite(c_cast(ctx), c_cast(stm), &arr.value, &arr.size));
@@ -699,22 +960,41 @@ inline auto rewrite(RewriteContext &ctx, Node const &stm) -> std::vector<Node> {
                              [](auto *&ast) { return Node{std::exchange(ast, nullptr)}; });
 }
 
+//! A program to add statements to.
 class Program {
   public:
+    //! Construct an empty program.
+    //!
+    //! @param lib a library to store symbols
     Program(Library const &lib) : prg_{Detail::call<clingo_program_new>(c_cast(lib))} {}
 
+    //! Add a statemente node to the program.
+    //!
+    //! @param stm the statement to add
     void add(Node const &stm) const { Detail::handle_error(clingo_program_add(prg_.get(), c_cast(stm))); }
 
+    //! Convert the program to its underlying C representation.
+    //!
+    //! @param x the prgoram
+    //! @return the C object
     friend auto c_cast(Program const &x) -> clingo_program_t * { return x.prg_.get(); }
 
   private:
     Detail::unique_handle<clingo_program_t, clingo_program_free> prg_;
 };
 
+//! Parse an expression of the given type.
+//!
+//! @param lib the library to store symbols in
+//! @param string the string to parse
+//! @param type the node type to parse
+//! @return the parsed node
 inline auto parse(Library const &lib, std::string_view string, ParseType type = ParseType::statement) -> Node {
     return Node{Detail::call<clingo_ast_parse_expression>(c_cast(lib), static_cast<clingo_ast_parse_type_t>(type),
                                                           string.data(), string.size())};
 }
+
+//! @}
 
 } // namespace Clingo::AST
 

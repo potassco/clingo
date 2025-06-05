@@ -1,22 +1,7 @@
 //! @file clingo.h
-//! Single header containing the whole clingo API.
+//! Header aggregating important Clingo modules.
 //!
 //! @author Roland Kaminski
-
-//! @mainpage Clingo C API
-//! This API provides functions to ground and solve logic programs.
-//!
-//! The documentation is structured into different modules.
-//! To get an overview, checkout the [Topics](topics.html) page.
-//! To get started, take a look at the documentation of the @ref c_control module.
-//!
-//! The source code of clingo is available on [github.com/potassco/clingo](https://github.com/potassco/clingo).
-//!
-//! For information about the syntax and semantics of the clingo language,
-//! take a look the [Potassco Guide](https://github.com/potassco/guide/releases/).
-//!
-//! @note Each module comes with an example highlighting key functionality.
-//! The example should be studied along with the module documentation.
 
 #ifndef CLINGO_H
 #define CLINGO_H
@@ -31,52 +16,7 @@ extern "C" {
 #include <clingo/control.h>
 #include <clingo/core.h>
 #include <clingo/model.h>
-#include <clingo/script.h>
-#include <clingo/solve.h>
 #include <clingo/symbol.h>
-
-//! @defgroup c_api C API
-//! API providing a stable interface for applications using Clingo.
-//!
-//! The API is mainly intended for developing higher level language bindings.
-//! @{
-
-//! @defgroup c_core Core Functionality
-
-//! @defgroup c_symbol Symbol Handling
-
-//! @defgroup c_ast Abstract Syntax Trees
-
-//! @defgroup c_control Grounding and Solving
-//! @{
-
-//! @defgroup c_base Symbolic Atom Inspection
-
-//! @defgroup c_shared Basic Shared Types
-
-//! @defgroup c_observe Ground Program Inspection
-
-//! @defgroup c_backend Ground Program Extension
-
-//! @defgroup c_model Model Inspection
-
-//! @defgroup c_solve Solving
-
-//! @defgroup c_config Solver Configuration
-
-//! @defgroup c_stats Statistics
-
-//! @defgroup c_propagate Theory Propagation
-
-//! @}
-
-//! @defgroup c_script Scripting Support for Grounding
-
-//! @defgroup c_app Applications on top of Clingo
-
-//! @defgroup c_theory External Theory Support
-
-//! @}
 
 #ifdef __cplusplus
 }

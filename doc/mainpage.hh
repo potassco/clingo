@@ -1,3 +1,107 @@
+//! @mainpage Overview
+//! This API provides functions to ground and solve logic programs.
+//!
+//! The documentation is structured into different modules. To get an overview,
+//! checkout the [Topics](topics.html) page.
+//!
+//! The source code of clingo is available on
+//! [github.com/potassco/clingo](https://github.com/potassco/clingo).
+//!
+//! For information about the syntax and semantics of the clingo language, take
+//! a look the [Potassco Guide](https://github.com/potassco/guide/releases/).
+//!
+//! @note Each module in the C API comes with an example highlighting key
+//! functionality. The example should be studied along with the module
+//! documentation.
+
+//! @defgroup c_api C API
+//! API providing a stable interface for applications using Clingo.
+//!
+//! The API is mainly intended for developing higher level language bindings.
+//! @{
+
+//! @defgroup c_core Core Functionality
+
+//! @defgroup c_symbol Symbol Handling
+
+//! @defgroup c_ast Abstract Syntax Trees
+
+//! @defgroup c_control Grounding and Solving
+//! @{
+
+//! @defgroup c_base Symbolic Atom Inspection
+
+//! @defgroup c_shared Basic Shared Types
+
+//! @defgroup c_observe Ground Program Inspection
+
+//! @defgroup c_backend Ground Program Extension
+
+//! @defgroup c_model Model Inspection
+
+//! @defgroup c_solve Solving
+
+//! @defgroup c_config Solver Configuration
+
+//! @defgroup c_stats Statistics
+
+//! @defgroup c_propagate Theory Propagation
+
+//! @}
+
+//! @defgroup c_script Scripting Support for Grounding
+
+//! @defgroup c_app Applications on top of Clingo
+
+//! @defgroup c_theory External Theory Support
+
+//! @}
+
+//! @defgroup cpp_api C++ API
+//! API providing a stable interface for applications using Clingo.
+//!
+//! This API is suitable to develop performant applications on top of Clingo.
+//! It should generally be preferred to the low-level C bindings except maybe
+//! for language bindings.
+//! @{
+
+//! @defgroup cpp_core Core Functionality
+
+//! @defgroup cpp_symbol Symbol Handling
+
+//! @defgroup cpp_ast Abstract Syntax Trees
+
+//! @defgroup cpp_control Grounding and Solving
+//! @{
+
+//! @defgroup cpp_base Symbolic Atom Inspection
+
+//! @defgroup cpp_shared Basic Shared Types
+
+//! @defgroup cpp_observe Ground Program Inspection
+
+//! @defgroup cpp_backend Ground Program Extension
+
+//! @defgroup cpp_model Model Inspection
+
+//! @defgroup cpp_solve Solving
+
+//! @defgroup cpp_config Solver Configuration
+
+//! @defgroup cpp_stats Statistics
+
+//! @defgroup cpp_propagate Theory Propagation
+
+//! @}
+
+//! @defgroup cpp_script Scripting Support for Grounding
+
+//! @defgroup cpp_app Applications on top of Clingo
+
+//! @defgroup cpp_theory External Theory Support
+
+//! @}
+
 //! @defgroup API Internal C++ API
 //! This is the internal Clingo API, use at your own risk.
 //!
@@ -275,13 +379,5 @@
 //! Library combining input, ground, and output.
 //! @{
 //! @}
-
-//! @}
-
-//! @defgroup cpp_api C++ API
-//! This is the stable C++ API for applications using Clingo.
-//! @{
-
-//! @defgroup cpp_app Applications on top of Clingo
 
 //! @}

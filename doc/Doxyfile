@@ -185,12 +185,13 @@ FULL_PATH_NAMES        = YES
 # This tag requires that the tag FULL_PATH_NAMES is set to YES.
 
 STRIP_FROM_PATH        = \
-    ../lib/c-api/include/clingo \
-    ../lib/control/include/clingo \
-    ../lib/core/include/clingo \
-    ../lib/ground/include/clingo \
-    ../lib/input/include/clingo \
-    ../lib/output/include/clingo \
+    ../lib/c-api/include \
+    ../lib/cxx-api/include \
+    ../lib/control/include \
+    ../lib/core/include \
+    ../lib/ground/include \
+    ../lib/input/include \
+    ../lib/output/include \
     ../lib/util/include
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of the
