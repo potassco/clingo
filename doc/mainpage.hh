@@ -277,3 +277,11 @@
 //! @}
 
 //! @}
+
+//! @defgroup cpp_api C++ API
+//! This is the stable C++ API for applications using Clingo.
+//! @{
+
+//! @defgroup cpp_app Applications on top of Clingo
+
+//! @}

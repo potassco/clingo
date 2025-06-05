@@ -95,10 +95,11 @@ typedef bool (*clingo_option_parser_t)(char const *value, size_t size, void *dat
 //! Note that the parser also has to take care of storing the semantic value of
 //! the option somewhere.
 //!
-//! Parameter option specifies the name(s) of the option.
-//! For example, "ping,p" adds the short option "-p" and its long form "--ping".
-//! It is also possible to associate an option with a help level by adding ",@l" to the option specification.
-//! Options with a level greater than zero are only shown if the argument to help is greater or equal to l.
+//! Parameter option specifies the name(s) of the option. For example,
+//! "-p,ping" adds the short option "-p" and its long form "--ping". It is also
+//! possible to associate an option with a help level by prepending "@l" to the
+//! option specification. Options with a level greater than zero are only shown
+//! if the argument to help is greater or equal to l.
 //!
 //! @param[in] options object to register the option with
 //! @param[in] group options are grouped into sections as given by this string

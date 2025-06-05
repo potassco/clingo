@@ -959,7 +959,8 @@ INPUT                  = mainpage.hh \
                          ../lib/output/include/clingo/output \
                          ../lib/control/include/clingo/control \
                          ../lib/c-api/include/clingo \
-                         ../lib/c-api/include
+                         ../lib/c-api/include \
+                         ../lib/cxx-api/include/clingo
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
