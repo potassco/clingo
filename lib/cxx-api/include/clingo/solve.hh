@@ -8,17 +8,48 @@
 
 namespace Clingo {
 
+//! @addtogroup cpp_solve Solving
+//! Interact with a running search.
+//! @{
+
+//! Class to capture the result of solve calls.
 class SolveResult {
   public:
+    //! Construct the solve result from its C representation.
+    //!
+    //! @param res the C representation of the solve result
     explicit SolveResult(clingo_solve_result_bitset_t res) : res_{res} {}
 
+    //! Check if the result is satisfiable.
+    //!
+    //! @return whether the result is satisfiable
     [[nodiscard]] auto satisfiable() const -> bool { return (res_ & clingo_solve_result_satisfiable) != 0; }
+
+    //! Check if the result is unsatisfiable.
+    //!
+    //! @return whether the result is unsatisfiable
     [[nodiscard]] auto unsatisfiable() const -> bool { return (res_ & clingo_solve_result_unsatisfiable) != 0; }
+
+    //! Check if the result is unknown.
+    //!
+    //! @return whether the result is unknown
     [[nodiscard]] auto unknown() const -> bool {
         return (res_ & (clingo_solve_result_unsatisfiable | clingo_solve_result_satisfiable)) != 0;
     }
+
+    //! Check if the search space was exhausted.
+    //!
+    //! @return whether the search space was exhausted
     [[nodiscard]] auto exhausted() const -> bool { return (res_ & clingo_solve_result_exhausted) != 0; }
+
+    //! Check if the search was interrupted.
+    //!
+    //! @return whether the search was interrupted
     [[nodiscard]] auto interrupted() const -> bool { return (res_ & clingo_solve_result_interrupted) != 0; }
+
+    //! Convert the solve result to a string representation.
+    //!
+    //! @return the string representation of the solve result
     [[nodiscard]] auto to_string() const -> std::string_view {
         if (satisfiable()) {
             return "SAT";
@@ -33,17 +64,33 @@ class SolveResult {
     clingo_solve_result_bitset_t res_;
 };
 
+//! Class to add clauses to a running search.
 class SolveControl {
   public:
+    //! Constructor from the underlying C representation.
+    //!
+    //! @param ctl the C representation of the solve control object
     explicit SolveControl(clingo_solve_control_t *ctl) : ctl_{ctl} {}
 
+    //! Get base associated with the solve control.
+    //!
+    //! @return the base associated with the solve control
     [[nodiscard]] auto base() const -> Base { return Base{Detail::call<clingo_solve_control_base>(ctl_)}; }
 
-    auto add_clause(ProgramLiteralSpan lits) const {
+    //! Add clause to the running search.
+    //!
+    //! @param lits the literals of the clause to add
+    void add_clause(ProgramLiteralSpan lits) const {
         Detail::handle_error(clingo_solve_control_add_clause(ctl_, lits.data(), lits.size()));
     }
 
-    auto add_nogood(ProgramLiteralSpan lits) const {
+    //! Add clause to the running search.
+    //!
+    //! This is equivalent to calling Clingo::SolveControl::add_clause() with
+    //! the negated literals.
+    //!
+    //! @param lits the literals of the nogood to add
+    void add_nogood(ProgramLiteralSpan lits) const {
         add_clause(Detail::transform(lits, [](auto const &lit) { return -lit; }));
     }
 
@@ -51,6 +98,7 @@ class SolveControl {
     clingo_solve_control_t *ctl_;
 };
 
+//! Enumeration of the model types.
 enum class ModelType : clingo_model_type_t {
     stable_model = clingo_model_type_stable_model,             //!< The model represents a stable model.
     brave_consequences = clingo_model_type_brave_consequences, //!< The model represents a set of brave consequences.
@@ -301,6 +349,8 @@ class SolveHandle {
 };
 static_assert(std::input_iterator<SolveHandle::iterator>);
 static_assert(std::sentinel_for<SolveHandle::sentinel, SolveHandle::iterator>);
+
+//! @}
 
 namespace Detail {
 

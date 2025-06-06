@@ -35,7 +35,7 @@ typedef struct clingo_control clingo_control_t;
 //! @addtogroup c_solve Solving
 //! Interact with a running search.
 //!
-//! A ::clingo_solve_handle_t objects can be used for both synchronous and asynchronous search,
+//! ::clingo_solve_handle_t objects can be used for both synchronous and asynchronous search,
 //! as well as iteratively receiving models and solve results.
 //!
 //! For an example showing how to solve asynchronously, see @ref solve.c.
