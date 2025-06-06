@@ -31,35 +31,72 @@ void join(clingo_control_t *ctx, clingo_program_t const *prg);
 
 } // namespace Detail
 
+//! @addtogroup cpp_control
+//! Functions to control the grounding and solving process.
+//!
+//! @{
+
+//! A program part to provide inputs to program directives.
 struct Part {
+    //! Constructs a program part with the given name and parameters.
+    //!
+    //! @param name the name of the part
+    //! @param params the parameters of the part
     Part(std::string name, SymbolVector params = {}) : name{std::move(name)}, params(std::move(params)) {
         assert(!this->name.empty());
     }
 
+    //! The name of the part.
     std::string name;
+    //! The parameters of the part.
     SymbolVector params;
 };
+//! A span of program parts.
 using PartSpan = std::span<Part const>;
+//! An initializer list of program parts.
 using PartList = std::initializer_list<Part>;
+//! A vector of program parts.
 using PartVector = std::vector<Part>;
 
+//! Class to providing a view on the const directives in a logic program.
+//!
+//! The class models a map from parameter names to their values.
 class ConstMap {
   public:
+    //! The key type.
     using key_type = std::string_view;
+    //! The mapped type.
     using mapped_type = Symbol;
+    //! The value type.
     using value_type = std::pair<key_type, mapped_type>;
+    //! The size type.
     using size_type = std::size_t;
+    //! The difference type.
     using difference_type = std::ptrdiff_t;
+    //! The reference type.
     using reference = value_type;
+    //! The pointer type.
     using pointer = Detail::ArrowProxy<value_type>;
+    //! The iterator type.
     using iterator = Detail::RandomAccessIterator<ConstMap>;
 
+    //! Construct from the underlying C representation.
+    //!
+    //! For internal use.
     explicit ConstMap(clingo_const_map_t const *map) : map_{map} {}
 
+    //! Check if the map contains the given key.
+    //!
+    //! @param name the key to check
+    //! @return whether the key is contained in the map
     [[nodiscard]] auto contains(key_type name) const -> bool {
         return Detail::call<clingo_const_map_find>(map_, name.data(), name.size(), nullptr);
     }
 
+    //! Get the value of for the given key.
+    //!
+    //! @param name the key to look up
+    //! @return the value for the key
     [[nodiscard]] auto operator[](key_type name) const -> mapped_type {
         clingo_symbol_t sym = 0;
         bool found = false;
@@ -67,6 +104,10 @@ class ConstMap {
         return found ? Symbol{sym, true} : throw std::out_of_range{"key not found"};
     }
 
+    //! Get the key value pair at the given index.
+    //!
+    //! @param index the index of the element
+    //! @reutrn the key value pair at the index
     [[nodiscard]] auto at(size_t index) const -> value_type {
         clingo_string_t name;
         clingo_symbol_t sym = 0;
@@ -74,23 +115,36 @@ class ConstMap {
         return {{name.data, name.size}, Symbol{sym, true}};
     }
 
+    //! Get the size of the map.
+    //!
+    //! @return the size of the map
     [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_const_map_size>(map_); }
 
+    //! Get an iterator to the beginning of the map.
+    //!
+    //! @return an iterator to the beginning of the map
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
 
+    //! Get an iterator to the end of the map.
+    //!
+    //! @return an iterator to the end of the map
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 
   private:
     clingo_const_map_t const *map_;
 };
 
+//! Enumeration of the control modes.
+//!
+//! This controls how the main function of the control object proceeds.
 enum class ControlMode : clingo_mode_t {
-    parse = clingo_mode_parse,     //!< parse only
-    rewrite = clingo_mode_rewrite, //!< parse and rewrite
-    ground = clingo_mode_ground,   //!< parse, rewrite, ground
-    solve = clingo_mode_solve,     //!< parse, rewrite, ground, and solve
+    parse = clingo_mode_parse,     //!< Parse only.
+    rewrite = clingo_mode_rewrite, //!< Parse and rewrite.
+    ground = clingo_mode_ground,   //!< Parse, rewrite, ground.
+    solve = clingo_mode_solve,     //!< Parse, rewrite, ground, and solve.
 };
 
+//! Enumeration of the flags for writing ASPIF files.
 enum class WriteAspifFlags : clingo_write_aspif_mode_t {
     none = 0,                                              //!< No flags.
     preamble = clingo_write_aspif_mode_preamble,           //!< Write preamble.
@@ -101,48 +155,117 @@ enum class WriteAspifFlags : clingo_write_aspif_mode_t {
 };
 CLINGO_ENABLE_BITSET_ENUM(WriteAspifFlags);
 
+//! Enumeration of the flags for solving a logic program.
 enum class SolveFlags : clingo_solve_mode_bitset_t {
-    empty = 0,
-    yield = clingo_solve_mode_yield,
-    async = clingo_solve_mode_async,
+    empty = 0,                       //!< Standard event-based solving.
+    yield = clingo_solve_mode_yield, //!< Yield models as they are found.
+    async = clingo_solve_mode_async, //!< Asynchronously solve in the background.
 };
 CLINGO_ENABLE_BITSET_ENUM(SolveFlags);
 
+//! Enumeration of the types of statements that can be discarded.
+enum class DiscardType {
+    minimize = clingo_discard_type_e::minimize, //!< Discard minimize statements.
+    project = clingo_discard_type_e::project,   //!< Discard project statements.
+};
+
+//! The main control class for grounding and solving logic programs.
+//!
+//! Control objects are reference counted. For example, care must be taken not
+//! to store objects by value in registered propagators to avoid reference
+//! cycles.
 class Control {
   public:
+    //! Callbock for injecting symbols into the grounding process.
+    //!
+    //! The callback takes the name of the function and the parameters as a
+    //! string view and a span of symbols as arguments and returns a vector of
+    //! symbols to inject.
     using Context = std::function<SymbolVector(std::string_view, SymbolSpan)>;
 
-    Control(Library const &lib, StringList arguments) : Clingo::Control{lib, StringSpan{arguments}} {}
+    //! Constructs a control object with the given library and arguments.
+    //!
+    //! @param lib the library to store symbols
+    //! @param arguments the command-line arguments to pass to the control object
+    explicit Control(Library const &lib, StringList arguments) : Clingo::Control{lib, StringSpan{arguments}} {}
 
-    Control(Library const &lib, StringSpan arguments = {}) {
+    //! @copydoc Control(Library const &, StringList)
+    explicit Control(Library const &lib, StringSpan arguments = {}) {
         auto cstrs = Detail::transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
         ctl_.reset(Detail::call<clingo_control_new>(c_cast(lib), cstrs.data(), arguments.size()), false);
     }
 
+    //! Constructs a control object from an existing C representation.
+    //!
+    //! For internal use.
+    //!
+    //! @param rep the C representation of the control object
+    //! @param acquire whether to acquire the control object
     explicit Control(clingo_control_t *rep, bool acquire) : ctl_{rep, acquire} {}
 
+    //! Cast to the C representation of the control object.
+    //!
+    //! @param ctl the control object to cast
+    //! @return the C representation of the control object
     [[nodiscard]] friend auto c_cast(Control const &ctl) -> clingo_control_t * { return ctl.ctl_.get(); }
 
+    //! Get the control mode.
+    //!
+    //! @return the control mode
     [[nodiscard]] auto mode() const -> ControlMode {
         return static_cast<ControlMode>(Detail::call<clingo_control_mode>(ctl_.get()));
     }
 
+    //! Write the current program to an ASPIF file.
+    //!
+    //! Note that the control object discards previously grounded programs
+    //! after calls to solve(). Only the part of the program grounded after the
+    //! last call to solve() or at the beginning are written to the file.
+    //!
+    //! @param path the path to the ASPIF file
+    //! @param flags the flags to use when writing the ASPIF file
     void write_aspif(std::string_view path, WriteAspifFlags flags = WriteAspifFlags::none) const {
         Detail::handle_error(clingo_control_write_aspif(ctl_.get(), path.data(), path.size(),
                                                         static_cast<clingo_write_aspif_mode_t>(flags)));
     }
 
+    //! Parse files with the given paths.
+    //!
+    //! It is also possible to read files in aspif format. However, aspif files
+    //! must be read before grounding to avoid redefinition errors. Multiple
+    //! aspif files can be given, for example, in the order they have been
+    //! output by write_aspif.
+    //!
+    //! @param files the paths to the files to parse
     void parse_files(StringSpan files) const {
         auto cfiles = Detail::transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
         Detail::handle_error(clingo_control_parse_files(ctl_.get(), cfiles.data(), cfiles.size()));
     }
 
+    //! Parse files with the given paths.
+    //!
+    //! It is also possible to read files in aspif format. However, aspif files
+    //! must be read before grounding to avoid redefinition errors. Multiple
+    //! aspif files can be given, for example, in the order they have been
+    //! output by write_aspif.
+    //!
+    //! @param files the paths to the files to parse
     void parse_files(StringList files) const { parse_files(StringSpan{files.begin(), files.end()}); }
 
+    //! Parse a logic program from a string.
+    //!
+    //! @param program the logic program to parse
     void parse_string(std::string_view program) const {
         Detail::handle_error(clingo_control_parse_string(ctl_.get(), program.data(), program.size()));
     }
 
+    //! Ground the control object with the given parts.
+    //!
+    //! The given parts determine which program parts are grounded with which paramaters. If no parts are given, the
+    //! parts given by the parts directive are grounded.
+    //!
+    //! @param parts the parts to ground the control object with
+    //! @param ctx the context to use for grounding
     void ground(std::optional<PartSpan> parts = std::nullopt, Context ctx = nullptr) const {
         std::vector<clingo_part_t> c_parts;
         if (parts) {
@@ -159,48 +282,91 @@ class Control {
             clingo_control_ground(ctl_.get(), c_parts.data(), c_parts.size(), ctx ? &ctx_ : nullptr, &ctx));
     }
 
+    //! Ground the control object with the given parts.
+    //!
+    //! The given parts determine which program parts are grounded with which paramaters. If no parts are given, the
+    //! parts given by the parts directive are grounded.
+    //!
+    //! @param parts the parts to ground the control object with
+    //! @param ctx the context to use for grounding
     void ground(std::initializer_list<Part> parts, Context ctx = nullptr) const {
         ground(PartSpan{parts}, std::move(ctx));
     }
 
+    //! Get the base of the program.
+    //!
+    //! @return the base of the program
     [[nodiscard]] auto base() const -> Base { return Base{Detail::call<clingo_control_base>(ctl_.get())}; }
 
+    //! Get the statistics of the control object.
+    //!
+    //! @return the statistics of the control object
     [[nodiscard]] auto stats() const -> ConstStats {
         auto const *stats = Detail::call<clingo_control_stats>(ctl_.get());
         auto key = Detail::call<clingo_stats_root>(stats);
         return ConstStats{stats, key};
     }
 
+    //! Solve the grounded program with the given assumptions and flags.
+    //!
+    //! @param handler the solve event handler to report events to
+    //! @param assumptions the assumptions to use for solving
+    //! @param flags the flags to use for solving
+    //! @return a handle to the solve operation
     [[nodiscard]] auto solve(SolveEventHandler &handler, ProgramLiteralSpan const &assumptions = {},
                              SolveFlags flags = SolveFlags::empty) const -> SolveHandle {
         return solve_(&handler, assumptions, flags);
     }
 
+    //! Solve the grounded program with the given assumptions and flags.
+    //!
+    //! This function does not take a solve event handler. Instead, the
+    //! returned solve handle is configured to yield models as they are found.
+    //!
+    //! @param handler the solve event handler to report events to
+    //! @param assumptions the assumptions to use for solving
+    //! @param flags the flags to use for solving
+    //! @return a handle to the solve operation
     [[nodiscard]] auto solve(ProgramLiteralSpan const &assumptions = {}, SolveFlags flags = SolveFlags::yield) const
         -> SolveHandle {
         return solve_(nullptr, assumptions, flags);
     }
 
+    //! Run the default ground and solve flow.
+    //!
+    //! The flow can be configured by specifying a control mode and the parts
+    //! to ground.
     void main() const { Detail::handle_error(clingo_control_main(ctl_.get())); }
 
+    //! Interrupt the current solve operation.
+    //!
+    //! This function is thread-safe and can be called from any thread.
     void interrupt() const { clingo_control_interrupt(ctl_.get()); }
 
-    void discard(bool minimize, bool project) const {
-        clingo_discard_type_t type = 0;
-        if (minimize) {
-            type |= clingo_discard_type_e::minimize;
-        }
-        if (project) {
-            type |= clingo_discard_type_e::project;
-        }
-        Detail::handle_error(clingo_control_discard(ctl_.get(), type));
+    //! Discard the statements of the given types.
+    //!
+    //! @param type the types of statements to discard
+    void discard(DiscardType type) const {
+        Detail::handle_error(clingo_control_discard(ctl_.get(), static_cast<clingo_discard_type_t>(type)));
     }
 
+    //! Get the text buffer of the control object.
+    //!
+    //! Manually created control objects use this buffer to output statements
+    //! to if the control mode has been set to parse, rewrite, or ground.
+    //!
+    //! @return the contents of the text buffer
     [[nodiscard]] auto buffer() const -> std::string_view {
         auto [data, size] = Detail::call<clingo_control_buffer>(ctl_.get());
         return {data, size};
     }
 
+    //! Get the parts to ground.
+    //!
+    //! If no parts are set, the next call to ground would ground the base
+    //! part.
+    //!
+    //! @return the parts to ground, or an empty optional if no parts are set
     [[nodiscard]] auto parts() const -> std::optional<PartVector> {
         clingo_part_t const *parts = nullptr;
         size_t size = 0;
@@ -215,8 +381,16 @@ class Control {
         return std::nullopt;
     }
 
+    //! Set the parts to ground.
+    //!
+    //! @param parts the parts to set
     void parts(PartList parts) const { this->parts(std::span{parts.begin(), parts.end()}); }
 
+    //! Set the parts to ground.
+    //!
+    //! Use std::nullopt to ground the base part.
+    //!
+    //! @param parts the parts to set
     void parts(std::optional<PartSpan> parts) const {
         if (parts) {
             auto cparts = Detail::transform(*parts, [](auto const &part) {
@@ -229,22 +403,41 @@ class Control {
         }
     }
 
+    //! Get the configuration of the control object.
+    //!
+    //! @return the configuration of the control object
     [[nodiscard]] auto config() const -> Config {
         auto *config = Detail::call<clingo_control_config>(ctl_.get());
         auto key = Detail::call<clingo_config_root>(config);
         return Config{config, key};
     }
 
+    //! Get the constant map of the control object.
+    //!
+    //! @return the constant map of the control object
     [[nodiscard]] auto const_map() const -> ConstMap {
         return ConstMap{Detail::call<clingo_control_const_map>(ctl_.get())};
     }
 
+    //! Inspect the current ground program held by the control object.
+    //!
+    //! @param obs the observer to use for inspecting the program
+    //! @param preprocess whether to preprocess the program before observing
     void observe(Observer &obs, bool preprocess = true) const { obs.observe(ctl_.get(), preprocess); }
 
+    //! Get the backend of the control object.
+    //!
+    //! @return the backend of the control object
     [[nodiscard]] auto backend() const -> ProgramBackend {
         return ProgramBackend{Detail::call<clingo_control_backend>(ctl_.get())};
     }
 
+    //! Register a propagator with the control object.
+    //!
+    //! Can be used to register both propagators with and without heuristics.
+    //!
+    //! @param propagator the propagator to register
+    //! @return a reference to the registered propagator
     template <std::derived_from<Propagator> T> auto register_propagator(std::unique_ptr<T> propagator) const -> T & {
         assert(propagator != nullptr);
         auto &res = *propagator;
@@ -254,6 +447,9 @@ class Control {
         return res;
     }
 
+    //! Join the given non-ground program to the current control object.
+    //!
+    //! @param prg the program to join
     void join(AST::Program const &prg) const { Detail::join(ctl_.get(), c_cast(prg)); }
 
   private:
@@ -287,5 +483,7 @@ class Control {
 
     Detail::intrusive_handle<Control, clingo_control_t> ctl_;
 };
+
+//! @}
 
 } // namespace Clingo

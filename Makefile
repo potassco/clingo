@@ -6,7 +6,7 @@ CPU_COUNT := $(shell test -e /usr/bin/nproc && nproc || echo "1")
 all: debug
 
 doc:
-	cd doc && doxygen
+	cd doc && rm -rf html && doxygen
 
 test: debug
 	$(MAKE) CTEST_OUTPUT_ON_FAILURE=1 CTEST_PARALLEL_LEVEL=$(CPU_COUNT) -C build/debug $@
