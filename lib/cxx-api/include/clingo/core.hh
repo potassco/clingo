@@ -374,31 +374,54 @@ template <class Seq> class RandomAccessIterator {
 
 } // namespace Detail
 
+//! @addtogroup cpp_core
+//! Core types and functions used throughout all modules and version information.
+//! @{
+
+//! A program id used for various kinds of indices.
 using ProgramId = clingo_id_t;
+//! A span of program ids.
 using ProgramIdSpan = std::span<ProgramId const>;
 
+//! A program atom.
 using ProgramAtom = clingo_atom_t;
+//! A span of program atoms.
 using ProgramAtomSpan = std::span<ProgramAtom const>;
 
+//! A program literal.
 using ProgramLiteral = clingo_literal_t;
+//! A span of program literals.
 using ProgramLiteralSpan = std::span<ProgramLiteral const>;
+//! A vector of program literals.
 using ProgramLiteralVector = std::vector<ProgramLiteral>;
 
+//! A solver literal.
 using SolverLiteral = clingo_literal_t;
+//! A span of solver literals.
 using SolverLiteralSpan = std::span<SolverLiteral const>;
+//! A list of solver literals.
 using SolverLiteralList = std::initializer_list<SolverLiteral const>;
+//! A vector of solver literals.
 using SolverLiteralVector = std::vector<SolverLiteral>;
 
+//! A weight used in sum aggregates and minimize constraints.
 using Weight = clingo_weight_t;
+//! A span of weights.
 using WeightSpan = std::span<clingo_weight_t const>;
 
+//! A weighted literal, which is a literal with an associated weight.
 using WeightedLiteral = clingo_weighted_literal_t;
+//! A span of weighted literals.
 using WeightedLiteralSpan = std::span<WeightedLiteral const>;
 
+//! A sum representing the sum of weights.
 using Sum = int64_t;
+//! A span of sums.
 using SumSpan = std::span<Sum const>;
 
+//! A span of string views.
 using StringSpan = std::span<std::string_view const>;
+//! A list of string views
 using StringList = std::initializer_list<std::string_view const>;
 
 //! Enumeration of message codes.
@@ -432,14 +455,28 @@ enum class LibraryFlags : clingo_lib_flags_t {
 };
 CLINGO_ENABLE_BITSET_ENUM(LibraryFlags);
 
+//! The default message limit for the logger.
 inline constexpr size_t default_message_limit = 25;
 
+//! A callback function type for logging messages.
+//!
+//! The callback takes a message code and a string view as arguments.
 using Logger = std::function<void(MessageCode, std::string_view)>;
 
+//! The main library class for managing global information and logging.
+//!
+//! Library objects are reference counted. If the last reference goes out of
+//! scope, all contained symbols are freed.
 class Library {
   public:
-    Library(LibraryFlags flags = LibraryFlags::none, Logger logger = nullptr, LogLevel level = LogLevel::info,
-            size_t limit = default_message_limit) {
+    //! Constructs a library object.
+    //!
+    //! @param flags the flags to create the library with
+    //! @param logger the logger to use for messages; if nullptr, the default logger is used
+    //! @param level the log level for the logger
+    //! @param limit the message limit for the logger; defaults to `default_message_limit`
+    explicit Library(LibraryFlags flags = LibraryFlags::none, Logger logger = nullptr, LogLevel level = LogLevel::info,
+                     size_t limit = default_message_limit) {
         auto log = logger ? std::make_unique<Logger>(std::move(logger)) : nullptr;
         auto has_log = static_cast<bool>(log);
         rep_.reset(Detail::call<clingo_lib_new>(static_cast<clingo_lib_flags_t>(flags),
@@ -447,8 +484,18 @@ class Library {
                                                 log.release(), limit),
                    false);
     }
+    //! Constructs a library object from an existing C representation.
+    //!
+    //! For internal use.
+    //!
+    //! @param rep the C representation of the library object
+    //! @param acquire whether to acquire the library object
     explicit Library(clingo_lib_t *rep, bool acquire) : rep_{rep, acquire} {}
 
+    //! Casts the library object to its C representation.
+    //!
+    //! @param lib the library object to cast
+    //! @reutrn the C representation of the library object
     [[nodiscard]] friend auto c_cast(Library const &lib) -> clingo_lib_t * { return lib.rep_.get(); }
 
   private:
@@ -467,17 +514,32 @@ class Library {
     Detail::intrusive_handle<Library, clingo_lib_t> rep_;
 };
 
+//! A string builder for constructing strings.
+//!
+//! Some API functions accept a string builder to construct strings in a
+//! memory-efficient way.
+//!
+//! String builders have value semantics.
 class StringBuilder {
   public:
+    //! Construct an empty string builder.
     explicit StringBuilder() : bld_{Detail::call<clingo_string_builder_new>(), false} {}
 
+    //! Cast the string builder to its C representation.
+    //!
+    //! @param bld the string builder to cast
+    //! @return the C representation of the string builder
     [[nodiscard]] friend auto c_cast(StringBuilder &bld) -> clingo_string_builder_t * { return bld.bld_.get(); }
 
+    //! Get a view of the string built by the string builder.
+    //!
+    //! @return the string view of the built string
     [[nodiscard]] auto str() const -> std::string_view {
         auto [data, size] = Detail::call<clingo_string_builder_string>(bld_.get());
         return {data, size};
     }
 
+    //! Clear the string builder, removing all content.
     void clear() noexcept { clingo_string_builder_clear(bld_.get()); }
 
   private:
@@ -485,51 +547,99 @@ class StringBuilder {
     Detail::value_handle<Traits> bld_;
 };
 
+//! Enumeration of control modes.
 enum class ExternalType : clingo_external_type_t {
-    free = clingo_external_type_free,       //!< allow an external to be assigned freely
-    true_ = clingo_external_type_true,      //!< assign an external to true
-    false_ = clingo_external_type_false,    //!< assign an external to false
-    release = clingo_external_type_release, //!< no longer treat an atom as external
+    free = clingo_external_type_free,       //!< Allow an external to be assigned freely.
+    true_ = clingo_external_type_true,      //!< Assign an external to true.
+    false_ = clingo_external_type_false,    //!< Assign an external to false.
+    release = clingo_external_type_release, //!< No longer treat an atom as external.
 };
 
+//! Enumeration of heuristic types.
 enum class HeuristicType : clingo_heuristic_type_t {
-    level = clingo_heuristic_type_level,   //!< set the level of an atom
-    sign = clingo_heuristic_type_sign,     //!< configure which sign to chose for an atom
-    factor = clingo_heuristic_type_factor, //!< modify VSIDS factor of an atom
-    init = clingo_heuristic_type_init,     //!< modify the initial VSIDS score of an atom
-    true_ = clingo_heuristic_type_true,    //!< set the level of an atom and choose a positive sign
-    false_ = clingo_heuristic_type_false   //!< set the level of an atom and choose a negative sign
+    level = clingo_heuristic_type_level,   //!< Set the level of an atom.
+    sign = clingo_heuristic_type_sign,     //!< Configure which sign to chose for an atom.
+    factor = clingo_heuristic_type_factor, //!< Modify VSIDS factor of an atom.
+    init = clingo_heuristic_type_init,     //!< Modify the initial VSIDS score of an atom.
+    true_ = clingo_heuristic_type_true,    //!< Set the level of an atom and choose a positive sign.
+    false_ = clingo_heuristic_type_false   //!< Set the level of an atom and choose a negative sign.
 };
 
+//! Class representing a position in a file.
+//!
+//! Positions implement value semantics supporting ordering and hashing.
 class Position {
   public:
+    //! Constructs a position from an existing C representation.
+    //!
+    //! For internal use.
+    //!
+    //! @param pos the C representation of the position
     explicit Position(clingo_position_t const *pos) : pos_{pos, true} {}
 
+    //! Constructs a position from a file, line, and column.
+    //!
+    //! @param lib the library to store symbols
+    //! @param file the file name
+    //! @param line the line number (1-based)
+    //! @param column the column number (1-based)
     explicit Position(Library const &lib, std::string_view file, size_t line, size_t column)
         : pos_{Detail::call<clingo_position_new>(c_cast(lib), file.data(), file.size(), line, column), false} {}
 
+    //! Cast a position to its C representation.
+    //!
+    //! @param x the position to cast
+    //! @return the C representation of the position
     friend auto c_cast(Position const &x) -> clingo_position_t const * { return x.pos_.get(); }
 
+    //! Get the file name of the position.
+    //!
+    //! @return the file name as a string view
     [[nodiscard]] auto file() const -> std::string_view {
         auto [data, size] = Detail::call<clingo_position_file>(pos_.get());
         return {data, size};
     }
 
+    //! Get the line number of the position.
+    //!
+    //! @return the line number (1-based)
     [[nodiscard]] auto line() const -> size_t { return clingo_position_line(pos_.get()); }
 
+    //! Get the column number of the position.
+    //!
+    //! @return the column number (1-based)
     [[nodiscard]] auto column() const -> size_t { return clingo_position_column(pos_.get()); }
 
+    //! Convert the position to a string representation.
+    //!
+    //! @return the string representation of the position
     [[nodiscard]] auto to_string() const -> std::string {
         auto bld = StringBuilder{};
         Detail::handle_error(clingo_position_to_string(pos_.get(), c_cast(bld)));
         return std::string{bld.str()};
     }
 
+    //! Compute the hash of the position.
+    //!
+    //! There is also a corresponding specialization of std::hash.
+    //!
+    //! @return the hash value of the position
     [[nodiscard]] auto hash() const noexcept -> size_t { return clingo_position_hash(pos_.get()); }
 
+    //! Compare two positions for equality.
+    //!
+    //! @param a the first position to compare
+    //! @param b the second position to compare
+    //! @return whether the two positions are equal
     friend auto operator==(Position const &a, Position const &b) noexcept -> bool {
         return clingo_position_equal(a.pos_.get(), b.pos_.get());
     }
+
+    //! Compare two positions.
+    //!
+    //! @param a the first position to compare
+    //! @param b the second position to compare
+    //! @return the comparison result
     friend auto operator<=>(Position const &a, Position const &b) noexcept -> std::strong_ordering {
         return clingo_position_compare(a.pos_.get(), b.pos_.get()) <=> 0;
     }
@@ -539,31 +649,62 @@ class Position {
     Detail::value_handle<Traits> pos_;
 };
 
+//! Class representing a range in a file.
+//!
+//! Locations implement value semantics supporting ordering and hashing.
 class Location {
   public:
+    //! Constructs a location from an existing C representation.
     explicit Location(clingo_location_t const *loc) : loc_{loc, true} {}
 
+    //! Constructs a location from a begin and end position.
+    //!
+    //! @param begin the position marking the beginning of the location
+    //! @param end the position marking the end of the location
     explicit Location(Position const &begin, Position const &end)
         : loc_{Detail::call<clingo_location_new>(c_cast(begin), c_cast(end)), false} {}
 
+    //! Cast the location to its C representation.
+    //!
+    //! @return the C representation of the location
     friend auto c_cast(Location const &x) -> clingo_location_t const * { return x.loc_.get(); }
 
+    //! Get the position marking the beginning of the location.
+    //!
+    //! @return the position marking the beginning of the location
     [[nodiscard]] auto begin() const -> Position { return Position{clingo_location_begin(loc_.get())}; }
 
+    //! Get the position marking the end of the location.
+    //!
+    //! @return the position marking the end of the location
     [[nodiscard]] auto end() const -> Position { return Position{clingo_location_end(loc_.get())}; }
 
+    //! Convert the location to a string representation.
+    //!
+    //! @reurn the string representation of the location
     [[nodiscard]] auto to_string() const -> std::string {
         auto bld = StringBuilder{};
         Detail::handle_error(clingo_location_to_string(loc_.get(), c_cast(bld)));
         return std::string{bld.str()};
     }
 
+    //! Get a hash value for the location.
     [[nodiscard]] auto hash() const noexcept -> size_t { return clingo_location_hash(loc_.get()); }
 
+    //! Compare two locations for equality.
+    //!
+    //! @param a the first location to compare
+    //! @param b the second location to compare
+    //! @return whether the two positions are equal
     friend auto operator==(Location const &a, Location const &b) noexcept -> bool {
         return clingo_location_equal(a.loc_.get(), b.loc_.get());
     }
 
+    //! Compare two locations.
+    //!
+    //! @param a the first location to compare
+    //! @param b the second location to compare
+    //! @return the comparison result
     friend auto operator<=>(Location const &a, Location const &b) noexcept -> std::strong_ordering {
         return clingo_location_compare(a.loc_.get(), b.loc_.get()) <=> 0;
     }
@@ -574,11 +715,17 @@ class Location {
 };
 
 namespace Version {
+//! The major version number of the Clingo library.
 inline constexpr int major = CLINGO_VERSION_MAJOR;
+//! The minor version number of the Clingo library.
 inline constexpr int minor = CLINGO_VERSION_MINOR;
+//! The revision number of the Clingo library.
 inline constexpr int revision = CLINGO_VERSION_REVISION;
 } // namespace Version
 
+//! Get the version of the Clingo library as a tuple.
+//!
+//! @return a tuple containing the major, minor, and revision version numbers
 inline auto version() -> std::tuple<int, int, int> {
     int major = 0;
     int minor = 0;
@@ -586,5 +733,7 @@ inline auto version() -> std::tuple<int, int, int> {
     clingo_version(&major, &minor, &revision);
     return {major, minor, revision};
 }
+
+//! @}
 
 } // namespace Clingo

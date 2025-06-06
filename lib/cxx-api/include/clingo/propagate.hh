@@ -7,126 +7,255 @@
 
 namespace Clingo {
 
+//! @addtogroup cpp_propagate
+//! Extend the search with propagators for arbitrary theories.
+//!
+//! @{
+
+//! Enumeration of propagator check modes.
 enum class PropagatorCheckMode : clingo_propagator_check_mode_t {
-    none = clingo_propagator_check_mode_none,         //!< do not call check at all
-    total = clingo_propagator_check_mode_total,       //!< call check on total assignments
-    fixpoint = clingo_propagator_check_mode_fixpoint, //!< call check on propagation fixpoints
-    both = clingo_propagator_check_mode_both,         //!< call check on propagation fixpoints and total assignments
+    none = clingo_propagator_check_mode_none,         //!< Do not call check at all.
+    total = clingo_propagator_check_mode_total,       //!< Call check on total assignments.
+    fixpoint = clingo_propagator_check_mode_fixpoint, //!< Call check on propagation fixpoints.
+    both = clingo_propagator_check_mode_both,         //!< Call check on propagation fixpoints and total assignments.
 };
 
+//! Enumeration of propagator undo modes.
 enum class PropagatorUndoMode : clingo_propagator_undo_mode_t {
-    default_ = clingo_propagator_undo_mode_default, //!< call undo for non-empty change lists
-    always = clingo_propagator_undo_mode_always,    //!< also call check when check has been called
+    default_ = clingo_propagator_undo_mode_default, //!< Call undo for non-empty change lists.
+    always = clingo_propagator_undo_mode_always,    //!< Also call undo for empty change lists.
 };
 
-//! Enumeration of weight_constraint_types.
+//! Enumeration of weight constraint types.
 enum WeightConstraintType : clingo_weight_constraint_type_t {
-    implication_left = clingo_weight_constraint_type_implication_left,   //!< the weight constraint implies the literal
-    implication_right = clingo_weight_constraint_type_implication_right, //!< the literal implies the weight constraint
-    equivalence = clingo_weight_constraint_type_equivalence, //!< the weight constraint is equivalent to the literal
+    implication_left = clingo_weight_constraint_type_implication_left,   //!< The weight constraint implies the literal.
+    implication_right = clingo_weight_constraint_type_implication_right, //!< The literal implies the weight constraint.
+    equivalence = clingo_weight_constraint_type_equivalence, //!< The weight constraint is equivalent to the literal.
 };
 
+//! Enumeration of clause flags.
 enum ClauseFlags : clingo_clause_type_t {
-    none = clingo_clause_type_learnt,  //!< the empty set of flags
-    lock = clingo_clause_type_static,  //!< exempt the clause from deletion
-    tag = clingo_clause_type_volatile, //!< delete the clause at the end of the current solving step
+    none = clingo_clause_type_learnt,  //!< The empty set of flags.
+    lock = clingo_clause_type_static,  //!< Exempt the clause from deletion.
+    tag = clingo_clause_type_volatile, //!< Delete the clause at the end of the current solving step.
 };
 CLINGO_ENABLE_BITSET_ENUM(ClauseFlags);
 
+//! A trail is a sequence of solver literals.
+//!
+//! Literals in the trail are ordered by decision levels, where the first
+//! literal with a larger level than the previous literals is a decision; the
+//! following literals with same level are implied by this decision literal.
+//! Each decision level up to and including the current decision level has a
+//! valid offset in the trail.
 class Trail {
   public:
+    //! The value type is a solver literal.
     using value_type = SolverLiteral;
+    //! The size type.
     using size_type = std::size_t;
+    //! The difference type.
     using difference_type = std::ptrdiff_t;
+    //! The reference type, which simply refers to the value type.
     using reference = value_type;
+    //! The pointer type, which is a proxy to the value type.
     using pointer = Detail::ArrowProxy<value_type>;
+    //! The iterator type, which is a random access iterator over the trail.
     using iterator = Detail::RandomAccessIterator<Trail>;
 
+    //! Construct a trail from the underlying C representation.
+    //!
+    //! For internal use.
+    //!
+    //! @param assignment the C representation of the assignment object
     explicit Trail(clingo_assignment_t const *assignment) : assignment_{assignment} {}
 
+    //! Get the literal at the given index in the trail.
+    //!
+    //! @param index the index of the literal
+    //!
+    //! @return the literal at the index
     [[nodiscard]] auto at(size_type index) const -> value_type {
         return Detail::call<clingo_assignment_trail_at>(assignment_, index);
     }
 
+    //! @copydoc Trail::at()
     [[nodiscard]] auto operator[](size_type index) const -> value_type { return at(index); }
 
+    //! Get the size of the trail.
+    //!
+    //! @return the size of the trail
     [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_assignment_trail_size>(assignment_); }
 
+    //! Get an iterator to the beginning of the trail.
+    //!
+    //! @return an iterator to the beginning of the trail
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
 
+    //! Get an iterator to the end of the trail.
+    //!
+    //! @return an iterator to the end of the trail
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 
+    //! Get an iterator to the beginning of the given decision level.
+    //!
+    //! @param level the decision level to get the literals for
+    //! @return the iterator pointing to the decision literal of the given level
     [[nodiscard]] auto begin(ProgramId level) const -> iterator {
         return iterator{*this, Detail::call<clingo_assignment_trail_begin>(assignment_, level)};
     }
 
+    //! Get an iterator to the end of the given decision level.
+    //!
+    //! @param level the decision level to get the literals for
+    //! @return the iterator pointing to end of the literals of the given level
     [[nodiscard]] auto end(ProgramId level) const -> iterator {
         return iterator{*this, Detail::call<clingo_assignment_trail_end>(assignment_, level)};
     }
 
+    //! Get the subrange of the literals of the given decision level.
+    //!
+    //! @param level the decision level to get the literals for
+    //! @return the subrange of the literals of the given level
     [[nodiscard]] auto level(ProgramId level) const { return std::ranges::subrange{begin(level), end(level)}; }
 
   private:
     clingo_assignment_t const *assignment_;
 };
 
+//! Represents a (partial) assignment of a particular solver.
+//!
+//! An assignment assigns truth values to a set of literals. A literal is
+//! assigned to either @link Assignment::value() true or false, or is
+//! unassigned@endlink. Furthermore, each assigned literal is associated with a
+//! @link Assignment::level() decision level@endlink. There is exactly one
+//! @link Assignment::decision() decision literal@endlink for each decision
+//! level greater than zero. Assignments to all other literals on the same
+//! level are consequences implied by the current and possibly previous
+//! decisions. Assignments on level zero are immediate consequences of the
+//! current program. Decision levels are consecutive numbers starting with zero
+//! up to and including the @link Assignment::decision_level() current decision
+//! level@endlink.
 class Assignment {
   public:
+    //! The value type, which is a solver literal.
     using value_type = SolverLiteral;
+    //! The size type.
     using size_type = std::size_t;
+    //! The difference type.
     using difference_type = std::ptrdiff_t;
+    //! The reference type, which simply refers to the value type.
     using reference = value_type;
+    //! The pointer type, which is a proxy to the value type.
     using pointer = Detail::ArrowProxy<value_type>;
+    //! The iterator type, which is a random access iterator over the assignment.
     using iterator = Detail::RandomAccessIterator<Assignment>;
 
+    //! Construct an assignment from the underlying C representation.
     explicit Assignment(clingo_assignment_t const *assignment) : assignment_(assignment) {}
 
+    //! Get the size of the assignment.
+    //!
+    //! This is the number af all positive problem literals including
+    //! unassigned literals.
+    //!
+    //! @return the size of the assignment
     [[nodiscard]] auto size() const -> size_type { return Detail::call<clingo_assignment_size>(assignment_); }
 
+    //! Get the literal at the given index in the assignment.
+    //!
+    //! @param size the index of the literal
+    //! @return the literal at the index
     [[nodiscard]] auto at(size_type size) const -> value_type {
         return Detail::call<clingo_assignment_at>(assignment_, size);
     }
 
+    //! @copydoc Assignment::at()
     [[nodiscard]] auto operator[](size_type size) const -> value_type { return at(size); }
 
+    //! Get the decision literal for the given decision level.
+    //!
+    //! @param level the decision level to get the decision literal for
+    //! @return the decision literal for the given level
     [[nodiscard]] auto decision(ProgramId level) const -> SolverLiteral {
         return Detail::call<clingo_assignment_decision>(assignment_, level);
     }
 
+    //! Get the current decision level.
+    //!
+    //! @return the current decision level
     [[nodiscard]] auto decision_level() const -> ProgramId {
         return Detail::call<clingo_assignment_decision_level>(assignment_);
     }
 
+    //! Check if the assignment is conflicting.
+    //!
+    //! @return whether the assignment is conflicting
     [[nodiscard]] auto has_conflict() const -> bool {
         return Detail::call<clingo_assignment_has_conflict>(assignment_);
     }
 
+    //! Check whether the assignment contains the given literal.
+    //!
+    //! @return whether the assignment contains the literal
     [[nodiscard]] auto contains(SolverLiteral lit) const -> bool {
         return Detail::call<clingo_assignment_has_literal>(assignment_, lit);
     }
 
+    //! Check if the given literal is false.
+    //!
+    //! @param lit the literal to check
+    //! @return whether the literal is false
     [[nodiscard]] auto is_false(SolverLiteral lit) const -> bool {
         return Detail::call<clingo_assignment_is_false>(assignment_, lit);
     }
 
+    //! Check if the truth value of the given literal is fixed.
+    //!
+    //! @param lit the literal to check
+    //! @return whether the literal has a fixed truth value
     [[nodiscard]] auto is_fixed(SolverLiteral lit) const -> bool {
         return Detail::call<clingo_assignment_is_fixed>(assignment_, lit);
     }
 
+    //! Check if the truth value of the given literal is free.
+    //!
+    //! @param lit the literal to check
+    //! @return whether the literal is free
     [[nodiscard]] auto is_free(SolverLiteral lit) const -> bool {
         return Detail::call<clingo_assignment_truth_value>(assignment_, lit) == clingo_truth_value_free;
     }
 
-    [[nodiscard]] auto is_total() const -> bool { return Detail::call<clingo_assignment_is_total>(assignment_); }
-
+    //! Check if the given literal is true.
+    //!
+    //! @param lit the literal to check
+    //! @return whether the literal is true
     [[nodiscard]] auto is_true(SolverLiteral lit) const -> bool {
         return Detail::call<clingo_assignment_is_true>(assignment_, lit);
     }
 
+    //! Check whether the assignment is total.
+    //!
+    //! An assignment is total if all literals are assigned a truth value,
+    //!
+    //! @return whether the assignment is total
+    [[nodiscard]] auto is_total() const -> bool { return Detail::call<clingo_assignment_is_total>(assignment_); }
+
+    //! Get the level on which the given literal was assigned.
+    //!
+    //! @param lit the literal to get the level for
+    //! @return the level on which the literal was assigned
     [[nodiscard]] auto level(SolverLiteral lit) const -> ProgramId {
         return Detail::call<clingo_assignment_level>(assignment_, lit);
     }
 
+    //! Get the truth value of the given literal.
+    //!
+    //! The optional returned is empty if the literal is unassigned and,
+    //! otherwise, contains the truth value of the literal.
+    //!
+    //! @param lit the literal to get the truth value for
+    //! @return the truth value of the literal
     [[nodiscard]] auto value(SolverLiteral lit) const -> std::optional<bool> {
         clingo_truth_value_t res = Detail::call<clingo_assignment_truth_value>(assignment_, lit);
         switch (res) {
@@ -142,72 +271,166 @@ class Assignment {
         }
     }
 
+    //! Get the root level of the assignment.
+    //!
+    //! Decisions levels smaller or equal to the root level are not backtracked
+    //! during solving.
+    //!
+    //! @return the root level of the assignment
     [[nodiscard]] auto root_level() const -> ProgramId {
         return Detail::call<clingo_assignment_root_level>(assignment_);
     }
 
+    //! Get the trail of the assignment.
+    //!
+    //! @return the trail of the assignment
     [[nodiscard]] auto trail() const -> Trail { return Trail{assignment_}; }
 
+    //! Get an iterator to the beginning of the assignment.
+    //!
+    //! @return an iterator to the beginning of the assignment
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
 
+    //! Get an iterator to the end of the assignment.
+    //!
+    //! @return an iterator to the end of the assignment
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 
   private:
     clingo_assignment_t const *assignment_;
 };
 
+//! Object to initialize a user-defined propagator before each solving step.
+//!
+//! Each @link cpp_base symbolic or theory atom@endlink is uniquely associated
+//! with an aspif atom in form of a positive integer (@ref
+//! Clingo::ProgramLiteral). Aspif literals additionally are signed to
+//! represent default negation. Furthermore, there are non-zero integer solver
+//! literals (@ref ::SolverLiteral). There is a surjective mapping from program
+//! atoms to solver literals.
+//!
+//! All methods called during propagation use solver literals whereas
+//! Clingo::Atom::literal() and Clingo::TheoryAtom::literal() return program
+//! literals. The function Clingo::PropagateInit::solver_literal() can be used to map
+//! program literals or @link Clingo::TheoryElement::condition_id() condition
+//! ids@endlink to solver literals.
 class PropagateInit {
   public:
+    //! Constructor from the underlying C representation.
+    //!
+    //! @param init the C representation of the initialization object
     explicit PropagateInit(clingo_propagate_init_t *init) : init_{init} {}
 
+    //! Get the assignment of the current solver.
+    //!
+    //! @return the assignment of the current solver
     [[nodiscard]] auto assignment() const -> Assignment {
         return Assignment{Detail::call<clingo_propagate_init_assignment>(init_)};
     }
 
+    //! Get the library object associated with the propagator.
+    //!
+    //! @return the library object associated with the propagator
     [[nodiscard]] auto library() const -> Library {
         return Library{Detail::call<clingo_propagate_init_library>(init_), true};
     }
 
+    //! Get the base object associated with the propagator.
+    //!
+    //! @return the base object associated with the propagator
     [[nodiscard]] auto base() const -> Base { return Base{Detail::call<clingo_propagate_init_base>(init_)}; }
 
+    //! Get the check mode of the propagator.
+    //!
+    //! @return the check mode of the propagator
     [[nodiscard]] auto check_mode() const -> PropagatorCheckMode {
         return static_cast<PropagatorCheckMode>(Detail::call<clingo_propagate_init_get_check_mode>(init_));
     }
 
+    //! Set the check mode of the propagator.
+    //!
+    //! @param mode the new check mode of the propagator
     void check_mode(PropagatorCheckMode mode) {
         Detail::handle_error(
             clingo_propagate_init_set_check_mode(init_, static_cast<clingo_propagator_check_mode_t>(mode)));
     }
 
+    //! Get the number of threads used in subsequent solving.
+    //!
+    //! @return the number of threads used in subsequent solving
     [[nodiscard]] auto number_of_threads() const -> ProgramId {
         return Detail::call<clingo_propagate_init_number_of_threads>(init_);
     }
 
+    //! Get the undo mode of the propagator.
+    //!
+    //! @erturn the undo mode of the propagator
     [[nodiscard]] auto undo_mode() const -> PropagatorUndoMode {
         return static_cast<PropagatorUndoMode>(Detail::call<clingo_propagate_init_get_undo_mode>(init_));
     }
 
+    //! Set the undo mode of the propagator.
+    //!
+    //! @param mode the new undo mode of the propagator
     void undo_mode(PropagatorUndoMode mode) const {
         Detail::handle_error(
             clingo_propagate_init_set_undo_mode(init_, static_cast<clingo_propagator_undo_mode_t>(mode)));
     }
 
+    //! Add a clause to the solver.
+    //!
+    //! If the clause could not be added to the solver, there is a top-level
+    //! conflict and the underlying problem is unsatisfiable. The function
+    //! returns false in this case.
+    //!
+    //! @param literals the literals of the clause to add
+    //! @return whether the clause was added without conflict
     [[nodiscard]] auto add_clause(SolverLiteralSpan literals) const -> bool {
         return Detail::call<clingo_propagate_init_add_clause>(init_, literals.data(), literals.size());
     }
 
+    //! Add a clause to the solver.
+    //!
+    //! If the clause could not be added to the solver, there is a top-level
+    //! conflict and the underlying problem is unsatisfiable. The function
+    //! returns false in this case.
+    //!
+    //! @param literals the literals of the clause to add
+    //! @return whether the clause was added without conflict
     [[nodiscard]] auto add_clause(SolverLiteralList literals) const -> bool {
         return add_clause(SolverLiteralSpan{literals});
     }
 
+    //! Add a literal to the solver.
+    //!
+    //! The literal can be frozen to exempt it from being eliminated during
+    //! preprocessing.
+    //!
+    //! @param freeze whether to freeze the literal
+    //! @return the added literal
     [[nodiscard]] auto add_literal(bool freeze = true) const -> SolverLiteral {
         return Detail::call<clingo_propagate_init_add_literal>(init_, freeze);
     }
 
+    //! Add a weighted literal to minimize to the solver.
+    //!
+    //! @param literal the literal to minimize
+    //! @param weight the weight of the literal
+    //! @param priority the priority of the literal
     void add_minimize(SolverLiteral literal, Weight weight, Weight priority) const {
         Detail::handle_error(clingo_propagate_init_add_minimize(init_, literal, weight, priority));
     }
 
+    //! Add a watch for the given solver literal.
+    //!
+    //! The Clingo::Propagator::propagate() is called whenever the watched
+    //! literal is assigned a truth value.
+    //!
+    //! Literals can be added to the given thread or all threads if no thread
+    //! id is given.
+    //!
+    //! @param literal the literal to watch
+    //! @param thread_id the id of the thread to add the watch to
     void add_watch(SolverLiteral literal, std::optional<ProgramId> thread_id = std::nullopt) const {
         if (thread_id) {
             Detail::handle_error(clingo_propagate_init_add_watch_to_thread(init_, literal, *thread_id));
@@ -216,18 +439,43 @@ class PropagateInit {
         }
     }
 
+    //! Add a weight constraint to the solver.
+    //!
+    //! @param literal the literal associated with the constraint
+    //! @param literals the weighted literals of the constraint
+    //! @param bound the bound of the constraint
+    //! @param type the type of the weight constraint
+    //! @param compare_equal if true compare equal instead of less than equal
+    //! @return whether the constraint was added without conflict
     [[nodiscard]] auto add_weight_constraint(SolverLiteral literal, WeightedLiteralSpan literals, Weight bound,
                                              WeightConstraintType type, bool compare_equal) const -> bool {
         return Detail::call<clingo_propagate_init_add_weight_constraint>(init_, literal, literals.data(),
                                                                          literals.size(), bound, type, compare_equal);
     }
 
+    //! Freeze the given literal in the solver.
+    //!
+    //! Frozen literals are not eliminated during preprocessing.
+    //!
+    //! @param literal the literal to freeze
     void freeze_literal(SolverLiteral literal) const {
         Detail::handle_error(clingo_propagate_init_freeze_literal(init_, literal));
     }
 
+    //! Propagate consequences of the underlying problem.
+    //!
+    //! This function can be called to propagte consequences of previously
+    //! added clauses and weight constraints.
+    //!
+    //! @return whether propagation succeeded without conflict
     [[nodiscard]] auto propagate() const -> bool { return Detail::call<clingo_propagate_init_propagate>(init_); }
 
+    //! Remove a watch for the given solver literal.
+    //!
+    //! If no thread id is given, the watch is removed from all threads.
+    //!
+    //! @param literal the literal to remove the watch for
+    //! @param thread_id the id of the thread to remove the watch from
     void remove_watch(SolverLiteral literal, std::optional<ProgramId> thread_id) const {
         if (thread_id) {
             Detail::handle_error(clingo_propagate_init_remove_watch_from_thread(init_, literal, *thread_id));
@@ -236,6 +484,10 @@ class PropagateInit {
         }
     }
 
+    //! Map a program literal to a solver literal.
+    //!
+    //! @param literal the program literal to map
+    //! @return the corresponding solver literal
     [[nodiscard]] auto solver_literal(ProgramLiteral literal) const -> SolverLiteral {
         return Detail::call<clingo_propagate_init_solver_literal>(init_, literal);
     }
@@ -244,64 +496,163 @@ class PropagateInit {
     clingo_propagate_init_t *init_;
 };
 
+//! Class to control propagation of a user-defined propagator.
+//!
+//! This class provides methods for adding clauses, literals, and nogoods, as
+//! well as managing watches and performing propagation.
 class PropagateControl {
   public:
+    //! Constructor from the underlying C representation.
+    //!
+    //! @param ctl the C representation of the control object
     explicit PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
 
+    //! Add solver local literal to the solver.
+    //!
+    //! Solver local literals are not shared between solvers and are removed at
+    //! the end of the current solving step.
+    //!
+    //! @return the added literal
     [[nodiscard]] auto add_literal() const -> SolverLiteral {
         return Detail::call<clingo_propagate_control_add_literal>(ctl_);
     }
 
+    //! Add a clause to the solver.
+    //!
+    //! If adding the clause results in a conflict, the function returns false
+    //! and the calling propagator must not add further clauses from the
+    //! current callback.
+    //!
+    //! @param literals the literals of the clause to add
+    //! @param flags the flags for the clause
+    //! @return whether the clause was added without conflict
     [[nodiscard]] auto add_clause(SolverLiteralSpan literals, ClauseFlags flags = ClauseFlags::none) const -> bool {
         return Detail::call<clingo_propagate_control_add_clause>(ctl_, literals.data(), literals.size(),
                                                                  static_cast<clingo_clause_type_t>(flags));
     }
+
+    //! Add a clause to the solver.
+    //!
+    //! If adding the clause results in a conflict, the function returns false
+    //! and the calling propagator must not add further clauses from the
+    //! current callback.
+    //!
+    //! @param literals the literals of the clause to add
+    //! @param flags the flags for the clause
+    //! @return whether the clause was added without conflict
     [[nodiscard]] auto add_clause(SolverLiteralList literals, ClauseFlags flags = ClauseFlags::none) const -> bool {
         return add_clause(SolverLiteralSpan{literals}, flags);
     }
 
+    //! Add a nogood to the solver.
+    //!
+    //! This is the same as calling add clause with the negated literals.
+    //!
+    //! @param literals the literals of the nogood to add
+    //! @param flags the flags for the nogood
+    //! @return whether the nogood was added without conflict
     [[nodiscard]] auto add_nogood(SolverLiteralSpan literals, ClauseFlags flags = ClauseFlags::none) const -> bool {
         return add_clause(Detail::transform(literals, [](auto const &lit) { return -lit; }), flags);
     }
 
+    //! Add a watch for the given solver literal.
+    //!
+    //! @param literal the literal to watch
     void add_watch(SolverLiteral literal) const {
         Detail::handle_error(clingo_propagate_control_add_watch(ctl_, literal));
     }
 
+    //! Check whether the given solver literal is watched.
+    //!
+    //! @param literal the literal to check
+    //! @return whether the literal is watched
     [[nodiscard]] auto has_watch(SolverLiteral literal) const -> bool {
         return Detail::call<clingo_propagate_control_has_watch>(ctl_, literal);
     }
 
+    //! Propagate consequences of previously added clauses.
+    //!
+    //! If a confilct is detected during propagation, the function returns
+    //! false and the calling propagator must not add further clauses from the
+    //! current callback.
+    //!
+    //! @return whether propagation succeeded without conflict
     [[nodiscard]] auto propagate() const -> bool { return Detail::call<clingo_propagate_control_propagate>(ctl_); }
 
+    //! Remove a watch for the given solver literal.
+    //!
+    //! @param literal the literal to remove the watch for
     void remove_watch(SolverLiteral lit) const {
         Detail::handle_error(clingo_propagate_control_remove_watch(ctl_, lit));
     }
 
+    //! Get the assignment of the current solver.
+    //!
+    //! @return the assignment of the current solver
     [[nodiscard]] auto assignment() const -> Assignment {
         return Assignment{Detail::call<clingo_propagate_control_assignment>(ctl_)};
     }
 
+    //! Get the thread id of the current solver.
+    //!
+    //! @return the thread id of the current solver
     [[nodiscard]] auto thread_id() const -> ProgramId { return Detail::call<clingo_propagate_control_thread_id>(ctl_); }
 
   private:
     clingo_propagate_control_t *ctl_;
 };
 
+//! Interface for user-defined propagators.
 class Propagator {
   public:
+    //! The default constructor.
     Propagator() = default;
+    //! Disable copy and move operations.
     Propagator(Propagator &&other) = delete;
+    //! The default destructor.
     virtual ~Propagator() = default;
 
+    //! Callback to initialize the propagator before each solving step.
+    //!
+    //! @param init the initialization object
     void init(PropagateInit init) { do_init(init); }
 
+    //! Callback to propagate consequences of the given literals.
+    //!
+    //! The function is only called for watched literals that were assigned on
+    //! the current decision level.
+    //!
+    //! A propagator can add clauses here to propagate consequences of the
+    //! underlying theory.
+    //!
+    //! @param ctl the propagate control object
+    //! @param changes the literals that were assigned on the current decision level
     void propagate(PropagateControl ctl, ProgramLiteralSpan changes) { do_propagate(ctl, changes); }
 
+    //! Called when the solver backtracks to a previous decision level.
+    //!
+    //! The function is called with literals from all previous propagate calls
+    //! on the same decision level.
+    //!
+    //! Clingo::PropagateInit::undo_mode() can be used to control when this
+    //! function is called.
+    //!
+    //! @param thread_id the id of the current solver thread
+    //! @param assignment the current assignment of the solver
+    //! @param changes the literals that were assigned on the current decision level
     void undo(ProgramId thread_id, Assignment assignment, ProgramLiteralSpan changes) {
         do_undo(thread_id, assignment, changes);
     }
 
+    //! Callback that is called on propagation fixpoints or total assignments.
+    //!
+    //! Clingo::PropagateInit::check_mode() can be used to control when this
+    //! callback is called.
+    //!
+    //! Like in Clingo::Propagator::Propagate(), a propagator can add clauses
+    //! here to propagate consequences or discard the current assignment.
+    //!
+    //! @param ctl the propagate control object
     void check(PropagateControl ctl) { do_check(ctl); }
 
   private:
@@ -312,12 +663,21 @@ class Propagator {
     virtual void do_check([[maybe_unused]] PropagateControl ctl) {}
 };
 
+//! Interface for user-defined propagators with a decision heuristic.
 class Heuristic : public Propagator {
   public:
+    //! The default constructor.
     Heuristic() = default;
-    Heuristic(Heuristic &&other) = delete;
 
-    auto operator=(Heuristic const &other) -> Heuristic & = delete;
+    //! Callback to decide on the next literal to assign.
+    //!
+    //! The fallback literal indicates the literal the solver would have
+    //! assigned. This choice can be overridden by returning a different
+    //! literal.
+    //!
+    //! @param thread_id the id of the current solver thread
+    //! @param assignment the current assignment of the solver
+    //! @param literal the fallback literal
     auto decide(ProgramId thread_id, Assignment assignment, SolverLiteral literal) -> SolverLiteral {
         return do_decide(thread_id, assignment, literal);
     }
@@ -328,6 +688,8 @@ class Heuristic : public Propagator {
         return literal;
     }
 };
+
+//! @}
 
 namespace Detail {
 

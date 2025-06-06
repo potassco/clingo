@@ -7,26 +7,86 @@
 
 namespace Clingo {
 
+//! @addtogroup cpp_observe
+//! Functions and data structures to inspect ground programs.
+//! @{
+
+//! Observer interface to inspect the current ground program.
 class Observer {
   public:
+    //! The default constructor.
     Observer() = default;
+
+    //! Disable move and copy operations.
     Observer(Observer &&other) = delete;
+
+    //! The default destructor.
     virtual ~Observer() = default;
 
+    //! Callback for the beginning of the program.
+    //!
+    //! @param incremental whether the program is incremental
     void init_program(bool incremental) { do_init_program(incremental); }
+
+    //! Callback for the beginning of a step.
     void begin_step() { do_begin_step(); }
+
+    //! Callback for the end of a step.
     void end_step(Base base) { do_end_step(base); }
+
+    //! Callback for a rule.
+    //!
+    //! @param head the head of the rule
+    //! @param body the body of the rule
+    //! @param choice whether the head is a choice or a disjunction
     void rule(ProgramAtomSpan head, ProgramLiteralSpan body, bool choice) { do_rule(head, body, choice); }
+
+    //! Callback for a weight rule.
+    //!
+    //! @param head the head of the weight rule
+    //! @param lower the lower bound of the weight rule
+    //! @param body the weighted body of the weight rule
+    //! @param choice whether the head is a choice or a disjunction
     void weight_rule(ProgramAtomSpan head, Weight lower, WeightedLiteralSpan body, bool choice) {
         do_weight_rule(head, lower, body, choice);
     }
+
+    //! Callback for a minimize constraint.
+    //!
+    //! @param literals the weighted literals to minimize
+    //! @param priority the priority of the minimize constraint
     void minimize(WeightedLiteralSpan literals, Weight priority) { do_minimize(literals, priority); }
+
+    //! Callback for a projection directive.
+    //!
+    //! @param atoms the atoms to project on
     void project(ProgramAtomSpan atoms) { do_project(atoms); }
+
+    //! Callback for an external statement.
+    //!
+    //! @param atom the external atom
+    //! @param type the type of the external statement
     void external(ProgramAtom atom, ExternalType type) { do_external(atom, type); }
+
+    //! Callback for an assumption directive.
+    //!
+    //! @param literals the literals to assume
     void assume(ProgramLiteralSpan literals) { do_assume(literals); }
+
+    //! @param atom the atom to apply the heuristic to
+    //! @param type the type of the heuristic modification
+    //! @param bias the bias of the heuristic modification
+    //! @param priority the priority of the heuristic modification
+    //! @param condition the condition when to apply the heuristic modification
     void heuristic(ProgramAtom atom, HeuristicType type, int bias, unsigned priority, ProgramLiteralSpan condition) {
         do_heuristic(atom, type, bias, priority, condition);
     }
+
+    //! Callback for an edge statement.
+    //!
+    //! @param node_u the first node of the edge
+    //! @param node_v the second node of the edge
+    //! @param condition the condition under which the edge is active
     void edge(int node_u, int node_v, ProgramLiteralSpan condition) { do_edge(node_u, node_v, condition); }
 
   private:
@@ -126,5 +186,7 @@ class Observer {
     virtual void do_edge([[maybe_unused]] int node_u, [[maybe_unused]] int node_v,
                          [[maybe_unused]] ProgramLiteralSpan condition) {}
 };
+
+//! @}
 
 } // namespace Clingo
