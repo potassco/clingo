@@ -10,7 +10,7 @@ extern "C" {
 #include <clingo/symbol.h>
 
 //! @addtogroup c_script
-//! Support for calling exteral functions during grounding and customizing the main solving loop.
+//! Support for calling external functions during grounding and customizing the main solving loop.
 //!
 //! @{
 

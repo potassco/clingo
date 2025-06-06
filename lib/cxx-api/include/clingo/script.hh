@@ -8,24 +8,60 @@
 
 namespace Clingo {
 
+//! @addtogroup cpp_script
+//! Support for external functions solving customizations.
+//!
+//! This module provides an interface to implement custom scripts that can be
+//! used to provide external functions callable during grounding and to
+//! customize the main application flow.
+//! @{
+
+//! Interface for custom scripts.
 class Script {
   public:
+    //! The default constructor.
     Script() = default;
+    //! Disable copy and move operations.
     Script(Script &&other) = delete;
+    //! The default destructor.
     virtual ~Script() = default;
 
+    //! Callback to execute the given code.
+    //!
+    //! @param code the code to execute
     void execute(std::string_view code) { do_execute(code); }
 
+    //! Callback to call the function with the given name and arguments.
+    //!
+    //! @param lib the library object for storing symbols
+    //! @param name the name of the function to call
+    //! @param arguments the arguments to the function
+    //! @return the symbols returned by the function
     auto call(Library &lib, std::string_view name, SymbolSpan arguments) -> SymbolVector {
         return do_call(lib, name, arguments);
     }
 
+    //! Callback to check if the given signature is callable.
+    //!
+    //! @param name the name of the function to check
+    //! @param arguments the number of arguments of the function
+    //! @return whether the function is callable
     auto callable(std::string_view name, size_t arguments) -> bool { return do_callable(name, arguments); }
 
+    //! Callback to customize the main function.
+    //!
+    //! @param lib the library object for storing symbols
+    //! @param control the control object
     void main(Library &lib, const Control &ctl) { do_main(lib, ctl); }
 
+    //! Get the name of the script.
+    //!
+    //! @return the name of the script
     auto name() -> std::string_view { return do_name(); }
 
+    //! Get the version of the script.
+    //!
+    //! @return the version of the script
     auto version() -> std::string_view { return do_version(); }
 
   private:
@@ -37,12 +73,13 @@ class Script {
     virtual auto do_version() -> std::string_view = 0;
 };
 
+//! @}
+
 namespace Detail {
 
 static constexpr clingo_script_t c_script = {
     [](char const *code, size_t size, void *data) -> bool {
         CLINGO_TRY {
-            // TODO: string_view
             static_cast<Script *>(data)->execute(std::string_view{code, size});
         }
         CLINGO_CATCH;
@@ -55,10 +92,8 @@ static constexpr clingo_script_t c_script = {
             auto args = transform(arguments, std::next(arguments, static_cast<std::ptrdiff_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
             auto cpp_lib = Library{lib, true};
-            // TODO: string_view
             auto syms = self.call(cpp_lib, {name, name_size}, args);
-            // NOLINTNEXTLINE
-            auto const *c_syms = reinterpret_cast<clingo_symbol_t const *>(syms.data());
+            auto const *c_syms = c_cast(syms.data());
             return symbol_callback(c_syms, syms.size(), symbol_callback_data);
         }
         CLINGO_CATCH;
