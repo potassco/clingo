@@ -47,6 +47,7 @@ set(test-group
     "tests/stats.cc"
     "tests/symbol.cc"
     "tests/tempfile.hh"
+    "tests/theory.cc"
     "tests/write_aspif.cc")
 source_group("${ide_test_group}" FILES ${test-group})
 set(test

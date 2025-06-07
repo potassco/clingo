@@ -114,6 +114,7 @@ enum class ShowFlags : clingo_show_type_bitset_t {
     terms = clingo_show_type_terms,   //!< Select all terms.
     theory = clingo_show_type_theory, //!< Select symbols added by theory.
 };
+//! Enable bitset enumeration for ShowFlags.
 CLINGO_ENABLE_BITSET_ENUM(ShowFlags);
 
 //! Class to provide an immutable view of a model.
@@ -128,7 +129,7 @@ class ConstModel {
 
     //! Cast the model to its C representation.
     //!
-    //! @pram x the model to cast
+    //! @param x the model to cast
     //! @return the C representation of the model
     friend auto c_cast(ConstModel const &x) -> clingo_model_t const * { return x.mdl_; }
 

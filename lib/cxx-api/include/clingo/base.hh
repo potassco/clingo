@@ -300,6 +300,7 @@ enum class TheoryTermType {
 };
 
 class TheoryTerm;
+//! A vector of theory terms.
 using TheoryTermVector = std::vector<TheoryTerm>;
 
 //! Class to provide access to theory terms.
@@ -382,6 +383,7 @@ class TheoryTerm {
 };
 
 class TheoryElement;
+//! A vector of theory elements.
 using TheoryElementVector = std::vector<TheoryElement>;
 
 //! Class to provide access to theory elements.
@@ -739,7 +741,7 @@ class Base {
     //!
     //! @param sig the short signature to look for
     //! @param def the default value to return if the signature is not found
-    //! @reutrn the atom base for the signature, or the default value if not found
+    //! @return the atom base for the signature, or the default value if not found
     [[nodiscard]] auto get(std::pair<std::string_view, size_t> const &sig,
                            std::optional<mapped_type> def = std::nullopt) const -> std::optional<mapped_type> {
         return get({std::get<0>(sig), std::get<1>(sig), true}, def);

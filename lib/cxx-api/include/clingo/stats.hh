@@ -336,7 +336,7 @@ class ConstStatsMap {
         return {name, ConstStats{stats_, subkey}};
     }
 
-    //! @copydoc Clingo::ConstStatsMap::at()
+    //! @copydoc Clingo::ConstStats::get()
     [[nodiscard]] auto operator[](std::string_view name) const -> ConstStats { return get(name); }
 
     //! @copydoc Clingo::ConstStats::get()

@@ -453,6 +453,7 @@ enum class LibraryFlags : clingo_lib_flags_t {
     shared = clingo_lib_flags_shared,             //!< create symbols in a thread-safe manner
     fast_release = clingo_lib_flags_fast_release, //!< whether to enable fast release of libraries
 };
+//! Enable bitset operations on LibraryFlags.
 CLINGO_ENABLE_BITSET_ENUM(LibraryFlags);
 
 //! The default message limit for the logger.
@@ -495,7 +496,7 @@ class Library {
     //! Casts the library object to its C representation.
     //!
     //! @param lib the library object to cast
-    //! @reutrn the C representation of the library object
+    //! @return the C representation of the library object
     [[nodiscard]] friend auto c_cast(Library const &lib) -> clingo_lib_t * { return lib.rep_.get(); }
 
   private:
@@ -681,7 +682,7 @@ class Location {
 
     //! Convert the location to a string representation.
     //!
-    //! @reurn the string representation of the location
+    //! @return the string representation of the location
     [[nodiscard]] auto to_string() const -> std::string {
         auto bld = StringBuilder{};
         Detail::handle_error(clingo_location_to_string(loc_.get(), c_cast(bld)));

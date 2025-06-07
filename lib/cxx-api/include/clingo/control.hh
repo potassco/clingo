@@ -107,7 +107,7 @@ class ConstMap {
     //! Get the key value pair at the given index.
     //!
     //! @param index the index of the element
-    //! @reutrn the key value pair at the index
+    //! @return the key value pair at the index
     [[nodiscard]] auto at(size_t index) const -> value_type {
         clingo_string_t name;
         clingo_symbol_t sym = 0;
@@ -153,6 +153,7 @@ enum class WriteAspifFlags : clingo_write_aspif_mode_t {
     preprocess = clingo_write_aspif_mode_preprocess,       //!< Whether to preprocess the program before writing.
     symbols = clingo_write_aspif_mode_symbols,             //!< Whether to write symbols in a structured format.
 };
+//! Enable bitset operations for the WriteAspifFlags enumeration.
 CLINGO_ENABLE_BITSET_ENUM(WriteAspifFlags);
 
 //! Enumeration of the flags for solving a logic program.
@@ -161,6 +162,7 @@ enum class SolveFlags : clingo_solve_mode_bitset_t {
     yield = clingo_solve_mode_yield, //!< Yield models as they are found.
     async = clingo_solve_mode_async, //!< Asynchronously solve in the background.
 };
+//! Enable bitset operations for the SolveFlags enumeration.
 CLINGO_ENABLE_BITSET_ENUM(SolveFlags);
 
 //! Enumeration of the types of statements that can be discarded.
@@ -323,7 +325,6 @@ class Control {
     //! This function does not take a solve event handler. Instead, the
     //! returned solve handle is configured to yield models as they are found.
     //!
-    //! @param handler the solve event handler to report events to
     //! @param assumptions the assumptions to use for solving
     //! @param flags the flags to use for solving
     //! @return a handle to the solve operation

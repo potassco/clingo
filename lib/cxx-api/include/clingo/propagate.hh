@@ -39,6 +39,7 @@ enum ClauseFlags : clingo_clause_type_t {
     lock = clingo_clause_type_static,  //!< Exempt the clause from deletion.
     tag = clingo_clause_type_volatile, //!< Delete the clause at the end of the current solving step.
 };
+//! Enable bitset enumeration for ClauseFlags.
 CLINGO_ENABLE_BITSET_ENUM(ClauseFlags);
 
 //! A trail is a sequence of solver literals.
@@ -581,7 +582,7 @@ class PropagateControl {
 
     //! Remove a watch for the given solver literal.
     //!
-    //! @param literal the literal to remove the watch for
+    //! @param lit the literal to remove the watch for
     void remove_watch(SolverLiteral lit) const {
         Detail::handle_error(clingo_propagate_control_remove_watch(ctl_, lit));
     }

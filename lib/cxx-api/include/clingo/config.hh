@@ -24,6 +24,7 @@ enum class ConfigType : clingo_config_type_bitset_t {
     //! The configuration entry is a map of configurations.
     map = clingo_config_type_map,
 };
+//! Enable bitset operations for the configuration type.
 CLINGO_ENABLE_BITSET_ENUM(ConfigType);
 
 class ConstConfigArray;
@@ -43,7 +44,7 @@ class ConstConfig {
     //! Cast the configuration to the underlying C API type.
     //!
     //! @param stats the configuration to cast
-    //! @reuturn the underlying C API type
+    //! @return the underlying C API type
     friend auto c_cast(ConstConfig const &stats) -> clingo_config_t const * { return stats.cfg_; }
 
     //! Get the type of the configuration entry.
