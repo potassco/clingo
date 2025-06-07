@@ -364,7 +364,7 @@ class PropagateInit {
 
     //! Get the undo mode of the propagator.
     //!
-    //! @erturn the undo mode of the propagator
+    //! @return the undo mode of the propagator
     [[nodiscard]] auto undo_mode() const -> PropagatorUndoMode {
         return static_cast<PropagatorUndoMode>(Detail::call<clingo_propagate_init_get_undo_mode>(init_));
     }

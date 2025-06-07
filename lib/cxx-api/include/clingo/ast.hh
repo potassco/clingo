@@ -724,7 +724,7 @@ class Scanner {
     struct sentinel {};
 
     class iterator;
-    friend auto operator==(iterator const &a, [[maybe_unused]] sentinel const &b) -> bool;
+    friend auto operator==([[maybe_unused]] iterator const &a, [[maybe_unused]] sentinel const &b) -> bool;
     //! Input iterator over statements.
     class iterator {
       public:

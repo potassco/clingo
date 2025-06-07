@@ -308,7 +308,7 @@ class TheoryTerm {
     //! Construct a theory term from its C representation.
     //!
     //! @param base the C theory base
-    //! @parm index the index of the term
+    //! @param index the index of the term
     explicit TheoryTerm(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
 
     //! Get the type of the theory term.
@@ -493,7 +493,7 @@ class TheoryAtom {
 
     //! Get the literal of the theory atom.
     //!
-    //! @retunr the literal of the theory atom as a program literal
+    //! @return the literal of the theory atom as a program literal
     [[nodiscard]] auto literal() const -> ProgramLiteral {
         return Detail::call<clingo_theory_base_atom_literal>(base_, index_);
     }

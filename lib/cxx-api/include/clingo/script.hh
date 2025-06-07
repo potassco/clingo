@@ -51,7 +51,7 @@ class Script {
     //! Callback to customize the main function.
     //!
     //! @param lib the library object for storing symbols
-    //! @param control the control object
+    //! @param ctl the control object
     void main(Library &lib, const Control &ctl) { do_main(lib, ctl); }
 
     //! Get the name of the script.
