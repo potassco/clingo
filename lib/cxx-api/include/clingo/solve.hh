@@ -9,7 +9,7 @@
 namespace Clingo {
 
 //! @addtogroup cpp_solve Solving
-//! Interact with a running search.
+//! Intercept models and interact with a running search.
 //! @{
 
 //! Class to capture the result of solve calls.

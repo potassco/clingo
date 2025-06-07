@@ -74,15 +74,11 @@
 //! @defgroup cpp_control Grounding and Solving
 //! @{
 
-//! @defgroup cpp_base Symbolic Atom Inspection
-
-//! @defgroup cpp_shared Basic Shared Types
+//! @defgroup cpp_base Atom, Term, and Theory Base Inspection
 
 //! @defgroup cpp_observe Ground Program Inspection
 
 //! @defgroup cpp_backend Ground Program Extension
-
-//! @defgroup cpp_model Model Inspection
 
 //! @defgroup cpp_solve Solving
 
