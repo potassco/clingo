@@ -169,6 +169,11 @@ class Theory {
         create(c_cast(lib), &theory_);
     }
 
+    //! Get the underlying C representation of the theory.
+    //! @param x the theory to cast
+    //! @return the C representation of the theory
+    friend auto c_cast(Theory const &x) -> clingo_theory_t const * { return &x.theory_; }
+
     //! Disable copy and move operations for the Theory class.
     Theory(Theory &&other) = delete;
 
