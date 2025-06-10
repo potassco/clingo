@@ -48,6 +48,14 @@ TEST_CASE("rewrite_program") {
 
 TEST_CASE("rewrite_substitute") {
     REQUIRE(rewrite_program({"p(Y) :- X=10, Y = #sum { X: X=11; Z: Z=2; Z: Z=3 }."}) == SV{"#program base.", "p(5)."});
+    REQUIRE(rewrite_program({
+                "#theory t { t {}; &p/0 : t, {<=}, t, any }.",
+                "&p { P: P=1, p(Q), Q=2 } <= R :- R=1, p(S), S=2.",
+            }) == SV{
+                      "#theory t {\n  t { };\n  &p/0: t, {<=}, t, any\n}.",
+                      "#program base.",
+                      "&p { P: P=1, p(2) } <= R :- R=1; p(2).",
+                  });
 }
 
 } // namespace CppClingo::Input::Test
