@@ -29,7 +29,7 @@ auto main(int argc, char *argv[]) -> int {
         ~scoped_lib() { clingo_lib_release(ptr); };
         clingo_lib_t *ptr = nullptr;
     } lib;
-    if (!clingo_lib_new(clingo_lib_flags_slotted | clingo_lib_flags_fast_release, clingo_log_level_trace, nullptr,
+    if (!clingo_lib_new(clingo_lib_flags_slotted | clingo_lib_flags_fast_release, clingo_log_level_info, nullptr,
                         nullptr, message_limit, &lib.ptr)) {
         return 1;
     }

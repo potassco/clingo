@@ -476,16 +476,50 @@ class AssignmentRemover : public Transformer<AssignmentRemover> {
     Util::unordered_map<String, Term> *rep_;
 };
 
+class BlockedTheoryVars : public Visitor<BlockedTheoryVars> {
+  public:
+    BlockedTheoryVars(StringSet &vars) : vars_{&vars} {}
+    template <bool HasSign> void accept(TheoryAtom<HasSign> const &atom) const {
+        if (auto const &rhs = atom.rhs()) {
+            visit_variables(rhs->term(),
+                            [&]([[maybe_unused]] Location const &loc, String const &var) { vars_->emplace(var); });
+        }
+    }
+
+  private:
+    StringSet *vars_;
+};
+
 class LocalRemover : public Transformer<LocalRemover> {
   public:
     LocalRemover(StringSet &blocked) : blocked_{&blocked} {}
 
     template <class T>
         requires Util::matches<T, HdLitDisjunctionElement, HdLitAggregateElement, BdLitAggregateElement,
-                               SetAggregateElement, TheoryElement, CondLit>
+                               SetAggregateElement, CondLit>
     [[nodiscard]] auto accept(T const &elem) const -> std::optional<T> {
         Util::unordered_map<String, Term> rep;
         if (auto elems_rem = AssignmentRemover{rep, blocked_}.transform(elem)) {
+            if (auto elems_sub = AssignmentSubstituter{rep}.transform(*elems_rem)) {
+                return elems_sub;
+            }
+            return elems_rem;
+        }
+        return std::nullopt;
+    }
+
+    template <class T>
+        requires Util::matches<T, TheoryElement>
+    [[nodiscard]] auto accept(T const &elem) const -> std::optional<T> {
+        Util::unordered_map<String, Term> rep;
+        // NOTE: protect theory term variables because they cannot be
+        // substituted by arbitrary terms
+        auto blocked = *blocked_;
+        for (auto const &term : elem.tuple()) {
+            visit_variables(term,
+                            [&]([[maybe_unused]] Location const &loc, String const &var) { blocked.emplace(var); });
+        }
+        if (auto elems_rem = AssignmentRemover{rep, &blocked}.transform(elem)) {
             if (auto elems_sub = AssignmentSubstituter{rep}.transform(*elems_rem)) {
                 return elems_sub;
             }
@@ -500,7 +534,11 @@ class LocalRemover : public Transformer<LocalRemover> {
 auto substitute_one(RewriteContext &ctx, Stm const &stm) -> SimplifyResult<Stm> {
     auto res_sub = std::optional<Stm>{};
     Util::unordered_map<String, Term> rep;
-    if (auto rem = AssignmentRemover{rep}.transform(stm)) {
+    // NOTE: protect theory term variables because they cannot be
+    // substituted by arbitrary terms
+    StringSet blocked;
+    BlockedTheoryVars{blocked}.visit(stm);
+    if (auto rem = AssignmentRemover{rep, &blocked}.transform(stm)) {
         if (auto sub = AssignmentSubstituter{rep}.transform(*rem)) {
             res_sub = std::move(sub);
         } else {

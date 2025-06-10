@@ -197,7 +197,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                          const Potassco::ProgramOptions::ParsedOptions &parsed) override {
         BaseType::validateOptions(root, parsed);
         setExitCode(Clasp::Cli::exit_no_run);
-        ctl_->lib->log.set_level(log_level_);
         app_.validate_options();
         setExitCode(0);
     }
@@ -258,7 +257,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         void operator()(clingo_control_t *ctl) const { clingo_control_release(ctl); }
     };
 
-    CppClingo::LogLevel log_level_ = CppClingo::LogLevel::info;
     Mode mode_ = Mode::solve;
     std::unique_ptr<clingo_control_t, release_control> ctl_;
     AppAdapter app_;
