@@ -1230,7 +1230,7 @@ auto Solver::backend() -> UBackendHandle {
 }
 
 void Solver::simplify_() {
-    if (opts_.mode != AppMode::solve || !clasp_->incremental()) {
+    if (opts_.mode != AppMode::solve || !clasp_->incremental() || !clasp_->ctx.ok()) {
         return;
     }
     auto value = [clasp = clasp_](prg_lit_t lit) {

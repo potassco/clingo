@@ -243,7 +243,7 @@ class MapParams : public Transformer<MapParams> {
                 return TheoryTermSymbol{term.loc(), *value};
             }
         }
-        return std::nullopt;
+        return rewrite(term, a_args);
     }
 
     [[nodiscard]] auto accept(TheoryTermSymbol const &term) const -> std::optional<TheoryTerm> {
