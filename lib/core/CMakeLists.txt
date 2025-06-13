@@ -39,7 +39,7 @@ target_include_directories(clingo-core
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(clingo-core PUBLIC clingo-util tsl::hopscotch_map tsl::ordered_map PRIVATE imath::imath)
 
-if (CLINGO_BUILD_TESTS)
+if(CLINGO_BUILD_TESTS)
     add_executable(test_clingo-core)
     target_sources(test_clingo-core PRIVATE ${test})
     clingo_target_properties(TARGETS test_clingo-core FOLDER test SUBDIR tests)

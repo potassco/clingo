@@ -44,7 +44,7 @@ target_include_directories(clingo-util
     INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(clingo-util INTERFACE tsl::hopscotch_map tsl::ordered_map)
 
-if (CLINGO_BUILD_TESTS)
+if(CLINGO_BUILD_TESTS)
     add_executable(test_clingo-util)
     target_sources(test_clingo-util PRIVATE ${test})
     clingo_target_properties(TARGETS test_clingo-util FOLDER test SUBDIR tests)

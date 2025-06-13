@@ -25,6 +25,12 @@ if(CLINGO_BUILD_PYTHON)
     endif()
 endif()
 
+# NOTE: We force disable library installation here because the clingo library
+# itself does not require any of the clasp headers to be installed. When the
+# shared clingo library is disabled the required clasp libraries are added to
+# the clingo targets.
+set(CLASP_INSTALL_LIB OFF CACHE BOOL "forced to off by clingo" FORCE)
+set(LIB_POTASSCO_INSTALL_LIB OFF CACHE BOOL "forced to off by clingo" FORCE)
 add_subdirectory(clasp)
 set_property(TARGET libclasp PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET libpotassco PROPERTY POSITION_INDEPENDENT_CODE ON)
