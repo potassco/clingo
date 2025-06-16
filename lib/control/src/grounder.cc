@@ -296,7 +296,6 @@ void Grounder::add_const(String name, Symbol value) {
 }
 
 void Grounder::join(Input::UnprocessedProgram const &prg) {
-    prepare_();
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
         impl_->unprocessed_prg.join(prg);
