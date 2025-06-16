@@ -296,7 +296,9 @@ void Grounder::add_const(String name, Symbol value) {
 }
 
 void Grounder::join(Input::UnprocessedProgram const &prg) {
+    prepare_();
     if (impl_->is_sat) {
+        GCLock lock{*impl_->store};
         impl_->unprocessed_prg.join(prg);
     }
 }
@@ -392,6 +394,7 @@ void Grounder::output_program(std::ostream &out) {
 }
 
 void Grounder::show(Input::SharedSig const &sig) {
+    prepare_();
     GCLock lock{*impl_->store};
     auto prg = Input::UnprocessedProgram{};
     auto pos = Position{*impl_->store->string("<cmd>"), 1, 1};
@@ -415,6 +418,7 @@ void Grounder::set_parts(std::optional<Input::StmParts> parts) {
 }
 
 auto Grounder::base() -> Ground::Bases & {
+    prepare_();
     return impl_->bases;
 }
 

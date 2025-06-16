@@ -1169,8 +1169,8 @@ auto Solver::solve(UEventHandler handler, PrgLitSpan assumptions, SolveMode mode
             return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), static_cast<ModelImpl &>(*mdl_), mode,
                                                      std::move(handler), [this]() { simplify_(); });
         }
+        theory_->reset();
     }
-    theory_->reset();
     return std::make_unique<SolveHandleFixed>();
 }
 
@@ -1205,8 +1205,10 @@ auto Solver::const_map() -> Input::ConstMap const & {
 }
 
 void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) {
-    prepare_();
-    std::ignore = grd_.ground(params, ctx != nullptr ? ctx : scripts_);
+    if (opts_.mode >= AppMode::ground) {
+        prepare_();
+        std::ignore = grd_.ground(params, ctx != nullptr ? ctx : scripts_);
+    }
 }
 
 void Solver::output_unprocessed_program(std::ostream &out) {
