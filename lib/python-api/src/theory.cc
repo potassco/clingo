@@ -232,6 +232,56 @@ class Theory {
             fun(stm);
         }
     }
+    void rewrite_string(Library &lib, Control &ctl, std::string_view str) const {
+        struct Data {
+            Data(clingo_lib_t *lib, clingo_theory_t const *thy) : thy{thy} {
+                handle_error(clingo_program_new(lib, &prg));
+            }
+            Data(Data &&other) = delete;
+            ~Data() { clingo_program_free(prg); }
+            clingo_program_t *prg = nullptr;
+            clingo_theory_t const *thy;
+        } data{lib, &theory_};
+        handle_error(clingo_ast_parse_string(
+            lib, str.data(), str.size(), ctl.c_ptr(),
+            [](clingo_ast_t *ast, void *data) {
+                auto &[prg, theory] = *static_cast<Data *>(data);
+                return theory->rewrite_ast(
+                    theory->self, ast,
+                    [](clingo_ast_t *ast, void *data) {
+                        return clingo_program_add(static_cast<clingo_program_t *>(data), ast);
+                    },
+                    prg);
+            },
+            &data));
+        handle_error(clingo_control_join(ctl.c_ptr(), data.prg));
+    }
+
+    void rewrite_files(Library &lib, Control &ctl, std::span<std::string> files) const {
+        struct Data {
+            Data(clingo_lib_t *lib, clingo_theory_t const *thy) : thy{thy} {
+                handle_error(clingo_program_new(lib, &prg));
+            }
+            Data(Data &&other) = delete;
+            ~Data() { clingo_program_free(prg); }
+            clingo_program_t *prg = nullptr;
+            clingo_theory_t const *thy;
+        } data{lib, &theory_};
+        auto cfiles = transform_vec(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
+        handle_error(clingo_ast_parse_files(
+            lib, cfiles.data(), cfiles.size(), ctl.c_ptr(),
+            [](clingo_ast_t *ast, void *data) {
+                auto &[prg, theory] = *static_cast<Data *>(data);
+                return theory->rewrite_ast(
+                    theory->self, ast,
+                    [](clingo_ast_t *ast, void *data) {
+                        return clingo_program_add(static_cast<clingo_program_t *>(data), ast);
+                    },
+                    prg);
+            },
+            &data));
+        handle_error(clingo_control_join(ctl.c_ptr(), data.prg));
+    }
 
   private:
     clingo_theory_t theory_{};
@@ -293,6 +343,22 @@ control object.
 Args:
     statement: The statement to rewrite.
     callback: The callback receiving rewritten statements.
+)"_d)
+        .def("rewrite_string", &Theory::rewrite_string, py::arg("lib"), py::arg("control"), py::arg("program"), R"(
+Rewrite the given program adding it to the control object.
+
+Args:
+    lib: The library to store symbols.
+    control: The target control..
+    program: The program to parse.
+)"_d)
+        .def("rewrite_files", &Theory::rewrite_files, py::arg("lib"), py::arg("control"), py::arg("files"), R"(
+Rewrite the program in the given files and add it to the control.
+
+Args:
+    lib: The library to store symbols.
+    control: The target control..
+    files: The files to parse.
 )"_d)
         .def("configure", &Theory::configure, py::arg("name"), py::arg("value"), R"(
 Configure the theory using its name/value interface.
