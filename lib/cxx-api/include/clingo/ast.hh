@@ -1,5 +1,6 @@
 #pragma once
 
+#include <clingo/control.hh>
 #include <clingo/core.hh>
 #include <clingo/detail/ast.hh>
 #include <clingo/symbol.hh>
@@ -718,165 +719,6 @@ enum class ParseType : clingo_ast_parse_type_t {
     statement = clingo_ast_parse_type_statement,
 };
 
-//! Scanner to parse sequences of statements.
-class Scanner {
-  public:
-    struct sentinel {};
-
-    class iterator;
-    //! @cond
-    friend auto operator==([[maybe_unused]] iterator const &a, [[maybe_unused]] sentinel const &b) -> bool;
-    //! @endcond
-
-    //! Input iterator over statements.
-    class iterator {
-      public:
-        //! The iterator category.
-        using iterator_category = std::input_iterator_tag;
-        //! The difference type.
-        using difference_type = std::ptrdiff_t;
-        //! The value type.
-        using value_type = Node;
-        //! The pointer type.
-        using pointer = Node *;
-        //! The reference type.
-        using reference = Node &;
-
-        //! The default constructor.
-        //!
-        //! Only to fulfil the forward iterator concept; must not be used.
-        iterator() = default;
-
-        //! Get a reference to the current statement.
-        //!
-        //! @return a reference to the current statement
-        auto operator*() const -> reference {
-            assert(scanner_ != nullptr && scanner_->value_);
-            return *scanner_->value_;
-        }
-
-        //! Standard member access operator.
-        //!
-        //! @return a pointer to the current statement
-        auto operator->() const -> pointer { return &**this; }
-
-        //! Advance to the next statement.
-        //!
-        //! @return a reference to self
-        auto operator++() -> iterator & {
-            assert(scanner_ != nullptr);
-            scanner_->next_();
-            return *this;
-        }
-
-        //! Advance to the next statement.
-        //!
-        //! Implemented for completeness. All iterators have the same semantic
-        //! value.
-        //!
-        //! @return the previous iterator
-        auto operator++(int) -> iterator {
-            iterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-
-        //! Equality compare two iterators.
-        //!
-        //! Implemented for completeness. All iterators are equal.
-        //!
-        //! @param a the first iterator
-        //! @param b the second iterator
-        //! @return whether the iterators are equal
-        friend auto operator==([[maybe_unused]] iterator const &a, [[maybe_unused]] iterator const &b) -> bool {
-            assert(a.scanner_ == b.scanner_);
-            return true;
-        }
-
-        //! Check if the iterator has reached the end.
-        //!
-        //! @param a the first iterator
-        //! @param b the end sentinel
-        //! @return whether the iterator reached the end
-        friend auto operator==(iterator const &a, [[maybe_unused]] sentinel const &b) -> bool {
-            assert(a.scanner_ != nullptr);
-            return !a.scanner_->value_.has_value();
-        }
-
-      private:
-        friend class Scanner;
-
-        //! Construct an iterator pointing to the next statement in the scanner.
-        //!
-        //! @param hnd the scanner
-        explicit iterator(Scanner &hnd) : scanner_{&hnd} { operator++(); }
-
-        Scanner *scanner_ = nullptr;
-    };
-    //! The difference type.
-    using difference_type = iterator::difference_type;
-    //! The value type.
-    using value_type = iterator::value_type;
-    //! The reference type.
-    using reference = iterator::reference;
-    //! The pointer type.
-    using pointer = iterator::pointer;
-
-    //! Construct a scanner for the given program.
-    //!
-    //! @param lib the library to store symbols
-    //! @param program the program to parse
-    explicit Scanner(Library lib, std::string_view program)
-        : lib_{std::move(lib)},
-          scanner_{Detail::call<clingo_ast_scan_string>(c_cast(lib_), program.data(), program.size())} {}
-
-    //! Construct a scanner for the given files containing programs.
-    //!
-    //! @param lib the library to store symbols
-    //! @param files the files to parse
-    explicit Scanner(Library lib, StringSpan files) : lib_{std::move(lib)} {
-        auto cfiles = Detail::transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
-        scanner_.reset(Detail::call<clingo_ast_scan_files>(c_cast(lib_), cfiles.data(), cfiles.size()));
-    }
-
-    //! Construct a scanner for the given files containing programs.
-    //!
-    //! Convenience overload to pass lists of files.
-    //!
-    //! @param lib the library to store symbols
-    //! @param files the files to parse
-    explicit Scanner(Library lib, StringList files) : Scanner{std::move(lib), std::span{files}} {}
-
-    //! Get an iterator to the first statement in the sequence.
-    //!
-    //! @return the iterator
-    auto begin() -> iterator { return iterator{*this}; }
-
-    //! Get a sentinel for the end of the sequence.
-    //!
-    //! @return the sentinel
-    auto end() -> sentinel {
-        static_cast<void>(this);
-        return sentinel{};
-    }
-
-  private:
-    void next_() {
-        clingo_ast_t *ast = Detail::call<clingo_ast_scanner_next>(scanner_.get());
-        if (ast != nullptr) {
-            value_.emplace(ast);
-        } else {
-            value_.reset();
-        }
-    }
-
-    Library lib_;
-    Detail::unique_handle<clingo_ast_scanner_t, clingo_ast_scanner_close> scanner_;
-    std::optional<Node> value_;
-};
-static_assert(std::input_iterator<Scanner::iterator>);
-static_assert(std::sentinel_for<Scanner::sentinel, Scanner::iterator>);
-
 //! The available projection modes.
 enum class ProjectionMode : clingo_projection_mode_t {
     //! Do not project.
@@ -997,6 +839,62 @@ inline auto parse(Library const &lib, std::string_view string, ParseType type = 
                                                           string.data(), string.size())};
 }
 
+//! Parse the program in the given string.
+//!
+//! @param lib the library to store symbols in
+//! @param string the string to parse
+//! @param callback callback to report nodes
+//! @param control optional control object to handle aspif
+template <class Callback>
+// NOLINTNEXTLINE
+inline void parse(Library const &lib, std::string_view program, Callback &&callback,
+                  Clingo::Control const *ctl = nullptr) {
+    clingo_ast_parse_string(
+        c_cast(lib), program.data(), program.size(), ctl != nullptr ? c_cast(*ctl) : nullptr,
+        [](clingo_ast_t *ast, void *data) {
+            auto &callback = *static_cast<Callback *>(data);
+            CLINGO_TRY {
+                callback(Node{ast, true});
+            }
+            CLINGO_CATCH;
+        },
+        &callback);
+}
+
+//! Parse the program in the given files.
+//!
+//! @param lib the library to store symbols in
+//! @param files the files to parse
+//! @param callback callback to report nodes
+//! @param control optional control object to handle aspif
+template <class Callback>
+// NOLINTNEXTLINE
+inline void parse(Library const &lib, std::span<std::string_view const> files, Callback &&callback,
+                  Clingo::Control const *ctl = nullptr) {
+    auto cfiles = Detail::transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
+    clingo_ast_parse_files(
+        c_cast(lib), cfiles.data(), cfiles.size(), ctl != nullptr ? c_cast(*ctl) : nullptr,
+        *[](clingo_ast_t *ast, void *data) {
+            CLINGO_TRY {
+                auto &callback = *static_cast<Callback *>(data);
+                std::invoke(callback, Node{ast, true});
+            }
+            CLINGO_CATCH;
+        },
+        &callback);
+}
+
+//! Parse the program in the given files.
+//!
+//! @param lib the library to store symbols in
+//! @param files the files to parse
+//! @param callback callback to report nodes
+//! @param control optional control object to handle aspif
+template <class Callback>
+inline void parse(Library const &lib, std::initializer_list<std::string_view> files, Callback &&callback,
+                  Clingo::Control const *ctl = nullptr) {
+    parse(lib, std::span{files.begin(), files.end()}, std::forward<Callback>(callback), ctl);
+}
 //! @}
 
 } // namespace Clingo::AST

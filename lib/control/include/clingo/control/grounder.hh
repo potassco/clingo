@@ -46,9 +46,9 @@ class Grounder {
     void mark_sig(Input::Sig const &sig);
 
     //! Get the program parts to ground.
-    [[nodiscard]] auto get_parts() const -> std::optional<ProgramParamVec> const &;
+    [[nodiscard]] auto get_parts() -> std::optional<Input::StmParts> const &;
     //! Set the program parts to ground.
-    void set_parts(std::optional<ProgramParamVec> parts, Input::Precedence prec = Input::Precedence::override_);
+    void set_parts(std::optional<Input::StmParts> parts);
     //! Get the associated base.
     [[nodiscard]] auto base() -> Ground::Bases &;
     //! Get the associated base.

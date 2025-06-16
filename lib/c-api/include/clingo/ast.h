@@ -364,45 +364,38 @@ CLINGO_VISIBILITY_DEFAULT char const *clingo_ast_type_info_yaml(void);
 //! @name Functions to scan ASTs
 //! @{
 
-//! A scanner to read programs from some input source.
-typedef struct clingo_ast_scanner clingo_ast_scanner_t;
+//! A callback to intercept ast's.
+//!
+//! @param[in] ast the paresd ast
+//! @param[in] data the user data of the callback
+//! @return whether the call was successful
+typedef bool (*clingo_ast_callback_t)(clingo_ast_t *ast, void *data);
 
-//! Creater a scanner reading a program from a string.
+//! Parse a program from a string.
 //!
 //! @param[in] lib the library object to store symbols
 //! @param[in] program the string to read from
 //! @param[in] size the size of the string
-//! @param[out] scanner the resulting scanner
-//! @return wether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_string(clingo_lib_t *lib, char const *program, size_t size,
-                                                      clingo_ast_scanner_t **scanner);
+//! @param[in] control optional control object to handle aspif
+//! @param[in] callback the callback for the ast nodes
+//! @param[in] data the user data of the callback
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(clingo_lib_t *lib, char const *program, size_t size,
+                                                       clingo_control_t *control, clingo_ast_callback_t callback,
+                                                       void *data);
 
-//! Creater a scanner reading a program from a string.
+//! Parse a program from the given files.
 //!
 //! @param[in] lib the library object to store symbols
 //! @param[in] files the file paths to read from
 //! @param[in] size the number of file paths
-//! @param[out] scanner the resulting scanner
-//! @return wether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_files(clingo_lib_t *lib, clingo_string_t const *files, size_t size,
-                                                     clingo_ast_scanner_t **scanner);
-
-//! Parse the next statement.
-//!
-//! @param[in] scanner the scanner to use for parsing
-//! @param[out] ast the resulting ast
-//! @return wether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast);
-
-//! Check if there was a parse error.
-//!
-//! @param[in] scanner the scanner
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scanner_has_error(clingo_ast_scanner_t *scanner);
-
-//! Close the scanner and free any resources it uses.
-//!
-//! @param[in] scanner the scanner
-CLINGO_VISIBILITY_DEFAULT void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner);
+//! @param[in] control optional control object to handle aspif
+//! @param[in] callback the callback for the ast nodes
+//! @param[in] data the user data of the callback
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(clingo_lib_t *lib, clingo_string_t const *files, size_t size,
+                                                      clingo_control_t *control, clingo_ast_callback_t callback,
+                                                      void *data);
 
 //! @}
 

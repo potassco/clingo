@@ -1,4 +1,5 @@
 #include "ast.hh"
+#include "control.hh" // IWYU pragma: keep
 #include "core.hh"
 #include "lib.hh"
 
@@ -19,7 +20,6 @@
 #include <cstring>
 #include <forward_list>
 #include <fstream>
-#include <ranges>
 #include <span>
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
@@ -2690,58 +2690,61 @@ struct clingo_ast_scanner {
     bool parse_error_ = false;
 };
 
-extern "C" auto clingo_ast_scan_string(clingo_lib_t *lib, char const *program, size_t size,
-                                       clingo_ast_scanner_t **scanner) -> bool {
+extern "C" auto clingo_ast_parse_string(clingo_lib_t *lib, char const *program, size_t size, clingo_control_t *control,
+                                        clingo_ast_callback_t callback, void *data) -> bool {
     CLINGO_TRY {
-        if (lib == nullptr || (program == nullptr && size > 0) || scanner == nullptr) {
+        if (lib == nullptr || (program == nullptr && size > 0) || callback == nullptr) {
             return fail_arguments();
         }
-        auto res = std::make_unique<clingo_ast_scanner>(lib);
-        res->scan_string(std::string{program, size});
-        *scanner = res.release();
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" auto clingo_ast_scan_files(clingo_lib_t *lib, clingo_string_t const *files, size_t size,
-                                      clingo_ast_scanner_t **scanner) -> bool {
-    CLINGO_TRY {
-        if (lib == nullptr || (files == nullptr && size != 0) || scanner == nullptr) {
-            return fail_arguments();
-        }
-        auto res = std::make_unique<clingo_ast_scanner>(lib);
-        auto span = std::span(files, size);
-        if (span.empty()) {
-            res->scan_file("-");
+        CppClingo::GCLock lock{*lib->store};
+        auto parse = [&](CppClingo::ProgramBackend *bck, CppClingo::TheoryBackend *thy) {
+            auto ph = CppClingo::Control::ParseHelper{lib->log,
+                                                      *lib->store,
+                                                      [&](CppClingo::Input::Stm stm) {
+                                                          auto ast = make_ast(std::move(stm));
+                                                          handle_error(callback(ast.get(), data));
+                                                      },
+                                                      &lib->scripts,
+                                                      bck,
+                                                      thy};
+            std::ignore = ph.process_string({program, size});
+        };
+        if (control != nullptr) {
+            control->slv->parse_with(parse);
         } else {
-            std::ranges::for_each(std::ranges::reverse_view(span),
-                                  [&res](clingo_string_t path) { res->scan_file({path.data, path.size}); });
+            parse(nullptr, nullptr);
         }
-        *scanner = res.release();
     }
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast) -> bool {
+extern "C" auto clingo_ast_parse_files(clingo_lib_t *lib, clingo_string_t const *files, size_t size,
+                                       clingo_control_t *control, clingo_ast_callback_t callback, void *data) -> bool {
     CLINGO_TRY {
-        if (scanner == nullptr || scanner == nullptr) {
+        if (lib == nullptr || (files == nullptr && size != 0) || callback == nullptr) {
             return fail_arguments();
         }
-        *ast = scanner->next().release();
+        CppClingo::GCLock lock{*lib->store};
+        auto parse = [&](CppClingo::ProgramBackend *bck, CppClingo::TheoryBackend *thy) {
+            auto ph = CppClingo::Control::ParseHelper{lib->log,
+                                                      *lib->store,
+                                                      [&](CppClingo::Input::Stm stm) {
+                                                          auto ast = make_ast(std::move(stm));
+                                                          handle_error(callback(ast.get(), data));
+                                                      },
+                                                      &lib->scripts,
+                                                      bck,
+                                                      thy};
+            std::ignore = ph.process_files(CppClingo::Util::to_vec(
+                std::span{files, size}, [](auto const &str) { return std::string_view{str.data, str.size}; }));
+        };
+        if (control != nullptr) {
+            control->slv->parse_with(parse);
+        } else {
+            parse(nullptr, nullptr);
+        }
     }
     CLINGO_CATCH;
-}
-
-extern "C" auto clingo_ast_scanner_has_error(clingo_ast_scanner_t *scanner) -> bool {
-    return scanner != nullptr && scanner->has_error();
-}
-
-extern "C" void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner) {
-    if (scanner != nullptr) {
-        scanner->lib()->log.reset();
-        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-        delete scanner;
-    }
 }
 
 struct clingo_ast_rewrite_context {

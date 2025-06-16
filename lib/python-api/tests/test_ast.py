@@ -971,8 +971,9 @@ class TestAST:
         """
         Test the statement scanner.
         """
-        with ast.Scanner(self.lib, "a. b. c.") as scanner:
-            assert [str(stm) for stm in scanner] == ["a.", "b.", "c."]
+        stms = []
+        ast.parse_string(self.lib, "a. b. c.", lambda stm: stms.append(str(stm)))
+        assert stms == ["#program base.", "a.", "b.", "c."]
 
     def test_visit(self):
         """

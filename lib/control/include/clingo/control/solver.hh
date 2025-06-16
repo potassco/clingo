@@ -590,12 +590,15 @@ class Solver : public BaseView {
     //! Ground and solve a program.
     void main();
 
-    //! Parse a program from the given string.
+    //! Join with the given program.
     void join(Input::UnprocessedProgram const &prg);
     //! Parse a program from the given string.
     void parse(std::string_view str);
     //! Parse the given files.
     void parse(std::span<std::string_view const> const &files);
+    //! Parse with optional backends.
+    void parse_with(std::function<void(ProgramBackend *, TheoryBackend *)> cb);
+
     //! Define a constant.
     void add_const(String name, Symbol value);
     //! Get the const map.
@@ -670,11 +673,15 @@ class Solver : public BaseView {
     void interrupt() noexcept;
 
     //! Get the program parts to ground.
-    [[nodiscard]] auto get_parts() const -> std::optional<ProgramParamVec> const & { return grd_.get_parts(); }
+    [[nodiscard]] auto get_parts() -> std::optional<Input::StmParts> const & { return grd_.get_parts(); }
 
     //! Set the program parts to ground.
-    void set_parts(std::optional<ProgramParamVec> parts, Input::Precedence prec = Input::Precedence::override_) {
-        grd_.set_parts(std::move(parts), prec);
+    void set_parts(std::optional<Input::StmParts> parts) { grd_.set_parts(std::move(parts)); }
+    //! Set the program parts to ground.
+    void set_parts(Input::ProgramParamVec parts) {
+        auto pos = Position{*grd_.store().string("<cmd>"), 1, 1};
+        auto loc = Location{pos, pos};
+        grd_.set_parts(std::make_optional<Input::StmParts>(loc, Input::Precedence::override_, std::move(parts)));
     }
 
     //! Show the given signature.

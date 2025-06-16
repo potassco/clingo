@@ -214,11 +214,9 @@ class Theory {
     //! @param ctl the control object to add statements to
     //! @param str the string to parse and rewrite
     void rewrite(Library const &lib, Control const &ctl, std::string_view str) const {
-        auto scanner = AST::Scanner{lib, str};
         auto prg = AST::Program{lib};
-        for (auto const &stm : scanner) {
-            rewrite(stm, [&](AST::Node const &node) { prg.add(node); });
-        }
+        AST::parse(
+            lib, str, [&](AST::Node const &stm) { rewrite(stm, [&](AST::Node const &stm) { prg.add(stm); }); }, &ctl);
         ctl.join(prg);
     }
 
@@ -228,11 +226,9 @@ class Theory {
     //! @param ctl the control object to add statements to
     //! @param files the files to parse and rewrite
     void rewrite(Library const &lib, Control const &ctl, StringSpan files) const {
-        auto scanner = AST::Scanner{lib, files};
         auto prg = AST::Program{lib};
-        for (auto const &stm : scanner) {
-            rewrite(stm, [&](AST::Node const &node) { prg.add(node); });
-        }
+        AST::parse(
+            lib, files, [&](AST::Node const &stm) { rewrite(stm, [&](AST::Node const &stm) { prg.add(stm); }); }, &ctl);
         ctl.join(prg);
     }
 

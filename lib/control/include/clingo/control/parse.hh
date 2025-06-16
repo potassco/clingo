@@ -7,10 +7,12 @@
 #include <clingo/ground/script.hh>
 
 #include <clingo/util/enum.hh>
+#include <clingo/util/type_traits.hh>
 
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <utility>
 
 namespace CppClingo::Control {
 
@@ -37,16 +39,36 @@ using ProgramParams = std::pair<CppClingo::Input::Precedence, std::optional<Prog
 class ParseHelper {
   public:
     //! Construct the helper.
-    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg, ProgramParams &parts,
-                Ground::ScriptExec *exec = nullptr, ProgramBackend *prg_backend = nullptr,
-                TheoryBackend *thy_backend = nullptr)
-        : log_{&log}, store_{&store}, parts_{&parts}, exec_{exec}, parser_{log, store, prg_backend, thy_backend},
-          prg_{&prg} {}
+    ParseHelper(Logger &log, SymbolStore &store, std::function<void(Input::Stm)> cb, Ground::ScriptExec *exec = nullptr,
+                ProgramBackend *prg_backend = nullptr, TheoryBackend *thy_backend = nullptr)
+        : log_{&log}, store_{&store}, exec_{exec}, parser_{log, store, prg_backend, thy_backend}, cb_{std::move(cb)} {}
 
     //! Parse a program from the given string.
-    void process_string(std::string_view str) {
+    auto process_string(std::string_view str) -> BuiltinIncludes {
         parser_.init(str, *store_->string("<string>"));
         process_();
+        auto ret = process_includes();
+        check();
+        return ret;
+    }
+
+    //! Parse a program from the given files.
+    auto process_files(std::span<std::string_view const> const &files) -> BuiltinIncludes {
+        auto ret = BuiltinIncludes::empty;
+        if (files.empty()) {
+            process_stdin();
+            ret |= process_includes();
+        }
+        for (auto const &file : files) {
+            if (file == "-") {
+                process_stdin();
+            } else {
+                process_path(file);
+            }
+            ret |= process_includes();
+        }
+        check();
+        return ret;
     }
 
     //! Parse a program from stdin.
@@ -136,7 +158,7 @@ class ParseHelper {
     // NOLINTBEGIN(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
     //! Scan statements.
     void process_(std::filesystem::path const &dir) {
-        prg_->ensure_base();
+        bool ensure_base = true;
         while (true) {
             auto [stm, res] = parser_.scan();
             parse_error_ = parse_error_ || !res;
@@ -144,39 +166,49 @@ class ParseHelper {
                 fin_.close();
                 break;
             }
-            if (auto *parts = std::get_if<Input::StmParts>(&*stm); parts != nullptr) {
-                if (!parts_->second || parts_->first < parts->type()) {
-                    parts_->second.emplace(parts->elems());
-                    parts_->first = parts->type();
-                } else if (parts_->first == parts->type()) {
-                    CLINGO_REPORT_LOC(*log_, error, parts->loc())
-                        << "multiple parts directives with the same precedence: " << *stm;
-                    parse_error_ = true;
-                }
-            } else if (auto *include = std::get_if<Input::StmInclude>(&*stm); include != nullptr) {
-                includes_.emplace_back(dir, std::move(*include));
-            } else {
-                if (auto *script = std::get_if<Input::StmScript>(&*stm); exec_ != nullptr && script != nullptr) {
-                    exec_->exec(script->loc(), *log_, script->type().view(), script->value().view());
-                }
-                prg_->add(*store_, *std::move(stm));
-            }
+            std::visit(
+                [&]<class T>(T const &val) {
+                    if constexpr (Util::matches<T, Input::StmInclude>) {
+                        // enqueue include
+                        includes_.emplace_back(dir, std::move(val));
+                    } else if constexpr (Util::is_among_v<T, Input::StmScript>) {
+                        // execute script statements
+                        if (exec_ != nullptr) {
+                            exec_->exec(val.loc(), *log_, val.type().view(), val.value().view());
+                        }
+                    } else if constexpr (Util::matches<T, Input::StmProgram>) {
+                        // disable base injection
+                        ensure_base = false;
+                        is_base = val.name() == "base" && val.args().empty();
+                    } else if constexpr (!Util::is_among_v<T, Input::StmShowNothing, Input::StmShowSig,
+                                                           Input::StmProjectSig, Input::StmDefined, Input::StmConst,
+                                                           Input::StmTheory, Input::StmParts, Input::StmComment>) {
+                        // inject base part before non-meta statements
+                        if (!is_base && ensure_base) {
+                            cb_(Input::StmProgram{location(val), store_->string_ref("base"), StringSpan{}});
+                            ensure_base = false;
+                            is_base = true;
+                        }
+                    }
+                    cb_(*std::move(stm));
+                },
+                *stm);
         }
     }
     // NOLINTEND(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
 
     Logger *log_;
     SymbolStore *store_;
-    ProgramParams *parts_;
     Ground::ScriptExec *exec_;
     std::ifstream fin_;
     Input::Parser parser_;
-    Input::UnprocessedProgram *prg_;
+    std::function<void(Input::Stm)> cb_;
     std::filesystem::path root_ = std::filesystem::current_path();
     std::deque<std::pair<std::filesystem::path, Input::StmInclude>> includes_;
     Util::unordered_set<std::filesystem::path> seen_;
     bool processed_stdin_ = false;
     bool parse_error_ = false;
+    bool is_base = false;
 };
 
 //! @}

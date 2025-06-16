@@ -872,12 +872,9 @@ TEST_CASE_METHOD(Fixture, "ast rewrite", "[cxx][ast][rewrite]") {
 }
 
 TEST_CASE_METHOD(Fixture, "ast statement scanner", "[cxx][ast][scanner]") {
-    auto scanner = AST::Scanner(lib, "a. b. c.");
     auto res = std::vector<std::string>{};
-    for (auto const &stm : scanner) {
-        res.emplace_back(stm.to_string());
-    }
-    REQUIRE(std::ranges::equal(res, std::array{"a.", "b.", "c."}));
+    AST::parse(lib, "a. b. c.", [&](auto const &stm) { res.emplace_back(stm.to_string()); });
+    REQUIRE(std::ranges::equal(res, std::array{"#program base.", "a.", "b.", "c."}));
 }
 
 TEST_CASE_METHOD(Fixture, "ast term variable comparison", "[cxx][ast][term_variable][cmp]") {

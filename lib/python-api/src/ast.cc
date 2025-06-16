@@ -1,4 +1,5 @@
 #include "ast.hh"
+#include "control.hh"
 #include "core.hh"
 #include "iterable.hh"
 #include "symbol.hh"
@@ -11,7 +12,7 @@
 
 // NOLINTBEGIN(readability-convert-member-functions-to-static,performance-enum-size)
 
-namespace PyClingo {
+namespace PyClingo::AST {
 
 namespace py = pybind11;
 
@@ -6330,103 +6331,40 @@ auto parse_statement(Library &lib, std::string_view string) -> Statement {
     return construct_statement(ast);
 }
 
-class Scanner {
-  public:
-    class Iterator {
-      public:
-        using iterator_category = std::input_iterator_tag;
-        using difference_type = std::ptrdiff_t;
-        using value_type = Statement;
-        using reference = Statement &;
-        using pointer = Statement *;
-
-        Iterator(Scanner *scanner = nullptr) : scanner_{scanner} {}
-
-        auto operator*() -> value_type {
-            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-            return *std::move(scanner_->value_);
-        }
-
-        auto operator->() -> pointer {
-            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-            return &*scanner_->value_;
-        }
-
-        auto operator++() -> Iterator & {
-            scanner_->next();
-            return *this;
-        }
-
-        void operator++(int) { scanner_->next(); }
-
-        friend auto operator==(Iterator const &a, Iterator const &b) -> bool {
-            if (a.scanner_ != nullptr && b.scanner_ == nullptr) {
-                return !a.scanner_->value_.has_value();
+void parse_string(Library const &lib, std::string_view program, std::function<void(Statement)> callback,
+                  TypeHint<"clingo.control.Control|None"> const &ctl) {
+    auto *ptr = !ctl.is_none() ? ctl.cast<Control *>()->c_ptr() : nullptr;
+    handle_error(clingo_ast_parse_string(
+        lib, program.data(), program.size(), ptr,
+        [](clingo_ast_t *ast, void *data) {
+            CLINGO_TRY {
+                auto &callback = *static_cast<std::function<void(Statement)> *>(data);
+                clingo_ast_t *copy = nullptr;
+                handle_error(clingo_ast_copy(ast, &copy));
+                callback(construct_statement(copy));
             }
-            if (a.scanner_ == nullptr && b.scanner_ != nullptr) {
-                return !b.scanner_->value_.has_value();
+            CLINGO_CATCH;
+        },
+        &callback));
+}
+
+inline void parse_files(Library const &lib, std::span<std::string_view const> files,
+                        std::function<void(Statement)> callback, TypeHint<"clingo.control.Control|None"> const &ctl) {
+    auto *ptr = !ctl.is_none() ? ctl.cast<Control *>()->c_ptr() : nullptr;
+    auto cfiles = transform_vec(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
+    handle_error(clingo_ast_parse_files(
+        lib, cfiles.data(), cfiles.size(), ptr,
+        *[](clingo_ast_t *ast, void *data) {
+            CLINGO_TRY {
+                auto &callback = *static_cast<std::function<void(Statement)> *>(data);
+                clingo_ast_t *copy = nullptr;
+                handle_error(clingo_ast_copy(ast, &copy));
+                callback(construct_statement(copy));
             }
-            return a.scanner_ == b.scanner_;
-        }
-
-        friend auto operator!=(Iterator const &a, Iterator const &b) -> bool { return !(a == b); }
-
-      private:
-        Scanner *scanner_;
-    };
-    friend auto operator==(Iterator const &a, Iterator const &b) -> bool;
-    friend auto operator!=(Iterator const &a, Iterator const &b) -> bool;
-
-    Scanner(Library &lib, std::string_view program) : lib_{lib} {
-        handle_error(clingo_ast_scan_string(lib, program.data(), program.size(), &scanner_));
-    }
-
-    Scanner(Library &lib, std::vector<std::string> files) : lib_{lib} {
-        std::vector<clingo_string_t> cfiles;
-        cfiles.reserve(cfiles.size());
-        std::ranges::transform(files, std::back_inserter(cfiles),
-                               [](auto const &file) { return clingo_string_t{file.data(), file.size()}; });
-        handle_error(clingo_ast_scan_files(lib, cfiles.data(), cfiles.size(), &scanner_));
-    }
-
-    Scanner(Scanner const &other) = delete;
-    auto operator=(Scanner const &other) -> Scanner & = delete;
-
-    Scanner(Scanner &&other) noexcept { *this = std::move(other); }
-    auto operator=(Scanner &&other) noexcept -> Scanner & {
-        std::swap(lib_, other.lib_);
-        std::swap(scanner_, other.scanner_);
-        std::swap(value_, other.value_);
-        return *this;
-    }
-
-    auto iter() -> py::iterator {
-        next();
-        return py::make_iterator(Iterator{this}, Iterator{});
-    }
-    void next() {
-        clingo_ast_t *ast = nullptr;
-        handle_error(clingo_ast_scanner_next(scanner_, &ast));
-        if (ast != nullptr) {
-            value_ = construct_statement(ast);
-        } else {
-            value_.reset();
-        }
-    }
-
-    void close() {
-        if (scanner_ != nullptr) {
-            clingo_ast_scanner_close(scanner_);
-            scanner_ = nullptr;
-        }
-    }
-    ~Scanner() { close(); }
-
-  private:
-    clingo_lib_t *lib_ = nullptr;
-    clingo_ast_scanner_t *scanner_ = nullptr;
-    std::optional<Statement> value_;
-};
+            CLINGO_CATCH;
+        },
+        &callback));
+}
 
 class RewriteContext {
   public:
@@ -9292,35 +9230,30 @@ Returns:
     The updated object.
 )doc");
 
-    py::class_<Scanner>(ast, "Scanner", R"doc( Scanner to parse statements.)doc")
-        .def(py::init<Library &, std::string_view>(), py::arg("lib"), py::arg("program"),
-             R"doc(Create a scanner to parse from the given string.
+    ast.def("parse_string", &parse_string, py::arg("lib"), py::arg("program"), py::arg("callback"),
+            py::arg("control") = std::nullopt,
+            R"doc(Parse the program in the given string.
 
 Args:
     lib: A library object to store symbols.
     program: The program to parse.
-)doc")
-        .def(py::init<Library &, std::vector<std::string>>(), py::arg("lib"), py::arg("files"), R"(
-Create a scanner to parse from the given files.
+    callback: Function to report statements.
+    control: Optional Control object to handle ASPIF.
+)doc");
+    ast.def("parse_files", &parse_files, py::arg("lib"), py::arg("files"), py::arg("callback"),
+            py::arg("control") = std::nullopt, R"(
+Parse the program in the given files.
 
-The scanner follows clingo's handling of files on the command line. Filename
+The parser follows clingo's handling of files on the command line. Filename
 "-" is treated as "STDIN" and if an empty list is given, then the parser will
 read from "STDIN".
 
 Args:
     lib: A library object to store symbols.
-    files: A list of files to parse.
-)")
-        .def(
-            "__enter__", [](Scanner &scanner) -> Scanner & { return scanner; }, R"(Return self.)")
-        .def("__iter__", &Scanner::iter, R"(Return an iterator over parsed statements.)")
-        .def(
-            "__exit__",
-            [](Scanner &scanner, py::object const &, py::object const &, py::object const &) -> bool {
-                scanner.close();
-                return false;
-            },
-            R"doc(Close the scanner object.)doc");
+    files: The files to parse.
+    callback: Function to report statements.
+    control: Optional Control object to handle ASPIF.
+)");
     ast.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), R"doc(Parse a term.
 
 Args:
@@ -9424,6 +9357,6 @@ Args:
     statement: The statement to add.)doc");
 }
 
-} // namespace PyClingo
+} // namespace PyClingo::AST
 
 // NOLINTEND(readability-convert-member-functions-to-static,performance-enum-size)

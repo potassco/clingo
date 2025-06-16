@@ -1,6 +1,5 @@
 #pragma once
 
-#include "ast.hh"
 #include "backend.hh"
 #include "base.hh"
 #include "config.hh"
@@ -12,6 +11,10 @@
 #include <clingo/control.h>
 
 namespace PyClingo {
+
+namespace AST {
+class Program;
+}
 
 using Part = clingo_part_t;
 using PartSpan = std::span<Part const>;
@@ -45,7 +48,7 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     void parse_files(std::span<std::string const> files);
     void parse_string(std::string_view str);
     void write_aspif(std::string_view path, bool symbols, bool append, std::optional<bool> preamble, bool preprocess);
-    void join(Program &prg);
+    void join(AST::Program &prg);
     void ground(std::optional<PartSpan> parts, py::handle ctx);
     auto solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
                Annotation<std::optional<UnsatCallback>> on_unsat, Annotation<std::optional<StatsCallback>> on_stats,

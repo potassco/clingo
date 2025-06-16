@@ -128,7 +128,7 @@ information.
 )doc"_d;
     PyClingo::register_core(m);
     PyClingo::register_symbol(m);
-    PyClingo::register_ast(m);
+    PyClingo::AST::register_ast(m);
     PyClingo::register_base(m);
     PyClingo::register_backend(m);
     PyClingo::register_solve(m);

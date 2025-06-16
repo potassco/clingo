@@ -51,9 +51,6 @@ using ProgramPartVec = std::vector<ProgramPart>;
 //! Program grouping unprocessed statements.
 class UnprocessedProgram {
   public:
-    //! Ensure that the next statement is added to the base part.
-    void ensure_base() { ensure_base_ = true; }
-
     //! Add a statement.
     void add(SymbolStore &store, Stm stm);
 
@@ -77,7 +74,6 @@ class UnprocessedProgram {
   private:
     ProgramPartVec parts_;
     StmVec meta_stms_;
-    bool ensure_base_ = true;
 };
 
 //! The type of a component.
@@ -153,6 +149,9 @@ class Program {
         for (auto const &stm : script_stms_) {
             fun(stm);
         }
+        if (default_parts_) {
+            fun(*default_parts_);
+        }
         for (auto const &stm : defined_stms_) {
             fun(stm);
         }
@@ -204,6 +203,9 @@ class Program {
     //! Mark the given signature as provided.
     void mark_sig(Input::Sig const &sig);
 
+    //! Get the default parts
+    [[nodiscard]] auto default_parts() -> std::optional<StmParts> & { return default_parts_; }
+
   private:
     //! The signature of a program part.
     //!
@@ -227,6 +229,8 @@ class Program {
     std::vector<StmDefined> defined_stms_;
     //! Theory statements.
     std::vector<StmTheory> thy_stms_;
+    //! The parts statement.
+    std::optional<StmParts> default_parts_;
     //! The map of program parts.
     PartMap parts_;
     //! The constants and their values.

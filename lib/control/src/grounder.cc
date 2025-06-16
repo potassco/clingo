@@ -18,6 +18,7 @@
 #endif
 
 #include <iostream>
+#include <utility>
 
 namespace CppClingo::Control {
 
@@ -273,8 +274,6 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
     Ground::Bases bases;
     //! The output.
     OutputStm *out;
-    //! The parts to ground.
-    ProgramParams parts;
     //! Indicate that the logic program might still be satisfiable.
     bool is_sat = true;
 };
@@ -307,16 +306,13 @@ auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinI
 #ifdef CLINGO_PROFILE
     auto prof = Profiler{"clingo-parse.prof"};
 #endif
-    auto ret = BuiltinIncludes::empty;
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
-        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, impl_->parts, code};
-        prs.process_string(str);
-        ret |= prs.process_includes();
-        prs.check();
-        ret |= prs.process_includes();
+        auto prs = ParseHelper{*impl_->log, *impl_->store,
+                               [&](Input::Stm stm) { impl_->unprocessed_prg.add(store(), std::move(stm)); }, code};
+        return prs.process_string(str);
     }
-    return ret;
+    return BuiltinIncludes::empty;
 }
 
 auto Grounder::parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code, ProgramBackend *prg,
@@ -325,25 +321,14 @@ auto Grounder::parse(std::span<std::string_view const> const &files, Ground::Scr
 #ifdef CLINGO_PROFILE
     auto prof = Profiler{"clingo-parse.prof"};
 #endif
-    auto ret = BuiltinIncludes::empty;
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
-        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, impl_->parts, code, prg, thy};
-        if (files.empty()) {
-            prs.process_stdin();
-            ret |= prs.process_includes();
-        }
-        for (auto const &file : files) {
-            if (file == "-") {
-                prs.process_stdin();
-            } else {
-                prs.process_path(file);
-            }
-            ret |= prs.process_includes();
-        }
-        prs.check();
+        auto prs = ParseHelper{
+            *impl_->log, *impl_->store, [&](Input::Stm stm) { impl_->unprocessed_prg.add(store(), std::move(stm)); },
+            code,        prg,           thy};
+        return prs.process_files(files);
     }
-    return ret;
+    return BuiltinIncludes::empty;
 }
 
 void Grounder::prepare_() {
@@ -419,13 +404,14 @@ void Grounder::mark_sig(Input::Sig const &sig) {
     impl_->prg.mark_sig(sig);
 }
 
-auto Grounder::get_parts() const -> std::optional<Input::ProgramParamVec> const & {
-    return impl_->parts.second;
+auto Grounder::get_parts() -> std::optional<Input::StmParts> const & {
+    prepare_();
+    return impl_->prg.default_parts();
 }
 
-void Grounder::set_parts(std::optional<ProgramParamVec> parts, Input::Precedence prec) {
-    impl_->parts.first = prec;
-    impl_->parts.second = std::move(parts);
+void Grounder::set_parts(std::optional<Input::StmParts> parts) {
+    prepare_();
+    impl_->prg.default_parts() = std::move(parts);
 }
 
 auto Grounder::base() -> Ground::Bases & {

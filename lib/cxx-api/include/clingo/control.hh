@@ -263,13 +263,18 @@ class Control {
 
     //! Ground the control object with the given parts.
     //!
-    //! The given parts determine which program parts are grounded with which paramaters. If no parts are given, the
-    //! parts given by the parts directive are grounded.
+    //! The given parts determine which program parts are grounded with which
+    //! paramaters. If no parts are given, the parts given by the parts
+    //! directive are grounded.
     //!
     //! @param parts the parts to ground the control object with
     //! @param ctx the context to use for grounding
     void ground(std::optional<PartSpan> parts = std::nullopt, Context ctx = nullptr) const {
+        std::optional<PartVector> default_parts;
         std::vector<clingo_part_t> c_parts;
+        if (default_parts = !parts ? this->parts() : std::nullopt; default_parts) {
+            parts = default_parts;
+        }
         if (parts) {
             c_parts.reserve(parts->size());
             for (auto const &part : *parts) {

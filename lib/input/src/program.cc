@@ -1,6 +1,7 @@
 #include <clingo/input/program.hh>
 #include <clingo/input/rewrite.hh>
 
+#include <clingo/input/print.hh>
 #include <clingo/input/rewrite/analyze.hh>
 #include <clingo/input/rewrite/dependency.hh>
 #include <clingo/input/rewrite/evaluate.hh>
@@ -41,20 +42,16 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
     std::visit(
         [&]<class T>(T const &stm) {
             if constexpr (Util::is_among_v<T, StmShowNothing, StmShowSig, StmScript, StmProjectSig, StmDefined,
-                                           StmConst, StmTheory>) {
+                                           StmConst, StmTheory, StmParts>) {
                 meta_stms_.emplace_back(std::move(stm));
             } else if constexpr (Util::is_among_v<T, StmInclude, StmComment>) {
                 // ignore
             } else if constexpr (Util::matches<T, StmProgram>) {
-                ensure_base_ = false;
                 parts_.emplace_back(stm, StmVec{}, SymbolVec{});
             } else {
-                if (parts_.empty() || ensure_base_) {
-                    if (parts_.empty() || parts_.back().part.name() != "base" || !parts_.back().part.args().empty()) {
-                        parts_.emplace_back(StmProgram{location(stm), store.string_ref("base"), StringSpan{}}, StmVec{},
-                                            SymbolVec{});
-                    }
-                    ensure_base_ = false;
+                if (parts_.empty()) {
+                    parts_.emplace_back(StmProgram{location(stm), store.string_ref("base"), StringSpan{}}, StmVec{},
+                                        SymbolVec{});
                 }
                 if constexpr (Util::matches<T, StmRule>) {
                     if (auto fact = is_fact(store, stm); fact) {
@@ -83,6 +80,14 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
                     script_stms_.emplace_back(stm);
                 } else if constexpr (Util::is_among_v<T, StmDefined>) {
                     defined_stms_.emplace_back(stm);
+                } else if constexpr (Util::is_among_v<T, StmParts>) {
+                    if (!default_parts_ || default_parts_->type() < stm.type()) {
+                        default_parts_ = stm;
+                    } else if (default_parts_ && default_parts_->type() == stm.type()) {
+                        CLINGO_REPORT_LOC(log, error, default_parts_->loc())
+                            << "multiple parts directives with the same precedence: " << stm;
+                        throw std::runtime_error("joining failed");
+                    }
                 } else {
                     meta_stms_.emplace_back(stm);
                 }

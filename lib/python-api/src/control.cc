@@ -1,4 +1,5 @@
 #include "control.hh"
+#include "ast.hh"
 #include "core.hh"
 #include "stats.hh"
 #include "util.hh"
@@ -51,7 +52,7 @@ auto Control::mode() -> clingo_mode_e {
     return static_cast<clingo_mode_e>(mode);
 }
 
-void Control::join(Program &prg) {
+void Control::join(AST::Program &prg) {
     handle_error(clingo_control_join(get(), prg));
 }
 
@@ -116,6 +117,9 @@ auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_l
 
 void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
     auto release = py::gil_scoped_release{};
+    if (!parts) {
+        parts = this->parts();
+    }
     if (!parts) {
         static constexpr auto part = clingo_part_t{"base", 4, nullptr, 0};
         parts.emplace(&part, 1);

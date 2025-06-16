@@ -7,6 +7,8 @@
 #include <potassco/aspif_text.h>
 #include <potassco/theory_data.h>
 
+#include <utility>
+
 // #define DEBUG_BACKEND
 #ifdef DEBUG_BACKEND
 #include <clingo/util/print.hh>
@@ -1130,8 +1132,8 @@ void Solver::main() {
         if (inc) {
             incmode_();
         } else {
-            auto base = ProgramParamVec{{grd_.store().string("base"), {}}};
-            ground(grd_.get_parts().value_or(base), nullptr);
+            auto const &parts = grd_.get_parts();
+            ground(parts ? parts->elems() : ProgramParamVec{{grd_.store().string("base"), {}}}, nullptr);
             if (opts_.mode == AppMode::solve) {
                 solve(nullptr);
             }
@@ -1176,18 +1178,22 @@ void Solver::join(Input::UnprocessedProgram const &prg) {
     grd_.join(prg);
 }
 
+void Solver::parse_with(std::function<void(ProgramBackend *, TheoryBackend *)> cb) {
+    if (opts_.mode == AppMode::solve) {
+        auto bck = ProgramBackendAdapter{*this};
+        auto thy = TheoryBackendAdapter{grd_.store(), *theory_};
+        std::invoke(std::move(cb), &bck, &thy);
+    } else {
+        std::invoke(std::move(cb), nullptr, nullptr);
+    }
+}
+
 void Solver::parse(std::string_view str) {
     includes_ |= grd_.parse(str, scripts_);
 }
 
 void Solver::parse(std::span<std::string_view const> const &files) {
-    if (opts_.mode == AppMode::solve) {
-        auto bck = ProgramBackendAdapter{*this};
-        auto thy = TheoryBackendAdapter{grd_.store(), *theory_};
-        includes_ |= grd_.parse(files, scripts_, &bck, &thy);
-    } else {
-        includes_ |= grd_.parse(files, scripts_);
-    }
+    parse_with([&](ProgramBackend *bck, TheoryBackend *thy) { includes_ |= grd_.parse(files, scripts_, bck, thy); });
 }
 
 void Solver::add_const(String name, Symbol value) {

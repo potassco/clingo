@@ -164,7 +164,9 @@ class ClingoOptions {
             slv.show(sig);
         }
         if (parts_) {
-            slv.set_parts(parts_, Input::Precedence::override_);
+            slv.set_parts(*parts_);
+        } else {
+            slv.set_parts(std::nullopt);
         }
     }
 

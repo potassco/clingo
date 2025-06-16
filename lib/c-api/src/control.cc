@@ -203,14 +203,14 @@ extern "C" auto clingo_control_get_parts(clingo_control_t *control, clingo_part_
             if (parts != nullptr) {
                 thread_local std::vector<clingo_part_t> res;
                 res.clear();
-                for (auto const &part : *x) {
+                for (auto const &part : x->elems()) {
                     res.emplace_back(part.first->data(), part.first->size(), c_cast(part.second.data()),
                                      part.second.size());
                 }
                 *parts = res.data();
             }
             if (size != nullptr) {
-                *size = x->size();
+                *size = x->elems().size();
             }
         }
     }

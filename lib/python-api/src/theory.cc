@@ -158,11 +158,11 @@ class Theory {
         }
     }
 
-    void on_stats(Stats &accu, [[maybe_unused]] Stats &step) const {
+    void on_stats(Stats &step, [[maybe_unused]] Stats &accu) const {
         // NOTE: the accu and steps roots can be obtained from the stats object
         // in C. Both objects contain the same base C pointer.
         if (theory_.on_stats != nullptr) {
-            handle_error(theory_.on_stats(theory_.self, accu.c_ptr()));
+            handle_error(theory_.on_stats(theory_.self, step.c_ptr()));
         }
     }
 
@@ -219,11 +219,11 @@ class Theory {
     void rewrite(PyStatement const &stm, std::function<void(PyStatement const &)> fun) const {
         if (theory_.rewrite_ast != nullptr) {
             handle_error(theory_.rewrite_ast(
-                theory_.self, convert_stm(stm),
+                theory_.self, AST::convert_stm(stm),
                 [](clingo_ast *stm, void *data) -> bool {
                     CLINGO_TRY {
                         auto &fun = *static_cast<std::function<void(py::handle)> *>(data);
-                        fun(convert_stm(stm));
+                        fun(AST::convert_stm(stm));
                     }
                     CLINGO_CATCH;
                 },
@@ -332,6 +332,15 @@ function.
 
 Args:
     model: The current model.
+)"_d)
+        .def("on_stats", &Theory::on_stats, py::arg("step"), py::arg("accu"), R"(
+Let the theory update statistics.
+
+Some theories extend the statistics here.
+
+Args:
+    step: The per step statistics.
+    accu: The accumulated statistics.
 )"_d)
         .def("value", &Theory::value, py::arg("thread_id"), py::arg("symbol"), R"(
 Get the value of the symbol in the assignment of the given thread.
