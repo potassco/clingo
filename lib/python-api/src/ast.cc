@@ -6354,7 +6354,7 @@ inline void parse_files(Library const &lib, std::span<std::string_view const> fi
     auto cfiles = transform_vec(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
     handle_error(clingo_ast_parse_files(
         lib, cfiles.data(), cfiles.size(), ptr,
-        *[](clingo_ast_t *ast, void *data) {
+        [](clingo_ast_t *ast, void *data) {
             CLINGO_TRY {
                 auto &callback = *static_cast<std::function<void(Statement)> *>(data);
                 clingo_ast_t *copy = nullptr;

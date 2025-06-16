@@ -874,7 +874,7 @@ inline void parse(Library const &lib, std::span<std::string_view const> files, C
     auto cfiles = Detail::transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
     clingo_ast_parse_files(
         c_cast(lib), cfiles.data(), cfiles.size(), ctl != nullptr ? c_cast(*ctl) : nullptr,
-        *[](clingo_ast_t *ast, void *data) {
+        [](clingo_ast_t *ast, void *data) {
             CLINGO_TRY {
                 auto &callback = *static_cast<Callback *>(data);
                 std::invoke(callback, Node{ast, true});
