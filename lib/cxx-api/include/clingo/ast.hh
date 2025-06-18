@@ -842,15 +842,15 @@ inline auto parse(Library const &lib, std::string_view string, ParseType type = 
 //! Parse the program in the given string.
 //!
 //! @param lib the library to store symbols in
-//! @param string the string to parse
+//! @param program the string to parse
 //! @param callback callback to report nodes
 //! @param control optional control object to handle aspif
 template <class Callback>
 // NOLINTNEXTLINE
 inline void parse(Library const &lib, std::string_view program, Callback &&callback,
-                  Clingo::Control const *ctl = nullptr) {
+                  Clingo::Control const *control = nullptr) {
     clingo_ast_parse_string(
-        c_cast(lib), program.data(), program.size(), ctl != nullptr ? c_cast(*ctl) : nullptr,
+        c_cast(lib), program.data(), program.size(), control != nullptr ? c_cast(*control) : nullptr,
         [](clingo_ast_t *ast, void *data) {
             auto &callback = *static_cast<Callback *>(data);
             CLINGO_TRY {
@@ -870,10 +870,10 @@ inline void parse(Library const &lib, std::string_view program, Callback &&callb
 template <class Callback>
 // NOLINTNEXTLINE
 inline void parse(Library const &lib, std::span<std::string_view const> files, Callback &&callback,
-                  Clingo::Control const *ctl = nullptr) {
+                  Clingo::Control const *control = nullptr) {
     auto cfiles = Detail::transform(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
     clingo_ast_parse_files(
-        c_cast(lib), cfiles.data(), cfiles.size(), ctl != nullptr ? c_cast(*ctl) : nullptr,
+        c_cast(lib), cfiles.data(), cfiles.size(), control != nullptr ? c_cast(*control) : nullptr,
         [](clingo_ast_t *ast, void *data) {
             CLINGO_TRY {
                 auto &callback = *static_cast<Callback *>(data);
@@ -892,8 +892,8 @@ inline void parse(Library const &lib, std::span<std::string_view const> files, C
 //! @param control optional control object to handle aspif
 template <class Callback>
 inline void parse(Library const &lib, std::initializer_list<std::string_view> files, Callback &&callback,
-                  Clingo::Control const *ctl = nullptr) {
-    parse(lib, std::span{files.begin(), files.end()}, std::forward<Callback>(callback), ctl);
+                  Clingo::Control const *control = nullptr) {
+    parse(lib, std::span{files.begin(), files.end()}, std::forward<Callback>(callback), control);
 }
 //! @}
 

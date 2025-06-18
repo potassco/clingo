@@ -26,7 +26,7 @@ class TheoryBackend {
     //! Add a numeric theory term.
     //!
     //! @param number the value of the term
-    //! @return term_id the resulting term id
+    //! @return the resulting term id
     [[nodiscard]] auto number(int number) const -> ProgramId {
         return Detail::call<clingo_backend_theory_term_number>(backend_.get(), number);
     }
@@ -36,7 +36,7 @@ class TheoryBackend {
     //! Includes constants as well as quoted strings.
     //!
     //! @param string the value of the term
-    //! @return term_id the resulting term id
+    //! @return the resulting term id
     [[nodiscard]] auto string(std::string_view string) const -> ProgramId {
         return Detail::call<clingo_backend_theory_term_string>(backend_.get(), string.data(), string.size());
     }
@@ -44,7 +44,7 @@ class TheoryBackend {
     //! Convert the given symbol into a theory term.
     //!
     //! @param symbol the symbol to convert
-    //! @return term_id the resulting term id
+    //! @return the resulting term id
     [[nodiscard]] auto symbol(Symbol const &symbol) const -> ProgramId {
         return Detail::call<clingo_backend_theory_term_symbol>(backend_.get(), c_cast(symbol));
     }
@@ -53,7 +53,7 @@ class TheoryBackend {
     //!
     //! @param type the type of the sequence
     //! @param elements the elements of the sequence
-    //! @return term_id the resulting term id
+    //! @return the resulting term id
     [[nodiscard]] auto sequence(TheorySequenceType type, ProgramIdSpan elements) const -> ProgramId {
         return Detail::call<clingo_backend_theory_term_sequence>(
             backend_.get(), static_cast<clingo_theory_sequence_type_t>(type), elements.data(), elements.size());
@@ -63,7 +63,7 @@ class TheoryBackend {
     //!
     //! @param name the name of the function
     //! @param elements the arguments of the function
-    //! @return term_id the resulting term id
+    //! @return the resulting term id
     [[nodiscard]] auto function(std::string_view name, ProgramIdSpan elements) const -> ProgramId {
         return Detail::call<clingo_backend_theory_term_function>(backend_.get(), name.data(), name.size(),
                                                                  elements.data(), elements.size());
@@ -73,7 +73,7 @@ class TheoryBackend {
     //!
     //! @param tuple the theory term tuple of the element
     //! @param condition the program literals forming the condition
-    //! @return term_id the resulting term id
+    //! @return the resulting term id
     [[nodiscard]] auto element(ProgramIdSpan tuple, ProgramLiteralSpan condition) const -> ProgramId {
         return Detail::call<clingo_backend_theory_element>(backend_.get(), tuple.data(), tuple.size(), condition.data(),
                                                            condition.size());
@@ -92,7 +92,7 @@ class TheoryBackend {
     //! @param name the symbol representing the name of the atom
     //! @param elements the theory elements of the atom
     //! @param guard the optional guard of the atom
-    //! @return term_id the resulting term id
+    //! @return the resulting term id
     [[nodiscard]] auto atom(std::optional<ProgramAtom> atom, Symbol const &name, ProgramIdSpan elements = {},
                             std::optional<std::pair<std::string_view, ProgramId>> const &guard = std::nullopt) const
         -> ProgramAtom {
