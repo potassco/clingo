@@ -36,12 +36,17 @@ using ConstMap = Util::ordered_map<SharedString, std::pair<StmConst, SharedSymbo
 //! Map from parameters to their replacements.
 using ParamUnmap = Util::ordered_map<SharedString, SharedString>;
 
+using SourceStm = Util::immutable_value<Stm>;
+using SourceVec = std::vector<SourceStm>;
+
 //! A program part.
 struct ProgramPart {
     //! The (first) program part statement that introduced the part.
     StmProgram part;
     //! The statements in the program part.
     StmVec stms;
+    //! The source statement of the statement at the corresponding index.
+    SourceVec srcs;
     //! The facts in the program part.
     SymbolVec facts;
 };

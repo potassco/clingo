@@ -373,7 +373,7 @@ void Grounder::output_unprocessed_program(std::ostream &out) {
     for (auto const &stm : impl_->unprocessed_prg.meta_stms()) {
         out << stm << "\n";
     }
-    for (auto const &[prg_stm, stms, facts] : impl_->unprocessed_prg.parts()) {
+    for (auto const &[prg_stm, stms, srcs, facts] : impl_->unprocessed_prg.parts()) {
         out << prg_stm << "\n";
         for (auto fact : facts) {
             out << fact << ".\n";

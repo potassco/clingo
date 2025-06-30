@@ -29,7 +29,9 @@ template <typename T> class immutable_value {
 
     //! Construct a value.
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
-    template <class U> immutable_value(U &&value) : immutable_value{std::in_place, std::forward<U>(value)} {}
+    template <class U>
+        requires(!std::same_as<std::remove_cvref_t<U>, immutable_value>)
+    immutable_value(U &&value) : immutable_value{std::in_place, std::forward<U>(value)} {}
 
 #ifdef __clang_analyzer__
     template <class... Args>

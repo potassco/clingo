@@ -17,7 +17,7 @@
 namespace CppClingo::Input {
 
 void UnprocessedProgram::mark(SymbolCollector &gc) const {
-    for (auto const &[part, stms, facts] : parts_) {
+    for (auto const &[part, stms, srcs, facts] : parts_) {
         for (auto const &sym : facts) {
             gc.mark(sym);
         }
@@ -47,11 +47,11 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
             } else if constexpr (Util::is_among_v<T, StmInclude, StmComment>) {
                 // ignore
             } else if constexpr (Util::matches<T, StmProgram>) {
-                parts_.emplace_back(stm, StmVec{}, SymbolVec{});
+                parts_.emplace_back(stm, StmVec{}, SourceVec{}, SymbolVec{});
             } else {
                 if (parts_.empty()) {
                     parts_.emplace_back(StmProgram{location(stm), store.string_ref("base"), StringSpan{}}, StmVec{},
-                                        SymbolVec{});
+                                        SourceVec{}, SymbolVec{});
                 }
                 if constexpr (Util::matches<T, StmRule>) {
                     if (auto fact = is_fact(store, stm); fact) {
@@ -105,7 +105,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
     auto ctx = RewriteContext{log, store, opts_, parser, param_map, const_map_};
 
     // process program parts
-    for (auto const &[program_stm, stms, facts] : prg.parts()) {
+    for (auto const &[program_stm, stms, srcs, facts] : prg.parts()) {
         auto part = parts_.try_emplace(Signature{program_stm.name(), program_stm.args().size()}, program_stm);
         param_map.clear();
         std::for_each(program_stm.args().begin(), program_stm.args().end(),
@@ -127,23 +127,25 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
                 map_params(ctx, res_part.part.loc(), fact));
         }
 
+        auto dst = StmVec{};
         // process rules
         for (auto const &stm : stms) {
-            auto n = std::ssize(res_part.stms);
-            rewrite(ctx, stm, res_part.stms);
-            auto jt = res_part.stms.begin() + n;
-            for (auto it = jt, ie = res_part.stms.end(); it != ie; ++it) {
-                CppClingo::Input::analyze(*it, provide_, depend_);
-                if (auto fact = is_fact(store, *it); fact) {
+            auto src = SourceStm{};
+            dst.clear();
+            rewrite(ctx, stm, dst);
+            for (auto &&rew : dst) {
+                CppClingo::Input::analyze(rew, provide_, depend_);
+                if (auto fact = is_fact(store, rew); fact) {
                     res_part.facts.emplace_back(fact.value());
                 } else {
-                    if (it != jt) {
-                        *jt = std::move(*it);
+                    if (rew != stm && !src) {
+                        src = stm;
                     }
-                    ++jt;
+                    res_part.stms.emplace_back(std::move(rew));
+                    // TODO: maybe only fill srcs if profiling is enabled
+                    res_part.srcs.emplace_back(src);
                 }
             }
-            res_part.stms.erase(jt, res_part.stms.end());
         }
     }
     if (ctx.has_error() || parser.has_error()) {
@@ -208,6 +210,7 @@ auto Program::theory_directives() const -> TheorySigVec {
 auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const -> bool {
     bld.meta(meta_stms_);
     std::vector<Stm> stms;
+    // TODO: need to map the sources here
     Util::unordered_set<Signature> sigs;
     Util::unordered_set<std::reference_wrapper<ProgramParam const>> seen;
     seen.reserve(params.size());
