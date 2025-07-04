@@ -28,6 +28,8 @@ struct RewriteOptions {
     ProjectionMode project_mode = ProjectionMode::pure;
     //! Whether to project anonymous variables in negative literals.
     bool project_anonymous = false;
+    //! Whether to track source statemnets.
+    bool track_sources = false;
 };
 
 //! Map from identifiers to constants.

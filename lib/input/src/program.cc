@@ -138,12 +138,14 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
                 if (auto fact = is_fact(store, rew); fact) {
                     res_part.facts.emplace_back(fact.value());
                 } else {
-                    if (rew != stm && !src) {
-                        src = stm;
+                    if (opts_.track_sources && rew != stm) {
+                        if (!src.has_value()) {
+                            src = stm;
+                        }
+                        res_part.srcs.resize(res_part.stms.size());
+                        res_part.srcs.emplace_back(src);
                     }
                     res_part.stms.emplace_back(std::move(rew));
-                    // TODO: maybe only fill srcs if profiling is enabled
-                    res_part.srcs.emplace_back(src);
                 }
             }
         }
