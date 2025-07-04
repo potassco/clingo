@@ -112,6 +112,8 @@ class Builder : public Input::DependencyBuilder {
                 lin.start(queue);
                 for (auto const &stm : gcomp.stms()) {
                     CLINGO_REPORT(*log_, debug) << "      " << *stm;
+                    // TODO::
+                    // - instantiators should associated profiling data with source context
                     lin.prepare(*stm, stm->body(), stm->important());
                 }
                 if (!queue.process(*log_, *store_, *out_)) {
