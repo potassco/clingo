@@ -103,14 +103,17 @@ CLINGO_ENABLE_BITSET_ENUM(ComponentType);
 //! We cannot assume that an instance of a incomplete negative literal is true
 //! if there has been no instance deriving its positive counterpart previously.
 struct Component {
+    Component() = default;
     //! The statements in the component.
     std::vector<Stm const *> stms;
+    //! The (optional) source statements in the component.
+    std::vector<SourceStm const *> srcs;
     //! The literals a component depends on.
     Util::unordered_set<std::tuple<String, size_t, bool>> depend;
     //! This vector captures literals that are not yet complete.
     Util::ordered_map<Term const *, Util::ordered_set<Term const *>> incomplete;
     //! The type of the component.
-    ComponentType type;
+    ComponentType type = ComponentType::positive | ComponentType::single_pass;
 };
 
 //! The list of components in groundable order.

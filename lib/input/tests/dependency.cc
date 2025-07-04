@@ -119,7 +119,7 @@ TEST_CASE("dependency") {
         stms.emplace_back(opt_value(ph.statement("c :- not b.")));
         stms.emplace_back(opt_value(ph.statement("d :- e.")));
         stms.emplace_back(opt_value(ph.statement("e :- d, c.")));
-        auto comps = analyze(ph, stms);
+        auto comps = analyze(ph, stms, nullptr);
         REQUIRE(comps.size() == 4);
         REQUIRE(comps[0].size() == 1);
         REQUIRE(comps[0][0].stms.size() == 1);
@@ -141,7 +141,7 @@ TEST_CASE("dependency") {
         std::vector<Stm> stms;
         stms.emplace_back(opt_value(ph.statement("p(X,a) :- f(X).")));
         stms.emplace_back(opt_value(ph.statement("f(X) :- p(b,X).")));
-        REQUIRE(analyze(ph, stms).size() == 1);
+        REQUIRE(analyze(ph, stms, nullptr).size() == 1);
     }
     SECTION("analyze_program") {
         struct Builder : DependencyBuilder {

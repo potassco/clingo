@@ -497,12 +497,32 @@ class Unifier {
     SymbolStore *store_;
 };
 
+struct Edge {
+    //! The statement index.
+    size_t index;
+    //! The body atom representation.
+    Term const *bd;
+    //! The head atom representation.
+    Term const *hd;
+    //! Whether the edge is negative.
+    bool is_negative;
+
+    Edge(size_t index, Term const *from, Term const *to, bool is_negative)
+        : index(index), bd(from), hd(to), is_negative(is_negative) {}
+};
+
 struct Node {
-    Stm const *stm = nullptr;
-    std::vector<std::tuple<size_t, Term const *, Term const *, bool>> depend;
+    //! The list providees.
+    std::vector<Edge> depend;
+    //! The scc index of the node.
     size_t scc = std::numeric_limits<size_t>::max();
+    //! The refined scc index of the node.
     size_t sub_scc = std::numeric_limits<size_t>::max();
+    //! The running index in the refined scc.
     size_t idx = 0;
+    //! Whether the head of the statement in drived normally.
+    //!
+    //! This is the case for normal rules but not for choices, externals, etc.
     bool normal = true;
 };
 
@@ -524,23 +544,23 @@ class VariableRenamer : public Transformer<VariableRenamer> {
 
 auto rename(SymbolStore &store, Term const &term) -> std::optional<Term> {
     auto gen = NameGen{store, {}, "#U"};
-    Util::unordered_map<String, String> map;
+    auto map = Util::unordered_map<String, String>{};
     return VariableRenamer{gen, map}.transform(term);
 }
 
 auto build_nodes(SymbolStore &store, std::vector<Stm> const &stms) -> std::vector<Node> {
-    DependencyMap map_;
-    std::vector<Node> nodes;
+    auto map = DependencyMap{};
+    auto nodes = std::vector<Node>{};
     nodes.reserve(stms.size());
     // add dependencies to the dependency map
     auto i = size_t{0};
     for (auto const &stm : stms) {
-        nodes.emplace_back(&stm);
-        std::visit(AddDepend{i++, map_, nodes.back().normal}, stm);
+        nodes.emplace_back();
+        std::visit(AddDepend{i++, map, nodes.back().normal}, stm);
     }
     // build the dependency graph
-    ProvideVec provide;
-    Unifier unifier{store};
+    auto provide = ProvideVec{};
+    auto unifier = Unifier{store};
     i = 0;
     for (auto const &hd_stm : stms) {
         provide.clear();
@@ -549,7 +569,7 @@ auto build_nodes(SymbolStore &store, std::vector<Stm> const &stms) -> std::vecto
             auto hd_term_r = rename(store, *hd_term);
             auto const *hd_term_u = hd_term_r ? &*hd_term_r : hd_term;
             auto hd_sig = safe_sig(*hd_term_u);
-            if (auto it = map_.find(hd_sig); it != map_.end()) {
+            if (auto it = map.find(hd_sig); it != map.end()) {
                 for (auto const &[bd_idx, bd_term, bd_sign] : it->second) {
                     if (unifier.unify(*hd_term_u, *bd_term)) {
                         // bd_term is provided by statement i
@@ -603,7 +623,8 @@ template <class T> void encode_html(T const &stm, std::ostream &out) {
 
 } // namespace
 
-auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
+auto analyze(SymbolStore &store, StmVec const &stms, SourceVec *srcs) -> Components {
+    assert(srcs == nullptr || stms.size() == srcs->size());
     auto nodes = build_nodes(store, stms);
     // build graph considering positive and negative dependencies
     auto graph = Util::Graph{};
@@ -641,16 +662,21 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
         sub_graph.tarjan([&, num_sub_scc = size_t{0}](auto const &sub_scc) mutable {
             auto comp = Component{};
             comp.stms.reserve(sub_scc.size());
+            if (srcs != nullptr) {
+                comp.srcs.reserve(sub_scc.size());
+            }
             for (auto i : sub_scc) {
                 nodes[scc[i]].sub_scc = num_sub_scc;
             }
-            comp.type = ComponentType::positive | ComponentType::single_pass;
             for (auto i : sub_scc) {
                 auto const &stm = stms[scc[i]];
                 if (!nodes[scc[i]].normal) {
                     comp.type -= ComponentType::positive;
                 }
                 comp.stms.emplace_back(&stm);
+                if (srcs != nullptr) {
+                    comp.srcs.emplace_back(&(*srcs)[scc[i]]);
+                }
                 for (auto const &[idx, bd_term, hd_term, sign] : nodes[scc[i]].depend) {
                     auto const &node = nodes[idx];
                     comp.depend.emplace(safe_sig(*bd_term));

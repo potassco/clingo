@@ -211,10 +211,10 @@ auto Program::theory_directives() const -> TheorySigVec {
 
 auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const -> bool {
     bld.meta(meta_stms_);
-    std::vector<Stm> stms;
-    // TODO: need to map the sources here
-    Util::unordered_set<Signature> sigs;
-    Util::unordered_set<std::reference_wrapper<ProgramParam const>> seen;
+    auto stms = StmVec{};
+    auto srcs = SourceVec{};
+    auto sigs = Util::unordered_set<Signature>();
+    auto seen = Util::unordered_set<std::reference_wrapper<ProgramParam const>>();
     seen.reserve(params.size());
     sigs.reserve(params.size());
     for (auto const &param : params) {
@@ -226,36 +226,45 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
             // note that facts are not subject to parameters
             bld.fact(it->second.facts);
             if (it->first.second == 0) {
+                if (opts_.track_sources) {
+                    auto n = stms.size() + it->second.stms.size();
+                    srcs.insert(srcs.end(), it->second.srcs.begin(), it->second.srcs.end());
+                    srcs.resize(n);
+                }
                 stms.insert(stms.end(), it->second.stms.begin(), it->second.stms.end());
             } else {
                 bld.param(param);
                 if (sig_ins) {
                     auto loc = it->second.part.loc();
-                    std::vector<Argument> args;
+                    auto args = std::vector<Argument>{};
                     args.reserve(sig_it->second);
                     for (size_t i = 0; i < sig_it->second; ++i) {
                         args.emplace_back(TermVariable{loc, store.string_ref("$" + std::to_string(i))});
                     }
                     auto name = std::string{};
-                    auto const *prefix = "#program_";
-                    name.reserve(std::strlen(prefix) + sig_it->first->size());
+                    auto prefix = std::string_view{"#program_"};
+                    name.reserve(prefix.size() + sig_it->first->size());
                     name += prefix;
-                    name += sig_it->first->c_str();
+                    name += sig_it->first->view();
                     auto fun =
                         TermFunction{loc, store.string_ref(name),
                                      Util::make_immutable_array<ArgumentTuple>(ArgumentTuple{std::move(args)}), false};
                     auto lit = BdLit{BdLitSimple{LitSymbolic{loc, Sign::none, std::move(fun)}}};
+                    auto src_it = it->second.srcs.begin();
                     for (auto const &stm : it->second.stms) {
                         std::visit(
                             [&]<class T>(T const &stm) {
                                 if constexpr (requires(T const &x) { x.body(); }) {
-                                    std::vector<BdLit> body;
+                                    auto body = std::vector<BdLit>{};
                                     body.reserve(stm.body().size() + 1);
                                     body.emplace_back(lit);
                                     body.insert(body.end(), stm.body().begin(), stm.body().end());
                                     stms.emplace_back(stm.update(a_body = std::move(body)));
+                                    if (opts_.track_sources) {
+                                        srcs.emplace_back(src_it != it->second.srcs.end() ? *src_it++ : SourceStm{});
+                                    }
                                 } else {
-                                    throw std::runtime_error("unexpected statement in analyze");
+                                    throw std::logic_error("unexpected statement in analyze");
                                 }
                             },
                             stm);
@@ -264,7 +273,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
             }
         }
     }
-    return bld.components(CppClingo::Input::analyze(store, stms));
+    return bld.components(CppClingo::Input::analyze(store, stms, opts_.track_sources ? &srcs : nullptr));
 }
 
 void Program::mark(SymbolCollector &gc) const {

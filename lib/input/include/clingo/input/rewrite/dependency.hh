@@ -49,7 +49,7 @@ namespace CppClingo::Input {
 // - refined component graph only considers positive ones
 
 //! Analyze the given statements organizing them in components for grounding.
-auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components;
+auto analyze(SymbolStore &store, std::vector<Stm> const &stms, SourceVec *srcs) -> Components;
 
 //! Analyze the given statement adding provided and dependent predicates.
 void analyze(Stm const &stm, SharedSigSet &provide, Util::ordered_map<SharedSig, Location> &depend);
