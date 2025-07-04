@@ -657,8 +657,6 @@ auto analyze(SymbolStore &store, StmVec const &stms, SourceVec *srcs) -> Compone
                 }
             }
         }
-        // TODO: step could be skipped if there are no recursive negative dependencies
-        //       (the case for most programs)
         sub_graph.tarjan([&, num_sub_scc = size_t{0}](auto const &sub_scc) mutable {
             auto comp = Component{};
             comp.stms.reserve(sub_scc.size());

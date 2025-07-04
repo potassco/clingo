@@ -53,7 +53,6 @@ class AtomDisjunction {
     Util::small_vector<size_t> elems_;
     size_t uid_ = invalid_offset;
     uint64_t propagated_ : 62 = 0;
-    // TODO: maybe bit set
     uint64_t enqueued_ : 1 = 0;
     uint64_t fact_ : 1 = 0;
 };

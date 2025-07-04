@@ -105,6 +105,7 @@ class Builder : public Input::DependencyBuilder {
                     auto ctx = BuildContext{*mbr_,   *log_,    *store_, theory_directives_,
                                             *bases_, ref_comp, def_map, gcomp,
                                             var_map, body,     states,  context_};
+                    // TODO: here the source statement is available
                     build_stm(ctx, *stm);
                 }
                 auto queue = Ground::Queue{};

@@ -324,7 +324,6 @@ class KeyCharArray {
         auto *repr = CharArray::alloc(alloc, n, referenced);
         std::copy(str.begin(), str.end(), repr->data());
         std::fill_n(repr->data() + n, 1, '\0');
-        // TODO: store in SymbolArray
         repr->compute_hash(n);
         repr_ = reinterpret_cast<uintptr_t>(repr);
     }

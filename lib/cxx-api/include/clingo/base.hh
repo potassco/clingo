@@ -168,7 +168,6 @@ class Term {
     //!
     //! @return the conditions as a vector of program literal vectors
     [[nodiscard]] auto condition() const -> std::vector<ProgramLiteralVector> {
-        // TODO: maybe clingo_literals_t { clingo_literal_t const *, size_t size }
         size_t const *sizes = nullptr;
         clingo_literal_t const *const *lits = nullptr;
         size_t size = 0;

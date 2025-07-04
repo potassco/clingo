@@ -408,8 +408,6 @@ auto LitSymbolic::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTy
 
 auto LitSymbolic::do_score(std::vector<bool> const &bound) const -> double {
     if (sign_ != Sign::once) {
-        // TODO: Somehow clingo previously added 10,000,000 if all variables were
-        // bound. I don't see the point of this?
         return atom_->score(static_cast<double>(base_->size()), bound);
     }
     return 0;

@@ -10,7 +10,6 @@ set(header
 # [[[source: src
 set(ide_source_group "Source Files")
 set(source-group
-    "src/analyzer.hh"
     "src/backend.cc"
     "src/text.cc")
 source_group("${ide_source_group}" FILES ${source-group})
