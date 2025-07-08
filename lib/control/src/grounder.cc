@@ -41,9 +41,9 @@ class Builder : public Input::DependencyBuilder {
   public:
     //! Construct the builder.
     Builder(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, TheorySigVec theory_directives,
-            Ground::Bases &base, Ground::ScriptCallback *context, OutputStm &out)
+            Ground::Bases &base, Ground::ScriptCallback *context, OutputStm &out, ProfileProgram &profile)
         : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{std::move(theory_directives)}, bases_{&base},
-          context_{context}, out_{&out} {}
+          context_{context}, out_{&out}, profile_{&profile} {}
 
   private:
     //! Handle program parameters.
@@ -103,9 +103,9 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{*mbr_,   *log_,    *store_, theory_directives_,
-                                            *bases_, ref_comp, def_map, gcomp,
-                                            var_map, body,     states,  context_};
+                    auto ctx =
+                        BuildContext{*mbr_,   *log_, *store_, theory_directives_, *bases_,  ref_comp, def_map, gcomp,
+                                     var_map, body,  states,  context_,           *profile_};
                     build_stm(ctx, *stm, src_it != src_ie ? *src_it++ : nullptr);
                 }
                 auto queue = Ground::Queue{};
@@ -135,6 +135,7 @@ class Builder : public Input::DependencyBuilder {
     Ground::Bases *bases_;
     Ground::ScriptCallback *context_;
     OutputStm *out_;
+    ProfileProgram *profile_;
     std::ostringstream buf_;
 };
 
@@ -275,6 +276,8 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
     Input::Program prg;
     //! The atom and term bases.
     Ground::Bases bases;
+    //! Profiling data.
+    ProfileProgram profile;
     //! The output.
     OutputStm *out;
     //! Indicate that the logic program might still be satisfiable.
@@ -362,13 +365,16 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
         impl_->prg.check(*impl_->log);
         impl_->bases.clear_aux();
         auto bld = Builder{impl_->mbr,   *impl_->log, *impl_->store, impl_->prg.theory_directives(),
-                           impl_->bases, context,     *impl_->out};
+                           impl_->bases, context,     *impl_->out,   impl_->profile};
         impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
         impl_->meta();
         impl_->project();
         impl_->clear();
     }
     impl_->out->end_step();
+    if (impl_->prg.profile()) {
+        impl_->profile.print(std::cerr);
+    }
     return impl_->is_sat;
 }
 

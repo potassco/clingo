@@ -172,8 +172,15 @@ class BuilderStm {
 } // namespace
 
 void build_stm(BuildContext &ctx, Input::Stm const &stm, Input::Stm const *src) {
-    // TODO: handle source statement
-    std::ignore = src;
+    Ground::ProfileNodeInternal *root = nullptr;
+    if (src != nullptr) {
+        root = &ctx.profile().add(*src);
+        if (stm != *src) {
+            root = &root->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::Stm const>>(stm));
+        }
+    }
+    // TODO: pass on the root
+    std::ignore = root;
     std::visit(BuilderStm{ctx}, stm);
 }
 

@@ -137,9 +137,9 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
         }
 
         auto dst = StmVec{};
-        Stm const *src = nullptr;
         // process rules
         for (auto const &stm : stms) {
+            Stm const *src = nullptr;
             dst.clear();
             rewrite(ctx, stm, dst);
             for (auto &&rew : dst) {

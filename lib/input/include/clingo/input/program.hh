@@ -217,6 +217,9 @@ class Program {
     //! Get the default parts
     [[nodiscard]] auto default_parts() -> std::optional<StmParts> & { return default_parts_; }
 
+    //! Check whether profiling is enabled.
+    [[nodiscard]] auto profile() const -> bool { return opts_.profile; }
+
   private:
     //! The signature of a program part.
     //!

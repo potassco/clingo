@@ -17,7 +17,7 @@ namespace CppClingo::Ground {
 struct ProfileIndent {
   public:
     //! Construct the indent with the given amount.
-    explicit ProfileIndent(size_t level, size_t width) : level{level}, width{width} {}
+    explicit ProfileIndent(size_t level, size_t width = 2) : level{level}, width{width} {}
 
     //! Print the given indentation to the given output stream.
     friend auto operator<<(std::ostream &out, ProfileIndent const &indent) -> std::ostream & {
@@ -48,6 +48,13 @@ struct ProfileIndent {
 //! Base class for profiling data.
 class ProfileNode {
   public:
+    //! The default constructor.
+    ProfileNode() = default;
+    //! Delete the copy constructor.
+    ProfileNode(ProfileNode const &other) = delete;
+    //! Delete assignment operator.
+    auto operator=(ProfileNode const &other) -> ProfileNode & = delete;
+
     //! Destructor.
     virtual ~ProfileNode() = default;
 
@@ -57,9 +64,12 @@ class ProfileNode {
     //! printed with increased indentation.
     void print(std::ostream &out, ProfileIndent indent) const { do_print(out, indent); }
 
+    [[nodiscard]] auto equal(ProfileNode const &node) const -> bool { return do_equal(node); }
+
   private:
     //! Print the profiling data to the given output stream.
     virtual void do_print(std::ostream &out, ProfileIndent indent) const = 0;
+    [[nodiscard]] virtual auto do_equal(ProfileNode const &node) const -> bool = 0;
 };
 
 //! Profile node that can hold children.
@@ -71,26 +81,49 @@ class ProfileNodeInternal : public ProfileNode {
     template <class T> auto add_child(std::unique_ptr<T> child) -> T & {
         assert(child != nullptr);
         auto *ret = child.get();
-        do_add_child(std::move(child));
-        return *ret;
+        auto *ins = do_add_child(std::move(child));
+        assert(dynamic_cast<T *>(ins) != nullptr);
+        return ins != nullptr ? *static_cast<T *>(ins) : *ret;
     }
 
   private:
     //! Add a child profile node.
-    virtual void do_add_child(std::unique_ptr<ProfileNode> child) = 0;
+    virtual auto do_add_child(std::unique_ptr<ProfileNode> child) -> ProfileNode * = 0;
 };
 
 //! A profile node that holds a printable expression and children.
 template <typename T> class ProfileNodeExpression : public ProfileNodeInternal {
+  public:
+    //! Construct the profile node with the given expression.
+    ProfileNodeExpression(T expr) : expr_{std::move(expr)} {}
+
   private:
     //! Add a child profile node.
-    void do_add_child(std::unique_ptr<ProfileNode> child) override { children_.emplace_back(std::move(child)); }
+    auto do_add_child(std::unique_ptr<ProfileNode> child) -> ProfileNode * override {
+        for (auto const &x : children_) {
+            if (x->equal(*child)) {
+                return x.get();
+            }
+        }
+        children_.emplace_back(std::move(child));
+        return children_.back().get();
+    }
 
     //! Print the profiling data to the given output stream.
     void do_print(std::ostream &out, ProfileIndent indent) const override {
         out << indent << expr_ << "\n";
         for (auto const &child : children_) {
             child->print(out, indent + 1);
+        }
+    }
+
+    //! Compare this profile node with another for equality.
+    [[nodiscard]] auto do_equal(ProfileNode const &node) const -> bool override {
+        auto const *other = dynamic_cast<ProfileNodeExpression const *>(&node);
+        if constexpr (requires { expr_.get(); }) {
+            return other != nullptr && expr_.get() == other->expr_.get();
+        } else {
+            return other != nullptr && expr_ == other->expr_;
         }
     }
 
