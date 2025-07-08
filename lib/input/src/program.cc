@@ -12,8 +12,6 @@
 #include <clingo/util/checked_math.hh>
 #include <clingo/util/type_traits.hh>
 
-#include <iostream>
-
 namespace CppClingo::Input {
 
 void UnprocessedProgram::mark(SymbolCollector &gc) const {
@@ -47,11 +45,10 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
             } else if constexpr (Util::is_among_v<T, StmInclude, StmComment>) {
                 // ignore
             } else if constexpr (Util::matches<T, StmProgram>) {
-                parts_.emplace_back(stm, StmVec{}, SourceVec{}, SymbolVec{});
+                parts_.emplace_back(stm);
             } else {
                 if (parts_.empty()) {
-                    parts_.emplace_back(StmProgram{location(stm), store.string_ref("base"), StringSpan{}}, StmVec{},
-                                        SourceVec{}, SymbolVec{});
+                    parts_.emplace_back(StmProgram{location(stm), store.string_ref("base"), StringSpan{}});
                 }
                 if constexpr (Util::matches<T, StmRule>) {
                     if (auto fact = is_fact(store, stm); fact) {
@@ -63,6 +60,17 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
             }
         },
         stm);
+}
+
+void Program::fill_source(ProgramPart &part) {
+    if (opts_.profile) {
+        assert(part.srcs.size() <= part.stms.size());
+        for (auto it = part.stms.begin() + std::ssize(part.srcs), ie = part.stms.end(); ie != it; ++it) {
+            last_source_ = sources_.insert_after(last_source_, *it);
+            part.srcs.emplace_back(&*last_source_);
+        }
+        assert(part.srcs.size() == part.stms.size());
+    }
 }
 
 void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &prg) {
@@ -106,31 +114,32 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
 
     // process program parts
     for (auto const &[program_stm, stms, srcs, facts] : prg.parts()) {
-        auto part = parts_.try_emplace(Signature{program_stm.name(), program_stm.args().size()}, program_stm);
+        auto part_it = parts_.try_emplace(Signature{program_stm.name(), program_stm.args().size()}, program_stm).first;
         param_map.clear();
         std::for_each(program_stm.args().begin(), program_stm.args().end(),
                       [&param_map](auto const &x) { param_map.emplace(x); });
-        auto &res_part = part.first.value();
+        auto &res_part = part_it.value();
+        fill_source(res_part);
 
         // process facts
         for (auto const &fact : facts) {
             provide_.emplace(fact.name(), fact.args().size(), fact.has_classical_sign());
             std::visit(
-                [&part]<class T>(T &&x) {
+                [&part_it]<class T>(T &&x) {
                     if constexpr (Util::matches<T, Symbol>) {
-                        part.first.value().facts.emplace_back(x);
+                        part_it.value().facts.emplace_back(x);
                     }
                     if constexpr (Util::matches<T, Stm>) {
-                        part.first.value().stms.emplace_back(std::forward<T>(x));
+                        part_it.value().stms.emplace_back(std::forward<T>(x));
                     }
                 },
                 map_params(ctx, res_part.part.loc(), fact));
         }
 
         auto dst = StmVec{};
+        Stm const *src = nullptr;
         // process rules
         for (auto const &stm : stms) {
-            auto src = SourceStm{};
             dst.clear();
             rewrite(ctx, stm, dst);
             for (auto &&rew : dst) {
@@ -138,11 +147,11 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
                 if (auto fact = is_fact(store, rew); fact) {
                     res_part.facts.emplace_back(fact.value());
                 } else {
-                    if (opts_.track_sources && rew != stm) {
-                        if (!src.has_value()) {
-                            src = stm;
+                    if (opts_.profile) {
+                        if (src == nullptr) {
+                            last_source_ = sources_.insert_after(last_source_, stm);
+                            src = &*last_source_;
                         }
-                        res_part.srcs.resize(res_part.stms.size());
                         res_part.srcs.emplace_back(src);
                     }
                     res_part.stms.emplace_back(std::move(rew));
@@ -209,10 +218,10 @@ auto Program::theory_directives() const -> TheorySigVec {
     return res;
 }
 
-auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const -> bool {
+auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) -> bool {
     bld.meta(meta_stms_);
     auto stms = StmVec{};
-    auto srcs = SourceVec{};
+    auto srcs = std::vector<Stm const *>{};
     auto sigs = Util::unordered_set<Signature>();
     auto seen = Util::unordered_set<std::reference_wrapper<ProgramParam const>>();
     seen.reserve(params.size());
@@ -223,15 +232,15 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
         }
         auto [sig_it, sig_ins] = sigs.emplace(Signature{*param.first, param.second.size()});
         if (auto it = parts_.find(*sig_it); it != parts_.end()) {
-            // note that facts are not subject to parameters
+            fill_source(it.value());
+            // NOTE: facts are not subject to parameters
             bld.fact(it->second.facts);
             if (it->first.second == 0) {
-                if (opts_.track_sources) {
-                    auto n = stms.size() + it->second.stms.size();
-                    srcs.insert(srcs.end(), it->second.srcs.begin(), it->second.srcs.end());
-                    srcs.resize(n);
-                }
                 stms.insert(stms.end(), it->second.stms.begin(), it->second.stms.end());
+                if (opts_.profile) {
+                    srcs.insert(srcs.end(), it->second.srcs.begin(), it->second.srcs.end());
+                    assert(srcs.size() == stms.size());
+                }
             } else {
                 bld.param(param);
                 if (sig_ins) {
@@ -260,8 +269,8 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
                                     body.emplace_back(lit);
                                     body.insert(body.end(), stm.body().begin(), stm.body().end());
                                     stms.emplace_back(stm.update(a_body = std::move(body)));
-                                    if (opts_.track_sources) {
-                                        srcs.emplace_back(src_it != it->second.srcs.end() ? *src_it++ : SourceStm{});
+                                    if (opts_.profile) {
+                                        srcs.emplace_back(*src_it);
                                     }
                                 } else {
                                     throw std::logic_error("unexpected statement in analyze");
@@ -273,7 +282,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
             }
         }
     }
-    return bld.components(CppClingo::Input::analyze(store, stms, opts_.track_sources ? &srcs : nullptr));
+    return bld.components(CppClingo::Input::analyze(store, stms, opts_.profile ? &srcs : nullptr));
 }
 
 void Program::mark(SymbolCollector &gc) const {

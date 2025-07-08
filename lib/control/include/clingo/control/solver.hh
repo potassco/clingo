@@ -78,8 +78,6 @@ struct SolverOptions {
     IStop istop = IStop::sat;
     //! Restrict to single shot-solving.
     bool single_shot = false;
-    //! Enable profiling.
-    bool profile = false;
 };
 
 //! A bit set of symbol selection flags.

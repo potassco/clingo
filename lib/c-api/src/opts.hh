@@ -140,7 +140,7 @@ class ClingoOptions {
             ("@1,project-anonymous", flag(rewrite_opts_.project_anonymous = false),
              "Project anonymous variables in negative literals")                      //
             ("show", parse(parse_sigs), "Comma-separated list of predicates to show") //
-            ("profile", flag(solver_opts_.profile = true), "Enable profiling of grounding");
+            ("profile", flag(rewrite_opts_.profile = false), "Enable profiling of grounding");
         root.add(group_grounder);
 
         auto group_basic = OptionGroup{"Basic Options"};

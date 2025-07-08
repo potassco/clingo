@@ -22,6 +22,11 @@ class BuilderHdLit {
     void operator()(Input::HdLitDisjunction const &lit) const { build_hd_lit(*ctx_, lit); }
     void operator()(Input::HdLitAggregate const &lit) const { build_hd_lit(*ctx_, lit); }
     void operator()(Input::HdLitSimple const &lit) const {
+        // TODO:
+        // The context here:
+        // - the source
+        // - the rewritten statement (if different from the original)
+        // The context should be a list of printable objects.
         ctx_->gcomp().add(std::make_unique<Ground::StmRule>(ctx_->simple_lit(lit.lit()), std::move(ctx_->body()),
                                                             Ground::RuleType::normal));
     }
@@ -166,7 +171,9 @@ class BuilderStm {
 
 } // namespace
 
-void build_stm(BuildContext &ctx, Input::Stm const &stm) {
+void build_stm(BuildContext &ctx, Input::Stm const &stm, Input::Stm const *src) {
+    // TODO: handle source statement
+    std::ignore = src;
     std::visit(BuilderStm{ctx}, stm);
 }
 

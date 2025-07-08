@@ -13,6 +13,93 @@ namespace CppClingo::Ground {
 //! @addtogroup ground_stm
 //! @{
 
+//! Helper to print indentation.
+struct ProfileIndent {
+  public:
+    //! Construct the indent with the given amount.
+    explicit ProfileIndent(size_t level, size_t width) : level{level}, width{width} {}
+
+    //! Print the given indentation to the given output stream.
+    friend auto operator<<(std::ostream &out, ProfileIndent const &indent) -> std::ostream & {
+        for (size_t i = 0; i < indent.level * indent.width; ++i) {
+            out << ' ';
+        }
+        return out;
+    }
+
+    //! Add indentation to the given indent.
+    friend auto operator+(ProfileIndent const &indent, size_t add) -> ProfileIndent {
+        return ProfileIndent{indent.level + add, indent.width};
+    }
+
+    //! Add indentation to the current indent (inplace).
+    friend auto operator+=(ProfileIndent &indent, size_t add) -> ProfileIndent & {
+        indent.level += add;
+        return indent;
+    }
+
+  private:
+    //! The indentation level.
+    size_t level;
+    //! The width of the indentation.
+    size_t width;
+};
+
+//! Base class for profiling data.
+class ProfileNode {
+  public:
+    //! Destructor.
+    virtual ~ProfileNode() = default;
+
+    //! Print the profiling data to the given output stream.
+    //!
+    //! The data is indented by the given amount. Nested profiling data is
+    //! printed with increased indentation.
+    void print(std::ostream &out, ProfileIndent indent) const { do_print(out, indent); }
+
+  private:
+    //! Print the profiling data to the given output stream.
+    virtual void do_print(std::ostream &out, ProfileIndent indent) const = 0;
+};
+
+//! Profile node that can hold children.
+class ProfileNodeInternal : public ProfileNode {
+  public:
+    //! Add a child profile node.
+    //!
+    //! Returns a reference to the child node that was added.
+    template <class T> auto add_child(std::unique_ptr<T> child) -> T & {
+        assert(child != nullptr);
+        auto *ret = child.get();
+        do_add_child(std::move(child));
+        return *ret;
+    }
+
+  private:
+    //! Add a child profile node.
+    virtual void do_add_child(std::unique_ptr<ProfileNode> child) = 0;
+};
+
+//! A profile node that holds a printable expression and children.
+template <typename T> class ProfileNodeExpression : public ProfileNodeInternal {
+  private:
+    //! Add a child profile node.
+    void do_add_child(std::unique_ptr<ProfileNode> child) override { children_.emplace_back(std::move(child)); }
+
+    //! Print the profiling data to the given output stream.
+    void do_print(std::ostream &out, ProfileIndent indent) const override {
+        out << indent << expr_ << "\n";
+        for (auto const &child : children_) {
+            child->print(out, indent + 1);
+        }
+    }
+
+    //! The expression to print.
+    T expr_;
+    //! The children of this profile node.
+    std::vector<std::unique_ptr<ProfileNode>> children_;
+};
+
 //! Base class for groundable statements.
 class Stm : public InstanceCallback {
   public:

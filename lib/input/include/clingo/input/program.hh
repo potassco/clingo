@@ -8,6 +8,8 @@
 #include <clingo/util/ordered_map.hh>
 #include <clingo/util/ordered_set.hh>
 
+#include <forward_list>
+
 namespace CppClingo::Input {
 
 //! @addtogroup input_program
@@ -29,7 +31,7 @@ struct RewriteOptions {
     //! Whether to project anonymous variables in negative literals.
     bool project_anonymous = false;
     //! Whether to track source statemnets.
-    bool track_sources = false;
+    bool profile = false;
 };
 
 //! Map from identifiers to constants.
@@ -38,17 +40,16 @@ using ConstMap = Util::ordered_map<SharedString, std::pair<StmConst, SharedSymbo
 //! Map from parameters to their replacements.
 using ParamUnmap = Util::ordered_map<SharedString, SharedString>;
 
-using SourceStm = Util::immutable_value<Stm>;
-using SourceVec = std::vector<SourceStm>;
-
 //! A program part.
 struct ProgramPart {
+    //! Construct a program part.
+    ProgramPart(StmProgram part) : part{std::move(part)} {}
     //! The (first) program part statement that introduced the part.
     StmProgram part;
     //! The statements in the program part.
     StmVec stms;
-    //! The source statement of the statement at the corresponding index.
-    SourceVec srcs;
+    //! The source index of the statement at the corresponding index.
+    std::vector<Stm const *> srcs;
     //! The facts in the program part.
     SymbolVec facts;
 };
@@ -107,7 +108,7 @@ struct Component {
     //! The statements in the component.
     std::vector<Stm const *> stms;
     //! The (optional) source statements in the component.
-    std::vector<SourceStm const *> srcs;
+    std::vector<Stm const *> srcs;
     //! The literals a component depends on.
     Util::unordered_set<std::tuple<String, size_t, bool>> depend;
     //! This vector captures literals that are not yet complete.
@@ -196,7 +197,7 @@ class Program {
     auto meta_stms() -> StmVec const & { return meta_stms_; }
 
     //! Prepare the statements in a program for grounding.
-    [[nodiscard]] auto analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const -> bool;
+    [[nodiscard]] auto analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) -> bool;
 
     //! Mark symbols occurring in the program.
     void mark(SymbolCollector &gc) const;
@@ -223,11 +224,17 @@ class Program {
     using Signature = std::pair<SharedString, size_t>;
     //! Map from signatures to actual program parts.
     using PartMap = Util::ordered_map<Signature, ProgramPart>;
+    //! The map rewritten statements to their sources.
+    //!
+    //! The indices in the part map and statements are stored.
+    using SourceMap = Util::ordered_map<std::pair<size_t, size_t>, Stm>;
 
     //! Gather all identifiers appearing in a program part.
     [[nodiscard]] static auto param_map_(SymbolStore &store, ProgramPart const &part) -> ParamUnmap;
     //! Replace all bound parameters in a statement by parsable ids.
     [[nodiscard]] static auto unmap_(SymbolStore &store, ParamUnmap const &pum, Stm const &stm) -> std::optional<Stm>;
+
+    void fill_source(ProgramPart &part);
 
     //! The rewrite level of the program.
     RewriteOptions opts_;
@@ -243,6 +250,10 @@ class Program {
     std::optional<StmParts> default_parts_;
     //! The map of program parts.
     PartMap parts_;
+    //! The source of rewritten statements.
+    std::forward_list<Stm> sources_;
+    //! Iterator to the last source.
+    std::forward_list<Stm>::iterator last_source_ = sources_.before_begin();
     //! The constants and their values.
     ConstMap const_map_;
     //! Signatures provided by the program.

@@ -17,7 +17,6 @@
 #include <gperftools/profiler.h>
 #endif
 
-#include <iostream>
 #include <utility>
 
 namespace CppClingo::Control {
@@ -85,6 +84,8 @@ class Builder : public Input::DependencyBuilder {
                                                   [this](auto const &sig) { return bases_->add_base(sig).domain(); });
                 auto gcomp = Ground::Component{domain};
                 auto states = Ground::UStateVec{};
+                auto src_it = ref_comp.srcs.begin();
+                auto src_ie = ref_comp.srcs.end();
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -105,8 +106,7 @@ class Builder : public Input::DependencyBuilder {
                     auto ctx = BuildContext{*mbr_,   *log_,    *store_, theory_directives_,
                                             *bases_, ref_comp, def_map, gcomp,
                                             var_map, body,     states,  context_};
-                    // TODO: here the source statement is available
-                    build_stm(ctx, *stm);
+                    build_stm(ctx, *stm, src_it != src_ie ? *src_it++ : nullptr);
                 }
                 auto queue = Ground::Queue{};
                 lin.start(queue);

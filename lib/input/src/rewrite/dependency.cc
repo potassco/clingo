@@ -623,7 +623,7 @@ template <class T> void encode_html(T const &stm, std::ostream &out) {
 
 } // namespace
 
-auto analyze(SymbolStore &store, StmVec const &stms, SourceVec *srcs) -> Components {
+auto analyze(SymbolStore &store, StmVec const &stms, std::vector<Stm const *> *srcs) -> Components {
     assert(srcs == nullptr || stms.size() == srcs->size());
     auto nodes = build_nodes(store, stms);
     // build graph considering positive and negative dependencies
@@ -673,7 +673,7 @@ auto analyze(SymbolStore &store, StmVec const &stms, SourceVec *srcs) -> Compone
                 }
                 comp.stms.emplace_back(&stm);
                 if (srcs != nullptr) {
-                    comp.srcs.emplace_back(&(*srcs)[scc[i]]);
+                    comp.srcs.emplace_back((*srcs)[scc[i]]);
                 }
                 for (auto const &[idx, bd_term, hd_term, sign] : nodes[scc[i]].depend) {
                     auto const &node = nodes[idx];
