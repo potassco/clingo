@@ -10,7 +10,7 @@
 
 namespace CppClingo::Control {
 
-void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit) {
+void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit, Ground::ProfileNodeInternal *node) {
     auto vars_body = Ground::VariableSet{};
     for (auto const &lit : ctx.body()) {
         lit->vars(vars_body, Ground::VarSelectMode::all);
@@ -123,7 +123,7 @@ namespace {
 
 } // namespace
 
-void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit) {
+void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit, Ground::ProfileNodeInternal *node) {
     auto [has_conclusion, sp_conclusion, sp_premise, empty_index, premise_index, lit_index] = analyze(ctx, lit.lit());
     bool domain = true;
     auto add_lit = [&](auto &body, auto &vars, auto const &lit) {

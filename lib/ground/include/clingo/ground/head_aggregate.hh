@@ -254,8 +254,8 @@ class StateHdAggr : public State {
 class StmHdAggr : public Stm {
   public:
     //! Construct the statement.
-    StmHdAggr(StateHdAggr &state, Ground::ULitVec body, size_t priority)
-        : state_{&state}, body_{std::move(body)}, priority_{priority} {}
+    StmHdAggr(StateHdAggr &state, Ground::ULitVec body, size_t priority, ProfileNodeInternal *profile)
+        : state_{&state}, body_{std::move(body)}, priority_{priority}, profile_{profile} {}
 
   private:
     // Stm interface
@@ -270,10 +270,12 @@ class StmHdAggr : public Stm {
     [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return profile_; }
 
     StateHdAggr *state_;
     ULitVec body_;
     size_t priority_;
+    ProfileNodeInternal *profile_;
 };
 
 //! Gather aggregate elements.
@@ -281,9 +283,9 @@ class StmHdAggrElem : public Stm {
   public:
     //! Construct the statement.
     StmHdAggrElem(StateHdAggr &state, std::optional<std::pair<UTerm, AtomBase *>> head, Location loc_weight,
-                  UTermVec tuple, ULitVec body)
+                  UTermVec tuple, ULitVec body, ProfileNodeInternal *profile)
         : loc_weight_{std::move(loc_weight)}, state_{&state}, head_{head ? std::move(head->first) : nullptr},
-          base_{head ? head->second : nullptr}, tuple_{std::move(tuple)}, body_{std::move(body)} {}
+          base_{head ? head->second : nullptr}, tuple_{std::move(tuple)}, body_{std::move(body)}, profile_{profile} {}
 
   private:
     friend class StateHdAggr;
@@ -297,6 +299,7 @@ class StmHdAggrElem : public Stm {
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return profile_; }
 
     auto get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool>;
 
@@ -307,6 +310,7 @@ class StmHdAggrElem : public Stm {
     AtomBase *base_;
     UTermVec tuple_;
     ULitVec body_;
+    ProfileNodeInternal *profile_;
     bool logged_ = false;
 };
 

@@ -10,10 +10,10 @@ namespace CppClingo::Control {
 //! @{
 
 //! Translate disjunctions.
-void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit);
+void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit, Ground::ProfileNodeInternal *node);
 
 //! Translate conditional literals.
-void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit);
+void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit, Ground::ProfileNodeInternal *node);
 
 //! @}
 

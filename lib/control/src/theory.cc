@@ -100,13 +100,13 @@ auto build_state(BuildContext &ctx, Input::TheoryAtom<HasSign> const &lit) -> Gr
 
 } // namespace
 
-void build_hd_lit(BuildContext &ctx, Input::HdLitTheoryAtom const &lit) {
+void build_hd_lit(BuildContext &ctx, Input::HdLitTheoryAtom const &lit, Ground::ProfileNodeInternal *node) {
     auto &state = build_state(ctx, lit);
     ctx.gcomp().add(std::make_unique<Ground::StmHdTheory>(state, std::move(ctx.body())));
 }
 
 //! Translate a body theory atom.
-void build_bd_lit(BuildContext &ctx, Input::BdLitTheoryAtom const &lit) {
+void build_bd_lit(BuildContext &ctx, Input::BdLitTheoryAtom const &lit, Ground::ProfileNodeInternal *node) {
     auto &state = build_state(ctx, lit);
     ctx.body().emplace_back(std::make_unique<Ground::LitBdTheory>(state, lit.sign()));
 }
