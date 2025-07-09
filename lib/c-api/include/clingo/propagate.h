@@ -61,7 +61,7 @@ typedef int clingo_truth_value_t;
 //!
 //! @param[in] assignment the target assignment
 //! @param[out] level the decision level
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_decision_level(clingo_assignment_t const *assignment, uint32_t *level);
 //! Get the current root level.
 //!
@@ -69,13 +69,13 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_decision_level(clingo_assignmen
 //!
 //! @param[in] assignment the target assignment
 //! @param[out] level the decision level
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_root_level(clingo_assignment_t const *assignment, uint32_t *level);
 //! Check if the given assignment is conflicting.
 //!
 //! @param[in] assignment the target assignment
 //! @param[out] is_conflicting whether the assignment is conflicting
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_has_conflict(clingo_assignment_t const *assignment,
                                                               bool *is_conflicting);
 //! Check if the given literal is part of a (partial) assignment.
@@ -83,7 +83,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_has_conflict(clingo_assignment_
 //! @param[in] assignment the target assignment
 //! @param[in] literal the literal
 //! @param[out] is_valid whether the literal is valid
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_has_literal(clingo_assignment_t const *assignment,
                                                              clingo_literal_t literal, bool *is_valid);
 //! Determine the decision level of a given literal.
@@ -91,7 +91,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_has_literal(clingo_assignment_t
 //! @param[in] assignment the target assignment
 //! @param[in] literal the literal
 //! @param[out] level the resulting level
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_level(clingo_assignment_t const *assignment, clingo_literal_t literal,
                                                        uint32_t *level);
 //! Determine the decision literal given a decision level.
@@ -99,7 +99,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_level(clingo_assignment_t const
 //! @param[in] assignment the target assignment
 //! @param[in] level the level
 //! @param[out] literal the resulting literal
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_decision(clingo_assignment_t const *assignment, uint32_t level,
                                                           clingo_literal_t *literal);
 //! Check if a literal has a fixed truth value.
@@ -107,7 +107,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_decision(clingo_assignment_t co
 //! @param[in] assignment the target assignment
 //! @param[in] literal the literal
 //! @param[out] is_fixed whether the literal is fixed
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_fixed(clingo_assignment_t const *assignment,
                                                           clingo_literal_t literal, bool *is_fixed);
 //! Check if a literal is true.
@@ -115,7 +115,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_fixed(clingo_assignment_t co
 //! @param[in] assignment the target assignment
 //! @param[in] literal the literal
 //! @param[out] is_true whether the literal is true
-//! @return wether the call was successful
+//! @return whether the call was successful
 //! @see clingo_assignment_truth_value()
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_true(clingo_assignment_t const *assignment,
                                                          clingo_literal_t literal, bool *is_true);
@@ -124,7 +124,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_true(clingo_assignment_t con
 //! @param[in] assignment the target assignment
 //! @param[in] literal the literal
 //! @param[out] is_false whether the literal is false
-//! @return wether the call was successful
+//! @return whether the call was successful
 //! @see clingo_assignment_truth_value()
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_false(clingo_assignment_t const *assignment,
                                                           clingo_literal_t literal, bool *is_false);
@@ -133,48 +133,48 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_false(clingo_assignment_t co
 //! @param[in] assignment the target assignment
 //! @param[in] literal the literal
 //! @param[out] value the resulting truth value
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_truth_value(clingo_assignment_t const *assignment,
                                                              clingo_literal_t literal, clingo_truth_value_t *value);
 //! The number of (positive) literals in the assignment.
 //!
 //! @param[in] assignment the target
 //! @param[out] size the number of literals
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_size(clingo_assignment_t const *assignment, size_t *size);
 //! The (positive) literal at the given offset in the assignment.
 //!
 //! @param[in] assignment the target
 //! @param[in] offset the offset of the literal
 //! @param[out] literal the literal
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_at(clingo_assignment_t const *assignment, size_t offset,
                                                     clingo_literal_t *literal);
-//! Check if the assignment is total, i.e. there are no free literal.
+//! Check if the assignment is total, i.e. there are no free literals.
 //!
 //! @param[in] assignment the target
 //! @param[out] is_total whether the assignment is total
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_total(clingo_assignment_t const *assignment, bool *is_total);
 //! Returns the number of literals in the trail, i.e., the number of assigned literals.
 //!
 //! @param[in] assignment the target
 //! @param[out] size the number of literals in the trail
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_size(clingo_assignment_t const *assignment, uint32_t *size);
 //! Returns the offset of the decision literal with the given decision level in
 //! the trail.
 //!
 //! @note Literals in the trail are ordered by decision levels, where the first
 //! literal with a larger level than the previous literals is a decision; the
-//! following literals with same level are implied by this decision literal.
+//! following literals with the same level are implied by this decision literal.
 //! Each decision level up to and including the current decision level has a
 //! valid offset in the trail.
 //!
 //! @param[in] assignment the target
 //! @param[in] level the decision level
 //! @param[out] offset the offset of the decision literal
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_begin(clingo_assignment_t const *assignment, uint32_t level,
                                                              uint32_t *offset);
 //! Returns the offset following the last literal with the given decision level.
@@ -184,7 +184,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_begin(clingo_assignment_t
 //! @param[in] assignment the target
 //! @param[in] level the decision level
 //! @param[out] offset the offset
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_end(clingo_assignment_t const *assignment, uint32_t level,
                                                            uint32_t *offset);
 //! Returns the literal at the given position in the trail.
@@ -192,7 +192,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_end(clingo_assignment_t c
 //! @param[in] assignment the target
 //! @param[in] offset the offset of the literal
 //! @param[out] literal the literal
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_at(clingo_assignment_t const *assignment, uint32_t offset,
                                                           clingo_literal_t *literal);
 
@@ -236,7 +236,7 @@ typedef int clingo_weight_constraint_type_t;
 //! represent default negation. Furthermore, there are non-zero integer solver literals (also represented using @ref
 //! ::clingo_literal_t). There is a surjective mapping from program atoms to solver literals.
 //!
-//! All methods called during propagation use solver literals whereas clingo_symbolic_atoms_literal() and
+//! All methods called during propagation use solver literals, whereas clingo_symbolic_atoms_literal() and
 //! clingo_theory_atoms_atom_literal() return program literals. The function clingo_propagate_init_solver_literal() can
 //! be used to map program literals or @link clingo_theory_base_element_condition_id() condition ids@endlink to solver
 //! literals.
@@ -250,7 +250,7 @@ typedef struct clingo_propagate_init clingo_propagate_init_t;
 //! @param[in] init the target
 //! @param[in] aspif_literal the aspif literal to map
 //! @param[out] solver_literal the resulting solver literal
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_solver_literal(clingo_propagate_init_t const *init,
                                                                     clingo_literal_t aspif_literal,
                                                                     clingo_literal_t *solver_literal);
@@ -258,7 +258,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_solver_literal(clingo_propa
 //!
 //! @param[in] init the target
 //! @param[in] solver_literal the solver literal
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch(clingo_propagate_init_t *init,
                                                                clingo_literal_t solver_literal);
 //! Add a watch for the solver literal in the given phase to the given solver thread.
@@ -266,7 +266,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch(clingo_propagate_
 //! @param[in] init the target
 //! @param[in] solver_literal the solver literal
 //! @param[in] thread_id the id of the solver thread
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init,
                                                                          clingo_literal_t solver_literal,
                                                                          clingo_id_t thread_id);
@@ -274,7 +274,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_
 //!
 //! @param[in] init the target
 //! @param[in] solver_literal the solver literal
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_remove_watch(clingo_propagate_init_t *init,
                                                                   clingo_literal_t solver_literal);
 //! Remove the watch for the solver literal in the given phase from the given solver thread.
@@ -282,7 +282,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_remove_watch(clingo_propaga
 //! @param[in] init the target
 //! @param[in] solver_literal the solver literal
 //! @param[in] thread_id the id of the solver thread
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_remove_watch_from_thread(clingo_propagate_init_t *init,
                                                                               clingo_literal_t solver_literal,
                                                                               uint32_t thread_id);
@@ -295,27 +295,27 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_remove_watch_from_thread(cl
 //!
 //! @param[in] init the target
 //! @param[in] solver_literal the solver literal
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_freeze_literal(clingo_propagate_init_t *init,
                                                                     clingo_literal_t solver_literal);
 //! Get the underlying library object.
 //!
 //! @param[in] init the target
 //! @param[out] lib the resulting object
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_library(clingo_propagate_init_t const *init, clingo_lib_t **lib);
 //! Get an object to inspect the base.
 //!
 //! @param[in] init the target
 //! @param[out] base the resulting object
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_base(clingo_propagate_init_t const *init,
                                                           clingo_base_t const **base);
 //! Get the number of threads used in subsequent solving.
 //!
 //! @param[in] init the target
 //! @param[out] threads the number of threads
-//! @return wether the call was successful
+//! @return whether the call was successful
 //! @see clingo_propagate_control_thread_id()
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_number_of_threads(clingo_propagate_init_t const *init,
                                                                        clingo_id_t *threads);
@@ -323,7 +323,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_number_of_threads(clingo_pr
 //!
 //! @param[in] init the target
 //! @param[in] mode bitmask when to call the propagator
-//! @return wether the call was successful
+//! @return whether the call was successful
 //! @see @ref ::clingo_propagator::check()
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_set_check_mode(clingo_propagate_init_t *init,
                                                                     clingo_propagator_check_mode_t mode);
@@ -331,7 +331,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_set_check_mode(clingo_propa
 //!
 //! @param[in] init the target
 //! @param[out] mode the rersulting mode
-//! @return wether the call was successful
+//! @return whether the call was successful
 //! @see clingo_propagate_init_set_check_mode()
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_get_check_mode(clingo_propagate_init_t const *init,
                                                                     clingo_propagator_check_mode_t *mode);
@@ -339,7 +339,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_get_check_mode(clingo_propa
 //!
 //! @param[in] init the target
 //! @param[in] mode when to call the propagator
-//! @return wether the call was successful
+//! @return whether the call was successful
 //! @see @ref ::clingo_propagator::check()
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_set_undo_mode(clingo_propagate_init_t *init,
                                                                    clingo_propagator_undo_mode_t mode);
@@ -347,7 +347,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_set_undo_mode(clingo_propag
 //!
 //! @param[in] init the target
 //! @param[out] mode the resulting mode
-//! @return wether the call was successful
+//! @return whether the call was successful
 //! @see clingo_propagate_init_set_undo_mode()
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_get_undo_mode(clingo_propagate_init_t const *init,
                                                                    clingo_propagator_undo_mode_t *mode);
@@ -355,7 +355,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_get_undo_mode(clingo_propag
 //!
 //! @param[in] init the target
 //! @param[out] assignment the resulting assignment
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_assignment(clingo_propagate_init_t const *init,
                                                                 clingo_assignment_t const **assignment);
 //! Add a literal to the solver.
@@ -369,7 +369,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_assignment(clingo_propagate
 //! @param[in] init the target
 //! @param[in] freeze whether to freeze the literal
 //! @param[out] solver_literal the added literal
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_literal(clingo_propagate_init_t *init, bool freeze,
                                                                  clingo_literal_t *solver_literal);
 //! Add the given clause to the solver.
@@ -381,14 +381,14 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_literal(clingo_propagat
 //! @param[in] literals the clause to add
 //! @param[in] size the size of the clause
 //! @param[out] result result indicating whether the problem became unsatisfiable
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_clause(clingo_propagate_init_t *init,
                                                                 clingo_literal_t const *literals, size_t size,
                                                                 bool *result);
 //! Add the given weight constraint to the solver.
 //!
 //! This function adds a constraint of form `literal <=> { lit=weight | (lit, weight) in literals } >= bound` to the
-//! solver. Depending on the type the `<=>` connective can be either a left implication, right implication, or
+//! solver. Depending on the type, the `<=>` connective can be either a left implication, right implication, or
 //! equivalence.
 //!
 //! @attention No further calls on the init object or functions on the assignment should be called when the result of
@@ -402,7 +402,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_clause(clingo_propagate
 //! @param[in] type the type of the weight constraint
 //! @param[in] compare_equal if true compare equal instead of less than equal
 //! @param[out] result result indicating whether the problem became unsatisfiable
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_weight_constraint(
     clingo_propagate_init_t *init, clingo_literal_t solver_literal, clingo_weighted_literal_t const *literals,
     size_t size, clingo_weight_t bound, clingo_weight_constraint_type_t type, bool compare_equal, bool *result);
@@ -414,7 +414,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_weight_constraint(
 //! @param[in] solver_literal the literal to minimize
 //! @param[in] weight the weight of the literal
 //! @param[in] priority the priority of the literal
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_minimize(clingo_propagate_init_t *init,
                                                                   clingo_literal_t solver_literal,
                                                                   clingo_weight_t weight, clingo_weight_t priority);
@@ -426,7 +426,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_minimize(clingo_propaga
 //!
 //! @param[in] init the target
 //! @param[out] result result indicating whether the problem became unsatisfiable
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_propagate(clingo_propagate_init_t *init, bool *result);
 
 //! @}
@@ -458,14 +458,14 @@ typedef struct clingo_propagate_control clingo_propagate_control_t;
 //!
 //! @param[in] control the target
 //! @param[out] thread_id the thread id
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_thread_id(clingo_propagate_control_t const *control,
                                                                   clingo_id_t *thread_id);
 //! Get the assignment associated with the underlying solver.
 //!
 //! @param[in] control the target
 //! @param[out] assignment the resulting assignment
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_assignment(clingo_propagate_control_t const *control,
                                                                    clingo_assignment_t const **assignment);
 //! Adds a new volatile literal to the underlying solver thread.
@@ -475,7 +475,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_assignment(clingo_propag
 //!
 //! @param[in] control the target
 //! @param[out] result the (positive) solver literal
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_add_literal(clingo_propagate_control_t *control,
                                                                     clingo_literal_t *result);
 //! Add a watch for the solver literal in the given phase.
@@ -485,7 +485,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_add_literal(clingo_propa
 //!
 //! @param[in] control the target
 //! @param[in] literal the literal to watch
-//! @return wether the call was successful
+//! @return whether the call was successful
 //! @see clingo_propagate_control_remove_watch()
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_add_watch(clingo_propagate_control_t *control,
                                                                   clingo_literal_t literal);
@@ -494,7 +494,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_add_watch(clingo_propaga
 //! @param[in] control the target
 //! @param[in] literal the literal to check
 //! @param[out] has_watch whether the literal is watched
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_has_watch(clingo_propagate_control_t const *control,
                                                                   clingo_literal_t literal, bool *has_watch);
 //! Removes the watch (if any) for the given solver literal.
@@ -503,7 +503,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_has_watch(clingo_propaga
 //!
 //! @param[in] control the target
 //! @param[in] literal the literal to remove
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_remove_watch(clingo_propagate_control_t *control,
                                                                      clingo_literal_t literal);
 //! Add the given clause to the solver.
@@ -518,7 +518,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_remove_watch(clingo_prop
 //! @param[in] size the size of the clause
 //! @param[in] type the clause type determining its lifetime
 //! @param[out] result result indicating whether propagation has to be stopped
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_add_clause(clingo_propagate_control_t *control,
                                                                    clingo_literal_t const *literals, size_t size,
                                                                    clingo_clause_type_t type, bool *result);
@@ -531,7 +531,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_add_clause(clingo_propag
 //!
 //! @param[in] control the target
 //! @param[out] result result indicating whether propagation has to be stopped
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_propagate(clingo_propagate_control_t *control, bool *result);
 
 //! @}
@@ -564,7 +564,7 @@ typedef struct clingo_propagator {
     //!
     //! @param[in] init initialization object
     //! @param[in] data user data for the callback
-    //! @return wether the call was successful
+    //! @return whether the call was successful
     //! @see ::clingo_propagator_init_callback_t
     bool (*init)(clingo_propagate_init_t *init, void *data);
     //! Can be used to propagate solver literals given a @link clingo_assignment_t partial assignment@endlink.
@@ -606,7 +606,7 @@ typedef struct clingo_propagator {
     //! @param[in] changes the change set
     //! @param[in] size the size of the change set
     //! @param[in] data user data for the callback
-    //! @return wether the call was successful
+    //! @return whether the call was successful
     //! @see ::clingo_propagator_propagate_callback_t
     bool (*propagate)(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data);
     //! Called whenever a solver undoes assignments to watched solver literals.
@@ -619,7 +619,7 @@ typedef struct clingo_propagator {
     //! @param[in] changes the change set
     //! @param[in] size the size of the change set
     //! @param[in] data user data for the callback
-    //! @return wether the call was successful
+    //! @return whether the call was successful
     //! @see ::clingo_propagator_undo_callback_t
     void (*undo)(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data);
     //! This function is similar to @ref clingo_propagate_control_propagate() but is called without a change set on
@@ -632,7 +632,7 @@ typedef struct clingo_propagator {
     //!
     //! @param[in] control control object for the target solver
     //! @param[in] data user data for the callback
-    //! @return wether the call was successful
+    //! @return whether the call was successful
     //! @see ::clingo_propagator_check_callback_t
     bool (*check)(clingo_propagate_control_t *control, void *data);
     //! This function allows a propagator to implement domain-specific heuristics.
@@ -648,7 +648,7 @@ typedef struct clingo_propagator {
     //! @param[in] fallback the literal chosen by the solver's heuristic
     //! @param[in] data user data for the callback
     //! @param[out] decision the literal to make true
-    //! @return wether the call was successful
+    //! @return whether the call was successful
     bool (*decide)(clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data,
                    clingo_literal_t *decision);
     //! Free the propagator.
@@ -661,7 +661,7 @@ typedef struct clingo_propagator {
 //! @param[in] control the target
 //! @param[in] propagator the propagator
 //! @param[in] data user data passed to the propagator functions
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_propagator(clingo_control_t *control,
                                                                   clingo_propagator_t const *propagator, void *data);
 //! @}

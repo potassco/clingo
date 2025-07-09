@@ -52,13 +52,13 @@ typedef struct clingo_backend clingo_backend_t;
 //!
 //! @param[in] control the control object
 //! @param[out] backend the resulting backend
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend);
 
 //! Finalize the backend after using it.
 //!
 //! @param[in] backend the target backend
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_close(clingo_backend_t *backend);
 
 //! Add a rule to the program.
@@ -69,7 +69,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_close(clingo_backend_t *backend);
 //! @param[in] head_size the number of atoms in the head
 //! @param[in] body the body literals
 //! @param[in] body_size the number of literals in the body
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head,
                                                    size_t head_size, clingo_literal_t const *body, size_t body_size);
 //! Add a weight rule to the program.
@@ -82,7 +82,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_rule(clingo_backend_t *backend, bo
 //! @param[in] lower_bound the lower bound of the weight rule
 //! @param[in] body the weighted body literals
 //! @param[in] body_size the number of weighted literals in the body
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_weight_rule(clingo_backend_t *backend, bool choice,
                                                           clingo_atom_t const *head, size_t head_size,
                                                           clingo_weight_t lower_bound,
@@ -93,7 +93,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_weight_rule(clingo_backend_t *back
 //! @param[in] priority the priority of the constraint
 //! @param[in] literals the weighted literals whose sum to minimize
 //! @param[in] size the number of weighted literals
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_minimize(clingo_backend_t *backend, clingo_weight_t priority,
                                                        clingo_weighted_literal_t const *literals, size_t size);
 //! Add a projection directive.
@@ -101,7 +101,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_minimize(clingo_backend_t *backend
 //! @param[in] backend the target backend
 //! @param[in] atoms the atoms to project on
 //! @param[in] size the number of atoms
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_project(clingo_backend_t *backend, clingo_atom_t const *atoms,
                                                       size_t size);
 //! Add an external statement.
@@ -109,7 +109,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_project(clingo_backend_t *backend,
 //! @param[in] backend the target backend
 //! @param[in] atom the external atom
 //! @param[in] type the type of the external statement
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_external(clingo_backend_t *backend, clingo_atom_t atom,
                                                        clingo_external_type_t type);
 //! Add an assumption directive.
@@ -118,7 +118,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_external(clingo_backend_t *backend
 //! @param[in] literals the literals to assume (positive literals are true and negative literals false for the next
 //! solve call)
 //! @param[in] size the number of atoms
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_assume(clingo_backend_t *backend, clingo_literal_t const *literals,
                                                      size_t size);
 //! Add a heuristic directive.
@@ -130,7 +130,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_assume(clingo_backend_t *backend, 
 //! @param[in] priority the heuristic priority
 //! @param[in] condition the condition under which to apply the heuristic modification
 //! @param[in] size the number of atoms in the condition
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom,
                                                         clingo_heuristic_type_t type, int bias, unsigned priority,
                                                         clingo_literal_t const *condition, size_t size);
@@ -141,7 +141,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_heuristic(clingo_backend_t *backen
 //! @param[in] node_v the end vertex of the edge
 //! @param[in] condition the condition under which the edge is part of the graph
 //! @param[in] size the number of atoms in the condition
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v,
                                                         clingo_literal_t const *condition, size_t size);
 //! Get a fresh atom to be used in aspif directives.
@@ -149,7 +149,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_acyc_edge(clingo_backend_t *backen
 //! @param[in] backend the target backend
 //! @param[in] symbol optional symbol to associate the atom with
 //! @param[out] atom the resulting atom
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t const *symbol,
                                                        clingo_atom_t *atom);
 //! Add a numeric theory term.
@@ -157,7 +157,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_add_atom(clingo_backend_t *backend
 //! @param[in] backend the target backend
 //! @param[in] number the value of the term
 //! @param[out] term_id the resulting term id
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_number(clingo_backend_t *backend, int number,
                                                                  clingo_id_t *term_id);
 //! Add a theory term representing a string.
@@ -166,7 +166,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_number(clingo_backend_
 //! @param[in] string the value of the term
 //! @param[in] size the size of the string
 //! @param[out] term_id the resulting term id
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_string(clingo_backend_t *backend, char const *string,
                                                                  size_t size, clingo_id_t *term_id);
 //! Add a theory term representing a sequence of theory terms.
@@ -176,7 +176,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_string(clingo_backend_
 //! @param[in] arguments the term ids of the terms in the sequence
 //! @param[in] size the number of elements of the sequence
 //! @param[out] term_id the resulting term id
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_sequence(clingo_backend_t *backend,
                                                                    clingo_theory_sequence_type_t type,
                                                                    clingo_id_t const *arguments, size_t size,
@@ -189,7 +189,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_sequence(clingo_backen
 //! @param[in] arguments an array of term ids for the theory terms in the arguments
 //! @param[in] arguments_size the number of arguments
 //! @param[out] term_id the resulting term id
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_function(clingo_backend_t *backend, char const *name,
                                                                    size_t name_size, clingo_id_t const *arguments,
                                                                    size_t arguments_size, clingo_id_t *term_id);
@@ -198,7 +198,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_function(clingo_backen
 //! @param[in] backend the target backend
 //! @param[in] symbol the symbol to convert
 //! @param[out] term_id the resulting term id
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_symbol(clingo_backend_t *backend, clingo_symbol_t symbol,
                                                                  clingo_id_t *term_id);
 //! Add a theory atom element.
@@ -209,7 +209,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_symbol(clingo_backend_
 //! @param[in] condition an array of program literals representing the condition
 //! @param[in] condition_size the size of the condition
 //! @param[out] element_id the resulting element id
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_element(clingo_backend_t *backend, clingo_id_t const *tuple,
                                                              size_t tuple_size, clingo_literal_t const *condition,
                                                              size_t condition_size, clingo_id_t *element_id);
@@ -229,7 +229,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_element(clingo_backend_t *b
 //! @param[in] right_hand_side_id the term id of the right-hand-side
 //! @param[in] atom_in the atom as described above
 //! @param[out] atom_out the final program atom of the theory atom
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_atom(clingo_backend_t *backend, clingo_symbol_t name,
                                                           clingo_id_t const *elements, size_t size,
                                                           clingo_string_t *operator_name,
