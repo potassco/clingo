@@ -4,7 +4,45 @@
 
 #include <clingo/util/print.hh>
 
+#include <iomanip>
+
 namespace CppClingo::Ground {
+
+namespace {
+
+class ProfileTimer {
+  public:
+    explicit ProfileTimer(uint64_t *target) noexcept
+        : target_{target}, start_{target_ != nullptr ? std::chrono::high_resolution_clock::now() : TimePoint{}} {}
+
+    ProfileTimer(const ProfileTimer &) = delete;
+    auto operator=(const ProfileTimer &) -> ProfileTimer & = delete;
+
+    ~ProfileTimer() {
+        if (target_ != nullptr) {
+            auto end = std::chrono::high_resolution_clock::now();
+            *target_ += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start_).count();
+        }
+    }
+
+  private:
+    using TimePoint = std::chrono::high_resolution_clock::time_point;
+
+    uint64_t *target_;
+    TimePoint start_;
+};
+
+} // namespace
+
+void ProfileData::do_print(std::ostream &out, ProfileIndent indent) const {
+    auto time_instantiate = std::chrono::duration<double>(std::chrono::nanoseconds(time_instantiate_));
+    auto time_propagate = std::chrono::duration<double>(std::chrono::nanoseconds(time_propagate_));
+    out << indent << "matches:     " << matches_ << "\n"
+        << indent << "instances:   " << instances_ << "\n"
+        << std::fixed << std::setprecision(3) //
+        << indent << "instantiate: " << time_instantiate.count() << "s\n"
+        << indent << "propagate:   " << time_propagate.count() << "s\n";
+}
 
 void Instantiator::BackjumpMatcher::init(InstantiationContext const &ctx, size_t gen) {
     matcher_->init(ctx, gen);
@@ -86,6 +124,7 @@ void Instantiator::print(std::ostream &out) const {
 }
 
 auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
+    auto timer = ProfileTimer{profile_ != nullptr ? &profile_->time_instantiate_ : nullptr};
     enqueued_ = false;
     auto ie = matchers_.rend();
     auto it = ie - 1;
@@ -96,12 +135,21 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
     do {
         CLINGO_REPORT(log, trace) << "    start at " << std::distance(it, ie) - 1;
         if (it->next(ctx)) {
+            if (profile_ != nullptr) {
+                ++profile_->matches_;
+            }
             for (--it; it->first(ctx); --it) {
+                if (profile_ != nullptr) {
+                    ++profile_->matches_;
+                }
             }
             CLINGO_REPORT(log, trace) << "    advanced to " << std::distance(it, ie) - 1;
         }
         if (it == ib) {
             CLINGO_REPORT(log, trace) << "    solution";
+            if (profile_ != nullptr) {
+                ++profile_->instances_;
+            }
             if (!icb_->report(ctx)) {
                 return false;
             }
@@ -118,6 +166,7 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
 }
 
 void Instantiator::propagate(SymbolStore &store, OutputStm &out, Queue &queue) {
+    auto timer = ProfileTimer{profile_ != nullptr ? &profile_->time_propagate_ : nullptr};
     icb_->propagate(store, out, queue);
 }
 

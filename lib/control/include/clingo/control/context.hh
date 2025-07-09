@@ -42,8 +42,8 @@ class ProfileProgram {
     void print(std::ostream &out);
 
   private:
-    using NodeMap = Util::unordered_map<Input::Stm const *, std::unique_ptr<Ground::ProfileNodeInternal>,
-                                        std::hash<Input::Stm const *>, std::equal_to<void>>;
+    using NodeMap = Util::ordered_map<Input::Stm const *, std::unique_ptr<Ground::ProfileNodeInternal>,
+                                      std::hash<Input::Stm const *>, std::equal_to<void>>;
 
     NodeMap nodes_;
 };

@@ -10,6 +10,7 @@ set(header-group-clingo-ground
     "include/clingo/ground/instantiator.hh"
     "include/clingo/ground/literal.hh"
     "include/clingo/ground/matcher.hh"
+    "include/clingo/ground/profile.hh"
     "include/clingo/ground/program.hh"
     "include/clingo/ground/script.hh"
     "include/clingo/ground/statement.hh"

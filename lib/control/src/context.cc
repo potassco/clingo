@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <clingo/control/context.hh>
 
 #include <clingo/input/print.hh>
@@ -12,8 +13,14 @@ auto ProfileProgram::add(Input::Stm const &stm) -> Ground::ProfileNodeInternal &
 }
 
 void ProfileProgram::print(std::ostream &out) {
-    for (auto const &node : nodes_) {
-        node.second->print(out, Ground::ProfileIndent{0});
+    std::vector<Ground::ProfileNodeInternal const *> sorted_nodes;
+    sorted_nodes.reserve(nodes_.size());
+    for (auto const &kv : nodes_) {
+        sorted_nodes.push_back(kv.second.get());
+    }
+    std::ranges::stable_sort(sorted_nodes, [](auto const *a, auto const *b) { return a->score() > b->score(); });
+    for (auto const *node : sorted_nodes) {
+        node->print(out, Ground::ProfileIndent{0});
     }
 }
 

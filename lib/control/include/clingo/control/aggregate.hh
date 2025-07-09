@@ -11,7 +11,7 @@ namespace CppClingo::Control {
 //! @{
 
 //! Translate head aggregates.
-void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit);
+void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit, Ground::ProfileNodeInternal *node);
 
 //! Translate body aggregates.
 void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <clingo/ground/profile.hh>
+
 #include <clingo/core/logger.hh>
 #include <clingo/core/output.hh>
 #include <clingo/core/symbol.hh>
@@ -12,6 +14,34 @@ namespace CppClingo::Ground {
 
 //! @addtogroup ground_instantiator
 //! @{
+
+class Instantiator;
+
+class ProfileData : public ProfileNode {
+  public:
+    //! Construct the profile data.
+    ProfileData() = default;
+
+  private:
+    friend class Instantiator;
+
+    //! Print the profile data to the given output stream.
+    void do_print(std::ostream &out, ProfileIndent indent) const override;
+    //! Compare two profile nodes.
+    [[nodiscard]] auto do_equal(ProfileNode const &node) const -> bool override {
+        auto const *other = dynamic_cast<ProfileData const *>(&node);
+        return other != nullptr;
+    }
+    //! Get the score of this profile node.
+    [[nodiscard]] auto do_score() const -> double override {
+        return static_cast<double>(time_instantiate_) + static_cast<double>(time_propagate_);
+    }
+
+    uint64_t matches_ = 0;
+    uint64_t instances_ = 0;
+    uint64_t time_instantiate_ = 0;
+    uint64_t time_propagate_ = 0;
+};
 
 //! Context object to capture state used during instantiation.
 class InstantiationContext {
@@ -120,6 +150,10 @@ class InstanceCallback {
     void print_head(std::ostream &out) const { do_print_head(out); }
     //! Check if the literal with the given index is important.
     [[nodiscard]] auto is_important(size_t index) const -> bool { return do_is_important(index); }
+    //! Get a node to store profiling data for this statement.
+    //!
+    //! The returned pointer might be null if profiling is not enabled.
+    [[nodiscard]] auto profile_node() const -> ProfileNodeInternal * { return do_profile_node(); }
 
   private:
     virtual void do_init(size_t gen) = 0;
@@ -128,6 +162,8 @@ class InstanceCallback {
     [[nodiscard]] virtual auto do_priority() const -> size_t = 0;
     virtual void do_print_head(std::ostream &out) const = 0;
     [[nodiscard]] virtual auto do_is_important([[maybe_unused]] size_t index) const -> bool { return true; }
+    // TODO: make virtual once fully implemented
+    [[nodiscard]] virtual auto do_profile_node() const -> ProfileNodeInternal * { return nullptr; }
 };
 
 //! An instantiator implementing the basic grounding algorithm.
@@ -136,7 +172,9 @@ class Instantiator {
     //! A vector of Matcher indices.
     using DependVec = std::vector<size_t>;
     //! Construct an instantiator with the given instance callback and number of variables.
-    Instantiator(InstanceCallback &icb, size_t vars, size_t n) : icb_{&icb}, ass_{vars} { matchers_.reserve(n + 1); }
+    Instantiator(InstanceCallback &icb, size_t vars, size_t n) : icb_{&icb}, profile_{profile_node_(icb)}, ass_{vars} {
+        matchers_.reserve(n + 1);
+    }
     //! Prepare the instantiator for the first grounding step (with generation 0).
     //!
     //! This resets all involved domains.
@@ -175,6 +213,10 @@ class Instantiator {
     }
 
   private:
+    static auto profile_node_(InstanceCallback const &icb) -> ProfileData * {
+        auto *node = icb.profile_node();
+        return node != nullptr ? &node->add_child(std::make_unique<ProfileData>()) : nullptr;
+    }
     class BackjumpMatcher {
       public:
         BackjumpMatcher(UMatcher matcher, DependVec depend)
@@ -194,6 +236,7 @@ class Instantiator {
         bool backjumpable_ = true;
     };
     InstanceCallback *icb_;
+    ProfileData *profile_;
     Assignment ass_;
     std::vector<BackjumpMatcher> matchers_;
     bool enqueued_ = false;

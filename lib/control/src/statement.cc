@@ -14,21 +14,22 @@ class BuilderHdLit {
   public:
     BuilderHdLit(BuildContext &ctx) : ctx_{&ctx} {}
 
-    void operator()(Input::HdLitSetAggregate const &lit) const {
+    void operator()(Input::HdLitSetAggregate const &lit, Ground::ProfileNodeInternal *node) const {
         CLINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "unexpected set aggregate " << lit;
         throw std::logic_error("unexpected set aggregate");
     }
-    void operator()(Input::HdLitTheoryAtom const &lit) const { build_hd_lit(*ctx_, lit); }
-    void operator()(Input::HdLitDisjunction const &lit) const { build_hd_lit(*ctx_, lit); }
-    void operator()(Input::HdLitAggregate const &lit) const { build_hd_lit(*ctx_, lit); }
-    void operator()(Input::HdLitSimple const &lit) const {
-        // TODO:
-        // The context here:
-        // - the source
-        // - the rewritten statement (if different from the original)
-        // The context should be a list of printable objects.
+    void operator()(Input::HdLitTheoryAtom const &lit, Ground::ProfileNodeInternal *node) const {
+        build_hd_lit(*ctx_, lit);
+    }
+    void operator()(Input::HdLitDisjunction const &lit, Ground::ProfileNodeInternal *node) const {
+        build_hd_lit(*ctx_, lit);
+    }
+    void operator()(Input::HdLitAggregate const &lit, Ground::ProfileNodeInternal *node) const {
+        build_hd_lit(*ctx_, lit, node);
+    }
+    void operator()(Input::HdLitSimple const &lit, Ground::ProfileNodeInternal *node) const {
         ctx_->gcomp().add(std::make_unique<Ground::StmRule>(ctx_->simple_lit(lit.lit()), std::move(ctx_->body()),
-                                                            Ground::RuleType::normal));
+                                                            Ground::RuleType::normal, node));
     }
 
   private:
@@ -59,20 +60,21 @@ class BuilderBdLit {
 class BuilderStm {
   public:
     BuilderStm(BuildContext &ctx) : ctx_{&ctx} {}
-    template <class T> void operator()(T const &stm) const {
+    template <class T> void operator()(T const &stm, Ground::ProfileNode *node) const {
         static_assert(Util::matches<T, Input::StmComment, Input::StmConst, Input::StmParts, Input::StmDefined,
                                     Input::StmInclude, Input::StmOptimize, Input::StmProgram, Input::StmProjectSig,
                                     Input::StmScript, Input::StmShowNothing, Input::StmShowSig, Input::StmTheory>);
+        std::ignore = node;
         CLINGO_REPORT(ctx_->logger(), error) << "unexpected statement: " << stm;
         throw std::logic_error("unexpected statement");
     }
 
-    void operator()(Input::StmRule const &stm) const {
+    void operator()(Input::StmRule const &stm, Ground::ProfileNodeInternal *node) const {
         build_body_(stm.body(), 1);
-        std::visit(BuilderHdLit{*ctx_}, stm.head());
+        std::visit(BuilderHdLit{*ctx_}, stm.head(), std::variant<Ground::ProfileNodeInternal *>{node});
     }
 
-    void operator()(Input::StmWeakConstraint const &stm) const {
+    void operator()(Input::StmWeakConstraint const &stm, Ground::ProfileNodeInternal *node) const {
         // NOLINTBEGIN(bugprone-unchecked-optional-access)
         build_body_(stm.body());
         auto const &tuple = stm.tuple();
@@ -87,7 +89,7 @@ class BuilderStm {
         // NOLINTEND(bugprone-unchecked-optional-access)
     }
 
-    void operator()(Input::StmHeuristic const &stm) const {
+    void operator()(Input::StmHeuristic const &stm, Ground::ProfileNodeInternal *node) const {
         // NOLINTBEGIN(bugprone-unchecked-optional-access)
         build_body_(stm.body());
         auto atom = build_term_(stm.atom());
@@ -103,7 +105,7 @@ class BuilderStm {
         // NOLINTEND(bugprone-unchecked-optional-access)
     }
 
-    void operator()(Input::StmEdge const &stm) const {
+    void operator()(Input::StmEdge const &stm, Ground::ProfileNodeInternal *node) const {
         build_body_(stm.body());
         assert(stm.edges().size() == 1);
         auto u = build_term_(stm.edges().front().src());
@@ -111,7 +113,7 @@ class BuilderStm {
         ctx_->gcomp().add(std::make_unique<Ground::StmEdge>(std::move(u), std::move(v), std::move(ctx_->body())));
     }
 
-    void operator()(Input::StmExternal const &stm) const {
+    void operator()(Input::StmExternal const &stm, Ground::ProfileNodeInternal *node) const {
         // NOLINTBEGIN(bugprone-unchecked-optional-access)
         build_body_(stm.body());
         auto [atom, base, indices] = ctx_->simple_lit(stm.atom());
@@ -123,13 +125,13 @@ class BuilderStm {
         // NOLINTEND(bugprone-unchecked-optional-access)
     }
 
-    void operator()(Input::StmShow const &stm) const {
+    void operator()(Input::StmShow const &stm, Ground::ProfileNodeInternal *node) const {
         build_body_(stm.body());
         auto term = build_term_(stm.term());
         ctx_->gcomp().add(std::make_unique<Ground::StmShow>(std::move(term), std::move(ctx_->body())));
     }
 
-    void operator()(Input::StmProject const &stm) const {
+    void operator()(Input::StmProject const &stm, Ground::ProfileNodeInternal *node) const {
         build_body_(stm.body());
         auto atom = build_term_(stm.atom());
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
@@ -181,7 +183,8 @@ void build_stm(BuildContext &ctx, Input::Stm const &stm, Input::Stm const *src) 
     }
     // TODO: pass on the root
     std::ignore = root;
-    std::visit(BuilderStm{ctx}, stm);
+
+    std::visit(BuilderStm{ctx}, stm, std::variant<Ground::ProfileNodeInternal *>{root});
 }
 
 } // namespace CppClingo::Control

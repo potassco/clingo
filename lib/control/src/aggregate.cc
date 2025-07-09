@@ -33,7 +33,7 @@ auto init_guards(BuildContext &ctx, Ground::VariableSet &vars_global, auto &lit)
 
 } // namespace
 
-void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
+void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit, Ground::ProfileNodeInternal *node) {
     auto vars_global = Ground::VariableSet{};
     auto vars_body = init_vars(ctx);
     auto guards = init_guards(ctx, vars_global, lit);
@@ -77,7 +77,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
             }
             // choice rule
             ctx.gcomp().add(std::make_unique<Ground::StmRule>(ctx.simple_lit(elem.lit()), std::move(body),
-                                                              Ground::RuleType::choice));
+                                                              Ground::RuleType::choice, node));
         }
         return;
     }
