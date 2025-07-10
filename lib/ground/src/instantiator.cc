@@ -4,6 +4,7 @@
 
 #include <clingo/util/print.hh>
 
+#include <chrono>
 #include <iomanip>
 
 namespace CppClingo::Ground {
