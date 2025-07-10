@@ -270,7 +270,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
                                     body.insert(body.end(), stm.body().begin(), stm.body().end());
                                     stms.emplace_back(stm.update(a_body = std::move(body)));
                                     if (opts_.profile) {
-                                        srcs.emplace_back(*src_it);
+                                        srcs.emplace_back(*src_it++);
                                     }
                                 } else {
                                     throw std::logic_error("unexpected statement in analyze");
@@ -282,6 +282,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
             }
         }
     }
+
     return bld.components(CppClingo::Input::analyze(store, stms, opts_.profile ? &srcs : nullptr));
 }
 

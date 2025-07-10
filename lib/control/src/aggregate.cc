@@ -275,11 +275,20 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit, Ground::P
         return body;
     };
 
+    Ground::ProfileNodeInternal *sub_node = nullptr;
+    auto get_node = [&](bool nested) -> Ground::ProfileNodeInternal * {
+        if (node != nullptr && sub_node == nullptr) {
+            sub_node =
+                &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::BdLitAggregate>>(lit, nested));
+        }
+        return sub_node;
+    };
+
     // add accumulation rule for neutral tuples
     auto add_empty = [&]<class T>(auto &state, Symbol neutral, Ground::ULitVec &&body) {
         ctx.gcomp().add(std::make_unique<T>(
             state, lit.loc(), Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)),
-            std::move(body), 0, elem_priority));
+            std::move(body), 0, elem_priority, get_node(false)));
     };
 
     // add accumulation rules for tuples
@@ -290,7 +299,8 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit, Ground::P
             for (auto const &lit : ctx.body()) {
                 cond.emplace_back(lit->copy());
             }
-            ctx.gcomp().add(std::make_unique<T>(state, loc, std::move(tuple), std::move(cond), num, elem_priority));
+            ctx.gcomp().add(std::make_unique<T>(state, loc, std::move(tuple), std::move(cond), num, elem_priority,
+                                                get_node(false)));
         }
     };
 
@@ -299,9 +309,13 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit, Ground::P
         std::vector<T> stms;
         stms.reserve(elems.size());
         for (auto &[loc, tuple, cond] : elems) {
+            if (sub_node == nullptr && node != nullptr) {
+                sub_node =
+                    &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::BdLitAggregate>>(lit, true));
+            }
             auto num = cond.size();
             cond.emplace_back(std::make_unique<Ground::LitTuple>(state.global(), state.symbols()));
-            stms.emplace_back(state, loc, std::move(tuple), std::move(cond), num, elem_priority);
+            stms.emplace_back(state, loc, std::move(tuple), std::move(cond), num, elem_priority, get_node(true));
         }
         return stms;
     };

@@ -533,7 +533,7 @@ auto LitCondLitStrat::do_copy() const -> ULit {
     for (auto const &lit : premise_) {
         premise.emplace_back(lit->copy());
     }
-    return std::make_unique<LitCondLitStrat>(*state_, std::move(premise));
+    return std::make_unique<LitCondLitStrat>(*state_, std::move(premise), node_);
 }
 
 auto LitCondLitStrat::do_hash() const -> size_t {

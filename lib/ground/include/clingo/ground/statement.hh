@@ -96,7 +96,6 @@ class StmRule : public Stm {
     void do_print(std::ostream &out) const override;
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
-    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
@@ -104,6 +103,7 @@ class StmRule : public Stm {
     [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     //! The head of the rule.
     //!
@@ -126,9 +126,9 @@ class StmExternal : public Stm {
   public:
     //! Construct the statement.
     StmExternal(Ground::UTerm atom, AtomBase &base, std::vector<size_t> indices, ULitVec body,
-                std::optional<std::pair<Location, UTerm>> type)
+                std::optional<std::pair<Location, UTerm>> type, ProfileNodeInternal *node)
         : type_{std::move(type)}, atom_{std::move(atom)}, base_{&base}, indices_{std::move(indices)},
-          body_{std::move(body)} {
+          body_{std::move(body)}, node_{node} {
         init_();
     }
 
@@ -147,6 +147,7 @@ class StmExternal : public Stm {
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
     [[nodiscard]] auto do_is_important([[maybe_unused]] size_t index) const -> bool override { return false; }
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     std::optional<std::pair<Location, UTerm>> type_;
     //! The head of the rule.
@@ -161,6 +162,7 @@ class StmExternal : public Stm {
     std::vector<size_t> indices_;
     ULitVec body_;
     Symbol res_atom_ = SymbolStore::sup();
+    ProfileNodeInternal *node_;
     ExternalType res_type_ = ExternalType::free;
 };
 
@@ -169,10 +171,10 @@ class StmWeakConstraint : public Stm {
   public:
     //! Construct the statement.
     StmWeakConstraint(Location loc_weight, UTerm weight, std::optional<std::pair<Location, UTerm>> prio, UTermVec terms,
-                      ULitVec body)
+                      ULitVec body, ProfileNodeInternal *node)
         : loc_weight_{std::move(loc_weight)}, loc_prio_{prio ? std::move(prio->first) : loc_weight_},
           weight_{std::move(weight)}, prio_{prio ? std::move(prio->second) : nullptr}, terms_{std::move(terms)},
-          body_{std::move(body)} {
+          body_{std::move(body)}, node_{node} {
         init_();
     }
 
@@ -189,6 +191,7 @@ class StmWeakConstraint : public Stm {
     [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     Location loc_weight_;
     Location loc_prio_;
@@ -199,6 +202,7 @@ class StmWeakConstraint : public Stm {
     Symbol res_weight_;
     std::optional<Symbol> res_prio_;
     SymbolVec res_terms_;
+    ProfileNodeInternal *node_;
 };
 
 //! Statement capturing heuristic directives.
@@ -206,10 +210,11 @@ class StmHeuristic : public Stm {
   public:
     //! Construct the statement.
     StmHeuristic(UTerm atom, AtomBase &base, ULitVec body, Location loc_weight, UTerm weight,
-                 std::optional<std::pair<Location, UTerm>> prio, Location loc_type, UTerm type)
+                 std::optional<std::pair<Location, UTerm>> prio, Location loc_type, UTerm type,
+                 ProfileNodeInternal *node)
         : loc_weight_{std::move(loc_weight)}, loc_prio_{prio ? std::move(prio->first) : loc_weight_},
           loc_type_{std::move(loc_type)}, atom_{std::move(atom)}, base_{&base}, weight_{std::move(weight)},
-          prio_{prio ? std::move(prio->second) : nullptr}, type_{std::move(type)}, body_{std::move(body)} {
+          prio_{prio ? std::move(prio->second) : nullptr}, type_{std::move(type)}, body_{std::move(body)}, node_{node} {
         init_();
     }
 
@@ -226,6 +231,7 @@ class StmHeuristic : public Stm {
     [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     Location loc_weight_;
     Location loc_prio_;
@@ -236,6 +242,7 @@ class StmHeuristic : public Stm {
     UTerm prio_;
     UTerm type_;
     ULitVec body_;
+    ProfileNodeInternal *node_;
     size_t offset_ = 0;
     Symbol res_weight_;
     Symbol res_prio_;
@@ -246,7 +253,8 @@ class StmHeuristic : public Stm {
 class StmEdge : public Stm {
   public:
     //! Construct the statement.
-    StmEdge(UTerm src, UTerm dst, ULitVec body) : src_{std::move(src)}, dst_{std::move(dst)}, body_{std::move(body)} {
+    StmEdge(UTerm src, UTerm dst, ULitVec body, ProfileNodeInternal *node)
+        : src_{std::move(src)}, dst_{std::move(dst)}, body_{std::move(body)}, node_{node} {
         init_();
     }
 
@@ -263,10 +271,12 @@ class StmEdge : public Stm {
     [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     UTerm src_;
     UTerm dst_;
     ULitVec body_;
+    ProfileNodeInternal *node_;
     Symbol res_src_;
     Symbol res_dst_;
 };
@@ -275,7 +285,10 @@ class StmEdge : public Stm {
 class StmShow : public Stm {
   public:
     //! Construct the statement.
-    StmShow(UTerm term, ULitVec body) : term_{std::move(term)}, body_{std::move(body)} { init_(); }
+    StmShow(UTerm term, ULitVec body, ProfileNodeInternal *node)
+        : term_{std::move(term)}, body_{std::move(body)}, node_{node} {
+        init_();
+    }
 
   private:
     void init_();
@@ -290,9 +303,11 @@ class StmShow : public Stm {
     [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     UTerm term_;
     ULitVec body_;
+    ProfileNodeInternal *node_;
     Symbol res_term_;
 };
 
@@ -300,8 +315,8 @@ class StmShow : public Stm {
 class StmProject : public Stm {
   public:
     //! Construct the statement.
-    StmProject(UTerm atom, AtomBase &base, ULitVec body)
-        : atom_{std::move(atom)}, base_{&base}, body_{std::move(body)} {
+    StmProject(UTerm atom, AtomBase &base, ULitVec body, ProfileNodeInternal *node)
+        : atom_{std::move(atom)}, base_{&base}, body_{std::move(body)}, node_{node} {
         init_();
     }
 
@@ -319,10 +334,12 @@ class StmProject : public Stm {
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
     [[nodiscard]] auto do_is_important([[maybe_unused]] size_t index) const -> bool override { return false; }
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     UTerm atom_;
     AtomBase *base_;
     ULitVec body_;
+    ProfileNodeInternal *node_;
     size_t offset_ = 0;
 };
 

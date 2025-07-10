@@ -94,7 +94,7 @@ class BuilderStm {
             location(tuple.weight()), std::move(weight),
             prio ? std::make_optional<std::pair<Location, Ground::UTerm>>(location(*tuple.prio()), *std::move(prio))
                  : std::nullopt,
-            std::move(terms), std::move(ctx_->body())));
+            std::move(terms), std::move(ctx_->body()), node));
         // NOLINTEND(bugprone-unchecked-optional-access)
     }
 
@@ -110,7 +110,7 @@ class BuilderStm {
             std::move(atom), base, std::move(ctx_->body()), location(stm.weight()), std::move(weight),
             prio ? std::make_optional<std::pair<Location, Ground::UTerm>>(location(*stm.prio()), *std::move(prio))
                  : std::nullopt,
-            location(stm.type()), std::move(type)));
+            location(stm.type()), std::move(type), node));
         // NOLINTEND(bugprone-unchecked-optional-access)
     }
 
@@ -119,7 +119,7 @@ class BuilderStm {
         assert(stm.edges().size() == 1);
         auto u = build_term_(stm.edges().front().src());
         auto v = build_term_(stm.edges().front().dst());
-        ctx_->gcomp().add(std::make_unique<Ground::StmEdge>(std::move(u), std::move(v), std::move(ctx_->body())));
+        ctx_->gcomp().add(std::make_unique<Ground::StmEdge>(std::move(u), std::move(v), std::move(ctx_->body()), node));
     }
 
     void operator()(Input::StmExternal const &stm, Ground::ProfileNodeInternal *node) const {
@@ -130,14 +130,15 @@ class BuilderStm {
         ctx_->gcomp().add(std::make_unique<Ground::StmExternal>(
             std::move(atom), base, std::move(indices), std::move(ctx_->body()),
             type ? std::make_optional<std::pair<Location, Ground::UTerm>>(location(*stm.type()), *std::move(type))
-                 : std::nullopt));
+                 : std::nullopt,
+            node));
         // NOLINTEND(bugprone-unchecked-optional-access)
     }
 
     void operator()(Input::StmShow const &stm, Ground::ProfileNodeInternal *node) const {
         build_body_(stm.body(), node);
         auto term = build_term_(stm.term());
-        ctx_->gcomp().add(std::make_unique<Ground::StmShow>(std::move(term), std::move(ctx_->body())));
+        ctx_->gcomp().add(std::make_unique<Ground::StmShow>(std::move(term), std::move(ctx_->body()), node));
     }
 
     void operator()(Input::StmProject const &stm, Ground::ProfileNodeInternal *node) const {
@@ -145,7 +146,7 @@ class BuilderStm {
         auto atom = build_term_(stm.atom());
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         auto &base = ctx_->add_base(*signature(stm.atom()));
-        ctx_->gcomp().add(std::make_unique<Ground::StmProject>(std::move(atom), base, std::move(ctx_->body())));
+        ctx_->gcomp().add(std::make_unique<Ground::StmProject>(std::move(atom), base, std::move(ctx_->body()), node));
     }
 
   private:
@@ -190,9 +191,6 @@ void build_stm(BuildContext &ctx, Input::Stm const &stm, Input::Stm const *src) 
             root = &root->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::Stm const>>(stm));
         }
     }
-    // TODO: pass on the root
-    std::ignore = root;
-
     std::visit(BuilderStm{ctx}, stm, std::variant<Ground::ProfileNodeInternal *>{root});
 }
 

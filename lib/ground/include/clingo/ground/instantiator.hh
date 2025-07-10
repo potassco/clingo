@@ -162,8 +162,7 @@ class InstanceCallback {
     [[nodiscard]] virtual auto do_priority() const -> size_t = 0;
     virtual void do_print_head(std::ostream &out) const = 0;
     [[nodiscard]] virtual auto do_is_important([[maybe_unused]] size_t index) const -> bool { return true; }
-    // TODO: make virtual once fully implemented
-    [[nodiscard]] virtual auto do_profile_node() const -> ProfileNodeInternal * { return nullptr; }
+    [[nodiscard]] virtual auto do_profile_node() const -> ProfileNodeInternal * = 0;
 };
 
 //! An instantiator implementing the basic grounding algorithm.

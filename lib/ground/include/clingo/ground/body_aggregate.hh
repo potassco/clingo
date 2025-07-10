@@ -360,14 +360,14 @@ class StmBdAggrElem : public Stm {
     //! element's condition. The following literals are just used for grounding
     //! binding global variables of the aggregate and ensuring safety.
     StmBdAggrElem(StateBdAggr &state, Location loc_weight, UTermVec tuple, ULitVec body, size_t num_cond,
-                  size_t priority)
+                  size_t priority, ProfileNodeInternal *node)
         : state_{&state}, loc_weight_{std::move(loc_weight)}, tuple_{std::move(tuple)}, body_{std::move(body)},
-          num_cond_{num_cond}, priority_{priority} {}
+          node_{node}, num_cond_{num_cond}, priority_{priority} {}
 
     //! Copy constructor.
     StmBdAggrElem(StmBdAggrElem const &other)
         : state_{other.state_}, loc_weight_{other.loc_weight_}, tuple_{copy_uvec(other.tuple_)},
-          body_{copy_uvec(other.body_)}, num_cond_{other.num_cond_}, priority_{other.priority_} {};
+          body_{copy_uvec(other.body_)}, node_{other.node_}, num_cond_{other.num_cond_}, priority_{other.priority_} {};
     //! Move constructor.
     StmBdAggrElem(StmBdAggrElem &&other) noexcept = default;
     //! Copy assignment.
@@ -388,6 +388,7 @@ class StmBdAggrElem : public Stm {
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     auto get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool>;
 
@@ -396,6 +397,7 @@ class StmBdAggrElem : public Stm {
     Location loc_weight_;
     UTermVec tuple_;
     ULitVec body_;
+    ProfileNodeInternal *node_;
     size_t num_cond_;
     size_t priority_;
     bool logged_ = false;

@@ -90,13 +90,14 @@ class ProfileNodeInternal : public ProfileNode {
   private:
     //! Add a child profile node.
     virtual auto do_add_child(std::unique_ptr<ProfileNode> child) -> ProfileNode * = 0;
+    [[nodiscard]] virtual auto do_nested() const -> bool { return false; }
 };
 
 //! A profile node that holds a printable expression and children.
 template <typename T> class ProfileNodeExpression : public ProfileNodeInternal {
   public:
     //! Construct the profile node with the given expression.
-    ProfileNodeExpression(T expr) : expr_{std::move(expr)} {}
+    ProfileNodeExpression(T expr, bool nested = false) : expr_{std::move(expr)}, nested_{nested} {}
 
   private:
     //! Add a child profile node.
@@ -112,7 +113,7 @@ template <typename T> class ProfileNodeExpression : public ProfileNodeInternal {
 
     //! Print the profiling data to the given output stream.
     void do_print(std::ostream &out, ProfileIndent indent) const override {
-        out << indent << expr_ << "\n";
+        out << indent << (nested_ ? "[" : "") << expr_ << (nested_ ? "]" : "") << "\n";
         for (auto const &child : children_) {
             child->print(out, indent + 1);
         }
@@ -122,22 +123,25 @@ template <typename T> class ProfileNodeExpression : public ProfileNodeInternal {
     [[nodiscard]] auto do_equal(ProfileNode const &node) const -> bool override {
         auto const *other = dynamic_cast<ProfileNodeExpression const *>(&node);
         if constexpr (requires { expr_.get(); }) {
-            return other != nullptr && expr_.get() == other->expr_.get();
+            return other != nullptr && nested_ == other->nested_ && expr_.get() == other->expr_.get();
         } else {
-            return other != nullptr && expr_ == other->expr_;
+            return other != nullptr && nested_ == other->nested_ && expr_ == other->expr_;
         }
     }
 
     //! Accumulate the scores of all children to get a total score for this node.
     [[nodiscard]] auto do_score() const -> double override {
-        return std::accumulate(children_.begin(), children_.end(), 0.0,
-                               [](double sum, auto const &child) { return sum + child->score(); });
+        return !nested_ ? std::accumulate(children_.begin(), children_.end(), 0.0,
+                                          [](double sum, auto const &child) { return sum + child->score(); })
+                        : 0;
     }
 
     //! The expression to print.
     T expr_;
     //! The children of this profile node.
     std::vector<std::unique_ptr<ProfileNode>> children_;
+    //! Whether the node is nested.
+    bool nested_;
 };
 
 //! @}

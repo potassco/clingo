@@ -28,12 +28,23 @@ namespace CppClingo::Control {
 namespace {
 
 template <bool HasSign>
-auto build_state(BuildContext &ctx, Input::TheoryAtom<HasSign> const &lit) -> Ground::StateTheory & {
+auto build_state(BuildContext &ctx, Input::TheoryAtom<HasSign> const &lit, Ground::ProfileNodeInternal *node)
+    -> Ground::StateTheory & {
     auto vars_body = Ground::VariableSet{};
     auto vars_global = Ground::VariableSet{};
     for (auto const &lit : ctx.body()) {
         lit->vars(vars_body, Ground::VarSelectMode::all);
     }
+
+    Ground::ProfileNodeInternal *sub_node = nullptr;
+    auto get_node = [&]() -> Ground::ProfileNodeInternal * {
+        if (node != nullptr && sub_node == nullptr) {
+            sub_node = HasSign ? node
+                               : &node->add_child(
+                                     std::make_unique<Ground::ProfileNodeExpression<Input::TheoryAtom<HasSign>>>(lit));
+        }
+        return sub_node;
+    };
 
     // handle guard
     auto guard = std::optional<std::pair<String, Ground::UTheoryTerm>>{};
@@ -90,8 +101,8 @@ auto build_state(BuildContext &ctx, Input::TheoryAtom<HasSign> const &lit) -> Gr
     stms.reserve(elems.size());
     for (auto &elem : elems) {
         elem.second.emplace_back(std::make_unique<Ground::LitMatchTheory>(state));
-        stms.emplace_back(
-            std::make_unique<Ground::StmTheoryElement>(state, std::move(elem.first), std::move(elem.second)));
+        stms.emplace_back(std::make_unique<Ground::StmTheoryElement>(state, std::move(elem.first),
+                                                                     std::move(elem.second), get_node()));
     }
     state.elems(std::move(stms));
 
@@ -101,13 +112,13 @@ auto build_state(BuildContext &ctx, Input::TheoryAtom<HasSign> const &lit) -> Gr
 } // namespace
 
 void build_hd_lit(BuildContext &ctx, Input::HdLitTheoryAtom const &lit, Ground::ProfileNodeInternal *node) {
-    auto &state = build_state(ctx, lit);
-    ctx.gcomp().add(std::make_unique<Ground::StmHdTheory>(state, std::move(ctx.body())));
+    auto &state = build_state(ctx, lit, node);
+    ctx.gcomp().add(std::make_unique<Ground::StmHdTheory>(state, std::move(ctx.body()), node));
 }
 
 //! Translate a body theory atom.
 void build_bd_lit(BuildContext &ctx, Input::BdLitTheoryAtom const &lit, Ground::ProfileNodeInternal *node) {
-    auto &state = build_state(ctx, lit);
+    auto &state = build_state(ctx, lit, node);
     ctx.body().emplace_back(std::make_unique<Ground::LitBdTheory>(state, lit.sign()));
 }
 

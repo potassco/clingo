@@ -171,8 +171,8 @@ class StateDisjunction : public State {
 class StmDisjunction : public Stm {
   public:
     //! Construct the statement.
-    StmDisjunction(StateDisjunction &state, Ground::ULitVec body, size_t priority)
-        : state_{&state}, body_{std::move(body)}, priority_{priority} {}
+    StmDisjunction(StateDisjunction &state, Ground::ULitVec body, size_t priority, ProfileNodeInternal *node)
+        : state_{&state}, body_{std::move(body)}, node_{node}, priority_{priority} {}
 
   private:
     // Stm interface
@@ -187,9 +187,11 @@ class StmDisjunction : public Stm {
     [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     StateDisjunction *state_;
     ULitVec body_;
+    ProfileNodeInternal *node_;
     size_t priority_;
 };
 
@@ -197,8 +199,8 @@ class StmDisjunction : public Stm {
 class StmDisjunctionElem : public Stm {
   public:
     //! Construct the statement.
-    StmDisjunctionElem(StateDisjunction &state, UTerm head, AtomBase &base, ULitVec body)
-        : state_{&state}, head_{std::move(head)}, base_{&base}, body_{std::move(body)} {}
+    StmDisjunctionElem(StateDisjunction &state, UTerm head, AtomBase &base, ULitVec body, ProfileNodeInternal *node)
+        : state_{&state}, head_{std::move(head)}, base_{&base}, body_{std::move(body)}, node_{node} {}
 
   private:
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
@@ -209,11 +211,13 @@ class StmDisjunctionElem : public Stm {
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     StateDisjunction *state_;
     UTerm head_;
     AtomBase *base_;
     ULitVec body_;
+    ProfileNodeInternal *node_;
 };
 
 //! A term like object used to match disjunction atoms.
