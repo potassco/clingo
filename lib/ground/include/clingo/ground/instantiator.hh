@@ -17,32 +17,6 @@ namespace CppClingo::Ground {
 
 class Instantiator;
 
-class ProfileData : public ProfileNode {
-  public:
-    //! Construct the profile data.
-    ProfileData() = default;
-
-  private:
-    friend class Instantiator;
-
-    //! Print the profile data to the given output stream.
-    void do_print(std::ostream &out, ProfileIndent indent) const override;
-    //! Compare two profile nodes.
-    [[nodiscard]] auto do_equal(ProfileNode const &node) const -> bool override {
-        auto const *other = dynamic_cast<ProfileData const *>(&node);
-        return other != nullptr;
-    }
-    //! Get the score of this profile node.
-    [[nodiscard]] auto do_score() const -> double override {
-        return static_cast<double>(time_instantiate_) + static_cast<double>(time_propagate_);
-    }
-
-    uint64_t matches_ = 0;
-    uint64_t instances_ = 0;
-    uint64_t time_instantiate_ = 0;
-    uint64_t time_propagate_ = 0;
-};
-
 //! Context object to capture state used during instantiation.
 class InstantiationContext {
   public:
@@ -171,7 +145,7 @@ class Instantiator {
     //! A vector of Matcher indices.
     using DependVec = std::vector<size_t>;
     //! Construct an instantiator with the given instance callback and number of variables.
-    Instantiator(InstanceCallback &icb, size_t vars, size_t n) : icb_{&icb}, profile_{profile_node_(icb)}, ass_{vars} {
+    Instantiator(InstanceCallback &icb, size_t vars, size_t n) : icb_{&icb}, stats_{profile_node_(icb)}, ass_{vars} {
         matchers_.reserve(n + 1);
     }
     //! Prepare the instantiator for the first grounding step (with generation 0).
@@ -212,9 +186,9 @@ class Instantiator {
     }
 
   private:
-    static auto profile_node_(InstanceCallback const &icb) -> ProfileData * {
+    static auto profile_node_(InstanceCallback const &icb) -> ProfileStats * {
         auto *node = icb.profile_node();
-        return node != nullptr ? &node->add_child(std::make_unique<ProfileData>()) : nullptr;
+        return node != nullptr ? &node->add_child(std::make_unique<ProfileData>()).step_ : nullptr;
     }
     class BackjumpMatcher {
       public:
@@ -235,7 +209,7 @@ class Instantiator {
         bool backjumpable_ = true;
     };
     InstanceCallback *icb_;
-    ProfileData *profile_;
+    ProfileStats *stats_;
     Assignment ass_;
     std::vector<BackjumpMatcher> matchers_;
     bool enqueued_ = false;

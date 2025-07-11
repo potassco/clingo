@@ -24,14 +24,23 @@ enum class ProjectionMode : uint8_t {
     pure = 2,      //!< Project pure variables.
 };
 
+//! Flags to control how profiling information is output.
+enum class ProfileFlags : uint8_t {
+    off = 0,      //!< Disable profiling.
+    detailed = 1, //!< Output detailed profiling information.
+    step = 2,     //!< Output profiling information for each step.
+    accu = 4,     //!< Output accumulated profiling information.
+};
+CLINGO_ENABLE_BITSET_ENUM(ProfileFlags);
+
 //! Options to configure rewriting.
 struct RewriteOptions {
     //! The projection mode.
     ProjectionMode project_mode = ProjectionMode::pure;
     //! Whether to project anonymous variables in negative literals.
     bool project_anonymous = false;
-    //! Whether to track source statemnets.
-    bool profile = false;
+    //! Whether to profile the grounding process.
+    ProfileFlags profile = ProfileFlags::off;
 };
 
 //! Map from identifiers to constants.
@@ -218,7 +227,7 @@ class Program {
     [[nodiscard]] auto default_parts() -> std::optional<StmParts> & { return default_parts_; }
 
     //! Check whether profiling is enabled.
-    [[nodiscard]] auto profile() const -> bool { return opts_.profile; }
+    [[nodiscard]] auto profile() const -> ProfileFlags { return opts_.profile; }
 
   private:
     //! The signature of a program part.

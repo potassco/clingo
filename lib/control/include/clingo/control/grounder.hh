@@ -35,6 +35,8 @@ class Grounder {
     auto const_map() -> Input::ConstMap const &;
     //! Ground the program.
     [[nodiscard]] auto ground(ProgramParamVec const &params, Ground::ScriptCallback *context = nullptr) -> bool;
+    //! Print per step summaries.
+    void print_summary(bool final);
 
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);

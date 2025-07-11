@@ -114,6 +114,45 @@ class ClingoOptions {
             }
             return true;
         };
+        auto parse_profile = [this](std::string_view str) {
+            auto ieq = [](std::string_view a, std::string_view b) {
+                return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char ac, char bc) {
+                           return std::tolower(static_cast<unsigned char>(ac)) ==
+                                  std::tolower(static_cast<unsigned char>(bc));
+                       });
+            };
+
+            rewrite_opts_.profile = Input::ProfileFlags::off;
+            auto x = split(str, ",");
+            if (x.empty() || x.size() >= 3) {
+                return false;
+            }
+            if (ieq(x[0], "off")) {
+                return x.size() == 1;
+            }
+            if (ieq(x[0], "detailed")) {
+                rewrite_opts_.profile |= Input::ProfileFlags::detailed;
+            } else if (ieq(x[0], "compact")) {
+                rewrite_opts_.profile -= Input::ProfileFlags::detailed;
+            } else {
+                return false;
+            }
+            if (x.size() >= 2) {
+                if (ieq(x[1], "step")) {
+                    rewrite_opts_.profile |= Input::ProfileFlags::step;
+                } else if (ieq(x[1], "accu")) {
+                    rewrite_opts_.profile |= Input::ProfileFlags::accu;
+                } else if (ieq(x[1], "full")) {
+                    rewrite_opts_.profile |= Input::ProfileFlags::step;
+                    rewrite_opts_.profile |= Input::ProfileFlags::accu;
+                } else {
+                    return false;
+                }
+            } else {
+                rewrite_opts_.profile |= Input::ProfileFlags::accu;
+            }
+            return true;
+        };
 
         auto group_grounder = OptionGroup{"Grounder Options"};
         group_grounder.addOptions() //
@@ -140,7 +179,15 @@ class ClingoOptions {
             ("@1,project-anonymous", flag(rewrite_opts_.project_anonymous = false),
              "Project anonymous variables in negative literals")                      //
             ("show", parse(parse_sigs), "Comma-separated list of predicates to show") //
-            ("profile", flag(rewrite_opts_.profile = false), "Enable profiling of grounding");
+            ("profile", parse(parse_profile).implicit("accu").arg("off|<detail>[,<type>]"),
+             R"(Enable profiling of grounding
+      <detail>: {detailed|compact} [detailed]
+        detailed: output detailed profiling information
+        compact : output compact profiling information
+      <type>: {step|accu|both} [accu]
+        step    : output profiling information for each grounding step
+        accu    : output accumulated profiling information [default]
+        both    : enable both step and accu profiling)");
         root.add(group_grounder);
 
         auto group_basic = OptionGroup{"Basic Options"};

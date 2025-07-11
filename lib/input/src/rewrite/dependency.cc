@@ -512,7 +512,7 @@ struct Edge {
 };
 
 struct Node {
-    //! The list providees.
+    //! The list of incoming edges.
     std::vector<Edge> depend;
     //! The scc index of the node.
     size_t scc = std::numeric_limits<size_t>::max();
@@ -520,7 +520,7 @@ struct Node {
     size_t sub_scc = std::numeric_limits<size_t>::max();
     //! The running index in the refined scc.
     size_t idx = 0;
-    //! Whether the head of the statement in drived normally.
+    //! Whether the head of the statement is derived normally.
     //!
     //! This is the case for normal rules but not for choices, externals, etc.
     bool normal = true;

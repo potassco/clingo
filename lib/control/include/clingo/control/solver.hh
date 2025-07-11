@@ -695,6 +695,11 @@ class Solver : public BaseView {
         return *sym_tab_;
     }
 
+    //! Print per step summaries.
+    //!
+    //! Currently outputs profiling data if enabled.
+    auto print_summary(bool final) { grd_.print_summary(final); }
+
   private:
     class ProgramBackendAdapter;
 

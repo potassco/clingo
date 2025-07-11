@@ -33,7 +33,7 @@ set(source-group
     "src/instantiator.cc"
     "src/literal.cc"
     "src/matcher.cc"
-    "src/program.cc"
+    "src/profile.cc"
     "src/statement.cc"
     "src/term.cc"
     "src/theory_atom.cc"

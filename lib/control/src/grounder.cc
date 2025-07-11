@@ -354,6 +354,15 @@ auto Grounder::const_map() -> Input::ConstMap const & {
     return impl_->prg.const_map();
 }
 
+void Grounder::print_summary(bool final) {
+    auto p = impl_->prg.profile();
+    if (final && intersects(p, Input::ProfileFlags::accu)) {
+        auto d = intersects(p, Input::ProfileFlags::detailed) ? Ground::ProfileDetail::detailed
+                                                              : Ground::ProfileDetail::compact;
+        impl_->profile.print(std::cerr, Ground::ProfileType::accu, d);
+    }
+}
+
 auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context) -> bool {
     prepare_();
     CLINGO_REPORT(*impl_->log, debug) << "grounding...";
@@ -361,6 +370,10 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
 #ifdef CLINGO_PROFILE
     auto prof = Profiler{"clingo-ground.prof"};
 #endif
+    auto p = impl_->prg.profile();
+    if (p != Input::ProfileFlags::off && !params.empty()) {
+        impl_->profile.begin_step();
+    }
     if (impl_->is_sat) {
         impl_->prg.check(*impl_->log);
         impl_->bases.clear_aux();
@@ -372,8 +385,13 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
         impl_->clear();
     }
     impl_->out->end_step();
-    if (impl_->prg.profile()) {
-        impl_->profile.print(std::cerr);
+    if (p != Input::ProfileFlags::off && !params.empty()) {
+        if (intersects(p, Input::ProfileFlags::step)) {
+            auto d = intersects(p, Input::ProfileFlags::detailed) ? Ground::ProfileDetail::detailed
+                                                                  : Ground::ProfileDetail::compact;
+            impl_->profile.print(std::cerr, Ground::ProfileType::step, d);
+        }
+        impl_->profile.end_step();
     }
     return impl_->is_sat;
 }

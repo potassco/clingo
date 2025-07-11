@@ -240,6 +240,12 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             opts_.apply(slv);
             // NOTE: member for createTextOutput
             ctl_->bind(&slv, &slv.clasp_config(), &slv.clasp_facade());
+
+            struct SummaryGuard {
+                ClingoApp *self;
+                ~SummaryGuard() { self->ctl_->slv->print_summary(true); }
+            } guard{this};
+
             if (app_.has_main()) {
                 if (mode_ == Mode::solve) {
                     ctl_->clasp->enableProgramUpdates();

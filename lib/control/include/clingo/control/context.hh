@@ -39,7 +39,9 @@ using DefMap = Util::unordered_map<Input::Term const *, std::vector<size_t>>;
 class ProfileProgram {
   public:
     auto add(Input::Stm const &stm) -> Ground::ProfileNodeInternal &;
-    void print(std::ostream &out);
+    void print(std::ostream &out, Ground::ProfileType type, Ground::ProfileDetail detail) const;
+    void begin_step();
+    void end_step();
 
   private:
     using NodeMap = Util::ordered_map<Input::Stm const *, std::unique_ptr<Ground::ProfileNodeInternal>,

@@ -12,15 +12,29 @@ auto ProfileProgram::add(Input::Stm const &stm) -> Ground::ProfileNodeInternal &
                 .first.value();
 }
 
-void ProfileProgram::print(std::ostream &out) {
-    std::vector<Ground::ProfileNodeInternal const *> sorted_nodes;
+void ProfileProgram::print(std::ostream &out, Ground::ProfileType type, Ground::ProfileDetail detail) const {
+    auto sorted_nodes = std::vector<Ground::ProfileNodeInternal *>{};
     sorted_nodes.reserve(nodes_.size());
     for (auto const &kv : nodes_) {
         sorted_nodes.push_back(kv.second.get());
     }
-    std::ranges::stable_sort(sorted_nodes, [](auto const *a, auto const *b) { return a->score() > b->score(); });
-    for (auto const *node : sorted_nodes) {
-        node->print(out, Ground::ProfileIndent{0});
+    std::ranges::stable_sort(sorted_nodes,
+                             [=](auto const *a, auto const *b) { return a->score(type) > b->score(type); });
+    out << (type == Ground::ProfileType::step ? "Step Grounding Profile:\n" : "Grounding Profile:\n");
+    for (auto *node : sorted_nodes) {
+        node->print(out, Ground::ProfileIndent{1}, detail, type);
+    }
+}
+
+void ProfileProgram::begin_step() {
+    for (auto const &kv : nodes_) {
+        kv.second->begin_step();
+    }
+}
+
+void ProfileProgram::end_step() {
+    for (auto const &kv : nodes_) {
+        kv.second->end_step();
     }
 }
 

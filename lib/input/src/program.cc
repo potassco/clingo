@@ -63,7 +63,7 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
 }
 
 void Program::fill_source(ProgramPart &part) {
-    if (opts_.profile) {
+    if (opts_.profile != ProfileFlags::off) {
         assert(part.srcs.size() <= part.stms.size());
         for (auto it = part.stms.begin() + std::ssize(part.srcs), ie = part.stms.end(); ie != it; ++it) {
             last_source_ = sources_.insert_after(last_source_, *it);
@@ -147,7 +147,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
                 if (auto fact = is_fact(store, rew); fact) {
                     res_part.facts.emplace_back(fact.value());
                 } else {
-                    if (opts_.profile) {
+                    if (opts_.profile != ProfileFlags::off) {
                         if (src == nullptr) {
                             last_source_ = sources_.insert_after(last_source_, stm);
                             src = &*last_source_;
@@ -237,7 +237,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
             bld.fact(it->second.facts);
             if (it->first.second == 0) {
                 stms.insert(stms.end(), it->second.stms.begin(), it->second.stms.end());
-                if (opts_.profile) {
+                if (opts_.profile != ProfileFlags::off) {
                     srcs.insert(srcs.end(), it->second.srcs.begin(), it->second.srcs.end());
                     assert(srcs.size() == stms.size());
                 }
@@ -269,7 +269,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
                                     body.emplace_back(lit);
                                     body.insert(body.end(), stm.body().begin(), stm.body().end());
                                     stms.emplace_back(stm.update(a_body = std::move(body)));
-                                    if (opts_.profile) {
+                                    if (opts_.profile != ProfileFlags::off) {
                                         srcs.emplace_back(*src_it++);
                                     }
                                 } else {
@@ -283,7 +283,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
         }
     }
 
-    return bld.components(CppClingo::Input::analyze(store, stms, opts_.profile ? &srcs : nullptr));
+    return bld.components(CppClingo::Input::analyze(store, stms, opts_.profile != ProfileFlags::off ? &srcs : nullptr));
 }
 
 void Program::mark(SymbolCollector &gc) const {
