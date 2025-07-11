@@ -179,7 +179,7 @@ class ClingoOptions {
             ("@1,project-anonymous", flag(rewrite_opts_.project_anonymous = false),
              "Project anonymous variables in negative literals")                      //
             ("show", parse(parse_sigs), "Comma-separated list of predicates to show") //
-            ("profile", parse(parse_profile).implicit("accu").arg("off|<detail>[,<type>]"),
+            ("profile", parse(parse_profile).implicit("detailed").arg("off|<detail>[,<type>]"),
              R"(Enable profiling of grounding
       <detail>: {detailed|compact} [detailed]
         detailed: output detailed profiling information
