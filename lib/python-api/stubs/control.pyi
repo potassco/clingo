@@ -348,6 +348,12 @@ class Control:
         """
 
     @property
+    def mode(self) -> ControlMode:
+        """
+        Get the application mode.
+        """
+
+    @property
     def parts(
         self,
     ) -> typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None:
@@ -370,6 +376,12 @@ class Control:
         profiling tree.
 
         The result is directly convertible to JSON using Python's `json` module.
+        """
+
+    @property
+    def stats(self) -> dict:
+        """
+        Get the solver stats.
         """
 
 class _ConstMap:

@@ -16,6 +16,7 @@
 #include <cassert>
 #include <optional>
 #include <span>
+#include <variant>
 
 namespace Clingo {
 

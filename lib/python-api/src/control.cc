@@ -599,6 +599,8 @@ Args:
         .def_property_readonly("base", &Control::base, R"(Get the atom/term bases of the program.)")
         .def_property_readonly("backend", &Control::backend, R"(Get a backend manager to extend the ground program.)")
         .def_property_readonly("config", &Control::config, R"(Get the solver config.)")
+        .def_property_readonly("stats", &Control::stats, R"(Get the solver stats.)")
+        .def_property_readonly("mode", &Control::mode, R"(Get the application mode.)")
         .def_property_readonly("profile", &Control::profile, R"(
 Get the profiling information as a list of profile nodes.
 

@@ -2,10 +2,12 @@
 
 #include <cassert>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <numeric>
 #include <ostream>
 #include <sstream>
+#include <variant>
 #include <vector>
 
 namespace CppClingo::Ground {
