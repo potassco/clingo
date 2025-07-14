@@ -4,6 +4,10 @@
 
 #include <clingo/util/print.hh>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include <chrono>
 
 namespace CppClingo::Ground {
@@ -13,20 +17,31 @@ namespace {
 class ProfileTimer {
   public:
     explicit ProfileTimer(uint64_t *target) noexcept
-        : target_{target}, start_{target_ != nullptr ? std::chrono::high_resolution_clock::now() : TimePoint{}} {}
+        : target_{target}, start_{target_ != nullptr ? now() : TimePoint{}} {}
 
     ProfileTimer(const ProfileTimer &) = delete;
     auto operator=(const ProfileTimer &) -> ProfileTimer & = delete;
 
     ~ProfileTimer() {
         if (target_ != nullptr) {
-            auto end = std::chrono::high_resolution_clock::now();
-            *target_ += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start_).count();
+            *target_ += diff(start_, now());
         }
     }
 
   private:
+#ifdef __EMSCRIPTEN__
+    using TimePoint = double;
+
+    static auto now() -> TimePoint { return emscripten_get_now(); }
+    static auto diff(TimePoint start, TimePoint finish) -> uint64_t { return (finish - start) * 1e6; }
+#else
     using TimePoint = std::chrono::high_resolution_clock::time_point;
+
+    static auto now() -> TimePoint { return std::chrono::high_resolution_clock::now(); }
+    static auto diff(TimePoint start, TimePoint finish) -> uint64_t {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
+    }
+#endif
 
     uint64_t *target_;
     TimePoint start_;
