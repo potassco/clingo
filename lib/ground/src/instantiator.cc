@@ -1,12 +1,7 @@
 #include <clingo/ground/instantiator.hh>
 
 #include <clingo/util/checked_math.hh>
-
 #include <clingo/util/print.hh>
-
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#endif
 
 #include <chrono>
 
@@ -29,19 +24,12 @@ class ProfileTimer {
     }
 
   private:
-#ifdef __EMSCRIPTEN__
-    using TimePoint = double;
-
-    static auto now() -> TimePoint { return emscripten_get_now(); }
-    static auto diff(TimePoint start, TimePoint finish) -> uint64_t { return (finish - start) * 1e6; }
-#else
     using TimePoint = std::chrono::high_resolution_clock::time_point;
 
     static auto now() -> TimePoint { return std::chrono::high_resolution_clock::now(); }
     static auto diff(TimePoint start, TimePoint finish) -> uint64_t {
         return std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
     }
-#endif
 
     uint64_t *target_;
     TimePoint start_;
