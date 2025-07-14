@@ -31,6 +31,7 @@ enum class ProfileFlags : uint8_t {
     step = 2,     //!< Output profiling information for each step.
     accu = 4,     //!< Output accumulated profiling information.
 };
+//! Enable bitset operations for ProfileFlags.
 CLINGO_ENABLE_BITSET_ENUM(ProfileFlags);
 
 //! Options to configure rewriting.

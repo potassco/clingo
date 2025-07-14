@@ -5,6 +5,7 @@
 #include <memory>
 #include <numeric>
 #include <ostream>
+#include <sstream>
 #include <vector>
 
 namespace CppClingo::Ground {
@@ -56,9 +57,12 @@ struct ProfileIndent {
     size_t width;
 };
 
+//! The profiling data.
 struct ProfileStats {
+    //! The default constructor.
     ProfileStats() = default;
 
+    //! Reset the profiling data to zero.
     void reset() { matches = instances = time_instantiate = time_propagate = 0; }
 
     //! Accumulate the given step stats into this stats object.
@@ -74,21 +78,31 @@ struct ProfileStats {
         }
     }
 
+    //! Print the profiling data to the given output stream.
     void print(std::ostream &out, ProfileIndent indent) const;
 
+    //! Compute a score for sorting profile nodes based on time.
     [[nodiscard]] auto score() const -> double {
         return static_cast<double>(time_instantiate) + static_cast<double>(time_propagate);
     }
 
+    //! The number of matches produced by the instantiator.
     uint64_t matches = 0;
+    //! The number of instances produced by the instantiator.
     uint64_t instances = 0;
+    //! The time in nanoseconds spent instantiating.
     uint64_t time_instantiate = 0;
+    //! The time in nanoseconds spent propagating.
     uint64_t time_propagate = 0;
 };
 
 //! Base class for profiling data.
 class ProfileNode {
   public:
+    //! The type of visitor function to use for visiting profile nodes.
+    using Visitor = std::function<void(
+        std::variant<std::pair<std::string_view, bool>, std::pair<ProfileStats const *, ProfileType>>, size_t)>;
+
     //! The default constructor.
     ProfileNode() = default;
     //! Delete the copy constructor.
@@ -122,6 +136,9 @@ class ProfileNode {
     //! Combine stats below this node.
     virtual void combine(ProfileStats &stats, ProfileType type, bool nested) const { do_combine(stats, type, nested); }
 
+    //! Visit the profile node with the given visitor function.
+    void accept(Visitor const &visit, size_t depth) const { do_accept(visit, depth); }
+
   private:
     virtual void do_print(std::ostream &out, ProfileIndent indent, ProfileDetail detail, ProfileType type) const = 0;
     [[nodiscard]] virtual auto do_equal(ProfileNode const &node) const -> bool = 0;
@@ -129,6 +146,7 @@ class ProfileNode {
     virtual void do_combine(ProfileStats &stats, ProfileType type, bool nested) const = 0;
     virtual void do_begin_step() = 0;
     virtual void do_end_step() = 0;
+    virtual void do_accept(Visitor const &visit, size_t depth) const = 0;
 };
 
 //! Profile node that can hold children.
@@ -199,21 +217,34 @@ template <typename T> class ProfileNodeExpression : public ProfileNodeInternal {
                         : 0;
     }
 
+    //! Recursively call begin_step on all children.
     void do_begin_step() override {
         for (auto &child : children_) {
             child->begin_step();
         }
     }
 
+    //! Recursively call end_step on all children.
     void do_end_step() override {
         for (auto &child : children_) {
             child->end_step();
         }
     }
 
+    //! Combine the stats of all children with the given stats.
     void do_combine(ProfileStats &stats, ProfileType type, bool nested) const override {
         for (auto const &child : children_) {
             child->combine(stats, type, nested || nested_);
+        }
+    }
+
+    //! Accept the visitor function for this profile node and its children.
+    void do_accept(Visitor const &visit, size_t depth) const override {
+        std::ostringstream oss;
+        oss << expr_;
+        visit(std::make_pair(oss.view(), nested_), depth);
+        for (auto const &child : children_) {
+            child->accept(visit, depth + 1);
         }
     }
 
@@ -225,6 +256,7 @@ template <typename T> class ProfileNodeExpression : public ProfileNodeInternal {
     bool nested_;
 };
 
+//! This profile node holds the profiling data for a single step and accumulated data.
 class ProfileData : public ProfileNode {
   public:
     //! Construct the profile data.
@@ -260,7 +292,15 @@ class ProfileData : public ProfileNode {
         }
     }
 
+    //! Visit the profile node with the given visitor function.
+    void do_accept(Visitor const &visit, size_t depth) const override {
+        visit(std::make_pair(&step_, ProfileType::step), depth);
+        visit(std::make_pair(&accu_, ProfileType::accu), depth);
+    }
+
+    //! The profile stats for the current step.
     ProfileStats step_;
+    //! The accumulated profile stats.
     ProfileStats accu_;
 };
 

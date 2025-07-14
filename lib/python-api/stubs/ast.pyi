@@ -33,7 +33,6 @@ c(3).
 
 from __future__ import annotations
 
-import collections.abc
 import typing
 
 import clingo.core
@@ -74,7 +73,6 @@ __all__ = [
     "Relation",
     "RewriteContext",
     "RightGuard",
-    "Scanner",
     "SetAggregateElement",
     "Sign",
     "StatementComment",
@@ -120,9 +118,11 @@ __all__ = [
     "UnaryOperator",
     "UnparsedElement",
     "parse_body_literal",
+    "parse_files",
     "parse_head_literal",
     "parse_literal",
     "parse_statement",
+    "parse_string",
     "parse_term",
     "parse_theory_term",
     "rewrite_statement",
@@ -153,6 +153,49 @@ def parse_body_literal(
 
     Returns:
         The parsed BodyLiteral object.
+    """
+
+def parse_files(
+    lib: clingo.core.Library,
+    files: typing.Sequence[str],
+    callback: typing.Callable[
+        [
+            StatementRule
+            | StatementTheory
+            | StatementOptimize
+            | StatementWeakConstraint
+            | StatementShow
+            | StatementShowNothing
+            | StatementShowSignature
+            | StatementProject
+            | StatementProjectSignature
+            | StatementDefined
+            | StatementExternal
+            | StatementEdge
+            | StatementHeuristic
+            | StatementScript
+            | StatementInclude
+            | StatementProgram
+            | StatementParts
+            | StatementConst
+            | StatementComment
+        ],
+        None,
+    ],
+    control: clingo.control.Control | None = None,
+) -> None:
+    """
+    Parse the program in the given files.
+
+    The parser follows clingo's handling of files on the command line. Filename
+    "-" is treated as "STDIN" and if an empty list is given, then the parser will
+    read from "STDIN".
+
+    Args:
+        lib: A library object to store symbols.
+        files: The files to parse.
+        callback: Function to report statements.
+        control: Optional Control object to handle ASPIF.
     """
 
 def parse_head_literal(
@@ -221,6 +264,45 @@ def parse_statement(
 
     Returns:
         The parsed Statement object.
+    """
+
+def parse_string(
+    lib: clingo.core.Library,
+    program: str,
+    callback: typing.Callable[
+        [
+            StatementRule
+            | StatementTheory
+            | StatementOptimize
+            | StatementWeakConstraint
+            | StatementShow
+            | StatementShowNothing
+            | StatementShowSignature
+            | StatementProject
+            | StatementProjectSignature
+            | StatementDefined
+            | StatementExternal
+            | StatementEdge
+            | StatementHeuristic
+            | StatementScript
+            | StatementInclude
+            | StatementProgram
+            | StatementParts
+            | StatementConst
+            | StatementComment
+        ],
+        None,
+    ],
+    control: clingo.control.Control | None = None,
+) -> None:
+    """
+    Parse the program in the given string.
+
+    Args:
+        lib: A library object to store symbols.
+        program: The program to parse.
+        callback: Function to report statements.
+        control: Optional Control object to handle ASPIF.
     """
 
 def parse_term(
@@ -3330,54 +3412,6 @@ class RightGuard:
     ):
         """
         The term of the guard.
-        """
-
-class Scanner:
-    """
-    Scanner to parse statements.
-    """
-
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __enter__(self) -> Scanner:
-        """
-        Return self.
-        """
-
-    def __exit__(self, arg0: typing.Any, arg1: typing.Any, arg2: typing.Any) -> bool:
-        """
-        Close the scanner object.
-        """
-
-    @typing.overload
-    def __init__(self, lib: clingo.core.Library, program: str) -> None:
-        """
-        Create a scanner to parse from the given string.
-
-        Args:
-            lib: A library object to store symbols.
-            program: The program to parse.
-        """
-
-    @typing.overload
-    def __init__(
-        self, lib: clingo.core.Library, files: collections.abc.Sequence[str]
-    ) -> None:
-        """
-        Create a scanner to parse from the given files.
-
-        The scanner follows clingo's handling of files on the command line. Filename
-        "-" is treated as "STDIN" and if an empty list is given, then the parser will
-        read from "STDIN".
-
-        Args:
-            lib: A library object to store symbols.
-            files: A list of files to parse.
-        """
-
-    def __iter__(self) -> typing.Iterator:
-        """
-        Return an iterator over parsed statements.
         """
 
 class SetAggregateElement:

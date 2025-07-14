@@ -17,7 +17,7 @@ test: debug
 
 venv: .venv
 
-compdb: .venv all
+compdb: .venv build/debug/CMakeCache.txt
 	source .venv/bin/activate && compdb -p "build/debug" list -1 > compile_commands.json
 	source .venv/bin/activate && python "scripts/compdb-cpp-headers.py"
 

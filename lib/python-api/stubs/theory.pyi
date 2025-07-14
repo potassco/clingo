@@ -8,10 +8,12 @@ import typing
 
 import clingo.app
 import clingo.control
+import clingo.core
 import clingo.solve
+import clingo.stats
 import clingo.symbol
 
-__all__ = ["Theory"]
+__all__ = ["Theory", "TheoryAssignment"]
 
 class Theory:
     """
@@ -20,19 +22,17 @@ class Theory:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __init__(self, theory_pointer: typing.Any) -> None:
+    def __init__(self, library: clingo.core.Library, create: typing.Any) -> None:
         """
-        Construct a theory object from the given pointer.
+        Construct a theory object.
 
         Args:
-            theory_pointer: A capsule object holding a clingo_theory_t pointer.
+            library: Library object to store symbols in.
+            create:
+                A capsule object holding a function pointer to initialize the theory.
         """
 
-    def assignment(
-        self, thread_id: int
-    ) -> typing.Iterator[
-        tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]
-    ]:
+    def assignment(self, thread_id: int) -> TheoryAssignment:
         """
         Get the symbols and values currently assigned by the theory
 
@@ -68,6 +68,25 @@ class Theory:
 
         Args:
             model: The current model.
+        """
+
+    def on_stats(self, step: clingo.stats.Stats, accu: clingo.stats.Stats) -> None:
+        """
+        Let the theory update statistics.
+
+        Some theories extend the statistics here.
+
+        Args:
+            step: The per step statistics.
+            accu: The accumulated statistics.
+        """
+
+    def prepare(self, control: clingo.control.Control) -> None:
+        """
+        Prepare the theory for solving.
+
+        Args:
+            control: The control object using for solving.
         """
 
     def register(self, control: clingo.control.Control) -> None:
@@ -148,6 +167,33 @@ class Theory:
             callback: The callback receiving rewritten statements.
         """
 
+    def rewrite_files(
+        self,
+        lib: clingo.core.Library,
+        control: clingo.control.Control,
+        files: typing.Sequence[str],
+    ) -> None:
+        """
+        Rewrite the program in the given files and add it to the control.
+
+        Args:
+            lib: The library to store symbols.
+            control: The target control..
+            files: The files to parse.
+        """
+
+    def rewrite_string(
+        self, lib: clingo.core.Library, control: clingo.control.Control, program: str
+    ) -> None:
+        """
+        Rewrite the given program adding it to the control object.
+
+        Args:
+            lib: The library to store symbols.
+            control: The target control..
+            program: The program to parse.
+        """
+
     def validate_options(self) -> None:
         """
         Check the registered options.
@@ -190,18 +236,14 @@ class Theory:
         Get the version of the theory (major, minor, revision).
         """
 
-class _TheoryAssignment:
+class TheoryAssignment:
     """
-    Internal class.
+    Assignment of theory values.
     """
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __iter__(
-        self,
-    ) -> typing.Iterator[
-        tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]
-    ]:
+    def __iter__(self) -> TheoryAssignment:
         """
         Return self.
         """
@@ -211,4 +253,26 @@ class _TheoryAssignment:
     ) -> tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]:
         """
         Get the next symbol value pair.
+        """
+
+    def at(
+        self, index: int
+    ) -> tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]:
+        """
+        Get the value at the given index in the assignment.
+
+        Args:
+            index: The index of the value
+        Returns:
+            The value.
+        """
+
+    def lookup(self, symbol: clingo.symbol.Symbol) -> int | None:
+        """
+        Get the value index of the symbol in the assignment.
+
+        Args:
+            symbol: The symbol to lookup.
+        Returns:
+            The value or None if unnassigned.
         """

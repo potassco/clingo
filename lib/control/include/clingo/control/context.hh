@@ -36,17 +36,37 @@ using VarMap = Util::unordered_map<String, size_t>;
 //! A map from terms to the indices defining them.
 using DefMap = Util::unordered_map<Input::Term const *, std::vector<size_t>>;
 
+//! Class storing profiling data for a program.
 class ProfileProgram {
   public:
+    //! Add a profiling node for a statement.
+    //!
+    //! If a node for the given statement already exists, it is returned.
+    //! Simple pointer equality is used to check for existing nodes.
     auto add(Input::Stm const &stm) -> Ground::ProfileNodeInternal &;
+    //! Print the profiling data to the given output stream.
     void print(std::ostream &out, Ground::ProfileType type, Ground::ProfileDetail detail) const;
+    //! Begin a new grounding step.
+    //!
+    //! This resets the per step data to zero.
     void begin_step();
+    //! End the current grounding step.
+    //!
+    //! This accumulates the per step data into the accumulated data.
     void end_step();
+    //! Visit all profiling nodes with the given visitor function.
+    void accept(Ground::ProfileNode::Visitor const &visit) const {
+        for (auto const &[_, node] : nodes_) {
+            node->accept(visit, 0);
+        }
+    }
 
   private:
+    //! A map from statements to their profiling nodes.
     using NodeMap = Util::ordered_map<Input::Stm const *, std::unique_ptr<Ground::ProfileNodeInternal>,
                                       std::hash<Input::Stm const *>, std::equal_to<void>>;
 
+    //! The map from statements to profiling nodes.
     NodeMap nodes_;
 };
 

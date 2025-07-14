@@ -363,6 +363,10 @@ void Grounder::print_summary(bool final) {
     }
 }
 
+void Grounder::accept(Ground::ProfileNode::Visitor const &visit) const {
+    impl_->profile.accept(visit);
+}
+
 auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context) -> bool {
     prepare_();
     CLINGO_REPORT(*impl_->log, debug) << "grounding...";

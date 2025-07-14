@@ -348,12 +348,6 @@ class Control:
         """
 
     @property
-    def mode(self) -> ControlMode:
-        """
-        Get the application mode.
-        """
-
-    @property
     def parts(
         self,
     ) -> typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None:
@@ -367,9 +361,15 @@ class Control:
         arg1: typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None,
     ) -> None: ...
     @property
-    def stats(self) -> dict:
+    def profile(self) -> list:
         """
-        Get the solver stats.
+        Get the profiling information as a list of profile nodes.
+
+        Each node is a dictionary with keys such as "type", "key", "depth", "nested",
+        "children", etc. Returns a list of top-level profile nodes representing the
+        profiling tree.
+
+        The result is directly convertible to JSON using Python's `json` module.
         """
 
 class _ConstMap:
