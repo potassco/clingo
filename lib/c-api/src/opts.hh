@@ -142,7 +142,7 @@ class ClingoOptions {
                     rewrite_opts_.profile |= Input::ProfileFlags::step;
                 } else if (ieq(x[1], "accu")) {
                     rewrite_opts_.profile |= Input::ProfileFlags::accu;
-                } else if (ieq(x[1], "full")) {
+                } else if (ieq(x[1], "both")) {
                     rewrite_opts_.profile |= Input::ProfileFlags::step;
                     rewrite_opts_.profile |= Input::ProfileFlags::accu;
                 } else {

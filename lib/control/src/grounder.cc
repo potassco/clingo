@@ -144,8 +144,8 @@ class Builder : public Input::DependencyBuilder {
 //! Class storing/hiding relevant state for grounding.
 struct Grounder::Impl : CppClingo::SymbolOwner {
     //! Construct the grounder implementation.
-    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
-        : log{&log}, store{&store}, prg{opts}, out{&out} {
+    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out, bool has_output)
+        : log{&log}, store{&store}, prg{opts}, out{&out}, has_output{has_output} {
         this->store->gc_add_owner(*this);
     }
     //! Destroy the grounder implementation.
@@ -282,10 +282,12 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
     OutputStm *out;
     //! Indicate that the logic program might still be satisfiable.
     bool is_sat = true;
+    //! Whether the grounder has an associated text ouput.
+    bool has_output;
 };
 
-Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
-    : impl_{std::make_unique<Impl>(log, store, opts, out)} {
+Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out, bool has_output)
+    : impl_{std::make_unique<Impl>(log, store, opts, out, has_output)} {
 }
 
 Grounder::~Grounder() noexcept = default;
@@ -390,7 +392,9 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
     }
     impl_->out->end_step();
     if (p != Input::ProfileFlags::off && !params.empty()) {
-        if (intersects(p, Input::ProfileFlags::step)) {
+        // NOTE: It would be better to use an event here that can be handled by
+        // the text output.
+        if (impl_->has_output && intersects(p, Input::ProfileFlags::step)) {
             auto d = intersects(p, Input::ProfileFlags::detailed) ? Ground::ProfileDetail::detailed
                                                                   : Ground::ProfileDetail::compact;
             impl_->profile.print(std::cerr, Ground::ProfileType::step, d);
