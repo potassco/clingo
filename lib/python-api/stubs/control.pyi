@@ -367,6 +367,18 @@ class Control:
         arg1: typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None,
     ) -> None: ...
     @property
+    def profile(self) -> list:
+        """
+        Get the profiling information as a list of profile nodes.
+
+        Each node is a dictionary with keys such as "type", "key", "depth", "nested",
+        "children", etc. Returns a list of top-level profile nodes representing the
+        profiling tree.
+
+        The result is directly convertible to JSON using Python's `json` module.
+        """
+
+    @property
     def stats(self) -> dict:
         """
         Get the solver stats.

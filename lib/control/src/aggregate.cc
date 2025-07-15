@@ -33,7 +33,8 @@ auto init_guards(BuildContext &ctx, Ground::VariableSet &vars_global, auto &lit)
 
 } // namespace
 
-void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
+void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit, Ground::ProfileNodeInternal *node) {
+    Ground::ProfileNodeInternal *node_lit = nullptr;
     auto vars_global = Ground::VariableSet{};
     auto vars_body = init_vars(ctx);
     auto guards = init_guards(ctx, vars_global, lit);
@@ -77,7 +78,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
             }
             // choice rule
             ctx.gcomp().add(std::make_unique<Ground::StmRule>(ctx.simple_lit(elem.lit()), std::move(body),
-                                                              Ground::RuleType::choice));
+                                                              Ground::RuleType::choice, node));
         }
         return;
     }
@@ -163,17 +164,21 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
     // add accumulation rules for tuples
     auto add_elem = [&](auto &state) {
         for (auto &[tuple, head, loc, cond] : elems) {
+            if (node != nullptr && node_lit == nullptr) {
+                node_lit =
+                    &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::HdLitAggregate>>(lit));
+            }
             cond.emplace_back(std::make_unique<Ground::LitHdAggr>(state));
             ctx.gcomp().add(std::make_unique<Ground::StmHdAggrElem>(state, std::move(head), std::move(loc),
-                                                                    std::move(tuple), std::move(cond)));
+                                                                    std::move(tuple), std::move(cond), node_lit));
         }
     };
 
     add_elem(state);
-    ctx.gcomp().add(std::make_unique<Ground::StmHdAggr>(state, std::move(ctx.body()), elem_priority));
+    ctx.gcomp().add(std::make_unique<Ground::StmHdAggr>(state, std::move(ctx.body()), elem_priority, node));
 }
 
-void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
+void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit, Ground::ProfileNodeInternal *node) {
     auto vars_global = Ground::VariableSet{};
     auto vars_body = init_vars(ctx);
     auto guards = init_guards(ctx, vars_global, lit);
@@ -270,11 +275,20 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
         return body;
     };
 
+    Ground::ProfileNodeInternal *sub_node = nullptr;
+    auto get_node = [&](bool nested) -> Ground::ProfileNodeInternal * {
+        if (node != nullptr && sub_node == nullptr) {
+            sub_node =
+                &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::BdLitAggregate>>(lit, nested));
+        }
+        return sub_node;
+    };
+
     // add accumulation rule for neutral tuples
     auto add_empty = [&]<class T>(auto &state, Symbol neutral, Ground::ULitVec &&body) {
         ctx.gcomp().add(std::make_unique<T>(
             state, lit.loc(), Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)),
-            std::move(body), 0, elem_priority));
+            std::move(body), 0, elem_priority, get_node(false)));
     };
 
     // add accumulation rules for tuples
@@ -285,7 +299,8 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
             for (auto const &lit : ctx.body()) {
                 cond.emplace_back(lit->copy());
             }
-            ctx.gcomp().add(std::make_unique<T>(state, loc, std::move(tuple), std::move(cond), num, elem_priority));
+            ctx.gcomp().add(std::make_unique<T>(state, loc, std::move(tuple), std::move(cond), num, elem_priority,
+                                                get_node(false)));
         }
     };
 
@@ -294,9 +309,13 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
         std::vector<T> stms;
         stms.reserve(elems.size());
         for (auto &[loc, tuple, cond] : elems) {
+            if (sub_node == nullptr && node != nullptr) {
+                sub_node =
+                    &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::BdLitAggregate>>(lit, true));
+            }
             auto num = cond.size();
             cond.emplace_back(std::make_unique<Ground::LitTuple>(state.global(), state.symbols()));
-            stms.emplace_back(state, loc, std::move(tuple), std::move(cond), num, elem_priority);
+            stms.emplace_back(state, loc, std::move(tuple), std::move(cond), num, elem_priority, get_node(true));
         }
         return stms;
     };

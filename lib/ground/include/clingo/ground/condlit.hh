@@ -424,7 +424,8 @@ class LitCondLit : public Lit, private MatchCondLit {
 class LitCondLitStrat : public Lit, private InstanceCallback {
   public:
     //! Construct the literal.
-    LitCondLitStrat(StateCondLit &state, ULitVec premise) : state_{&state}, premise_{std::move(premise)} {}
+    LitCondLitStrat(StateCondLit &state, ULitVec premise, ProfileNodeInternal *node)
+        : state_{&state}, premise_{std::move(premise)}, node_{node} {}
 
   private:
     // lit interface
@@ -441,6 +442,7 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     // cb interface
     void do_init(size_t gen) override;
@@ -451,6 +453,7 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
 
     StateCondLit *state_;
     ULitVec premise_;
+    ProfileNodeInternal *node_;
 };
 
 //! Type of the helper statement to ground conditional literals.
@@ -466,8 +469,9 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream &;
 class StmCondLit : public Stm {
   public:
     //! Construct the statement.
-    StmCondLit(StmCondLitType type, StateCondLit &base, ULitVec body, size_t prio, size_t index)
-        : state_{&base}, body_{std::move(body)}, prio_{prio}, index_{index}, type_{type} {}
+    StmCondLit(StmCondLitType type, StateCondLit &base, ULitVec body, size_t prio, size_t index,
+               ProfileNodeInternal *node)
+        : state_{&base}, body_{std::move(body)}, prio_{prio}, index_{index}, node_{node}, type_{type} {}
 
   private:
     // statement interface
@@ -481,11 +485,13 @@ class StmCondLit : public Stm {
     [[nodiscard]] auto do_report(EvalContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     StateCondLit *state_;
     ULitVec body_;
     size_t prio_;
     size_t index_;
+    ProfileNodeInternal *node_;
     StmCondLitType type_;
 };
 

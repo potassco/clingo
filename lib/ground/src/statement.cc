@@ -116,7 +116,6 @@ void Linearizer::prepare(InstanceCallback &cb, ULitVec const &body, VariableSet 
         if (!lit->single_pass()) {
             rec_.emplace_back(i);
         }
-        // TODO: the domain flag could also be forced to avoid the is_important part
         if (cb.is_important(i) && !lit->domain()) {
             lit->vars(important, VarSelectMode::all);
         }

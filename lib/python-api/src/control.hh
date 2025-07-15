@@ -58,6 +58,7 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     auto backend() -> BackendManager;
     auto config() -> Config;
     auto stats() -> py::dict;
+    auto profile() -> py::list;
     void main();
     auto buffer() -> std::string_view;
     auto const_map() -> HintConstMap;

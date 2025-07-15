@@ -9,6 +9,7 @@ set(source-group
     "config.c"
     "control.c"
     "model.c"
+    "profile.c"
     "propagate.c"
     "solve.c"
     "stats.c"

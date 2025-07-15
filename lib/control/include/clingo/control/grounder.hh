@@ -19,7 +19,7 @@ class Grounder {
   public:
     struct Impl;
     //! Create a grounder object.
-    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out);
+    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out, bool has_output);
     //! Destroy grounder.
     ~Grounder() noexcept;
     //! Join with the given program.
@@ -35,6 +35,9 @@ class Grounder {
     auto const_map() -> Input::ConstMap const &;
     //! Ground the program.
     [[nodiscard]] auto ground(ProgramParamVec const &params, Ground::ScriptCallback *context = nullptr) -> bool;
+    //! Print per step summaries.
+    void print_summary(bool final);
+    void accept(Ground::ProfileNode::Visitor const &visit) const;
 
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);

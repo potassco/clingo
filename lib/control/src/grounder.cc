@@ -17,7 +17,6 @@
 #include <gperftools/profiler.h>
 #endif
 
-#include <iostream>
 #include <utility>
 
 namespace CppClingo::Control {
@@ -42,9 +41,9 @@ class Builder : public Input::DependencyBuilder {
   public:
     //! Construct the builder.
     Builder(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, TheorySigVec theory_directives,
-            Ground::Bases &base, Ground::ScriptCallback *context, OutputStm &out)
+            Ground::Bases &base, Ground::ScriptCallback *context, OutputStm &out, ProfileProgram &profile)
         : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{std::move(theory_directives)}, bases_{&base},
-          context_{context}, out_{&out} {}
+          context_{context}, out_{&out}, profile_{&profile} {}
 
   private:
     //! Handle program parameters.
@@ -85,6 +84,8 @@ class Builder : public Input::DependencyBuilder {
                                                   [this](auto const &sig) { return bases_->add_base(sig).domain(); });
                 auto gcomp = Ground::Component{domain};
                 auto states = Ground::UStateVec{};
+                auto src_it = ref_comp.srcs.begin();
+                auto src_ie = ref_comp.srcs.end();
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -102,15 +103,17 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{*mbr_,   *log_,    *store_, theory_directives_,
-                                            *bases_, ref_comp, def_map, gcomp,
-                                            var_map, body,     states,  context_};
-                    build_stm(ctx, *stm);
+                    auto ctx =
+                        BuildContext{*mbr_,   *log_, *store_, theory_directives_, *bases_,  ref_comp, def_map, gcomp,
+                                     var_map, body,  states,  context_,           *profile_};
+                    build_stm(ctx, *stm, src_it != src_ie ? *src_it++ : nullptr);
                 }
                 auto queue = Ground::Queue{};
                 lin.start(queue);
                 for (auto const &stm : gcomp.stms()) {
                     CLINGO_REPORT(*log_, debug) << "      " << *stm;
+                    // TODO::
+                    // - instantiators should associated profiling data with source context
                     lin.prepare(*stm, stm->body(), stm->important());
                 }
                 if (!queue.process(*log_, *store_, *out_)) {
@@ -132,6 +135,7 @@ class Builder : public Input::DependencyBuilder {
     Ground::Bases *bases_;
     Ground::ScriptCallback *context_;
     OutputStm *out_;
+    ProfileProgram *profile_;
     std::ostringstream buf_;
 };
 
@@ -140,8 +144,8 @@ class Builder : public Input::DependencyBuilder {
 //! Class storing/hiding relevant state for grounding.
 struct Grounder::Impl : CppClingo::SymbolOwner {
     //! Construct the grounder implementation.
-    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
-        : log{&log}, store{&store}, prg{opts}, out{&out} {
+    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out, bool has_output)
+        : log{&log}, store{&store}, prg{opts}, out{&out}, has_output{has_output} {
         this->store->gc_add_owner(*this);
     }
     //! Destroy the grounder implementation.
@@ -272,14 +276,18 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
     Input::Program prg;
     //! The atom and term bases.
     Ground::Bases bases;
+    //! Profiling data.
+    ProfileProgram profile;
     //! The output.
     OutputStm *out;
     //! Indicate that the logic program might still be satisfiable.
     bool is_sat = true;
+    //! Whether the grounder has an associated text ouput.
+    bool has_output;
 };
 
-Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
-    : impl_{std::make_unique<Impl>(log, store, opts, out)} {
+Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out, bool has_output)
+    : impl_{std::make_unique<Impl>(log, store, opts, out, has_output)} {
 }
 
 Grounder::~Grounder() noexcept = default;
@@ -348,6 +356,19 @@ auto Grounder::const_map() -> Input::ConstMap const & {
     return impl_->prg.const_map();
 }
 
+void Grounder::print_summary(bool final) {
+    auto p = impl_->prg.profile();
+    if (final && intersects(p, Input::ProfileFlags::accu)) {
+        auto d = intersects(p, Input::ProfileFlags::detailed) ? Ground::ProfileDetail::detailed
+                                                              : Ground::ProfileDetail::compact;
+        impl_->profile.print(std::cerr, Ground::ProfileType::accu, d);
+    }
+}
+
+void Grounder::accept(Ground::ProfileNode::Visitor const &visit) const {
+    impl_->profile.accept(visit);
+}
+
 auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context) -> bool {
     prepare_();
     CLINGO_REPORT(*impl_->log, debug) << "grounding...";
@@ -355,17 +376,31 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
 #ifdef CLINGO_PROFILE
     auto prof = Profiler{"clingo-ground.prof"};
 #endif
+    auto p = impl_->prg.profile();
+    if (p != Input::ProfileFlags::off && !params.empty()) {
+        impl_->profile.begin_step();
+    }
     if (impl_->is_sat) {
         impl_->prg.check(*impl_->log);
         impl_->bases.clear_aux();
         auto bld = Builder{impl_->mbr,   *impl_->log, *impl_->store, impl_->prg.theory_directives(),
-                           impl_->bases, context,     *impl_->out};
+                           impl_->bases, context,     *impl_->out,   impl_->profile};
         impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
         impl_->meta();
         impl_->project();
         impl_->clear();
     }
     impl_->out->end_step();
+    if (p != Input::ProfileFlags::off && !params.empty()) {
+        // NOTE: It would be better to use an event here that can be handled by
+        // the text output.
+        if (impl_->has_output && intersects(p, Input::ProfileFlags::step)) {
+            auto d = intersects(p, Input::ProfileFlags::detailed) ? Ground::ProfileDetail::detailed
+                                                                  : Ground::ProfileDetail::compact;
+            impl_->profile.print(std::cerr, Ground::ProfileType::step, d);
+        }
+        impl_->profile.end_step();
+    }
     return impl_->is_sat;
 }
 
@@ -373,7 +408,7 @@ void Grounder::output_unprocessed_program(std::ostream &out) {
     for (auto const &stm : impl_->unprocessed_prg.meta_stms()) {
         out << stm << "\n";
     }
-    for (auto const &[prg_stm, stms, facts] : impl_->unprocessed_prg.parts()) {
+    for (auto const &[prg_stm, stms, srcs, facts] : impl_->unprocessed_prg.parts()) {
         out << prg_stm << "\n";
         for (auto fact : facts) {
             out << fact << ".\n";

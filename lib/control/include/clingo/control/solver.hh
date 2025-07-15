@@ -78,8 +78,6 @@ struct SolverOptions {
     IStop istop = IStop::sat;
     //! Restrict to single shot-solving.
     bool single_shot = false;
-    //! Enable profiling.
-    bool profile = false;
 };
 
 //! A bit set of symbol selection flags.
@@ -696,6 +694,13 @@ class Solver : public BaseView {
         }
         return *sym_tab_;
     }
+
+    //! Print per step summaries.
+    //!
+    //! Currently outputs profiling data if enabled.
+    auto print_summary(bool final) { grd_.print_summary(final); }
+
+    void accept(Ground::ProfileNode::Visitor const &visit) const { grd_.accept(visit); }
 
   private:
     class ProgramBackendAdapter;

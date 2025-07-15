@@ -20,6 +20,7 @@ set(ide_source_group "Source Files")
 set(source-group
     "src/aggregate.cc"
     "src/condlit.cc"
+    "src/context.cc"
     "src/grounder.cc"
     "src/solver.cc"
     "src/statement.cc"

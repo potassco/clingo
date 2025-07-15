@@ -100,7 +100,7 @@ template <class T> class index_sequence {
     }
     //! Check if the sequence contains an element.
     [[nodiscard]] auto find(T value) const -> size_t {
-        // TODO: has linear complexity in the worst case:
+        // NOTE: has linear complexity in the worst case:
         // - locality could be improved
         // - reverse mapping could be stored
         for (auto const &[l, r, y] : values_) {

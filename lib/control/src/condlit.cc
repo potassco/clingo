@@ -10,7 +10,7 @@
 
 namespace CppClingo::Control {
 
-void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit) {
+void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit, Ground::ProfileNodeInternal *node) {
     auto vars_body = Ground::VariableSet{};
     for (auto const &lit : ctx.body()) {
         lit->vars(vars_body, Ground::VarSelectMode::all);
@@ -78,17 +78,25 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit) {
     auto &state =
         ctx.state<Ground::StateDisjunction>(ctx.mbr(), std::move(bases), vars_global.release(), index, sp_body);
 
+    Ground::ProfileNodeInternal *sub_node = nullptr;
+    auto get_node = [&]() {
+        if (node != nullptr && sub_node == nullptr) {
+            sub_node = &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::HdLitDisjunction>>(lit));
+        }
+        return sub_node;
+    };
+
     // add accumulation rules for tuples
     auto add_elem = [&](auto &state) {
         for (auto &[head, base, cond] : elems) {
             cond.emplace_back(std::make_unique<Ground::LitDisjunction>(state));
-            ctx.gcomp().add(
-                std::make_unique<Ground::StmDisjunctionElem>(state, std::move(head), *base, std::move(cond)));
+            ctx.gcomp().add(std::make_unique<Ground::StmDisjunctionElem>(state, std::move(head), *base, std::move(cond),
+                                                                         get_node()));
         }
     };
 
     add_elem(state);
-    ctx.gcomp().add(std::make_unique<Ground::StmDisjunction>(state, std::move(ctx.body()), elem_priority));
+    ctx.gcomp().add(std::make_unique<Ground::StmDisjunction>(state, std::move(ctx.body()), elem_priority, node));
 }
 
 namespace {
@@ -123,7 +131,7 @@ namespace {
 
 } // namespace
 
-void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit) {
+void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit, Ground::ProfileNodeInternal *node) {
     auto [has_conclusion, sp_conclusion, sp_premise, empty_index, premise_index, lit_index] = analyze(ctx, lit.lit());
     bool domain = true;
     auto add_lit = [&](auto &body, auto &vars, auto const &lit) {
@@ -175,11 +183,20 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit) {
     auto &base = ctx.state<Ground::StateCondLit>(ctx.mbr(), std::move(vars_local), std::move(vars_global), lit_index,
                                                  has_conclusion, sp_premise, domain);
 
+    Ground::ProfileNodeInternal *sub_node = nullptr;
+    auto get_node = [&](bool nested) {
+        if (node != nullptr && sub_node == nullptr) {
+            sub_node =
+                &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::BdLitConjunction>>(lit, nested));
+        }
+        return sub_node;
+    };
+
     // handle the single-pass case
     if (sp_conclusion && sp_premise) {
         assert(!has_conclusion);
         premise.insert(premise.begin(), std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base, 1));
-        ctx.body().emplace_back(std::make_unique<Ground::LitCondLitStrat>(base, std::move(premise)));
+        ctx.body().emplace_back(std::make_unique<Ground::LitCondLitStrat>(base, std::move(premise), get_node(true)));
     }
     // handle the multi-pass case
     else {
@@ -188,20 +205,21 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit) {
 
         // create: empty(clit(G)) :- B1.
         ctx.gcomp().add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body),
-                                                             ctx.inc_priority(), empty_index));
+                                                             ctx.inc_priority(), empty_index, get_node(false)));
 
         // create: premise(clit(G),L) :- empty(clit(G)), P.
         premise.insert(premise.begin(),
                        std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base, empty_index));
         ctx.gcomp().add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::premise, base, std::move(premise),
-                                                             ctx.inc_priority(), premise_index));
+                                                             ctx.inc_priority(), premise_index, get_node(false)));
 
         // create: conclusion(clit(G),L) :- premise(clit(G),L), C.
         if (has_conclusion) {
             conclusion.insert(conclusion.begin(), std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::premise,
                                                                                        base, premise_index));
             ctx.gcomp().add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::conclusion, base,
-                                                                 std::move(conclusion), ctx.inc_priority(), lit_index));
+                                                                 std::move(conclusion), ctx.inc_priority(), lit_index,
+                                                                 get_node(false)));
         }
 
         // create: H :- B1, clit(G), B2.

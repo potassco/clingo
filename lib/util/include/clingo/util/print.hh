@@ -247,7 +247,6 @@ class PrintQuoted {
     PrintQuoted(std::string_view str) : str_{str} {}
     //! Output quoted.
     template <class Out> friend auto operator<<(Out &out, PrintQuoted x) -> Out & {
-        // TODO: in principle there are the codepoints too...
         out << '"';
         for (auto c : x.str_) {
             if (c == '\\') {

@@ -4,6 +4,7 @@
 #include "stats.hh"
 #include "util.hh"
 
+#include <clingo/profile.h>
 #include <clingo/solve.h>
 
 #include <span>
@@ -157,6 +158,51 @@ auto Control::stats() -> py::dict {
     handle_error(clingo_stats_root(stats, &key));
     // NOLINTNEXTLINE
     return Stats{const_cast<clingo_stats_t *>(stats), key}.nestify();
+}
+
+auto Control::profile() -> py::list {
+    struct Data {
+        Data() = default;
+        auto add(size_t depth, char const *type) -> py::dict {
+            auto node = py::dict();
+            node["type"] = type;
+            if (depth < stack.size()) {
+                stack.resize(depth);
+            }
+            if (depth == 0) {
+                res.append(node);
+            } else {
+                stack.back()["children"].attr("append")(node);
+            }
+            stack.emplace_back(node);
+            return node;
+        }
+        py::list res;
+        std::vector<py::dict> stack;
+    } data;
+    auto visitor = clingo_profile_visitor_t{
+        [](size_t depth, char const *key, size_t key_size, bool nested, void *data) -> bool {
+            CLINGO_TRY {
+                auto node = static_cast<Data *>(data)->add(depth, "internal");
+                node["key"] = py::str(key, key_size);
+                node["nested"] = nested;
+                node["children"] = py::list();
+            }
+            CLINGO_CATCH;
+        },
+        [](size_t depth, clingo_profile_data_t *values, clingo_profile_type_t type, void *data) -> bool {
+            CLINGO_TRY {
+                auto node = static_cast<Data *>(data)->add(depth, "leaf");
+                node["profile_type"] = type == clingo_profile_type_step ? "step" : "accu";
+                node["matches"] = values->matches;
+                node["instances"] = values->instances;
+                node["time_instantiate"] = values->time_instantiate;
+                node["time_propagate"] = values->time_propagate;
+            }
+            CLINGO_CATCH;
+        }};
+    handle_error(clingo_control_profile(get(), &visitor, &data));
+    return std::move(data.res);
 }
 
 auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
@@ -555,6 +601,15 @@ Args:
         .def_property_readonly("config", &Control::config, R"(Get the solver config.)")
         .def_property_readonly("stats", &Control::stats, R"(Get the solver stats.)")
         .def_property_readonly("mode", &Control::mode, R"(Get the application mode.)")
+        .def_property_readonly("profile", &Control::profile, R"(
+Get the profiling information as a list of profile nodes.
+
+Each node is a dictionary with keys such as "type", "key", "depth", "nested",
+"children", etc. Returns a list of top-level profile nodes representing the
+profiling tree.
+
+The result is directly convertible to JSON using Python's `json` module.
+)"_d)
         .def_property_readonly("const_map", &Control::const_map,
                                R"(Get the map of constants defined by `#const` directives.)")
         .def_property("parts", &Control::parts, &Control::set_parts, R"(Get/set the program parts to ground.)");

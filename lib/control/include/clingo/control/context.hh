@@ -15,6 +15,8 @@
 #include <clingo/util/small_vector.hh>
 #include <clingo/util/type_traits.hh>
 
+#include <ostream>
+
 namespace CppClingo::Control {
 
 //! @addtogroup control
@@ -34,6 +36,40 @@ using VarMap = Util::unordered_map<String, size_t>;
 //! A map from terms to the indices defining them.
 using DefMap = Util::unordered_map<Input::Term const *, std::vector<size_t>>;
 
+//! Class storing profiling data for a program.
+class ProfileProgram {
+  public:
+    //! Add a profiling node for a statement.
+    //!
+    //! If a node for the given statement already exists, it is returned.
+    //! Simple pointer equality is used to check for existing nodes.
+    auto add(Input::Stm const &stm) -> Ground::ProfileNodeInternal &;
+    //! Print the profiling data to the given output stream.
+    void print(std::ostream &out, Ground::ProfileType type, Ground::ProfileDetail detail) const;
+    //! Begin a new grounding step.
+    //!
+    //! This resets the per step data to zero.
+    void begin_step();
+    //! End the current grounding step.
+    //!
+    //! This accumulates the per step data into the accumulated data.
+    void end_step();
+    //! Visit all profiling nodes with the given visitor function.
+    void accept(Ground::ProfileNode::Visitor const &visit) const {
+        for (auto const &[_, node] : nodes_) {
+            node->accept(visit, 0);
+        }
+    }
+
+  private:
+    //! A map from statements to their profiling nodes.
+    using NodeMap = Util::ordered_map<Input::Stm const *, std::unique_ptr<Ground::ProfileNodeInternal>,
+                                      std::hash<Input::Stm const *>, std::equal_to<void>>;
+
+    //! The map from statements to profiling nodes.
+    NodeMap nodes_;
+};
+
 //! Context object holding necessary data for translating from input to ground
 //! representation.
 class BuildContext {
@@ -42,9 +78,10 @@ class BuildContext {
     BuildContext(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store,
                  TheorySigVec const &theory_directives, Ground::Bases &base, Input::Component const &comp,
                  DefMap &def_map, Ground::Component &gcomp, VarMap &var_map, Ground::ULitVec &body,
-                 Ground::UStateVec &states, Ground::ScriptCallback *context)
+                 Ground::UStateVec &states, Ground::ScriptCallback *context, ProfileProgram &profile)
         : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{&theory_directives}, base_{&base}, comp_{&comp},
-          def_map_{&def_map}, gcomp_{&gcomp}, var_map_{&var_map}, body_{&body}, states_{&states}, context_{context} {}
+          def_map_{&def_map}, gcomp_{&gcomp}, var_map_{&var_map}, body_{&body}, states_{&states}, context_{context},
+          profile_{&profile} {}
 
     //! Get the index of the given symbolic literal.
     [[nodiscard]] auto index(Input::LitSymbolic const &lit) const -> size_t {
@@ -82,6 +119,9 @@ class BuildContext {
 
     //! Get the associated context to call scripts.
     [[nodiscard]] auto context() const -> Ground::ScriptCallback * { return context_; }
+
+    //! Get the symbol store.
+    [[nodiscard]] auto profile() const -> ProfileProgram & { return *profile_; }
 
     //! Add a base for a projection.
     auto add_project(Ground::UTerm const &term, Ground::AtomBase &base)
@@ -184,6 +224,7 @@ class BuildContext {
     Ground::ULitVec *body_;
     Ground::UStateVec *states_;
     Ground::ScriptCallback *context_;
+    ProfileProgram *profile_;
     size_t priority = 0;
     size_t index_ = 0;
 };

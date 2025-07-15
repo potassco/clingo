@@ -259,8 +259,8 @@ class LitMatchTheory : public Lit, private MatchTheory {
 class StmTheoryElement : public Stm {
   public:
     //! Construct the statement.
-    StmTheoryElement(StateTheory &state, UTheoryTermVec tuple, ULitVec body)
-        : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)} {}
+    StmTheoryElement(StateTheory &state, UTheoryTermVec tuple, ULitVec body, ProfileNodeInternal *node)
+        : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, node_{node} {}
 
   private:
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
@@ -271,11 +271,13 @@ class StmTheoryElement : public Stm {
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     StateTheory *state_;
     StateTheory::ElementKey *elem_key_ = nullptr;
     UTheoryTermVec tuple_;
     ULitVec body_;
+    ProfileNodeInternal *node_;
 };
 
 //! Literal to match a theory atom.
@@ -308,7 +310,8 @@ class LitBdTheory : public Lit {
 class StmHdTheory : public Stm {
   public:
     //! Construct the statement.
-    StmHdTheory(StateTheory &state, ULitVec body) : state_{&state}, body_{std::move(body)} {}
+    StmHdTheory(StateTheory &state, ULitVec body, ProfileNodeInternal *node)
+        : state_{&state}, body_{std::move(body)}, node_{node} {}
 
   private:
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
@@ -319,9 +322,11 @@ class StmHdTheory : public Stm {
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_profile_node() const -> ProfileNodeInternal * override { return node_; }
 
     StateTheory *state_;
     ULitVec body_;
+    ProfileNodeInternal *node_;
 };
 
 //! @}

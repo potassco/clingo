@@ -884,7 +884,7 @@ class SimplifyLiteral {
     //! The function ensures the following properties:
     //! (1) both sides of assignments are matchable (if parts of the terms are matchable),
     //! (2) terms in disjunctive non-binary relations cannot evaluate to empty pools.
-    //! The letter is important to ensure that relations can be split into multiple rules
+    //! The latter is important to ensure that relations can be split into multiple rules
     //! without unintuitive side-effects.
     //!
     //! Consider the program

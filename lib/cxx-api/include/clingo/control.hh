@@ -5,6 +5,7 @@
 #include <clingo/config.hh>
 #include <clingo/core.hh>
 #include <clingo/observe.hh>
+#include <clingo/profile.h>
 #include <clingo/propagate.hh>
 #include <clingo/solve.hh>
 #include <clingo/stats.hh>
@@ -15,6 +16,7 @@
 #include <cassert>
 #include <optional>
 #include <span>
+#include <variant>
 
 namespace Clingo {
 
@@ -171,6 +173,44 @@ enum class DiscardType {
     project = clingo_discard_type_e::project,   //!< Discard project statements.
 };
 
+//! Enumeration of the types of profiling data.
+enum class ProfileType : clingo_profile_type_t {
+    step = clingo_profile_type_step, //!< Indicate per step profiling data.
+    accu = clingo_profile_type_accu, //!< Indicate accumulated profiling data.
+};
+
+//! Class to hold profiling data for an expression in a logic program.
+struct ProfileNodeLeaf {
+    //! Constructs a profile leaf node with the given type and profiling data.
+    ProfileNodeLeaf(ProfileType type, uint64_t matches = 0, uint64_t instances = 0, uint64_t time_instantiate = 0,
+                    uint64_t time_propagate = 0)
+        : type{type}, matches{matches}, instances{instances}, time_instantiate{time_instantiate},
+          time_propagate{time_propagate} {}
+
+    ProfileType type;          //!< The type of the profiling data.
+    uint64_t matches;          //!< The number of matches for the expression.
+    uint64_t instances;        //!< The number of instances of the expression.
+    uint64_t time_instantiate; //!< The time spent instantiating the expression.
+    uint64_t time_propagate;   //!< The time spent propagating the expression.
+};
+
+struct ProfileNodeInternal;
+//! A profile node that can be either an internal node or a leaf node.
+using ProfileNode = std::variant<ProfileNodeInternal, ProfileNodeLeaf>;
+
+//! Class to hold profiling data for an expression in a logic program.
+struct ProfileNodeInternal {
+    //! Constructs a profile internal node with the given key.
+    ProfileNodeInternal(std::string key, bool nested) : key{std::move(key)}, nested{nested} {}
+
+    //! The key of the profile node.
+    std::string key;
+    //! Whether times are included in the parent.
+    bool nested;
+    //! The children of the profile node.
+    std::vector<ProfileNode> children;
+};
+
 //! The main control class for grounding and solving logic programs.
 //!
 //! Control objects are reference counted. For example, care must be taken not
@@ -312,6 +352,57 @@ class Control {
         auto const *stats = Detail::call<clingo_control_stats>(ctl_.get());
         auto key = Detail::call<clingo_stats_root>(stats);
         return ConstStats{stats, key};
+    }
+
+    //! Obtain the profiling data of the control object.
+    //!
+    //! To obtain profiling data, the control object must be created with the
+    //! `--profile` option.
+    //!
+    //! @return a vector of profile nodes representing the profiling data
+    auto profile() -> std::vector<ProfileNode> {
+        struct Builder {
+            static auto internal(size_t depth, char const *key, size_t key_size, bool nested, void *data) -> bool {
+                CLINGO_TRY {
+                    auto *self = static_cast<Builder *>(data);
+                    assert(depth <= self->stack.size());
+                    self->stack.resize(depth);
+                    auto node = ProfileNodeInternal{std::string{key, key_size}, nested};
+                    if (self->stack.empty()) {
+                        self->roots.emplace_back(std::move(node));
+                        self->stack.emplace_back(&self->roots.back());
+                    } else {
+                        auto &children = std::get<ProfileNodeInternal>(*self->stack.back()).children;
+                        children.emplace_back(std::move(node));
+                        self->stack.emplace_back(&children.back());
+                    }
+                }
+                CLINGO_CATCH;
+            }
+            static auto leaf(size_t depth, clingo_profile_data_t *values, clingo_profile_type_t type, void *data)
+                -> bool {
+                CLINGO_TRY {
+                    auto *self = static_cast<Builder *>(data);
+                    assert(depth <= self->stack.size());
+                    self->stack.resize(depth);
+                    auto node = ProfileNodeLeaf{static_cast<ProfileType>(type), values->matches, values->instances,
+                                                values->time_instantiate, values->time_propagate};
+                    if (self->stack.empty()) {
+                        self->roots.emplace_back(node);
+                    } else {
+                        std::get<ProfileNodeInternal>(*self->stack.back()).children.emplace_back(node);
+                    }
+                }
+                CLINGO_CATCH;
+            }
+
+            std::vector<ProfileNode *> stack;
+            std::vector<ProfileNode> roots;
+        } builder;
+
+        auto visitor = clingo_profile_visitor_t{&Builder::internal, &Builder::leaf};
+        clingo_control_profile(ctl_.get(), &visitor, &builder);
+        return std::move(builder.roots);
     }
 
     //! Solve the grounded program with the given assumptions and flags.

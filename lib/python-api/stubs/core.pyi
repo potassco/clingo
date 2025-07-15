@@ -171,6 +171,11 @@ class Library:
             message_limit: The maximum number of messages to emit.
         """
 
+    def _capsule(self) -> types.CapsuleType:
+        """
+        Get a capsule holding the underlying C library object.
+        """
+
 class Location:
     """
     Represents a range of positions in a source file.

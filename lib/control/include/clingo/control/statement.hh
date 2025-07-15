@@ -8,7 +8,7 @@ namespace CppClingo::Control {
 //! @{
 
 //! Translate input statements to their ground representation.
-void build_stm(BuildContext &ctx, Input::Stm const &stm);
+void build_stm(BuildContext &ctx, Input::Stm const &stm, Input::Stm const *src);
 
 //! @}
 
