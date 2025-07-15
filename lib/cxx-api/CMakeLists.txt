@@ -41,6 +41,7 @@ set(test-group
     "tests/incremental.cc"
     "tests/lp.hh"
     "tests/observe.cc"
+    "tests/profile.cc"
     "tests/propagate.cc"
     "tests/script.cc"
     "tests/solve.cc"

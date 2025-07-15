@@ -180,9 +180,9 @@ enum class ProfileType : clingo_profile_type_t {
 };
 
 //! Class to hold profiling data for an expression in a logic program.
-struct ProfileLeafNode {
+struct ProfileNodeLeaf {
     //! Constructs a profile leaf node with the given type and profiling data.
-    ProfileLeafNode(ProfileType type, uint64_t matches = 0, uint64_t instances = 0, uint64_t time_instantiate = 0,
+    ProfileNodeLeaf(ProfileType type, uint64_t matches = 0, uint64_t instances = 0, uint64_t time_instantiate = 0,
                     uint64_t time_propagate = 0)
         : type{type}, matches{matches}, instances{instances}, time_instantiate{time_instantiate},
           time_propagate{time_propagate} {}
@@ -194,14 +194,14 @@ struct ProfileLeafNode {
     uint64_t time_propagate;   //!< The time spent propagating the expression.
 };
 
-struct ProfileInternalNode;
+struct ProfileNodeInternal;
 //! A profile node that can be either an internal node or a leaf node.
-using ProfileNode = std::variant<ProfileInternalNode, ProfileLeafNode>;
+using ProfileNode = std::variant<ProfileNodeInternal, ProfileNodeLeaf>;
 
 //! Class to hold profiling data for an expression in a logic program.
-struct ProfileInternalNode {
+struct ProfileNodeInternal {
     //! Constructs a profile internal node with the given key.
-    ProfileInternalNode(std::string key, bool nested) : key{std::move(key)}, nested{nested} {}
+    ProfileNodeInternal(std::string key, bool nested) : key{std::move(key)}, nested{nested} {}
 
     //! The key of the profile node.
     std::string key;
@@ -363,29 +363,37 @@ class Control {
     auto profile() -> std::vector<ProfileNode> {
         struct Builder {
             static auto internal(size_t depth, char const *key, size_t key_size, bool nested, void *data) -> bool {
-                auto *self = static_cast<Builder *>(data);
-                self->stack.resize(depth);
-                auto node = ProfileInternalNode{std::string{key, key_size}, nested};
-                if (self->stack.empty()) {
-                    self->roots.emplace_back(std::move(node));
-                    self->stack.emplace_back(&self->roots.back());
-                } else {
-                    std::get<ProfileInternalNode>(*self->stack.back()).children.emplace_back(std::move(node));
+                CLINGO_TRY {
+                    auto *self = static_cast<Builder *>(data);
+                    assert(depth <= self->stack.size());
+                    self->stack.resize(depth);
+                    auto node = ProfileNodeInternal{std::string{key, key_size}, nested};
+                    if (self->stack.empty()) {
+                        self->roots.emplace_back(std::move(node));
+                        self->stack.emplace_back(&self->roots.back());
+                    } else {
+                        auto &children = std::get<ProfileNodeInternal>(*self->stack.back()).children;
+                        children.emplace_back(std::move(node));
+                        self->stack.emplace_back(&children.back());
+                    }
                 }
-                return true;
+                CLINGO_CATCH;
             }
             static auto leaf(size_t depth, clingo_profile_data_t *values, clingo_profile_type_t type, void *data)
                 -> bool {
-                auto *self = static_cast<Builder *>(data);
-                self->stack.resize(depth);
-                auto node = ProfileLeafNode{static_cast<ProfileType>(type), values->matches, values->instances,
-                                            values->time_instantiate, values->time_propagate};
-                if (self->stack.empty()) {
-                    self->roots.emplace_back(node);
-                } else {
-                    std::get<ProfileInternalNode>(*self->stack.back()).children.emplace_back(node);
+                CLINGO_TRY {
+                    auto *self = static_cast<Builder *>(data);
+                    assert(depth <= self->stack.size());
+                    self->stack.resize(depth);
+                    auto node = ProfileNodeLeaf{static_cast<ProfileType>(type), values->matches, values->instances,
+                                                values->time_instantiate, values->time_propagate};
+                    if (self->stack.empty()) {
+                        self->roots.emplace_back(node);
+                    } else {
+                        std::get<ProfileNodeInternal>(*self->stack.back()).children.emplace_back(node);
+                    }
                 }
-                return true;
+                CLINGO_CATCH;
             }
 
             std::vector<ProfileNode *> stack;
