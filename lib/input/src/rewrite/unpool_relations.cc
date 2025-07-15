@@ -373,6 +373,14 @@ struct UnpoolStatement {
 
 [[nodiscard]] auto unpool_relations(Lit const &lit, bool conjunctive) -> std::optional<LitArray> {
     auto const *rel = std::get_if<LitComparison>(&lit);
+    if (rel != nullptr && rel->rhs().size() == 1 && rel->sign() == Sign::once) {
+        auto const &rhs = rel->rhs().front();
+        std::vector<Lit> res;
+        res.reserve(1);
+        res.emplace_back(
+            rel->update(a_sign = Sign::none, a_rhs = Util::make_vec<Guard>(Guard{complement(rhs.first), rhs.second})));
+        return res;
+    }
     if (rel != nullptr && rel->rhs().size() > 1 && conjunctive == (rel->sign() != Sign::once)) {
         auto const *lhs = &rel->lhs();
         std::vector<Lit> res;
