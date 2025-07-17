@@ -176,6 +176,8 @@ class Theory {
 
     //! Disable copy and move operations for the Theory class.
     Theory(Theory &&other) = delete;
+    //! Disable copy and move operations for the Theory class.
+    auto operator=(Theory &&other) -> Theory & = delete;
 
     //! Destructor for the Theory class.
     ~Theory() {

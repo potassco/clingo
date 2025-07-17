@@ -23,6 +23,8 @@ class Script {
     Script() = default;
     //! Disable copy and move operations.
     Script(Script &&other) = delete;
+    //! Disable copy and move operations.
+    auto operator=(Script &&other) -> Script & = delete;
     //! The default destructor.
     virtual ~Script() = default;
 

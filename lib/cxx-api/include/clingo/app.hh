@@ -99,6 +99,8 @@ class App {
     App() = default;
     //! Disable copying and moving.
     App(App &&other) = delete;
+    //! Disable copying and moving.
+    auto operator=(App &&other) -> App & = delete;
     //! The default destructor.
     virtual ~App() = default;
 

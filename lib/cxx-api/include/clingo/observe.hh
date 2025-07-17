@@ -20,6 +20,9 @@ class Observer {
     //! Disable move and copy operations.
     Observer(Observer &&other) = delete;
 
+    //! Disable move and copy operations.
+    auto operator=(Observer &&other) -> Observer & = delete;
+
     //! The default destructor.
     virtual ~Observer() = default;
 

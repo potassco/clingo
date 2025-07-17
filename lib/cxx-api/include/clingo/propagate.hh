@@ -610,6 +610,8 @@ class Propagator {
     Propagator() = default;
     //! Disable copy and move operations.
     Propagator(Propagator &&other) = delete;
+    //! Disable copy and move operations.
+    auto operator=(Propagator &&other) -> Propagator & = delete;
     //! The default destructor.
     virtual ~Propagator() = default;
 

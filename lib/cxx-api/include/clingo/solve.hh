@@ -295,6 +295,8 @@ class SolveEventHandler {
 
     //! Disable copy and move operations.
     SolveEventHandler(SolveEventHandler &&other) = delete;
+    //! Disable copy and move operations.
+    auto operator=(SolveEventHandler &&other) -> SolveEventHandler & = delete;
 
     //! The default destructor.
     virtual ~SolveEventHandler() = default;
