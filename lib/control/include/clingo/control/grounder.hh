@@ -37,6 +37,7 @@ class Grounder {
     [[nodiscard]] auto ground(ProgramParamVec const &params, Ground::ScriptCallback *context = nullptr) -> bool;
     //! Print per step summaries.
     void print_summary(bool final);
+    //! Accept a visitor for the profile nodes.
     void accept(Ground::ProfileNode::Visitor const &visit) const;
 
     //! Output the current unprocessed program.

@@ -700,6 +700,7 @@ class Solver : public BaseView {
     //! Currently outputs profiling data if enabled.
     auto print_summary(bool final) { grd_.print_summary(final); }
 
+    //! Accept a visitor for the profile nodes.
     void accept(Ground::ProfileNode::Visitor const &visit) const { grd_.accept(visit); }
 
   private:
