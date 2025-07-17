@@ -51,6 +51,10 @@ The commands below show how to build wheels for the current platform and for
 pyodide.
 
 ```bash
+# build using the current python environment
 pipx run build .
+# build using the latest stable cibw
 pipx run cibuildwheel --platform pyodide
+# build using the latest master of cibw
+pipx run --spec git+https://github.com/pypa/cibuildwheel -- cibuildwheel --only cp313-pyodide_wasm32 .
 ```

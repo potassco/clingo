@@ -14,4 +14,4 @@ archs = ["x86_64", "arm64"]
 archs = ["x86_64", "x86"]
 
 [tool.cibuildwheel.pyodide]
-python-versions = ["cp312"]
+python-versions = ["cp313"]
