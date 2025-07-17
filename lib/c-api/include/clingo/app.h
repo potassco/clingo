@@ -1,13 +1,13 @@
 #ifndef CLINGO_APP_H
 #define CLINGO_APP_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <clingo/control.h>
 #include <clingo/core.h>
 #include <clingo/solve.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 //! @example app.c
 //! The example shows how to extend the clingo application.

@@ -1,13 +1,13 @@
 #ifndef CLINGO_SCRIPT_H
 #define CLINGO_SCRIPT_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <clingo/control.h>
 #include <clingo/core.h>
 #include <clingo/symbol.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 //! @addtogroup c_script
 //! Support for calling external functions during grounding and customizing the main solving loop.

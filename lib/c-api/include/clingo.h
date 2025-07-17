@@ -6,10 +6,6 @@
 #ifndef CLINGO_H
 #define CLINGO_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <clingo/app.h>
 #include <clingo/ast.h>
 #include <clingo/base.h>
@@ -17,9 +13,5 @@ extern "C" {
 #include <clingo/core.h>
 #include <clingo/model.h>
 #include <clingo/symbol.h>
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

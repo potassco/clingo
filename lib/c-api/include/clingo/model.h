@@ -1,13 +1,13 @@
 #ifndef CLINGO_MODEL_H
 #define CLINGO_MODEL_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <clingo/base.h>
 #include <clingo/core.h>
 #include <clingo/symbol.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 //! @example model.c
 //! The example shows how to inspect a model.

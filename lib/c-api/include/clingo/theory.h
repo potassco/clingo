@@ -1,6 +1,12 @@
 #ifndef CLINGO_THEORY_H
 #define CLINGO_THEORY_H
 
+#include <clingo/app.h>
+#include <clingo/ast.h>
+#include <clingo/core.h>
+#include <clingo/stats.h>
+#include <clingo/symbol.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -25,12 +31,6 @@ extern "C" {
 //!
 //! For an example, refer to @ref theory.c.
 //! @{
-
-#include <clingo/app.h>
-#include <clingo/ast.h>
-#include <clingo/core.h>
-#include <clingo/stats.h>
-#include <clingo/symbol.h>
 
 //! The available value types.
 enum clingo_theory_value_type_e {

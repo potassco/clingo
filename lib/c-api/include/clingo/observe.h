@@ -1,14 +1,14 @@
 #ifndef CLINGO_OBSERVE_H
 #define CLINGO_OBSERVE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <clingo/base.h>
 #include <clingo/core.h>
 #include <clingo/shared.h>
 #include <clingo/symbol.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct clingo_control clingo_control_t;
 

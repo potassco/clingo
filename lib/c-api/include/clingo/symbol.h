@@ -1,11 +1,11 @@
 #ifndef CLINGO_SYMBOL_H
 #define CLINGO_SYMBOL_H
 
+#include <clingo/core.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <clingo/core.h>
 
 //! @example symbol.c
 //! The example shows how to create and inspect symbols.

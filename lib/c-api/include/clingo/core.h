@@ -1,39 +1,30 @@
 #ifndef CLINGO_CORE_H
 #define CLINGO_CORE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#if defined _WIN32 || defined __CYGWIN__
-#define CLINGO_WIN
-#endif
-#ifdef CLINGO_NO_VISIBILITY
+#if defined CLINGO_NO_VISIBILITY
 #define CLINGO_VISIBILITY_DEFAULT
 #define CLINGO_VISIBILITY_PRIVATE
-#else
-#ifdef CLINGO_WIN
+#elif defined __EMSCRIPTEN__
+#include <emscripten.h>
+#define CLINGO_VISIBILITY_DEFAULT EMSCRIPTEN_KEEPALIVE
+#define CLINGO_VISIBILITY_PRIVATE
+#elif defined _WIN32 || defined __CYGWIN__
 #ifdef CLINGO_BUILD_LIBRARY
 #define CLINGO_VISIBILITY_DEFAULT __declspec(dllexport)
 #else
 #define CLINGO_VISIBILITY_DEFAULT __declspec(dllimport)
 #endif
 #define CLINGO_VISIBILITY_PRIVATE
-#else
-#if __GNUC__ >= 4
+#elif __GNUC__ >= 4
 #define CLINGO_VISIBILITY_DEFAULT __attribute__((visibility("default")))
 #define CLINGO_VISIBILITY_PRIVATE __attribute__((visibility("hidden")))
 #else
-//! Set the visibility of a symbol to default.
 #define CLINGO_VISIBILITY_DEFAULT
-//! Set the visibility of a symbol to private.
 #define CLINGO_VISIBILITY_PRIVATE
-#endif
-#endif
 #endif
 
 #if defined __GNUC__
@@ -43,6 +34,10 @@ extern "C" {
 #else
 //! Mark a function as deprecated.
 #define CLINGO_DEPRECATED
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 //! @example version.c

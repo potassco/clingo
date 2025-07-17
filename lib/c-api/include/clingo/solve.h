@@ -1,13 +1,13 @@
 #ifndef CLINGO_SOLVE_H
 #define CLINGO_SOLVE_H
 
-#include "clingo/stats.h"
+#include <clingo/core.h>
+#include <clingo/model.h>
+#include <clingo/stats.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <clingo/core.h>
-#include <clingo/model.h>
 
 typedef struct clingo_control clingo_control_t;
 

@@ -1,13 +1,13 @@
 #ifndef CLINGO_SHARED_H
 #define CLINGO_SHARED_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 //! @addtogroup c_shared
 //! Enumerations shared by various modules.
 //! @{
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 //! Enumeration of different heuristic modifiers.
 enum clingo_heuristic_type_e {

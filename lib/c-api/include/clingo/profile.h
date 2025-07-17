@@ -1,11 +1,11 @@
 #ifndef CLINGO_PROFILE_H
 #define CLINGO_PROFILE_H
 
+#include <clingo/core.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <clingo/core.h>
 
 typedef struct clingo_control clingo_control_t;
 

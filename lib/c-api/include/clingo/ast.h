@@ -1,12 +1,12 @@
 #ifndef CLINGO_AST_H
 #define CLINGO_AST_H
 
+#include <clingo/core.h>
+#include <clingo/symbol.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <clingo/core.h>
-#include <clingo/symbol.h>
 
 typedef struct clingo_control clingo_control_t;
 
