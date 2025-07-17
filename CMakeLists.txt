@@ -88,7 +88,12 @@ endif()
 
 if(EMSCRIPTEN)
     message(STATUS "Configuring for esmcripten")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -sDISABLE_EXCEPTION_CATCHING=0")
+    # TODO: once pyodide 0.28 is supported by skbuild, we can use wasm exceptions
+    if(DEFINED SKBUILD)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -sDISABLE_EXCEPTION_CATCHING=0")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fwasm-exceptions")
+    endif()
 endif()
 
 if(CLINGO_BUILD_TESTS)
