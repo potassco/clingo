@@ -51,6 +51,7 @@ typedef struct clingo_control clingo_control_t;
 //!
 //! @see clingo_control_interrupt()
 enum clingo_solve_result_e {
+    clingo_solve_result_empty = 0,         //!< An uninitialized solve result.
     clingo_solve_result_satisfiable = 1,   //!< The last solve call found a solution.
     clingo_solve_result_unsatisfiable = 2, //!< The last solve call did not find a solution.
     clingo_solve_result_exhausted = 4,     //!< The last solve call completely exhausted the search space.
@@ -61,9 +62,10 @@ typedef unsigned clingo_solve_result_bitset_t;
 
 //! Enumeration of solve modes.
 enum clingo_solve_mode_e {
-    clingo_solve_mode_async = 1, //!< Enable non-blocking search.
-    clingo_solve_mode_yield = 2, //!< Yield models in calls to clingo_solve_handle_model.
-    clingo_solve_mode_lock = 4,  //!< Ensure callbacks are executed in lock-step.
+    clingo_solve_mode_default = 0, //!< The defalut solve mode.
+    clingo_solve_mode_async = 1,   //!< Enable non-blocking search.
+    clingo_solve_mode_yield = 2,   //!< Yield models in calls to clingo_solve_handle_model.
+    clingo_solve_mode_lock = 4,    //!< Ensure callbacks are executed in lock-step.
 };
 //! Corresponding type to ::clingo_solve_mode_e.
 typedef unsigned clingo_solve_mode_bitset_t;
