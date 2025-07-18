@@ -1,10 +1,7 @@
 #include <clingo/core.h>
 #include <stdio.h>
 
-int main(int argc, char *argv[]) {
-    (void)argc;
-    (void)argv;
-
+int main(void) {
     int major = 0;
     int minor = 0;
     int revision = 0;

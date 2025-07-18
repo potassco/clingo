@@ -11,19 +11,13 @@ extern "C" {
 typedef struct clingo_control clingo_control_t;
 
 //! @example ast.c
-//! The example shows how to rewrite a non-ground logic program.
+//! The example shows how to work with the AST.
 //!
 //! ## Output ##
 //!
 //! ~~~~~~~~
-//! ./ast 0
-//! Solving with enable = false...
-//! Model:
-//! Solving with enable = true...
-//! Model: enable a
-//! Model: enable b
-//! Solving with enable = false...
-//! Model:
+//! ./ast
+//! Answer: a
 //! ~~~~~~~~
 //!
 //! ## Code ##

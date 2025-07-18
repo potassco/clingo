@@ -18,11 +18,11 @@ typedef struct clingo_control clingo_control_t;
 //!
 //! ~~~~~~~~~~~~
 //! ./backend 0
-//! Model: a b
-//! Model: a b c
-//! Model:
-//! Model: a
-//! Model: b
+//! Answer: a b
+//! Answer: a b c
+//! Answer:
+//! Answer: a
+//! Answer: b
 //! ~~~~~~~~~~~~
 //!
 //! ## Code ##
