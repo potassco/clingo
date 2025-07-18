@@ -89,6 +89,12 @@ class Assignment {
 
     Assignment(clingo_assignment_t const *assignment) : assignment_(assignment) {}
 
+    [[nodiscard]] auto thread_id() const -> clingo_id_t {
+        clingo_id_t id = 0;
+        handle_error(clingo_assignment_thread_id(assignment_, &id));
+        return id;
+    }
+
     [[nodiscard]] auto size() const -> size_t {
         size_t size = 0;
         handle_error(clingo_assignment_size(assignment_, &size));
@@ -189,15 +195,72 @@ class Assignment {
     clingo_assignment_t const *assignment_;
 };
 
-class PropagateInit {
+class PropagateControl {
   public:
-    PropagateInit(clingo_propagate_init_t *init) : init_{init} {}
-
-    auto assignment() -> Assignment {
-        clingo_assignment_t const *assignment = nullptr;
-        handle_error(clingo_propagate_init_assignment(init_, &assignment));
-        return {assignment};
+    PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
+    PropagateControl(clingo_propagate_init_t const *init) : ctl_{nullptr} {
+        handle_error(clingo_propagate_init_control(init, &ctl_));
     }
+
+    auto add_clause(LitSpan literals, bool tag, bool lock) -> bool {
+        clingo_clause_type_t type = 0;
+        if (tag) {
+            type |= clingo_clause_type_volatile;
+        }
+        if (lock) {
+            type |= clingo_clause_type_static;
+        }
+        auto res = false;
+        handle_error(clingo_propagate_control_add_clause(ctl_, literals.data(), literals.size(), type, &res));
+        return res;
+    }
+
+    auto add_weight_constraint(clingo_literal_t literal, WeightLitSpan literals, clingo_weight_t bound,
+                               clingo_weight_constraint_type_e type) -> bool {
+        auto res = false;
+        handle_error(clingo_propagate_control_add_weight_constraint(ctl_, literal, literals.data(), literals.size(),
+                                                                    bound, type, &res));
+        return res;
+    }
+
+    auto add_literal(bool freeze = true) -> clingo_literal_t {
+        clingo_literal_t lit = 0;
+        handle_error(clingo_propagate_control_add_literal(ctl_, freeze, &lit));
+        return lit;
+    }
+
+    auto add_nogood(LitSpan literals, bool tag, bool lock) -> bool {
+        static thread_local auto lits = LitVec{};
+        lits.clear();
+        lits.reserve(literals.size());
+        std::ranges::transform(literals.begin(), literals.end(), std::back_inserter(lits),
+                               [](auto const &lit) { return -lit; });
+        return add_clause(lits, tag, lock);
+    }
+
+    void add_watch(clingo_literal_t lit) { handle_error(clingo_propagate_control_add_watch(ctl_, lit)); }
+
+    auto has_watch(clingo_literal_t lit) -> bool {
+        auto res = false;
+        handle_error(clingo_propagate_control_has_watch(ctl_, lit, &res));
+        return res;
+    }
+
+    auto propagate() -> bool {
+        auto res = false;
+        handle_error(clingo_propagate_control_propagate(ctl_, &res));
+        return res;
+    }
+
+    void remove_watch(clingo_literal_t lit) { handle_error(clingo_propagate_control_remove_watch(ctl_, lit)); }
+
+  private:
+    clingo_propagate_control_t *ctl_;
+};
+
+class PropagateInit : public PropagateControl {
+  public:
+    PropagateInit(clingo_propagate_init_t *init) : PropagateControl(init), init_{init} {}
 
     auto library() -> PyLibrary {
         clingo_lib_t *lib = nullptr;
@@ -237,53 +300,11 @@ class PropagateInit {
         handle_error(clingo_propagate_init_set_undo_mode(init_, mode));
     }
 
-    auto add_clause(LitSpan literals) -> bool {
-        auto res = false;
-        handle_error(clingo_propagate_init_add_clause(init_, literals.data(), literals.size(), &res));
-        return res;
-    }
-
-    auto add_literal(bool freeze) -> clingo_literal_t {
-        clingo_literal_t lit = 0;
-        handle_error(clingo_propagate_init_add_literal(init_, freeze, &lit));
-        return lit;
-    }
-
     void add_minimize(clingo_literal_t literal, clingo_weight_t weight, clingo_weight_t priority) {
         handle_error(clingo_propagate_init_add_minimize(init_, literal, weight, priority));
     }
 
-    void add_watch(clingo_literal_t lit, std::optional<uint32_t> thread_id) {
-        if (thread_id) {
-            handle_error(clingo_propagate_init_add_watch_to_thread(init_, lit, *thread_id));
-        } else {
-            handle_error(clingo_propagate_init_add_watch(init_, lit));
-        }
-    }
-
-    auto add_weight_constraint(clingo_literal_t literal, WeightLitSpan literals, clingo_weight_t bound,
-                               clingo_weight_constraint_type_e type, bool compare_equal) -> bool {
-        auto res = false;
-        handle_error(clingo_propagate_init_add_weight_constraint(init_, literal, literals.data(), literals.size(),
-                                                                 bound, type, compare_equal, &res));
-        return res;
-    }
-
     void freeze_literal(clingo_literal_t lit) { handle_error(clingo_propagate_init_freeze_literal(init_, lit)); }
-
-    auto propagate() -> bool {
-        auto res = false;
-        handle_error(clingo_propagate_init_propagate(init_, &res));
-        return res;
-    }
-
-    void remove_watch(clingo_literal_t lit, std::optional<uint32_t> thread_id) {
-        if (thread_id) {
-            handle_error(clingo_propagate_init_remove_watch_from_thread(init_, lit, *thread_id));
-        } else {
-            handle_error(clingo_propagate_init_remove_watch(init_, lit));
-        }
-    }
 
     auto solver_literal(clingo_literal_t lit) -> clingo_literal_t {
         clingo_literal_t res = 0;
@@ -295,87 +316,26 @@ class PropagateInit {
     clingo_propagate_init_t *init_;
 };
 
-class PropagateControl {
-  public:
-    PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
-
-    auto add_clause(LitSpan literals, bool tag, bool lock) -> bool {
-        clingo_clause_type_t type = 0;
-        if (tag) {
-            type |= clingo_clause_type_volatile;
-        }
-        if (lock) {
-            type |= clingo_clause_type_static;
-        }
-        auto res = false;
-        handle_error(clingo_propagate_control_add_clause(ctl_, literals.data(), literals.size(), type, &res));
-        return res;
-    }
-
-    auto add_literal() -> clingo_literal_t {
-        clingo_literal_t lit = 0;
-        handle_error(clingo_propagate_control_add_literal(ctl_, &lit));
-        return lit;
-    }
-
-    auto add_nogood(LitSpan literals, bool tag, bool lock) -> bool {
-        static thread_local auto lits = LitVec{};
-        lits.clear();
-        lits.reserve(literals.size());
-        std::ranges::transform(literals.begin(), literals.end(), std::back_inserter(lits),
-                               [](auto const &lit) { return -lit; });
-        return add_clause(lits, tag, lock);
-    }
-
-    void add_watch(clingo_literal_t lit) { handle_error(clingo_propagate_control_add_watch(ctl_, lit)); }
-
-    auto has_watch(clingo_literal_t lit) -> bool {
-        auto res = false;
-        handle_error(clingo_propagate_control_has_watch(ctl_, lit, &res));
-        return res;
-    }
-
-    auto propagate() -> bool {
-        auto res = false;
-        handle_error(clingo_propagate_control_propagate(ctl_, &res));
-        return res;
-    }
-
-    void remove_watch(clingo_literal_t lit) { handle_error(clingo_propagate_control_remove_watch(ctl_, lit)); }
-
-    auto assignment() -> Assignment {
-        clingo_assignment_t const *assignment = nullptr;
-        handle_error(clingo_propagate_control_assignment(ctl_, &assignment));
-        return {assignment};
-    }
-
-    auto thread_id() -> uint32_t {
-        uint32_t id = 0;
-        handle_error(clingo_propagate_control_thread_id(ctl_, &id));
-        return id;
-    }
-
-  private:
-    clingo_propagate_control_t *ctl_;
-};
-
-void Propagator::init(PropagateInit &init) {
-    PYBIND11_OVERRIDE_NAME(void, Propagator, "init", no_op, init);
+void Propagator::init(Assignment &assignment, PropagateInit &init) {
+    PYBIND11_OVERRIDE_NAME(void, Propagator, "init", no_op, assignment, init);
 }
-void Propagator::propagate(PropagateControl &ctl, LitSpan changes) {
-    PYBIND11_OVERRIDE_NAME(void, Propagator, "propagate", no_op, ctl, changes);
+void Propagator::attach(Assignment &assignment, PropagateControl &ctl) {
+    PYBIND11_OVERRIDE_NAME(void, Propagator, "attach", no_op, assignment, ctl);
 }
-void Propagator::undo(uint32_t thread_id, Assignment &assignment, LitSpan changes) {
-    PYBIND11_OVERRIDE_NAME(void, Propagator, "undo", no_op, thread_id, assignment, changes);
+void Propagator::propagate(Assignment &assignment, PropagateControl &ctl, LitSpan changes) {
+    PYBIND11_OVERRIDE_NAME(void, Propagator, "propagate", no_op, assignment, ctl, changes);
 }
-void Propagator::check(PropagateControl &ctl) {
-    PYBIND11_OVERRIDE_NAME(void, Propagator, "check", no_op, ctl);
+void Propagator::undo(Assignment &assignment, LitSpan changes) {
+    PYBIND11_OVERRIDE_NAME(void, Propagator, "undo", no_op, assignment, changes);
 }
-auto Propagator::decide(uint32_t thread_id, Assignment &assignment, clingo_literal_t lit) -> clingo_literal_t {
-    PYBIND11_OVERRIDE_NAME(clingo_literal_t, Propagator, "decide", decide_, thread_id, assignment, lit);
+void Propagator::check(Assignment &assignment, PropagateControl &ctl) {
+    PYBIND11_OVERRIDE_NAME(void, Propagator, "check", no_op, assignment, ctl);
+}
+auto Propagator::decide(Assignment &assignment, clingo_literal_t lit) -> clingo_literal_t {
+    PYBIND11_OVERRIDE_NAME(clingo_literal_t, Propagator, "decide", decide_, assignment, lit);
 }
 
-auto Propagator::decide_([[maybe_unused]] uint32_t thread_id, [[maybe_unused]] Assignment &assignment,
+auto Propagator::decide_([[maybe_unused]] Assignment &assignment,
                          [[maybe_unused]] clingo_literal_t lit) -> clingo_literal_t {
     static_cast<void>(this);
     return lit;
@@ -384,41 +344,50 @@ auto Propagator::decide_([[maybe_unused]] uint32_t thread_id, [[maybe_unused]] A
 void register_propagator(clingo_control_t *ctl, Propagator &prop) {
     // propagator without heuristic
     static constexpr auto c_prop = clingo_propagator_t{
-        [](clingo_propagate_init_t *init, void *data) -> bool {
+        [](clingo_assignment_t const *assignment, clingo_propagate_init_t *init, void *data) -> bool {
             auto *self = static_cast<Propagator *>(data);
             CLINGO_TRY {
                 auto py_init = PropagateInit{init};
-                self->init(py_init);
+                auto py_ass = Assignment{assignment};
+                self->init(py_ass, py_init);
             }
             CLINGO_CATCH;
         },
-        [](clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data) -> bool {
+        [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, void *data) -> bool {
             auto *self = static_cast<Propagator *>(data);
             CLINGO_TRY {
+                auto py_ass = Assignment{assignment};
                 auto py_ctl = PropagateControl{control};
-                self->propagate(py_ctl, LitSpan{changes, size});
+                self->attach(py_ass, py_ctl);
             }
             CLINGO_CATCH;
         },
-        [](clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data) {
+        [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, clingo_literal_t const *changes,
+           size_t size, void *data) -> bool {
+            auto *self = static_cast<Propagator *>(data);
+            CLINGO_TRY {
+                auto py_ass = Assignment{assignment};
+                auto py_ctl = PropagateControl{control};
+                self->propagate(py_ass, py_ctl, LitSpan{changes, size});
+            }
+            CLINGO_CATCH;
+        },
+        [](clingo_assignment_t const *assignment, clingo_literal_t const *changes, size_t size, void *data) {
             try {
                 auto *self = static_cast<Propagator *>(data);
-                uint32_t thread_id = 0;
-                handle_error(clingo_propagate_control_thread_id(control, &thread_id));
-                clingo_assignment_t const *assignment = nullptr;
-                handle_error(clingo_propagate_control_assignment(control, &assignment));
-                auto py_assignment = Assignment(assignment);
-                self->undo(thread_id, py_assignment, LitSpan{changes, size});
+                auto py_ass = Assignment{assignment};
+                self->undo(py_ass, LitSpan{changes, size});
             } catch (std::exception const &e) {
                 printf("panic: %s\n", e.what());
                 std::abort();
             }
         },
-        [](clingo_propagate_control_t *control, void *data) -> bool {
+        [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, void *data) -> bool {
             auto *self = static_cast<Propagator *>(data);
             CLINGO_TRY {
+                auto py_ass = Assignment{assignment};
                 auto py_ctl = PropagateControl{control};
-                self->check(py_ctl);
+                self->check(py_ass, py_ctl);
             }
             CLINGO_CATCH;
         },
@@ -428,15 +397,16 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
     // propagator with heuristic
     static constexpr auto c_heu = clingo_propagator_t{
         c_prop.init,
+        c_prop.attach,
         c_prop.propagate,
         c_prop.undo,
         c_prop.check,
-        [](clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data,
+        [](clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data,
            clingo_literal_t *decision) -> bool {
             auto *self = static_cast<Propagator *>(data);
             CLINGO_TRY {
                 auto py_assignment = Assignment{assignment};
-                *decision = self->decide(thread_id, py_assignment, fallback);
+                *decision = self->decide(py_assignment, fallback);
             }
             CLINGO_CATCH;
         },
@@ -457,7 +427,7 @@ Functions and classes to implement custom propagators.
 >>> from typing import Sequence
 >>> from clingo.control import Control
 >>> from clingo.core import Library
->>> from clingo.propagate import PropagateControl, PropagateInit, Propagator
+>>> from clingo.propagate import Assignment, PropagateControl, PropagateInit, Propagator
 >>> from clingo.symbol import Function
 >>>
 >>> LIB = Library()
@@ -472,7 +442,7 @@ Functions and classes to implement custom propagators.
 ...         self.slit_b = 0
 ...
 ...     # add watches for atoms `a` and `b`
-...     def init(self, init: PropagateInit) -> None:
+...     def init(self, assignment: Assignment, init: PropagateInit) -> None:
 ...         # get program literals for atoms `a` and `b`
 ...         plit_a = init.base[Function(LIB, "a")].literal
 ...         plit_b = init.base[Function(LIB, "b")].literal
@@ -484,14 +454,14 @@ Functions and classes to implement custom propagators.
 ...         init.add_watch(self.slit_b)
 ...
 ...     # propagate solver literals `a` and `b`
-...     def propagate(self, control: PropagateControl, changes: Sequence[int]) -> None:
+...     def propagate(self, assignment: Assignment, control: PropagateControl, changes: Sequence[int]) -> None:
 ...         # if `a` is true imply `b`
 ...         if self.slit_a in changes:
-...             assert control.assignment.is_true(self.slit_a)
+...             assert assignment.is_true(self.slit_a)
 ...             control.add_clause([-self.slit_a, self.slit_b])
 ...         # if `b` is true imply `a`
 ...         if self.slit_b in changes:
-...             assert control.assignment.is_true(self.slit_b)
+...             assert assignment.is_true(self.slit_b)
 ...             control.add_clause([-self.slit_b, self.slit_a])
 ...
 >>> ctl = Control(LIB, ["0"])
@@ -657,6 +627,11 @@ Args:
 Returns:
     The truth value of the literal.
 )"_d)
+        .def_property_readonly("thread_id", &Assignment::thread_id, R"(
+Get the id of the thread to which the assignment belongs.
+
+Thread ids are consecutive numbers starting with zero.
+)"_d)
         .def_property_readonly("decision_level", &Assignment::decision_level, R"(
 Get the current decision level.
 )"_d)
@@ -677,141 +652,8 @@ They include, for example, assumptions.
 Get the trail of literals.
 )"_d);
 
-    py::class_<PropagateInit>(propagate, "PropagateInit", R"(
-Class for initializing a propagator.
-
-This class provides methods for setting up propagation, including adding
-clauses, literals, watches, and constraints.
-)"_d)
-        .def("add_clause", &PropagateInit::add_clause, py::arg("literals"), R"(
-Add a clause to the solver.
-
-If the clause could not be added to the solver, there is a top-level conflict
-and the underlying problem is unsatisfiable.
-
-Args:
-    literals:
-        A sequence of solver literals representing the clause.
-
-Returns:
-    Whether the clause could be added without conflict.
-)"_d)
-        .def("add_literal", &PropagateInit::add_literal, py::arg("freeze") = true, R"(
-Add a new literal to the solver.
-
-See also `freeze_literal()`.
-
-Args:
-    freeze:
-        Whether to freeze the literal.
-
-Returns:
-    The newly added solver literal.
-)"_d)
-        .def("add_minimize", &PropagateInit::add_minimize, py::arg("literal"), py::arg("weight"),
-             py::arg("priority") = 0,
-             R"(
-Add a weighted literal to minimize to the solver.
-
-Args:
-    literal:
-        The literal to minimize.
-    weight:
-        The weight of the literal.
-    priority:
-        The priority of the literal.
-)"_d)
-        .def("add_watch", &PropagateInit::add_watch, py::arg("literal"), py::arg("thread_id") = std::nullopt, R"(
-Add a watch for the given solver literal.
-
-Args:
-    literal:
-        The literal to watch.
-    thread_id:
-        The id of the thread to add the watch to. If None, adds to all threads.
-)"_d)
-        .def("add_weight_constraint", &PropagateInit::add_weight_constraint, py::arg("literal"), py::arg("literals"),
-             py::arg("bound"),
-             py::arg("type") = clingo_weight_constraint_type_e::clingo_weight_constraint_type_equivalence,
-             py::arg("compare_equal") = false, R"(
-Add a weight constraint to the solver.
-
-See `add_clause` for how to interpret the return value.
-
-Args:
-    literal:
-        The literal associated with the constraint.
-    literals:
-        A sequence of (literal, weight) tuples.
-    bound:
-        The bound of the weight constraint.
-    type:
-        The type of the weight constraint.
-    compare_equal:
-        Whether to use equality comparison.
-
-Returns:
-    Whether the weight constraint could be added without conflict.
-)"_d)
-        .def("freeze_literal", &PropagateInit::freeze_literal, py::arg("literal"), R"(
-Freeze the given literal.
-
-Frozen literals are exempt from simplification. This is important for literals
-whose truth values a propagator has to track.
-
-Args:
-    literal:
-        The literal to freeze.
-)"_d)
-        .def("propagate", &PropagateInit::propagate, R"(
-Perform initial propagation.
-
-See the `add_clause()` for how to intepret the return value.
-
-Returns:
-    True if propagation was successful, False otherwise.
-)"_d)
-        .def("remove_watch", &PropagateInit::remove_watch, py::arg("literal"), py::arg("thread_id") = std::nullopt, R"(
-Remove the watch for the given literal.
-
-Args:
-    literal:
-        The literal to remove the watch for.
-    thread_id:
-        The id of the thread to remove the watch from. If None, removes from
-        all threads.
-)"_d)
-        .def("solver_literal", &PropagateInit::solver_literal, py::arg("literal"), R"(
-Map the given program literal to a solver literal.
-
-Args:
-    literal:
-        The program literal to map.
-
-Returns:
-    The corresponding solver literal.
-)"_d)
-        .def_property_readonly("assignment", &PropagateInit::assignment, R"(
-The current assignment.
-)"_d)
-        .def_property_readonly("library", &PropagateInit::library, R"(
-The library object managing symbols.
-)"_d)
-        .def_property_readonly("base", &PropagateInit::base, R"(
-The base object to inspect the grounder's base.
-)"_d)
-        .def_property("check_mode", &PropagateInit::get_check_mode, &PropagateInit::set_check_mode, R"(
-Get/set the check mode for the propagator.
-)"_d)
-        .def_property_readonly("number_of_threads", &PropagateInit::number_of_threads, R"(
-The number of solver threads.
-)"_d)
-        .def_property("undo_mode", &PropagateInit::get_undo_mode, &PropagateInit::set_undo_mode, R"(
-Get/set the undo mode for the propagator.
-)"_d);
-
     py::class_<PropagateControl>(propagate, "PropagateControl", R"(
-Class for controlling propagation.
+Class for controlling propagators.
 
 This class provides methods for adding clauses, literals, and nogoods, as well
 as managing watches and performing propagation.
@@ -836,11 +678,36 @@ Args:
 Returns:
     Whether the clause could be integrated without conflict.
 )"_d)
-        .def("add_literal", &PropagateControl::add_literal, R"(
+        .def("add_weight_constraint", &PropagateControl::add_weight_constraint, py::arg("literal"), py::arg("literals"),
+             py::arg("bound"),
+             py::arg("type") = clingo_weight_constraint_type_e::clingo_weight_constraint_type_equivalence,
+             R"(
+Add a weight constraint to the solver.
+
+See `add_clause` for how to interpret the return value.
+
+Args:
+    literal:
+        The literal associated with the constraint.
+    literals:
+        A sequence of (literal, weight) tuples.
+    bound:
+        The bound of the weight constraint.
+    type:
+        The type of the weight constraint.
+
+Returns:
+    Whether the weight constraint could be added without conflict.
+)"_d)
+        .def("add_literal", &PropagateControl::add_literal, py::arg("freeze") = true, R"(
 Add a literal to the solver.
 
-This literal is only added to the associated solving thread and deleted after
-the solve call.
+If the function is called in the context of a particular solver thread, the literal is only added to
+that thread and deleted after the active solve call.
+
+Args:
+    freeze:
+        Whether to freeze the literal.
 
 Returns:
     A fresh solver literal.
@@ -880,7 +747,7 @@ Perform propagation in the solver.
 
 If this function returns False, the propagator must add no further
 clauses/literals and immediately return from the corresponding
-`Propagator.propagate()` or `Propagator.check()` call.
+`Propagator.init()`, `Propagator.propagate()` or `Propagator.check()` call.
 
 Returns:
     True if propagation was successful, False otherwise.
@@ -892,12 +759,61 @@ This function has no effect if the literal is not watched.
 
 Args:
     literal: The literal to remove the watch for.
+)"_d);
+
+    py::class_<PropagateInit, PropagateControl>(propagate, "PropagateInit", R"(
+Class for initializing a propagator.
+
+This class extends PropagateControl and additionally provides methods for freezing and looking up literals, adding
+constraints, and configuring the propagator's behavior.
 )"_d)
-        .def_property_readonly("assignment", &PropagateControl::assignment, R"(
-The current assignment.
+        .def("add_minimize", &PropagateInit::add_minimize, py::arg("literal"), py::arg("weight"),
+             py::arg("priority") = 0,
+             R"(
+Add a weighted literal to minimize to the solver.
+
+Args:
+    literal:
+        The literal to minimize.
+    weight:
+        The weight of the literal.
+    priority:
+        The priority of the literal.
 )"_d)
-        .def_property_readonly("thread_id", &PropagateControl::thread_id, R"(
-The id of the current solving thread.
+        .def("freeze_literal", &PropagateInit::freeze_literal, py::arg("literal"), R"(
+Freeze the given literal.
+
+Frozen literals are exempt from simplification. This is important for literals
+whose truth values a propagator has to track.
+
+Args:
+    literal:
+        The literal to freeze.
+)"_d)
+        .def("solver_literal", &PropagateInit::solver_literal, py::arg("literal"), R"(
+Map the given program literal to a solver literal.
+
+Args:
+    literal:
+        The program literal to map.
+
+Returns:
+    The corresponding solver literal.
+)"_d)
+        .def_property_readonly("library", &PropagateInit::library, R"(
+The library object managing symbols.
+)"_d)
+        .def_property_readonly("base", &PropagateInit::base, R"(
+The base object to inspect the grounder's base.
+)"_d)
+        .def_property("check_mode", &PropagateInit::get_check_mode, &PropagateInit::set_check_mode, R"(
+Get/set the check mode for the propagator.
+)"_d)
+        .def_property_readonly("number_of_threads", &PropagateInit::number_of_threads, R"(
+The number of solver threads.
+)"_d)
+        .def_property("undo_mode", &PropagateInit::get_undo_mode, &PropagateInit::set_undo_mode, R"(
+Get/set the undo mode for the propagator.
 )"_d);
 
     py::class_<Propagator>(propagate, "Propagator", R"(
@@ -908,7 +824,7 @@ for use with the solver. They can be left empty to use their default
 implementation.
 )")
         .def(py::init<>())
-        .def("init", &Propagator::init, py::arg("init"), R"(
+        .def("init", &Propagator::init, py::arg("assignment"), py::arg("init"), R"(
 Initialize the propagator.
 
 This method is called once before each solving step. It is used to map
@@ -916,25 +832,43 @@ relevant program literals to solver literals, add watches for solver
 literals, and initialize the propagator's internal state.
 
 Args:
+    assignment:
+        The current assignment.
     init:
         The propagate init object for initializing the propagator.
 )"_d)
-        .def("propagate", &Propagator::propagate, py::arg("control"), py::arg("changes"), R"(
-Propagate given a set of changes.
+        .def("attach", &Propagator::attach, py::arg("assignment"), py::arg("control"), R"(
+Initialize solver thread with given id.
 
-This method is called during propagation with a non-empty list watched literals
+This function is called once for each solving thread before solving of the
+current step is started.
+It can be used to add thread-specific watches and literals, or
+initialize thread-specific data structures.
+
+Args:
+    assignment:
+        The current assignment.
+    control:
+        The propagate control object for managing propagation.
+)"_d)
+        .def("propagate", &Propagator::propagate, py::arg("assignment"), py::arg("control"), py::arg("changes"), R"(
+Propagate given set of changes.
+
+This method is called during propagation with a non-empty list of watched literals
 that have been assigned truth values. A propagator should add clauses to
 propagate literals and to implement its constraints.
 
 Typical propagators add unit-resulting or conflicting constraints only.
 
 Args:
+    assignment:
+        The current assignment.
     control:
         The propagate control object for managing propagation.
     changes:
         A list of literals that have changed.
 )"_d)
-        .def("undo", &Propagator::undo, py::arg("thread_id"), py::arg("assignment"), py::arg("changes"), R"(
+        .def("undo", &Propagator::undo, py::arg("assignment"), py::arg("changes"), R"(
 Undo previous assignments.
 
 This method is called to undo previous assignments.
@@ -942,14 +876,12 @@ This method is called to undo previous assignments.
 See also `PropagateInit.undo_mode`.
 
 Args:
-    thread_id:
-        The id of the current solver thread.
     assignment:
         The current assignment.
     changes:
         The literals whose assignment is undone.
 )"_d)
-        .def("check", &Propagator::check, py::arg("control"), R"(
+        .def("check", &Propagator::check, py::arg("assignment"), py::arg("control"), R"(
 Check if the current assignment is valid.
 
 This method is called on propagation fixpoints or total assignments (see
@@ -957,17 +889,17 @@ This method is called on propagation fixpoints or total assignments (see
 constraints here.
 
 Args:
+    assignment:
+        The current assignment.
     control:
         The propagate control object for managing propagation.
 )"_d)
-        .def("decide", &Propagator::decide, py::arg("thread_id"), py::arg("assignment"), py::arg("fallback"), R"(
+        .def("decide", &Propagator::decide, py::arg("assignment"), py::arg("fallback"), R"(
 Make a decision on the next literal to assign.
 
 This method is called to decide on a literal to be assigned next.
 
 Args:
-    thread_id:
-        The id of the current solver thread.
     assignment:
         The current assignment.
     fallback:

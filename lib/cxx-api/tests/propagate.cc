@@ -12,6 +12,7 @@
 #include <array>
 #include <barrier>
 #include <mutex>
+#include <set>
 
 namespace Clingo::Test {
 
@@ -19,7 +20,7 @@ namespace {
 
 class AIFFBPropagator : public Propagator {
   public:
-    void do_init(PropagateInit init) override {
+    void do_init([[maybe_unused]] Assignment assignment, PropagateInit init) override {
         auto watch = [&](const char *p) {
             auto plit = init.base().get(Function(init.library(), p))->literal();
             int slit = init.solver_literal(plit);
@@ -32,6 +33,7 @@ class AIFFBPropagator : public Propagator {
             slit_b = watch("b");
         }
         errors.clear();
+        attached.clear();
         n_threads = init.number_of_threads();
         if (fail_thread < n_threads) {
             barrier.emplace(n_threads);
@@ -39,14 +41,24 @@ class AIFFBPropagator : public Propagator {
             barrier.reset();
         }
     }
+    void do_attach([[maybe_unused]] Assignment assignment, [[maybe_unused]] PropagateControl ctl) override {
+        auto thread_id = assignment.thread_id();
+        REQUIRE(thread_id < n_threads);
+        auto lock = std::lock_guard{mut};
+        REQUIRE(attached.insert(thread_id).second);
+    }
 
-    void do_check(PropagateControl control) override {
+    void do_check(Assignment assignment, PropagateControl control) override {
+        auto thread_id = assignment.thread_id();
         for (int p : {slit_a, slit_b}) {
             if (!control.has_watch(p)) {
                 auto lock = std::lock_guard{mut};
-                errors.push_back("solver " + std::to_string(control.thread_id()) + " misses watch " +
-                                 std::to_string(p));
+                errors.push_back("solver " + std::to_string(thread_id) + " misses watch " + std::to_string(p));
             }
+        }
+        {
+            auto lock = std::lock_guard{mut};
+            REQUIRE(attached.contains(thread_id));
         }
         if (barrier) {
             barrier->arrive_and_wait();
@@ -56,16 +68,16 @@ class AIFFBPropagator : public Propagator {
                     barrier.reset();
                 }
             }
-            if (control.thread_id() == fail_thread) {
-                throw std::runtime_error("Forcing error on solver " + std::to_string(control.thread_id()));
+            if (thread_id == fail_thread) {
+                throw std::runtime_error("Forcing error on solver " + std::to_string(thread_id));
             }
         }
     }
 
-    void do_propagate(PropagateControl control, SolverLiteralSpan changes) override {
+    void do_propagate(Assignment assignment, PropagateControl control, SolverLiteralSpan changes) override {
         auto propagate = [&](auto p, auto q) {
             if (std::ranges::find(changes, p) != changes.end()) {
-                assert(control.assignment().is_true(p));
+                assert(assignment.is_true(p));
                 auto clause = std::vector{-p, q};
                 std::ignore = control.add_clause(clause, ClauseFlags::tag);
             }
@@ -80,6 +92,7 @@ class AIFFBPropagator : public Propagator {
     ProgramId fail_thread = std::numeric_limits<ProgramId>::max();
     std::vector<std::string> errors;
     std::optional<std::barrier<>> barrier;
+    std::set<ProgramId> attached;
     std::mutex mut;
 };
 
@@ -87,7 +100,7 @@ class AssertingPropagator : public Heuristic {
   public:
     AssertingPropagator(bool lock = false) : lock_(lock) {}
 
-    void do_init(PropagateInit init) override {
+    void do_init([[maybe_unused]] Assignment assignment, PropagateInit init) override {
         auto lit = [&](std::string_view name) {
             for (auto base = init.base().get(std::make_pair(name, 0)); auto const &[_, atom] : *base) {
                 return init.solver_literal(atom.literal());
@@ -106,9 +119,8 @@ class AssertingPropagator : public Heuristic {
         }
     }
 
-    void do_propagate(PropagateControl control, SolverLiteralSpan changes) override {
+    void do_propagate(Assignment ass, PropagateControl control, SolverLiteralSpan changes) override {
         REQUIRE(!changes.empty());
-        auto ass = control.assignment();
         if (ass.is_false(value_lit_) && ass.is_false(end_lit_)) {
             auto nogood = std::array{start_lit_, -end_lit_, -value_lit_};
             auto dl = ass.decision_level();
@@ -117,8 +129,7 @@ class AssertingPropagator : public Heuristic {
         }
     }
 
-    auto do_decide(ProgramId thread_id, Assignment assignment, SolverLiteral fallback) -> int override {
-        REQUIRE(thread_id == 0);
+    auto do_decide(Assignment assignment, SolverLiteral fallback) -> int override {
         if (assignment.is_free(end_lit_)) {
             return -end_lit_;
         }
@@ -137,7 +148,7 @@ class AssertingPropagator : public Heuristic {
 
 class InitPropagator : public Propagator {
   public:
-    void do_init(PropagateInit init) override {
+    void do_init(Assignment ass, PropagateInit init) override {
         auto lib = init.library();
         auto a = init.base().get(Function(lib, "a"));
         auto b = init.base().get(Function(lib, "b"));
@@ -158,7 +169,7 @@ class InitPropagator : public Propagator {
 
         // c <=> {a, b} >= 2
         std::ignore = init.add_weight_constraint(lit_c, std::to_array<WeightedLiteral>({{lit_a, 1}, {lit_b, 1}}), 2,
-                                                 WeightConstraintType::equivalence, false);
+                                                 WeightConstraintType::equivalence);
 
         init.add_minimize(lit_a, -1, 0);
 
@@ -166,7 +177,6 @@ class InitPropagator : public Propagator {
         REQUIRE(init.base().size() == 3);
 
         // Assignment checks
-        auto ass = init.assignment();
         REQUIRE(ass.value(lit_a) == std::nullopt);
         REQUIRE(!ass.is_true(lit_a));
         REQUIRE(!ass.is_false(lit_a));
@@ -183,7 +193,7 @@ class InitPropagator : public Propagator {
 
 class AddLiteralPropagator : public Propagator {
   public:
-    void do_check(PropagateControl control) override {
+    void do_check([[maybe_unused]] Assignment assignment, PropagateControl control) override {
         if (!added_) {
             added_ = true;
             int lit = control.add_literal();
@@ -201,7 +211,7 @@ class AddLiteralPropagator : public Propagator {
 
 class HeuristicPropagator : public Heuristic {
   public:
-    void do_init(PropagateInit init) override {
+    void do_init([[maybe_unused]] Assignment assignment, PropagateInit init) override {
         auto lib = init.library();
         auto a = init.base().get(Function(lib, "a"));
         auto b = init.base().get(Function(lib, "b"));
@@ -210,8 +220,7 @@ class HeuristicPropagator : public Heuristic {
         lit_b_ = init.solver_literal(b->literal());
     }
 
-    auto do_decide(ProgramId thread_id, Assignment assignment, SolverLiteral fallback) -> int override {
-        REQUIRE(thread_id == 0);
+    auto do_decide(Assignment assignment, SolverLiteral fallback) -> int override {
         if (assignment.is_free(lit_a_)) {
             return lit_a_;
         }
@@ -228,9 +237,8 @@ class HeuristicPropagator : public Heuristic {
 
 class PropagateControlPropagator : public Propagator {
   public:
-    void do_init(PropagateInit init) override {
+    void do_init(Assignment ass, PropagateInit init) override {
         auto lib = init.library();
-        auto ass = init.assignment();
         init.check_mode(PropagatorCheckMode::none);
         REQUIRE(init.check_mode() == PropagatorCheckMode::none);
         REQUIRE(init.number_of_threads() == 1);
@@ -244,8 +252,7 @@ class PropagateControlPropagator : public Propagator {
         init.add_watch(-lit_a_);
     }
 
-    void do_propagate(PropagateControl control, SolverLiteralSpan changes) override {
-        auto ass = control.assignment();
+    void do_propagate(Assignment ass, PropagateControl control, SolverLiteralSpan changes) override {
         auto trail = ass.trail();
         auto lvl = ass.decision_level();
 
@@ -257,15 +264,14 @@ class PropagateControlPropagator : public Propagator {
         REQUIRE(*(trail.begin(lvl)) == -lit_a_);
         REQUIRE(std::vector<SolverLiteral>{trail.begin(lvl), trail.end(lvl)} == std::vector<SolverLiteral>{-lit_a_});
         REQUIRE(ass.decision(lvl) == -lit_a_);
-        REQUIRE(control.thread_id() == 0);
+        REQUIRE(ass.thread_id() == 0);
         REQUIRE(control.has_watch(-lit_a_));
         REQUIRE(control.propagate());
         REQUIRE(!control.add_clause(std::array{lit_a_}));
     }
 
-    void do_undo(ProgramId thread_id, Assignment assignment, SolverLiteralSpan changes) override {
+    void do_undo(Assignment assignment, SolverLiteralSpan changes) override {
         REQUIRE(assignment.size() > 0);
-        REQUIRE(thread_id == 0);
         REQUIRE(std::ranges::find(changes, -lit_a_) != changes.end());
     }
 
@@ -275,7 +281,7 @@ class PropagateControlPropagator : public Propagator {
 
 class ModePropagator : public Propagator {
   public:
-    void do_init(PropagateInit init) override {
+    void do_init([[maybe_unused]] Assignment assignment, PropagateInit init) override {
         init.check_mode(PropagatorCheckMode::fixpoint);
         init.undo_mode(PropagatorUndoMode::always);
 
@@ -283,17 +289,16 @@ class ModePropagator : public Propagator {
         REQUIRE(init.undo_mode() == PropagatorUndoMode::always);
     }
 
-    void do_check(PropagateControl control) override {
+    void do_check(Assignment assignment, [[maybe_unused]] PropagateControl control) override {
         ++num_check;
-        auto dl = control.assignment().decision_level();
+        auto dl = assignment.decision_level();
         REQUIRE(level.back() <= dl);
         if (level.back() != dl) {
             level.emplace_back(dl);
         }
     }
 
-    void do_undo(ProgramId thread_id, Assignment assignment, SolverLiteralSpan changes) override {
-        REQUIRE(thread_id == 0);
+    void do_undo(Assignment assignment, SolverLiteralSpan changes) override {
         REQUIRE(assignment.size() > 0);
         REQUIRE(changes.empty());
         ++num_undo;
@@ -367,6 +372,7 @@ TEST_CASE_METHOD(Fixture, "propagate exception", "[cxx][propagate][exception]") 
         REQUIRE_THROWS_MATCHES(solve(), std::runtime_error,
                                MessageMatches(ContainsSubstring("solver " + std::to_string(n - 1))));
         REQUIRE(ref.n_threads == n);
+        REQUIRE(ref.attached.size() == n);
     }
 }
 
