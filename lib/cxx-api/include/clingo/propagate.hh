@@ -345,7 +345,12 @@ class PropagateControl {
 
     //! Add a clause to the solver.
     //!
-    //! @overload add_clause(SolverLiteralSpan literals, ClauseFlags flags = ClauseFlags::none)
+    //! If adding the clause results in a conflict or requires backtracking, the function returns false
+    //! and the calling propagator must not add further clauses from the current callback.
+    //!
+    //! @param literals the literals of the clause to add
+    //! @param flags the flags for the clause
+    //! @return whether the clause was added without conflict
     [[nodiscard]] auto add_clause(SolverLiteralList literals, ClauseFlags flags = ClauseFlags::none) const -> bool {
         return add_clause(SolverLiteralSpan{literals}, flags);
     }
@@ -526,6 +531,7 @@ class Propagator {
 
     //! Callback to initialize the propagator before each solving step.
     //!
+    //! @param assignment the current assignment of the solver
     //! @param init the initialization object
     void init(Assignment assignment, PropagateInit init) { do_init(assignment, init); }
     //! Callback to initialize/setup thread-specific data for the propagator.

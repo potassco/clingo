@@ -74,7 +74,8 @@ class AIFFBPropagator : public Propagator {
         }
     }
 
-    void do_propagate(Assignment assignment, PropagateControl control, SolverLiteralSpan changes) override {
+    void do_propagate([[maybe_unused]] Assignment assignment, PropagateControl control,
+                      SolverLiteralSpan changes) override {
         auto propagate = [&](auto p, auto q) {
             if (std::ranges::find(changes, p) != changes.end()) {
                 assert(assignment.is_true(p));

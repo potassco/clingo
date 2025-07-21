@@ -56,6 +56,7 @@ typedef int clingo_truth_value_t;
 
 //! @name Assignment Functions
 //! @{
+
 //! Get the id of the thread to which the assignment belongs.
 //!
 //! @note Thread ids are consecutive numbers starting with zero.
