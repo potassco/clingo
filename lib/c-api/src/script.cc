@@ -18,7 +18,7 @@ class CScript : public CppClingo::Control::Script {
     }
 
   private:
-    void do_exec(std::string_view code) override { script_.execute(code.data(), code.size(), data_); }
+    void do_exec(std::string_view code) override { handle_error(script_.execute(code.data(), code.size(), data_)); }
 
     void do_main(CppClingo::Control::Solver &slv) override {
         class main_guard {

@@ -38,6 +38,7 @@
     COMMENT    = "%"[^*\n\000][^\000\n]*;
     SP         = [ ];
     NL         = [\r\n]+;
+    NOTEND     = ([^#] | '#' [^e] | '#' 'e' [^n] | '#' 'e' 'n' [^d])*;
 */
 
 /*!header:re2c:on*/
@@ -122,7 +123,7 @@ auto ParserState::lex_() -> TokenType {
         <include> INCSTRING            { return TokenType::str_include; }
         <normal> KEYWORD               { return TokenType::error; }
         <normal,theory,include> WS     { state_.start(); continue; }
-        <script> ANY* / "#end"         { return TokenType::script_content; }
+        <script> NOTEND / "#end"       { return TokenType::script_content; }
         <blockcomment> "*%" {
             if(--bc_ == 0) {
                 push_comment(true);
