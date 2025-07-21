@@ -18,7 +18,7 @@ class TestPropagator : public Heuristic {
     explicit TestPropagator(std::string throw_str) : throw_{std::move(throw_str)} {}
 
   private:
-    void do_init(PropagateInit init) override {
+    void do_init([[maybe_unused]] Assignment assignment, PropagateInit init) override {
         if (throw_.find('i') != std::string::npos) {
             throw std::runtime_error("prop: init");
         }
@@ -26,14 +26,14 @@ class TestPropagator : public Heuristic {
         init.add_watch(init.add_literal());
     }
 
-    void do_propagate([[maybe_unused]] PropagateControl control, [[maybe_unused]] SolverLiteralSpan changes) override {
+    void do_propagate([[maybe_unused]] Assignment assignment, [[maybe_unused]] PropagateControl control,
+                      [[maybe_unused]] SolverLiteralSpan changes) override {
         if (throw_.find('p') != std::string::npos) {
             throw std::runtime_error("prop: propagate");
         }
     }
 
-    auto do_decide([[maybe_unused]] ProgramId thread_id, [[maybe_unused]] Assignment const assignment,
-                   SolverLiteral fallback) -> SolverLiteral override {
+    auto do_decide([[maybe_unused]] Assignment const assignment, SolverLiteral fallback) -> SolverLiteral override {
         if (throw_.find('d') != std::string::npos) {
             throw std::runtime_error("prop: decide");
         }

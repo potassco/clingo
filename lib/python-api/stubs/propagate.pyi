@@ -7,7 +7,7 @@ Functions and classes to implement custom propagators.
 >>> from typing import Sequence
 >>> from clingo.control import Control
 >>> from clingo.core import Library
->>> from clingo.propagate import PropagateControl, PropagateInit, Propagator
+>>> from clingo.propagate import Assignment, PropagateControl, PropagateInit, Propagator
 >>> from clingo.symbol import Function
 >>>
 >>> LIB = Library()
@@ -22,7 +22,7 @@ Functions and classes to implement custom propagators.
 ...         self.slit_b = 0
 ...
 ...     # add watches for atoms `a` and `b`
-...     def init(self, init: PropagateInit) -> None:
+...     def init(self, assignment: Assignment, init: PropagateInit) -> None:
 ...         # get program literals for atoms `a` and `b`
 ...         plit_a = init.base[Function(LIB, "a")].literal
 ...         plit_b = init.base[Function(LIB, "b")].literal
@@ -34,14 +34,14 @@ Functions and classes to implement custom propagators.
 ...         init.add_watch(self.slit_b)
 ...
 ...     # propagate solver literals `a` and `b`
-...     def propagate(self, control: PropagateControl, changes: Sequence[int]) -> None:
+...     def propagate(self, assignment: Assignment, control: PropagateControl, changes: Sequence[int]) -> None:
 ...         # if `a` is true imply `b`
 ...         if self.slit_a in changes:
-...             assert control.assignment.is_true(self.slit_a)
+...             assert assignment.is_true(self.slit_a)
 ...             control.add_clause([-self.slit_a, self.slit_b])
 ...         # if `b` is true imply `a`
 ...         if self.slit_b in changes:
-...             assert control.assignment.is_true(self.slit_b)
+...             assert assignment.is_true(self.slit_b)
 ...             control.add_clause([-self.slit_b, self.slit_a])
 ...
 >>> ctl = Control(LIB, ["0"])
@@ -348,6 +348,14 @@ class Assignment:
         """
 
     @property
+    def thread_id(self) -> int:
+        """
+        Get the id of the thread to which the assignment belongs.
+
+        Thread ids are consecutive numbers starting with zero.
+        """
+
+    @property
     def trail(self) -> Trail:
         """
         Get the trail of literals.
@@ -355,7 +363,7 @@ class Assignment:
 
 class PropagateControl:
     """
-    Class for controlling propagation.
+    Class for controlling propagators.
 
     This class provides methods for adding clauses, literals, and nogoods, as well
     as managing watches and performing propagation.
@@ -386,12 +394,16 @@ class PropagateControl:
             Whether the clause could be integrated without conflict.
         """
 
-    def add_literal(self) -> int:
+    def add_literal(self, freeze: bool = True) -> int:
         """
         Add a literal to the solver.
 
-        This literal is only added to the associated solving thread and deleted after
-        the solve call.
+        If the function is called in the context of a particular solver thread, the literal is only added to
+        that thread and deleted after the active solve call.
+
+        Args:
+            freeze:
+                Whether to freeze the literal.
 
         Returns:
             A fresh solver literal.
@@ -423,6 +435,32 @@ class PropagateControl:
             literal: The literal to watch.
         """
 
+    def add_weight_constraint(
+        self,
+        literal: int,
+        literals: typing.Sequence[tuple[int, int]],
+        bound: int,
+        type: WeightConstraintType = WeightConstraintType.Equivalence,
+    ) -> bool:
+        """
+        Add a weight constraint to the solver.
+
+        See `add_clause` for how to interpret the return value.
+
+        Args:
+            literal:
+                The literal associated with the constraint.
+            literals:
+                A sequence of (literal, weight) tuples.
+            bound:
+                The bound of the weight constraint.
+            type:
+                The type of the weight constraint.
+
+        Returns:
+            Whether the weight constraint could be added without conflict.
+        """
+
     def has_watch(self, literal: int) -> bool:
         """
         Check if a watch exists for the given solver literal.
@@ -440,7 +478,7 @@ class PropagateControl:
 
         If this function returns False, the propagator must add no further
         clauses/literals and immediately return from the corresponding
-        `Propagator.propagate()` or `Propagator.check()` call.
+        `Propagator.init()`, `Propagator.propagate()` or `Propagator.check()` call.
 
         Returns:
             True if propagation was successful, False otherwise.
@@ -456,57 +494,16 @@ class PropagateControl:
             literal: The literal to remove the watch for.
         """
 
-    @property
-    def assignment(self) -> Assignment:
-        """
-        The current assignment.
-        """
-
-    @property
-    def thread_id(self) -> int:
-        """
-        The id of the current solving thread.
-        """
-
-class PropagateInit:
+class PropagateInit(PropagateControl):
     """
     Class for initializing a propagator.
 
-    This class provides methods for setting up propagation, including adding
-    clauses, literals, watches, and constraints.
+    This class extends PropagateControl and additionally provides methods for freezing and looking up literals, adding
+    constraints, and configuring the propagator's behavior.
     """
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def add_clause(self, literals: typing.Sequence[int]) -> bool:
-        """
-        Add a clause to the solver.
-
-        If the clause could not be added to the solver, there is a top-level conflict
-        and the underlying problem is unsatisfiable.
-
-        Args:
-            literals:
-                A sequence of solver literals representing the clause.
-
-        Returns:
-            Whether the clause could be added without conflict.
-        """
-
-    def add_literal(self, freeze: bool = True) -> int:
-        """
-        Add a new literal to the solver.
-
-        See also `freeze_literal()`.
-
-        Args:
-            freeze:
-                Whether to freeze the literal.
-
-        Returns:
-            The newly added solver literal.
-        """
-
     def add_minimize(self, literal: int, weight: int, priority: int = 0) -> None:
         """
         Add a weighted literal to minimize to the solver.
@@ -518,46 +515,6 @@ class PropagateInit:
                 The weight of the literal.
             priority:
                 The priority of the literal.
-        """
-
-    def add_watch(self, literal: int, thread_id: int | None = None) -> None:
-        """
-        Add a watch for the given solver literal.
-
-        Args:
-            literal:
-                The literal to watch.
-            thread_id:
-                The id of the thread to add the watch to. If None, adds to all threads.
-        """
-
-    def add_weight_constraint(
-        self,
-        literal: int,
-        literals: typing.Sequence[tuple[int, int]],
-        bound: int,
-        type: WeightConstraintType = WeightConstraintType.Equivalence,
-        compare_equal: bool = False,
-    ) -> bool:
-        """
-        Add a weight constraint to the solver.
-
-        See `add_clause` for how to interpret the return value.
-
-        Args:
-            literal:
-                The literal associated with the constraint.
-            literals:
-                A sequence of (literal, weight) tuples.
-            bound:
-                The bound of the weight constraint.
-            type:
-                The type of the weight constraint.
-            compare_equal:
-                Whether to use equality comparison.
-
-        Returns:
-            Whether the weight constraint could be added without conflict.
         """
 
     def freeze_literal(self, literal: int) -> None:
@@ -572,28 +529,6 @@ class PropagateInit:
                 The literal to freeze.
         """
 
-    def propagate(self) -> bool:
-        """
-        Perform initial propagation.
-
-        See the `add_clause()` for how to intepret the return value.
-
-        Returns:
-            True if propagation was successful, False otherwise.
-        """
-
-    def remove_watch(self, literal: int, thread_id: int | None = None) -> None:
-        """
-        Remove the watch for the given literal.
-
-        Args:
-            literal:
-                The literal to remove the watch for.
-            thread_id:
-                The id of the thread to remove the watch from. If None, removes from
-                all threads.
-        """
-
     def solver_literal(self, literal: int) -> int:
         """
         Map the given program literal to a solver literal.
@@ -604,12 +539,6 @@ class PropagateInit:
 
         Returns:
             The corresponding solver literal.
-        """
-
-    @property
-    def assignment(self) -> Assignment:
-        """
-        The current assignment.
         """
 
     @property
@@ -660,7 +589,23 @@ class Propagator:
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(self) -> None: ...
-    def check(self, control: PropagateControl) -> None:
+    def attach(self, assignment: Assignment, control: PropagateControl) -> None:
+        """
+        Initialize solver thread with given id.
+
+        This function is called once for each solving thread before solving of the
+        current step is started.
+        It can be used to add thread-specific watches and literals, or
+        initialize thread-specific data structures.
+
+        Args:
+            assignment:
+                The current assignment.
+            control:
+                The propagate control object for managing propagation.
+        """
+
+    def check(self, assignment: Assignment, control: PropagateControl) -> None:
         """
         Check if the current assignment is valid.
 
@@ -669,19 +614,19 @@ class Propagator:
         constraints here.
 
         Args:
+            assignment:
+                The current assignment.
             control:
                 The propagate control object for managing propagation.
         """
 
-    def decide(self, thread_id: int, assignment: Assignment, fallback: int) -> int:
+    def decide(self, assignment: Assignment, fallback: int) -> int:
         """
         Make a decision on the next literal to assign.
 
         This method is called to decide on a literal to be assigned next.
 
         Args:
-            thread_id:
-                The id of the current solver thread.
             assignment:
                 The current assignment.
             fallback:
@@ -691,7 +636,7 @@ class Propagator:
             The literal to assign or 0 if no decision was made.
         """
 
-    def init(self, init: PropagateInit) -> None:
+    def init(self, assignment: Assignment, init: PropagateInit) -> None:
         """
         Initialize the propagator.
 
@@ -700,32 +645,37 @@ class Propagator:
         literals, and initialize the propagator's internal state.
 
         Args:
+            assignment:
+                The current assignment.
             init:
                 The propagate init object for initializing the propagator.
         """
 
     def propagate(
-        self, control: PropagateControl, changes: typing.Sequence[int]
+        self,
+        assignment: Assignment,
+        control: PropagateControl,
+        changes: typing.Sequence[int],
     ) -> None:
         """
-        Propagate given a set of changes.
+        Propagate given set of changes.
 
-        This method is called during propagation with a non-empty list watched literals
+        This method is called during propagation with a non-empty list of watched literals
         that have been assigned truth values. A propagator should add clauses to
         propagate literals and to implement its constraints.
 
         Typical propagators add unit-resulting or conflicting constraints only.
 
         Args:
+            assignment:
+                The current assignment.
             control:
                 The propagate control object for managing propagation.
             changes:
                 A list of literals that have changed.
         """
 
-    def undo(
-        self, thread_id: int, assignment: Assignment, changes: typing.Sequence[int]
-    ) -> None:
+    def undo(self, assignment: Assignment, changes: typing.Sequence[int]) -> None:
         """
         Undo previous assignments.
 
@@ -734,8 +684,6 @@ class Propagator:
         See also `PropagateInit.undo_mode`.
 
         Args:
-            thread_id:
-                The id of the current solver thread.
             assignment:
                 The current assignment.
             changes:

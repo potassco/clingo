@@ -155,9 +155,7 @@ def rewrite(lib: Library, files: Sequence[str]) -> ast.Program:
 
     prg = ast.Program(lib)
     prg.add(ast.parse_statement(lib, THEORY))
-    with ast.Scanner(lib, list(files)) as scn:
-        for stm in scn:
-            prg.add(accept(stm) or stm)
+    ast.parse_files(lib, files, lambda stm: prg.add(accept(stm) or stm))
     return prg
 
 
@@ -361,11 +359,12 @@ class DLPropagator(Propagator):
         self._e2l.setdefault(edge, []).append(lit)
         init.add_watch(lit)
 
-    def init(self, init: PropagateInit):
+    def init(self, assignment: Assignment, init: PropagateInit):
         """
         Initialize the propagator extracting difference constraints from the
         theory data.
         """
+        assert assignment
         for atom in init.base.theory:
             term = atom.name
             if (term.name in ("__diff_h", "__diff_b")) and len(term.arguments) == 0:
@@ -378,27 +377,29 @@ class DLPropagator(Propagator):
                 if term.name == "__diff_b":
                     self._add_edge(init, -lit, v, u, -w - 1)
 
-    def propagate(self, control: PropagateControl, changes: Sequence[int]):
+    def propagate(
+        self, assignment: Assignment, control: PropagateControl, changes: Sequence[int]
+    ):
         """
         Add edges that became true to the graph to check for negative cycles.
         """
-        state = self._state(control.thread_id)
-        level = control.assignment.decision_level
+        state = self._state(assignment.thread_id)
+        level = assignment.decision_level
         for lit in changes:
             for edge in self._l2e[lit]:
                 cycle = state.add_edge(level, edge)
                 if cycle is not None:
-                    c = [self._literal(control, e) for e in cycle]
+                    c = [self._literal(assignment, e) for e in cycle]
                     if control.add_nogood(c):
                         control.propagate()
                     return
 
-    def undo(self, thread_id: int, assignment: Assignment, changes: Sequence[int]):
+    def undo(self, assignment: Assignment, changes: Sequence[int]):
         """
         Backtrack the last decision level propagated.
         """
         assert changes
-        self._state(thread_id).backtrack(assignment.decision_level)
+        self._state(assignment.thread_id).backtrack(assignment.decision_level)
 
     def on_model(self, model: Model):
         """
@@ -418,9 +419,9 @@ class DLPropagator(Propagator):
             self._states.append(Graph(self._lib))
         return self._states[thread_id]
 
-    def _literal(self, control, edge):
+    def _literal(self, assignment: Assignment, edge: WeightedEdge):
         for lit in self._e2l[edge]:
-            if control.assignment.is_true(lit):
+            if assignment.is_true(lit):
                 return lit
         assert False
 

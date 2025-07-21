@@ -32,6 +32,7 @@ class AIFFBPropagator(Propagator):
     errors: list[str]
     fail_thread: int
     barrier: Optional[Barrier]
+    weight_con: bool
 
     def __init__(self) -> None:
         super().__init__()
@@ -40,11 +41,13 @@ class AIFFBPropagator(Propagator):
         self.n_threads = 1
         self.fail_thread = -1
         self.barrier = None
+        self.weight_con = False
 
-    def init(self, init: PropagateInit) -> None:
+    def init(self, assignment: Assignment, init: PropagateInit) -> None:
         """
         Add watches for atoms `a` and `b`.
         """
+        assert assignment
 
         def watch(p):
             plit = init.base[Function(init.library, p)].literal
@@ -62,21 +65,36 @@ class AIFFBPropagator(Propagator):
             Barrier(init.number_of_threads) if self.fail_thread >= 0 else None
         )
 
-    def check(self, control: PropagateControl) -> None:
+    def check(self, assignment: Assignment, control: PropagateControl) -> None:
         """
         Check if watches are set correctly.
         """
+        assert assignment
+        thread_id = assignment.thread_id
         for p in [self.slit_a, self.slit_b]:
             if not control.has_watch(p):
-                self.errors.append(f"solver {control.thread_id} misses watch {p}")
+                self.errors.append(f"solver {thread_id} misses watch {p}")
+
+        if self.weight_con:
+            control.add_weight_constraint(
+                1,
+                [(self.slit_a, 1), (self.slit_b, 1)],
+                2,
+                WeightConstraintType.Equivalence,
+            )
 
         if self.barrier:
             self.barrier.wait()
             self.barrier = None
-            if control.thread_id == self.fail_thread:
-                raise ValueError(f"Forcing error on solver {control.thread_id}")
+            if thread_id == self.fail_thread:
+                raise ValueError(f"Forcing error on solver {thread_id}")
 
-    def propagate(self, control: PropagateControl, changes: Sequence[int]) -> None:
+    def propagate(
+        self,
+        assignment: Assignment,
+        control: PropagateControl,
+        changes: Sequence[int],
+    ) -> None:
         """
         Propagate solver literals `a` and `b`.
         """
@@ -84,11 +102,12 @@ class AIFFBPropagator(Propagator):
         def propagate(p, q):
             # propagate a implies b
             if p in changes:
-                assert control.assignment.is_true(p)
+                assert assignment.is_true(p)
                 control.add_clause([-p, q], tag=True)
 
-        propagate(self.slit_a, self.slit_b)
-        propagate(self.slit_b, self.slit_a)
+        if not self.weight_con:
+            propagate(self.slit_a, self.slit_b)
+            propagate(self.slit_b, self.slit_a)
 
 
 class AssertingPropagator(Propagator):
@@ -103,10 +122,11 @@ class AssertingPropagator(Propagator):
         self._value_lit = 0
         self._lock = lock
 
-    def init(self, init: PropagateInit) -> None:
+    def init(self, assignment: Assignment, init: PropagateInit) -> None:
         """
         Test init.
         """
+        assert assignment
         for atom in init.base[("start", 0)].values():
             self._start_lit = init.solver_literal(atom.literal)
         for atom in init.base[("end", 0)].values():
@@ -117,12 +137,11 @@ class AssertingPropagator(Propagator):
             init.add_watch(lit)
             init.add_watch(-lit)
 
-    def propagate(self, control: PropagateControl, changes):
+    def propagate(self, ass: Assignment, control: PropagateControl, changes):
         """
         Test propagate.
         """
         assert changes
-        ass = control.assignment
         if ass.is_false(self._value_lit) and ass.is_false(self._end_lit):
             nogood = [self._start_lit, -self._end_lit, -self._value_lit]
             dl = ass.decision_level
@@ -130,11 +149,10 @@ class AssertingPropagator(Propagator):
             assert ass.decision_level == dl
             assert not result
 
-    def decide(self, thread_id: int, assignment: Assignment, fallback: int) -> int:
+    def decide(self, assignment: Assignment, fallback: int) -> int:
         """
         Test decide.
         """
-        assert thread_id == 0
         if assignment.is_free(self._end_lit):
             return -self._end_lit
         if assignment.is_free(self._value_lit):
@@ -151,11 +169,13 @@ class InitPropagator(Propagator):
     def __init__(self, lib: Library):
         super().__init__()
         self._lib = lib
+        self._init = False
 
-    def init(self, init: PropagateInit):
+    def init(self, assignment: Assignment, init: PropagateInit):
         """
         Test init.
         """
+        self._init = True
         a = init.base[Function(self._lib, "a")]
         b = init.base[Function(self._lib, "b")]
         c = init.base[Function(self._lib, "c")]
@@ -170,23 +190,28 @@ class InitPropagator(Propagator):
         init.add_clause([lit, -lit_b])
         # c <=> {a, b} >= 2
         init.add_weight_constraint(
-            lit_c, [(lit_a, 1), (lit_b, 1)], 2, WeightConstraintType.Equivalence, False
+            lit_c, [(lit_a, 1), (lit_b, 1)], 2, WeightConstraintType.Equivalence
         )
         init.add_minimize(lit_a, -1, 0)
         assert init.propagate()
         assert len(init.base) == 3
         # test assignment
-        assert init.assignment.value(lit_a) is None
-        assert not init.assignment.is_true(lit_a)
-        assert not init.assignment.is_false(lit_a)
-        assert not init.assignment.is_fixed(lit_a)
-        assert init.assignment.decision_level == 0
-        assert lit_a in init.assignment
-        assert not init.assignment.has_conflict
-        assert not init.assignment.is_total
-        assert init.assignment.root_level == 0
-        assert len(init.assignment) == 5
-        assert len(list(init.assignment)) == 5
+        assert assignment.value(lit_a) is None
+        assert not assignment.is_true(lit_a)
+        assert not assignment.is_false(lit_a)
+        assert not assignment.is_fixed(lit_a)
+        assert assignment.decision_level == 0
+        assert lit_a in assignment
+        assert not assignment.has_conflict
+        assert not assignment.is_total
+        assert assignment.root_level == 0
+        assert len(assignment) == 5
+        assert len(list(assignment)) == 5
+
+    def attach(self, assignment: Assignment, ctl: PropagateControl):
+        assert assignment
+        assert ctl
+        assert self._init
 
 
 class AddLiteralPropagator(Propagator):
@@ -197,20 +222,29 @@ class AddLiteralPropagator(Propagator):
 
     def __init__(self):
         super().__init__()
-        self._added = False
+        self._lit = 0
 
-    def check(self, control: PropagateControl):
+    def add_lit(self, control: PropagateControl):
+        self._lit = control.add_literal()
+        assert not control.has_watch(self._lit)
+        control.add_watch(self._lit)
+        assert control.has_watch(self._lit)
+        control.remove_watch(self._lit)
+        assert not control.has_watch(self._lit)
+
+    def attach(self, assignment: Assignment, control: PropagateControl) -> None:
+        assert self._lit == 0
+        assert assignment
+        self.add_lit(control)
+        self._lit = 1
+
+    def check(self, assignment: Assignment, control: PropagateControl) -> None:
         """
         Test check.
         """
-        if not self._added:
-            self._added = True
-            lit = control.add_literal()
-            assert not control.has_watch(lit)
-            control.add_watch(lit)
-            assert control.has_watch(lit)
-            control.remove_watch(lit)
-            assert not control.has_watch(lit)
+        assert assignment
+        if self._lit == 1:
+            self.add_lit(control)
 
 
 class HeuristicPropagator(Propagator):
@@ -224,20 +258,20 @@ class HeuristicPropagator(Propagator):
         self._lit_a = 0
         self._lit_b = 0
 
-    def init(self, init: PropagateInit):
+    def init(self, assignment: Assignment, init: PropagateInit):
         """
         Test init.
         """
+        assert assignment
         a = init.base[Function(self._lib, "a")]
         b = init.base[Function(self._lib, "b")]
         self._lit_a = init.solver_literal(a.literal)
         self._lit_b = init.solver_literal(b.literal)
 
-    def decide(self, thread_id: int, assignment: Assignment, fallback: int) -> int:
+    def decide(self, assignment: Assignment, fallback: int) -> int:
         """
         Test decide.
         """
-        assert thread_id == 0
         if assignment.is_free(self._lit_a):
             return self._lit_a
         if assignment.is_free(self._lit_b):
@@ -258,11 +292,11 @@ class PropagateControlPropagator(Propagator):
         self._lit_a = 0
         self._lib = lib
 
-    def init(self, init: PropagateInit):
+    def init(self, assignment: Assignment, init: PropagateInit):
         """
         Test initialization.
         """
-        ass = init.assignment
+        ass = assignment
         init.check_mode = CheckMode.Off
         assert init.check_mode == CheckMode.Off
         assert init.number_of_threads == 1
@@ -273,11 +307,15 @@ class PropagateControlPropagator(Propagator):
         assert -self._lit_a in ass
         init.add_watch(-self._lit_a)
 
-    def propagate(self, control: PropagateControl, changes: Sequence[int]):
+    def propagate(
+        self,
+        ass: Assignment,
+        control: PropagateControl,
+        changes: Sequence[int],
+    ):
         """
         Test propagation.
         """
-        ass = control.assignment
         trail = ass.trail
         lvl = ass.decision_level
         assert -self._lit_a in changes
@@ -288,17 +326,16 @@ class PropagateControlPropagator(Propagator):
         assert trail[trail.begin(lvl)] == -self._lit_a
         assert list(trail[trail.begin(lvl) : trail.end(lvl)]) == [-self._lit_a]
         assert ass.decision(lvl) == -self._lit_a
-        assert control.thread_id == 0
+        assert ass.thread_id == 0
         assert control.has_watch(-self._lit_a)
         assert control.propagate()
         assert not control.add_clause([self._lit_a])
 
-    def undo(self, thread_id: int, assignment: Assignment, changes: Sequence[int]):
+    def undo(self, assignment: Assignment, changes: Sequence[int]):
         """
         Test undo.
         """
         assert assignment
-        assert thread_id == 0
         assert -self._lit_a in changes
 
 
@@ -313,33 +350,32 @@ class ModePropagator(Propagator):
         self.num_undo = 0
         self.level = [0]
 
-    def init(self, init: PropagateInit):
+    def init(self, assignment: Assignment, init: PropagateInit):
         """
         Test init.
         """
+        assert assignment
         init.check_mode = CheckMode.Fixpoint
         init.undo_mode = UndoMode.Always
 
         assert init.check_mode == CheckMode.Fixpoint
         assert init.undo_mode == UndoMode.Always
 
-    def check(self, control: PropagateControl) -> None:
+    def check(self, assignment: Assignment, control: PropagateControl) -> None:
         """
         Test propagate.
         """
+        assert control
         self.num_check += 1
-        dl = control.assignment.decision_level
+        dl = assignment.decision_level
         assert self.level[-1] <= dl
         if self.level[-1] != dl:
             self.level.append(dl)
 
-    def undo(
-        self, thread_id: int, assignment: Assignment, changes: Sequence[int]
-    ) -> None:
+    def undo(self, assignment: Assignment, changes: Sequence[int]) -> None:
         """
         Test undo.
         """
-        assert thread_id == 0
         assert assignment
         assert not changes
         self.num_undo += 1
@@ -433,7 +469,7 @@ class TestPropagate:
         mcb = MCB()
         with self.ctl.solve(on_model=mcb) as hnd:
             assert hnd.get().satisfiable
-        assert mcb.symbols == [[], []]
+        assert mcb.symbols == [[], [], [], []]
 
     def test_heuristic(self):
         """
@@ -477,6 +513,22 @@ class TestPropagate:
             assert prop.n_threads == n, "init called with wrong number of threads"
             assert not prop.errors
             assert mcb.symbols == [["a", "b"]]
+
+    def test_aiffb_wc(self):
+        """
+        Test the example a iff b propagator with weight constraints.
+        """
+        prop = AIFFBPropagator()
+        self.ctl.register_propagator(prop)
+        self.ctl.parse_string("1 { a; b }.")
+        self.ctl.ground()
+        prop.weight_con = True
+
+        mcb = MCB()
+        with self.ctl.solve(on_model=mcb) as hnd:
+            assert hnd.get().satisfiable
+        assert not prop.errors
+        assert mcb.symbols == [["a", "b"]]
 
     def test_exception_propagation(self):
         """

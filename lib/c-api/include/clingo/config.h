@@ -49,7 +49,7 @@ typedef struct clingo_config clingo_config_t;
 //!
 //! @param[in] config the target configuration
 //! @param[out] key the root key
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_root(clingo_config_t const *config, clingo_id_t *key);
 
 //! Get the type of a key.
@@ -59,7 +59,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_root(clingo_config_t const *config,
 //! @param[in] config the target configuration
 //! @param[in] key the key
 //! @param[out] type the resulting type
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_type(clingo_config_t const *config, clingo_id_t key,
                                                   clingo_config_type_bitset_t *type);
 //! Get the description of an entry.
@@ -67,7 +67,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_type(clingo_config_t const *config,
 //! @param[in] config the target configuration
 //! @param[in] key the key
 //! @param[out] description the description
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_description(clingo_config_t const *config, clingo_id_t key,
                                                          clingo_string_t *description);
 
@@ -80,7 +80,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_description(clingo_config_t const *
 //! @param[in] config the target configuration
 //! @param[in] key the key
 //! @param[out] size the resulting size
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_array_size(clingo_config_t const *config, clingo_id_t key, size_t *size);
 //! Get the subkey at the given offset of an array entry.
 //!
@@ -91,7 +91,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_array_size(clingo_config_t const *c
 //! @param[in] key the key
 //! @param[in] offset the offset in the array
 //! @param[out] subkey the resulting subkey
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_array_at(clingo_config_t const *config, clingo_id_t key, size_t offset,
                                                       clingo_id_t *subkey);
 //! @}
@@ -105,7 +105,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_array_at(clingo_config_t const *con
 //! @param[in] config the target configuration
 //! @param[in] key the key
 //! @param[out] size the resulting number
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_size(clingo_config_t const *config, clingo_id_t key, size_t *size);
 //! Query whether the map has a key.
 //!
@@ -116,7 +116,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_size(clingo_config_t const *con
 //! @param[in] name the name to look up the subkey
 //! @param[in] size the size of the name
 //! @param[out] result whether the key is in the map
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_has_subkey(clingo_config_t const *config, clingo_id_t key,
                                                             char const *name, size_t size, bool *result);
 //! Get the name associated with the offset-th subkey.
@@ -126,7 +126,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_has_subkey(clingo_config_t cons
 //! @param[in] key the key
 //! @param[in] offset the offset of the name
 //! @param[out] name the resulting name
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_subkey_name(clingo_config_t const *config, clingo_id_t key,
                                                              size_t offset, clingo_string_t *name);
 //! Lookup a subkey under the given name.
@@ -138,7 +138,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_subkey_name(clingo_config_t con
 //! @param[in] name the name to look up the subkey
 //! @param[in] size the size of the name
 //! @param[out] subkey the resulting subkey
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_at(clingo_config_t const *config, clingo_id_t key, char const *name,
                                                     size_t size, clingo_id_t *subkey);
 //! @}
@@ -153,7 +153,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_at(clingo_config_t const *confi
 //! @param[in] key the key
 //! @param[out] value the resulting string value
 //! @param[out] has_value whether the config entry has a value
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_value_get(clingo_config_t const *config, clingo_id_t key,
                                                        clingo_string_t *value, bool *has_value);
 //! Set the value of an entry.
@@ -163,7 +163,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_value_get(clingo_config_t const *co
 //! @param[in] key the key
 //! @param[in] value the value to set
 //! @param[in] size the size of the value
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_value_set(clingo_config_t *config, clingo_id_t key, char const *value,
                                                        size_t size);
 
@@ -172,7 +172,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_value_set(clingo_config_t *config, 
 //! @param[in] config the target configuration
 //! @param[in] key the key
 //! @param[in] builder the builder
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_to_string(clingo_config_t const *config, clingo_id_t key,
                                                        clingo_string_builder_t *builder);
 
@@ -182,7 +182,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_to_string(clingo_config_t const *co
 //!
 //! @param[in] control the target
 //! @param[out] config the configuration
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_config(clingo_control_t *control, clingo_config_t **config);
 
 //! @}

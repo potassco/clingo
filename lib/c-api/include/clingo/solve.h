@@ -119,7 +119,7 @@ typedef struct clingo_solve_handle clingo_solve_handle_t;
 //!
 //! @param[in] handle the target
 //! @param[out] result the solve result
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *handle,
                                                        clingo_solve_result_bitset_t *result);
 //! Wait for the specified amount of time to check if the next result is ready.
@@ -130,13 +130,13 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *ha
 //! @param[in] handle the target
 //! @param[in] timeout the maximum time to wait
 //! @param[out] result whether the search has finished
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result);
 //! Get the next model (or zero if there are no more models).
 //!
 //! @param[in] handle the target
 //! @param[out] model the model (it is NULL if there are no more models)
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model);
 //! When a problem is unsatisfiable, get a subset of the assumptions that made the problem unsatisfiable.
 //!
@@ -145,7 +145,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *
 //! @param[in] handle the target
 //! @param[out] literals array of literals in the core
 //! @param[out] size the size of the core
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_core(clingo_solve_handle_t *handle,
                                                         clingo_literal_t const **literals, size_t *size);
 //! When a problem is satisfiable and the search is finished, get the last
@@ -155,7 +155,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_core(clingo_solve_handle_t *h
 //!
 //! @param[in] handle the target
 //! @param[out] model the last computed model (or NULL if the program is unsatisfiable or the search is still ongoing)
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_last(clingo_solve_handle_t *handle, clingo_model_t const **model);
 //! Discards the last model and starts the search for the next one.
 //!
@@ -165,19 +165,19 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_last(clingo_solve_handle_t *h
 //! @note This function does not block.
 //!
 //! @param[in] handle the target
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t *handle);
 //! Stop the running search and block until done.
 //!
 //! @param[in] handle the target
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle);
 //! Stops the running search and releases the handle.
 //!
 //! Blocks until the search is stopped (as if an implicit cancel was called before the handle is released).
 //!
 //! @param[in] handle the target
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
 
 //! Solve the currently grounded logic program enumerating its models.
@@ -191,7 +191,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *
 //! @param[in] handler the event handler to register
 //! @param[in] data the user data for the event handler
 //! @param[out] handle handle to the current search to enumerate models
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode,
                                                     clingo_literal_t const *assumptions, size_t assumptions_size,
                                                     clingo_solve_event_handler_t const *handler, void *data,

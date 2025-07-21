@@ -97,29 +97,35 @@ class Prop(Propagator):
         super().__init__()
         self.throw = throw
 
-    def init(self, init: PropagateInit) -> None:
+    def init(self, assignment: Assignment, init: PropagateInit) -> None:
         """
         Test throwing errors in init.
         """
+        assert assignment
         if "i" in self.throw:
             raise RuntimeError("prop: init")
         init.check_mode = CheckMode.Total
         init.add_watch(init.add_literal())
 
-    def propagate(self, control: PropagateControl, changes: Sequence[int]) -> None:
+    def propagate(
+        self,
+        assignment: Assignment,
+        control: PropagateControl,
+        changes: Sequence[int],
+    ) -> None:
         """
         Test throwing errors in propagate.
         """
+        assert assignment
         assert changes
         assert control
         if "p" in self.throw:
             raise RuntimeError("prop: propagate")
 
-    def decide(self, thread_id: int, assignment: Assignment, fallback: int) -> int:
+    def decide(self, assignment: Assignment, fallback: int) -> int:
         """
         Test throwing errors in decide.
         """
-        assert thread_id == 0
         assert assignment
         if "d" in self.throw:
             raise RuntimeError("prop: decide")

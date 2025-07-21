@@ -214,7 +214,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_message_string(clingo_message_t code, clin
 //! @param[in] data user data for the logger callback
 //! @param[in] limit the message limit
 //! @param[out] lib the resulting library object
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t level,
                                               clingo_logger_t const *logger, void *data, size_t limit,
                                               clingo_lib_t **lib);
@@ -254,13 +254,13 @@ typedef struct clingo_string_builder clingo_string_builder_t;
 //! Create a new string builder.
 //!
 //! @param[out] bld the resulting builder
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_new(clingo_string_builder_t **bld);
 //! Copy the string builder.
 //!
 //! @param[in] src the builder to copy
 //! @param[out] dst the resulting builder
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_copy(clingo_string_builder_t const *src,
                                                           clingo_string_builder_t **dst);
 //! Free the string builder.
@@ -272,7 +272,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_free(clingo_string_builder_
 //!
 //! @param[in] bld the builder
 //! @param[out] value the resulting string
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_string(clingo_string_builder_t const *bld, clingo_string_t *value);
 //! Clear the string in the builder.
 //!
@@ -293,14 +293,14 @@ typedef struct clingo_position clingo_position_t;
 //! @param[in] line the line number of the position
 //! @param[in] column the column number of the position
 //! @param[out] pos the resulting position
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_position_new(clingo_lib_t *lib, char const *file, size_t size, size_t line,
                                                    size_t column, clingo_position_t const **pos);
 //! Copy the given position.
 //!
 //! @param[in] src the position to copy
 //! @param[out] dst the resulting position
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_position_copy(clingo_position_t const *src, clingo_position_t const **dst);
 //! Free the given position.
 //!
@@ -347,7 +347,7 @@ CLINGO_VISIBILITY_DEFAULT int clingo_position_compare(clingo_position_t const *a
 //!
 //! @param[in] pos the position
 //! @param[in] str the string builder
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_position_to_string(clingo_position_t const *pos, clingo_string_builder_t *str);
 
 //! Represents a source code location marking its beginning and end.
@@ -358,14 +358,14 @@ typedef struct clingo_location clingo_location_t;
 //! @param[in] begin the position marking the beginning
 //! @param[in] end the position marking the end
 //! @param[out] loc the resulting location
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_new(clingo_position_t const *begin, clingo_position_t const *end,
                                                    clingo_location_t const **loc);
 //! Copy the given location.
 //!
 //! @param[in] src the location to copy
 //! @param[out] dst the resulting location
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_copy(clingo_location_t const *src, clingo_location_t const **dst);
 //! Free the given location.
 //!
@@ -411,7 +411,7 @@ CLINGO_VISIBILITY_DEFAULT int clingo_location_compare(clingo_location_t const *a
 //!
 //! @param[in] loc the location
 //! @param[in] str the string builder
-//! @return wether the call was successful
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string(clingo_location_t const *loc, clingo_string_builder_t *str);
 
 //! @}
