@@ -7,7 +7,7 @@ set(source
     ${source-group})
 # ]]]
 
-set(CMAKE_EXE_LINKER_FLAGS "-s ENVIRONMENT=worker -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE -s EXPORTED_RUNTIME_METHODS=ccall,cwrap")
+set(CMAKE_EXE_LINKER_FLAGS "-s ENVIRONMENT=worker -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE=1 -s FORCE_FILESYSTEM=1 -s EXPORTED_RUNTIME_METHODS=ccall,cwrap,FS")
 
 add_executable(clingo-web)
 target_sources(clingo-web PRIVATE ${source})
