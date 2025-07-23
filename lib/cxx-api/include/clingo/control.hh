@@ -182,6 +182,12 @@ enum class ProfileType : clingo_profile_type_t {
 //! Class to hold profiling data for an expression in a logic program.
 struct ProfileNodeLeaf {
     //! Constructs a profile leaf node with the given type and profiling data.
+    //!
+    //! @param type the type of the profiling data
+    //! @param matches the number of matches for the expression
+    //! @param instances the number of instances of the expression
+    //! @param time_instantiate the time spent instantiating the expression
+    //! @param time_propagate the time spent propagating the expression
     ProfileNodeLeaf(ProfileType type, uint64_t matches = 0, uint64_t instances = 0, uint64_t time_instantiate = 0,
                     uint64_t time_propagate = 0)
         : type{type}, matches{matches}, instances{instances}, time_instantiate{time_instantiate},
@@ -201,6 +207,9 @@ using ProfileNode = std::variant<ProfileNodeInternal, ProfileNodeLeaf>;
 //! Class to hold profiling data for an expression in a logic program.
 struct ProfileNodeInternal {
     //! Constructs a profile internal node with the given key.
+    //!
+    //! @param key the key of the profile node
+    //! @param nested whether times are included in the parent
     ProfileNodeInternal(std::string key, bool nested) : key{std::move(key)}, nested{nested} {}
 
     //! The key of the profile node.

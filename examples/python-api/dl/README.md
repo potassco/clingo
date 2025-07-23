@@ -1,4 +1,4 @@
-# A Difference Logic Propagator
+## A Difference Logic Propagator
 
 This example implements a scaled down version of clingo-dl supporting
 constraints of form
@@ -10,7 +10,7 @@ can be used as a point of reference. Its value will be subtracted from the
 remaining variables. Warning: no other integer should be used as variable name
 to avoid confusion.
 
-## Examples
+### Examples
 
 Enumerating all solutions of a flowshop problem.
 

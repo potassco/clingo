@@ -14,6 +14,9 @@ from clingo.core import Library
 class Order:
     """
     Class print programs in a more predictable format.
+
+    TODO:
+    - Elements of aggregates and minimize constraints shoud be ordered as well.
     """
 
     def __init__(self):
@@ -38,10 +41,9 @@ class Order:
         Parse the statements in the given files and output them in an orderly fashion.
         """
         stms = []
-        with ast.Scanner(self._lib, files) as scn:
-            for stm in scn:
-                stms.append(self._dispatch(stm) or stm)
-
+        ast.parse_files(
+            self._lib, files, lambda stm: stms.append(self._dispatch(stm) or stm)
+        )
         for stm in sorted(stms):
             print(str(stm))
 
