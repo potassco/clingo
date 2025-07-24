@@ -37,6 +37,7 @@ Statement = Union[
     ast.StatementOptimize,
     ast.StatementProgram,
     ast.StatementProject,
+    ast.StatementParts,
     ast.StatementProjectSignature,
     ast.StatementRule,
     ast.StatementScript,
@@ -44,6 +45,7 @@ Statement = Union[
     ast.StatementShowSignature,
     ast.StatementTheory,
     ast.StatementWeakConstraint,
+    ast.StatementShowNothing,
 ]
 Program = list[Statement]
 Predicate = tuple[str, int, bool]
@@ -257,7 +259,7 @@ def rewrite(lib: Library, prg: Program) -> Program:
         opts.add_param(param)
     for stm in prg_other:
         if isinstance(stm, ast.StatementProgram):
-            params = params_const + stm.arguments
+            params = params_const + list(stm.arguments)
             opts.clear_params()
             for param in params:
                 opts.add_param(param)
@@ -276,12 +278,12 @@ class DependencyBuilder:
     def __init__(self):
         self.graph = PredicateGraph()
 
-    def _get_pred(self, lit: Literal):
+    def _get_pred(self, lit: Literal) -> list[Predicate]:
         if isinstance(lit, ast.LiteralSymbolic):
             atom = lit.atom
             if isinstance(atom, ast.TermSymbolic):
                 symbol = atom.symbol
-                return [(symbol.name, symbol.arity, symbol.sign)]
+                return [(symbol.name, symbol.arity, symbol.is_negative)]
 
             sign = False
             if isinstance(atom, ast.TermUnaryOperation):
@@ -292,7 +294,9 @@ class DependencyBuilder:
             return [(atom.name, len(atom.pool[0].arguments), sign)]
         return []
 
-    def _get_body_pred(self, lit: Literal, force_negative=False):
+    def _get_body_pred(
+        self, lit: Literal, force_negative=False
+    ) -> list[tuple[Predicate, bool]]:
         res = [(pred, lit.sign != ast.Sign.NoSign) for pred in self._get_pred(lit)]
         if force_negative:
             res += [(pred, True) for pred, sign in res if not sign]
@@ -406,15 +410,11 @@ def run():
     Run the example and print a nice dot graph.
     """
     with Library() as lib:
-        with ast.Scanner(lib, sys.argv[1:]) as scanner:
-            prg = list(scanner)
-
+        prg = []
+        ast.parse_files(lib, sys.argv[1:], prg.append)
         prg = rewrite(lib, prg)
-
         dep = dependency([stm for stm in prg if isinstance(stm, ast.StatementRule)])
-
         comps = dep.analyze()
-
         print(dep.to_dot(comps))
 
 
