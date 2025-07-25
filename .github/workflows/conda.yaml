@@ -47,8 +47,8 @@ jobs:
             -w /work \
             quay.io/condaforge/linux-anvil-cos7-x86_64 /bin/bash -c "
               curl -L -o miniconda.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh && \
-              bash miniconda.sh -b -p /miniforge && \
-              export PATH=/miniforge/bin:\$PATH && \
+              bash miniconda.sh -b -p /work/miniforge && \
+              export PATH=/work/miniforge/bin:\$PATH && \
               conda init bash && source /root/.bashrc && \
               conda install -y conda-build && \
               conda build .github/conda --output-folder ./artifacts --python ${{ matrix.python-version }} && \
