@@ -7,10 +7,127 @@
 #include "core.hh"
 #include "lib.hh"
 
+#include <map>
+
 using namespace CppClingo::CAPI;
 
 namespace CppClingo::CAPI {
 namespace {
+
+// TODO:
+// - extending the config with custom keys
+// - wrap config in custom config
+// - the config should live in the control object
+// - it should work even if there is not associated solver
+
+class ClingoConfig {
+  public:
+    using KeyType = Clasp::Cli::ClaspCliConfig::KeyType;
+    class ConfigUpdater {
+      public:
+        ConfigUpdater() = default;
+        ConfigUpdater(ConfigUpdater const &other) = delete;
+        auto operator=(ConfigUpdater const &other) -> ConfigUpdater & = delete;
+        virtual ~ConfigUpdater() = default;
+
+        void set(uint8_t index, std::string_view value) { do_set(index, value); }
+        void get(uint8_t index, std::string &value) { do_get(index, value); }
+        auto writable(uint8_t index) -> bool { return do_writable(index); }
+
+      private:
+        virtual auto do_get(uint8_t index, std::string &value) const -> bool = 0;
+        virtual auto do_set(uint8_t index, std::string_view value) -> bool = 0;
+        [[nodiscard]] virtual auto do_writable(uint8_t index) const -> bool = 0;
+    };
+    class ConfigEntry {
+      public:
+        ConfigEntry(KeyType parent, KeyType key, std::unique_ptr<ConfigUpdater> updater, std::string description)
+            : updater_{std::move(updater)}, description_{std::move(description)}, parent_{parent}, key_{key} {}
+
+        [[nodiscard]] auto key() const -> KeyType { return key_; }
+        [[nodiscard]] auto parent() const -> KeyType { return parent_; }
+
+      private:
+        std::unique_ptr<ConfigUpdater> updater_;
+        std::vector<ConfigEntry> children_;
+        std::string description_;
+        KeyType parent_;
+        KeyType key_;
+    };
+
+    void addKey(std::string_view path, std::unique_ptr<ConfigUpdater> key) {
+        // TODO: implement me
+        std::ignore = key;
+        std::ignore = this;
+
+        for (size_t start = 0; start < path.size();) {
+            size_t dot = path.find('.', start);
+            if (dot == std::string_view::npos) {
+                dot = path.size();
+            }
+            auto part = path.substr(start, dot - start);
+            std::ignore = part;
+            // TODO: implement me
+            start = dot + 1;
+        }
+    }
+
+    ClingoConfig(Clasp::Cli::ClaspCliConfig *config) : config_{config} {}
+
+    static auto root() -> uint32_t { return Clasp::Cli::ClaspCliConfig::key_root; }
+    static auto invalid() -> uint32_t { return Clasp::Cli::ClaspCliConfig::key_invalid; }
+
+    auto getKeyInfo(KeyType key, int *n_subkeys, int *n_array, std::string *help, int *n_values) const -> int {
+        if (key == root()) {
+            if (auto ret = config_->getKeyInfo(key, n_subkeys, n_array, help, n_values); ret == -1) {
+                return ret;
+            }
+            // add the number clingo keys as sub keys
+            throw std::logic_error{"implement me: root key handling"};
+        }
+        if (is_clasp(key)) {
+            return config_->getKeyInfo(key, n_subkeys, n_array, help, n_values);
+        }
+        throw std::logic_error{"implement me: clingo key handling"};
+    }
+
+    [[nodiscard]] auto getArrKey(KeyType key, unsigned index) const -> KeyType {
+        return config_->getArrKey(key, index);
+    }
+
+    [[nodiscard]] auto getKey(KeyType key, std::string_view name) const -> KeyType {
+        return config_->getKey(key, name);
+    }
+
+    [[nodiscard]] auto getSubkey(KeyType key, uint32_t index) const -> std::string_view {
+        return config_->getSubkey(key, index);
+    }
+
+    auto setValue(KeyType key, std::string_view value) -> int { return config_->setValue(key, value); }
+
+    [[nodiscard]] auto getValue(KeyType key) const -> std::string_view {
+        thread_local std::string value;
+        config_->getValue(key, value);
+        return value;
+    }
+
+  private:
+    // Checks if this key is a clasp key.
+    //
+    // Returns true if the upper bit is not set and the key is not the invalid key.
+    [[nodiscard]] static auto is_clasp(KeyType key) -> bool {
+        return (key & (KeyType{1} << (sizeof(KeyType) * 8 - 1))) != 0; // NOLINT
+    }
+
+    // Checks if this key is a clingo key.
+    //
+    // Returns true if the upper bit is set and the key is not the invalid key.
+    [[nodiscard]] static auto is_clingo(KeyType key) -> bool { return key != invalid() && !is_clasp(key); }
+
+    Clasp::Cli::ClaspCliConfig *config_;
+    // Util::unordered_map<std::pair<KeyType, std::string>, KeyType> key_map_;
+    std::vector<ConfigEntry> key_vec_;
+};
 
 inline auto cpp_cast(clingo_config_t const *config) -> Clasp::Cli::ClaspCliConfig const * {
     // NOLINTNEXTLINE
