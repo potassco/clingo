@@ -59,6 +59,9 @@ determined by [GNUInstallDirs][install].
 cmake --build build --config Release --target install
 ```
 
+Avoid running the `install` target as root or administrator; instead, set a
+local prefix using the `CMAKE_INSTALL_PREFIX` variable when running cmake.
+
 ## 🐍 Building the Python Module
 
 ### 📋 Requirements
