@@ -39,20 +39,14 @@ jobs:
             echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
           fi
 
-      - name: Setup
-        shell: bash -l {0}
-        run: |
-          conda install conda-build
-
       - name: Build and upload
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/work \
             -v ${{ github.workspace }}/artifacts:/work/artifacts \
             -w /work \
-            debian:buster /bin/bash -c "
-              apt-get update && apt-get install -y bash wget curl bzip2 && \
-              wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O miniconda.sh && \
+            quay.io/condaforge/linux-anvil-cos7-x86_64 /bin/bash -c "
+              curl -L -o miniconda.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh && \
               bash miniconda.sh -b -p /miniforge && \
               export PATH=/miniforge/bin:\$PATH && \
               conda init bash && source /root/.bashrc && \
