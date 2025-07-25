@@ -47,6 +47,8 @@ jobs:
             -v ${{ github.workspace }}:/work \
             -v ${{ github.workspace }}/artifacts:/artifacts \
             quay.io/condaforge/linux-anvil-cos7-x86_64 /bin/bash -c "
+              export VERSION_NUMBER=${{ env.VERSION_NUMBER }} && \
+              export BUILD_NUMBER=${{ env.BUILD_NUMBER }} && \
               curl -L -o miniconda.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh && \
               bash miniconda.sh -b && \
               source ~/miniforge3/etc/profile.d/conda.sh && \
