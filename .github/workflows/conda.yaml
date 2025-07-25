@@ -41,8 +41,8 @@ jobs:
 
       - name: Build and upload
         run: |
-          chmod -R a+rwX .
           docker run --rm \
+            --user $(id -u):$(id -g)
             -v ${{ github.workspace }}:/work \
             -v ${{ github.workspace }}/artifacts:/work/artifacts \
             -w /work \
@@ -50,7 +50,8 @@ jobs:
               curl -L -o miniconda.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh && \
               bash miniconda.sh -b -p /work/miniforge && \
               export PATH=/work/miniforge/bin:\$PATH && \
-              conda init bash && source /root/.bashrc && \
+              source /work/miniforge/etc/profile.d/conda.sh && \
+              conda activate base && \
               conda install -y conda-build && \
               conda build .github/conda --output-folder ./artifacts --python ${{ matrix.python-version }} && \
               find artifacts -type f ! -name '*.conda' -delete && \
