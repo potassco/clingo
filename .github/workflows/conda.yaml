@@ -13,10 +13,67 @@ on:
         type: string
 
 jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/condaforge/linux-anvil-cos7-x86_64
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Version
+        shell: bash -l {0}
+        run: |
+          VERSION=$(python -c "import re; print(next(re.finditer(r'CLINGO_VERSION \"([0-9.]+)\"', open('lib/c-api/include/clingo/core.h').read())).group(1))")
+          echo "VERSION_NUMBER=$VERSION" >> $GITHUB_ENV
+
+      - name: Build number
+        shell: bash -l {0}
+        run: |
+          if [ "${{ inputs.build_number }}" == "auto" ]; then
+            echo "BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
+          else
+            echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
+          fi
+
+      - name: Conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: conda-build
+          auto-update-conda: true
+
+      - name: Setup
+        shell: bash -l {0}
+        run: |
+          conda install conda-build
+
+      - name: Build
+        shell: bash -l {0}
+        run: |
+          conda build .github/conda \
+            --output-folder ./artifacts \
+            --python "${{ matrix.python-version }}"
+          find artifacts -type f ! -name "*.conda" -delete
+          find artifacts -type d -empty -delete
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: conda-packages-ubuntu-latest-py${{ matrix.python-version }}
+          path: artifacts
+
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
         python-version: ["3.12", "3.13"]
     runs-on: ${{ matrix.os }}
     steps:
@@ -76,7 +133,9 @@ jobs:
           path: artifacts
 
   upload:
-    needs: build
+    needs:
+      - build
+      - build-linux
     runs-on: ubuntu-latest
     steps:
       - name: Dowload
@@ -87,7 +146,6 @@ jobs:
       - name: Conda
         uses: conda-incubator/setup-miniconda@v3
         with:
-          python-version: ${{ matrix.python-version }}
           channels: conda-forge
           channel-priority: strict
           activate-environment: conda-upload
