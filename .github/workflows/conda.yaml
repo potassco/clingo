@@ -42,7 +42,7 @@ jobs:
       - name: Build and upload
         run: |
           docker run --rm \
-            --user $(id -u):$(id -g)
+            --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}:/work \
             -v ${{ github.workspace }}/artifacts:/work/artifacts \
             -w /work \
