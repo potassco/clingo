@@ -15,8 +15,6 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
-    container:
-      image: debian:buster
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
@@ -41,29 +39,28 @@ jobs:
             echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
           fi
 
-      - name: Conda
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          python-version: ${{ matrix.python-version }}
-          channels: conda-forge
-          channel-priority: strict
-          activate-environment: conda-build
-          auto-update-conda: true
-
       - name: Setup
         shell: bash -l {0}
         run: |
           conda install conda-build
 
-      - name: Build
-        shell: bash -l {0}
+      - name: Build and upload
         run: |
-          conda build .github/conda \
-            --output-folder ./artifacts \
-            --python "${{ matrix.python-version }}"
-          find artifacts -type f ! -name "*.conda" -delete
-          find artifacts -type d -empty -delete
-
+          docker run --rm \
+            -v ${{ github.workspace }}:/work \
+            -v ${{ github.workspace }}/artifacts:/work/artifacts \
+            -w /work \
+            debian:buster /bin/bash -c "
+              apt-get update && apt-get install -y bash wget curl bzip2 && \
+              wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O miniconda.sh && \
+              bash miniconda.sh -b -p /miniforge && \
+              export PATH=/miniforge/bin:\$PATH && \
+              conda init bash && source /root/.bashrc && \
+              conda install -y conda-build && \
+              conda build .github/conda --output-folder ./artifacts --python ${{ matrix.python-version }} && \
+              find artifacts -type f ! -name '*.conda' -delete && \
+              find artifacts -type d -empty -delete
+            "
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
