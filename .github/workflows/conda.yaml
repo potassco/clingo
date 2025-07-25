@@ -43,7 +43,6 @@ jobs:
         run: |
           chmod -R a+rwX ${{ github.workspace }}
           docker run --rm \
-            --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}:/work \
             -v ${{ github.workspace }}/artifacts:/work/artifacts \
             -w /work \
