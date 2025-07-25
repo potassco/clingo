@@ -41,24 +41,20 @@ jobs:
 
       - name: Build and upload
         run: |
+          mkdir artifacts
           chmod -R a+rwX ${{ github.workspace }}
           docker run --rm \
             -v ${{ github.workspace }}:/work \
-            -v ${{ github.workspace }}/artifacts:/work/artifacts \
-            -w /work \
+            -v ${{ github.workspace }}/artifacts:/artifacts \
             quay.io/condaforge/linux-anvil-cos7-x86_64 /bin/bash -c "
-              cd /work && \
               curl -L -o miniconda.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh && \
-              bash miniconda.sh -b -p /work/miniforge && \
-              export PATH=/work/miniforge/bin:\$PATH && \
-              source /work/miniforge/etc/profile.d/conda.sh && \
+              bash miniconda.sh -b && \
+              source ~/miniforge3/etc/profile.d/conda.sh && \
               conda activate base && \
               conda install -y tree conda-build && \
-              tree && \
-              conda build .github/conda --output-folder ./artifacts --python ${{ matrix.python-version }} && \
-              find artifacts -type f ! -name '*.conda' -delete && \
-              find artifacts -type d -empty -delete && \
-              chmod -R a+rwX artifacts
+              conda build /work/.github/conda --output-folder artifacts --python ${{ matrix.python-version }} && \
+              find artifacts -type f -name '*.conda' -exec cp {} /artifacts/ \; && \
+              chmod -R a+rwX /artifacts/*
             "
       - name: Upload
         uses: actions/upload-artifact@v4
