@@ -41,6 +41,7 @@ jobs:
 
       - name: Build and upload
         run: |
+          chmod -R a+rwX .
           docker run --rm \
             -v ${{ github.workspace }}:/work \
             -v ${{ github.workspace }}/artifacts:/work/artifacts \
