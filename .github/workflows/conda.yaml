@@ -42,7 +42,7 @@ jobs:
       - name: Build and upload
         run: |
           mkdir artifacts
-          chmod -R a+rwX ${{ github.workspace }}
+          chmod a+rwx artifacts
           docker run --rm \
             -v ${{ github.workspace }}:/work \
             -v ${{ github.workspace }}/artifacts:/artifacts \
@@ -53,8 +53,7 @@ jobs:
               conda activate base && \
               conda install -y tree conda-build && \
               conda build /work/.github/conda --output-folder artifacts --python ${{ matrix.python-version }} && \
-              find artifacts -type f -name '*.conda' -exec cp {} /artifacts/ \; && \
-              chmod -R a+rwX /artifacts/*
+              find artifacts -type f -name '*.conda' -exec cp {} /artifacts/ \;
             "
       - name: Upload
         uses: actions/upload-artifact@v4
