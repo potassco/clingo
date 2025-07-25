@@ -52,7 +52,8 @@ jobs:
               export PATH=/work/miniforge/bin:\$PATH && \
               source /work/miniforge/etc/profile.d/conda.sh && \
               conda activate base && \
-              conda install -y conda-build && \
+              conda install -y tree conda-build && \
+              tree && \
               conda build .github/conda --output-folder ./artifacts --python ${{ matrix.python-version }} && \
               find artifacts -type f ! -name '*.conda' -delete && \
               find artifacts -type d -empty -delete && \
