@@ -16,9 +16,7 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     container:
-      image: quay.io/condaforge/linux-anvil-cos7-x86_64
-    env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+      image: quay.io/condaforge/linux-anvil-alma8-x86_64
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
