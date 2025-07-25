@@ -41,6 +41,7 @@ jobs:
 
       - name: Build and upload
         run: |
+          chmod -R a+rwX ${{ github.workspace }}
           docker run --rm \
             --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}:/work \
@@ -55,7 +56,8 @@ jobs:
               conda install -y conda-build && \
               conda build .github/conda --output-folder ./artifacts --python ${{ matrix.python-version }} && \
               find artifacts -type f ! -name '*.conda' -delete && \
-              find artifacts -type d -empty -delete
+              find artifacts -type d -empty -delete && \
+              chmod -R a+rwX artifacts
             "
       - name: Upload
         uses: actions/upload-artifact@v4
