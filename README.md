@@ -60,9 +60,14 @@ cmake --build build --config Release --target install
 ```
 
 Avoid running the `install` target as root or administrator; instead, set a
-local prefix using the `CMAKE_INSTALL_PREFIX` variable when running cmake.
+local prefix using the `CMAKE_INSTALL_PREFIX` variable when running cmake. If
+Python support is important, installing into a virtual environment is a good
+idea.
 
 ## 🐍 Building the Python Module
+
+It is also possible to just build a Python module for Clingo, which allows you
+to use Clingo from Python without needing to build the entire application.
 
 ### 📋 Requirements
 
