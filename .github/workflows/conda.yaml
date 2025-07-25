@@ -16,7 +16,7 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     container:
-      image: quay.io/condaforge/linux-anvil-alma8-x86_64
+      image: debian:buster
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
