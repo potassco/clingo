@@ -26,7 +26,9 @@ Binary packages are available from [Anaconda][anaconda]:
 conda install -c potassco/label/dev-20 -c conda-forge clingo
 ```
 
-You need to have [conda] installed (see Miniforge installation instructions).
+Packages have to be installed on top of the conda-forge channel. The Miniforge
+distribution ships a conda version configured to use this channel by default
+(see Miniforge [installation instructions][conda]).
 
 ## 🛠️ Building the Application
 
