@@ -15,12 +15,6 @@ using namespace CppClingo::CAPI;
 namespace CppClingo::CAPI {
 namespace {
 
-// TODO:
-// - extending the config with custom keys
-// - wrap config in custom config
-// - the config should live in the control object
-// - it should work even if there is not associated solver
-
 class ClingoConfig {
   public:
     //! The type of configuration keys to refer to entries.
@@ -73,19 +67,23 @@ class ClingoConfig {
     };
     ClingoConfig(Clasp::Cli::ClaspCliConfig *config) : config_{config} {}
 
+    //! The root key of the configuration.
     static auto key_root() -> KeyType { return Clasp::Cli::ClaspCliConfig::key_root; }
-    static auto key_invalid() -> KeyType { return Clasp::Cli::ClaspCliConfig::key_invalid; }
+    //! An invalid index for array keys.
+    //!
+    //! This index is used to mark that an array key is not associated with a
+    //! specific index.
     static auto index_invalid() -> KeyType { return KeyType(-1); }
 
     //! Retrieves information about the specified key.
     //!
+    //! @note All out parameters are optional (i.e., can be null).
+    //!
     //! @param key a handle to a key
     //! @param n_children the number of subkeys for this key
     //! @param array_info the length of array keys or -1 for non-array keys
-    //! @param value_info The number of values the key currently has (0 or 1), or -1 if it cannot have values.
-    //! @param help A description of the key.
-    //! @note All out parameters are optional (i.e., can be null).
-    //! @return The number of output values written, or -1 if the key is invalid.
+    //! @param value_info whether the key has a value, can be read, and can be set
+    //! @param help a description of the key
     void key_info(KeyType key, int *n_children, int *array_info, ValueFlags *value_info, std::string *help) const {
         init_(n_children, 0);
         init_(array_info, -1);
@@ -94,7 +92,7 @@ class ClingoConfig {
             help->clear();
         }
         if (auto clingo_key = is_clingo(key)) {
-            clingo_key_info_(*clingo_key, n_children, array_info, value_info, help);
+            nodes_.at(clingo_key->key_id()).info(*clingo_key, n_children, array_info, value_info, help);
         } else {
             int n_values = 0;
             if (auto ret = config_->getKeyInfo(key, n_children, array_info, help, &n_values); ret == -1) {
@@ -109,42 +107,65 @@ class ClingoConfig {
                     *value_info = ValueFlags::get | ValueFlags::set | ValueFlags::value;
                 }
             }
-            // NOTE: the root key is special - it is the only clasp key that can contain clingo sub keys
+            // NOTE: the root key can have clingo subkeys
             if (n_children != nullptr && key == key_root() && !nodes_.empty()) {
-                *n_children += static_cast<int>(nodes_.front().children().size());
+                *n_children += nodes_.front().entries();
             }
         }
     }
 
+    //! Get the key for an element at a specific index in an array entry.
+    //!
+    //! Returns the key corresponding to the element at the given index in the
+    //! array configuration entry specified by `key`. Throws if the entry is
+    //! not an array or the index is invalid.
+    //!
+    //! @param key key of the array entry
+    //! @param index index of the array element
+    //! @return key for the array element at the given index
     [[nodiscard]] auto array_at(KeyType key, KeyType index) const -> KeyType {
         if (auto clingo_key = is_clingo(key)) {
-            if (auto *entry = nodes_.at(clingo_key->key_id()).entry(); entry == nullptr || !entry->size_array()) {
-                error_("key is not an array");
-            }
-            return Key{clingo_key->key_id(), index}.rep();
+            return nodes_.at(clingo_key->key_id()).array_at(*clingo_key, index).rep();
         }
         return check_(config_->getArrKey(key, index));
     }
 
+    //! Get the key for a named subkey in a map entry.
+    //!
+    //! Returns the key corresponding to the subkey with the given name in the
+    //! map configuration entry specified by `key`. Throws if the subkey does
+    //! not exist.
+    //!
+    //! @param key key of the map entry
+    //! @param name name of the subkey
+    //! @return key for the named subkey
     [[nodiscard]] auto map_at(KeyType key, std::string_view name) const -> KeyType {
         if (auto clingo_key = is_clingo(key)) {
-            if (auto subkey = nodes_.front().map_at(name)) {
+            if (auto subkey = nodes_.at(clingo_key->key_id()).map_at(*clingo_key, name)) {
                 return subkey->rep();
             }
             error_("subkey not found");
         }
         if (key == key_root() && !nodes_.empty()) {
-            if (auto subkey = nodes_.front().map_at(name)) {
+            if (auto subkey = nodes_.front().map_at(Key{0}, name)) {
                 return subkey->rep();
             }
         }
         return check_(config_->getKey(key, name));
     }
 
+    //! Get the name of the nth subkey in a map entry.
+    //!
+    //! Returns the name of the subkey at the given index in the map
+    //! configuration entry specified by `key`. Throws if the index is out of
+    //! bounds.
+    //!
+    //! @param key key of the map entry
+    //! @param index index of the subkey
+    //! @return name of the nth subkey
     [[nodiscard]] auto map_nth(KeyType key, uint32_t index) const -> std::string_view {
         if (auto clingo_key = is_clingo(key)) {
-            auto const &node = nodes_.at(clingo_key->key_id());
-            if (auto name = node.map_nth(index)) {
+            if (auto name = nodes_.at(clingo_key->key_id()).map_nth(index)) {
                 return *name;
             }
             error_("index out of bounds");
@@ -154,15 +175,83 @@ class ClingoConfig {
                 return *name;
             }
         }
-        return config_->getSubkey(key, index);
+        auto ret = config_->getSubkey(key, index);
+        if (ret.empty()) {
+            error_("index out of bounds");
+        }
+        return ret;
     }
 
-    auto set_value(KeyType key, std::string_view value) -> int { return config_->setValue(key, value); }
-
+    //! Get the value of a configuration entry.
+    //!
+    //! Returns the value associated with the given configuration key.
+    //! Throws if the key does not have a value or cannot be accessed.
+    //!
+    //! @param key key of the configuration entry
+    //! @return value of the configuration entry
     [[nodiscard]] auto get_value(KeyType key) const -> std::string_view {
         thread_local std::string value;
-        config_->getValue(key, value);
+        if (auto clingo_key = is_clingo(key)) {
+            nodes_.at(clingo_key->key_id()).get_value(clingo_key->index(), value);
+        } else {
+            if (config_->getValue(key, value) < 0) {
+                error_("cannot get value");
+            }
+        }
         return value;
+    }
+
+    //! Set the value of a configuration entry.
+    //!
+    //! Sets the value associated with the given configuration key.
+    //! Throws if the key cannot be set or the value is invalid.
+    //!
+    //! @param key key of the configuration entry
+    //! @param value value to set
+    void set_value(KeyType key, std::string_view value) {
+        if (auto clingo_key = is_clingo(key)) {
+            nodes_.at(clingo_key->key_id()).set_value(clingo_key->index(), value);
+        } else {
+            if (config_->setValue(key, value) <= 0) {
+                error_("cannot set value");
+            }
+        }
+    }
+
+    //!  Adds a new clingo configuration entry to the configuration tree.
+    //!
+    //!  Validates the key name format and inserts the key as a child of the
+    //!  given parent key. The key name may include an optional index in the form
+    //!  "key[index]" to add an array key. The index of such a key is used as
+    //!  default index when the key is accessed without an index.
+    //!
+    //!  If an updater is provided, it will be associated with the key to handle
+    //!  changes to the key's value.
+    //!
+    //!  @param key parent clingo key under which the new key is added
+    //!  @param name name of the key
+    //!  @param description description string for the key
+    //!  @param entry optional entry to handle arrays and values
+    void add_entry(KeyType key, std::string_view name, std::string_view description,
+                   std::unique_ptr<Entry> entry = nullptr) {
+        if (nodes_.empty()) {
+            nodes_.emplace_back("the root key", nullptr);
+        }
+        auto clingo_key = Key{key == key_root() ? 0 : key};
+        auto dot = name.rfind('.');
+        if (dot == std::string_view::npos) {
+            dot = name.size();
+            clingo_key = parse_path_(clingo_key, name.substr(0, dot));
+            name = name.substr(dot + 1);
+        }
+
+        auto index = parse_name_(name);
+        auto &node = nodes_.at(clingo_key.key_id());
+        if (index && !entry) {
+            error_("array key without entry");
+        }
+        node.add_subkey(name, clingo_key, Key{static_cast<KeyType>(nodes_.size()), index});
+        nodes_.emplace_back(description, std::move(entry));
     }
 
   private:
@@ -174,8 +263,33 @@ class ClingoConfig {
     static constexpr KeyType MaskKeyId = ((KeyType{1} << BitsKeyId) - 1) << BitsIndex;
     static constexpr KeyType MaskIndex = (KeyType{1} << BitsIndex) - 1;
 
+    static auto key_invalid() -> KeyType { return Clasp::Cli::ClaspCliConfig::key_invalid; }
+
     struct FromRep {};
     [[maybe_unused]] static constexpr FromRep from_rep{};
+
+    //! Checks if the given key is valid and returns it.
+    static auto check_(KeyType key) -> KeyType {
+        if (key == key_invalid()) {
+            error_("invalid key");
+        }
+        return key;
+    }
+
+    //! Helper to emit error messages for configuration issues.
+    template <class... T> static void error_(T const &...args) {
+        std::ostringstream oss;
+        oss << "configuration error: ";
+        (oss << ... << args); // NOLINT
+        throw std::runtime_error{oss.str()};
+    }
+
+    //! Helper to initialize a pointer with a default value if it is not null.
+    template <class P> static void init_(P *val, P def) {
+        if (val != nullptr) {
+            *val = def;
+        }
+    }
 
     //! Helper to access the components of a configuration key.
     //!
@@ -221,7 +335,10 @@ class ClingoConfig {
         }
         //! Transfer the array index of this key to the child key.
         [[nodiscard]] auto subkey(Key child) const -> Key {
-            return child.index() ? child : Key{child.key_id(), index()};
+            if (index() && child.index()) {
+                error_("multiple indices");
+            }
+            return index() ? Key{child.key_id(), index()} : child;
         }
         //! Get the raw representation of the key.
         [[nodiscard]] auto rep() const -> KeyType { return rep_; }
@@ -250,7 +367,7 @@ class ClingoConfig {
             return rep;
         }
         static auto encode_key_id(KeyType key_id) -> KeyType {
-            if (key_id > (MaskKeyId >> BitsIndex)) {
+            if (key_id >= (MaskKeyId >> BitsIndex)) {
                 error_("key size exceeded");
             }
             return key_id << BitsIndex;
@@ -262,74 +379,99 @@ class ClingoConfig {
     class Node {
       public:
         //! Constructs a new Node with the given description and optional updater.
-        explicit Node(std::string_view description, std::unique_ptr<Entry> updater)
-            : updater_{std::move(updater)}, description_{description} {}
+        explicit Node(std::string_view description, std::unique_ptr<Entry> entry)
+            : entry_{std::move(entry)}, description_{description} {}
 
-        //! The entry associated with this node.
-        [[nodiscard]] auto entry() const -> Entry * { return updater_.get(); }
         //! The description of this node.
         [[nodiscard]] auto description() const -> std::string_view { return description_; }
-        //! Theh children of this node, mapping names to keys.
-        [[nodiscard]] auto children() -> std::map<std::string, Key, std::less<>> & { return children_; }
-        //! Theh children of this node, mapping names to keys.
-        [[nodiscard]] auto children() const -> std::map<std::string, Key, std::less<>> const & { return children_; }
-        [[nodiscard]] auto map_at(std::string_view name) const -> std::optional<Key> {
-            auto it = children_.find(name);
-            return it != children_.end() ? std::make_optional(it->second) : std::nullopt;
-        }
-        [[nodiscard]] auto map_nth(KeyType index) const -> std::optional<std::string_view> {
-            auto it = children_.begin();
-            for (; index > 0 && it != children_.end(); --index, ++it) {
+        //! Get the number of entries of tihs node.
+        [[nodiscard]] auto entries() const -> int { return static_cast<int>(subkeys_.size()); }
+
+        //! Get the key for a subkey with the given name.
+        [[nodiscard]] auto map_at(Key key, std::string_view name) const -> std::optional<Key> {
+            auto it = subkeys_.find(name);
+            if (it != subkeys_.end()) {
+                return key.subkey(it->second);
             }
-            return it != children_.end() ? std::make_optional<std::string_view>(it->first) : std::nullopt;
+            return std::nullopt;
+        }
+        //! Get the name of the nth subkey in this node.
+        [[nodiscard]] auto map_nth(KeyType index) const -> std::optional<std::string_view> {
+            auto it = subkeys_.begin();
+            for (; index > 0 && it != subkeys_.end(); --index, ++it) {
+            }
+            return it != subkeys_.end() ? std::make_optional<std::string_view>(it->first) : std::nullopt;
+        }
+        //! Get the key for an array entry at the given index.
+        [[nodiscard]] auto array_at(Key key, KeyType index) const -> Key {
+            if (entry_ == nullptr || !entry_->size_array()) {
+                error_("not an array");
+            }
+            if (index == index_invalid()) {
+                error_("invalid index");
+            }
+            return Key{key.key_id(), index};
+        }
+        //! Get the value of this key.
+        void get_value(std::optional<KeyType> index, std::string &value) const {
+            if (entry_ == nullptr) {
+                error_("not a value");
+            }
+            if (index == index_invalid()) {
+                index = std::nullopt;
+            }
+            auto flags = entry_->value_info(index);
+            if (!intersects(flags, ValueFlags::get)) {
+                error_("cannot get value");
+            }
+            entry_->get_value(index, value);
+        }
+        //! Set the value of this key.
+        void set_value(std::optional<KeyType> index, std::string_view value) {
+            if (entry_ == nullptr) {
+                error_("not a value");
+            }
+            if (index == index_invalid()) {
+                index = std::nullopt;
+            }
+            auto flags = entry_->value_info(index);
+            if (!intersects(flags, ValueFlags::set)) {
+                error_("cannot set value");
+            }
+            entry_->set_value(index, value);
+        }
+        //! Get information about this key.
+        void info(Key key, int *n_children, int *array_info, ValueFlags *value_info, std::string *help) const {
+            if (n_children != nullptr) {
+                *n_children = static_cast<int>(subkeys_.size());
+            }
+            if (array_info != nullptr && entry_ != nullptr) {
+                *array_info = entry_->size_array().value_or(-1);
+            }
+            if (help != nullptr) {
+                auto desc = description();
+                help->assign(desc.begin(), desc.end());
+            }
+            if (value_info != nullptr && entry_ != nullptr) {
+                *value_info = entry_->value_info(key.index());
+            }
+        }
+
+        void add_subkey(std::string_view name, Key parent, Key child) {
+            if (parent.index() && child.index()) {
+                error_("multiple indices");
+            }
+            if (child.index()) {
+                child = Key{child.key_id(), index_invalid()};
+            }
+            subkeys_.emplace(name, child);
         }
 
       private:
-        std::unique_ptr<Entry> updater_;
-        std::map<std::string, Key, std::less<>> children_;
+        std::unique_ptr<Entry> entry_;
+        std::map<std::string, Key, std::less<>> subkeys_;
         std::string description_;
     };
-
-    static auto check_(KeyType key) -> KeyType {
-        if (key == key_invalid()) {
-            error_("invalid key");
-        }
-        return key;
-    }
-
-    //! Helper to emit error messages for configuration issues.
-    template <class... T> static void error_(T const &...args) {
-        std::ostringstream oss;
-        oss << "configuration error: ";
-        (oss << ... << args); // NOLINT
-        throw std::runtime_error{oss.str()};
-    }
-
-    //! Helper to initialize a pointer with a default value if it is not null.
-    template <class P> static void init_(P *val, P def) {
-        if (val != nullptr) {
-            *val = def;
-        }
-    }
-
-    //! Get information about a clingo configuration key.
-    void clingo_key_info_(Key key, int *n_children, int *array_info, ValueFlags *value_info, std::string *help) const {
-        auto const &node = nodes_.at(key.key_id());
-        if (n_children != nullptr) {
-            *n_children = static_cast<int>(node.children().size());
-        }
-        auto *entry = node.entry();
-        if (array_info != nullptr && entry != nullptr) {
-            *array_info = entry->size_array().value_or(-1);
-        }
-        if (help != nullptr) {
-            auto desc = node.description();
-            help->assign(desc.begin(), desc.end());
-        }
-        if (value_info != nullptr && entry != nullptr) {
-            *value_info = entry->value_info(key.index());
-        }
-    }
 
     //! Parses a configuration key name, extracting an optional index if present.
     //!
@@ -342,7 +484,7 @@ class ClingoConfig {
     //! @param name[inout] reference to the key name
     //! @return an optional index value
     static auto parse_name_(std::string_view &name) -> std::optional<IndexType> {
-        auto res = std::optional<KeyType>{};
+        auto res = std::optional<IndexType>{};
         if (name.ends_with(']')) {
             auto start = name.find_last_of('[');
             if (start == std::string_view::npos) {
@@ -366,6 +508,13 @@ class ClingoConfig {
         if (name.empty()) {
             error_("empty key");
         }
+        if (std::isalpha(static_cast<unsigned char>(name.front())) == 0 && name.front() != '_') {
+            error_("invalid key");
+        }
+        if (!std::ranges::all_of(name,
+                                 [](char c) { return std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '_'; })) {
+            error_("invalid key");
+        }
         return res;
     }
 
@@ -384,7 +533,6 @@ class ClingoConfig {
     //! @return The resolved ClingoKey.
     //! @throws std::runtime_error if the path is invalid or resolution fails.
     auto parse_path_(Key key, std::string_view path) -> Key {
-        auto key_index = key.index();
         for (size_t start = 0; start < path.size();) {
             auto &cur = nodes_.at(key.key_id());
 
@@ -395,67 +543,21 @@ class ClingoConfig {
             }
             auto name = path.substr(start, dot - start);
             auto index = parse_name_(name);
-            auto it = cur.children().find(name);
-            if (it == cur.children().end()) {
+            if (auto subkey = cur.map_at(key, name)) {
+                key = *subkey;
+            } else {
                 error_("key not found");
             }
-            key = it->second;
-            if (auto def = key.index()) {
-                if (key_index.has_value()) {
-                    error_("multiple indices");
+            if (index) {
+                if (!key.index()) {
+                    error_("unexpected index");
                 }
-                key_index = index.value_or(*def);
-            } else if (index) {
-                error_("unexpected indices");
+                key = Key{key.key_id(), index};
             }
             start = dot + 1;
         }
-
-        return Key{key.key_id(), key_index};
+        return key;
     }
-
-    //!  Adds a new clingo configuration key to the configuration tree.
-    //!
-    //!  Validates the key name format and inserts the key as a child of the
-    //!  given parent key. The key name may include an optional index in the form
-    //!  "key[index]" to add an array key. The index of such a key is used as
-    //!  default index when the key is accessed without an index.
-    //!
-    //!  If an updater is provided, it will be associated with the key to handle
-    //!  changes to the key's value.
-    //!
-    //!  @param key Parent clingo key under which the new key is added.
-    //!  @param name Name of the key, possibly with an index.
-    //!  @param description Description string for the key.
-    //!  @param updater Optional unique pointer to a ConfigUpdater for the key.
-    void add_clingo_key_(Key key, std::string_view name, std::string_view description,
-                         std::unique_ptr<Entry> updater = nullptr) {
-        auto dot = name.rfind('.');
-        if (dot == std::string_view::npos) {
-            dot = name.size();
-            key = parse_path_(key, name.substr(0, dot));
-            name = name.substr(dot + 1);
-        }
-
-        auto index = parse_name_(name);
-        if (std::isalpha(static_cast<unsigned char>(name.front())) == 0 && name.front() != '_') {
-            error_("invalid key");
-        }
-        if (!std::ranges::all_of(name,
-                                 [](char c) { return std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '_'; })) {
-            error_("invalid key");
-        }
-
-        auto &entry = nodes_.at(key.key_id());
-        if (entry.children().contains(name)) {
-            error_("key exists");
-        }
-
-        auto sub_key = Key{static_cast<KeyType>(nodes_.size()), index};
-        entry.children().emplace(name, sub_key);
-        nodes_.emplace_back(description, std::move(updater));
-    }
-
     // Checks if this key is a clasp key.
     //
     // Returns true if the upper bit is not set.
