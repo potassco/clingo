@@ -271,6 +271,19 @@ class PrintQuoted {
 
 } // namespace Detail
 
+class fill {
+  public:
+    fill(size_t n, char c = ' ') : n_{n}, c_{c} {}
+    friend auto operator<<(CppClingo::Util::OutputBuffer &out, fill const &x) -> CppClingo::Util::OutputBuffer & {
+        std::ranges::fill(out.reserve(static_cast<std::ptrdiff_t>(x.n_)), x.c_);
+        return out;
+    }
+
+  private:
+    size_t n_;
+    char c_;
+};
+
 //! Print with a function.
 template <class F> auto p_fun(F &&fun) {
     return Detail::PrintFun(0, std::forward<F>(fun));
