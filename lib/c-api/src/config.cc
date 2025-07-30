@@ -12,84 +12,20 @@ using namespace CppClingo::CAPI;
 namespace CppClingo::CAPI {
 namespace {
 
-inline auto cpp_cast(clingo_config_t const *config) -> Clasp::Cli::ClaspCliConfig const * {
+inline auto cpp_cast(clingo_config_t const *config) -> Control::ClingoConfig const * {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clasp::Cli::ClaspCliConfig const *>(config);
+    return reinterpret_cast<Control::ClingoConfig const *>(config);
 }
 
-inline auto cpp_cast(clingo_config_t *config) -> Clasp::Cli::ClaspCliConfig * {
+inline auto cpp_cast(clingo_config_t *config) -> Control::ClingoConfig * {
     // NOLINTNEXTLINE
-    return reinterpret_cast<Clasp::Cli::ClaspCliConfig *>(config);
+    return reinterpret_cast<Control::ClingoConfig *>(config);
 }
 
-inline auto c_cast(Clasp::Cli::ClaspCliConfig *config) -> clingo_config_t * {
+inline auto c_cast(Control::ClingoConfig *config) -> clingo_config_t * {
     // NOLINTNEXTLINE
     return reinterpret_cast<clingo_config_t *>(config);
 }
-
-struct ConfigPrinter {
-  public:
-    explicit ConfigPrinter(Clasp::Cli::ClaspCliConfig const *cfg, CppClingo::Util::OutputBuffer *out)
-        : cfg_{cfg}, out_{out} {}
-
-    auto str(clingo_id_t key) {
-        str_(key, 0, 0);
-        if (!out_->view().empty() && out_->view().back() == '\n') {
-            out_->pop();
-        }
-    }
-
-  private:
-    void str_(clingo_id_t key, size_t first_indent, size_t indent) {
-        int map_keys = 0;
-        int arr_len = 0;
-        int vals = 0;
-        cfg_->getKeyInfo(key, &map_keys, &arr_len, nullptr, &vals);
-        auto fi = [&, first = true]() mutable {
-            return Util::fill(std::exchange(first, false) ? first_indent : indent);
-        };
-        if (vals >= 0) {
-            if (vals > 0) {
-                cfg_->getValue(key, val);
-                *out_ << fi() << CppClingo::Util::p_quoted(val) << "\n";
-            } else {
-                *out_ << fi() << "null\n";
-            }
-        }
-        if (map_keys > 0 && arr_len <= 0) {
-            for (int i = 0; i < map_keys; ++i) {
-                auto name = std::string_view{cfg_->getSubkey(key, i)};
-                *out_ << fi() << name << ":";
-                auto sub_key = cfg_->getKey(key, name);
-                int sub_vals = 0;
-                cfg_->getKeyInfo(sub_key, nullptr, nullptr, nullptr, &sub_vals);
-                if (sub_vals >= 0) {
-                    *out_ << " ";
-                    str_(sub_key, 0, indent + name.size() + 2);
-                } else {
-                    *out_ << "\n";
-                    str_(sub_key, indent + 2, indent + 2);
-                }
-            }
-        }
-        if (arr_len >= 0) {
-            if (int e = arr_len; e > 0) {
-                for (int i = 0, e = arr_len; i != e; ++i) {
-                    *out_ << fi() << "- ";
-                    auto sub_key = cfg_->getArrKey(key, i);
-                    str_(sub_key, 0, indent + 2);
-                }
-
-            } else {
-                *out_ << fi() << "[]\n";
-            }
-        }
-    }
-
-    Clasp::Cli::ClaspCliConfig const *cfg_;
-    CppClingo::Util::OutputBuffer *out_;
-    std::string val;
-};
 
 } // namespace
 } // namespace CppClingo::CAPI
@@ -107,21 +43,23 @@ extern "C" auto clingo_config_root(clingo_config_t const *config, clingo_id_t *k
 extern "C" auto clingo_config_type(clingo_config_t const *config, clingo_id_t key, clingo_config_type_bitset_t *type)
     -> bool {
     CLINGO_TRY {
+        using Flags = CppClingo::Control::ClingoConfig::ValueFlags;
         if (config == nullptr || type == nullptr) {
             return fail_arguments();
         }
         int map_len = 0;
         int arr_len = 0;
-        int val_len = 0;
-        cpp_cast(config)->getKeyInfo(key, &map_len, &arr_len, nullptr, &val_len);
+        auto val_info = Flags::none;
+        cpp_cast(config)->key_info(key, &map_len, &arr_len, &val_info);
         *type = 0;
-        if (map_len >= 0) {
+        if (map_len > 0) {
             *type |= clingo_config_type_map;
         }
         if (arr_len >= 0) {
             *type |= clingo_config_type_array;
         }
-        if (val_len >= 0) {
+        // TODO: extend
+        if (intersects(val_info, Flags::get | Flags::set)) {
             *type |= clingo_config_type_value;
         }
     }
@@ -134,12 +72,9 @@ extern "C" auto clingo_config_description(clingo_config_t const *config, clingo_
         if (config == nullptr || description == nullptr) {
             return fail_arguments();
         }
-        thread_local auto val = std::string{};
-        if (cpp_cast(config)->getKeyInfo(key, nullptr, nullptr, &val, nullptr) != 1) {
-            return fail_arguments();
-        }
-        description->data = val.c_str();
-        description->size = val.size();
+        auto str = cpp_cast(config)->description(key);
+        description->data = str.data();
+        description->size = str.size();
     }
     CLINGO_CATCH;
 }
@@ -147,7 +82,10 @@ extern "C" auto clingo_config_description(clingo_config_t const *config, clingo_
 extern "C" auto clingo_config_to_string(clingo_config_t const *config, clingo_id_t key,
                                         clingo_string_builder_t *builder) -> bool {
     CLINGO_TRY {
-        ConfigPrinter{cpp_cast(config), cpp_cast(builder)}.str(key);
+        if (config == nullptr || builder == nullptr) {
+            return fail_arguments();
+        }
+        cpp_cast(config)->str(*cpp_cast(builder), key);
     }
     CLINGO_CATCH;
 }
@@ -158,7 +96,7 @@ extern "C" auto clingo_config_array_size(clingo_config_t const *config, clingo_i
             return fail_arguments();
         }
         int len = 0;
-        cpp_cast(config)->getKeyInfo(key, nullptr, &len, nullptr, nullptr);
+        cpp_cast(config)->key_info(key, nullptr, &len, nullptr);
         if (len < 0) {
             return fail_arguments();
         }
@@ -173,10 +111,7 @@ extern "C" auto clingo_config_array_at(clingo_config_t const *config, clingo_id_
         if (config == nullptr || subkey == nullptr) {
             return fail_arguments();
         }
-        *subkey = cpp_cast(config)->getArrKey(key, offset);
-        if (*subkey == Clasp::Cli::ClaspCliConfig::key_invalid) {
-            return fail_arguments();
-        }
+        *subkey = cpp_cast(config)->array_at(key, static_cast<CppClingo::Control::ClingoConfig::IndexType>(offset));
     }
     CLINGO_CATCH;
 }
@@ -187,23 +122,8 @@ extern "C" auto clingo_config_map_size(clingo_config_t const *config, clingo_id_
             return fail_arguments();
         }
         int len = 0;
-        cpp_cast(config)->getKeyInfo(key, &len, nullptr, nullptr, nullptr);
-        if (len < 0) {
-            return fail_arguments();
-        }
+        cpp_cast(config)->key_info(key, &len, nullptr, nullptr);
         *size = static_cast<size_t>(len);
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" auto clingo_config_map_has_subkey(clingo_config_t const *config, clingo_id_t key, char const *name,
-                                             size_t size, bool *result) -> bool {
-    CLINGO_TRY {
-        if (config == nullptr || (name == nullptr && size > 0) || result == nullptr) {
-            return fail_arguments();
-        }
-        *result =
-            cpp_cast(config)->getKey(key, std::string_view{name, size}) != Clasp::Cli::ClaspCliConfig::key_invalid;
     }
     CLINGO_CATCH;
 }
@@ -214,7 +134,7 @@ extern "C" auto clingo_config_map_subkey_name(clingo_config_t const *config, cli
         if (config == nullptr || name == nullptr) {
             return fail_arguments();
         }
-        auto str = cpp_cast(config)->getSubkey(key, offset);
+        auto str = cpp_cast(config)->map_nth(key, offset);
         name->data = str.data();
         name->size = str.size();
     }
@@ -222,31 +142,18 @@ extern "C" auto clingo_config_map_subkey_name(clingo_config_t const *config, cli
 }
 
 extern "C" auto clingo_config_map_at(clingo_config_t const *config, clingo_id_t key, char const *name, size_t size,
-                                     clingo_id_t *subkey) -> bool {
+                                     clingo_id_t *subkey, bool *has_subkey) -> bool {
     CLINGO_TRY {
-        if (config == nullptr || (name == nullptr && size > 0) || subkey == nullptr) {
+        if (config == nullptr || (name == nullptr && size > 0)) {
             return fail_arguments();
         }
-        *subkey = cpp_cast(config)->getKey(key, std::string_view{name, size});
-        if (*subkey == Clasp::Cli::ClaspCliConfig::key_invalid) {
-            return fail_arguments();
+        auto res = cpp_cast(config)->map_at(key, std::string_view{name, size});
+        if (has_subkey != nullptr) {
+            *has_subkey = res.has_value();
         }
-    }
-    CLINGO_CATCH;
-}
-
-extern "C" auto clingo_config_value_is_assigned(clingo_config_t const *config, clingo_id_t key, bool *assigned)
-    -> bool {
-    CLINGO_TRY {
-        if (config == nullptr || assigned == nullptr) {
-            return fail_arguments();
+        if (subkey != nullptr && res) {
+            *subkey = *res;
         }
-        int val_len = 0;
-        cpp_cast(config)->getKeyInfo(key, nullptr, nullptr, nullptr, &val_len);
-        if (val_len < 0) {
-            return fail_arguments();
-        }
-        *assigned = val_len > 0;
     }
     CLINGO_CATCH;
 }
@@ -257,17 +164,13 @@ extern "C" auto clingo_config_value_get(clingo_config_t const *config, clingo_id
         if (config == nullptr) {
             return fail_arguments();
         }
-        thread_local auto val = std::string{};
-        int res = cpp_cast(config)->getValue(key, val);
-        if (res < -1) {
-            return fail_arguments();
-        }
+        auto str = cpp_cast(config)->get_value(key);
         if (has_value != nullptr) {
-            *has_value = res >= 0;
+            *has_value = str.has_value();
         }
-        if (res >= 0 && value != nullptr) {
-            value->data = val.c_str();
-            value->size = val.size();
+        if (value != nullptr) {
+            value->data = str ? str->data() : nullptr;
+            value->size = str ? str->size() : 0;
         }
     }
     CLINGO_CATCH;
@@ -276,10 +179,10 @@ extern "C" auto clingo_config_value_get(clingo_config_t const *config, clingo_id
 extern "C" auto clingo_config_value_set(clingo_config_t *config, clingo_id_t key, char const *value, size_t size)
     -> bool {
     CLINGO_TRY {
-        if (config == nullptr || (value == nullptr && size > 0) ||
-            cpp_cast(config)->setValue(key, std::string_view{value, size}) <= 0) {
+        if (config == nullptr || (value == nullptr && size > 0)) {
             return fail_arguments();
         }
+        cpp_cast(config)->set_value(key, std::string_view{value, size});
     }
     CLINGO_CATCH;
 }
@@ -289,7 +192,7 @@ extern "C" auto clingo_control_config(clingo_control_t *control, clingo_config_t
         if (control == nullptr || config == nullptr) {
             return fail_arguments();
         }
-        *config = c_cast(&control->slv->clasp_config());
+        *config = c_cast(&control->slv->config());
     }
     CLINGO_CATCH;
 }

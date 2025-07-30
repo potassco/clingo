@@ -24,7 +24,7 @@ TEST_CASE_METHOD(Fixture, "config base", "[cxx][config][base]") {
     REQUIRE(cfg.to_string().find("solve:") != std::string::npos);
     auto solve_map = root_map.get("solve").map();
     REQUIRE(std::ranges::find(solve_map, "models", [](auto const &x) { return x.first; }) != solve_map.end());
-    REQUIRE(solve_map.get("models").type() == (ConfigType::value | ConfigType::map));
+    REQUIRE(solve_map.get("models").type() == ConfigType::value);
     REQUIRE(solve_map.get("models").description().starts_with("Compute"));
     REQUIRE(solve_map.get("models").description().find("%A") == std::string::npos);
     solve_map.get("models").value("-1");

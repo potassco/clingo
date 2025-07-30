@@ -24,7 +24,7 @@ auto Config::is_value() -> bool {
 auto Config::has_subkey_(std::string_view name) -> bool {
     if (is_map_()) {
         auto result = false;
-        handle_error(clingo_config_map_has_subkey(config_, key_, name.data(), name.size(), &result));
+        handle_error(clingo_config_map_at(config_, key_, name.data(), name.size(), nullptr, &result));
         return result;
     }
     throw py::attribute_error{"invalid attribute"};
@@ -42,8 +42,12 @@ auto Config::at_sequence(size_t index) -> Config {
 auto Config::get(std::string_view name) -> Config {
     if (has_subkey_(name)) {
         clingo_id_t subkey = 0;
-        handle_error(clingo_config_map_at(config_, key_, name.data(), name.size(), &subkey));
-        return {config_, subkey};
+        bool has_subkey = false;
+        handle_error(clingo_config_map_at(config_, key_, name.data(), name.size(), &subkey, &has_subkey));
+        if (has_subkey) {
+            return {config_, subkey};
+        }
+        throw py::key_error{"key not found"};
     }
     throw py::attribute_error{"invalid attribute"};
 }

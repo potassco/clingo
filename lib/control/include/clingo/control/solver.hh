@@ -1,5 +1,6 @@
 #pragma once
 
+#include <clingo/control/config.hh>
 #include <clingo/control/grounder.hh>
 
 #include <clingo/output/backend.hh>
@@ -642,9 +643,7 @@ class Solver : public BaseView {
     [[nodiscard]] auto clasp_facade() const -> Clasp::ClaspFacade const & { return *clasp_; }
 
     //! Only non-null in solving mode.
-    [[nodiscard]] auto clasp_config() -> Clasp::Cli::ClaspCliConfig & {
-        return clasp_config_ != nullptr ? *clasp_config_ : throw std::runtime_error("not in solving mode");
-    }
+    [[nodiscard]] auto config() -> ClingoConfig & { return config_; }
 
     //! Get the statistics.
     [[nodiscard]] auto clasp_stats() -> Potassco::AbstractStatistics const & {
@@ -752,7 +751,7 @@ class Solver : public BaseView {
     std::vector<UPropagator> propagators_;
     TermBaseMap terms_;
     Clasp::ClaspFacade *clasp_;
-    Clasp::Cli::ClaspCliConfig *clasp_config_;
+    ClingoConfig config_;
     Util::OutputBuffer buf_;
     UProgramBackend backend_;
     std::unique_ptr<Output::TheoryData> theory_;

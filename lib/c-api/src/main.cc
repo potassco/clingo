@@ -239,7 +239,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                                                   stdout};
             opts_.apply(slv);
             // NOTE: member for createTextOutput
-            ctl_->bind(&slv, &slv.clasp_config(), &slv.clasp_facade());
+            ctl_->bind(&slv, &slv.config().clasp(), &slv.clasp_facade());
 
             struct SummaryGuard {
                 ClingoApp *self;

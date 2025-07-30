@@ -1,5 +1,3 @@
-#pragma once
-
 #include <clingo/control/config.hh>
 
 #include <algorithm>
@@ -20,10 +18,8 @@ void ClingoConfig::key_info(KeyType key, int *n_children, int *array_info, Value
         if (value_info != nullptr) {
             if (n_values < 0) {
                 *value_info = ValueFlags::none;
-            } else if (n_values == 0) {
-                *value_info = ValueFlags::get | ValueFlags::set;
             } else {
-                *value_info = ValueFlags::get | ValueFlags::set | ValueFlags::value;
+                *value_info = ValueFlags::get | ValueFlags::set;
             }
         }
         // NOTE: the root key can have clingo subkeys
@@ -51,19 +47,23 @@ auto ClingoConfig::description(KeyType key) const -> std::string_view {
     return check_(config_->getArrKey(key, index));
 }
 
-[[nodiscard]] auto ClingoConfig::map_at(KeyType key, std::string_view name) const -> KeyType {
+[[nodiscard]] auto ClingoConfig::map_at(KeyType key, std::string_view name) const -> std::optional<KeyType> {
     if (auto clingo_key = is_clingo(key)) {
         if (auto subkey = nodes_.at(clingo_key->key_id()).map_at(*clingo_key, name)) {
             return subkey->rep();
         }
-        error_("subkey not found");
+        return std::nullopt;
     }
     if (key == key_root() && !nodes_.empty()) {
         if (auto subkey = nodes_.front().map_at(Key{0}, name)) {
             return subkey->rep();
         }
     }
-    return check_(config_->getKey(key, name));
+
+    if (auto res = config_->getKey(key, name); res != key_invalid()) {
+        return res;
+    }
+    return std::nullopt;
 }
 
 [[nodiscard]] auto ClingoConfig::map_nth(KeyType key, uint32_t index) const -> std::string_view {
@@ -85,12 +85,18 @@ auto ClingoConfig::description(KeyType key) const -> std::string_view {
     return ret;
 }
 
-[[nodiscard]] auto ClingoConfig::get_value(KeyType key) const -> std::string_view {
+[[nodiscard]] auto ClingoConfig::get_value(KeyType key) const -> std::optional<std::string_view> {
     buf_.clear();
     if (auto clingo_key = is_clingo(key)) {
-        nodes_.at(clingo_key->key_id()).get_value(clingo_key->index(), buf_);
+        if (!nodes_.at(clingo_key->key_id()).get_value(clingo_key->index(), buf_)) {
+            return std::nullopt;
+        }
     } else {
-        if (config_->getValue(key, buf_) < 0) {
+        auto ret = config_->getValue(key, buf_);
+        if (ret == -1) {
+            return std::nullopt;
+        }
+        if (ret < -1) {
             error_("cannot get value");
         }
     }
@@ -129,10 +135,12 @@ void ClingoConfig::add_entry(KeyType key, std::string_view name, std::string_vie
     nodes_.emplace_back(description, std::move(entry));
 }
 
-auto ClingoConfig::str(KeyType key) const -> std::string_view {
-    out_.reset();
-    str_(key, 0, 0);
-    return out_.view();
+void ClingoConfig::str(Util::OutputBuffer &out, KeyType key) const {
+    size_t n = out.size();
+    str_(out, key, 0, 0);
+    if (n < out.size() && out.view().back() == '\n') {
+        out.pop();
+    }
 }
 
 [[nodiscard]] auto ClingoConfig::Key::key_id() const -> KeyType {
@@ -215,7 +223,7 @@ auto ClingoConfig::Key::encode_key_id(KeyType key_id) -> KeyType {
     return Key{key.key_id(), index};
 }
 
-void ClingoConfig::Node::get_value(std::optional<KeyType> index, std::string &value) const {
+auto ClingoConfig::Node::get_value(std::optional<KeyType> index, std::string &value) const -> bool {
     if (entry_ == nullptr) {
         error_("not a value");
     }
@@ -223,10 +231,10 @@ void ClingoConfig::Node::get_value(std::optional<KeyType> index, std::string &va
         index = std::nullopt;
     }
     auto flags = entry_->value_info(index);
-    if (!intersects(flags, ValueFlags::value)) {
-        error_("cannot get value");
+    if (!intersects(flags, ValueFlags::get)) {
+        error_("not a value");
     }
-    entry_->get_value(index, value);
+    return entry_->get_value(index, value);
 }
 
 void ClingoConfig::Node::set_value(std::optional<KeyType> index, std::string_view value) {
@@ -335,45 +343,46 @@ auto ClingoConfig::parse_path_(Key key, std::string_view path) -> Key {
     return !is_clasp(key) ? std::make_optional<Key>(key) : std::nullopt;
 }
 
-void ClingoConfig::str_(KeyType key, size_t first_indent, size_t indent) const {
+void ClingoConfig::str_(Util::OutputBuffer &out, KeyType key, size_t first_indent, size_t indent) const {
     int map_keys = 0;
     int arr_len = 0;
     auto val_info = ValueFlags::none;
     key_info(key, &map_keys, &arr_len, &val_info);
     auto fi = [&, first = true]() mutable { return Util::fill(std::exchange(first, false) ? first_indent : indent); };
     if (intersects(val_info, ValueFlags::get)) {
-        if (intersects(val_info, ValueFlags::value)) {
-            out_ << fi() << CppClingo::Util::p_quoted(get_value(key)) << "\n";
+        auto val = get_value(key);
+        if (val) {
+            out << fi() << CppClingo::Util::p_quoted(*val) << "\n";
         } else {
-            out_ << fi() << "null\n";
+            out << fi() << "null\n";
         }
     }
     if (map_keys > 0 && arr_len <= 0) {
         for (int i = 0; i < map_keys; ++i) {
             auto name = std::string_view{map_nth(key, i)};
-            out_ << fi() << name << ":";
+            out << fi() << name << ":";
             auto sub_key = map_at(key, name);
             auto sub_info = ValueFlags::none;
-            key_info(sub_key, nullptr, nullptr, &sub_info);
+            key_info(*sub_key, nullptr, nullptr, &sub_info);
             if (intersects(sub_info, ValueFlags::get)) {
-                out_ << " ";
-                str_(sub_key, 0, indent + name.size() + 2);
+                out << " ";
+                str_(out, *sub_key, 0, indent + name.size() + 2);
             } else {
-                out_ << "\n";
-                str_(sub_key, indent + 2, indent + 2);
+                out << "\n";
+                str_(out, *sub_key, indent + 2, indent + 2);
             }
         }
     }
     if (arr_len >= 0) {
         if (int e = arr_len; e > 0) {
             for (int i = 0, e = arr_len; i != e; ++i) {
-                out_ << fi() << "- ";
+                out << fi() << "- ";
                 auto sub_key = array_at(key, i);
-                str_(sub_key, 0, indent + 2);
+                str_(out, sub_key, 0, indent + 2);
             }
 
         } else {
-            out_ << fi() << "[]\n";
+            out << fi() << "[]\n";
         }
     }
 }

@@ -1019,7 +1019,7 @@ auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
 
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
                Scripts &scripts, Input::RewriteOptions ropts, SolverOptions sopts, FILE *out)
-    : clasp_{&clasp}, clasp_config_{&clasp_config}, buf_{out}, out_{make_output_(store, sopts.mode)},
+    : clasp_{&clasp}, config_{clasp_config}, buf_{out}, out_{make_output_(store, sopts.mode)},
       grd_{log, store, ropts, *out_, clasp.ctx.eventHandler() != nullptr}, scripts_{&scripts}, opts_{sopts} {
 }
 

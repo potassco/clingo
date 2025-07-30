@@ -346,7 +346,7 @@ class ConstConfigMap {
     //! @param name the name of the configuration entry
     //! @return true if the map contains an entry with the given name, false otherwise
     [[nodiscard]] auto contains(std::string_view name) const -> bool {
-        return Detail::call<clingo_config_map_has_subkey>(cfg_, key_, name.data(), name.size());
+        return Detail::call<clingo_config_map_at>(cfg_, key_, name.data(), name.size(), nullptr);
     }
 
     //! Get an iterator to the beginning of the map.
@@ -363,7 +363,13 @@ class ConstConfigMap {
     friend class ConfigMap;
 
     [[nodiscard]] auto at_(std::string_view name) const -> clingo_id_t {
-        return Detail::call<clingo_config_map_at>(cfg_, key_, name.data(), name.size());
+        bool has_subkey = false;
+        clingo_id_t subkey = 0;
+        Detail::handle_error(clingo_config_map_at(cfg_, key_, name.data(), name.size(), &subkey, &has_subkey));
+        if (!has_subkey) {
+            throw std::out_of_range{"subkey not found"};
+        }
+        return subkey;
     }
 
     [[nodiscard]] auto at_(size_t index) const -> std::pair<std::string_view, clingo_id_t> {

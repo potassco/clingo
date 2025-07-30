@@ -107,18 +107,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_array_at(clingo_config_t const *con
 //! @param[out] size the resulting number
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_size(clingo_config_t const *config, clingo_id_t key, size_t *size);
-//! Query whether the map has a key.
-//!
-//! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_map.
-//! @note Multiple levels can be looked up by concatenating keys with a period.
-//! @param[in] config the target configuration
-//! @param[in] key the key
-//! @param[in] name the name to look up the subkey
-//! @param[in] size the size of the name
-//! @param[out] result whether the key is in the map
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_has_subkey(clingo_config_t const *config, clingo_id_t key,
-                                                            char const *name, size_t size, bool *result);
 //! Get the name associated with the offset-th subkey.
 //!
 //! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_map.
@@ -138,9 +126,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_subkey_name(clingo_config_t con
 //! @param[in] name the name to look up the subkey
 //! @param[in] size the size of the name
 //! @param[out] subkey the resulting subkey
+//! @param[out] has_subkey whether the map has the subkey
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_at(clingo_config_t const *config, clingo_id_t key, char const *name,
-                                                    size_t size, clingo_id_t *subkey);
+                                                    size_t size, clingo_id_t *subkey, bool *has_subkey);
 //! @}
 
 //! @name Functions to access values

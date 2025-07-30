@@ -9,7 +9,17 @@
 
 namespace CppClingo::Control {
 
-//! This class provides an interface to the Clingo configuration system.
+//! This class provides a hierarchical configuration interface for clingo.
+//!
+//! It wraps a ClaspCliConfig object and allows managing configuration entries
+//! as a tree of keys, supporting both map and array entries. The class
+//! provides methods to query, retrieve, and set configuration values, as well
+//! as to add custom entries. Keys are encoded to distinguish between clingo
+//! and clasp entries, and array/map navigation is supported via dedicated
+//! methods.
+//!
+//! Each instance should be used from a single thread. Methods throw on invalid
+//! operations or errors.
 class ClingoConfig {
   public:
     //! The type of configuration keys to refer to entries.
@@ -20,10 +30,9 @@ class ClingoConfig {
     using IndexType = KeyType;
     //! The available value types of configuration entries.
     enum class ValueFlags : uint8_t {
-        none = 0,  //!< The entry cannot have a value.
-        get = 1,   //<! The entry can be read.
-        set = 2,   //!< The entry can be set.
-        value = 4, //!< The entry has a value.
+        none = 0, //!< The entry cannot have a value.
+        get = 1,  //<! The entry can be read.
+        set = 2,  //!< The entry can be set.
     };
     CLINGO_ENABLE_BITSET_ENUM(ValueFlags, friend);
 
@@ -46,7 +55,9 @@ class ClingoConfig {
         //! Get information about the value of the entry.
         [[nodiscard]] auto value_info(std::optional<IndexType> index) -> ValueFlags { return do_value_type(index); }
         //! Get the value of the entry.
-        void get_value(std::optional<IndexType> index, std::string &value) { do_get_value(index, value); }
+        auto get_value(std::optional<IndexType> index, std::string &value) -> bool {
+            return do_get_value(index, value);
+        }
         //! Set a new value for the entry.
         void set_value(std::optional<KeyType> index, std::string_view value) { do_set_value(index, value); }
         //! Returns the number of elements of an array entry.
@@ -58,8 +69,10 @@ class ClingoConfig {
         virtual auto do_value_type([[maybe_unused]] std::optional<KeyType> index) -> ValueFlags {
             return ValueFlags::none;
         }
-        virtual void do_get_value([[maybe_unused]] std::optional<KeyType> index, [[maybe_unused]] std::string &value) {
+        virtual auto do_get_value([[maybe_unused]] std::optional<KeyType> index, [[maybe_unused]] std::string &value)
+            -> bool {
             error_("cannot get value");
+            return false;
         }
         virtual void do_set_value([[maybe_unused]] std::optional<KeyType> index,
                                   [[maybe_unused]] std::string_view value) {
@@ -67,7 +80,11 @@ class ClingoConfig {
         }
         virtual auto do_array_size() -> std::optional<int> { return std::nullopt; }
     };
-    ClingoConfig(Clasp::Cli::ClaspCliConfig *config) : config_{config} {}
+
+    //! Constructor for ClingoConfig.
+    //!
+    //! @param config a reference to the Clasp CLI configuration object
+    ClingoConfig(Clasp::Cli::ClaspCliConfig &config) : config_{&config} {}
 
     //! The root key of the configuration.
     static auto key_root() -> KeyType { return Clasp::Cli::ClaspCliConfig::key_root; }
@@ -114,7 +131,7 @@ class ClingoConfig {
     //! @param key key of the map entry
     //! @param name name of the subkey
     //! @return key for the named subkey
-    [[nodiscard]] auto map_at(KeyType key, std::string_view name) const -> KeyType;
+    [[nodiscard]] auto map_at(KeyType key, std::string_view name) const -> std::optional<KeyType>;
 
     //! Get the name of the nth subkey in a map entry.
     //!
@@ -134,7 +151,7 @@ class ClingoConfig {
     //!
     //! @param key key of the configuration entry
     //! @return value of the configuration entry
-    [[nodiscard]] auto get_value(KeyType key) const -> std::string_view;
+    [[nodiscard]] auto get_value(KeyType key) const -> std::optional<std::string_view>;
 
     //! Set the value of a configuration entry.
     //!
@@ -164,9 +181,12 @@ class ClingoConfig {
 
     //! Get the string representation of a configuration tree.
     //!
+    //! @param out the output buffer for the string representation
     //! @param key the key to start from
-    //! @return a string view with the configuration tree representation
-    auto str(KeyType key) const -> std::string_view;
+    void str(Util::OutputBuffer &out, KeyType key) const;
+
+    //! Get the underlying clasp configuration object.
+    [[nodiscard]] auto clasp() const -> Clasp::Cli::ClaspCliConfig & { return *config_; }
 
   private:
     static constexpr KeyType Bits = sizeof(KeyType) * 8;
@@ -278,7 +298,7 @@ class ClingoConfig {
         //! Get the key for an array entry at the given index.
         [[nodiscard]] auto array_at(Key key, KeyType index) const -> Key;
         //! Get the value of this key.
-        void get_value(std::optional<KeyType> index, std::string &value) const;
+        auto get_value(std::optional<KeyType> index, std::string &value) const -> bool;
         //! Set the value of this key.
         void set_value(std::optional<KeyType> index, std::string_view value);
         //! Get information about this key.
@@ -330,11 +350,10 @@ class ClingoConfig {
     [[nodiscard]] static auto is_clingo(KeyType key) -> std::optional<Key>;
 
     // Get the string representation of the configuration tree under the given key.
-    void str_(KeyType key, size_t first_indent, size_t indent) const;
+    void str_(Util::OutputBuffer &out, KeyType key, size_t first_indent, size_t indent) const;
 
     Clasp::Cli::ClaspCliConfig *config_;
     std::string mutable buf_;
-    CppClingo::Util::OutputBuffer mutable out_;
     std::vector<Node> nodes_;
 };
 
