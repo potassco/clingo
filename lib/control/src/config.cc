@@ -125,11 +125,11 @@ void ClingoConfig::add_entry(KeyType key, std::string_view name, std::string_vie
     auto clingo_key = Key{key == key_root() ? 0 : key};
     auto dot = name.rfind('.');
     if (dot != std::string_view::npos) {
-        auto res = parse_path_(clingo_key, name.substr(0, dot));
-        if (!res) {
+        if (auto res = parse_path_(clingo_key, name.substr(0, dot)); res) {
+            clingo_key = *res;
+        } else {
             error_("entry not found");
         }
-        clingo_key = *res;
         name = name.substr(dot + 1);
     }
 
@@ -262,7 +262,7 @@ void ClingoConfig::Node::info(Key key, int *n_children, int *array_info, ValueFl
     if (n_children != nullptr) {
         *n_children = static_cast<int>(subkeys_.size());
     }
-    if (array_info != nullptr && entry_ != nullptr) {
+    if (array_info != nullptr && key.index() == index_invalid() && entry_ != nullptr) {
         *array_info = entry_->size_array().value_or(-1);
     }
     if (value_info != nullptr && entry_ != nullptr) {
@@ -316,7 +316,6 @@ auto ClingoConfig::parse_name_(std::string_view &name) -> std::optional<IndexTyp
 }
 
 auto ClingoConfig::parse_path_(Key key, std::string_view path) const -> std::optional<Key> {
-    // printf("resolve path '%.*s' for key %u\n", (int)path.size(), path.data(), key.key_id());
     for (size_t start = 0; start < path.size();) {
         auto const &cur = nodes_.at(key.key_id());
 
@@ -328,10 +327,8 @@ auto ClingoConfig::parse_path_(Key key, std::string_view path) const -> std::opt
         auto name = path.substr(start, dot - start);
         auto index = parse_name_(name);
         if (auto subkey = cur.map_at(key, name)) {
-            // printf("  resolved subkey '%.*s' -> %u\n", (int)name.size(), name.data(), subkey->key_id());
             key = *subkey;
         } else {
-            // printf("  failed to resolve subkey '%.*s'\n", (int)name.size(), name.data());
             return std::nullopt;
         }
         if (index) {
@@ -373,9 +370,9 @@ void ClingoConfig::str_(Util::OutputBuffer &out, KeyType key, size_t first_inden
             assert(!name.empty());
             out << fi() << name << ":";
             auto sub_key = map_at(key, name);
+            assert(sub_key.has_value());
             auto sub_info = ValueFlags::none;
             key_info(*sub_key, nullptr, nullptr, &sub_info);
-            printf("key: %u, subkey: %u\n", key, *sub_key);
             if (intersects(sub_info, ValueFlags::get)) {
                 out << " ";
                 str_(out, *sub_key, 0, indent + name.size() + 2);
