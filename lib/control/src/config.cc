@@ -215,6 +215,7 @@ auto ClingoConfig::Key::encode_key_id(KeyType key_id) -> KeyType {
 
 [[nodiscard]] auto ClingoConfig::Node::map_nth(KeyType index) const -> std::optional<std::string_view> {
     auto it = subkeys_.begin();
+    // NOTE: could be made faster but probably does not hurt for reasonable sized configs.
     for (; index > 0 && it != subkeys_.end(); --index, ++it) {
     }
     return it != subkeys_.end() ? std::make_optional<std::string_view>(it->first) : std::nullopt;

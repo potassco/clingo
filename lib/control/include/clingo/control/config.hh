@@ -6,6 +6,7 @@
 #include <clasp/cli/clasp_options.h>
 
 #include <map>
+#include <sstream>
 
 namespace CppClingo::Control {
 
@@ -270,13 +271,10 @@ class ClingoConfig {
         [[nodiscard]] auto rep() const -> KeyType;
 
         //! Compare two keys for equality.
-        [[nodiscard, maybe_unused]] friend auto operator==(Key const &a, Key const &b) -> bool {
-            return a.rep_ == b.rep_;
-        }
+        [[nodiscard, maybe_unused]] friend auto operator==(Key const &a, Key const &b) -> bool = default;
         //! Compare two keys.
-        [[nodiscard, maybe_unused]] friend auto operator<=>(Key const &a, Key const &b) -> std::strong_ordering {
-            return a.rep_ <=> b.rep_;
-        }
+        [[nodiscard, maybe_unused]] friend auto operator<=>(Key const &a, Key const &b)
+            -> std::strong_ordering = default;
 
       private:
         static auto encode_array(std::optional<KeyType> index) -> KeyType;
@@ -288,7 +286,7 @@ class ClingoConfig {
     //! A concrete node in the configuration tree.
     class Node {
       public:
-        //! Constructs a new Node with the given description and optional updater.
+        //! Constructs a new Node with the given description and optional entry.
         explicit Node(std::string_view description, std::unique_ptr<Entry> entry)
             : entry_{std::move(entry)}, description_{description} {}
 
@@ -352,7 +350,8 @@ class ClingoConfig {
 
     // Checks if this key is a clingo key.
     //
-    // Returns true if the upper bit is set and the key is not the invalid key.
+    // Returns the key if the upper bit is set and thows an exception for the
+    // invalid key.
     [[nodiscard]] static auto is_clingo(KeyType key) -> std::optional<Key>;
 
     // Get the string representation of the configuration tree under the given key.
