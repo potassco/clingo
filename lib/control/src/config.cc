@@ -47,26 +47,26 @@ auto ClingoConfig::description(KeyType key) const -> std::string_view {
     return check_(config_->getArrKey(key, index));
 }
 
-[[nodiscard]] auto ClingoConfig::map_at(KeyType key, std::string_view name) const -> std::optional<KeyType> {
+[[nodiscard]] auto ClingoConfig::map_at(KeyType key, std::string_view path) const -> std::optional<KeyType> {
     if (auto clingo_key = is_clingo(key)) {
-        if (auto subkey = nodes_.at(clingo_key->key_id()).map_at(*clingo_key, name)) {
-            return subkey->rep();
+        if (auto res = parse_path_(*clingo_key, path)) {
+            return {res->rep()};
         }
         return std::nullopt;
     }
     if (key == key_root() && !nodes_.empty()) {
-        if (auto subkey = nodes_.front().map_at(Key{0}, name)) {
-            return subkey->rep();
+        if (auto res = parse_path_(Key{0}, path)) {
+            return {res->rep()};
         }
     }
 
-    if (auto res = config_->getKey(key, name); res != key_invalid()) {
+    if (auto res = config_->getKey(key, path); res != key_invalid()) {
         return res;
     }
     return std::nullopt;
 }
 
-[[nodiscard]] auto ClingoConfig::map_nth(KeyType key, uint32_t index) const -> std::string_view {
+[[nodiscard]] auto ClingoConfig::map_nth(KeyType key, KeyType index) const -> std::string_view {
     if (auto clingo_key = is_clingo(key)) {
         if (auto name = nodes_.at(clingo_key->key_id()).map_nth(index)) {
             return *name;
@@ -74,8 +74,12 @@ auto ClingoConfig::description(KeyType key) const -> std::string_view {
         error_("index out of bounds");
     }
     if (key == key_root() && !nodes_.empty()) {
-        if (auto name = nodes_.front().map_nth(index)) {
-            return *name;
+        int clasp_keys = 0;
+        config_->getKeyInfo(key_root(), &clasp_keys, nullptr, nullptr, nullptr);
+        if (index >= static_cast<KeyType>(clasp_keys)) {
+            if (auto name = nodes_.front().map_nth(index - clasp_keys)) {
+                return *name;
+            }
         }
     }
     auto ret = config_->getSubkey(key, index);
@@ -120,9 +124,12 @@ void ClingoConfig::add_entry(KeyType key, std::string_view name, std::string_vie
     }
     auto clingo_key = Key{key == key_root() ? 0 : key};
     auto dot = name.rfind('.');
-    if (dot == std::string_view::npos) {
-        dot = name.size();
-        clingo_key = parse_path_(clingo_key, name.substr(0, dot));
+    if (dot != std::string_view::npos) {
+        auto res = parse_path_(clingo_key, name.substr(0, dot));
+        if (!res) {
+            error_("entry not found");
+        }
+        clingo_key = *res;
         name = name.substr(dot + 1);
     }
 
@@ -231,7 +238,7 @@ auto ClingoConfig::Node::get_value(std::optional<KeyType> index, std::string &va
         index = std::nullopt;
     }
     auto flags = entry_->value_info(index);
-    if (!intersects(flags, ValueFlags::get)) {
+    if (!intersects(flags, ValueFlags::get | ValueFlags::set)) {
         error_("not a value");
     }
     return entry_->get_value(index, value);
@@ -308,9 +315,10 @@ auto ClingoConfig::parse_name_(std::string_view &name) -> std::optional<IndexTyp
     return res;
 }
 
-auto ClingoConfig::parse_path_(Key key, std::string_view path) -> Key {
+auto ClingoConfig::parse_path_(Key key, std::string_view path) const -> std::optional<Key> {
+    // printf("resolve path '%.*s' for key %u\n", (int)path.size(), path.data(), key.key_id());
     for (size_t start = 0; start < path.size();) {
-        auto &cur = nodes_.at(key.key_id());
+        auto const &cur = nodes_.at(key.key_id());
 
         size_t dot = path.find('.', start);
         auto last = dot == std::string_view::npos;
@@ -320,9 +328,11 @@ auto ClingoConfig::parse_path_(Key key, std::string_view path) -> Key {
         auto name = path.substr(start, dot - start);
         auto index = parse_name_(name);
         if (auto subkey = cur.map_at(key, name)) {
+            // printf("  resolved subkey '%.*s' -> %u\n", (int)name.size(), name.data(), subkey->key_id());
             key = *subkey;
         } else {
-            error_("key not found");
+            // printf("  failed to resolve subkey '%.*s'\n", (int)name.size(), name.data());
+            return std::nullopt;
         }
         if (index) {
             if (!key.index()) {
@@ -340,7 +350,7 @@ auto ClingoConfig::parse_path_(Key key, std::string_view path) -> Key {
 }
 
 [[nodiscard]] auto ClingoConfig::is_clingo(KeyType key) -> std::optional<Key> {
-    return !is_clasp(key) ? std::make_optional<Key>(key) : std::nullopt;
+    return !is_clasp(key) ? std::make_optional<Key>(from_rep, key) : std::nullopt;
 }
 
 void ClingoConfig::str_(Util::OutputBuffer &out, KeyType key, size_t first_indent, size_t indent) const {
@@ -360,10 +370,12 @@ void ClingoConfig::str_(Util::OutputBuffer &out, KeyType key, size_t first_inden
     if (map_keys > 0 && arr_len <= 0) {
         for (int i = 0; i < map_keys; ++i) {
             auto name = std::string_view{map_nth(key, i)};
+            assert(!name.empty());
             out << fi() << name << ":";
             auto sub_key = map_at(key, name);
             auto sub_info = ValueFlags::none;
             key_info(*sub_key, nullptr, nullptr, &sub_info);
+            printf("key: %u, subkey: %u\n", key, *sub_key);
             if (intersects(sub_info, ValueFlags::get)) {
                 out << " ";
                 str_(out, *sub_key, 0, indent + name.size() + 2);

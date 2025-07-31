@@ -47,6 +47,9 @@ class ClingoConfig {
     // methods that require it.
     class Entry {
       public:
+        using ValueFlags = ClingoConfig::ValueFlags;
+        using KeyType = ClingoConfig::KeyType;
+
         Entry() = default;
         Entry(Entry &&other) = delete;
         auto operator=(Entry &&other) -> Entry & = delete;
@@ -88,11 +91,6 @@ class ClingoConfig {
 
     //! The root key of the configuration.
     static auto key_root() -> KeyType { return Clasp::Cli::ClaspCliConfig::key_root; }
-    //! An invalid index for array keys.
-    //!
-    //! This index is used to mark that an array key is not associated with a
-    //! specific index.
-    static auto index_invalid() -> KeyType { return KeyType(-1); }
 
     //! Retrieves information about the specified key.
     //!
@@ -124,14 +122,14 @@ class ClingoConfig {
 
     //! Get the key for a named subkey in a map entry.
     //!
-    //! Returns the key corresponding to the subkey with the given name in the
+    //! Returns the key corresponding to the subkey with the given path in the
     //! map configuration entry specified by `key`. Throws if the subkey does
     //! not exist.
     //!
     //! @param key key of the map entry
-    //! @param name name of the subkey
+    //! @param path path of the subkey
     //! @return key for the named subkey
-    [[nodiscard]] auto map_at(KeyType key, std::string_view name) const -> std::optional<KeyType>;
+    [[nodiscard]] auto map_at(KeyType key, std::string_view path) const -> std::optional<KeyType>;
 
     //! Get the name of the nth subkey in a map entry.
     //!
@@ -142,7 +140,7 @@ class ClingoConfig {
     //! @param key key of the map entry
     //! @param index index of the subkey
     //! @return name of the nth subkey
-    [[nodiscard]] auto map_nth(KeyType key, uint32_t index) const -> std::string_view;
+    [[nodiscard]] auto map_nth(KeyType key, KeyType index) const -> std::string_view;
 
     //! Get the value of a configuration entry.
     //!
@@ -197,6 +195,14 @@ class ClingoConfig {
     static constexpr KeyType MaskKeyId = ((KeyType{1} << BitsKeyId) - 1) << BitsIndex;
     static constexpr KeyType MaskIndex = (KeyType{1} << BitsIndex) - 1;
 
+    //! An invalid index for array keys.
+    //!
+    //! This index is used to mark that an array key is not associated with a
+    //! specific index.
+    static auto index_invalid() -> KeyType { return KeyType(-1); }
+    //! An invalid key for configuration entries.
+    //!
+    //! This key is used internally for error handling.
     static auto key_invalid() -> KeyType { return Clasp::Cli::ClaspCliConfig::key_invalid; }
 
     struct FromRep {};
@@ -334,11 +340,11 @@ class ClingoConfig {
     //! The current implementation is limited to at most one index per key
     //! segment.
     //!
-    //! @param key The starting ClingoKey for resolution.
-    //! @param path The dot-separated configuration path to resolve.
-    //! @return The resolved ClingoKey.
-    //! @throws std::runtime_error if the path is invalid or resolution fails.
-    auto parse_path_(Key key, std::string_view path) -> Key;
+    //! @param key the starting ClingoKey for resolution
+    //! @param path the dot-separated configuration path to resolve
+    //! @return the resolved ClingoKey
+    //! @throws std::runtime_error if the path is invalid
+    auto parse_path_(Key key, std::string_view path) const -> std::optional<Key>;
     // Checks if this key is a clasp key.
     //
     // Returns true if the upper bit is not set.

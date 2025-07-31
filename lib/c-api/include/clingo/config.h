@@ -42,8 +42,91 @@ enum clingo_config_type_e {
 //! Bitset for values of type ::clingo_config_type_e.
 typedef unsigned clingo_config_type_bitset_t;
 
+//! Enumeration of config value flags.
+enum clingo_config_value_flags {
+    clingo_config_value_flags_none = 0, //!< entry cannot have a value
+    clingo_config_value_flags_get = 1,  //!< value of entry can be read
+    clingo_config_value_flags_set = 2   //!< value of entry can be set
+};
+//! Bitset for values of type ::clingo_config_value_flags
+typedef unsigned clingo_config_value_flags_t;
+
 //! Handle for to the solver configuration.
 typedef struct clingo_config clingo_config_t;
+
+//! Callback interface for custom configuration entries.
+//!
+//! This struct allows users to define custom configuration entries by
+//! providing function pointers for querying and manipulating the entry. The
+//! `data` pointer is passed to each callback and can be used to store
+//! user-defined state.
+//!
+//! On each configuration path, there can be at most one array entry. If
+//! present, the array index is passed to all entries following an array entry
+//! in the path. It is up to the entry implementation to interpret an absent
+//! index (i.e., when `index` is NULL).
+//!
+//! All callbacks are optional; if a callback is NULL, the corresponding
+//! operation is not supported for this entry.
+typedef struct clingo_config_entry {
+    //! Query value flags for this entry.
+    //!
+    //! @param[in] index an optional array index (can be NULL)
+    //! @param[in] data user data pointer
+    //! @param[out] info output flags (see ::clingo_config_value_flags)
+    //! @return true on success, false on error
+    bool (*info)(size_t *index, void *data, clingo_config_value_flags_t *info);
+
+    //! Get the value of this entry as a string.
+    //!
+    //! @param[in] index an optional array index (can be NULL)
+    //! @param[in] data user data pointer
+    //! @param[out] value output string value
+    //! @param[out] has_value set to true if a value is available, false otherwise
+    //! @return true on success, false on error
+    bool (*get)(size_t *index, void *data, clingo_string_t *value, bool *has_value);
+
+    //! Set the value of this entry from a string.
+    //!
+    //! @param[in] index an optional array index (can be NULL)
+    //! @param[in] value input string value
+    //! @param[in] size length of the value string
+    //! @param[in] data user data pointer
+    //! @return true on success, false on error
+    bool (*set)(size_t *index, char const *value, size_t size, void *data);
+
+    //! Get the size of this entry if it is an array.
+    //!
+    //! @param[in] data user data pointer
+    //! @param[out] size number of elements in the array (or zero)
+    //! @param[out] has_size true if the entry is an array, false otherwise
+    //! @return true on success, false on error
+    bool (*size)(void *data, size_t *size, bool *has_size);
+
+    //! Free the user data associated with this entry.
+    //!
+    //! @param[in] data user data pointer
+    void (*free)(void *data);
+} clingo_config_entry_t;
+
+//! Add a custom configuration entry under a parent key.
+//!
+//! The entry is defined by the provided callbacks and user data. The API takes
+//! ownership of the `data` pointer and will call the `free` callback (if non-NULL)
+//! when the entry is removed or the configuration is destroyed.
+//!
+//! @param[in] config the configuration object
+//! @param[in] parent the parent key under which to add the entry
+//! @param[in] name the name of the new entry (not null-terminated)
+//! @param[in] name_size the length of the name string
+//! @param[in] description the description of the entry (not null-terminated)
+//! @param[in] description_size the length of the description string
+//! @param[in] entry pointer to the entry callbacks struct
+//! @param[in] data user data pointer for the entry callbacks
+//! @return true on success, false on error
+CLINGO_VISIBILITY_DEFAULT bool clingo_config_add(clingo_config_t *config, clingo_id_t parent, char const *name,
+                                                 size_t name_size, char const *description, size_t description_size,
+                                                 clingo_config_entry_t const *entry, void *data);
 
 //! Get the root key of the configuration.
 //!

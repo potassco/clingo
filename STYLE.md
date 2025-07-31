@@ -30,6 +30,14 @@
   - Bad: `auto x = static_cast<int64_t>(5)`
 - Place `const` after the type.
 - Use `std::string_view` instead of `char const *` when possible (not strictly enforced).
+- Be explict checking whether a pointer or unique_ptr is nullptr:
+  - Good: `if (ptr != nullptr)`
+  - Bad: `if (ptr)`
+- Be explict checking whether an optional is empty:
+  - Good: `if (opt.has_value())`
+  - Good: `if (auto opt = expression; opt.has_value())`
+  - Bad: `if (opt)`
+  - Bad: `if (auto opt = expression)`
 
 ## Algorithms and Ranges
 
@@ -54,6 +62,7 @@
     API clarity.
   - Document enumeration values and sometimes member variables inline using `//!<`.
   - Manually reflow long documentation lines for readability.
+  - Logical blocks should be separated by a blank line including the parameter list.
 
 ## Notes
 

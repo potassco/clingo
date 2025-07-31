@@ -111,6 +111,27 @@ class Config:
         A readable representation to inspect the configuration.
         """
 
+    def add_entry(
+        self,
+        name: str,
+        description: str,
+        get: typing.Any = None,
+        set: typing.Any = None,
+        size: typing.Any = None,
+    ) -> None:
+        """
+        Add a custom configuration entry.
+
+        The index argument of the callbacks is None for non-array entries.
+
+        Args:
+            name: Name of the new entry.
+            description: Description of the new entry.
+            get: Callable to get the value.
+            set: Callable to set the value.
+            size: Callable to get the size (for array entries).
+        """
+
     @property
     def attributes(self) -> typing.Sequence[str]:
         """

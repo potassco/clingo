@@ -31,6 +31,10 @@ class Config {
     auto str() -> std::string_view;
     auto desc() -> std::string_view;
 
+    // extension
+    void add(std::string_view name, std::string_view description, pybind11::object const &get,
+             pybind11::object const &set, pybind11::object const &size);
+
   private:
     auto type_() -> clingo_config_type_bitset_t;
     auto is_map_() -> bool;

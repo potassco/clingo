@@ -106,6 +106,90 @@ auto Config::desc() -> std::string_view {
     return {desc.data, desc.size};
 }
 
+namespace {
+
+struct ConfigEntry {
+    pybind11::object py_get;
+    pybind11::object py_set;
+    pybind11::object py_size;
+    std::string str;
+
+    static auto c_info(size_t *index, void *data, clingo_config_value_flags_t *flags) -> bool {
+        CLINGO_TRY {
+            auto *self = static_cast<ConfigEntry *>(data);
+            std::ignore = index;
+            *flags = clingo_config_value_flags_none;
+            if (!self->py_get.is_none()) {
+                *flags |= clingo_config_value_flags_get;
+            }
+            if (!self->py_set.is_none()) {
+                *flags |= clingo_config_value_flags_set;
+            }
+        }
+        CLINGO_CATCH;
+    }
+
+    static auto c_get(size_t *index, void *data, clingo_string_t *value, bool *has_value) -> bool {
+        CLINGO_TRY {
+            auto *self = static_cast<ConfigEntry *>(data);
+            *has_value = false;
+            value->data = nullptr;
+            value->size = 0;
+            if (!self->py_get.is_none()) {
+                auto pyval = self->py_get(index != nullptr ? std::make_optional(*index) : std::nullopt);
+                if (!pyval.is_none()) {
+                    self->str = pybind11::str(pyval).cast<std::string>();
+                    *has_value = true;
+                    value->data = self->str.c_str();
+                    value->size = self->str.size();
+                }
+            }
+        }
+        CLINGO_CATCH;
+    }
+
+    static auto c_set(size_t *index, char const *value, size_t size, void *data) -> bool {
+        CLINGO_TRY {
+            auto *self = static_cast<ConfigEntry *>(data);
+            if (self->py_set.is_none()) {
+                throw py::attribute_error{"invalid attribute"};
+            }
+            self->py_set(pybind11::str(value, size), index != nullptr ? std::make_optional(*index) : std::nullopt);
+        }
+        CLINGO_CATCH;
+    }
+
+    static auto c_size(void *data, size_t *size, bool *has_size) -> bool {
+        CLINGO_TRY {
+            auto *pydata = static_cast<ConfigEntry *>(data);
+            *has_size = false;
+            if (!pydata->py_size.is_none()) {
+                *size = pydata->py_size().cast<size_t>();
+                *has_size = true;
+            }
+        }
+        CLINGO_CATCH;
+    }
+
+    static void c_free(void *data) { std::unique_ptr<ConfigEntry>{static_cast<ConfigEntry *>(data)}; }
+};
+
+} // namespace
+
+void Config::add(std::string_view name, std::string_view description, pybind11::object const &get,
+                 pybind11::object const &set, pybind11::object const &size) {
+    auto data = std::make_unique<ConfigEntry>(get, set, size);
+    auto entry = clingo_config_entry_t{
+        &ConfigEntry::c_info,
+        !get.is_none() ? &ConfigEntry::c_get : nullptr,
+        !set.is_none() ? &ConfigEntry::c_set : nullptr,
+        !size.is_none() ? &ConfigEntry::c_size : nullptr,
+        &ConfigEntry::c_free,
+    };
+    handle_error(clingo_config_add(config_, key_, name.data(), name.size(), description.data(), description.size(),
+                                   &entry, data.release()));
+}
+
 auto Config::str() -> std::string_view {
     auto *bld = string_builder();
     handle_error(clingo_config_to_string(config_, key_, bld));
@@ -205,6 +289,20 @@ Notes:
         // attribute access
         .def("__getattr__", &Config::get, py::arg("name"), R"(Get the configuration entry with the given name.)")
         .def("__setattr__", &Config::set, py::arg("name"), py::arg("value"), R"(Set the value with the given name.)")
+        // extension
+        .def("add_entry", &Config::add, py::arg("name"), py::arg("description"), py::arg("get") = py::none(),
+             py::arg("set") = py::none(), py::arg("size") = py::none(), R"(
+Add a custom configuration entry.
+
+The index argument of the callbacks is None for non-array entries.
+
+Args:
+    name: Name of the new entry.
+    description: Description of the new entry.
+    get: Callable to get the value.
+    set: Callable to set the value.
+    size: Callable to get the size (for array entries).
+)"_d)
         .def_property_readonly("attributes", &Config::attrs, R"(Get the attribute names of nested configurations.)");
 }
 
