@@ -35,25 +35,32 @@ class ClingoConfig {
         get = 1,  //<! The entry can be read.
         set = 2,  //!< The entry can be set.
     };
+    //! Enabes bitset operations for ValueFlags.
     CLINGO_ENABLE_BITSET_ENUM(ValueFlags, friend);
 
-    // A configuration entry interface to interact with configuration entries.
-    //
-    // This interface provides methods to check the value type of an entry, get and set values,
-    // and retrieve the size of array entries.
-    //
-    // Array handling is special. Configuration entries are arranged in a tree
-    // structure, where each path to a leave can have at most one array entry.
-    // If an entry has a parent that is an array, the index is passed to
-    // methods that require it.
+    //! A configuration entry interface to interact with configuration entries.
+    //!
+    //! This interface provides methods to check the value type of an entry, get and set values,
+    //! and retrieve the size of array entries.
+    //!
+    //! Array handling is special. Configuration entries are arranged in a tree
+    //! structure, where each path to a leave can have at most one array entry.
+    //! If an entry has a parent that is an array, the index is passed to
+    //! methods that require it.
     class Entry {
       public:
+        //! Enumeration of value flags for configuration entries.
         using ValueFlags = ClingoConfig::ValueFlags;
+        //! Type used for indexing array entries.
         using KeyType = ClingoConfig::KeyType;
 
+        //! Constructor for Entry.
         Entry() = default;
+        //! Prevent copying and moving of Entries.
         Entry(Entry &&other) = delete;
+        //! Prevent copying and moving of Entries.
         auto operator=(Entry &&other) -> Entry & = delete;
+        //! Destructor for Entry.
         virtual ~Entry() = default;
 
         //! Get information about the value of the entry.
@@ -101,7 +108,6 @@ class ClingoConfig {
     //! @param n_children the number of subkeys for this key
     //! @param array_info the length of array keys or -1 for non-array keys
     //! @param value_info whether the key has a value, can be read, and can be set
-    //! @param help a description of the key
     void key_info(KeyType key, int *n_children, int *array_info, ValueFlags *value_info) const;
 
     //! Get the description of a configuration entry.
@@ -124,8 +130,8 @@ class ClingoConfig {
     //! Get the key for a named subkey in a map entry.
     //!
     //! Returns the key corresponding to the subkey with the given path in the
-    //! map configuration entry specified by `key`. Throws if the subkey does
-    //! not exist.
+    //! map configuration entry specified by `key`. Returns std::nullopt if the
+    //! key does not exist.
     //!
     //! @param key key of the map entry
     //! @param path path of the subkey
@@ -145,8 +151,9 @@ class ClingoConfig {
 
     //! Get the value of a configuration entry.
     //!
-    //! Returns the value associated with the given configuration key.
-    //! Throws if the key does not have a value or cannot be accessed.
+    //! Returns the value associated with the given configuration key or
+    //! std::nullopt if the value is not set. Throws if the key cannot have a
+    //! value.
     //!
     //! @param key key of the configuration entry
     //! @return value of the configuration entry

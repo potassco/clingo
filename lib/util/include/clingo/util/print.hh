@@ -271,9 +271,12 @@ class PrintQuoted {
 
 } // namespace Detail
 
+//! Helper for iostreams to fill with a fixed number of characters.
 class fill {
   public:
+    //! The constructor.
     fill(size_t n, char c = ' ') : n_{n}, c_{c} {}
+    //! Operator to print the fill helper.
     friend auto operator<<(CppClingo::Util::OutputBuffer &out, fill const &x) -> CppClingo::Util::OutputBuffer & {
         std::ranges::fill(out.reserve(static_cast<std::ptrdiff_t>(x.n_)), x.c_);
         return out;

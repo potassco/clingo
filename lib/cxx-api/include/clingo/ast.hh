@@ -901,7 +901,9 @@ inline void parse(Library const &lib, std::initializer_list<std::string_view> fi
 
 namespace std {
 
+//! Hasher for AST nodes.
 template <> struct hash<Clingo::AST::Node> {
+    //! Compute the hash for the given node.
     auto operator()(Clingo::AST::Node const &x) const noexcept -> size_t { return x.hash(); }
 };
 
