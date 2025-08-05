@@ -75,7 +75,7 @@ typedef struct clingo_config_entry {
     //! @param[in] data user data pointer
     //! @param[out] info output flags (see ::clingo_config_value_flags)
     //! @return true on success, false on error
-    bool (*info)(size_t *index, void *data, clingo_config_value_flags_t *info);
+    bool (*info)(size_t const *index, void *data, clingo_config_value_flags_t *info);
 
     //! Get the value of this entry as a string.
     //!
@@ -84,7 +84,7 @@ typedef struct clingo_config_entry {
     //! @param[out] value output string value
     //! @param[out] has_value set to true if a value is available, false otherwise
     //! @return true on success, false on error
-    bool (*get)(size_t *index, void *data, clingo_string_t *value, bool *has_value);
+    bool (*get)(size_t const *index, void *data, clingo_string_t *value, bool *has_value);
 
     //! Set the value of this entry from a string.
     //!
@@ -93,7 +93,7 @@ typedef struct clingo_config_entry {
     //! @param[in] size length of the value string
     //! @param[in] data user data pointer
     //! @return true on success, false on error
-    bool (*set)(size_t *index, char const *value, size_t size, void *data);
+    bool (*set)(size_t const *index, char const *value, size_t size, void *data);
 
     //! Get the size of this entry if it is an array.
     //!

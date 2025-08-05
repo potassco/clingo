@@ -114,7 +114,7 @@ struct ConfigEntry {
     pybind11::object py_size;
     std::string str;
 
-    static auto c_info(size_t *index, void *data, clingo_config_value_flags_t *flags) -> bool {
+    static auto c_info(size_t const *index, void *data, clingo_config_value_flags_t *flags) -> bool {
         CLINGO_TRY {
             auto *self = static_cast<ConfigEntry *>(data);
             std::ignore = index;
@@ -129,14 +129,14 @@ struct ConfigEntry {
         CLINGO_CATCH;
     }
 
-    static auto c_get(size_t *index, void *data, clingo_string_t *value, bool *has_value) -> bool {
+    static auto c_get(size_t const *index, void *data, clingo_string_t *value, bool *has_value) -> bool {
         CLINGO_TRY {
             auto *self = static_cast<ConfigEntry *>(data);
             *has_value = false;
             value->data = nullptr;
             value->size = 0;
             if (!self->py_get.is_none()) {
-                auto pyval = self->py_get(index != nullptr ? std::make_optional(*index) : std::nullopt);
+                auto pyval = index != nullptr ? self->py_get(*index) : self->py_get();
                 if (!pyval.is_none()) {
                     self->str = pybind11::str(pyval).cast<std::string>();
                     *has_value = true;
@@ -148,13 +148,17 @@ struct ConfigEntry {
         CLINGO_CATCH;
     }
 
-    static auto c_set(size_t *index, char const *value, size_t size, void *data) -> bool {
+    static auto c_set(size_t const *index, char const *value, size_t size, void *data) -> bool {
         CLINGO_TRY {
             auto *self = static_cast<ConfigEntry *>(data);
             if (self->py_set.is_none()) {
                 throw py::attribute_error{"invalid attribute"};
             }
-            self->py_set(pybind11::str(value, size), index != nullptr ? std::make_optional(*index) : std::nullopt);
+            if (index != nullptr) {
+                self->py_set(pybind11::str(value, size), *index);
+            } else {
+                self->py_set(pybind11::str(value, size));
+            }
         }
         CLINGO_CATCH;
     }

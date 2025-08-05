@@ -246,11 +246,11 @@ class ClingoConfig {
     //! - A clingo key is invalid if this bit is not set.
     //! Key Bits:
     //! - The key id can use all available key id bits.
+    //! - A key is invalid if all key bits are set.
     //! Array Bits:
     //! - 0: Key is not on a path with an array key
     //! - 1: Key is on a path with an array key that has no index (index_invalid())
-    //! - 2: Key is on a path with an array which has index `array bits - 2`
-    //! - A key is invalid if all array bits are set.
+    //! - >=2: Key is on a path with an array which has index `array bits - 2`
     class Key {
       public:
         //! Constructs a new Key with the given key_id and optional index.
