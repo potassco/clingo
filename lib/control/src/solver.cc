@@ -758,23 +758,21 @@ class SolveHandleImpl : public SolveHandle {
 };
 
 //! Integrate facts and inform the grounder about updated domains.
-void end_step(std::vector<std::pair<prg_lit_t, SharedSymbol>> &added, Clasp::Asp::LogicProgram &prg, Grounder *grd) {
+void end_step(std::vector<std::pair<prg_lit_t, SharedSymbol>> &added, Clasp::Asp::LogicProgram &prg, Grounder &grd) {
     for (auto const &[lit, sym] : added) {
         assert(lit > 0);
         auto sig = sym->signature();
         assert(sig.has_value());
-        grd->mark_sig(*sig);
+        grd.mark_sig(*sig);
         if (prg.isFact(lit)) {
-            auto *base = grd->base().get_base(*sig);
+            auto *base = grd.base().get_base(*sig);
             assert(base != nullptr);
             auto it = base->find(*sym);
             assert(it.has_value() && it->value().state != Ground::StateAtom::unknown);
             it->value().state = Ground::StateAtom::fact;
         }
     }
-    if (grd != nullptr) {
-        std::ignore = grd->ground({});
-    }
+    std::ignore = grd.ground({});
 }
 
 class BackendHandleImpl : public BackendHandle {
@@ -806,7 +804,11 @@ class BackendHandleImpl : public BackendHandle {
         throw std::runtime_error("invalid atom");
     }
 
-    void do_close() override { end_step(added_, *prg_, std::exchange(grd_, nullptr)); }
+    void do_close() override {
+        if (auto *grd = std::exchange(grd_, nullptr); grd != nullptr) {
+            end_step(added_, *prg_, *grd);
+        }
+    }
 
     Grounder *grd_;
     ProgramBackend *backend_;
@@ -844,7 +846,7 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
     void do_end() override {
         solver_->clasp_facade().asp()->removeAssumption();
         solver_->clasp_facade().asp()->addAssumption(assumptions_);
-        end_step(added_, *solver_->clasp_->asp(), &solver_->grd_);
+        end_step(added_, *solver_->clasp_->asp(), solver_->grd_);
         added_.clear();
         assumptions_.clear();
     }
