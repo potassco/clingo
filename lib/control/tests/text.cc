@@ -16,7 +16,7 @@ TEST_CASE("grounder_text") {
         log.set_level(LogLevel::error);
         auto buf = Util::OutputBuffer{};
         auto out = Output::make_text_output(buf);
-        Control::Grounder grd{log, *store, opts, *out, false};
+        Control::Grounder grd{log, *store, opts, *out};
         auto params = Input::ProgramParamVec{{store->string("base"), {}}};
         SECTION("fact") {
             grd.parse("#show. a.");

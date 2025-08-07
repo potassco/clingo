@@ -19,7 +19,7 @@ class Grounder {
   public:
     struct Impl;
     //! Create a grounder object.
-    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out, bool has_output);
+    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out);
     //! Destroy grounder.
     ~Grounder() noexcept;
     //! Join with the given program.
@@ -59,7 +59,7 @@ class Grounder {
     [[nodiscard]] auto base() const -> Ground::Bases const &;
     //! Get the contained symbol store.
     [[nodiscard]] auto store() const -> SymbolStore &;
-    //! Get the contained symbol store.
+    //! Get the contained logger.
     [[nodiscard]] auto log() const -> Logger &;
 
   private:
