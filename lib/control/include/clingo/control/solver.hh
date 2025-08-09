@@ -582,7 +582,7 @@ class Grounded : public Clasp::Event {
   public:
     explicit Grounded(Input::ProgramParamVec const &params)
         : Event(this, subsystem_load, verbosity_quiet), params(params) {}
-    Input::ProgramParamVec const &params; // NOLINT
+    std::span<Input::ProgramParamVec::value_type const> params;
 };
 
 //! A grounder and solver for logic programs.
