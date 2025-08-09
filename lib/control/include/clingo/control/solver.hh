@@ -576,6 +576,15 @@ class SymbolTable {
 //! A unique pointer to a symbol table.
 using USymbolTable = std::unique_ptr<SymbolTable>;
 
+//! Event emitted by a solver after the program is grounded.
+// TODO: Simplify/Move on next output refactoring
+class Grounded : public Clasp::Event {
+  public:
+    explicit Grounded(Input::ProgramParamVec const &params)
+        : Event(this, subsystem_load, verbosity_quiet), params(params) {}
+    std::span<Input::ProgramParamVec::value_type const> params;
+};
+
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
@@ -697,7 +706,7 @@ class Solver : public BaseView {
 
     //! Print per step summaries.
     //!
-    //! Currently outputs profiling data if enabled.
+    //! Currently, outputs profiling data if enabled.
     auto print_summary(bool final) { grd_.print_summary(final); }
 
     //! Accept a visitor for the profile nodes.

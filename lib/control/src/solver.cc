@@ -758,23 +758,21 @@ class SolveHandleImpl : public SolveHandle {
 };
 
 //! Integrate facts and inform the grounder about updated domains.
-void end_step(std::vector<std::pair<prg_lit_t, SharedSymbol>> &added, Clasp::Asp::LogicProgram &prg, Grounder *grd) {
+void end_step(std::vector<std::pair<prg_lit_t, SharedSymbol>> &added, Clasp::Asp::LogicProgram &prg, Grounder &grd) {
     for (auto const &[lit, sym] : added) {
         assert(lit > 0);
         auto sig = sym->signature();
         assert(sig.has_value());
-        grd->mark_sig(*sig);
+        grd.mark_sig(*sig);
         if (prg.isFact(lit)) {
-            auto *base = grd->base().get_base(*sig);
+            auto *base = grd.base().get_base(*sig);
             assert(base != nullptr);
             auto it = base->find(*sym);
             assert(it.has_value() && it->value().state != Ground::StateAtom::unknown);
             it->value().state = Ground::StateAtom::fact;
         }
     }
-    if (grd != nullptr) {
-        std::ignore = grd->ground({});
-    }
+    std::ignore = grd.ground({});
 }
 
 class BackendHandleImpl : public BackendHandle {
@@ -806,7 +804,11 @@ class BackendHandleImpl : public BackendHandle {
         throw std::runtime_error("invalid atom");
     }
 
-    void do_close() override { end_step(added_, *prg_, std::exchange(grd_, nullptr)); }
+    void do_close() override {
+        if (auto *grd = std::exchange(grd_, nullptr); grd != nullptr) {
+            end_step(added_, *prg_, *grd);
+        }
+    }
 
     Grounder *grd_;
     ProgramBackend *backend_;
@@ -844,7 +846,7 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
     void do_end() override {
         solver_->clasp_facade().asp()->removeAssumption();
         solver_->clasp_facade().asp()->addAssumption(assumptions_);
-        end_step(added_, *solver_->clasp_->asp(), &solver_->grd_);
+        end_step(added_, *solver_->clasp_->asp(), solver_->grd_);
         added_.clear();
         assumptions_.clear();
     }
@@ -1020,7 +1022,7 @@ auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
                Scripts &scripts, Input::RewriteOptions ropts, SolverOptions sopts, FILE *out)
     : clasp_{&clasp}, clasp_config_{&clasp_config}, buf_{out}, out_{make_output_(store, sopts.mode)},
-      grd_{log, store, ropts, *out_, clasp.ctx.eventHandler() != nullptr}, scripts_{&scripts}, opts_{sopts} {
+      grd_{log, store, ropts, *out_}, scripts_{&scripts}, opts_{sopts} {
 }
 
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
@@ -1208,6 +1210,7 @@ void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback
     if (opts_.mode >= AppMode::ground) {
         prepare_();
         std::ignore = grd_.ground(params, ctx != nullptr ? ctx : scripts_);
+        clasp_->ctx.report(Grounded{params});
     }
 }
 
