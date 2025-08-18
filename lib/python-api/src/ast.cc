@@ -127,7 +127,6 @@ class ASTBase {
 auto c_cast(ASTBase const &x) -> clingo_ast_t * {
     return x.ast_;
 }
-
 auto c_cast(ASTBase const *x) -> clingo_ast_t * {
     return x->ast_;
 }
@@ -6535,8 +6534,8 @@ This can be used to auto-generate most of the binding.)doc");
     auto py_argument_tuple =
         py::class_<ArgumentTuple>(ast, "ArgumentTuple", R"doc(A list of arguments for a function or tuple.)doc");
 
-    auto py_left_guard = py::class_<LeftGuard>(ast, "LeftGuard",
-                                               R"doc(A right hand side guard consisting of a term and a relation.)doc");
+    auto py_left_guard =
+        py::class_<LeftGuard>(ast, "LeftGuard", R"doc(A left hand side guard consisting of a term and relation.)doc");
 
     auto py_right_guard = py::class_<RightGuard>(ast, "RightGuard",
                                                  R"doc(A right hand side guard consisting of a relation and term.)doc");
