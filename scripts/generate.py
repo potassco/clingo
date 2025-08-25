@@ -186,10 +186,12 @@ def param_doc(text):
     """
     Wrap and indent a parameter docstring.
     """
-    return "\n\n".join(
-        "\n".join(wrap(par, width=70, initial_indent="    ", subsequent_indent="    "))
+    sps = "        "
+    res = "\n\n".join(
+        "\n".join(wrap(par, width=70, initial_indent=sps, subsequent_indent=sps))
         for par in text.splitlines()
     )
+    return res.lstrip(" ")
 
 
 def make_comp(types):

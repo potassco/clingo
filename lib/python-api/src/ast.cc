@@ -127,6 +127,7 @@ class ASTBase {
 auto c_cast(ASTBase const &x) -> clingo_ast_t * {
     return x.ast_;
 }
+
 auto c_cast(ASTBase const *x) -> clingo_ast_t * {
     return x->ast_;
 }
@@ -6736,7 +6737,7 @@ term.)doc");
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the placeholder.)doc")
+    location: The location of the placeholder.)doc")
         .def("__str__", &Projection::to_string)
         .def_property_readonly("location", &Projection::location, R"doc(The location of the placeholder.)doc")
         .def("visit", &Projection::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -6771,11 +6772,12 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the variable.
-    name:     The name of the variable.
-    anonymous:     Whether the variable is anonymous.
+    location: The location of the variable.
+    name: The name of the variable.
+    anonymous: Whether the variable is anonymous.
 
-    Anonymous variables receive a unique name during preprocessing.)doc")
+        Anonymous variables receive a unique name during
+        preprocessing.)doc")
         .def("__str__", &TermVariable::to_string)
         .def_property_readonly("location", &TermVariable::location, R"doc(The location of the variable.)doc")
         .def_property_readonly("name", &TermVariable::name, R"doc(The name of the variable.)doc")
@@ -6813,8 +6815,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the symbol.
-    symbol:     The symbol.)doc")
+    location: The location of the symbol.
+    symbol: The symbol.)doc")
         .def("__str__", &TermSymbolic::to_string)
         .def_property_readonly("location", &TermSymbolic::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("symbol", &TermSymbolic::symbol, R"doc(The symbol.)doc")
@@ -6850,11 +6852,11 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the operation.
-    pool:     The argument pool.
+    location: The location of the operation.
+    pool: The argument pool.
 
-    If there is more than one argument in the pool, the term is
-    unpooled during preprocessing.)doc")
+        If there is more than one argument in the pool, the term is
+        unpooled during preprocessing.)doc")
         .def("__str__", &TermAbsolute::to_string)
         .def_property_readonly("location", &TermAbsolute::location, R"doc(The location of the operation.)doc")
         .def_property_readonly("pool", &TermAbsolute::pool, R"doc(The argument pool.
@@ -6891,9 +6893,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the operation.
-    operator_type:     The type of the operation.
-    right:     The argument of the operation.)doc")
+    location: The location of the operation.
+    operator_type: The type of the operation.
+    right: The argument of the operation.)doc")
         .def("__str__", &TermUnaryOperation::to_string)
         .def_property_readonly("location", &TermUnaryOperation::location, R"doc(The location of the operation.)doc")
         .def_property_readonly("operator_type", &TermUnaryOperation::operator_type,
@@ -6931,10 +6933,10 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the operation.
-    left:     The left argument of the operation.
-    operator_type:     The type of the operation.
-    right:     The right argument of the operation.)doc")
+    location: The location of the operation.
+    left: The left argument of the operation.
+    operator_type: The type of the operation.
+    right: The right argument of the operation.)doc")
         .def("__str__", &TermBinaryOperation::to_string)
         .def_property_readonly("location", &TermBinaryOperation::location, R"doc(The location of the operation.)doc")
         .def_property_readonly("left", &TermBinaryOperation::left, R"doc(The left argument of the operation.)doc")
@@ -6973,11 +6975,11 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the tuple.
-    pool:     The argument pool of the tuple.
+    location: The location of the tuple.
+    pool: The argument pool of the tuple.
 
-    If there is more than one element in the pool, the term is
-    unpooled during preprocessing.)doc")
+        If there is more than one element in the pool, the term is
+        unpooled during preprocessing.)doc")
         .def("__str__", &TermTuple::to_string)
         .def_property_readonly("location", &TermTuple::location, R"doc(The location of the tuple.)doc")
         .def_property_readonly("pool", &TermTuple::pool, R"doc(The argument pool of the tuple.
@@ -7013,13 +7015,13 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the function.
-    name:     The name of the function.
-    pool:     The argument pool of the function.
+    location: The location of the function.
+    name: The name of the function.
+    pool: The argument pool of the function.
 
-    If there is more than one element in the pool, the term is
-    unpooled during preprocessing.
-    external:     Whether the function is external.)doc")
+        If there is more than one element in the pool, the term is
+        unpooled during preprocessing.
+    external: Whether the function is external.)doc")
         .def("__str__", &TermFunction::to_string)
         .def_property_readonly("location", &TermFunction::location, R"doc(The location of the function.)doc")
         .def_property_readonly("name", &TermFunction::name, R"doc(The name of the function.)doc")
@@ -7058,7 +7060,7 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    arguments:     The arguments of the tuple.)doc")
+    arguments: The arguments of the tuple.)doc")
         .def("__str__", &ArgumentTuple::to_string)
         .def_property_readonly("arguments", &ArgumentTuple::arguments, R"doc(The arguments of the tuple.)doc")
         .def("visit", &ArgumentTuple::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -7093,8 +7095,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    term:     The term of the guard.
-    relation:     The relation of the guard.)doc")
+    term: The term of the guard.
+    relation: The relation of the guard.)doc")
         .def("__str__", &LeftGuard::to_string)
         .def_property_readonly("term", &LeftGuard::term, R"doc(The term of the guard.)doc")
         .def_property_readonly("relation", &LeftGuard::relation, R"doc(The relation of the guard.)doc")
@@ -7129,8 +7131,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    relation:     The relation of the guard.
-    term:     The term of the guard.)doc")
+    relation: The relation of the guard.
+    term: The term of the guard.)doc")
         .def("__str__", &RightGuard::to_string)
         .def_property_readonly("relation", &RightGuard::relation, R"doc(The relation of the guard.)doc")
         .def_property_readonly("term", &RightGuard::term, R"doc(The term of the guard.)doc")
@@ -7166,9 +7168,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the symbol.
-    sign:     The sign of the literal.
-    value:     The fixed value of the literal.)doc")
+    location: The location of the symbol.
+    sign: The sign of the literal.
+    value: The fixed value of the literal.)doc")
         .def("__str__", &LiteralBoolean::to_string)
         .def_property_readonly("location", &LiteralBoolean::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("sign", &LiteralBoolean::sign, R"doc(The sign of the literal.)doc")
@@ -7205,12 +7207,12 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the symbol.
-    sign:     The sign of the literal.
-    left:     The first term of the comparison.
-    right:     The chain of comparisons.
+    location: The location of the symbol.
+    sign: The sign of the literal.
+    left: The first term of the comparison.
+    right: The chain of comparisons.
 
-    Note that the chain must have at least length one.)doc")
+        Note that the chain must have at least length one.)doc")
         .def("__str__", &LiteralComparison::to_string)
         .def_property_readonly("location", &LiteralComparison::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("sign", &LiteralComparison::sign, R"doc(The sign of the literal.)doc")
@@ -7249,9 +7251,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the symbol.
-    sign:     The sign of the literal.
-    atom:     The term representing the atom.)doc")
+    location: The location of the symbol.
+    sign: The sign of the literal.
+    atom: The term representing the atom.)doc")
         .def("__str__", &LiteralSymbolic::to_string)
         .def_property_readonly("location", &LiteralSymbolic::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("sign", &LiteralSymbolic::sign, R"doc(The sign of the literal.)doc")
@@ -7288,8 +7290,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    operators:     The list of theory operators.
-    term:     The theory term.)doc")
+    operators: The list of theory operators.
+    term: The theory term.)doc")
         .def("__str__", &UnparsedElement::to_string)
         .def_property_readonly("operators", &UnparsedElement::operators, R"doc(The list of theory operators.)doc")
         .def_property_readonly("term", &UnparsedElement::term, R"doc(The theory term.)doc")
@@ -7325,11 +7327,12 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the variable.
-    name:     The name of the variable.
-    anonymous:     Whether the variable is anonymous.
+    location: The location of the variable.
+    name: The name of the variable.
+    anonymous: Whether the variable is anonymous.
 
-    Anonymous variables receive a unique name during preprocessing.)doc")
+        Anonymous variables receive a unique name during
+        preprocessing.)doc")
         .def("__str__", &TheoryTermVariable::to_string)
         .def_property_readonly("location", &TheoryTermVariable::location, R"doc(The location of the variable.)doc")
         .def_property_readonly("name", &TheoryTermVariable::name, R"doc(The name of the variable.)doc")
@@ -7367,8 +7370,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the symbol.
-    symbol:     The symbol.)doc")
+    location: The location of the symbol.
+    symbol: The symbol.)doc")
         .def("__str__", &TheoryTermSymbolic::to_string)
         .def_property_readonly("location", &TheoryTermSymbolic::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("symbol", &TheoryTermSymbolic::symbol, R"doc(The symbol.)doc")
@@ -7404,9 +7407,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the tuple.
-    tuple_type:     The type of the tuple.
-    arguments:     The arguments of the tuple.)doc")
+    location: The location of the tuple.
+    tuple_type: The type of the tuple.
+    arguments: The arguments of the tuple.)doc")
         .def("__str__", &TheoryTermTuple::to_string)
         .def_property_readonly("location", &TheoryTermTuple::location, R"doc(The location of the tuple.)doc")
         .def_property_readonly("tuple_type", &TheoryTermTuple::tuple_type, R"doc(The type of the tuple.)doc")
@@ -7443,9 +7446,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the function.
-    name:     The name of the function.
-    arguments:     The arguments of the function.)doc")
+    location: The location of the function.
+    name: The name of the function.
+    arguments: The arguments of the function.)doc")
         .def("__str__", &TheoryTermFunction::to_string)
         .def_property_readonly("location", &TheoryTermFunction::location, R"doc(The location of the function.)doc")
         .def_property_readonly("name", &TheoryTermFunction::name, R"doc(The name of the function.)doc")
@@ -7482,8 +7485,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the theory term.
-    elements:     The unparsed theory elements.)doc")
+    location: The location of the theory term.
+    elements: The unparsed theory elements.)doc")
         .def("__str__", &TheoryTermUnparsed::to_string)
         .def_property_readonly("location", &TheoryTermUnparsed::location, R"doc(The location of the theory term.)doc")
         .def_property_readonly("elements", &TheoryTermUnparsed::elements, R"doc(The unparsed theory elements.)doc")
@@ -7519,8 +7522,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    theory_operator:     The operator of the guard.
-    term:     The theory term of the guard.)doc")
+    theory_operator: The operator of the guard.
+    term: The theory term of the guard.)doc")
         .def("__str__", &TheoryRightGuard::to_string)
         .def_property_readonly("theory_operator", &TheoryRightGuard::theory_operator,
                                R"doc(The operator of the guard.)doc")
@@ -7557,9 +7560,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    literal:     The literal of the element.
-    condition:     The condition of the element.)doc")
+    location: The location of the element.
+    literal: The literal of the element.
+    condition: The condition of the element.)doc")
         .def("__str__", &SetAggregateElement::to_string)
         .def_property_readonly("location", &SetAggregateElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("literal", &SetAggregateElement::literal, R"doc(The literal of the element.)doc")
@@ -7596,9 +7599,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    tuple:     The term tuple of the element.
-    condition:     The condition of the element.)doc")
+    location: The location of the element.
+    tuple: The term tuple of the element.
+    condition: The condition of the element.)doc")
         .def("__str__", &BodyAggregateElement::to_string)
         .def_property_readonly("location", &BodyAggregateElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("tuple", &BodyAggregateElement::tuple, R"doc(The term tuple of the element.)doc")
@@ -7635,9 +7638,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    tuple:     The theory term tuple of the element.
-    condition:     The condition of the element.)doc")
+    location: The location of the element.
+    tuple: The theory term tuple of the element.
+    condition: The condition of the element.)doc")
         .def("__str__", &TheoryAtomElement::to_string)
         .def_property_readonly("location", &TheoryAtomElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("tuple", &TheoryAtomElement::tuple, R"doc(The theory term tuple of the element.)doc")
@@ -7674,7 +7677,7 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    literal:     The literal.)doc")
+    literal: The literal.)doc")
         .def("__str__", &BodySimpleLiteral::to_string)
         .def_property_readonly("literal", &BodySimpleLiteral::literal, R"doc(The literal.)doc")
         .def("visit", &BodySimpleLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -7709,12 +7712,12 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    sign:     The sign of the literal.
-    left:     The left guard of the aggregate.
-    function:     The aggregate function.
-    elements:     The aggregate elements.
-    right:     The right guard of the aggregate.)doc")
+    location: The location of the element.
+    sign: The sign of the literal.
+    left: The left guard of the aggregate.
+    function: The aggregate function.
+    elements: The aggregate elements.
+    right: The right guard of the aggregate.)doc")
         .def("__str__", &BodyAggregate::to_string)
         .def_property_readonly("location", &BodyAggregate::location, R"doc(The location of the element.)doc")
         .def_property_readonly("sign", &BodyAggregate::sign, R"doc(The sign of the literal.)doc")
@@ -7754,11 +7757,11 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    sign:     The sign of the literal.
-    left:     The left guard of the aggregate.
-    elements:     The aggregate elements.
-    right:     The right guard of the aggregate.)doc")
+    location: The location of the element.
+    sign: The sign of the literal.
+    left: The left guard of the aggregate.
+    elements: The aggregate elements.
+    right: The right guard of the aggregate.)doc")
         .def("__str__", &BodySetAggregate::to_string)
         .def_property_readonly("location", &BodySetAggregate::location, R"doc(The location of the element.)doc")
         .def_property_readonly("sign", &BodySetAggregate::sign, R"doc(The sign of the literal.)doc")
@@ -7797,11 +7800,11 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    sign:     The sign of the literal.
-    name:     The name of the theory atom.
-    elements:     The aggregate elements.
-    right:     The right guard of the theory atom.)doc")
+    location: The location of the element.
+    sign: The sign of the literal.
+    name: The name of the theory atom.
+    elements: The aggregate elements.
+    right: The right guard of the theory atom.)doc")
         .def("__str__", &BodyTheoryAtom::to_string)
         .def_property_readonly("location", &BodyTheoryAtom::location, R"doc(The location of the element.)doc")
         .def_property_readonly("sign", &BodyTheoryAtom::sign, R"doc(The sign of the literal.)doc")
@@ -7840,9 +7843,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    literal:     The literal of the element.
-    condition:     The condition of the element.)doc")
+    location: The location of the element.
+    literal: The literal of the element.
+    condition: The condition of the element.)doc")
         .def("__str__", &BodyConditionalLiteral::to_string)
         .def_property_readonly("location", &BodyConditionalLiteral::location, R"doc(The location of the element.)doc")
         .def_property_readonly("literal", &BodyConditionalLiteral::literal, R"doc(The literal of the element.)doc")
@@ -7880,9 +7883,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    literal:     The literal of the element.
-    condition:     The condition of the element.)doc")
+    location: The location of the element.
+    literal: The literal of the element.
+    condition: The condition of the element.)doc")
         .def("__str__", &HeadConditionalLiteral::to_string)
         .def_property_readonly("location", &HeadConditionalLiteral::location, R"doc(The location of the element.)doc")
         .def_property_readonly("literal", &HeadConditionalLiteral::literal, R"doc(The literal of the element.)doc")
@@ -7920,10 +7923,10 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    tuple:     The term tuple of the element.
-    literal:     The literal of the element.
-    condition:     The condition of the element.)doc")
+    location: The location of the element.
+    tuple: The term tuple of the element.
+    literal: The literal of the element.
+    condition: The condition of the element.)doc")
         .def("__str__", &HeadAggregateElement::to_string)
         .def_property_readonly("location", &HeadAggregateElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("tuple", &HeadAggregateElement::tuple, R"doc(The term tuple of the element.)doc")
@@ -7961,7 +7964,7 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    literal:     The literal.)doc")
+    literal: The literal.)doc")
         .def("__str__", &HeadSimpleLiteral::to_string)
         .def_property_readonly("literal", &HeadSimpleLiteral::literal, R"doc(The literal.)doc")
         .def("visit", &HeadSimpleLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -7996,11 +7999,11 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    left:     The left guard of the aggregate.
-    function:     The aggregate function.
-    elements:     The aggregate elements.
-    right:     The right guard of the aggregate.)doc")
+    location: The location of the element.
+    left: The left guard of the aggregate.
+    function: The aggregate function.
+    elements: The aggregate elements.
+    right: The right guard of the aggregate.)doc")
         .def("__str__", &HeadAggregate::to_string)
         .def_property_readonly("location", &HeadAggregate::location, R"doc(The location of the element.)doc")
         .def_property_readonly("left", &HeadAggregate::left, R"doc(The left guard of the aggregate.)doc")
@@ -8039,10 +8042,10 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    left:     The left guard of the aggregate.
-    elements:     The aggregate elements.
-    right:     The right guard of the aggregate.)doc")
+    location: The location of the element.
+    left: The left guard of the aggregate.
+    elements: The aggregate elements.
+    right: The right guard of the aggregate.)doc")
         .def("__str__", &HeadSetAggregate::to_string)
         .def_property_readonly("location", &HeadSetAggregate::location, R"doc(The location of the element.)doc")
         .def_property_readonly("left", &HeadSetAggregate::left, R"doc(The left guard of the aggregate.)doc")
@@ -8080,10 +8083,10 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    name:     The name of the theory atom.
-    elements:     The aggregate elements.
-    right:     The right guard of the theory atom.)doc")
+    location: The location of the element.
+    name: The name of the theory atom.
+    elements: The aggregate elements.
+    right: The right guard of the theory atom.)doc")
         .def("__str__", &HeadTheoryAtom::to_string)
         .def_property_readonly("location", &HeadTheoryAtom::location, R"doc(The location of the element.)doc")
         .def_property_readonly("name", &HeadTheoryAtom::name, R"doc(The name of the theory atom.)doc")
@@ -8121,8 +8124,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the element.
-    elements:     The elements of the disjunction.)doc")
+    location: The location of the element.
+    elements: The elements of the disjunction.)doc")
         .def("__str__", &HeadDisjunction::to_string)
         .def_property_readonly("location", &HeadDisjunction::location, R"doc(The location of the element.)doc")
         .def_property_readonly("elements", &HeadDisjunction::elements, R"doc(The elements of the disjunction.)doc")
@@ -8158,10 +8161,10 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the definition.
-    name:     The name of the definition.
-    priority:     The priority of the operator.
-    operator_type:     The type of the operator.)doc")
+    location: The location of the definition.
+    name: The name of the definition.
+    priority: The priority of the operator.
+    operator_type: The type of the operator.)doc")
         .def("__str__", &TheoryOperatorDefinition::to_string)
         .def_property_readonly("location", &TheoryOperatorDefinition::location,
                                R"doc(The location of the definition.)doc")
@@ -8202,9 +8205,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the definition.
-    name:     The name of the definition.
-    operators:     The operator definitions to construct terms.)doc")
+    location: The location of the definition.
+    name: The name of the definition.
+    operators: The operator definitions to construct terms.)doc")
         .def("__str__", &TheoryTermDefinition::to_string)
         .def_property_readonly("location", &TheoryTermDefinition::location, R"doc(The location of the definition.)doc")
         .def_property_readonly("name", &TheoryTermDefinition::name, R"doc(The name of the definition.)doc")
@@ -8242,8 +8245,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    operators:     A list of operator definition names.
-    term:     The name of a term definition.)doc")
+    operators: A list of operator definition names.
+    term: The name of a term definition.)doc")
         .def("__str__", &TheoryGuardDefinition::to_string)
         .def_property_readonly("operators", &TheoryGuardDefinition::operators,
                                R"doc(A list of operator definition names.)doc")
@@ -8281,12 +8284,12 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the definition.
-    name:     The name of the atom.
-    arity:     The arity of the atom.
-    term:     The name of a term definition.
-    guard:     An optional guard definition.
-    atom_type:     The type of the atom definition.)doc")
+    location: The location of the definition.
+    name: The name of the atom.
+    arity: The arity of the atom.
+    term: The name of a term definition.
+    guard: An optional guard definition.
+    atom_type: The type of the atom definition.)doc")
         .def("__str__", &TheoryAtomDefinition::to_string)
         .def_property_readonly("location", &TheoryAtomDefinition::location, R"doc(The location of the definition.)doc")
         .def_property_readonly("name", &TheoryAtomDefinition::name, R"doc(The name of the atom.)doc")
@@ -8327,9 +8330,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    weight:     The weight of the tuple.
-    priority:     An optional priority.
-    terms:     The remaining terms in the tuple.)doc")
+    weight: The weight of the tuple.
+    priority: An optional priority.
+    terms: The remaining terms in the tuple.)doc")
         .def("__str__", &OptimizeTuple::to_string)
         .def_property_readonly("weight", &OptimizeTuple::weight, R"doc(The weight of the tuple.)doc")
         .def_property_readonly("priority", &OptimizeTuple::priority, R"doc(An optional priority.)doc")
@@ -8366,8 +8369,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    tuple:     The tuple of the element.
-    condition:     The condition of the element.)doc")
+    tuple: The tuple of the element.
+    condition: The condition of the element.)doc")
         .def("__str__", &OptimizeElement::to_string)
         .def_property_readonly("tuple", &OptimizeElement::tuple, R"doc(The tuple of the element.)doc")
         .def_property_readonly("condition", &OptimizeElement::condition, R"doc(The condition of the element.)doc")
@@ -8402,8 +8405,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    u:     The start vertex.
-    v:     The end vertex.)doc")
+    u: The start vertex.
+    v: The end vertex.)doc")
         .def("__str__", &Edge::to_string)
         .def_property_readonly("u", &Edge::u, R"doc(The start vertex.)doc")
         .def_property_readonly("v", &Edge::v, R"doc(The end vertex.)doc")
@@ -8438,8 +8441,8 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    name:     The name of the program part.
-    arguments:     The arguments of the program part.)doc")
+    name: The name of the program part.
+    arguments: The arguments of the program part.)doc")
         .def("__str__", &ProgramPart::to_string)
         .def_property_readonly("name", &ProgramPart::name, R"doc(The name of the program part.)doc")
         .def_property_readonly("arguments", &ProgramPart::arguments, R"doc(The arguments of the program part.)doc")
@@ -8475,9 +8478,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    head:     The head literal.
-    body:     The body of the statement.)doc")
+    location: The location of the statement.
+    head: The head literal.
+    body: The body of the statement.)doc")
         .def("__str__", &StatementRule::to_string)
         .def_property_readonly("location", &StatementRule::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("head", &StatementRule::head, R"doc(The head literal.)doc")
@@ -8514,10 +8517,10 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    name:     The name of the theory.
-    terms:     A list of term definitions.
-    atoms:     A list of atom definitions.)doc")
+    location: The location of the statement.
+    name: The name of the theory.
+    terms: A list of term definitions.
+    atoms: A list of atom definitions.)doc")
         .def("__str__", &StatementTheory::to_string)
         .def_property_readonly("location", &StatementTheory::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementTheory::name, R"doc(The name of the theory.)doc")
@@ -8555,9 +8558,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    elements:     The elements of the statement.
-    optimize_type:     The type of the statement.)doc")
+    location: The location of the statement.
+    elements: The elements of the statement.
+    optimize_type: The type of the statement.)doc")
         .def("__str__", &StatementOptimize::to_string)
         .def_property_readonly("location", &StatementOptimize::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("elements", &StatementOptimize::elements, R"doc(The elements of the statement.)doc")
@@ -8595,9 +8598,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    body:     The body of the statement.
-    tuple:     The tuple of the statement.)doc")
+    location: The location of the statement.
+    body: The body of the statement.
+    tuple: The tuple of the statement.)doc")
         .def("__str__", &StatementWeakConstraint::to_string)
         .def_property_readonly("location", &StatementWeakConstraint::location,
                                R"doc(The location of the statement.)doc")
@@ -8635,9 +8638,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    term:     The term to show.
-    body:     The body of the statement.)doc")
+    location: The location of the statement.
+    term: The term to show.
+    body: The body of the statement.)doc")
         .def("__str__", &StatementShow::to_string)
         .def_property_readonly("location", &StatementShow::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("term", &StatementShow::term, R"doc(The term to show.)doc")
@@ -8674,7 +8677,7 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.)doc")
+    location: The location of the statement.)doc")
         .def("__str__", &StatementShowNothing::to_string)
         .def_property_readonly("location", &StatementShowNothing::location, R"doc(The location of the statement.)doc")
         .def("visit", &StatementShowNothing::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
@@ -8709,10 +8712,10 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    name:     The name of the atom to show.
-    arity:     The arity of the atom to show.
-    sign:     The classical sign of the atom.)doc")
+    location: The location of the statement.
+    name: The name of the atom to show.
+    arity: The arity of the atom to show.
+    sign: The classical sign of the atom.)doc")
         .def("__str__", &StatementShowSignature::to_string)
         .def_property_readonly("location", &StatementShowSignature::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementShowSignature::name, R"doc(The name of the atom to show.)doc")
@@ -8750,9 +8753,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    atom:     The atom to project.
-    body:     The body of the statement.)doc")
+    location: The location of the statement.
+    atom: The atom to project.
+    body: The body of the statement.)doc")
         .def("__str__", &StatementProject::to_string)
         .def_property_readonly("location", &StatementProject::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("atom", &StatementProject::atom, R"doc(The atom to project.)doc")
@@ -8789,10 +8792,10 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    name:     The name of the atom to project.
-    arity:     The arity of the atom to project.
-    sign:     The classical sign of the atom.)doc")
+    location: The location of the statement.
+    name: The name of the atom to project.
+    arity: The arity of the atom to project.
+    sign: The classical sign of the atom.)doc")
         .def("__str__", &StatementProjectSignature::to_string)
         .def_property_readonly("location", &StatementProjectSignature::location,
                                R"doc(The location of the statement.)doc")
@@ -8831,10 +8834,10 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    name:     The name of the atom to project.
-    arity:     The arity of the atom to project.
-    sign:     The classical sign of the atom.)doc")
+    location: The location of the statement.
+    name: The name of the atom to project.
+    arity: The arity of the atom to project.
+    sign: The classical sign of the atom.)doc")
         .def("__str__", &StatementDefined::to_string)
         .def_property_readonly("location", &StatementDefined::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementDefined::name, R"doc(The name of the atom to project.)doc")
@@ -8872,10 +8875,10 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    atom:     The atom to project.
-    body:     The body of the statement.
-    external_type:     The type of the external.)doc")
+    location: The location of the statement.
+    atom: The atom to project.
+    body: The body of the statement.
+    external_type: The type of the external.)doc")
         .def("__str__", &StatementExternal::to_string)
         .def_property_readonly("location", &StatementExternal::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("atom", &StatementExternal::atom, R"doc(The atom to project.)doc")
@@ -8913,9 +8916,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    pool:     The edge pool of the statement.
-    body:     The body of the statement.)doc")
+    location: The location of the statement.
+    pool: The edge pool of the statement.
+    body: The body of the statement.)doc")
         .def("__str__", &StatementEdge::to_string)
         .def_property_readonly("location", &StatementEdge::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("pool", &StatementEdge::pool, R"doc(The edge pool of the statement.)doc")
@@ -8953,12 +8956,12 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    atom:     The atom to heuristically modify.
-    body:     The body of the statement.
-    weight:     The weight of the heuristic modification.
-    modifier:     The heuristic modifier.
-    priority:     An optional priority.)doc")
+    location: The location of the statement.
+    atom: The atom to heuristically modify.
+    body: The body of the statement.
+    weight: The weight of the heuristic modification.
+    modifier: The heuristic modifier.
+    priority: An optional priority.)doc")
         .def("__str__", &StatementHeuristic::to_string)
         .def_property_readonly("location", &StatementHeuristic::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("atom", &StatementHeuristic::atom, R"doc(The atom to heuristically modify.)doc")
@@ -8999,9 +9002,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    value:     The content of the script.
-    script_type:     The type of the script.)doc")
+    location: The location of the statement.
+    value: The content of the script.
+    script_type: The type of the script.)doc")
         .def("__str__", &StatementScript::to_string)
         .def_property_readonly("location", &StatementScript::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("value", &StatementScript::value, R"doc(The content of the script.)doc")
@@ -9038,9 +9041,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    value:     The path of the statement.
-    include_type:     The type of the include.)doc")
+    location: The location of the statement.
+    value: The path of the statement.
+    include_type: The type of the include.)doc")
         .def("__str__", &StatementInclude::to_string)
         .def_property_readonly("location", &StatementInclude::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("value", &StatementInclude::value, R"doc(The path of the statement.)doc")
@@ -9077,9 +9080,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    name:     The name of the program.
-    arguments:     The arguments of the program.)doc")
+    location: The location of the statement.
+    name: The name of the program.
+    arguments: The arguments of the program.)doc")
         .def("__str__", &StatementProgram::to_string)
         .def_property_readonly("location", &StatementProgram::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementProgram::name, R"doc(The name of the program.)doc")
@@ -9116,9 +9119,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    elements:     The program parts to ground.
-    precedence:     The precedence of the statement.)doc")
+    location: The location of the statement.
+    elements: The program parts to ground.
+    precedence: The precedence of the statement.)doc")
         .def("__str__", &StatementParts::to_string)
         .def_property_readonly("location", &StatementParts::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("elements", &StatementParts::elements, R"doc(The program parts to ground.)doc")
@@ -9155,10 +9158,10 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the statement.
-    name:     The name of the statement.
-    value:     The term of the statement.
-    precedence:     The precedence of the statement.)doc")
+    location: The location of the statement.
+    name: The name of the statement.
+    value: The term of the statement.
+    precedence: The precedence of the statement.)doc")
         .def("__str__", &StatementConst::to_string)
         .def_property_readonly("location", &StatementConst::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementConst::name, R"doc(The name of the statement.)doc")
@@ -9196,9 +9199,9 @@ Returns:
 
 Args:
     lib: The library object for storing symbols.
-    location:     The location of the comment.
-    value:     The value of the comment.
-    comment_type:     The type of the comment.)doc")
+    location: The location of the comment.
+    value: The value of the comment.
+    comment_type: The type of the comment.)doc")
         .def("__str__", &StatementComment::to_string)
         .def_property_readonly("location", &StatementComment::location, R"doc(The location of the comment.)doc")
         .def_property_readonly("value", &StatementComment::value, R"doc(The value of the comment.)doc")
