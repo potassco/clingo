@@ -18,7 +18,7 @@ TEST_CASE("logger_test") {
         log.set_level(LogLevel::info);
         auto buf = Util::OutputBuffer{};
         auto out = Output::make_text_output(buf);
-        Control::Grounder grd{log, *store, opts, *out, false};
+        Control::Grounder grd{log, *store, opts, *out};
         grd.parse(str);
         auto params = Input::ProgramParamVec{{store->string("base"), {}}};
         REQUIRE(grd.ground(params));

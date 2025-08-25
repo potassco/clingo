@@ -2419,7 +2419,7 @@ class HeadTheoryAtom:
 
 class LeftGuard:
     """
-    A right hand side guard consisting of a term and a relation.
+    A left hand side guard consisting of a term and relation.
     """
 
     @staticmethod

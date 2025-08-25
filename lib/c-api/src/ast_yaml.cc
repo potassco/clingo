@@ -343,7 +343,7 @@ literal:
   - literal_symbolic
 left_guard:
   type: record
-  doc: A right hand side guard consisting of a term and a relation.
+  doc: A left hand side guard consisting of a term and relation.
   arguments:
     term:
       type: term

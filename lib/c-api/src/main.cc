@@ -174,6 +174,13 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         return mode_ != Mode::clasp ? Clasp::ProblemType::asp : Clasp::ClaspFacade::detectProblemType(getStream());
     }
 
+    auto onEvent(const Clasp::Event &ev) -> void override {
+        BaseType::onEvent(ev);
+        if (const auto *g = Clasp::event_cast<Control::Grounded>(ev); g != nullptr && !g->params.empty()) {
+            ctl_->slv->print_summary(false);
+        }
+    }
+
     void initOptions(Potassco::ProgramOptions::OptionContext &root) override {
         using namespace Potassco::ProgramOptions;
         BaseType::initOptions(root);
@@ -241,10 +248,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             // NOTE: member for createTextOutput
             ctl_->bind(&slv, &slv.config().clasp(), &slv.clasp_facade());
 
-            struct SummaryGuard {
-                ClingoApp *self;
-                ~SummaryGuard() { self->ctl_->slv->print_summary(true); }
-            } guard{this};
+            POTASSCO_SCOPE_EXIT({ ctl_->slv->print_summary(true); });
 
             if (app_.has_main()) {
                 if (mode_ == Mode::solve) {
