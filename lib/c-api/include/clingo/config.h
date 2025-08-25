@@ -42,15 +42,6 @@ enum clingo_config_type_e {
 //! Bitset for values of type ::clingo_config_type_e.
 typedef unsigned clingo_config_type_bitset_t;
 
-//! Enumeration of config value flags.
-enum clingo_config_value_flags {
-    clingo_config_value_flags_none = 0, //!< entry cannot have a value
-    clingo_config_value_flags_get = 1,  //!< value of entry can be read
-    clingo_config_value_flags_set = 2   //!< value of entry can be set
-};
-//! Bitset for values of type ::clingo_config_value_flags
-typedef unsigned clingo_config_value_flags_t;
-
 //! Handle for to the solver configuration.
 typedef struct clingo_config clingo_config_t;
 
@@ -69,14 +60,6 @@ typedef struct clingo_config clingo_config_t;
 //! All callbacks are optional; if a callback is NULL, the corresponding
 //! operation is not supported for this entry.
 typedef struct clingo_config_entry {
-    //! Query value flags for this entry.
-    //!
-    //! @param[in] index an optional array index (can be NULL)
-    //! @param[in] data user data pointer
-    //! @param[out] info output flags (see ::clingo_config_value_flags)
-    //! @return true on success, false on error
-    bool (*info)(size_t const *index, void *data, clingo_config_value_flags_t *info);
-
     //! Get the value of this entry as a string.
     //!
     //! @param[in] index an optional array index (can be NULL)

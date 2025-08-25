@@ -179,6 +179,86 @@ class Config : public ConstConfig {
         return *this;
     }
 
+    template <class Entry> void add(std::string_view name, std::string_view description, Entry &&entry) const {
+        using EntryType = std::remove_cvref_t<Entry>;
+
+        static constexpr auto has_get = requires { entry.get(); };
+        static constexpr auto has_array_get = requires { entry.get(std::optional<size_t>{}); };
+        static constexpr auto has_set = requires { std::declval<EntryType>().set(std::string_view{}); };
+        static constexpr auto has_array_set =
+            requires { std::declval<EntryType>().set(std::optional<size_t>{}, std::string_view{}); };
+        static constexpr auto is_array = requires { entry.size(); };
+
+        static_assert(!has_get || !has_array_get, "entry cannot have both get with and without index");
+        static_assert(!has_set || !has_array_set, "entry cannot have both set with and without index");
+
+        static constexpr auto c_entry = clingo_config_entry_t{
+            has_get || has_array_get ? [](size_t const *index, void *data, clingo_string_t *value, bool *has_value) -> bool {
+                CLINGO_TRY {
+                    auto *self = static_cast<EntryType *>(data);
+                    thread_local std::optional<std::string> str;
+                    if constexpr (has_array_get) {
+                        str = self->get(index != nullptr ? std::optional{*index} : std::nullopt);
+                    }
+                    if constexpr (has_get) {
+                        if (index != nullptr) {
+                            throw std::logic_error{"cannot get array value"};
+                        }
+                        str = self->get();
+                    }
+                    if (str.has_value() && value != nullptr) {
+                        value->data = str->data();
+                        value->size = str->size();
+                    }
+                    if (has_value != nullptr) {
+                        *has_value = str.has_value();
+                    }
+                }
+                CLINGO_CATCH;
+            } : nullptr,
+            has_set || has_array_set ? [](size_t const *index, char const *value, size_t size, void *data) -> bool {
+                CLINGO_TRY {
+                    auto *self = static_cast<EntryType *>(data);
+                    if constexpr (has_array_set) {
+                        self->set(index != nullptr ? std::optional{*index} : std::nullopt,
+                                  std::string_view{value, size});
+                    }
+                    if constexpr (has_set) {
+                        if (index != nullptr) {
+                            throw std::logic_error{"cannot set array value"};
+                        }
+                        self->set(std::string_view{value, size});
+                    }
+                }
+                CLINGO_CATCH;
+            } : nullptr,
+            is_array ? [](void *data, size_t *size, bool *has_size) -> bool {
+                CLINGO_TRY {
+                    auto *self = static_cast<EntryType *>(data);
+                    if constexpr (is_array) {
+                        if (size != nullptr) {
+                            *size = self->size();
+                        }
+                    }
+                    if (has_size != nullptr) {
+                        *has_size = is_array;
+                    }
+                }
+                CLINGO_CATCH;
+            } : nullptr,
+            [](void *data) { std::unique_ptr<EntryType> self{static_cast<EntryType *>(data)}; },
+        };
+
+        auto copy = std::make_unique<EntryType>(std::forward<Entry>(entry));
+        Detail::handle_error(clingo_config_add(cfg_(), key_, name.data(), name.size(), description.data(),
+                                               description.size(), &c_entry, copy.release()));
+    }
+
+    void add(std::string_view name, std::string_view description) const {
+        Detail::handle_error(clingo_config_add(cfg_(), key_, name.data(), name.size(), description.data(),
+                                               description.size(), nullptr, nullptr));
+    }
+
   private:
     [[nodiscard]] auto cfg_() const -> clingo_config_t * {
         // NOLINTNEXTLINE

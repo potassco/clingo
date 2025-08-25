@@ -114,21 +114,6 @@ struct ConfigEntry {
     pybind11::object py_size;
     std::string str;
 
-    static auto c_info(size_t const *index, void *data, clingo_config_value_flags_t *flags) -> bool {
-        CLINGO_TRY {
-            auto *self = static_cast<ConfigEntry *>(data);
-            std::ignore = index;
-            *flags = clingo_config_value_flags_none;
-            if (!self->py_get.is_none()) {
-                *flags |= clingo_config_value_flags_get;
-            }
-            if (!self->py_set.is_none()) {
-                *flags |= clingo_config_value_flags_set;
-            }
-        }
-        CLINGO_CATCH;
-    }
-
     static auto c_get(size_t const *index, void *data, clingo_string_t *value, bool *has_value) -> bool {
         CLINGO_TRY {
             auto *self = static_cast<ConfigEntry *>(data);
@@ -184,7 +169,6 @@ void Config::add(std::string_view name, std::string_view description, pybind11::
                  pybind11::object const &set, pybind11::object const &size) {
     auto data = std::make_unique<ConfigEntry>(get, set, size);
     auto entry = clingo_config_entry_t{
-        &ConfigEntry::c_info,
         !get.is_none() ? &ConfigEntry::c_get : nullptr,
         !set.is_none() ? &ConfigEntry::c_set : nullptr,
         !size.is_none() ? &ConfigEntry::c_size : nullptr,

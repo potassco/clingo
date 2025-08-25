@@ -238,8 +238,8 @@ auto ClingoConfig::Node::get_value(std::optional<KeyType> index, std::string &va
     if (index == index_invalid()) {
         index = std::nullopt;
     }
-    auto flags = entry_->value_info(index);
-    if (!intersects(flags, ValueFlags::get | ValueFlags::set)) {
+    auto flags = entry_->value_info();
+    if (!intersects(flags, ValueFlags::get)) {
         error_("not a value");
     }
     return entry_->get_value(index, value);
@@ -252,7 +252,7 @@ void ClingoConfig::Node::set_value(std::optional<KeyType> index, std::string_vie
     if (index == index_invalid()) {
         index = std::nullopt;
     }
-    auto flags = entry_->value_info(index);
+    auto flags = entry_->value_info();
     if (!intersects(flags, ValueFlags::set)) {
         error_("cannot set value");
     }
@@ -267,7 +267,7 @@ void ClingoConfig::Node::info(Key key, int *n_children, int *array_info, ValueFl
         *array_info = entry_->size_array().value_or(-1);
     }
     if (value_info != nullptr && entry_ != nullptr) {
-        *value_info = entry_->value_info(key.index());
+        *value_info = entry_->value_info();
     }
 }
 

@@ -64,7 +64,7 @@ class ClingoConfig {
         virtual ~Entry() = default;
 
         //! Get information about the value of the entry.
-        [[nodiscard]] auto value_info(std::optional<IndexType> index) -> ValueFlags { return do_value_type(index); }
+        [[nodiscard]] auto value_info() -> ValueFlags { return do_value_type(); }
         //! Get the value of the entry.
         auto get_value(std::optional<IndexType> index, std::string &value) -> bool {
             return do_get_value(index, value);
@@ -77,9 +77,7 @@ class ClingoConfig {
         auto size_array() -> std::optional<int> { return do_array_size(); }
 
       private:
-        virtual auto do_value_type([[maybe_unused]] std::optional<KeyType> index) -> ValueFlags {
-            return ValueFlags::none;
-        }
+        virtual auto do_value_type() -> ValueFlags { return ValueFlags::none; }
         virtual auto do_get_value([[maybe_unused]] std::optional<KeyType> index, [[maybe_unused]] std::string &value)
             -> bool {
             error_("cannot get value");

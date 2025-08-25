@@ -73,4 +73,63 @@ TEST_CASE_METHOD(Fixture, "config solve", "[cxx][config][solve]") {
     REQUIRE(models == res);
 }
 
+TEST_CASE_METHOD(Fixture, "config extend", "[cxx][config][extend]") {
+    class ConfigValue {
+      public:
+        [[nodiscard]] auto get() const -> std::optional<std::string> { return value_; }
+        void set(std::string_view value) { value_ = value; }
+
+      private:
+        std::optional<std::string> value_;
+    };
+    class ConfigArray {
+      public:
+        ConfigArray(std::vector<std::optional<std::string>> &values) : values_{&values} {}
+        [[nodiscard]] auto size() const -> size_t { return values_->size(); }
+
+      private:
+        std::vector<std::optional<std::string>> *values_;
+    };
+    class ConfigArrayValue {
+      public:
+        ConfigArrayValue(std::vector<std::optional<std::string>> &values) : values_{&values} {}
+        [[nodiscard]] auto get(std::optional<size_t> index) const -> std::optional<std::string> {
+            return values_->at(index ? *index : 0);
+        }
+        void set(std::optional<size_t> index, std::string_view value) {
+            auto idx = index ? *index : 0;
+            while (values_->size() <= idx) {
+                values_->emplace_back();
+            }
+            values_->at(idx) = value;
+        }
+
+      private:
+        std::vector<std::optional<std::string>> *values_;
+    };
+    auto values = std::vector<std::optional<std::string>>{};
+    cfg.add("test", "test group");
+    cfg.add("test.value", "test value", ConfigValue{});
+    cfg.add("test.array[]", "test array", ConfigArray{values});
+    cfg.add("test.array[].value", "test array.value", ConfigArrayValue{values});
+    cfg["test"]["value"] = "hello";
+    REQUIRE(*cfg["test.value"] == "hello");
+    cfg["test.value"] = "world";
+    REQUIRE(*cfg["test.value"] == "world");
+    REQUIRE(cfg["test.array"].array().size() == 0);
+    REQUIRE(cfg["test.array.value"].description() == "test array.value");
+    cfg["test.array[0].value"] = "a";
+    cfg["test.array[1].value"] = "b";
+    REQUIRE(cfg["test.array"].array().size() == 2);
+    REQUIRE(*cfg["test.array[0].value"] == "a");
+    REQUIRE(*cfg["test.array.value"] == "a");
+    REQUIRE(*cfg["test.array[1].value"] == "b");
+    cfg["test.array.value"] = "c";
+    REQUIRE(*cfg["test.array[0].value"] == "c");
+    REQUIRE(*cfg["test.array.value"] == "c");
+    cfg["test.array[3].value"] = "d";
+    REQUIRE(!cfg["test.array[2].value"].value().has_value());
+    REQUIRE(*cfg["test.array[3].value"] == "d");
+}
+
 } // namespace Clingo::Test
