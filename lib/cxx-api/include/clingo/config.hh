@@ -193,7 +193,7 @@ class Config : public ConstConfig {
         static_assert(!has_set || !has_array_set, "entry cannot have both set with and without index");
 
         static constexpr auto c_entry = clingo_config_entry_t{
-            has_get || has_array_get ? [](size_t const *index, void *data, clingo_string_t *value, bool *has_value) -> bool {
+            has_get || has_array_get ? *[](size_t const *index, void *data, clingo_string_t *value, bool *has_value) -> bool {
                 CLINGO_TRY {
                     auto *self = static_cast<EntryType *>(data);
                     thread_local std::optional<std::string> str;
@@ -216,7 +216,7 @@ class Config : public ConstConfig {
                 }
                 CLINGO_CATCH;
             } : nullptr,
-            has_set || has_array_set ? [](size_t const *index, char const *value, size_t size, void *data) -> bool {
+            has_set || has_array_set ? *[](size_t const *index, char const *value, size_t size, void *data) -> bool {
                 CLINGO_TRY {
                     auto *self = static_cast<EntryType *>(data);
                     if constexpr (has_array_set) {
@@ -232,7 +232,7 @@ class Config : public ConstConfig {
                 }
                 CLINGO_CATCH;
             } : nullptr,
-            is_array ? [](void *data, size_t *size, bool *has_size) -> bool {
+            is_array ? *[](void *data, size_t *size, bool *has_size) -> bool {
                 CLINGO_TRY {
                     auto *self = static_cast<EntryType *>(data);
                     if constexpr (is_array) {
