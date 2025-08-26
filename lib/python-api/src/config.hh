@@ -8,13 +8,15 @@
 
 namespace PyClingo {
 
+class Control;
+
 class Config {
   public:
     using Setter = TypeHint<"Optional[Callable[[str, ...], None]]">;
     using Getter = TypeHint<"Optional[Callable[..., Optional[str]]]">;
     using Size = TypeHint<"Optional[Callable[[], int]]">;
 
-    Config(clingo_config_t *config, clingo_id_t key) : config_{config}, key_{key} {}
+    Config(Control &ctl, clingo_config_t *config, clingo_id_t key) : ctl_{&ctl}, config_{config}, key_{key} {}
 
     // value interface
     auto is_value() -> bool;
@@ -45,6 +47,7 @@ class Config {
     auto has_subkey_(std::string_view name) -> bool;
     void str_(std::ostringstream &out, size_t first_indent, size_t indent);
 
+    Control *ctl_;
     clingo_config_t *config_;
     clingo_id_t key_;
 };

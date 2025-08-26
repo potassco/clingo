@@ -1,4 +1,5 @@
 #include "config.hh"
+#include "control.hh"
 #include "core.hh"
 
 namespace PyClingo {
@@ -35,7 +36,7 @@ auto Config::at_sequence(size_t index) -> Config {
     // how out of bounds access is handled.
     clingo_id_t subkey = 0;
     handle_error(clingo_config_array_at(config_, key_, index, &subkey));
-    return {config_, subkey};
+    return {*ctl_, config_, subkey};
 }
 
 auto Config::get(std::string_view name) -> Config {
@@ -44,7 +45,7 @@ auto Config::get(std::string_view name) -> Config {
         bool has_subkey = false;
         handle_error(clingo_config_map_at(config_, key_, name.data(), name.size(), &subkey, &has_subkey));
         if (has_subkey) {
-            return {config_, subkey};
+            return {*ctl_, config_, subkey};
         }
         throw py::key_error{"key not found"};
     }
@@ -108,9 +109,9 @@ auto Config::desc() -> std::string_view {
 namespace {
 
 struct ConfigEntry {
-    pybind11::object py_get;
-    pybind11::object py_set;
-    pybind11::object py_size;
+    pybind11::handle py_get;
+    pybind11::handle py_set;
+    pybind11::handle py_size;
     std::string str;
 
     static auto c_get(size_t const *index, void *data, clingo_string_t *value, bool *has_value) -> bool {
@@ -166,6 +167,9 @@ struct ConfigEntry {
 
 void Config::add(std::string_view name, std::string_view description, Getter const &get, Setter const &set,
                  Size const &size) {
+    ctl_->tie(get);
+    ctl_->tie(set);
+    ctl_->tie(size);
     auto data = std::make_unique<ConfigEntry>(get, set, size);
     auto entry = clingo_config_entry_t{
         !get.is_none() ? &ConfigEntry::c_get : nullptr,
