@@ -15,37 +15,41 @@ class PluginConfig:
     Simple test config class.
     """
 
+    value: str | None
+    array: list[str | None]
+    group: str | None
+
     def __init__(self):
         self.value = "default value"
         self.array = ["default value"]
         self.group = "some group"
 
-    def set_val(self, value):
+    def set_val(self, value: str) -> None:
         """
         Set the value of the value config.
         """
         self.value = value
 
-    def get_val(self):
+    def get_val(self) -> str | None:
         """
         Get the value of the value config.
         """
         return self.value
 
-    def set_arr_len(self, value):
+    def set_arr_len(self, value: str) -> None:
         """
         Set the length of the config array.
         """
         while len(self.array) < int(value):
             self.array.append("default value")
 
-    def get_arr_len(self):
+    def get_arr_len(self) -> int:
         """
         Get the length of the config array.
         """
         return len(self.array)
 
-    def set_arr_val(self, value, index=None):
+    def set_arr_val(self, value: str, index: int | None = None) -> None:
         """
         Set the array value at index to value.
         """
@@ -53,7 +57,7 @@ class PluginConfig:
             index = 0
         self.array[index] = value
 
-    def get_arr_val(self, index=None):
+    def get_arr_val(self, index: int | None = None) -> str | None:
         """
         Get the value at index of the config array.
         """
@@ -61,13 +65,13 @@ class PluginConfig:
             return "undefined"
         return self.array[index]
 
-    def get_group(self):
+    def get_group(self) -> str | None:
         """
         Set the value of the group config.
         """
         return self.group
 
-    def set_group(self, value):
+    def set_group(self, value: str | None) -> None:
         """
         Get the value of the group config.
         """
@@ -188,9 +192,9 @@ class TestConfig:
         assert str(cfg.plugin) == dedent(
             """\
             array:
-            - val: "default value"
-            - val: "5"
+              - val: "default value"
+              - val: "5"
             group: "test"
-                val: "new value"
+                   val: "new value"
             """.rstrip()
         )

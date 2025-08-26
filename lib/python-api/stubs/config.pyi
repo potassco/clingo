@@ -179,19 +179,27 @@ class Config:
         self,
         name: str,
         description: str,
-        get: typing.Callable[..., str | None] | None = None,
-        set: typing.Callable[[str, ...], None] | None = None,
+        get: (
+            typing.Callable[[], str | None]
+            | typing.Callable[int | None, str | None]
+            | ...
+        ) = None,
+        set: (
+            typing.Callable[[str], None]
+            | typing.Callable[[str, int | None], None]
+            | None
+        ) = None,
         size: typing.Callable[[], int] | None = None,
     ) -> None:
         """
         Add a custom configuration entry.
 
         Entries that have a value should pass get and/or set callbacks; entries with
-        values under an array must implement get/set with an optional integer index
-        (indicated by the elipsis in the signature). Array entries must give a size
-        callback.
+        values under an array must implement get/set with an optional integer index.
+        Array entries must give a size callback.
 
         Notes:
+        - Entries can have at most one array parent entry.
         - It is up to the user to handle array insertion. Possible options include
           increasing the size of an array upon assignment of values or by setting a
           special size field that controls the size of the array.

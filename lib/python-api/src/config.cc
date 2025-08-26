@@ -350,11 +350,11 @@ Notes:
 Add a custom configuration entry.
 
 Entries that have a value should pass get and/or set callbacks; entries with
-values under an array must implement get/set with an optional integer index
-(indicated by the elipsis in the signature). Array entries must give a size
-callback.
+values under an array must implement get/set with an optional integer index.
+Array entries must give a size callback.
 
 Notes:
+- Entries can have at most one array parent entry.
 - It is up to the user to handle array insertion. Possible options include
   increasing the size of an array upon assignment of values or by setting a
   special size field that controls the size of the array.
