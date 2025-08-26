@@ -32,7 +32,7 @@ opt_mode: "-1,opt"
 opt_stop: "-1,opt,no"\\
 \"\"\"
 >>> ctl.config.solve.models.description
-"Compute at most %A models (0 for all)"
+"Compute at most <n> models (0 for all)"
 >>> ctl.config.solve.models = 0
 >>> ctl.parse_string("1 {a; b}.")
 >>> ctl.ground()
@@ -42,6 +42,70 @@ b
 a
 a b
 SAT
+```
+
+The next example shows how to extend the configuration with a custom entry:
+
+```python
+from clingo.core import Library
+from clingo.control import Control
+
+
+class CustomConfig:
+    value: str | None
+    array: list[str | None]
+
+    def __init__(self):
+        self.value = None
+        self.array = []
+
+    def set_val(self, value: str | None):
+        self.value = value
+
+    def get_val(self):
+        return self.value
+
+    def get_arr_len(self):
+        return len(self.array)
+
+    def set_arr_val(self, value, index=None):
+        if index is None:
+            index = 0
+        while len(self.array) <= index:
+            self.array.append(None)
+        self.array[index] = value
+
+    def get_arr_val(self, index=None):
+        if index is None:
+            index = 0
+        return self.array[index]
+
+
+lib = Library()
+ctl = Control(lib)
+cfg = ctl.config
+ctm = CustomConfig()
+
+cfg.add_entry("custom", "simple example config")
+cfg.add_entry("custom.val", "value", ctm.get_val, ctm.set_val)
+cfg.add_entry("custom.arr[]", "array", size=ctm.get_arr_len)
+cfg.add_entry(
+    "custom.arr[].val", "value in array", get=ctm.get_arr_val, set=ctm.set_arr_val
+)
+
+cfg.custom.val = "a"
+cfg.custom.arr[0].val = "b"
+cfg.custom.arr[1].val = "c"
+
+print(cfg.custom)
+```
+
+Running the above code produces the following output:
+```
+arr:
+  - val: "b"
+  - val: "c"
+val: "a"
 ```
 """
 
@@ -115,14 +179,24 @@ class Config:
         self,
         name: str,
         description: str,
-        get: typing.Any = None,
-        set: typing.Any = None,
-        size: typing.Any = None,
+        get: typing.Callable[..., str | None] | None = None,
+        set: typing.Callable[[str, ...], None] | None = None,
+        size: typing.Callable[[], int] | None = None,
     ) -> None:
         """
         Add a custom configuration entry.
 
-        The index argument of the callbacks is None for non-array entries.
+        Entries that have a value should pass get and/or set callbacks; entries with
+        values under an array must implement get/set with an optional integer index
+        (indicated by the elipsis in the signature). Array entries must give a size
+        callback.
+
+        Notes:
+        - It is up to the user to handle array insertion. Possible options include
+          increasing the size of an array upon assignment of values or by setting a
+          special size field that controls the size of the array.
+        - Custom entries can be added under the root key. Existing solver configuration
+          entries cannot be extened.
 
         Args:
             name: Name of the new entry.
