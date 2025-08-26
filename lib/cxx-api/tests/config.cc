@@ -94,10 +94,10 @@ TEST_CASE_METHOD(Fixture, "config extend", "[cxx][config][extend]") {
       public:
         ConfigArrayValue(std::vector<std::optional<std::string>> &values) : values_{&values} {}
         [[nodiscard]] auto get(std::optional<size_t> index) const -> std::optional<std::string> {
-            return values_->at(index ? *index : 0);
+            return values_->at(index.value_or(0));
         }
         void set(std::optional<size_t> index, std::string_view value) {
-            auto idx = index ? *index : 0;
+            auto idx = index.value_or(0);
             while (values_->size() <= idx) {
                 values_->emplace_back();
             }
@@ -112,6 +112,10 @@ TEST_CASE_METHOD(Fixture, "config extend", "[cxx][config][extend]") {
     cfg.add("test.value", "test value", ConfigValue{});
     cfg.add("test.array[]", "test array", ConfigArray{values});
     cfg.add("test.array[].value", "test array.value", ConfigArrayValue{values});
+    REQUIRE(cfg["test.array"].description() == "test array");
+    REQUIRE(cfg["test.array[]"].description() == "test array");
+    REQUIRE(cfg["test.array[0]"].description() == "test array");
+    REQUIRE(cfg["test.array[99]"].description() == "test array");
     cfg["test"]["value"] = "hello";
     REQUIRE(*cfg["test.value"] == "hello");
     cfg["test.value"] = "world";

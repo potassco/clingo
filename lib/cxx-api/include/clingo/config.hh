@@ -179,15 +179,40 @@ class Config : public ConstConfig {
         return *this;
     }
 
-    template <class Entry> void add(std::string_view name, std::string_view description, Entry &&entry) const {
-        using EntryType = std::remove_cvref_t<Entry>;
+    //! Add a new configuration entry with a custom handler.
+    //!
+    //! Adds a configuration entry with the given name and description, and
+    //! binds it to a handler. The handler can provide get/set logic for the
+    //! entry.
+    //!
+    //! Handler can implement:
+    //! - get() -> std::string
+    //! - get(std::optional<size_t>) -> std::string
+    //! - set(std::string_view) -> void
+    //! - set(std::optional<size_t>, std::string_view) -> void
+    //! - size() -> size_t
+    //!
+    //! Entries that have a value should implement get and/or set; entries with
+    //! values under an array must implement get/set with an index. Array
+    //! entries must implement size.
+    //!
+    //! @note It is up to the user to handle array insertion. Possible options
+    //! include increasing the size of an array upon assignment of values or by
+    //! setting a special size field that controls the size of the array.
+    //!
+    //! @tparam Handler type of the handler
+    //! @param name entry name
+    //! @param description entry description
+    //! @param handler handler object for custom get/set logic
+    template <class Handler> void add(std::string_view name, std::string_view description, Handler &&handler) const {
+        using HandlerType = std::remove_cvref_t<Handler>;
 
-        static constexpr auto has_get = requires { entry.get(); };
-        static constexpr auto has_array_get = requires { entry.get(std::optional<size_t>{}); };
-        static constexpr auto has_set = requires { std::declval<EntryType>().set(std::string_view{}); };
+        static constexpr auto has_get = requires { handler.get(); };
+        static constexpr auto has_array_get = requires { handler.get(std::optional<size_t>{}); };
+        static constexpr auto has_set = requires { std::declval<HandlerType>().set(std::string_view{}); };
         static constexpr auto has_array_set =
-            requires { std::declval<EntryType>().set(std::optional<size_t>{}, std::string_view{}); };
-        static constexpr auto is_array = requires { entry.size(); };
+            requires { std::declval<HandlerType>().set(std::optional<size_t>{}, std::string_view{}); };
+        static constexpr auto is_array = requires { handler.size(); };
 
         static_assert(!has_get || !has_array_get, "entry cannot have both get with and without index");
         static_assert(!has_set || !has_array_set, "entry cannot have both set with and without index");
@@ -195,7 +220,7 @@ class Config : public ConstConfig {
         static constexpr auto c_entry = clingo_config_entry_t{
             has_get || has_array_get ? +[](size_t const *index, void *data, clingo_string_t *value, bool *has_value) -> bool {
                 CLINGO_TRY {
-                    auto *self = static_cast<EntryType *>(data);
+                    auto *self = static_cast<HandlerType *>(data);
                     thread_local std::optional<std::string> str;
                     if constexpr (has_array_get) {
                         str = self->get(index != nullptr ? std::optional{*index} : std::nullopt);
@@ -218,7 +243,7 @@ class Config : public ConstConfig {
             } : nullptr,
             has_set || has_array_set ? +[](size_t const *index, char const *value, size_t size, void *data) -> bool {
                 CLINGO_TRY {
-                    auto *self = static_cast<EntryType *>(data);
+                    auto *self = static_cast<HandlerType *>(data);
                     if constexpr (has_array_set) {
                         self->set(index != nullptr ? std::optional{*index} : std::nullopt,
                                   std::string_view{value, size});
@@ -234,7 +259,7 @@ class Config : public ConstConfig {
             } : nullptr,
             is_array ? +[](void *data, size_t *size, bool *has_size) -> bool {
                 CLINGO_TRY {
-                    auto *self = static_cast<EntryType *>(data);
+                    auto *self = static_cast<HandlerType *>(data);
                     if constexpr (is_array) {
                         if (size != nullptr) {
                             *size = self->size();
@@ -246,14 +271,21 @@ class Config : public ConstConfig {
                 }
                 CLINGO_CATCH;
             } : nullptr,
-            [](void *data) { std::unique_ptr<EntryType> self{static_cast<EntryType *>(data)}; },
+            [](void *data) { std::unique_ptr<HandlerType> self{static_cast<HandlerType *>(data)}; },
         };
 
-        auto copy = std::make_unique<EntryType>(std::forward<Entry>(entry));
+        auto copy = std::make_unique<HandlerType>(std::forward<Handler>(handler));
         Detail::handle_error(clingo_config_add(cfg_(), key_, name.data(), name.size(), description.data(),
                                                description.size(), &c_entry, copy.release()));
     }
 
+    //! Add a new configuration entry.
+    //!
+    //! Adds a configuration entry with the given name and description.
+    //! The entry is just for organizational purposes and has no value.
+    //!
+    //! @param name entry name
+    //! @param description entry description
     void add(std::string_view name, std::string_view description) const {
         Detail::handle_error(clingo_config_add(cfg_(), key_, name.data(), name.size(), description.data(),
                                                description.size(), nullptr, nullptr));

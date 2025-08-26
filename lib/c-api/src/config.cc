@@ -27,15 +27,38 @@ inline auto c_cast(Control::ClingoConfig *config) -> clingo_config_t * {
     return reinterpret_cast<clingo_config_t *>(config);
 }
 
-class ConfigEntryAdapter : public CppClingo::Control::ClingoConfig::Entry {
+class ConfigEntry {
   public:
-    ConfigEntryAdapter(clingo_config_entry_t const *c_entry, void *data) : c_entry_{*c_entry}, data_{data} {}
-
-    ~ConfigEntryAdapter() override {
-        if (c_entry_.free != nullptr) {
-            c_entry_.free(data_);
+    constexpr ConfigEntry(clingo_config_entry_t const *entry) noexcept
+        : entry_{entry != nullptr ? *entry : clingo_config_entry_t{}} {}
+    ConfigEntry(ConfigEntry const &other) = delete;
+    ConfigEntry(ConfigEntry &&other) noexcept : entry_{other.entry_} { other.entry_ = clingo_config_entry_t{}; }
+    auto operator=(ConfigEntry const &other) -> auto & = delete;
+    auto operator=(ConfigEntry &&other) noexcept -> auto & {
+        if (this != &other) {
+            if (entry_.free != nullptr) {
+                entry_.free(nullptr);
+            }
+            entry_ = other.entry_;
+            other.entry_ = clingo_config_entry_t{};
+        }
+        return *this;
+    }
+    ~ConfigEntry() {
+        if (entry_.free != nullptr) {
+            entry_.free(nullptr);
         }
     }
+
+    auto operator->() -> clingo_config_entry_t const * { return &entry_; }
+
+  private:
+    clingo_config_entry_t entry_;
+};
+
+class ConfigEntryAdapter : public CppClingo::Control::ClingoConfig::Entry {
+  public:
+    ConfigEntryAdapter(ConfigEntry c_entry, void *data) : c_entry_{std::move(c_entry)}, data_{data} {}
 
   private:
     using ValueFlags = CppClingo::Control::ClingoConfig::ValueFlags;
@@ -43,10 +66,10 @@ class ConfigEntryAdapter : public CppClingo::Control::ClingoConfig::Entry {
 
     auto do_value_type() -> ValueFlags override {
         auto ret = ValueFlags::none;
-        if (c_entry_.get != nullptr) {
+        if (c_entry_->get != nullptr) {
             ret |= ValueFlags::get;
         }
-        if (c_entry_.set != nullptr) {
+        if (c_entry_->set != nullptr) {
             ret |= ValueFlags::set;
         }
         return ret;
@@ -54,13 +77,13 @@ class ConfigEntryAdapter : public CppClingo::Control::ClingoConfig::Entry {
 
     auto do_get_value(std::optional<CppClingo::Control::ClingoConfig::KeyType> index, std::string &value)
         -> bool override {
-        if (c_entry_.get == nullptr) {
+        if (c_entry_->get == nullptr) {
             return false;
         }
         auto cstr = clingo_string_t{};
         bool has_value = false;
         size_t idx = index.value_or(0);
-        handle_error(c_entry_.get(index ? &idx : nullptr, data_, &cstr, &has_value));
+        handle_error(c_entry_->get(index ? &idx : nullptr, data_, &cstr, &has_value));
         value.clear();
         if (has_value) {
             value.assign(cstr.data, cstr.size);
@@ -69,24 +92,24 @@ class ConfigEntryAdapter : public CppClingo::Control::ClingoConfig::Entry {
     }
 
     void do_set_value(std::optional<CppClingo::Control::ClingoConfig::KeyType> index, std::string_view val) override {
-        if (c_entry_.set == nullptr) {
+        if (c_entry_->set == nullptr) {
             throw std::runtime_error("set_value not implemented");
         }
         size_t idx = index.value_or(0);
-        handle_error(c_entry_.set(index ? &idx : nullptr, val.data(), val.size(), data_));
+        handle_error(c_entry_->set(index ? &idx : nullptr, val.data(), val.size(), data_));
     }
 
     auto do_array_size() -> std::optional<int> override {
-        if (c_entry_.size == nullptr) {
+        if (c_entry_->size == nullptr) {
             return std::nullopt;
         }
         size_t sz = 0;
         bool has_size = false;
-        handle_error(c_entry_.size(data_, &sz, &has_size));
+        handle_error(c_entry_->size(data_, &sz, &has_size));
         return has_size ? std::make_optional(static_cast<int>(sz)) : std::nullopt;
     }
 
-    clingo_config_entry_t c_entry_;
+    ConfigEntry c_entry_;
     void *data_;
 };
 
@@ -252,12 +275,12 @@ extern "C" auto clingo_config_value_set(clingo_config_t *config, clingo_id_t key
 extern "C" auto clingo_config_add(clingo_config_t *config, clingo_id_t parent, char const *name, size_t name_size,
                                   char const *description, size_t description_size, clingo_config_entry_t const *entry,
                                   void *data) -> bool {
+    auto c_entry = ConfigEntry{entry};
     CLINGO_TRY {
         if (config == nullptr || name == nullptr) {
             return fail_arguments();
         }
-        static constexpr auto noop = clingo_config_entry_t{};
-        auto cpp_entry = std::make_unique<ConfigEntryAdapter>(entry != nullptr ? entry : &noop, data);
+        auto cpp_entry = std::make_unique<ConfigEntryAdapter>(std::move(c_entry), data);
         auto name_sv = std::string_view{name, name_size};
         auto desc_sv = std::string_view{description, description_size};
         cpp_cast(config)->add_entry(parent, name_sv, desc_sv, std::move(cpp_entry));
