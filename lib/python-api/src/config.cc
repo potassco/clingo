@@ -165,8 +165,8 @@ struct ConfigEntry {
 
 } // namespace
 
-void Config::add(std::string_view name, std::string_view description, pybind11::object const &get,
-                 pybind11::object const &set, pybind11::object const &size) {
+void Config::add(std::string_view name, std::string_view description, Getter const &get, Setter const &set,
+                 Size const &size) {
     auto data = std::make_unique<ConfigEntry>(get, set, size);
     auto entry = clingo_config_entry_t{
         !get.is_none() ? &ConfigEntry::c_get : nullptr,
@@ -282,7 +282,17 @@ Notes:
              py::arg("set") = py::none(), py::arg("size") = py::none(), R"(
 Add a custom configuration entry.
 
-The index argument of the callbacks is None for non-array entries.
+Entries that have a value should pass get and/or set callbacks; entries with
+values under an array must implement get/set with an optional integer index
+(indicated by the elipsis in the signature). Array entries must give a size
+callback.
+
+Notes:
+- It is up to the user to handle array insertion. Possible options include
+  increasing the size of an array upon assignment of values or by setting a
+  special size field that controls the size of the array.
+- Custom entries can be added under the root key. Existing solver configuration
+  entries cannot be extened.
 
 Args:
     name: Name of the new entry.

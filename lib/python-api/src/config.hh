@@ -10,6 +10,10 @@ namespace PyClingo {
 
 class Config {
   public:
+    using Setter = TypeHint<"Optional[Callable[[str, ...], None]]">;
+    using Getter = TypeHint<"Optional[Callable[..., Optional[str]]]">;
+    using Size = TypeHint<"Optional[Callable[[], int]]">;
+
     Config(clingo_config_t *config, clingo_id_t key) : config_{config}, key_{key} {}
 
     // value interface
@@ -32,8 +36,8 @@ class Config {
     auto desc() -> std::string_view;
 
     // extension
-    void add(std::string_view name, std::string_view description, pybind11::object const &get,
-             pybind11::object const &set, pybind11::object const &size);
+    void add(std::string_view name, std::string_view description, Getter const &get, Setter const &set,
+             Size const &size);
 
   private:
     auto type_() -> clingo_config_type_bitset_t;
