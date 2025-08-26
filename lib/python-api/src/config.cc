@@ -31,12 +31,11 @@ auto Config::has_subkey_(std::string_view name) -> bool {
 }
 
 auto Config::at_sequence(size_t index) -> Config {
-    if (index < len_sequence()) {
-        clingo_id_t subkey = 0;
-        handle_error(clingo_config_array_at(config_, key_, index, &subkey));
-        return {config_, subkey};
-    }
-    throw py::index_error{"invalid index"};
+    // NOTE: this does not throw an index error. It depends on the config entry
+    // how out of bounds access is handled.
+    clingo_id_t subkey = 0;
+    handle_error(clingo_config_array_at(config_, key_, index, &subkey));
+    return {config_, subkey};
 }
 
 auto Config::get(std::string_view name) -> Config {
@@ -221,7 +220,7 @@ opt_mode: "-1,opt"
 opt_stop: "-1,opt,no"\
 """
 >>> ctl.config.solve.models.description
-"Compute at most %A models (0 for all)"
+"Compute at most <n> models (0 for all)"
 >>> ctl.config.solve.models = 0
 >>> ctl.parse_string("1 {a; b}.")
 >>> ctl.ground()
@@ -231,6 +230,70 @@ b
 a
 a b
 SAT
+```
+
+The next example shows how to extend the configuration with a custom entry:
+
+```python
+from clingo.core import Library
+from clingo.control import Control
+
+
+class CustomConfig:
+    value: str | None
+    array: list[str | None]
+
+    def __init__(self):
+        self.value = None
+        self.array = []
+
+    def set_val(self, value: str | None):
+        self.value = value
+
+    def get_val(self):
+        return self.value
+
+    def get_arr_len(self):
+        return len(self.array)
+
+    def set_arr_val(self, value, index=None):
+        if index is None:
+            index = 0
+        while len(self.array) <= index:
+            self.array.append(None)
+        self.array[index] = value
+
+    def get_arr_val(self, index=None):
+        if index is None:
+            index = 0
+        return self.array[index]
+
+
+lib = Library()
+ctl = Control(lib)
+cfg = ctl.config
+ctm = CustomConfig()
+
+cfg.add_entry("custom", "simple example config")
+cfg.add_entry("custom.val", "value", ctm.get_val, ctm.set_val)
+cfg.add_entry("custom.arr[]", "array", size=ctm.get_arr_len)
+cfg.add_entry(
+    "custom.arr[].val", "value in array", get=ctm.get_arr_val, set=ctm.set_arr_val
+)
+
+cfg.custom.val = "a"
+cfg.custom.arr[0].val = "b"
+cfg.custom.arr[1].val = "c"
+
+print(cfg.custom)
+```
+
+Running the above code produces the following output:
+```
+arr:
+  - val: "b"
+  - val: "c"
+val: "a"
 ```
 )d"_d);
     py::class_<Config>(config, "Config", R"(
