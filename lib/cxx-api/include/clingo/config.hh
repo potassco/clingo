@@ -179,6 +179,118 @@ class Config : public ConstConfig {
         return *this;
     }
 
+    //! Add a new configuration entry with a custom handler.
+    //!
+    //! Adds a configuration entry with the given name and description, and
+    //! binds it to a handler. The handler can provide get/set logic for the
+    //! entry.
+    //!
+    //! Handler can implement:
+    //! - get() -> std::string
+    //! - get(std::optional<size_t>) -> std::string
+    //! - set(std::string_view) -> void
+    //! - set(std::optional<size_t>, std::string_view) -> void
+    //! - size() -> size_t
+    //!
+    //! Entries that have a value should implement get and/or set; entries with
+    //! values under an array must implement get/set with an index. Array
+    //! entries must implement size.
+    //!
+    //! @note It is up to the user to handle array insertion. Possible options
+    //! include increasing the size of an array upon assignment of values or by
+    //! setting a special size field that controls the size of the array.
+    //!
+    //! @tparam Handler type of the handler
+    //! @param name entry name
+    //! @param description entry description
+    //! @param handler handler object for custom get/set logic
+    template <class Handler> void add(std::string_view name, std::string_view description, Handler &&handler) const {
+        using HandlerType = std::remove_cvref_t<Handler>;
+
+        static constexpr auto has_get = requires { handler.get(); };
+        static constexpr auto has_array_get = requires { handler.get(std::optional<size_t>{}); };
+        static constexpr auto has_set = requires { std::declval<HandlerType>().set(std::string_view{}); };
+        static constexpr auto has_array_set =
+            requires { std::declval<HandlerType>().set(std::optional<size_t>{}, std::string_view{}); };
+        static constexpr auto is_array = requires { handler.size(); };
+
+        static_assert(!has_get || !has_array_get, "entry cannot have both get with and without index");
+        static_assert(!has_set || !has_array_set, "entry cannot have both set with and without index");
+
+        static constexpr auto c_entry = clingo_config_entry_t{
+            has_get || has_array_get ? +[](size_t const *index, void *data, clingo_string_t *value, bool *has_value) -> bool {
+                CLINGO_TRY {
+                    auto *self = static_cast<HandlerType *>(data);
+                    thread_local std::optional<std::string> str;
+                    if constexpr (has_array_get) {
+                        str = self->get(index != nullptr ? std::optional{*index} : std::nullopt);
+                    }
+                    if constexpr (has_get) {
+                        if (index != nullptr) {
+                            throw std::logic_error{"cannot get array value"};
+                        }
+                        str = self->get();
+                    }
+                    if (str.has_value() && value != nullptr) {
+                        value->data = str->data();
+                        value->size = str->size();
+                    }
+                    if (has_value != nullptr) {
+                        *has_value = str.has_value();
+                    }
+                }
+                CLINGO_CATCH;
+            } : nullptr,
+            has_set || has_array_set ? +[](size_t const *index, char const *value, size_t size, void *data) -> bool {
+                CLINGO_TRY {
+                    auto *self = static_cast<HandlerType *>(data);
+                    if constexpr (has_array_set) {
+                        self->set(index != nullptr ? std::optional{*index} : std::nullopt,
+                                  std::string_view{value, size});
+                    }
+                    if constexpr (has_set) {
+                        if (index != nullptr) {
+                            throw std::logic_error{"cannot set array value"};
+                        }
+                        self->set(std::string_view{value, size});
+                    }
+                }
+                CLINGO_CATCH;
+            } : nullptr,
+            is_array ? +[](void *data, size_t *size, bool *has_size) -> bool {
+                CLINGO_TRY {
+                    auto *self = static_cast<HandlerType *>(data);
+                    if constexpr (is_array) {
+                        if (size != nullptr) {
+                            *size = self->size();
+                        }
+                    }
+                    if (has_size != nullptr) {
+                        *has_size = is_array;
+                    }
+                }
+                CLINGO_CATCH;
+            } : nullptr,
+            [](void *data) { std::unique_ptr<HandlerType> self{static_cast<HandlerType *>(data)}; },
+        };
+
+        auto copy = std::make_unique<HandlerType>(std::forward<Handler>(handler));
+        Detail::handle_error(clingo_config_add(cfg_(), key_, name.data(), name.size(), description.data(),
+                                               description.size(), &c_entry, copy.release()));
+    }
+
+    //! Add a new configuration entry.
+    //!
+    //! Adds a configuration entry with the given name and description.
+    //! The entry is just for organizational purposes and has no value.
+    //!
+    //! @param name entry name
+    //! @param description entry description
+    void add(std::string_view name, std::string_view description) const {
+        Detail::handle_error(clingo_config_add(cfg_(), key_, name.data(), name.size(), description.data(),
+                                               description.size(), nullptr, nullptr));
+    }
+
   private:
     [[nodiscard]] auto cfg_() const -> clingo_config_t * {
         // NOLINTNEXTLINE
@@ -346,7 +458,7 @@ class ConstConfigMap {
     //! @param name the name of the configuration entry
     //! @return true if the map contains an entry with the given name, false otherwise
     [[nodiscard]] auto contains(std::string_view name) const -> bool {
-        return Detail::call<clingo_config_map_has_subkey>(cfg_, key_, name.data(), name.size());
+        return Detail::call<clingo_config_map_at>(cfg_, key_, name.data(), name.size(), nullptr);
     }
 
     //! Get an iterator to the beginning of the map.
@@ -363,7 +475,13 @@ class ConstConfigMap {
     friend class ConfigMap;
 
     [[nodiscard]] auto at_(std::string_view name) const -> clingo_id_t {
-        return Detail::call<clingo_config_map_at>(cfg_, key_, name.data(), name.size());
+        bool has_subkey = false;
+        clingo_id_t subkey = 0;
+        Detail::handle_error(clingo_config_map_at(cfg_, key_, name.data(), name.size(), &subkey, &has_subkey));
+        if (!has_subkey) {
+            throw std::out_of_range{"subkey not found"};
+        }
+        return subkey;
     }
 
     [[nodiscard]] auto at_(size_t index) const -> std::pair<std::string_view, clingo_id_t> {

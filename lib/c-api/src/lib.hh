@@ -23,19 +23,6 @@ struct clingo_lib {
 
 namespace CppClingo::CAPI {
 
-class fill {
-  public:
-    fill(size_t n, char c = ' ') : n_{n}, c_{c} {}
-    friend auto operator<<(CppClingo::Util::OutputBuffer &out, fill const &x) -> CppClingo::Util::OutputBuffer & {
-        std::ranges::fill(out.reserve(static_cast<std::ptrdiff_t>(x.n_)), x.c_);
-        return out;
-    }
-
-  private:
-    size_t n_;
-    char c_;
-};
-
 static constexpr auto c_cast(std::strong_ordering cmp) noexcept -> int {
     // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     return (cmp < 0) ? -1 : ((cmp == 0) ? 0 : 1);

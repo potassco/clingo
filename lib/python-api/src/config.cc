@@ -1,4 +1,5 @@
 #include "config.hh"
+#include "control.hh"
 #include "core.hh"
 
 namespace PyClingo {
@@ -24,26 +25,29 @@ auto Config::is_value() -> bool {
 auto Config::has_subkey_(std::string_view name) -> bool {
     if (is_map_()) {
         auto result = false;
-        handle_error(clingo_config_map_has_subkey(config_, key_, name.data(), name.size(), &result));
+        handle_error(clingo_config_map_at(config_, key_, name.data(), name.size(), nullptr, &result));
         return result;
     }
     throw py::attribute_error{"invalid attribute"};
 }
 
 auto Config::at_sequence(size_t index) -> Config {
-    if (index < len_sequence()) {
-        clingo_id_t subkey = 0;
-        handle_error(clingo_config_array_at(config_, key_, index, &subkey));
-        return {config_, subkey};
-    }
-    throw py::index_error{"invalid index"};
+    // NOTE: this does not throw an index error. It depends on the config entry
+    // how out of bounds access is handled.
+    clingo_id_t subkey = 0;
+    handle_error(clingo_config_array_at(config_, key_, index, &subkey));
+    return {*ctl_, config_, subkey};
 }
 
 auto Config::get(std::string_view name) -> Config {
     if (has_subkey_(name)) {
         clingo_id_t subkey = 0;
-        handle_error(clingo_config_map_at(config_, key_, name.data(), name.size(), &subkey));
-        return {config_, subkey};
+        bool has_subkey = false;
+        handle_error(clingo_config_map_at(config_, key_, name.data(), name.size(), &subkey, &has_subkey));
+        if (has_subkey) {
+            return {*ctl_, config_, subkey};
+        }
+        throw py::key_error{"key not found"};
     }
     throw py::attribute_error{"invalid attribute"};
 }
@@ -102,6 +106,81 @@ auto Config::desc() -> std::string_view {
     return {desc.data, desc.size};
 }
 
+namespace {
+
+struct ConfigEntry {
+    pybind11::handle py_get;
+    pybind11::handle py_set;
+    pybind11::handle py_size;
+    std::string str;
+
+    static auto c_get(size_t const *index, void *data, clingo_string_t *value, bool *has_value) -> bool {
+        CLINGO_TRY {
+            auto *self = static_cast<ConfigEntry *>(data);
+            *has_value = false;
+            value->data = nullptr;
+            value->size = 0;
+            if (!self->py_get.is_none()) {
+                auto pyval = index != nullptr ? self->py_get(*index) : self->py_get();
+                if (!pyval.is_none()) {
+                    self->str = pybind11::str(pyval).cast<std::string>();
+                    *has_value = true;
+                    value->data = self->str.c_str();
+                    value->size = self->str.size();
+                }
+            }
+        }
+        CLINGO_CATCH;
+    }
+
+    static auto c_set(size_t const *index, char const *value, size_t size, void *data) -> bool {
+        CLINGO_TRY {
+            auto *self = static_cast<ConfigEntry *>(data);
+            if (self->py_set.is_none()) {
+                throw py::attribute_error{"invalid attribute"};
+            }
+            if (index != nullptr) {
+                self->py_set(pybind11::str(value, size), *index);
+            } else {
+                self->py_set(pybind11::str(value, size));
+            }
+        }
+        CLINGO_CATCH;
+    }
+
+    static auto c_size(void *data, size_t *size, bool *has_size) -> bool {
+        CLINGO_TRY {
+            auto *pydata = static_cast<ConfigEntry *>(data);
+            *has_size = false;
+            if (!pydata->py_size.is_none()) {
+                *size = pydata->py_size().cast<size_t>();
+                *has_size = true;
+            }
+        }
+        CLINGO_CATCH;
+    }
+
+    static void c_free(void *data) { std::unique_ptr<ConfigEntry>{static_cast<ConfigEntry *>(data)}; }
+};
+
+} // namespace
+
+void Config::add(std::string_view name, std::string_view description, Getter const &get, Setter const &set,
+                 Size const &size) {
+    ctl_->tie(get);
+    ctl_->tie(set);
+    ctl_->tie(size);
+    auto data = std::make_unique<ConfigEntry>(get, set, size);
+    auto entry = clingo_config_entry_t{
+        !get.is_none() ? &ConfigEntry::c_get : nullptr,
+        !set.is_none() ? &ConfigEntry::c_set : nullptr,
+        !size.is_none() ? &ConfigEntry::c_size : nullptr,
+        &ConfigEntry::c_free,
+    };
+    handle_error(clingo_config_add(config_, key_, name.data(), name.size(), description.data(), description.size(),
+                                   &entry, data.release()));
+}
+
 auto Config::str() -> std::string_view {
     auto *bld = string_builder();
     handle_error(clingo_config_to_string(config_, key_, bld));
@@ -145,7 +224,7 @@ opt_mode: "-1,opt"
 opt_stop: "-1,opt,no"\
 """
 >>> ctl.config.solve.models.description
-"Compute at most %A models (0 for all)"
+"Compute at most <n> models (0 for all)"
 >>> ctl.config.solve.models = 0
 >>> ctl.parse_string("1 {a; b}.")
 >>> ctl.ground()
@@ -155,6 +234,70 @@ b
 a
 a b
 SAT
+```
+
+The next example shows how to extend the configuration with a custom entry:
+
+```python
+from clingo.core import Library
+from clingo.control import Control
+
+
+class CustomConfig:
+    value: str | None
+    array: list[str | None]
+
+    def __init__(self):
+        self.value = None
+        self.array = []
+
+    def set_val(self, value: str | None):
+        self.value = value
+
+    def get_val(self):
+        return self.value
+
+    def get_arr_len(self):
+        return len(self.array)
+
+    def set_arr_val(self, value, index=None):
+        if index is None:
+            index = 0
+        while len(self.array) <= index:
+            self.array.append(None)
+        self.array[index] = value
+
+    def get_arr_val(self, index=None):
+        if index is None:
+            index = 0
+        return self.array[index]
+
+
+lib = Library()
+ctl = Control(lib)
+cfg = ctl.config
+ctm = CustomConfig()
+
+cfg.add_entry("custom", "simple example config")
+cfg.add_entry("custom.val", "value", ctm.get_val, ctm.set_val)
+cfg.add_entry("custom.arr[]", "array", size=ctm.get_arr_len)
+cfg.add_entry(
+    "custom.arr[].val", "value in array", get=ctm.get_arr_val, set=ctm.set_arr_val
+)
+
+cfg.custom.val = "a"
+cfg.custom.arr[0].val = "b"
+cfg.custom.arr[1].val = "c"
+
+print(cfg.custom)
+```
+
+Running the above code produces the following output:
+```
+arr:
+  - val: "b"
+  - val: "c"
+val: "a"
 ```
 )d"_d);
     py::class_<Config>(config, "Config", R"(
@@ -201,6 +344,30 @@ Notes:
         // attribute access
         .def("__getattr__", &Config::get, py::arg("name"), R"(Get the configuration entry with the given name.)")
         .def("__setattr__", &Config::set, py::arg("name"), py::arg("value"), R"(Set the value with the given name.)")
+        // extension
+        .def("add_entry", &Config::add, py::arg("name"), py::arg("description"), py::arg("get") = py::none(),
+             py::arg("set") = py::none(), py::arg("size") = py::none(), R"(
+Add a custom configuration entry.
+
+Entries that have a value should pass get and/or set callbacks; entries with
+values under an array must implement get/set with an optional integer index.
+Array entries must give a size callback.
+
+Notes:
+- Entries can have at most one array parent entry.
+- It is up to the user to handle array insertion. Possible options include
+  increasing the size of an array upon assignment of values or by setting a
+  special size field that controls the size of the array.
+- Custom entries can be added under the root key. Existing solver configuration
+  entries cannot be extened.
+
+Args:
+    name: Name of the new entry.
+    description: Description of the new entry.
+    get: Callable to get the value.
+    set: Callable to set the value.
+    size: Callable to get the size (for array entries).
+)"_d)
         .def_property_readonly("attributes", &Config::attrs, R"(Get the attribute names of nested configurations.)");
 }
 

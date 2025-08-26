@@ -45,6 +45,72 @@ typedef unsigned clingo_config_type_bitset_t;
 //! Handle for to the solver configuration.
 typedef struct clingo_config clingo_config_t;
 
+//! Callback interface for custom configuration entries.
+//!
+//! This struct allows users to define custom configuration entries by
+//! providing function pointers for querying and manipulating the entry. The
+//! `data` pointer is passed to each callback and can be used to store
+//! user-defined state.
+//!
+//! On each configuration path, there can be at most one array entry. If
+//! present, the array index is passed to all entries following an array entry
+//! in the path. It is up to the entry implementation to interpret an absent
+//! index (i.e., when `index` is NULL).
+//!
+//! All callbacks are optional; if a callback is NULL, the corresponding
+//! operation is not supported for this entry.
+typedef struct clingo_config_entry {
+    //! Get the value of this entry as a string.
+    //!
+    //! @param[in] index an optional array index (can be NULL)
+    //! @param[in] data user data pointer
+    //! @param[out] value output string value
+    //! @param[out] has_value set to true if a value is available, false otherwise
+    //! @return true on success, false on error
+    bool (*get)(size_t const *index, void *data, clingo_string_t *value, bool *has_value);
+
+    //! Set the value of this entry from a string.
+    //!
+    //! @param[in] index an optional array index (can be NULL)
+    //! @param[in] value input string value
+    //! @param[in] size length of the value string
+    //! @param[in] data user data pointer
+    //! @return true on success, false on error
+    bool (*set)(size_t const *index, char const *value, size_t size, void *data);
+
+    //! Get the size of this entry if it is an array.
+    //!
+    //! @param[in] data user data pointer
+    //! @param[out] size number of elements in the array (or zero)
+    //! @param[out] has_size true if the entry is an array, false otherwise
+    //! @return true on success, false on error
+    bool (*size)(void *data, size_t *size, bool *has_size);
+
+    //! Free the user data associated with this entry.
+    //!
+    //! @param[in] data user data pointer
+    void (*free)(void *data);
+} clingo_config_entry_t;
+
+//! Add a custom configuration entry under a parent key.
+//!
+//! The entry is defined by the provided callbacks and user data. The API takes
+//! ownership of the `data` pointer and will call the `free` callback (if non-NULL)
+//! when the entry is removed or the configuration is destroyed.
+//!
+//! @param[in] config the configuration object
+//! @param[in] parent the parent key under which to add the entry
+//! @param[in] name the name of the new entry (not null-terminated)
+//! @param[in] name_size the length of the name string
+//! @param[in] description the description of the entry (not null-terminated)
+//! @param[in] description_size the length of the description string
+//! @param[in] entry pointer to the entry callbacks struct
+//! @param[in] data user data pointer for the entry callbacks
+//! @return true on success, false on error
+CLINGO_VISIBILITY_DEFAULT bool clingo_config_add(clingo_config_t *config, clingo_id_t parent, char const *name,
+                                                 size_t name_size, char const *description, size_t description_size,
+                                                 clingo_config_entry_t const *entry, void *data);
+
 //! Get the root key of the configuration.
 //!
 //! @param[in] config the target configuration
@@ -107,18 +173,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_array_at(clingo_config_t const *con
 //! @param[out] size the resulting number
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_size(clingo_config_t const *config, clingo_id_t key, size_t *size);
-//! Query whether the map has a key.
-//!
-//! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_map.
-//! @note Multiple levels can be looked up by concatenating keys with a period.
-//! @param[in] config the target configuration
-//! @param[in] key the key
-//! @param[in] name the name to look up the subkey
-//! @param[in] size the size of the name
-//! @param[out] result whether the key is in the map
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_has_subkey(clingo_config_t const *config, clingo_id_t key,
-                                                            char const *name, size_t size, bool *result);
 //! Get the name associated with the offset-th subkey.
 //!
 //! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_map.
@@ -138,9 +192,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_subkey_name(clingo_config_t con
 //! @param[in] name the name to look up the subkey
 //! @param[in] size the size of the name
 //! @param[out] subkey the resulting subkey
+//! @param[out] has_subkey whether the map has the subkey
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_at(clingo_config_t const *config, clingo_id_t key, char const *name,
-                                                    size_t size, clingo_id_t *subkey);
+                                                    size_t size, clingo_id_t *subkey, bool *has_subkey);
 //! @}
 
 //! @name Functions to access values

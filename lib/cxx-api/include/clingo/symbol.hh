@@ -364,7 +364,9 @@ inline auto parse_term(Library const &lib, std::string_view str) -> Symbol {
 
 namespace std {
 
+//! Helper for hashing Clingo symbols.
 template <> struct hash<Clingo::Symbol> {
+    //! Compute the hash of a Clingo symbol.
     auto operator()(Clingo::Symbol const &sym) const noexcept -> size_t { return sym.hash(); }
 };
 

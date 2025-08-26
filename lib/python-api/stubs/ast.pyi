@@ -931,7 +931,7 @@ class ArgumentTuple:
 
         Args:
             lib: The library object for storing symbols.
-            arguments:     The arguments of the tuple.
+            arguments: The arguments of the tuple.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1020,12 +1020,12 @@ class BodyAggregate:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            sign:     The sign of the literal.
-            left:     The left guard of the aggregate.
-            function:     The aggregate function.
-            elements:     The aggregate elements.
-            right:     The right guard of the aggregate.
+            location: The location of the element.
+            sign: The sign of the literal.
+            left: The left guard of the aggregate.
+            function: The aggregate function.
+            elements: The aggregate elements.
+            right: The right guard of the aggregate.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1140,9 +1140,9 @@ class BodyAggregateElement:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            tuple:     The term tuple of the element.
-            condition:     The condition of the element.
+            location: The location of the element.
+            tuple: The term tuple of the element.
+            condition: The condition of the element.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1243,9 +1243,9 @@ class BodyConditionalLiteral:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            literal:     The literal of the element.
-            condition:     The condition of the element.
+            location: The location of the element.
+            literal: The literal of the element.
+            condition: The condition of the element.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1336,11 +1336,11 @@ class BodySetAggregate:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            sign:     The sign of the literal.
-            left:     The left guard of the aggregate.
-            elements:     The aggregate elements.
-            right:     The right guard of the aggregate.
+            location: The location of the element.
+            sign: The sign of the literal.
+            left: The left guard of the aggregate.
+            elements: The aggregate elements.
+            right: The right guard of the aggregate.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1437,7 +1437,7 @@ class BodySimpleLiteral:
 
         Args:
             lib: The library object for storing symbols.
-            literal:     The literal.
+            literal: The literal.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1522,11 +1522,11 @@ class BodyTheoryAtom:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            sign:     The sign of the literal.
-            name:     The name of the theory atom.
-            elements:     The aggregate elements.
-            right:     The right guard of the theory atom.
+            location: The location of the element.
+            sign: The sign of the literal.
+            name: The name of the theory atom.
+            elements: The aggregate elements.
+            right: The right guard of the theory atom.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1650,8 +1650,8 @@ class Edge:
 
         Args:
             lib: The library object for storing symbols.
-            u:     The start vertex.
-            v:     The end vertex.
+            u: The start vertex.
+            v: The end vertex.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1754,11 +1754,11 @@ class HeadAggregate:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            left:     The left guard of the aggregate.
-            function:     The aggregate function.
-            elements:     The aggregate elements.
-            right:     The right guard of the aggregate.
+            location: The location of the element.
+            left: The left guard of the aggregate.
+            function: The aggregate function.
+            elements: The aggregate elements.
+            right: The right guard of the aggregate.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1868,10 +1868,10 @@ class HeadAggregateElement:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            tuple:     The term tuple of the element.
-            literal:     The literal of the element.
-            condition:     The condition of the element.
+            location: The location of the element.
+            tuple: The term tuple of the element.
+            literal: The literal of the element.
+            condition: The condition of the element.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1978,9 +1978,9 @@ class HeadConditionalLiteral:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            literal:     The literal of the element.
-            condition:     The condition of the element.
+            location: The location of the element.
+            literal: The literal of the element.
+            condition: The condition of the element.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2073,8 +2073,8 @@ class HeadDisjunction:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            elements:     The elements of the disjunction.
+            location: The location of the element.
+            elements: The elements of the disjunction.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2160,10 +2160,10 @@ class HeadSetAggregate:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            left:     The left guard of the aggregate.
-            elements:     The aggregate elements.
-            right:     The right guard of the aggregate.
+            location: The location of the element.
+            left: The left guard of the aggregate.
+            elements: The aggregate elements.
+            right: The right guard of the aggregate.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2254,7 +2254,7 @@ class HeadSimpleLiteral:
 
         Args:
             lib: The library object for storing symbols.
-            literal:     The literal.
+            literal: The literal.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2338,10 +2338,10 @@ class HeadTheoryAtom:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            name:     The name of the theory atom.
-            elements:     The aggregate elements.
-            right:     The right guard of the theory atom.
+            location: The location of the element.
+            name: The name of the theory atom.
+            elements: The aggregate elements.
+            right: The right guard of the theory atom.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2451,8 +2451,8 @@ class LeftGuard:
 
         Args:
             lib: The library object for storing symbols.
-            term:     The term of the guard.
-            relation:     The relation of the guard.
+            term: The term of the guard.
+            relation: The relation of the guard.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2543,9 +2543,9 @@ class LiteralBoolean:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the symbol.
-            sign:     The sign of the literal.
-            value:     The fixed value of the literal.
+            location: The location of the symbol.
+            sign: The sign of the literal.
+            value: The fixed value of the literal.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2641,12 +2641,12 @@ class LiteralComparison:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the symbol.
-            sign:     The sign of the literal.
-            left:     The first term of the comparison.
-            right:     The chain of comparisons.
+            location: The location of the symbol.
+            sign: The sign of the literal.
+            left: The first term of the comparison.
+            right: The chain of comparisons.
 
-            Note that the chain must have at least length one.
+                Note that the chain must have at least length one.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2758,9 +2758,9 @@ class LiteralSymbolic:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the symbol.
-            sign:     The sign of the literal.
-            atom:     The term representing the atom.
+            location: The location of the symbol.
+            sign: The sign of the literal.
+            atom: The term representing the atom.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2858,8 +2858,8 @@ class OptimizeElement:
 
         Args:
             lib: The library object for storing symbols.
-            tuple:     The tuple of the element.
-            condition:     The condition of the element.
+            tuple: The tuple of the element.
+            condition: The condition of the element.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2967,9 +2967,9 @@ class OptimizeTuple:
 
         Args:
             lib: The library object for storing symbols.
-            weight:     The weight of the tuple.
-            priority:     An optional priority.
-            terms:     The remaining terms in the tuple.
+            weight: The weight of the tuple.
+            priority: An optional priority.
+            terms: The remaining terms in the tuple.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -3132,8 +3132,8 @@ class ProgramPart:
 
         Args:
             lib: The library object for storing symbols.
-            name:     The name of the program part.
-            arguments:     The arguments of the program part.
+            name: The name of the program part.
+            arguments: The arguments of the program part.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -3210,7 +3210,7 @@ class Projection:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the placeholder.
+            location: The location of the placeholder.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -3349,8 +3349,8 @@ class RightGuard:
 
         Args:
             lib: The library object for storing symbols.
-            relation:     The relation of the guard.
-            term:     The term of the guard.
+            relation: The relation of the guard.
+            term: The term of the guard.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -3443,9 +3443,9 @@ class SetAggregateElement:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            literal:     The literal of the element.
-            condition:     The condition of the element.
+            location: The location of the element.
+            literal: The literal of the element.
+            condition: The condition of the element.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -3534,9 +3534,9 @@ class StatementComment:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the comment.
-            value:     The value of the comment.
-            comment_type:     The type of the comment.
+            location: The location of the comment.
+            value: The value of the comment.
+            comment_type: The type of the comment.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -3632,10 +3632,10 @@ class StatementConst:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            name:     The name of the statement.
-            value:     The term of the statement.
-            precedence:     The precedence of the statement.
+            location: The location of the statement.
+            name: The name of the statement.
+            value: The term of the statement.
+            precedence: The precedence of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -3739,10 +3739,10 @@ class StatementDefined:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            name:     The name of the atom to project.
-            arity:     The arity of the atom to project.
-            sign:     The classical sign of the atom.
+            location: The location of the statement.
+            name: The name of the atom to project.
+            arity: The arity of the atom to project.
+            sign: The classical sign of the atom.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -3841,9 +3841,9 @@ class StatementEdge:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            pool:     The edge pool of the statement.
-            body:     The body of the statement.
+            location: The location of the statement.
+            pool: The edge pool of the statement.
+            body: The body of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -3962,10 +3962,10 @@ class StatementExternal:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            atom:     The atom to project.
-            body:     The body of the statement.
-            external_type:     The type of the external.
+            location: The location of the statement.
+            atom: The atom to project.
+            body: The body of the statement.
+            external_type: The type of the external.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -4129,12 +4129,12 @@ class StatementHeuristic:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            atom:     The atom to heuristically modify.
-            body:     The body of the statement.
-            weight:     The weight of the heuristic modification.
-            modifier:     The heuristic modifier.
-            priority:     An optional priority.
+            location: The location of the statement.
+            atom: The atom to heuristically modify.
+            body: The body of the statement.
+            weight: The weight of the heuristic modification.
+            modifier: The heuristic modifier.
+            priority: An optional priority.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -4288,9 +4288,9 @@ class StatementInclude:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            value:     The path of the statement.
-            include_type:     The type of the include.
+            location: The location of the statement.
+            value: The path of the statement.
+            include_type: The type of the include.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -4377,9 +4377,9 @@ class StatementOptimize:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            elements:     The elements of the statement.
-            optimize_type:     The type of the statement.
+            location: The location of the statement.
+            elements: The elements of the statement.
+            optimize_type: The type of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -4466,9 +4466,9 @@ class StatementParts:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            elements:     The program parts to ground.
-            precedence:     The precedence of the statement.
+            location: The location of the statement.
+            elements: The program parts to ground.
+            precedence: The precedence of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -4555,9 +4555,9 @@ class StatementProgram:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            name:     The name of the program.
-            arguments:     The arguments of the program.
+            location: The location of the statement.
+            name: The name of the program.
+            arguments: The arguments of the program.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -4658,9 +4658,9 @@ class StatementProject:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            atom:     The atom to project.
-            body:     The body of the statement.
+            location: The location of the statement.
+            atom: The atom to project.
+            body: The body of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -4766,10 +4766,10 @@ class StatementProjectSignature:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            name:     The name of the atom to project.
-            arity:     The arity of the atom to project.
-            sign:     The classical sign of the atom.
+            location: The location of the statement.
+            name: The name of the atom to project.
+            arity: The arity of the atom to project.
+            sign: The classical sign of the atom.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -4874,9 +4874,9 @@ class StatementRule:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            head:     The head literal.
-            body:     The body of the statement.
+            location: The location of the statement.
+            head: The head literal.
+            body: The body of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -4979,9 +4979,9 @@ class StatementScript:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            value:     The content of the script.
-            script_type:     The type of the script.
+            location: The location of the statement.
+            value: The content of the script.
+            script_type: The type of the script.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5082,9 +5082,9 @@ class StatementShow:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            term:     The term to show.
-            body:     The body of the statement.
+            location: The location of the statement.
+            term: The term to show.
+            body: The body of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5185,7 +5185,7 @@ class StatementShowNothing:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
+            location: The location of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5261,10 +5261,10 @@ class StatementShowSignature:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            name:     The name of the atom to show.
-            arity:     The arity of the atom to show.
-            sign:     The classical sign of the atom.
+            location: The location of the statement.
+            name: The name of the atom to show.
+            arity: The arity of the atom to show.
+            sign: The classical sign of the atom.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5358,10 +5358,10 @@ class StatementTheory:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            name:     The name of the theory.
-            terms:     A list of term definitions.
-            atoms:     A list of atom definitions.
+            location: The location of the statement.
+            name: The name of the theory.
+            terms: A list of term definitions.
+            atoms: A list of atom definitions.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5460,9 +5460,9 @@ class StatementWeakConstraint:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the statement.
-            body:     The body of the statement.
-            tuple:     The tuple of the statement.
+            location: The location of the statement.
+            body: The body of the statement.
+            tuple: The tuple of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5564,11 +5564,11 @@ class TermAbsolute:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the operation.
-            pool:     The argument pool.
+            location: The location of the operation.
+            pool: The argument pool.
 
-            If there is more than one argument in the pool, the term is
-            unpooled during preprocessing.
+                If there is more than one argument in the pool, the term is
+                unpooled during preprocessing.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5677,10 +5677,10 @@ class TermBinaryOperation:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the operation.
-            left:     The left argument of the operation.
-            operator_type:     The type of the operation.
-            right:     The right argument of the operation.
+            location: The location of the operation.
+            left: The left argument of the operation.
+            operator_type: The type of the operation.
+            right: The right argument of the operation.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5794,13 +5794,13 @@ class TermFunction:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the function.
-            name:     The name of the function.
-            pool:     The argument pool of the function.
+            location: The location of the function.
+            name: The name of the function.
+            pool: The argument pool of the function.
 
-            If there is more than one element in the pool, the term is
-            unpooled during preprocessing.
-            external:     Whether the function is external.
+                If there is more than one element in the pool, the term is
+                unpooled during preprocessing.
+            external: Whether the function is external.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5893,8 +5893,8 @@ class TermSymbolic:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the symbol.
-            symbol:     The symbol.
+            location: The location of the symbol.
+            symbol: The symbol.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5983,11 +5983,11 @@ class TermTuple:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the tuple.
-            pool:     The argument pool of the tuple.
+            location: The location of the tuple.
+            pool: The argument pool of the tuple.
 
-            If there is more than one element in the pool, the term is
-            unpooled during preprocessing.
+                If there is more than one element in the pool, the term is
+                unpooled during preprocessing.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6088,9 +6088,9 @@ class TermUnaryOperation:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the operation.
-            operator_type:     The type of the operation.
-            right:     The argument of the operation.
+            location: The location of the operation.
+            operator_type: The type of the operation.
+            right: The argument of the operation.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6187,11 +6187,12 @@ class TermVariable:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the variable.
-            name:     The name of the variable.
-            anonymous:     Whether the variable is anonymous.
+            location: The location of the variable.
+            name: The name of the variable.
+            anonymous: Whether the variable is anonymous.
 
-            Anonymous variables receive a unique name during preprocessing.
+                Anonymous variables receive a unique name during
+                preprocessing.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6282,12 +6283,12 @@ class TheoryAtomDefinition:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the definition.
-            name:     The name of the atom.
-            arity:     The arity of the atom.
-            term:     The name of a term definition.
-            guard:     An optional guard definition.
-            atom_type:     The type of the atom definition.
+            location: The location of the definition.
+            name: The name of the atom.
+            arity: The arity of the atom.
+            term: The name of a term definition.
+            guard: An optional guard definition.
+            atom_type: The type of the atom definition.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6400,9 +6401,9 @@ class TheoryAtomElement:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the element.
-            tuple:     The theory term tuple of the element.
-            condition:     The condition of the element.
+            location: The location of the element.
+            tuple: The theory term tuple of the element.
+            condition: The condition of the element.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6495,8 +6496,8 @@ class TheoryGuardDefinition:
 
         Args:
             lib: The library object for storing symbols.
-            operators:     A list of operator definition names.
-            term:     The name of a term definition.
+            operators: A list of operator definition names.
+            term: The name of a term definition.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6578,10 +6579,10 @@ class TheoryOperatorDefinition:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the definition.
-            name:     The name of the definition.
-            priority:     The priority of the operator.
-            operator_type:     The type of the operator.
+            location: The location of the definition.
+            name: The name of the definition.
+            priority: The priority of the operator.
+            operator_type: The type of the operator.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6680,8 +6681,8 @@ class TheoryRightGuard:
 
         Args:
             lib: The library object for storing symbols.
-            theory_operator:     The operator of the guard.
-            term:     The theory term of the guard.
+            theory_operator: The operator of the guard.
+            term: The theory term of the guard.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6770,9 +6771,9 @@ class TheoryTermDefinition:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the definition.
-            name:     The name of the definition.
-            operators:     The operator definitions to construct terms.
+            location: The location of the definition.
+            name: The name of the definition.
+            operators: The operator definitions to construct terms.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6865,9 +6866,9 @@ class TheoryTermFunction:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the function.
-            name:     The name of the function.
-            arguments:     The arguments of the function.
+            location: The location of the function.
+            name: The name of the function.
+            arguments: The arguments of the function.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6961,8 +6962,8 @@ class TheoryTermSymbolic:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the symbol.
-            symbol:     The symbol.
+            location: The location of the symbol.
+            symbol: The symbol.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -7049,9 +7050,9 @@ class TheoryTermTuple:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the tuple.
-            tuple_type:     The type of the tuple.
-            arguments:     The arguments of the tuple.
+            location: The location of the tuple.
+            tuple_type: The type of the tuple.
+            arguments: The arguments of the tuple.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -7145,8 +7146,8 @@ class TheoryTermUnparsed:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the theory term.
-            elements:     The unparsed theory elements.
+            location: The location of the theory term.
+            elements: The unparsed theory elements.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -7227,11 +7228,12 @@ class TheoryTermVariable:
 
         Args:
             lib: The library object for storing symbols.
-            location:     The location of the variable.
-            name:     The name of the variable.
-            anonymous:     Whether the variable is anonymous.
+            location: The location of the variable.
+            name: The name of the variable.
+            anonymous: Whether the variable is anonymous.
 
-            Anonymous variables receive a unique name during preprocessing.
+                Anonymous variables receive a unique name during
+                preprocessing.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -7324,8 +7326,8 @@ class UnparsedElement:
 
         Args:
             lib: The library object for storing symbols.
-            operators:     The list of theory operators.
-            term:     The theory term.
+            operators: The list of theory operators.
+            term: The theory term.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...

@@ -205,7 +205,9 @@ class ToString {
 
   private:
     void str_(Key key, size_t first_indent, size_t indent) const {
-        auto fi = [&, first = true]() mutable { return fill(std::exchange(first, false) ? first_indent : indent); };
+        auto fi = [&, first = true]() mutable {
+            return Util::fill(std::exchange(first, false) ? first_indent : indent);
+        };
         switch (stats_->type(key)) {
             case Potassco::AbstractStatistics::Type::value: {
                 *buf_ << fi() << stats_->value(key) << "\n";

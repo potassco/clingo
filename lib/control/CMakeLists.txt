@@ -3,6 +3,7 @@ set(ide_header_group "Header Files")
 set(header-group-clingo-control
     "include/clingo/control/aggregate.hh"
     "include/clingo/control/condlit.hh"
+    "include/clingo/control/config.hh"
     "include/clingo/control/context.hh"
     "include/clingo/control/grounder.hh"
     "include/clingo/control/literal.hh"
@@ -20,6 +21,7 @@ set(ide_source_group "Source Files")
 set(source-group
     "src/aggregate.cc"
     "src/condlit.cc"
+    "src/config.cc"
     "src/context.cc"
     "src/grounder.cc"
     "src/solver.cc"

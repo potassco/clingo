@@ -148,7 +148,7 @@ auto Control::config() -> Config {
     handle_error(clingo_control_config(get(), &config));
     clingo_id_t key = 0;
     handle_error(clingo_config_root(config, &key));
-    return Config{config, key};
+    return Config{*this, config, key};
 }
 
 auto Control::stats() -> py::dict {

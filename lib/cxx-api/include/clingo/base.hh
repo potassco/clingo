@@ -791,23 +791,33 @@ static_assert(std::random_access_iterator<Base::iterator>);
 
 namespace std {
 
+//! Helper to compute the hash of an atom.
 template <> struct hash<Clingo::Atom> {
+    //! Compute the hash of an atom.
     auto operator()(Clingo::Atom const &x) const noexcept -> size_t { return x.hash(); }
 };
 
+//! Helper to compute the hash of a term.
 template <> struct hash<Clingo::Term> {
+    //! Compute the hash of a term.
     auto operator()(Clingo::Term const &x) const noexcept -> size_t { return x.hash(); }
 };
 
+//! Helper to compute the hash of a theory term.
 template <> struct hash<Clingo::TheoryTerm> {
+    //! Compute the hash of a theory term.
     auto operator()(Clingo::TheoryTerm const &x) const noexcept -> size_t { return x.hash(); }
 };
 
+//! Helper to compute the hash of a theory element.
 template <> struct hash<Clingo::TheoryElement> {
+    //! Compute the hash of a theory element.
     auto operator()(Clingo::TheoryElement const &x) const noexcept -> size_t { return x.hash(); }
 };
 
+//! Helper to compute the hash of a theory atom.
 template <> struct hash<Clingo::TheoryAtom> {
+    //! Compute the hash of a theory atom.
     auto operator()(Clingo::TheoryAtom const &x) const noexcept -> size_t { return x.hash(); }
 };
 
