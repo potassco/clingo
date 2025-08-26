@@ -187,10 +187,10 @@ class TestConfig:
 
         assert str(cfg.plugin) == dedent(
             """\
-        array:
-          - val: "default value"
-          - val: "5"
-        group: "test"
-               val: "new value"
-        """.rstrip()
+            array:
+            - val: "default value"
+            - val: "5"
+            group: "test"
+                val: "new value"
+            """.rstrip()
         )
