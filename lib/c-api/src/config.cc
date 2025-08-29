@@ -29,10 +29,12 @@ inline auto c_cast(Control::ClingoConfig *config) -> clingo_config_t * {
 
 class ConfigEntry {
   public:
-    constexpr ConfigEntry(clingo_config_entry_t const *entry) noexcept
-        : entry_{entry != nullptr ? *entry : clingo_config_entry_t{}} {}
+    constexpr ConfigEntry(clingo_config_entry_t const *entry, void *data) noexcept
+        : entry_{entry != nullptr ? *entry : clingo_config_entry_t{}}, data_{data} {}
     ConfigEntry(ConfigEntry const &other) = delete;
-    ConfigEntry(ConfigEntry &&other) noexcept : entry_{other.entry_} { other.entry_ = clingo_config_entry_t{}; }
+    ConfigEntry(ConfigEntry &&other) noexcept : entry_{other.entry_}, data_{other.data_} {
+        other.entry_ = clingo_config_entry_t{};
+    }
     auto operator=(ConfigEntry const &other) -> auto & = delete;
     auto operator=(ConfigEntry &&other) noexcept -> auto & {
         if (this != &other) {
@@ -46,19 +48,22 @@ class ConfigEntry {
     }
     ~ConfigEntry() {
         if (entry_.free != nullptr) {
-            entry_.free(nullptr);
+            entry_.free(data_);
         }
     }
 
     auto operator->() -> clingo_config_entry_t const * { return &entry_; }
 
+    [[nodiscard]] auto data() const -> void * { return data_; }
+
   private:
     clingo_config_entry_t entry_;
+    void *data_;
 };
 
 class ConfigEntryAdapter : public CppClingo::Control::ClingoConfig::Entry {
   public:
-    ConfigEntryAdapter(ConfigEntry c_entry, void *data) : c_entry_{std::move(c_entry)}, data_{data} {}
+    ConfigEntryAdapter(ConfigEntry c_entry) : c_entry_{std::move(c_entry)} {}
 
   private:
     using ValueFlags = CppClingo::Control::ClingoConfig::ValueFlags;
@@ -83,7 +88,7 @@ class ConfigEntryAdapter : public CppClingo::Control::ClingoConfig::Entry {
         auto cstr = clingo_string_t{};
         bool has_value = false;
         size_t idx = index.value_or(0);
-        handle_error(c_entry_->get(index ? &idx : nullptr, data_, &cstr, &has_value));
+        handle_error(c_entry_->get(index ? &idx : nullptr, c_entry_.data(), &cstr, &has_value));
         value.clear();
         if (has_value) {
             value.assign(cstr.data, cstr.size);
@@ -96,7 +101,7 @@ class ConfigEntryAdapter : public CppClingo::Control::ClingoConfig::Entry {
             throw std::runtime_error("set_value not implemented");
         }
         size_t idx = index.value_or(0);
-        handle_error(c_entry_->set(index ? &idx : nullptr, val.data(), val.size(), data_));
+        handle_error(c_entry_->set(index ? &idx : nullptr, val.data(), val.size(), c_entry_.data()));
     }
 
     auto do_array_size() -> std::optional<int> override {
@@ -105,12 +110,11 @@ class ConfigEntryAdapter : public CppClingo::Control::ClingoConfig::Entry {
         }
         size_t sz = 0;
         bool has_size = false;
-        handle_error(c_entry_->size(data_, &sz, &has_size));
+        handle_error(c_entry_->size(c_entry_.data(), &sz, &has_size));
         return has_size ? std::make_optional(static_cast<int>(sz)) : std::nullopt;
     }
 
     ConfigEntry c_entry_;
-    void *data_;
 };
 
 } // namespace
@@ -275,12 +279,12 @@ extern "C" auto clingo_config_value_set(clingo_config_t *config, clingo_id_t key
 extern "C" auto clingo_config_add(clingo_config_t *config, clingo_id_t parent, char const *name, size_t name_size,
                                   char const *description, size_t description_size, clingo_config_entry_t const *entry,
                                   void *data) -> bool {
-    auto c_entry = ConfigEntry{entry};
+    auto c_entry = ConfigEntry{entry, data};
     CLINGO_TRY {
         if (config == nullptr || name == nullptr) {
             return fail_arguments();
         }
-        auto cpp_entry = std::make_unique<ConfigEntryAdapter>(std::move(c_entry), data);
+        auto cpp_entry = std::make_unique<ConfigEntryAdapter>(std::move(c_entry));
         auto name_sv = std::string_view{name, name_size};
         auto desc_sv = std::string_view{description, description_size};
         cpp_cast(config)->add_entry(parent, name_sv, desc_sv, std::move(cpp_entry));

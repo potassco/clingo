@@ -122,7 +122,7 @@ void ClingoConfig::add_entry(KeyType key, std::string_view name, std::string_vie
     if (nodes_.empty()) {
         nodes_.emplace_back("the root key", nullptr);
     }
-    auto clingo_key = Key{key == key_root() ? 0 : key};
+    auto clingo_key = key == key_root() ? Key{0} : Key{FromRep{}, key};
     auto dot = name.rfind('.');
     if (dot != std::string_view::npos) {
         if (auto res = parse_path_(clingo_key, name.substr(0, dot)); res) {

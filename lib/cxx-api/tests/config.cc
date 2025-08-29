@@ -109,7 +109,8 @@ TEST_CASE_METHOD(Fixture, "config extend", "[cxx][config][extend]") {
     };
     auto values = std::vector<std::optional<std::string>>{};
     cfg.add("test", "test group");
-    cfg.add("test.value", "test value", ConfigValue{});
+    auto test_cfg = cfg["test"];
+    test_cfg.add("value", "test value", ConfigValue{});
     cfg.add("test.array[]", "test array", ConfigArray{values});
     cfg.add("test.array[].value", "test array.value", ConfigArrayValue{values});
     REQUIRE(cfg["test.array"].description() == "test array");

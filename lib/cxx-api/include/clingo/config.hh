@@ -271,7 +271,7 @@ class Config : public ConstConfig {
                 }
                 CLINGO_CATCH;
             } : nullptr,
-            [](void *data) { std::unique_ptr<HandlerType> self{static_cast<HandlerType *>(data)}; },
+            [](void *data) { std::unique_ptr<HandlerType>{static_cast<HandlerType *>(data)}; },
         };
 
         auto copy = std::make_unique<HandlerType>(std::forward<Handler>(handler));
