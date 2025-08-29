@@ -20,7 +20,7 @@ class Options {
     //!
     //! The function takes the value to parse and returns whether the value has
     //! been parsed successfully.
-    using Parser = std::function<bool(std::string_view value)>;
+    using Parser = std::function<void(std::string_view value)>;
     //! A list of option parsers.
     using ParserList = std::forward_list<Parser>;
 
