@@ -285,9 +285,16 @@ extern "C" auto clingo_options_add(clingo_options_t *options, char const *group,
         opts->add_option(
             {group, group_size}, {option, option_size}, {description, description_size},
             [parser, data](std::string_view value) {
-                auto result = false;
-                handle_error(parser(value.data(), value.size(), data, &result));
-                return result;
+                if (!parser(value.data(), value.size(), data)) {
+                    clingo_result_t code = clingo_result_success;
+                    clingo_get_error(&code, nullptr);
+                    if (code == clingo_result_invalid) {
+                        clingo_clear_error();
+                        return false;
+                    }
+                    raise_error();
+                }
+                return true;
             },
             argument != nullptr ? std::make_optional<std::string_view>(argument, argument_size) : std::nullopt, multi);
     }

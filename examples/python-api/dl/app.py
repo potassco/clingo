@@ -448,14 +448,13 @@ class DLApp(App):
     def _parse_minimize(self, val):
         try:
             var = parse_term(self._lib, val)
-        except RuntimeError:
-            return False
+        except RuntimeError as exe:
+            raise ValueError("invalid minimize") from exe
 
         if var.type == SymbolType.Number:
-            return False
+            raise ValueError("invalid minimize")
 
         self._minimize = var
-        return True
 
     def register_options(self, options: AppOptions):
         """

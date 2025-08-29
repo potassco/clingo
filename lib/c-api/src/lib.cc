@@ -22,9 +22,13 @@ class Error {
     }
 
     void get(clingo_result_t *code, clingo_string_t *message) noexcept {
-        *code = code_;
-        message->data = message_.data();
-        message->size = message_.size();
+        if (code != nullptr) {
+            *code = code_;
+        }
+        if (message != nullptr) {
+            message->data = message_.data();
+            message->size = message_.size();
+        }
     }
 
     void clear() noexcept {

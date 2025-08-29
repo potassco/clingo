@@ -23,7 +23,7 @@ static void version(void *data, clingo_string_t *string) {
     string->size = strlen(string->data);
 }
 
-static bool program_option_parser(char const *value, size_t size, void *data, bool *result) {
+static bool program_option_parser(char const *value, size_t size, void *data) {
     char *str = NULL;
     str = (char *)malloc(size);
     if (str == NULL) {
@@ -37,7 +37,6 @@ static bool program_option_parser(char const *value, size_t size, void *data, bo
     free((void *)app->program);
     app->program = str;
     app->size = size;
-    *result = true;
     return true;
 }
 

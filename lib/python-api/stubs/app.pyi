@@ -193,7 +193,7 @@ class AppOptions:
         group: str,
         option: str,
         description: str,
-        parser: typing.Callable[[str], bool],
+        parser: typing.Callable[[str], None],
         multi: bool = False,
         argument: str | None = None,
     ) -> None:

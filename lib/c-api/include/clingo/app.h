@@ -83,12 +83,14 @@ typedef struct clingo_application {
 
 //! Callback to parse the value of a command-line option.
 //!
+//! If an options fails to parse, the function should set
+//! a clingo_result_invalid error and return false.
+//!
 //! @param[in] value the value to parse
 //! @param[in] size the size of the value
 //! @param[in] data the user data of the callback
-//! @param[in] result
 //! @return whether the call was successful
-typedef bool (*clingo_option_parser_t)(char const *value, size_t size, void *data, bool *result);
+typedef bool (*clingo_option_parser_t)(char const *value, size_t size, void *data);
 
 //! Add an option that is processed with a custom parser.
 //!

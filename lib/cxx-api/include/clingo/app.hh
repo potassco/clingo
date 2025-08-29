@@ -55,10 +55,10 @@ class Options {
     void add(std::string_view group, std::string_view option, std::string_view description, Parser parser,
              bool multi = false, std::optional<std::string_view> argument = std::nullopt) {
         parsers_->emplace_front(std::move(parser));
-        static constexpr auto cparser = [](char const *value, size_t size, void *data, bool *result) -> bool {
+        static constexpr auto cparser = [](char const *value, size_t size, void *data) -> bool {
             auto &parser = *static_cast<Parser *>(data);
             CLINGO_TRY {
-                *result = parser({value, size});
+                parser({value, size});
             }
             CLINGO_CATCH;
         };

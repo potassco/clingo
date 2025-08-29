@@ -36,14 +36,13 @@ class ErrorApp(App):
         super().__init__("test")
         self._mode = mode
 
-    def parse_option(self, value: str) -> bool:
+    def parse_option(self, value: str):
         """
         Test throwing errons in option parsers.
         """
         assert len(value) >= 0
         if "o" in self._mode:
             raise RuntimeError("option")
-        return True
 
     def validate_options(self) -> None:
         """

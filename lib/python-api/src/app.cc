@@ -14,17 +14,17 @@ struct Flag {
 
 class Options {
   public:
-    using Parser = std::function<bool(std::string_view)>;
+    using Parser = std::function<void(std::string_view)>;
 
     Options(clingo_options_t *opts, py::list &parsers) : opts_{opts}, parsers_{&parsers} {}
 
     void add(std::string_view group, std::string_view option, std::string_view description, Annotation<Parser> parser,
              bool multi, std::optional<std::string_view> argument) {
         parsers_->append(parser);
-        static constexpr auto cparser = [](char const *value, size_t size, void *data, bool *result) -> bool {
+        static constexpr auto cparser = [](char const *value, size_t size, void *data) -> bool {
             auto parser = py::handle{static_cast<PyObject *>(data)};
             CLINGO_TRY {
-                *result = py::cast<Parser>(parser)({value, size});
+                py::cast<Parser>(parser)({value, size});
             }
             CLINGO_CATCH;
         };
