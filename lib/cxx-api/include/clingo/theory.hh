@@ -278,18 +278,6 @@ class Theory {
     //! Should be called from the Clingo::App::validate_options() method.
     void validate_options() const { Detail::handle_error(theory_.validate_options(theory_.self)); }
 
-    //! Configure the theory with the given key and value.
-    //!
-    //! It is theory dependent at which point this function can be called. Some
-    //! theories might require configuration before theory registration, while
-    //! others might allow configuration at any time.
-    //!
-    //! @param key the key to configure
-    //! @param value the value to configure
-    void configure(std::string_view key, std::string_view value) const {
-        Detail::handle_error(theory_.configure(theory_.self, key.data(), key.size(), value.data(), value.size()));
-    }
-
   private:
     clingo_theory_t theory_{};
 };

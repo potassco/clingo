@@ -145,12 +145,6 @@ class Theory {
         }
     }
 
-    void configure(std::string_view key, std::string_view value) const {
-        if (theory_.configure != nullptr) {
-            handle_error(theory_.configure(theory_.self, key.data(), key.size(), value.data(), value.size()));
-        }
-    }
-
     void on_model(Model &model) const {
         if (theory_.on_model != nullptr) {
             // NOLINTNEXTLINE
@@ -359,16 +353,6 @@ Args:
     lib: The library to store symbols.
     control: The target control..
     files: The files to parse.
-)"_d)
-        .def("configure", &Theory::configure, py::arg("name"), py::arg("value"), R"(
-Configure the theory using its name/value interface.
-
-It depends on the theory which keys are supported and when this function can be
-called.
-
-Args:
-    key: The name of the option.
-    value: The value of the option.
 )"_d)
         .def("register_options", &Theory::register_options, py::arg("options"), R"(
 Register theory related options.

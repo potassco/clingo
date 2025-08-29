@@ -11,7 +11,6 @@ namespace {
 
 struct Data {
     Library lib;
-    std::string config;
     bool prepared = false;
     bool registered = false;
     size_t models = 0;
@@ -51,17 +50,6 @@ struct TestTheory {
     static auto validate_options([[maybe_unused]] void *self) -> bool {
         // NOTE: somewhat hard to test but also not very important
         return true;
-    }
-    static auto configure(void *self, char const *key, size_t key_size, char const *value, size_t value_size) -> bool {
-        CLINGO_TRY {
-            auto *data = static_cast<Data *>(self);
-            if (std::string_view{key, key_size} == "test_key") {
-                data->config.assign(value, value_size);
-            } else {
-                throw std::invalid_argument{"key not available"};
-            }
-        }
-        CLINGO_CATCH;
     }
     static auto on_model([[maybe_unused]] void *self, clingo_model_t *model) -> bool {
         CLINGO_TRY {
@@ -147,19 +135,9 @@ struct TestTheory {
         CLINGO_TRY {
             auto data = std::make_unique<Data>(Library{lib, true});
             *theory = clingo_theory_t{
-                info,
-                destroy,
-                register_theory,
-                rewrite_ast,
-                prepare,
-                register_options,
-                validate_options,
-                configure,
-                on_model,
-                on_stats,
-                lookup_symbol,
-                assignment_next,
-                assignment_get_value,
+                info,           destroy,          register_theory,  rewrite_ast,
+                prepare,        register_options, validate_options, on_model,
+                on_stats,       lookup_symbol,    assignment_next,  assignment_get_value,
                 data.release(),
             };
         }
@@ -212,8 +190,6 @@ struct Fixture : SolveEventHandler {
 
 TEST_CASE_METHOD(Fixture, "theory", "[cxx][theory]") {
     auto *dta = static_cast<Data *>(c_cast(thy)->self);
-    thy.configure("test_key", "test_value");
-    REQUIRE(dta->config == "test_value");
     thy.register_theory(ctl);
     REQUIRE(dta->registered);
     thy.rewrite(lib, ctl, "a.");

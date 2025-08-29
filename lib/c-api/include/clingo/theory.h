@@ -112,15 +112,6 @@ typedef struct clingo_theory {
     //! @param[in] self the self pointer
     //! @return whether the call was successful
     bool (*validate_options)(void *self);
-    //! Configure the theory passing key value pairs.
-    //!
-    //! @param[in] self the self pointer
-    //! @param[in] key the name of the option to set
-    //! @param[in] key_size the size of the name
-    //! @param[in] value the value to set
-    //! @param[in] value_size the size of the value
-    //! @return whether the call was successful
-    bool (*configure)(void *self, char const *key, size_t key_size, char const *value, size_t value_size);
     //! Inform the theory that a model has been found.
     //!
     //! @param[in] self the self pointer
