@@ -47,6 +47,8 @@
 
 //! @defgroup c_propagate Theory Propagation
 
+//! @defgroup c_profile Profile Grounding
+
 //! @}
 
 //! @defgroup c_script Scripting Support for Grounding
