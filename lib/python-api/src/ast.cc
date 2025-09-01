@@ -6472,6 +6472,77 @@ c(3).
 #show c/1.
 """
 ```
+
+The next example hows how to visit and AST and collect variables.
+
+```python
+from functools import singledispatch
+
+from clingo.core import Library
+from clingo import ast
+
+@singledispatch
+def collect(stm, vars):
+    """
+    Collect all variables occurring in statements.
+    """
+    return stm.visit(collect, vars)
+
+@collect.register
+def _(var: ast.TermVariable | ast.TheoryTermVariable, vars):
+    vars.add(var.name)
+
+lib = Library()
+vars = set()
+
+ast.parse_string(
+    lib,
+    """\
+    a(X) :- b(X,Y).
+    b(Z).
+    """,
+    lambda stm: collect(stm, vars),
+)
+
+print(vars)
+```
+
+The last example shows how to use a transformer to modify an AST.
+
+```python
+from functools import singledispatch
+
+from clingo.core import Library
+from clingo import ast
+
+@singledispatch
+def rename(stm, lib):
+    """
+    Replaces all occurrences of variable `X` with `Y` in the given statement
+    returning a new statement. If no replacement was made, `None` is returned.
+    """
+    return stm.transform(lib, rename, lib)
+
+@rename.register
+def _(var: ast.TermVariable, lib):
+    return var.update(lib, name="Y") if var.name == "X" else None
+
+lib = Library()
+stms = []
+
+ast.parse_string(
+    lib,
+    """\
+    b(1,1).
+    b(2,3).
+    a(X) :- b(X,Y).
+    """,
+    stms.append,
+)
+
+for stm in stms:
+    print(rename(stm, lib) or stm)
+```
 )doc");
 
     ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, R"doc(Return a yaml description of the AST.
