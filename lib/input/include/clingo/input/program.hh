@@ -88,7 +88,7 @@ class UnprocessedProgram {
     [[nodiscard]] auto parts() const -> ProgramPartVec const & { return parts_; }
     //! Meta statements.
     [[nodiscard]] auto meta_stms() const -> StmVec const & { return meta_stms_; }
-    //! Ensure base.
+
   private:
     ProgramPartVec parts_;
     StmVec meta_stms_;
