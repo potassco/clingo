@@ -147,14 +147,15 @@ auto make_sequence(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
             [](T const &seq, T::value_type val) { return std::count(Detail::begin(seq), Detail::end(seq), val); },
             pybind11::arg("value"), "Count how often the given value occurs in the sequence.");
     if constexpr (Detail::HasContains<T>) {
-        cls.def("__contains__", &T::contains, pybind11::arg("value"), "Get a reverse iterator for the sequence.");
+        cls.def("__contains__", &T::contains, pybind11::arg("value"),
+                "Check whether the sequence contains the given value.");
     } else {
         cls.def(
             "__contains__",
             [](T const &seq, T::value_type val) {
                 return std::ranges::find(Detail::begin(seq), Detail::end(seq), val) != Detail::end(seq);
             },
-            pybind11::arg("value"), "Get a reverse iterator for the sequence.");
+            pybind11::arg("value"), "Check whether the sequence contains the given value.");
     }
     if constexpr (Detail::HasSlice<T>) {
         cls.def("__getitem__", &T::slice, pybind11::arg("slice"), "Slice the sequence.");
