@@ -46,100 +46,280 @@
 /*!conditions:re2c*/
 /*!header:re2c:off*/
 
+struct FormatField {
+    enum class Conversion : uint8_t {
+        str = 0,
+        repr = 1,
+    };
+
+    enum class Align : uint8_t {
+        none,
+        left,
+        right,
+        number,
+        center,
+    };
+
+    enum class Sign : uint8_t {
+        none,
+        plus,
+        minus,
+        space,
+    };
+
+    enum class Grouping : uint8_t {
+        none,
+        comma,
+        underscore,
+    };
+
+    enum class Type : uint8_t {
+        character,
+        binary,
+        octal,
+        decimal,
+        hex_lower,
+        hex_upper,
+        locale,
+        string,
+    };
+
+    FormatField(String variable) : variable{variable} {}
+    std::vector<std::variant<SharedString, size_t>> accessors;
+    SharedString variable;
+    uint32_t width = 0;
+    std::optional<char> fill;
+    Type type = Type::character;
+    Grouping grouping = Grouping::none;
+    Conversion conversion = Conversion::str;
+    Align align = Align::none;
+    Sign sign = Sign::none;
+    bool alternate_form = false;
+};
+
+using FormatString = std::vector<std::variant<std::string, FormatField>>;
+
 auto ParserState::lex_() -> TokenType {
     state_.start();
-    for (;;) {
-    /*!re2c
-        <program> "asp" / SP POS       { return TokenType::aspif; }
-        <program> "" / ANY             :=> normal
-        <normal,theory> "not"          { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
-        <normal,theory> "_"            { return TokenType::anon; }
-        <normal,theory> ":"            { return TokenType::colon; }
-        <normal,theory> ","            { return TokenType::comma; }
-        <normal,theory> "."            { return TokenType::dot; }
-        <normal,theory> "{"            { return TokenType::lbrace; }
-        <normal,theory> "["            { return TokenType::lbrack; }
-        <normal,theory> "("            { return TokenType::lpar; }
-        <normal,theory> "}"            { return TokenType::rbrace; }
-        <normal,theory> "]"            { return TokenType::rbrack; }
-        <normal,theory> ")"            { return TokenType::rpar; }
-        <normal,theory> ";"            { return TokenType::sem; }
-        <normal,theory> ":-"           { return TokenType::if_; }
-        <normal> "&"                   { return TokenType::amp; }
-        <normal> "@"                   { return TokenType::at; }
-        <normal> "|"                   { return TokenType::bar; }
-        <normal> "\\"                  { return TokenType::bslash; }
-        <normal> "^"                   { return TokenType::caret; }
-        <normal> ".."                  { return TokenType::ddot; }
-        <normal> "**"                  { return TokenType::dstar; }
-        <normal> "="                   { return TokenType::eq; }
-        <normal> "=="                  { return TokenType::eq; }
-        <normal> ">="                  { return TokenType::ge; }
-        <normal> ">"                   { return TokenType::gt; }
-        <normal> "<="                  { return TokenType::le; }
-        <normal> "<"                   { return TokenType::lt; }
-        <normal> "-"                   { return TokenType::minus; }
-        <normal> "!="                  { return TokenType::ne; }
-        <normal> "<>"                  { return TokenType::ne; }
-        <normal> "+"                   { return TokenType::plus; }
-        <normal> "?"                   { return TokenType::qmark; }
-        <normal> "/"                   { return TokenType::slash; }
-        <normal> "*"                   { return TokenType::star; }
-        <normal> "~"                   { return TokenType::tilde; }
-        <normal> ":~"                  { return TokenType::wif; }
-        <normal> "#const"              { return TokenType::const_; }
-        <normal> "#parts"              { return TokenType::parts; }
-        <normal> "#count"              { return TokenType::count; }
-        <normal> "#defined"            { return TokenType::defined; }
-        <normal> "#edge"               { return TokenType::edge; }
-        <normal> "#external"           { return TokenType::external; }
-        <normal> "#false"              { return TokenType::false_; }
-        <normal> "#heuristic"          { return TokenType::heuristic; }
-        <normal> "#include"            { return TokenType::include; }
-        <normal> "#maximi"[zs]"e"      { return TokenType::maximize; }
-        <normal> "#max"                { return TokenType::max; }
-        <normal> "#minimi"[zs]"e"      { return TokenType::minimize; }
-        <normal> "#min"                { return TokenType::min; }
-        <normal> "#program"            { return TokenType::program; }
-        <normal> "#project"            { return TokenType::project; }
-        <normal> "#script"             { return TokenType::script; }
-        <normal> "#show"               { return TokenType::show; }
-        <normal> "#sum"                { return TokenType::sum; }
-        <normal> "#sum+"               { return TokenType::sump; }
-        <normal> "#theory"             { return TokenType::theory; }
-        <normal> "#true"               { return TokenType::true_; }
-        <normal> "#end"                { return TokenType::script_end; }
-        <normal,theory> "%*"           { bc_ = 1; bc_cond_ = cond_; cond_ = yycblockcomment; continue; }
-        <normal,theory> COMMENT        { push_comment(); continue; }
-        <normal,theory> "%" / END      { push_comment(); continue; }
-        <normal,theory> "#!" DOT*      { push_comment(); continue; }
-        <normal,theory> IDENTIFIER     { return TokenType::id; }
-        <normal,theory> INF            { return TokenType::inf; }
-        <normal,theory> NUMBER         { return TokenType::num; }
-        <normal,theory,include> STRING { return TokenType::str; }
-        <normal,theory> SUP            { return TokenType::sup; }
-        <normal,theory> VARIABLE       { return TokenType::var; }
-        <theory> THEORYOP              { return TokenType::theory_op; }
-        <include> INCSTRING            { return TokenType::str_include; }
-        <normal> KEYWORD               { return TokenType::error; }
-        <normal,theory,include> WS     { state_.start(); continue; }
-        <script> NOTEND / "#end"       { return TokenType::script_content; }
-        <blockcomment> "*%" {
-            if(--bc_ == 0) {
-                push_comment(true);
-                cond_ = bc_cond_;
-            }
-            continue;
+
+    auto pattern = [&, this]() -> std::optional<FormatField> {
+        printf("parse format field\n");
+        // variable name
+        for (;;) {
+            state_.start();
+            /*!re2c
+              VARIABLE { break; }
+              *        { return std::nullopt; }
+            */
         }
-        <blockcomment> "%*"            { ++bc_; continue; }
-        <blockcomment> COMMENT         { continue; }
-        <blockcomment> NULL            { return TokenType::error_bc; }
-        <blockcomment> *               { continue; }
-        <program,normal,theory,include,script> NULL
-                                       { return state_.end(YYMAXFILL) ? TokenType::end : TokenType::error; }
-        <program,normal,theory,include,script> *
-                                       { return TokenType::error; }
-    */
+        auto res = FormatField{store().string_ref(view())};
+
+        // accessor
+        for (;;) {
+            state_.start();
+            /*!re2c
+            "." IDENTIFIER { printf("  has member accessor\n"); continue; }
+            "[" POS "]"    { printf("  has array accessor\n"); continue; }
+            ""             { break; }
+            */
+        }
+        // conversion
+        for (;;) {
+            state_.start();
+            /*!re2c
+            "!r" { printf("  has conversion\n"); res.conversion = FormatField::Conversion::repr; break; }
+            "!s" { printf("  has conversion\n"); res.conversion = FormatField::Conversion::str; break; }
+            ""   { break; }
+            */
+        }
+        bool has_spec = false;
+        // spec
+        for (;;) {
+            /*!re2c
+            ":" { printf("  has spec\n"); has_spec = true; break; }
+            ""  { has_spec = false; break; }
+            */
+        }
+        if (has_spec) {
+            /*
+            spec     ::= [[fill]align][sign]["#"]["0"][width][grouping][type]
+            fill     ::= <any character>
+            align    ::= "<" | ">" | "=" | "^"
+            sign     ::= "+" | "-" | " "
+            width    ::= POS
+            grouping ::= "," | "_"
+            type     ::= "b" | "c" | "d" | "o" | "x" | "X" | "n" | "s"
+            */
+            // align
+            for (;;) {
+                state_.start();
+                /*!re2c
+                "<" | ">" | "=" | "^"     { printf("  has align\n"); break; }
+                DOT "<" | ">" | "=" | "^" { printf("  has fill and align\n"); break; }
+                ""                        { break; }
+                */
+            }
+            // sign
+            for (;;) {
+                state_.start();
+                /*!re2c
+                "+" | "-" | " " { printf("  has sign\n"); break; }
+                ""              { break; }
+                */
+            }
+            // alternate_form
+            for (;;) {
+                /*!re2c
+                "#" { printf("  has alternate_form\n"); res.alternate_form = true; break; }
+                ""  { break; }
+                */
+            }
+            // width
+            for (;;) {
+                state_.start();
+                /*!re2c
+                POS { printf("  has width\n"); break; }
+                ""  { break; }
+                */
+            }
+            // grouping
+            for (;;) {
+                /*!re2c
+                "," | "_" { printf("  has grouping\n"); break; }
+                ""        { break; }
+                */
+            }
+            // type
+            for (;;) {
+                /*!re2c
+                "b" | "c" | "d" | "o" | "x" | "X" | "n" | "s" { printf("  has type\n"); break; }
+                ""                                            { break; }
+                */
+            }
+        }
+        // terminating }
+        for (;;) {
+            /*!re2c
+            "}" { break; }
+            *   { return std::nullopt; }
+            */
+        }
+        return res;
+    };
+    auto fstring = [&, this]() {
+        auto res = FormatString{};
+        for (;;) {
+            state_.start();
+            /*!re2c
+              ([^\\"\n{}\000] | "\\\"" | "\\\\" | "\\n" | "{{" | "}}")+ {
+                  res.emplace_back(store().string_ref(view()));
+                  continue;
+              }
+              "{"  {
+                  if (auto x = pattern()) {
+                     res.emplace_back(std::move(*x));
+                     continue;
+                  }
+                  return TokenType::error;
+              }
+              "\"" { return TokenType::str; } // TODO: needs fstr
+              *    { return TokenType::error; }
+            */
+        }
+    };
+    for (;;) {
+        /*!re2c
+            <program> "asp" / SP POS       { return TokenType::aspif; }
+            <program> "" / ANY             :=> normal
+            <normal,theory> "not"          { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
+            <normal,theory> "_"            { return TokenType::anon; }
+            <normal,theory> ":"            { return TokenType::colon; }
+            <normal,theory> ","            { return TokenType::comma; }
+            <normal,theory> "."            { return TokenType::dot; }
+            <normal,theory> "{"            { return TokenType::lbrace; }
+            <normal,theory> "["            { return TokenType::lbrack; }
+            <normal,theory> "("            { return TokenType::lpar; }
+            <normal,theory> "}"            { return TokenType::rbrace; }
+            <normal,theory> "]"            { return TokenType::rbrack; }
+            <normal,theory> ")"            { return TokenType::rpar; }
+            <normal,theory> ";"            { return TokenType::sem; }
+            <normal,theory> ":-"           { return TokenType::if_; }
+            <normal> "&"                   { return TokenType::amp; }
+            <normal> "@"                   { return TokenType::at; }
+            <normal> "|"                   { return TokenType::bar; }
+            <normal> "\\"                  { return TokenType::bslash; }
+            <normal> "^"                   { return TokenType::caret; }
+            <normal> ".."                  { return TokenType::ddot; }
+            <normal> "**"                  { return TokenType::dstar; }
+            <normal> "="                   { return TokenType::eq; }
+            <normal> "=="                  { return TokenType::eq; }
+            <normal> ">="                  { return TokenType::ge; }
+            <normal> ">"                   { return TokenType::gt; }
+            <normal> "<="                  { return TokenType::le; }
+            <normal> "<"                   { return TokenType::lt; }
+            <normal> "-"                   { return TokenType::minus; }
+            <normal> "!="                  { return TokenType::ne; }
+            <normal> "<>"                  { return TokenType::ne; }
+            <normal> "+"                   { return TokenType::plus; }
+            <normal> "?"                   { return TokenType::qmark; }
+            <normal> "/"                   { return TokenType::slash; }
+            <normal> "*"                   { return TokenType::star; }
+            <normal> "~"                   { return TokenType::tilde; }
+            <normal> ":~"                  { return TokenType::wif; }
+            <normal> "#const"              { return TokenType::const_; }
+            <normal> "#parts"              { return TokenType::parts; }
+            <normal> "#count"              { return TokenType::count; }
+            <normal> "#defined"            { return TokenType::defined; }
+            <normal> "#edge"               { return TokenType::edge; }
+            <normal> "#external"           { return TokenType::external; }
+            <normal> "#false"              { return TokenType::false_; }
+            <normal> "#heuristic"          { return TokenType::heuristic; }
+            <normal> "#include"            { return TokenType::include; }
+            <normal> "#maximi"[zs]"e"      { return TokenType::maximize; }
+            <normal> "#max"                { return TokenType::max; }
+            <normal> "#minimi"[zs]"e"      { return TokenType::minimize; }
+            <normal> "#min"                { return TokenType::min; }
+            <normal> "#program"            { return TokenType::program; }
+            <normal> "#project"            { return TokenType::project; }
+            <normal> "#script"             { return TokenType::script; }
+            <normal> "#show"               { return TokenType::show; }
+            <normal> "#sum"                { return TokenType::sum; }
+            <normal> "#sum+"               { return TokenType::sump; }
+            <normal> "#theory"             { return TokenType::theory; }
+            <normal> "#true"               { return TokenType::true_; }
+            <normal> "#end"                { return TokenType::script_end; }
+            <normal,theory> "%*"           { bc_ = 1; bc_cond_ = cond_; cond_ = yycblockcomment; continue; }
+            <normal,theory> COMMENT        { push_comment(); continue; }
+            <normal,theory> "%" / END      { push_comment(); continue; }
+            <normal,theory> "#!" DOT*      { push_comment(); continue; }
+            <normal,theory> IDENTIFIER     { return TokenType::id; }
+            <normal,theory> INF            { return TokenType::inf; }
+            <normal,theory> NUMBER         { return TokenType::num; }
+            <normal,theory,include> STRING { return TokenType::str; }
+            <normal,theory> SUP            { return TokenType::sup; }
+            <normal,theory> VARIABLE       { return TokenType::var; }
+            <normal> "f\""                 { return fstring(); }
+            <theory> THEORYOP              { return TokenType::theory_op; }
+            <include> INCSTRING            { return TokenType::str_include; }
+            <normal> KEYWORD               { return TokenType::error; }
+            <normal,theory,include> WS     { state_.start(); continue; }
+            <script> NOTEND / "#end"       { return TokenType::script_content; }
+            <blockcomment> "*%" {
+                if(--bc_ == 0) {
+                    push_comment(true);
+                    cond_ = bc_cond_;
+                }
+                continue;
+            }
+            <blockcomment> "%*"            { ++bc_; continue; }
+            <blockcomment> COMMENT         { continue; }
+            <blockcomment> NULL            { return TokenType::error_bc; }
+            <blockcomment> *               { continue; }
+            <program,normal,theory,include,script> NULL
+                                           { return state_.end(YYMAXFILL) ? TokenType::end : TokenType::error; }
+            <program,normal,theory,include,script> *
+                                           { return TokenType::error; }
+        */
     }
 }
 
