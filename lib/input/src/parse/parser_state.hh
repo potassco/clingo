@@ -39,6 +39,7 @@ enum class TokenType : uint8_t {
     error_bc,
     external,
     false_,
+    fstr,
     ge,
     gt,
     heuristic,
@@ -176,6 +177,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::false_: {
             return out << "#false";
+        }
+        case TokenType::fstr: {
+            return out << "<f-string>";
         }
         case TokenType::heuristic: {
             return out << "#heuristic";
@@ -493,6 +497,13 @@ class ParserState {
         return store().string_ref(view());
     }
 
+    //! Get the last fstring parsed.
+    auto fstr() -> TermFormatString {
+        assert(token() == TokenType::fstr);
+        assert(fstring_);
+        return *std::move(fstring_);
+    }
+
     //! Get the numeric representation of a num token.
     auto num() -> Number {
         assert(token() == TokenType::num);
@@ -791,6 +802,10 @@ class ParserState {
 
     //! Compute the next token.
     auto lex_() -> TokenType;
+    //! Parse an fstring field.
+    auto parse_ffield_() -> std::optional<FormatField>;
+    //! Parse an fstring.
+    auto parse_fstring_() -> TokenType;
 
     LexerState state_;
     Logger *log_;
@@ -802,6 +817,7 @@ class ParserState {
     std::vector<Value> values_;
     std::deque<Stm> stms_;
     std::string buf_;
+    std::optional<TermFormatString> fstring_;
     size_t mark_ = 0;
     int cond_ = yycnormal;
     int bc_cond_ = 0;

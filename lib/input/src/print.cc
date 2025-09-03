@@ -4,6 +4,7 @@
 
 #include <clingo/util/algorithm.hh>
 #include <clingo/util/print.hh>
+#include <clingo/util/type_traits.hh>
 
 #include <cstring>
 #include <sstream>
@@ -191,6 +192,22 @@ template <class O> class Print {
     // term
 
     void operator()(Term const &term) const { std::visit(*this, term); }
+
+    void operator()(TermFormatString const &term) const {
+        *out_ << "f\"";
+        for (auto const &x : term.elems()) {
+            std::visit(
+                [this]<class T>(T const &x) {
+                    if constexpr (Util::is_among_v<T, SharedString>) {
+                        *out_ << Util::p_quoted(x->view(), true);
+                    } else if constexpr (Util::is_among_v<T, FormatField>) {
+                        *out_ << x;
+                    }
+                },
+                x);
+        }
+        *out_ << '"';
+    }
 
     void operator()(TermSymbol const &term) const {
         char const *lp = "";
@@ -768,6 +785,132 @@ template <class T> void print_op(T &out, BinaryOperator op) {
     }
 }
 
+auto to_string(FormatField::Align x) -> std::string_view {
+    switch (x) {
+        case FormatField::Align::left: {
+            return "<";
+        }
+        case FormatField::Align::right: {
+            return ">";
+        }
+        case FormatField::Align::center: {
+            return "^";
+        }
+        case FormatField::Align::number: {
+            return "=";
+        }
+        default: {
+            return "";
+        }
+    }
+}
+
+auto to_string(FormatField::Type x) -> std::string_view {
+    switch (x) {
+        case FormatField::Type::character: {
+            return "c";
+        }
+        case FormatField::Type::binary: {
+            return "b";
+        }
+        case FormatField::Type::octal: {
+            return "o";
+        }
+        case FormatField::Type::decimal: {
+            return "d";
+        }
+        case FormatField::Type::hex_lower: {
+            return "x";
+        }
+        case FormatField::Type::hex_upper: {
+            return "X";
+        }
+        case FormatField::Type::locale: {
+            return "n";
+        }
+        default: {
+            return "";
+        }
+    }
+}
+
+auto to_string(FormatField::Sign x) -> std::string_view {
+    switch (x) {
+        case FormatField::Sign::plus: {
+            return "+";
+        }
+        case FormatField::Sign::minus: {
+            return "-";
+        }
+        case FormatField::Sign::space: {
+            return " ";
+        }
+        default: {
+            return "";
+        }
+    }
+}
+
+auto to_string(FormatField::Grouping x) -> std::string_view {
+    switch (x) {
+        case FormatField::Grouping::comma: {
+            return ",";
+        }
+        case FormatField::Grouping::underscore: {
+            return "_";
+        }
+        default: {
+            return "";
+        }
+    }
+}
+
+auto to_string(FormatField::Conversion x) -> std::string_view {
+    switch (x) {
+        case FormatField::Conversion::repr: {
+            return "!r";
+        }
+        default: {
+            return "";
+        }
+    }
+}
+
+template <class T> auto print_field(T &out, FormatField const &field) -> T & {
+    out << "{" << *field.variable;
+    for (auto const &x : field.accessors) {
+        std::visit(
+            [&out]<class U>(U const &acc) {
+                if constexpr (Util::is_among_v<U, size_t>) {
+                    out << "[" << acc << "]";
+                } else {
+                    static_assert(Util::is_among_v<U, SharedString>);
+                    out << "." << *acc;
+                }
+            },
+            x);
+    }
+    out << to_string(field.conversion);
+    if (field.fill || field.conversion != FormatField::Conversion::str || field.align != FormatField::Align::none ||
+        field.sign != FormatField::Sign::none || field.alternate_form || field.width > 0 ||
+        field.grouping != FormatField::Grouping::none || field.type != FormatField::Type::string) {
+        out << ":";
+        if (field.fill) {
+            out << *field.fill;
+        }
+        out << to_string(field.align) << to_string(field.sign);
+        if (field.alternate_form) {
+            out << "#";
+        }
+        if (field.width > 0) {
+            out << std::to_string(field.width);
+        }
+        out << to_string(field.grouping) << to_string(field.type);
+    }
+    out << "}";
+    return out;
+}
+
 } // namespace
 
 auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
@@ -790,6 +933,25 @@ auto operator<<(Util::OutputBuffer &out, BinaryOperator op) -> Util::OutputBuffe
 }
 
 // terms
+
+//! Output the term to the given stream.
+auto operator<<(std::ostream &out, FormatField const &field) -> std::ostream & {
+    return print_field(out, field);
+}
+
+auto operator<<(Util::OutputBuffer &out, FormatField const &field) -> Util::OutputBuffer & {
+    return print_field(out, field);
+}
+
+auto operator<<(std::ostream &out, TermFormatString const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, TermFormatString const &term) -> Util::OutputBuffer & {
+    Print{out}(term);
+    return out;
+}
 
 auto operator<<(std::ostream &out, [[maybe_unused]] Projection const &projection) -> std::ostream & {
     out << "*";

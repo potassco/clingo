@@ -135,6 +135,79 @@ class TermSymbol : public Expression<TermSymbol> {
     SharedSymbol value_;
 };
 
+struct FormatField {
+    enum class Conversion : uint8_t {
+        str = 0,
+        repr = 1,
+    };
+
+    enum class Align : uint8_t {
+        none,
+        left,
+        right,
+        number,
+        center,
+    };
+
+    enum class Sign : uint8_t {
+        none,
+        plus,
+        minus,
+        space,
+    };
+
+    enum class Grouping : uint8_t {
+        none,
+        comma,
+        underscore,
+    };
+
+    enum class Type : uint8_t {
+        character,
+        binary,
+        octal,
+        decimal,
+        hex_lower,
+        hex_upper,
+        locale,
+        string,
+    };
+
+    explicit FormatField(String variable) : variable{variable} {}
+    std::vector<std::variant<SharedString, size_t>> accessors;
+    SharedString variable;
+    uint32_t width = 0;
+    std::optional<char> fill;
+    Type type = Type::string;
+    Grouping grouping = Grouping::none;
+    Conversion conversion = Conversion::str;
+    Align align = Align::none;
+    Sign sign = Sign::none;
+    bool alternate_form = false;
+};
+
+using FormatFieldArray = Util::immutable_array<std::variant<SharedString, FormatField>>;
+
+//! A format string term.
+class TermFormatString : public Expression<TermFormatString> {
+  public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TermFormatString::loc_, a_elems = &TermFormatString::elems};
+    }
+
+    //! Construct a projection indicator.
+    explicit TermFormatString(Location loc, FormatFieldArray elems) : loc_{std::move(loc)}, elems_{std::move(elems)} {}
+    //! The location of the projected position.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The associated fields.
+    [[nodiscard]] auto elems() const -> FormatFieldArray const & { return elems_; }
+
+  private:
+    Location loc_;
+    FormatFieldArray elems_;
+};
+
 //! A tuple element.
 using TupleElement = std::variant<ArgumentTuple, Term>;
 //! A vector of tuple elements.

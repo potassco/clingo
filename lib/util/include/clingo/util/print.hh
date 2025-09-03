@@ -244,13 +244,19 @@ template <class F> PrintFun(int, F &&) -> PrintFun<std::unwrap_ref_decay_t<F>>;
 class PrintQuoted {
   public:
     //! Construct the helper.
-    PrintQuoted(std::string_view str) : str_{str} {}
+    PrintQuoted(std::string_view str, bool fstring) : str_{str}, fstring_{fstring} {}
     //! Output quoted.
     template <class Out> friend auto operator<<(Out &out, PrintQuoted x) -> Out & {
-        out << '"';
+        if (!x.fstring_) {
+            out << '"';
+        }
         for (auto c : x.str_) {
             if (c == '\\') {
                 out << "\\\\";
+            } else if (x.fstring_ && c == '{') {
+                out << "{{";
+            } else if (x.fstring_ && c == '}') {
+                out << "}}";
             } else if (c == '\n') {
                 out << "\\n";
             } else if (c == '\t') {
@@ -261,12 +267,15 @@ class PrintQuoted {
                 out << c;
             }
         }
-        out << '"';
+        if (!x.fstring_) {
+            out << '"';
+        }
         return out;
     }
 
   private:
     std::string_view str_;
+    bool fstring_ = false;
 };
 
 } // namespace Detail
@@ -314,8 +323,8 @@ template <class T> auto p_range(T const &rng, char const *sep) {
 }
 
 //! Quote and print the given string.
-inline auto p_quoted(std::string_view str) {
-    return Detail::PrintQuoted{str};
+inline auto p_quoted(std::string_view str, bool fstring = false) {
+    return Detail::PrintQuoted{str, fstring};
 }
 
 //! @}

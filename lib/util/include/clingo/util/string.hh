@@ -35,10 +35,17 @@ void quote(std::string_view in, auto out) {
         }
     }
 }
-void unquote(std::string_view in, auto out) {
-    bool slash = false;
+void unquote(std::string_view in, auto out, bool fstring = false) {
+    auto escape = '\0';
     for (auto c : in) {
-        if (slash) {
+        if (escape == '{' || escape == '}') {
+            if (c == escape) {
+                *out++ = escape;
+            } else {
+                assert(false);
+            }
+            escape = '\0';
+        } else if (escape == '\\') {
             switch (c) {
                 case 'n': {
                     *out++ = '\n';
@@ -61,9 +68,9 @@ void unquote(std::string_view in, auto out) {
                     break;
                 }
             }
-            slash = false;
-        } else if (c == '\\') {
-            slash = true;
+            escape = '\0';
+        } else if (c == '\\' || (fstring && (c == '{' || c == '}'))) {
+            escape = c;
         } else {
             *out++ = c;
         }

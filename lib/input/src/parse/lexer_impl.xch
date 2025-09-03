@@ -1,3 +1,7 @@
+#include <../src/parse/parser_state.hh>
+
+namespace CppClingo::Input::Parse {
+
 // Note that re2c treats the 0 byte like any other character. Hence, none of
 // the regular expressions below consume null bytes except for the ones
 // handling the end of input.
@@ -46,187 +50,209 @@
 /*!conditions:re2c*/
 /*!header:re2c:off*/
 
-struct FormatField {
-    enum class Conversion : uint8_t {
-        str = 0,
-        repr = 1,
-    };
+namespace {
 
-    enum class Align : uint8_t {
-        none,
-        left,
-        right,
-        number,
-        center,
-    };
+template <class T> auto parse_num(std::string_view view) -> std::optional<T> {
+    auto res = T{};
+    auto const *end = view.data() + view.size();
+    auto [pos, err] = std::from_chars(view.data(), end, res);
+    if (err == std::errc{} && pos == end) {
+        return res;
+    }
+    return std::nullopt;
+}
 
-    enum class Sign : uint8_t {
-        none,
-        plus,
-        minus,
-        space,
-    };
+auto parse_align(char c) -> FormatField::Align {
+    switch (c) {
+        case '<': {
+            return FormatField::Align::left;
+        }
+        case '>': {
+            return FormatField::Align::right;
+        }
+        case '=': {
+            return FormatField::Align::number;
+        }
+        case '^': {
+            return FormatField::Align::center;
+        }
+        default: {
+            return FormatField::Align::none;
+        }
+    }
+}
 
-    enum class Grouping : uint8_t {
-        none,
-        comma,
-        underscore,
-    };
+} // namespace
 
-    enum class Type : uint8_t {
-        character,
-        binary,
-        octal,
-        decimal,
-        hex_lower,
-        hex_upper,
-        locale,
-        string,
-    };
+//! Parse an fstring field.
+auto ParserState::parse_ffield_() -> std::optional<FormatField> {
+    // variable name
+    for (;;) {
+        state_.start();
+        /*!re2c
+          VARIABLE { break; }
+          *        { return std::nullopt; }
+        */
+    }
+    auto res = FormatField{store().string_ref(view())};
 
-    FormatField(String variable) : variable{variable} {}
-    std::vector<std::variant<SharedString, size_t>> accessors;
-    SharedString variable;
-    uint32_t width = 0;
-    std::optional<char> fill;
-    Type type = Type::character;
-    Grouping grouping = Grouping::none;
-    Conversion conversion = Conversion::str;
-    Align align = Align::none;
-    Sign sign = Sign::none;
-    bool alternate_form = false;
-};
+    // accessor
+    for (;;) {
+        state_.start();
+        /*!re2c
+        "." IDENTIFIER { res.accessors.emplace_back(store().string(state_.view().substr(1))); continue; }
+        "[" POS "]" {
+            auto str = state_.view();
+            if (auto num = parse_num<size_t>(str.substr(1, str.size() - 2))) {
+                res.accessors.emplace_back(*num);
+                continue;
+            } else {
+                return std::nullopt;
+            }
+        }
+        "" { break; }
+        */
+    }
+    // conversion
+    for (;;) {
+        state_.start();
+        /*!re2c
+        "!r" { res.conversion = FormatField::Conversion::repr; break; }
+        "!s" { res.conversion = FormatField::Conversion::str; break; }
+        ""   { break; }
+        */
+    }
+    bool has_spec = false;
+    // spec
+    for (;;) {
+        /*!re2c
+        ":" { has_spec = true; break; }
+        ""  { has_spec = false; break; }
+        */
+    }
+    if (has_spec) {
+        /*
+        spec     ::= [[fill]align][sign]["#"]["0"][width][grouping][type]
+        fill     ::= <any character>
+        align    ::= "<" | ">" | "=" | "^"
+        sign     ::= "+" | "-" | " "
+        width    ::= POS
+        grouping ::= "," | "_"
+        type     ::= "b" | "c" | "d" | "o" | "x" | "X" | "n" | "s"
+        */
+        // align
+        for (;;) {
+            state_.start();
+            /*!re2c
+            "<" | ">" | "=" | "^" {
+                res.align = parse_align(state_.view().front());
+                break;
+            }
+            DOT "<" | ">" | "=" | "^" {
+                auto str = state_.view();
+                res.fill = str.front();
+                res.align = parse_align(str.back());
+                break;
+            }
+            "" { break; }
+            */
+        }
+        // sign
+        for (;;) {
+            state_.start();
+            /*!re2c
+            "+" { res.sign = FormatField::Sign::plus; break; }
+            "-" { res.sign = FormatField::Sign::minus; break; }
+            " " { res.sign = FormatField::Sign::space; break; }
+            ""  { break; }
+            */
+        }
+        // alternate_form
+        for (;;) {
+            /*!re2c
+            "#" { res.alternate_form = true; break; }
+            ""  { break; }
+            */
+        }
+        // width
+        for (;;) {
+            state_.start();
+            /*!re2c
+            POS {
+                if (auto num = parse_num<size_t>(state_.view())) {
+                    res.width = *num;
+                    break;
+                }
+                return std::nullopt;
+            }
+            "" { break; }
+            */
+        }
+        // grouping
+        for (;;) {
+            /*!re2c
+            "," { res.grouping = FormatField::Grouping::comma; break; }
+            "_" { res.grouping = FormatField::Grouping::underscore; break; }
+            ""  { break; }
+            */
+        }
+        // type
+        for (;;) {
+            /*!re2c
+            "b" { res.type = FormatField::Type::binary; break; }
+            "c" { res.type = FormatField::Type::character; break; }
+            "d" { res.type = FormatField::Type::decimal; break; }
+            "o" { res.type = FormatField::Type::octal; break; }
+            "x" { res.type = FormatField::Type::hex_lower; break; }
+            "X" { res.type = FormatField::Type::hex_upper; break; }
+            "n" { res.type = FormatField::Type::locale; break; }
+            "s" { res.type = FormatField::Type::string; break; }
+            ""  { break; }
+            */
+        }
+    }
+    // terminating }
+    for (;;) {
+        /*!re2c
+        "}" { break; }
+        *   { return std::nullopt; }
+        */
+    }
+    return res;
+}
 
-using FormatString = std::vector<std::variant<std::string, FormatField>>;
+//! Parse an fstring.
+auto ParserState::parse_fstring_() -> TokenType {
+    auto start = token_pos();
+    auto fields = std::vector<std::variant<SharedString, FormatField>>{};
+    for (;;) {
+        state_.start();
+        /*!re2c
+          ([^\\"\n{}\000] | "\\\"" | "\\\\" | "\\n" | "{{" | "}}")+ {
+              auto view = this->view();
+              auto &buf = this->buf(view.size());
+              Util::unquote(view, std::back_inserter(buf), true);
+              fields.emplace_back(store().string(buf));
+              continue;
+          }
+          "{" {
+              if (auto x = parse_ffield_()) {
+                 fields.emplace_back(std::move(*x));
+                 continue;
+              }
+              return TokenType::error;
+          }
+          "\"" {
+            fstring_.emplace(start + cursor_pos(), std::move(fields));
+            return TokenType::fstr;
+          }
+          * { return TokenType::error; }
+        */
+    }
+}
 
 auto ParserState::lex_() -> TokenType {
     state_.start();
-
-    auto pattern = [&, this]() -> std::optional<FormatField> {
-        printf("parse format field\n");
-        // variable name
-        for (;;) {
-            state_.start();
-            /*!re2c
-              VARIABLE { break; }
-              *        { return std::nullopt; }
-            */
-        }
-        auto res = FormatField{store().string_ref(view())};
-
-        // accessor
-        for (;;) {
-            state_.start();
-            /*!re2c
-            "." IDENTIFIER { printf("  has member accessor\n"); continue; }
-            "[" POS "]"    { printf("  has array accessor\n"); continue; }
-            ""             { break; }
-            */
-        }
-        // conversion
-        for (;;) {
-            state_.start();
-            /*!re2c
-            "!r" { printf("  has conversion\n"); res.conversion = FormatField::Conversion::repr; break; }
-            "!s" { printf("  has conversion\n"); res.conversion = FormatField::Conversion::str; break; }
-            ""   { break; }
-            */
-        }
-        bool has_spec = false;
-        // spec
-        for (;;) {
-            /*!re2c
-            ":" { printf("  has spec\n"); has_spec = true; break; }
-            ""  { has_spec = false; break; }
-            */
-        }
-        if (has_spec) {
-            /*
-            spec     ::= [[fill]align][sign]["#"]["0"][width][grouping][type]
-            fill     ::= <any character>
-            align    ::= "<" | ">" | "=" | "^"
-            sign     ::= "+" | "-" | " "
-            width    ::= POS
-            grouping ::= "," | "_"
-            type     ::= "b" | "c" | "d" | "o" | "x" | "X" | "n" | "s"
-            */
-            // align
-            for (;;) {
-                state_.start();
-                /*!re2c
-                "<" | ">" | "=" | "^"     { printf("  has align\n"); break; }
-                DOT "<" | ">" | "=" | "^" { printf("  has fill and align\n"); break; }
-                ""                        { break; }
-                */
-            }
-            // sign
-            for (;;) {
-                state_.start();
-                /*!re2c
-                "+" | "-" | " " { printf("  has sign\n"); break; }
-                ""              { break; }
-                */
-            }
-            // alternate_form
-            for (;;) {
-                /*!re2c
-                "#" { printf("  has alternate_form\n"); res.alternate_form = true; break; }
-                ""  { break; }
-                */
-            }
-            // width
-            for (;;) {
-                state_.start();
-                /*!re2c
-                POS { printf("  has width\n"); break; }
-                ""  { break; }
-                */
-            }
-            // grouping
-            for (;;) {
-                /*!re2c
-                "," | "_" { printf("  has grouping\n"); break; }
-                ""        { break; }
-                */
-            }
-            // type
-            for (;;) {
-                /*!re2c
-                "b" | "c" | "d" | "o" | "x" | "X" | "n" | "s" { printf("  has type\n"); break; }
-                ""                                            { break; }
-                */
-            }
-        }
-        // terminating }
-        for (;;) {
-            /*!re2c
-            "}" { break; }
-            *   { return std::nullopt; }
-            */
-        }
-        return res;
-    };
-    auto fstring = [&, this]() {
-        auto res = FormatString{};
-        for (;;) {
-            state_.start();
-            /*!re2c
-              ([^\\"\n{}\000] | "\\\"" | "\\\\" | "\\n" | "{{" | "}}")+ {
-                  res.emplace_back(store().string_ref(view()));
-                  continue;
-              }
-              "{"  {
-                  if (auto x = pattern()) {
-                     res.emplace_back(std::move(*x));
-                     continue;
-                  }
-                  return TokenType::error;
-              }
-              "\"" { return TokenType::str; } // TODO: needs fstr
-              *    { return TokenType::error; }
-            */
-        }
-    };
     for (;;) {
         /*!re2c
             <program> "asp" / SP POS       { return TokenType::aspif; }
@@ -298,7 +324,7 @@ auto ParserState::lex_() -> TokenType {
             <normal,theory,include> STRING { return TokenType::str; }
             <normal,theory> SUP            { return TokenType::sup; }
             <normal,theory> VARIABLE       { return TokenType::var; }
-            <normal> "f\""                 { return fstring(); }
+            <normal> "f\""                 { return parse_fstring_(); }
             <theory> THEORYOP              { return TokenType::theory_op; }
             <include> INCSTRING            { return TokenType::str_include; }
             <normal> KEYWORD               { return TokenType::error; }
@@ -327,9 +353,9 @@ auto ParserState::lex_str(size_t n) -> AspifToken {
     state_.start();
     for (; n > 0; --n) {
         /*!re2c
-        <program> [^\000]              { continue; }
-        <program> NULL                 { return state_.end(YYMAXFILL) ? AspifToken::end : AspifToken::error; }
-        <program> *                    { return AspifToken::error; }
+        [^\000]              { continue; }
+        NULL                 { return state_.end(YYMAXFILL) ? AspifToken::end : AspifToken::error; }
+        *                    { return AspifToken::error; }
         */
     }
     return AspifToken::str;
@@ -339,9 +365,9 @@ auto ParserState::lex_str() -> AspifToken {
     state_.start();
     for (;;) {
         /*!re2c
-        <program> [^\r\n\000]*         { return AspifToken::str; }
-        <program> NULL                 { return state_.end(YYMAXFILL) ? AspifToken::end : AspifToken::error; }
-        <program> *                    { return AspifToken::error; }
+        [^\r\n\000]*         { return AspifToken::str; }
+        NULL                 { return state_.end(YYMAXFILL) ? AspifToken::end : AspifToken::error; }
+        *                    { return AspifToken::error; }
         */
     }
 }
@@ -350,14 +376,16 @@ auto ParserState::lex_aspif() -> AspifToken {
     state_.start();
     for (;;) {
         /*!re2c
-        <program> DEC                  { return AspifToken::num_pos; }
-        <program> "-" DEC              { return AspifToken::num_neg; }
-        <program> SP                   { return AspifToken::space; }
-        <program> "incremental"        { return AspifToken::incremental; }
-        <program> "symbols"            { return AspifToken::symbols; }
-        <program> NL                   { return AspifToken::newline; }
-        <program> NULL                 { return state_.end(YYMAXFILL) ? AspifToken::end : AspifToken::error; }
-        <program> *                    { return AspifToken::error; }
+        DEC                  { return AspifToken::num_pos; }
+        "-" DEC              { return AspifToken::num_neg; }
+        SP                   { return AspifToken::space; }
+        "incremental"        { return AspifToken::incremental; }
+        "symbols"            { return AspifToken::symbols; }
+        NL                   { return AspifToken::newline; }
+        NULL                 { return state_.end(YYMAXFILL) ? AspifToken::end : AspifToken::error; }
+        *                    { return AspifToken::error; }
         */
     }
 }
+
+} // namespace CppClingo::Input::Parse
