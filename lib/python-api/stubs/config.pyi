@@ -181,8 +181,8 @@ class Config:
         description: str,
         get: (
             typing.Callable[[], str | None]
-            | typing.Callable[int | None, str | None]
-            | ...
+            | typing.Callable[[int | None], str | None]
+            | None
         ) = None,
         set: (
             typing.Callable[[str], None]

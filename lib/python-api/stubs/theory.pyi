@@ -46,18 +46,6 @@ class Theory:
             An interable over symbol value pairs.
         """
 
-    def configure(self, name: str, value: str) -> None:
-        """
-        Configure the theory using its name/value interface.
-
-        It depends on the theory which keys are supported and when this function can be
-        called.
-
-        Args:
-            key: The name of the option.
-            value: The value of the option.
-        """
-
     def on_model(self, model: clingo.solve.Model) -> None:
         """
         Notify the theory about the given model.
