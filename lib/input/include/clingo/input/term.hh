@@ -135,7 +135,7 @@ class TermSymbol : public Expression<TermSymbol> {
     SharedSymbol value_;
 };
 
-struct FormatField {
+struct FormatSpec {
     enum class Conversion : uint8_t {
         str = 0,
         repr = 1,
@@ -173,9 +173,10 @@ struct FormatField {
         string,
     };
 
-    explicit FormatField(String variable) : variable{variable} {}
+    FormatSpec() = default;
+    [[nodiscard]] static auto build(SymbolStore &store, std::string_view str) -> std::optional<FormatSpec>;
+
     std::vector<std::variant<SharedString, size_t>> accessors;
-    SharedString variable;
     uint32_t width = 0;
     std::optional<char> fill;
     Type type = Type::string;
@@ -184,6 +185,24 @@ struct FormatField {
     Align align = Align::none;
     Sign sign = Sign::none;
     bool alternate_form = false;
+};
+
+class FormatField : public Expression<FormatField> {
+  public:
+    explicit FormatField(TermVariable variable, FormatSpec flags)
+        : variable_{std::move(variable)}, flags_{std::move(flags)} {}
+
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_lhs = &FormatField::variable_, a_rhs = &FormatField::flags_};
+    }
+
+    [[nodiscard]] auto lhs() const -> TermVariable const & { return variable_; }
+    [[nodiscard]] auto rhs() const -> FormatSpec const & { return flags_; }
+
+  private:
+    TermVariable variable_;
+    FormatSpec flags_;
 };
 
 using FormatFieldArray = Util::immutable_array<std::variant<SharedString, FormatField>>;

@@ -43,6 +43,12 @@ namespace CppClingo::Input::Parse {
     SP         = [ ];
     NL         = [\r\n]+;
     NOTEND     = ([^#] | '#' [^e] | '#' 'e' [^n] | '#' 'e' 'n' [^d])*;
+    ACCESSOR   = [.] IDENTIFIER | "[" POS "]";
+    CONVERSION = [!][rs];
+    ALIGN      = [<>=^];
+    SIGN       = [+- ];
+    GROUPING   = [,_];
+    TYPE       = [bcdoxXns];
 */
 
 /*!header:re2c:on*/
@@ -62,163 +68,40 @@ template <class T> auto parse_num(std::string_view view) -> std::optional<T> {
     return std::nullopt;
 }
 
-auto parse_align(char c) -> FormatField::Align {
-    switch (c) {
-        case '<': {
-            return FormatField::Align::left;
-        }
-        case '>': {
-            return FormatField::Align::right;
-        }
-        case '=': {
-            return FormatField::Align::number;
-        }
-        case '^': {
-            return FormatField::Align::center;
-        }
-        default: {
-            return FormatField::Align::none;
-        }
-    }
-}
-
 } // namespace
 
 //! Parse an fstring field.
 auto ParserState::parse_ffield_() -> std::optional<FormatField> {
-    // variable name
+    // variable
+    state_.start();
     for (;;) {
         state_.start();
         /*!re2c
           VARIABLE { break; }
-          *        { return std::nullopt; }
+          * { return std::nullopt; }
         */
     }
-    auto res = FormatField{store().string_ref(view())};
-
-    // accessor
-    for (;;) {
-        state_.start();
-        /*!re2c
-        "." IDENTIFIER { res.accessors.emplace_back(store().string(state_.view().substr(1))); continue; }
-        "[" POS "]" {
-            auto str = state_.view();
-            if (auto num = parse_num<size_t>(str.substr(1, str.size() - 2))) {
-                res.accessors.emplace_back(*num);
-                continue;
-            } else {
-                return std::nullopt;
-            }
-        }
-        "" { break; }
-        */
-    }
-    // conversion
-    for (;;) {
-        state_.start();
-        /*!re2c
-        "!r" { res.conversion = FormatField::Conversion::repr; break; }
-        "!s" { res.conversion = FormatField::Conversion::str; break; }
-        ""   { break; }
-        */
-    }
-    bool has_spec = false;
+    auto var = TermVariable(loc(), store().string_ref(view()));
     // spec
     for (;;) {
+        state_.start();
         /*!re2c
-        ":" { has_spec = true; break; }
-        ""  { has_spec = false; break; }
+        ACCESSOR* CONVERSION? ([:] (DOT? ALIGN)? SIGN? [#]? POS? GROUPING? TYPE?)? { break; }
         */
     }
-    if (has_spec) {
-        /*
-        spec     ::= [[fill]align][sign]["#"]["0"][width][grouping][type]
-        fill     ::= <any character>
-        align    ::= "<" | ">" | "=" | "^"
-        sign     ::= "+" | "-" | " "
-        width    ::= POS
-        grouping ::= "," | "_"
-        type     ::= "b" | "c" | "d" | "o" | "x" | "X" | "n" | "s"
-        */
-        // align
-        for (;;) {
-            state_.start();
-            /*!re2c
-            "<" | ">" | "=" | "^" {
-                res.align = parse_align(state_.view().front());
-                break;
-            }
-            DOT "<" | ">" | "=" | "^" {
-                auto str = state_.view();
-                res.fill = str.front();
-                res.align = parse_align(str.back());
-                break;
-            }
-            "" { break; }
-            */
-        }
-        // sign
-        for (;;) {
-            state_.start();
-            /*!re2c
-            "+" { res.sign = FormatField::Sign::plus; break; }
-            "-" { res.sign = FormatField::Sign::minus; break; }
-            " " { res.sign = FormatField::Sign::space; break; }
-            ""  { break; }
-            */
-        }
-        // alternate_form
-        for (;;) {
-            /*!re2c
-            "#" { res.alternate_form = true; break; }
-            ""  { break; }
-            */
-        }
-        // width
-        for (;;) {
-            state_.start();
-            /*!re2c
-            POS {
-                if (auto num = parse_num<size_t>(state_.view())) {
-                    res.width = *num;
-                    break;
-                }
-                return std::nullopt;
-            }
-            "" { break; }
-            */
-        }
-        // grouping
-        for (;;) {
-            /*!re2c
-            "," { res.grouping = FormatField::Grouping::comma; break; }
-            "_" { res.grouping = FormatField::Grouping::underscore; break; }
-            ""  { break; }
-            */
-        }
-        // type
-        for (;;) {
-            /*!re2c
-            "b" { res.type = FormatField::Type::binary; break; }
-            "c" { res.type = FormatField::Type::character; break; }
-            "d" { res.type = FormatField::Type::decimal; break; }
-            "o" { res.type = FormatField::Type::octal; break; }
-            "x" { res.type = FormatField::Type::hex_lower; break; }
-            "X" { res.type = FormatField::Type::hex_upper; break; }
-            "n" { res.type = FormatField::Type::locale; break; }
-            "s" { res.type = FormatField::Type::string; break; }
-            ""  { break; }
-            */
-        }
+    auto spec = FormatSpec::build(store(), view());
+    if (!spec) {
+        return std::nullopt;
     }
-    // terminating }
+    // closing brace
     for (;;) {
+        state_.start();
         /*!re2c
-        "}" { break; }
-        *   { return std::nullopt; }
+        [}] { break; }
+        * { return std::nullopt; }
         */
     }
-    return res;
+    return FormatField{std::move(var), *std::move(spec)};
 }
 
 //! Parse an fstring.

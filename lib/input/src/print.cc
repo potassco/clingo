@@ -785,18 +785,18 @@ template <class T> void print_op(T &out, BinaryOperator op) {
     }
 }
 
-auto to_string(FormatField::Align x) -> std::string_view {
+auto to_string(FormatSpec::Align x) -> std::string_view {
     switch (x) {
-        case FormatField::Align::left: {
+        case FormatSpec::Align::left: {
             return "<";
         }
-        case FormatField::Align::right: {
+        case FormatSpec::Align::right: {
             return ">";
         }
-        case FormatField::Align::center: {
+        case FormatSpec::Align::center: {
             return "^";
         }
-        case FormatField::Align::number: {
+        case FormatSpec::Align::number: {
             return "=";
         }
         default: {
@@ -805,27 +805,27 @@ auto to_string(FormatField::Align x) -> std::string_view {
     }
 }
 
-auto to_string(FormatField::Type x) -> std::string_view {
+auto to_string(FormatSpec::Type x) -> std::string_view {
     switch (x) {
-        case FormatField::Type::character: {
+        case FormatSpec::Type::character: {
             return "c";
         }
-        case FormatField::Type::binary: {
+        case FormatSpec::Type::binary: {
             return "b";
         }
-        case FormatField::Type::octal: {
+        case FormatSpec::Type::octal: {
             return "o";
         }
-        case FormatField::Type::decimal: {
+        case FormatSpec::Type::decimal: {
             return "d";
         }
-        case FormatField::Type::hex_lower: {
+        case FormatSpec::Type::hex_lower: {
             return "x";
         }
-        case FormatField::Type::hex_upper: {
+        case FormatSpec::Type::hex_upper: {
             return "X";
         }
-        case FormatField::Type::locale: {
+        case FormatSpec::Type::locale: {
             return "n";
         }
         default: {
@@ -834,15 +834,15 @@ auto to_string(FormatField::Type x) -> std::string_view {
     }
 }
 
-auto to_string(FormatField::Sign x) -> std::string_view {
+auto to_string(FormatSpec::Sign x) -> std::string_view {
     switch (x) {
-        case FormatField::Sign::plus: {
+        case FormatSpec::Sign::plus: {
             return "+";
         }
-        case FormatField::Sign::minus: {
+        case FormatSpec::Sign::minus: {
             return "-";
         }
-        case FormatField::Sign::space: {
+        case FormatSpec::Sign::space: {
             return " ";
         }
         default: {
@@ -851,12 +851,12 @@ auto to_string(FormatField::Sign x) -> std::string_view {
     }
 }
 
-auto to_string(FormatField::Grouping x) -> std::string_view {
+auto to_string(FormatSpec::Grouping x) -> std::string_view {
     switch (x) {
-        case FormatField::Grouping::comma: {
+        case FormatSpec::Grouping::comma: {
             return ",";
         }
-        case FormatField::Grouping::underscore: {
+        case FormatSpec::Grouping::underscore: {
             return "_";
         }
         default: {
@@ -865,9 +865,9 @@ auto to_string(FormatField::Grouping x) -> std::string_view {
     }
 }
 
-auto to_string(FormatField::Conversion x) -> std::string_view {
+auto to_string(FormatSpec::Conversion x) -> std::string_view {
     switch (x) {
-        case FormatField::Conversion::repr: {
+        case FormatSpec::Conversion::repr: {
             return "!r";
         }
         default: {
@@ -876,9 +876,8 @@ auto to_string(FormatField::Conversion x) -> std::string_view {
     }
 }
 
-template <class T> auto print_field(T &out, FormatField const &field) -> T & {
-    out << "{" << *field.variable;
-    for (auto const &x : field.accessors) {
+template <class T> auto print_spec(T &out, FormatSpec const &spec) -> T & {
+    for (auto const &x : spec.accessors) {
         std::visit(
             [&out]<class U>(U const &acc) {
                 if constexpr (Util::is_among_v<U, size_t>) {
@@ -890,24 +889,28 @@ template <class T> auto print_field(T &out, FormatField const &field) -> T & {
             },
             x);
     }
-    out << to_string(field.conversion);
-    if (field.fill || field.conversion != FormatField::Conversion::str || field.align != FormatField::Align::none ||
-        field.sign != FormatField::Sign::none || field.alternate_form || field.width > 0 ||
-        field.grouping != FormatField::Grouping::none || field.type != FormatField::Type::string) {
+    out << to_string(spec.conversion);
+    if (spec.fill || spec.conversion != FormatSpec::Conversion::str || spec.align != FormatSpec::Align::none ||
+        spec.sign != FormatSpec::Sign::none || spec.alternate_form || spec.width > 0 ||
+        spec.grouping != FormatSpec::Grouping::none || spec.type != FormatSpec::Type::string) {
         out << ":";
-        if (field.fill) {
-            out << *field.fill;
+        if (spec.fill) {
+            out << *spec.fill;
         }
-        out << to_string(field.align) << to_string(field.sign);
-        if (field.alternate_form) {
+        out << to_string(spec.align) << to_string(spec.sign);
+        if (spec.alternate_form) {
             out << "#";
         }
-        if (field.width > 0) {
-            out << std::to_string(field.width);
+        if (spec.width > 0) {
+            out << std::to_string(spec.width);
         }
-        out << to_string(field.grouping) << to_string(field.type);
+        out << to_string(spec.grouping) << to_string(spec.type);
     }
-    out << "}";
+    return out;
+}
+
+template <class T> auto print_field(T &out, FormatField const &field) -> T & {
+    out << field.lhs() << field.rhs();
     return out;
 }
 
@@ -934,7 +937,14 @@ auto operator<<(Util::OutputBuffer &out, BinaryOperator op) -> Util::OutputBuffe
 
 // terms
 
-//! Output the term to the given stream.
+auto operator<<(std::ostream &out, FormatSpec const &spec) -> std::ostream & {
+    return print_spec(out, spec);
+}
+
+auto operator<<(Util::OutputBuffer &out, FormatSpec const &spec) -> Util::OutputBuffer & {
+    return print_spec(out, spec);
+}
+
 auto operator<<(std::ostream &out, FormatField const &field) -> std::ostream & {
     return print_field(out, field);
 }
