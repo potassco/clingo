@@ -237,7 +237,7 @@ if (CLINGO_BUILD_WITH_LUA)
     endif()
 endif()
 find_package(BISON "2.5")
-find_package(RE2C "0.101")
+find_package(RE2C "1.1")
 if (Python_Development_FOUND)
     # When using CFFI the clingo module has to be compiled with -pthread to
     # avoid linker errors
