@@ -58,43 +58,55 @@ find_program(RE2C_EXECUTABLE NAMES re2c DOC "path to the re2c executable")
 mark_as_advanced(RE2C_EXECUTABLE)
 
 if(RE2C_EXECUTABLE)
-    execute_process(COMMAND "${RE2C_EXECUTABLE}" --vernum OUTPUT_VARIABLE RE2C_RAW_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(
+        COMMAND "${RE2C_EXECUTABLE}" --vernum
+        OUTPUT_VARIABLE RE2C_RAW_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE RE2C_RESULT
+    )
 
-    math(EXPR RE2C_MAJOR_VERSION "(${RE2C_RAW_VERSION} / 10000) % 100")
-    math(EXPR RE2C_MINOR_VERSION "(${RE2C_RAW_VERSION} /   100) % 100")
-    math(EXPR RE2C_PATCH_VERSION "(${RE2C_RAW_VERSION} /     1) % 100")
-    set(RE2C_VERSION "${RE2C_MAJOR_VERSION}.${RE2C_MINOR_VERSION}.${RE2C_PATCH_VERSION}")
+    if(RE2C_RESULT EQUAL 0 AND RE2C_RAW_VERSION MATCHES "^[0-9]+")
+        math(EXPR RE2C_MAJOR_VERSION "(${RE2C_RAW_VERSION} / 10000) % 100")
+        math(EXPR RE2C_MINOR_VERSION "(${RE2C_RAW_VERSION} /   100) % 100")
+        math(EXPR RE2C_PATCH_VERSION "(${RE2C_RAW_VERSION} /     1) % 100")
+        set(RE2C_VERSION "${RE2C_MAJOR_VERSION}.${RE2C_MINOR_VERSION}.${RE2C_PATCH_VERSION}")
 
-    macro(re2c_target)
-        cmake_parse_arguments(PARSED_ARGS "" "NAME;INPUT;OUTPUT;HEADER;OPTIONS" "DEPENDS" ${ARGN})
+        macro(re2c_target)
+            cmake_parse_arguments(PARSED_ARGS "" "NAME;INPUT;OUTPUT;HEADER;OPTIONS" "DEPENDS" ${ARGN})
 
-        if(NOT PARSED_ARGS_OUTPUT)
-            message(FATAL_ERROR "re2c_target expect an output filename")
-        endif(NOT PARSED_ARGS_OUTPUT)
-        if(NOT PARSED_ARGS_INPUT)
-            message(FATAL_ERROR "re2c_target expect an input filename")
-        endif(NOT PARSED_ARGS_INPUT)
-        if(NOT PARSED_ARGS_NAME)
-            message(FATAL_ERROR "re2c_target expect a target name")
-        endif(NOT PARSED_ARGS_NAME)
-        set(OUTPUTS "${PARSED_ARGS_OUTPUT}")
-        if(PARSED_ARGS_HEADER)
-            list(APPEND PARSED_ARGS_OPTIONS "--header")
-            list(APPEND PARSED_ARGS_OPTIONS "${PARSED_ARGS_HEADER}")
-            list(APPEND OUTPUTS "${PARSED_ARGS_HEADER}")
-            set(RE2C_${PARSED_ARGS_NAME}_HEADER "${PARSED_ARGS_HEADER}")
-        endif()
+            if(NOT PARSED_ARGS_OUTPUT)
+                message(FATAL_ERROR "re2c_target expect an output filename")
+            endif()
+            if(NOT PARSED_ARGS_INPUT)
+                message(FATAL_ERROR "re2c_target expect an input filename")
+            endif()
+            if(NOT PARSED_ARGS_NAME)
+                message(FATAL_ERROR "re2c_target expect a target name")
+            endif()
+            set(OUTPUTS "${PARSED_ARGS_OUTPUT}")
+            if(PARSED_ARGS_HEADER)
+                list(APPEND PARSED_ARGS_OPTIONS "--header")
+                list(APPEND PARSED_ARGS_OPTIONS "${PARSED_ARGS_HEADER}")
+                list(APPEND OUTPUTS "${PARSED_ARGS_HEADER}")
+                set(RE2C_${PARSED_ARGS_NAME}_HEADER "${PARSED_ARGS_HEADER}")
+            endif()
 
-
-        cmake_path(RELATIVE_PATH PARSED_ARGS_OUTPUT BASE_DIRECTORY ${CMAKE_BINARY_DIR} OUTPUT_VARIABLE OUTPUT_NAME)
-        add_custom_command(
-            OUTPUT ${OUTPUTS}
-            COMMAND ${RE2C_EXECUTABLE} ${PARSED_ARGS_OPTIONS} -o ${PARSED_ARGS_OUTPUT} ${PARSED_ARGS_INPUT}
-            DEPENDS ${PARSED_ARGS_INPUT} ${PARSED_ARGS_DEPENDS}
-            COMMENT "Generating re2c lexer ${OUTPUT_NAME}"
-        )
-        set(RE2C_${PARSED_ARGS_NAME}_OUTPUT "${PARSED_ARGS_OUTPUT}")
-    endmacro(re2c_target)
+            cmake_path(
+                RELATIVE_PATH PARSED_ARGS_OUTPUT
+                BASE_DIRECTORY ${CMAKE_BINARY_DIR}
+                OUTPUT_VARIABLE OUTPUT_NAME
+            )
+            add_custom_command(
+                OUTPUT ${OUTPUTS}
+                COMMAND ${RE2C_EXECUTABLE} ${PARSED_ARGS_OPTIONS} -o ${PARSED_ARGS_OUTPUT} ${PARSED_ARGS_INPUT}
+                DEPENDS ${PARSED_ARGS_INPUT} ${PARSED_ARGS_DEPENDS}
+                COMMENT "Generating re2c lexer ${OUTPUT_NAME}"
+            )
+            set(RE2C_${PARSED_ARGS_NAME}_OUTPUT "${PARSED_ARGS_OUTPUT}")
+        endmacro()
+    else()
+        message(WARNING "Could not determine re2c version (output: ${RE2C_RAW_VERSION})")
+    endif()
 endif()
 
-find_package_handle_standard_args(RE2C REQUIRED_VARS RE2C_EXECUTABLE VERSION_VAR RE2C_VERSION)
+find_package_handle_standard_args(RE2C REQUIRED_VARS RE2C_EXECUTABLE RE2C_VERSION VERSION_VAR RE2C_VERSION)
