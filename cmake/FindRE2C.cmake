@@ -90,15 +90,13 @@ if(RE2C_EXECUTABLE)
                 set(RE2C_${PARSED_ARGS_NAME}_HEADER "${PARSED_ARGS_HEADER}")
             endif()
 
-
-            cmake_path(RELATIVE_PATH PARSED_ARGS_OUTPUT BASE_DIRECTORY ${CMAKE_BINARY_DIR} OUTPUT_VARIABLE OUTPUT_NAME)
             add_custom_command(
-                OUTPUT ${OUTPUTS}
+                OUTPUT ${PARSED_ARGS_OUTPUT}
                 COMMAND ${RE2C_EXECUTABLE} ${PARSED_ARGS_OPTIONS} -o ${PARSED_ARGS_OUTPUT} ${PARSED_ARGS_INPUT}
                 DEPENDS ${PARSED_ARGS_INPUT} ${PARSED_ARGS_DEPENDS}
-                COMMENT "Generating re2c lexer ${OUTPUT_NAME}"
+                COMMENT "[RE2C][${PARSED_ARGS_NAME}] Building lexer with re2c ${RE2C_VERSION}"
             )
-            set(RE2C_${PARSED_ARGS_NAME}_OUTPUT "${PARSED_ARGS_OUTPUT}")
+
         endmacro()
     else()
         message(WARNING "Could not determine re2c version (output: ${RE2C_RAW_VERSION})")
