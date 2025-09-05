@@ -71,7 +71,7 @@ if(RE2C_EXECUTABLE)
         set(RE2C_VERSION "${RE2C_MAJOR_VERSION}.${RE2C_MINOR_VERSION}.${RE2C_PATCH_VERSION}")
 
         macro(re2c_target)
-            cmake_parse_arguments(PARSED_ARGS "" "NAME;INPUT;OUTPUT;HEADER;OPTIONS" "DEPENDS" ${ARGN})
+            cmake_parse_arguments(PARSED_ARGS "" "NAME;INPUT;OUTPUT;OPTIONS" "DEPENDS" ${ARGN})
 
             if(NOT PARSED_ARGS_OUTPUT)
                 message(FATAL_ERROR "re2c_target expect an output filename")
@@ -81,13 +81,6 @@ if(RE2C_EXECUTABLE)
             endif()
             if(NOT PARSED_ARGS_NAME)
                 message(FATAL_ERROR "re2c_target expect a target name")
-            endif()
-            set(OUTPUTS "${PARSED_ARGS_OUTPUT}")
-            if(PARSED_ARGS_HEADER)
-                list(APPEND PARSED_ARGS_OPTIONS "--header")
-                list(APPEND PARSED_ARGS_OPTIONS "${PARSED_ARGS_HEADER}")
-                list(APPEND OUTPUTS "${PARSED_ARGS_HEADER}")
-                set(RE2C_${PARSED_ARGS_NAME}_HEADER "${PARSED_ARGS_HEADER}")
             endif()
 
             add_custom_command(
