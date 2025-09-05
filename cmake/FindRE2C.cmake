@@ -105,4 +105,6 @@ if(RE2C_EXECUTABLE)
     endif()
 endif()
 
-find_package_handle_standard_args(RE2C REQUIRED_VARS RE2C_EXECUTABLE VERSION_VAR RE2C_VERSION)
+if (DEFINED RE2C_VERSION)
+    find_package_handle_standard_args(RE2C REQUIRED_VARS RE2C_EXECUTABLE VERSION_VAR RE2C_VERSION)
+endif()
