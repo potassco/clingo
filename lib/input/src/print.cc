@@ -891,7 +891,7 @@ template <class T> auto print_spec(T &out, FormatSpec const &spec) -> T & {
     }
     out << to_string(spec.conversion);
     if (spec.fill || spec.conversion != FormatSpec::Conversion::str || spec.align != FormatSpec::Align::none ||
-        spec.sign != FormatSpec::Sign::none || spec.alternate_form || spec.width > 0 ||
+        spec.sign != FormatSpec::Sign::minus || spec.alternate_form || spec.width > 0 ||
         spec.grouping != FormatSpec::Grouping::none || spec.type != FormatSpec::Type::string) {
         out << ":";
         if (spec.fill) {

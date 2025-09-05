@@ -135,55 +135,75 @@ class TermSymbol : public Expression<TermSymbol> {
     SharedSymbol value_;
 };
 
+//! Format specification for a field.
 struct FormatSpec {
+    //! Enumeration of conversion options.
+    //!
+    //! If the string representation of a symbol is used, clingo strings are
+    //! printed without quotes and with special characters.
     enum class Conversion : uint8_t {
-        str = 0,
-        repr = 1,
+        str = 0,  //!< Use the string representation of a symbol.
+        repr = 1, //!< Use the clingo representation of a symbol.
     };
 
+    //! The alignment options.
     enum class Align : uint8_t {
-        none,
-        left,
-        right,
-        number,
-        center,
+        none,   //!< No alignment specified (see defaults below).
+        left,   //!< Use left alignment (default for non-numbers).
+        right,  //!< Use right alignment (default for numbers).
+        number, //!< Use number alignment (sign to the left/number to the right).
+        center, //!< Use center alignment.
     };
 
+    //! The sign options.
     enum class Sign : uint8_t {
-        none,
-        plus,
-        minus,
-        space,
+        plus,  //!< Use an explicit plus sign for positive numbers.
+        minus, //!< Use a minus sign for negative numbers only (default).
+        space, //!< Use a space for positive numbers.
     };
 
+    //! Eenumeration of grouping options.
     enum class Grouping : uint8_t {
-        none,
-        comma,
-        underscore,
+        none,       //! Do not use thousands separator (default).
+        comma,      //! Use comma as thousands separator.
+        underscore, //! Use underscore as thousands separator.
     };
 
+    //! Enumeration of type options.
     enum class Type : uint8_t {
-        character,
-        binary,
-        octal,
-        decimal,
-        hex_lower,
-        hex_upper,
-        locale,
-        string,
+        character, //!< Output the character with the given integer code.
+        binary,    //!< OUtput an integer in binary format.
+        octal,     //!< Output an integer in octal format.
+        decimal,   //!< Output an integer in decimal format.
+        hex_lower, //!< Output an integer in hexadecimal format with lower-case letters.
+        hex_upper, //!< Output an integer in hexadecimal format with upper-case letters.
+        locale,    //!< Output an integer using the locale's conventions.
+        string,    //!< Output symbol using their default string representation (default).
     };
 
     FormatSpec() = default;
     [[nodiscard]] static auto build(SymbolStore &store, std::string_view str) -> std::optional<FormatSpec>;
 
+    //! The vector of accessors.
+    //!
+    //! One can for exmaples use `[0].name` to refer to `g` in the term
+    //! `f(g(1),2)`.
     std::vector<std::variant<SharedString, size_t>> accessors;
+    //! The width of the field.
     uint32_t width = 0;
+    //! The fill character for padding if the field is wider than the content.
     std::optional<char> fill;
+    //! The type of the field.
     Type type = Type::string;
+    //! The grouping option.
     Grouping grouping = Grouping::none;
+    //! The conversion option.
     Conversion conversion = Conversion::str;
+    //! The alignment of the field.
     Align align = Align::none;
-    Sign sign = Sign::none;
+    //! The sign option.
+    Sign sign = Sign::minus;
+    //! Whether to use the alternate form.
     bool alternate_form = false;
 };
 
@@ -205,6 +225,7 @@ class FormatField : public Expression<FormatField> {
     FormatSpec flags_;
 };
 
+// TODO: To be able to represent the union in an ast, the shared string has to be wrapped.
 using FormatFieldArray = Util::immutable_array<std::variant<SharedString, FormatField>>;
 
 //! A format string term.
