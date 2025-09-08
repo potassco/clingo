@@ -181,7 +181,23 @@ struct FormatSpec {
         string,    //!< Output symbol using their default string representation (default).
     };
 
+    //! Construct a default format specification.
     FormatSpec() = default;
+    //! Parse a format specification from a string.
+    //!
+    //! A format specification has the following syntax:
+    //!
+    //! @code
+    //! spec     ::= variable(accessor*)[[fill]align][sign]["#"]"][width][grouping][type]
+    //! variable ::= <clingo variable>
+    //! accessor ::= "." <clingo identifier> | "[" <unsigned number> "]"
+    //! fill     ::= <any character>
+    //! align    ::= "<" | ">" | "=" | "^"
+    //! sign     ::= "+" | "-" | " "
+    //! width    ::= <unsigned number>
+    //! grouping ::= "," | "_"
+    //! type     ::= "b" | "c" | "d" | "o" | "x" | "X" | "n" | "s"
+    //! @endcode
     [[nodiscard]] static auto build(SymbolStore &store, std::string_view str) -> std::optional<FormatSpec>;
 
     //! The vector of accessors.
@@ -207,8 +223,10 @@ struct FormatSpec {
     bool alternate_form = false;
 };
 
+//! A format field with a variable and format specification.
 class FormatField : public Expression<FormatField> {
   public:
+    //! Construct a format field with a variable and format specification.
     explicit FormatField(TermVariable variable, FormatSpec flags)
         : variable_{std::move(variable)}, flags_{std::move(flags)} {}
 
@@ -217,7 +235,9 @@ class FormatField : public Expression<FormatField> {
         return std::tuple{a_lhs = &FormatField::variable_, a_rhs = &FormatField::flags_};
     }
 
+    //! Get the variable and format specification.
     [[nodiscard]] auto lhs() const -> TermVariable const & { return variable_; }
+    //! Get the specification.
     [[nodiscard]] auto rhs() const -> FormatSpec const & { return flags_; }
 
   private:
@@ -225,8 +245,24 @@ class FormatField : public Expression<FormatField> {
     FormatSpec flags_;
 };
 
-// TODO: To be able to represent the union in an ast, the shared string has to be wrapped.
-using FormatFieldArray = Util::immutable_array<std::variant<SharedString, FormatField>>;
+//! A format field with a plain string value.
+class FormatFieldString {
+  public:
+    //! Construct a format field with a string value.
+    explicit FormatFieldString(SharedString value) : value_{std::move(value)} {}
+
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_value = &FormatFieldString::value_}; }
+
+    //! Get the string value.
+    [[nodiscard]] auto value() const -> String const & { return *value_; }
+
+  private:
+    SharedString value_;
+};
+
+//! An array of format fields (sequence of plain strings and substitutable variables).
+using FormatFieldArray = Util::immutable_array<std::variant<FormatFieldString, FormatField>>;
 
 //! A format string term.
 class TermFormatString : public Expression<TermFormatString> {

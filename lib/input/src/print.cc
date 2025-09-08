@@ -196,15 +196,7 @@ template <class O> class Print {
     void operator()(TermFormatString const &term) const {
         *out_ << "f\"";
         for (auto const &x : term.elems()) {
-            std::visit(
-                [this]<class T>(T const &x) {
-                    if constexpr (Util::is_among_v<T, SharedString>) {
-                        *out_ << Util::p_quoted(x->view(), true);
-                    } else if constexpr (Util::is_among_v<T, FormatField>) {
-                        *out_ << x;
-                    }
-                },
-                x);
+            std::visit([this]<class T>(T const &x) { *out_ << x; }, x);
         }
         *out_ << '"';
     }
@@ -910,7 +902,12 @@ template <class T> auto print_spec(T &out, FormatSpec const &spec) -> T & {
 }
 
 template <class T> auto print_field(T &out, FormatField const &field) -> T & {
-    out << field.lhs() << field.rhs();
+    out << "{" << field.lhs() << field.rhs() << "}";
+    return out;
+}
+
+template <class T> auto print_field(T &out, FormatFieldString const &field) -> T & {
+    out << Util::p_quoted(field.value().view(), true);
     return out;
 }
 
@@ -950,6 +947,14 @@ auto operator<<(std::ostream &out, FormatField const &field) -> std::ostream & {
 }
 
 auto operator<<(Util::OutputBuffer &out, FormatField const &field) -> Util::OutputBuffer & {
+    return print_field(out, field);
+}
+
+auto operator<<(std::ostream &out, FormatFieldString const &field) -> std::ostream & {
+    return print_field(out, field);
+}
+
+auto operator<<(Util::OutputBuffer &out, FormatFieldString const &field) -> Util::OutputBuffer & {
     return print_field(out, field);
 }
 

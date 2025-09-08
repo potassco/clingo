@@ -107,7 +107,7 @@ auto ParserState::parse_ffield_() -> std::optional<FormatField> {
 //! Parse an fstring.
 auto ParserState::parse_fstring_() -> TokenType {
     auto start = token_pos();
-    auto fields = std::vector<std::variant<SharedString, FormatField>>{};
+    auto fields = std::vector<std::variant<FormatFieldString, FormatField>>{};
     for (;;) {
         state_.start();
         /*!re2c
@@ -115,7 +115,7 @@ auto ParserState::parse_fstring_() -> TokenType {
               auto view = this->view();
               auto &buf = this->buf(view.size());
               Util::unquote(view, std::back_inserter(buf), true);
-              fields.emplace_back(store().string(buf));
+              fields.emplace_back(std::in_place_type<FormatFieldString>, store().string(buf));
               continue;
           }
           "{" {

@@ -40,6 +40,11 @@ auto operator<<(std::ostream &out, FormatField const &field) -> std::ostream &;
 //! Output an f-string format field to the given stream.
 auto operator<<(Util::OutputBuffer &out, FormatField const &field) -> Util::OutputBuffer &;
 
+//! Output an f-string format string field to the given stream.
+auto operator<<(std::ostream &out, FormatFieldString const &field) -> std::ostream &;
+//! Output an f-string format string field to the given stream.
+auto operator<<(Util::OutputBuffer &out, FormatFieldString const &field) -> Util::OutputBuffer &;
+
 //! Output the term to the given stream.
 auto operator<<(std::ostream &out, TermFormatString const &term) -> std::ostream &;
 //! Output the term to the given stream.
