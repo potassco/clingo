@@ -250,6 +250,19 @@ class Unifier {
                                                [name, this](auto const &x) { return this->occurs_check_(name, x); });
                 } else if constexpr (Util::matches<T, TermUnary>) {
                     return occurs_check_(name, *v_b.rhs());
+                } else if constexpr (Util::matches<T, TermFormatString>) {
+                    return std::ranges::all_of(v_b.elems(), [name, this](auto const &elem) {
+                        return std::visit(
+                            [this, name]<class U>(U const &x) {
+                                if constexpr (Util::matches<U, FormatFieldString>) {
+                                    return true;
+                                } else {
+                                    static_assert(Util::matches<U, FormatField>);
+                                    return this->occurs_check_(name, x.lhs());
+                                }
+                            },
+                            elem);
+                    });
                 } else {
                     static_assert(Util::matches<T, TermBinary>);
                     return occurs_check_(name, *v_b.lhs()) && occurs_check_(name, *v_b.rhs());
@@ -286,6 +299,8 @@ class Unifier {
                     terms_.emplace_back(TermSymbol{v_b.loc(), a});
                     auto [it, ins] = ass_.try_emplace(v_b.name(), &terms_.back());
                     return ins || match_(a, *it->second);
+                } else if constexpr (Util::matches<T, TermFormatString>) {
+                    return a.type() == SymbolType::string;
                 } else if constexpr (Util::matches<T, TermSymbol>) {
                     return a == v_b.value();
                 } else if constexpr (Util::matches<T, TermTuple>) {
@@ -391,6 +406,15 @@ class Unifier {
                         return match_(v_a.value(), b);
                     } else {
                         return match_(v_b.value(), a);
+                    }
+                }
+                // format strings
+                else if constexpr (Util::matches<A, TermFormatString> || Util::matches<B, TermFormatString>) {
+                    if constexpr (!Util::matches<A, TermFormatString>) {
+                        return unify_(b, a);
+                    } else {
+                        // NOTE: can only match symbols/variables handled above
+                        return false;
                     }
                 }
                 // tuples

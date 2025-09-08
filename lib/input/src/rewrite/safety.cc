@@ -34,6 +34,16 @@ class GetDep {
         }
     }
 
+    void operator()(FormatField const &term) const { depend_->emplace_back(term.lhs().name()); }
+
+    void operator()([[maybe_unused]] FormatFieldString const &term) const {}
+
+    void operator()(TermFormatString const &term, [[maybe_unused]] bool can_provide) const {
+        for (auto const &elem : term.elems()) {
+            std::visit(*this, elem);
+        }
+    }
+
     void operator()([[maybe_unused]] TermSymbol const &term, [[maybe_unused]] bool can_provide) const {}
 
     void operator()(ArgumentTuple const &tuple, bool can_provide) const {

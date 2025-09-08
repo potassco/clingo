@@ -16,6 +16,13 @@ namespace CppClingo::Input {
 
 namespace {
 
+//! Check if a given term matches a specific type or pattern, such as positive
+//! number, atom, identifier, or signed identifier.
+//!
+//! It uses `std::visit` to recursively inspect the term's structure and type,
+//! optionally storing information (like the matched identifier or sign) in a
+//! result struct. It returns `true` if the term matches the requested type,
+//! otherwise `false`.
 struct CheckType {
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
@@ -88,7 +95,7 @@ struct CheckType {
     }
 
     template <class T> auto operator()([[maybe_unused]] T const &x) const -> bool {
-        static_assert(Util::is_among_v<T, TermVariable, TermTuple, TermAbs>);
+        static_assert(Util::is_among_v<T, TermVariable, TermTuple, TermAbs, TermFormatString>);
         return false;
     }
 
@@ -113,7 +120,7 @@ struct AlwaysNumeric {
         if constexpr (Util::is_among_v<T, TermAbs, TermBinary>) {
             return true;
         } else {
-            static_assert(Util::is_among_v<T, TermVariable, TermFunction>);
+            static_assert(Util::is_among_v<T, TermVariable, TermFunction, TermFormatString>);
             return false;
         }
     }
@@ -136,7 +143,7 @@ struct NeverNumeric {
         if constexpr (Util::is_among_v<T, TermAbs, TermBinary, TermVariable>) {
             return false;
         } else {
-            static_assert(Util::is_among_v<T, TermFunction>);
+            static_assert(Util::is_among_v<T, TermFunction, TermFormatString>);
             return true;
         }
     }
@@ -160,7 +167,7 @@ struct IsMatchable {
     template <class T> auto operator()(T const &term) const -> bool {
         if constexpr (Util::is_among_v<T, Term, Argument, TupleElement>) {
             return std::visit(*this, term);
-        } else if constexpr (Util::is_among_v<T, TermAbs>) {
+        } else if constexpr (Util::is_among_v<T, TermAbs, TermFormatString>) {
             return false;
         } else if constexpr (Util::is_among_v<T, TermSymbol, Projection, TermVariable>) {
             return true;
@@ -237,6 +244,11 @@ struct IsClassical {
     }
 };
 
+//! The IsFact checks if a given term can be represented as a symbol.
+//!
+//! It recursively visits terms, attempting to construct a `Symbol`. If
+//! successful, it returns the corresponding `Symbol`; otherwise, it returns
+//! `std::nullopt`.
 class IsFact {
   public:
     IsFact(SymbolStore &store) : store_{&store} {}
@@ -248,6 +260,27 @@ class IsFact {
     auto operator()([[maybe_unused]] TermVariable const &term) const -> std::optional<Symbol> { return std::nullopt; }
 
     auto operator()(TermSymbol const &term) const -> std::optional<Symbol> { return term.value(); }
+
+    auto operator()(TermFormatString const &term) const -> std::optional<Symbol> {
+        auto res = std::string{};
+        for (auto const &field : term.elems()) {
+            if (!std::visit(
+                    [&res]<class T>(T const &x) {
+                        if constexpr (Util::is_among_v<T, FormatFieldString>) {
+                            res += x.value().view();
+                            return true;
+                        } else if constexpr (std::is_same_v<T, FormatField>) {
+                            return false;
+                        } else {
+                            static_assert(Util::is_among_v<T, void>);
+                        }
+                    },
+                    field)) {
+                return std::nullopt;
+            }
+        }
+        return SymbolStore::str_ref(store_->string_ref(res));
+    }
 
     auto operator()(ArgumentTuple const &tuple) const -> std::optional<SymbolVec> {
         SymbolVec res;

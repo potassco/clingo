@@ -172,9 +172,13 @@ auto make_ast(std::shared_ptr<U> owner, CppClingo::Input::Projection const &proj
 template <class U>
 auto make_ast(std::shared_ptr<U> owner, CppClingo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
     return std::visit(
-        [&owner]<class T>(T const &x) {
+        [&owner]<class T>(T const &x) -> std::unique_ptr<clingo_ast_t> {
             if constexpr (std::is_same_v<T, CppClingo::Input::TermVariable>) {
                 return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_term_variable, &x);
+            }
+            if constexpr (std::is_same_v<T, CppClingo::Input::TermFormatString>) {
+                // FIXME: add implementation
+                throw std::logic_error("implement me: ast representation for format string");
             }
             if constexpr (std::is_same_v<T, CppClingo::Input::TermSymbol>) {
                 return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_term_symbolic, &x);

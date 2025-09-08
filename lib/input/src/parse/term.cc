@@ -692,12 +692,7 @@ auto parse_term(ParserState &state) -> std::optional<Term> {
                         continue;
                     }
                     case TokenType::fstr: {
-                        // TODO: implement formatted strings
-                        auto fstr = state.fstr();
-                        std::stringstream oss;
-                        oss << fstr;
-                        state.push_value<Term>(std::in_place_type<TermSymbol>, state.loc(),
-                                               SymbolStore::str_ref(state.store().string_ref(oss.view())));
+                        state.push_value<Term>(state.fstr());
                         state.consume();
                         cont_expr(state);
                         continue;

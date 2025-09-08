@@ -35,7 +35,7 @@ struct CheckSyntax {
     }
 
     template <class T> auto operator()([[maybe_unused]] T const &x, [[maybe_unused]] SyntaxCheck check) const -> bool {
-        static_assert(Util::is_among_v<T, LitBool, TheoryTerm, TermSymbol>);
+        static_assert(Util::is_among_v<T, LitBool, TheoryTerm, TermSymbol, FormatFieldString>);
         return true;
     }
 
@@ -51,6 +51,17 @@ struct CheckSyntax {
             return false;
         }
         return true;
+    }
+
+    auto operator()(FormatField const &field, SyntaxCheck check) const -> bool {
+        return operator()(field.lhs(), check);
+    }
+
+    auto operator()(TermFormatString const &term, SyntaxCheck check) const -> bool {
+        check -= check = SyntaxCheck::project | SyntaxCheck::project_tuple;
+        return std::ranges::all_of(term.elems(), [this, check](auto const &elem) {
+            return std::visit(*this, elem, std::variant<SyntaxCheck>{check});
+        });
     }
 
     auto operator()(Projection const &pro, SyntaxCheck check) const -> bool {

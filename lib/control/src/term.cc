@@ -64,12 +64,17 @@ class BuilderTerm {
 
     //! Translate a variable.
     auto operator()(Input::TermVariable const &term) const -> Ground::UTerm {
-        assert(var_map_->find(term.name()) != var_map_->end());
+        assert(var_map_->contains(term.name()));
         return std::make_unique<Ground::TermVariable>(var_map_->find(term.name())->second);
     }
     //! Translate a symbol.
     auto operator()(Input::TermSymbol const &term) const -> Ground::UTerm {
         return std::make_unique<Ground::TermSymbol>(term.value());
+    }
+    auto operator()(Input::TermFormatString const &term) const -> Ground::UTerm {
+        // FIXME: add implementation
+        std::ignore = term;
+        throw std::logic_error("implement me: ground representation for format string");
     }
     //! Translate arguments of tuples and functions.
     [[nodiscard]] auto handle_args(Input::ArgumentArray const &args) const -> Ground::UTermVec {
@@ -124,7 +129,7 @@ class BuilderTerm {
     auto operator()(Input::TermBinary const &term) const -> Ground::UTerm {
         assert(term.op() != Input::BinaryOperator::dots);
         if (auto lin = Input::check_linear(term); lin) {
-            assert(var_map_->find(lin->x()) != var_map_->end());
+            assert(var_map_->contains(lin->x()));
             return std::make_unique<Ground::TermLinear>(term.loc(), lin->m(), var_map_->find(lin->x())->second,
                                                         lin->n());
         }
@@ -155,7 +160,7 @@ class BuilderTheoryTerm {
     }
     //! Translate a variable.
     auto operator()(Input::TheoryTermVariable const &term) const -> Ground::UTheoryTerm {
-        assert(var_map_->find(term.name()) != var_map_->end());
+        assert(var_map_->contains(term.name()));
         return std::make_unique<Ground::TheoryTermVariable>(var_map_->find(term.name())->second);
     }
     //! Translate a symbol.

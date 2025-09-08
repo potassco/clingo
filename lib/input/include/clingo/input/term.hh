@@ -33,6 +33,7 @@ class TermFunction;
 class TermAbs;
 class TermUnary;
 class TermBinary;
+class TermFormatString;
 
 //! The signature of a predicate.
 using Sig = std::tuple<String, size_t, bool>;
@@ -42,7 +43,8 @@ using SharedSig = std::tuple<SharedString, size_t, bool>;
 using SharedSigSet = Util::ordered_set<SharedSig>;
 
 //! Variant holding the different term types.
-using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;
+using Term =
+    std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary, TermFormatString>;
 
 //! A vector of terms.
 using TermArray = Util::immutable_array<Term>;
@@ -200,6 +202,14 @@ struct FormatSpec {
     //! @endcode
     [[nodiscard]] static auto build(SymbolStore &store, std::string_view str) -> std::optional<FormatSpec>;
 
+    friend auto operator==(FormatSpec const &a, FormatSpec const &b) -> bool = default;
+    friend auto operator<=>(FormatSpec const &a, FormatSpec const &b) -> std::strong_ordering = default;
+
+    [[nodiscard]] auto hash() const -> size_t {
+        return Util::value_hash_record<FormatSpec>(accessors, width, fill, type, grouping, conversion, align, sign,
+                                                   alternate_form);
+    }
+
     //! The vector of accessors.
     //!
     //! One can for exmaples use `[0].name` to refer to `g` in the term
@@ -246,7 +256,7 @@ class FormatField : public Expression<FormatField> {
 };
 
 //! A format field with a plain string value.
-class FormatFieldString {
+class FormatFieldString : public Expression<FormatFieldString> {
   public:
     //! Construct a format field with a string value.
     explicit FormatFieldString(SharedString value) : value_{std::move(value)} {}

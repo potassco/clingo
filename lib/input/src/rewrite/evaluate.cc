@@ -7,6 +7,7 @@
 #include <clingo/util/algorithm.hh>
 #include <clingo/util/checked_math.hh>
 #include <clingo/util/graph.hh>
+#include <clingo/util/type_traits.hh>
 
 namespace CppClingo::Input {
 
@@ -35,6 +36,8 @@ class BuildDep {
     // term
 
     void operator()(Term const &term) const { std::visit(*this, term); }
+
+    void operator()([[maybe_unused]] TermFormatString const &term) const {}
 
     void operator()([[maybe_unused]] Projection const &pro) const {}
 
@@ -178,6 +181,27 @@ class Evaluate {
     // term
 
     auto operator()(Term const &term) const -> std::optional<Symbol> { return std::visit(*this, term); }
+
+    auto operator()(TermFormatString const &term) const -> std::optional<Symbol> {
+        auto res = std::string{};
+        for (auto const &field : term.elems()) {
+            if (!std::visit(
+                    [&res]<class T>(T const &x) {
+                        if constexpr (Util::is_among_v<T, FormatFieldString>) {
+                            res += x.value().view();
+                            return true;
+                        } else if constexpr (std::is_same_v<T, FormatField>) {
+                            return false;
+                        } else {
+                            static_assert(Util::is_among_v<T, void>);
+                        }
+                    },
+                    field)) {
+                return std::nullopt;
+            }
+        }
+        return SymbolStore::str_ref(store_->string_ref(res));
+    }
 
     auto operator()([[maybe_unused]] Projection const &pro) const -> std::optional<Symbol> { return std::nullopt; }
 

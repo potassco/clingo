@@ -134,6 +134,25 @@ template <class T> class Transformer {
         return rewrite(term, a_pool);
     }
 
+    [[nodiscard]] auto accept_(FormatField const &field) const -> std::optional<FormatField> {
+        if (auto term = accept_(field.lhs()); term) {
+            if (auto *var = std::get_if<TermVariable>(&*term); var != nullptr) {
+                return field.update(a_lhs = *std::move(var));
+            }
+            throw std::logic_error("FormatField lhs must be a TermVariable after transformation");
+        }
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept_([[maybe_unused]] FormatFieldString const &field) const
+        -> std::optional<FormatFieldString> {
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept_(TermFormatString const &term) const -> std::optional<Term> {
+        return rewrite(term, a_elems);
+    }
+
     [[nodiscard]] auto accept_(TermUnary const &term) const -> std::optional<Term> { return rewrite(term, a_rhs); }
 
     [[nodiscard]] auto accept_(TermBinary const &term) const -> std::optional<Term> {

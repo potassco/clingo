@@ -339,6 +339,14 @@ class SimplifyTerm {
         return TermType::any;
     }
 
+    //! Simplify the given variable.
+    auto operator()([[maybe_unused]] TermFormatString const &term, [[maybe_unused]] SimplifyTermFlags flags) const
+        -> TermResult {
+        // Note: Currently, there is no indicator like for functions and
+        // tuples. Hence, we use any.
+        return TermType::any;
+    }
+
     //! Simplify the given function term.
     auto operator()(TermFunction const &term, SimplifyTermFlags flags) const -> TermResult {
         if (term.pool().size() != 1) {
@@ -777,6 +785,12 @@ class MakeMatchableTerm {
 
     //! Make the given variable term matchable.
     auto operator()([[maybe_unused]] TermVariable const &term, [[maybe_unused]] SimplifyTermFlags flags) const
+        -> Result {
+        return std::nullopt;
+    }
+
+    //! Make the given format string term matchable.
+    auto operator()([[maybe_unused]] TermFormatString const &term, [[maybe_unused]] SimplifyTermFlags flags) const
         -> Result {
         return std::nullopt;
     }

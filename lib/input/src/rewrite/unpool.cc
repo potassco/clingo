@@ -103,6 +103,10 @@ class Unpool {
         return std::nullopt;
     }
 
+    auto operator()([[maybe_unused]] TermFormatString const &term) const -> std::optional<std::vector<Term>> {
+        return std::nullopt;
+    }
+
     auto operator()(Argument const &elem) const -> std::optional<std::vector<Argument>> {
         return std::visit(
             [this]<class T>(T const &x) -> std::optional<std::vector<Argument>> {
