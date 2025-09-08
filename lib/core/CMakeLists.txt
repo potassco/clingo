@@ -3,6 +3,7 @@ set(ide_header_group "Header Files")
 set(header-group-clingo-core
     "include/clingo/core/backend.hh"
     "include/clingo/core/core.hh"
+    "include/clingo/core/fstring.hh"
     "include/clingo/core/location.hh"
     "include/clingo/core/logger.hh"
     "include/clingo/core/number.hh"
@@ -16,6 +17,7 @@ set(header
 set(ide_source_group "Source Files")
 set(source-group
     "src/core.cc"
+    "src/fstring.cc"
     "src/number.cc"
     "src/symbol.cc")
 source_group("${ide_source_group}" FILES ${source-group})

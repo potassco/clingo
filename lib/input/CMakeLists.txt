@@ -44,8 +44,7 @@ set(source-group
     "src/parser.cc"
     "src/print.cc"
     "src/program.cc"
-    "src/rewrite.cc"
-    "src/term.cc")
+    "src/rewrite.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source-group-parse
     "src/parse/aspif.cc"

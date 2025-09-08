@@ -72,9 +72,23 @@ class BuilderTerm {
         return std::make_unique<Ground::TermSymbol>(term.value());
     }
     auto operator()(Input::TermFormatString const &term) const -> Ground::UTerm {
-        // FIXME: add implementation
-        std::ignore = term;
-        throw std::logic_error("implement me: ground representation for format string");
+        auto elems = Ground::FormatFieldVec{};
+        elems.reserve(term.elems().size());
+        for (auto const &elem : term.elems()) {
+            std::visit(
+                [&, this]<class T>(T const &elem) {
+                    if constexpr (Util::matches<T, Input::FormatField>) {
+                        assert(var_map_->contains(elem.lhs().name()));
+                        elems.emplace_back(std::in_place_type<std::pair<size_t, FormatSpec>>,
+                                           var_map_->find(elem.lhs().name())->second, elem.rhs());
+                    } else {
+                        static_assert(Util::matches<T, Input::FormatFieldString>);
+                        elems.emplace_back(std::in_place_type<SharedString>, elem.value());
+                    }
+                },
+                elem);
+        }
+        return std::make_unique<Ground::TermFormatString>(std::move(elems));
     }
     //! Translate arguments of tuples and functions.
     [[nodiscard]] auto handle_args(Input::ArgumentArray const &args) const -> Ground::UTermVec {

@@ -1,6 +1,7 @@
-#include <clingo/input/term.hh>
+#include <clingo/core/fstring.hh>
+#include <clingo/util/type_traits.hh>
 
-namespace CppClingo::Input {
+namespace CppClingo {
 
 namespace {
 
@@ -64,6 +65,130 @@ auto is_align(char c) -> std::optional<FormatSpec::Align> {
     }
     return std::nullopt;
 };
+
+auto to_string(FormatSpec::Align x) -> std::string_view {
+    switch (x) {
+        case FormatSpec::Align::left: {
+            return "<";
+        }
+        case FormatSpec::Align::right: {
+            return ">";
+        }
+        case FormatSpec::Align::center: {
+            return "^";
+        }
+        case FormatSpec::Align::number: {
+            return "=";
+        }
+        default: {
+            return "";
+        }
+    }
+}
+
+auto to_string(FormatSpec::Type x) -> std::string_view {
+    switch (x) {
+        case FormatSpec::Type::character: {
+            return "c";
+        }
+        case FormatSpec::Type::binary: {
+            return "b";
+        }
+        case FormatSpec::Type::octal: {
+            return "o";
+        }
+        case FormatSpec::Type::decimal: {
+            return "d";
+        }
+        case FormatSpec::Type::hex_lower: {
+            return "x";
+        }
+        case FormatSpec::Type::hex_upper: {
+            return "X";
+        }
+        case FormatSpec::Type::locale: {
+            return "n";
+        }
+        default: {
+            return "";
+        }
+    }
+}
+
+auto to_string(FormatSpec::Sign x) -> std::string_view {
+    switch (x) {
+        case FormatSpec::Sign::plus: {
+            return "+";
+        }
+        case FormatSpec::Sign::minus: {
+            return "-";
+        }
+        case FormatSpec::Sign::space: {
+            return " ";
+        }
+        default: {
+            return "";
+        }
+    }
+}
+
+auto to_string(FormatSpec::Grouping x) -> std::string_view {
+    switch (x) {
+        case FormatSpec::Grouping::comma: {
+            return ",";
+        }
+        case FormatSpec::Grouping::underscore: {
+            return "_";
+        }
+        default: {
+            return "";
+        }
+    }
+}
+
+auto to_string(FormatSpec::Conversion x) -> std::string_view {
+    switch (x) {
+        case FormatSpec::Conversion::repr: {
+            return "!r";
+        }
+        default: {
+            return "";
+        }
+    }
+}
+
+template <class T> auto print_spec(T &out, FormatSpec const &spec) -> T & {
+    for (auto const &x : spec.accessors) {
+        std::visit(
+            [&out]<class U>(U const &acc) {
+                if constexpr (Util::is_among_v<U, size_t>) {
+                    out << "[" << acc << "]";
+                } else {
+                    static_assert(Util::is_among_v<U, SharedString>);
+                    out << "." << *acc;
+                }
+            },
+            x);
+    }
+    out << to_string(spec.conversion);
+    if (spec.fill || spec.conversion != FormatSpec::Conversion::str || spec.align != FormatSpec::Align::none ||
+        spec.sign != FormatSpec::Sign::minus || spec.alternate_form || spec.width > 0 ||
+        spec.grouping != FormatSpec::Grouping::none || spec.type != FormatSpec::Type::string) {
+        out << ":";
+        if (spec.fill) {
+            out << *spec.fill;
+        }
+        out << to_string(spec.align) << to_string(spec.sign);
+        if (spec.alternate_form) {
+            out << "#";
+        }
+        if (spec.width > 0) {
+            out << std::to_string(spec.width);
+        }
+        out << to_string(spec.grouping) << to_string(spec.type);
+    }
+    return out;
+}
 
 } // namespace
 
@@ -168,4 +293,11 @@ auto FormatSpec::build(SymbolStore &store, std::string_view str) -> std::optiona
     return ret;
 }
 
-} // namespace CppClingo::Input
+auto operator<<(std::ostream &out, FormatSpec const &spec) -> std::ostream & {
+    return print_spec(out, spec);
+}
+
+auto operator<<(Util::OutputBuffer &out, FormatSpec const &spec) -> Util::OutputBuffer & {
+    return print_spec(out, spec);
+}
+} // namespace CppClingo

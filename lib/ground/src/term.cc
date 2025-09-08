@@ -1,8 +1,9 @@
-#include <algorithm>
 #include <clingo/ground/term.hh>
 
 #include <clingo/util/optional.hh>
+#include <clingo/util/type_traits.hh>
 
+#include <algorithm>
 #include <typeindex>
 
 namespace CppClingo::Ground {
@@ -159,6 +160,126 @@ auto TermSymbol::do_equal_to(Term const &other) const -> bool {
 auto TermSymbol::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
     if (auto const *x = dynamic_cast<TermSymbol const *>(&other); x != nullptr) {
         return sym_ <=> x->sym_;
+    }
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
+}
+
+// TermFormatString
+
+auto TermFormatString::do_score([[maybe_unused]] double size, [[maybe_unused]] std::vector<bool> const &bound) const
+    -> double {
+    // All variables in a format string must be bound.
+    return 0.0;
+}
+
+auto TermFormatString::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
+    return eval(ctx) == sym;
+}
+
+auto TermFormatString::do_eval([[maybe_unused]] EvalContext const &ctx) const -> std::optional<Symbol> {
+    buf_.reset();
+    for (auto const &elem : elems_) {
+        std::visit(
+            [this, &ctx]<class T>(T const &x) {
+                if constexpr (Util::is_among_v<T, SharedString>) {
+                    buf_.append(x->view());
+                } else {
+                    static_assert(Util::is_among_v<T, std::pair<size_t, FormatSpec>>);
+                    buf_ << *ctx.ass()[x.first];
+                }
+            },
+            elem);
+    }
+    return SymbolStore::str_ref(ctx.store().string_ref(buf_.str()));
+}
+
+auto TermFormatString::do_rename([[maybe_unused]] SymbolStore &store, RenameMode mode, String const *name,
+                                 size_t *vars) const -> UTerm {
+    assert(name == nullptr);
+    auto renamed = FormatFieldVec{};
+    renamed.reserve(elems_.size());
+    for (auto const &elem : elems_) {
+        std::visit(
+            [&]<class T>(T const &x) {
+                if constexpr (Util::is_among_v<T, SharedString>) {
+                    renamed.emplace_back(x);
+                } else {
+                    auto var = mode == RenameMode::rename_vars && vars != nullptr ? (*vars)++ : x.first;
+                    renamed.emplace_back(std::in_place_type<std::pair<size_t, FormatSpec>>, var, x.second);
+                }
+            },
+            elem);
+    }
+    return std::make_unique<TermFormatString>(std::move(renamed));
+}
+
+auto TermFormatString::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
+    auto renamed = FormatFieldVec{};
+    renamed.reserve(elems_.size());
+    for (auto const &elem : elems_) {
+        std::visit(
+            [&]<class T>(T const &x) {
+                if constexpr (Util::is_among_v<T, SharedString>) {
+                    renamed.emplace_back(x);
+                } else {
+                    auto var = vars.try_emplace(x.first, vars.size()).first->second;
+                    renamed.emplace_back(std::in_place_type<std::pair<size_t, FormatSpec>>, var, x.second);
+                }
+            },
+            elem);
+    }
+    return std::make_unique<TermFormatString>(std::move(renamed));
+}
+
+void TermFormatString::do_vars(VariableSet &vars, bool provide) const {
+    for (auto const &elem : elems_) {
+        std::visit(
+            [&]<class T>(T const &x) {
+                if constexpr (Util::is_among_v<T, std::pair<size_t, FormatSpec>>) {
+                    if (!provide) {
+                        vars.emplace(x.first);
+                    }
+                } else {
+                    static_assert(Util::is_among_v<T, SharedString>);
+                }
+            },
+            elem);
+    }
+}
+
+void TermFormatString::do_print(std::ostream &out) const {
+    out << "f\"";
+    for (auto const &elem : elems_) {
+        std::visit(
+            [&out]<class T>(T const &x) {
+                if constexpr (Util::is_among_v<T, SharedString>) {
+                    out << Util::p_quoted(x->view());
+                } else {
+                    static_assert(Util::is_among_v<T, std::pair<size_t, FormatSpec>>);
+                    out << "{X_" << x.first << ":" << x.second << "}";
+                }
+            },
+            elem);
+    }
+    out << "\"";
+}
+
+auto TermFormatString::do_copy() const -> UTerm {
+    return std::make_unique<TermFormatString>(elems_);
+}
+
+auto TermFormatString::do_hash() const -> size_t {
+    return Util::value_hash_record<TermFormatString>(elems_);
+}
+
+auto TermFormatString::do_equal_to(Term const &other) const -> bool {
+    auto const *x = dynamic_cast<TermFormatString const *>(&other);
+    return x != nullptr && elems_ == x->elems_;
+}
+
+auto TermFormatString::do_compare_to(Term const &other) const -> std::strong_ordering {
+    if (auto const *x = dynamic_cast<TermFormatString const *>(&other); x != nullptr) {
+        return std::lexicographical_compare_three_way(elems_.begin(), elems_.end(), x->elems_.begin(), x->elems_.end());
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
