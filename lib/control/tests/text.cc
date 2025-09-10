@@ -650,6 +650,9 @@ TEST_CASE("grounder_text") {
                     x(p(f("x", y))).
                     x("xyz").
                     y(abc).
+                    z(0x3042).
+                    z(0x301).
+                    z(0x41).
                 )");
                 grd.parse(prg);
                 REQUIRE(grd.ground(params));
@@ -721,6 +724,8 @@ TEST_CASE("grounder_text") {
             REQUIRE(ground(R"(q(f"{X:.<7}") :- y(X).)") == SV{"abc...."});
             REQUIRE(ground(R"(q(f"{X:.>7}") :- y(X).)") == SV{"....abc"});
             REQUIRE(ground(R"(q(f"{X:.^8}") :- y(X).)") == SV{"..abc..."});
+            // character
+            REQUIRE(ground(R"(q(f"{X:c}") :- z(X).)") == SV{"A", "́", "あ"});
             // accessors
             // TODO:
             // nested terms

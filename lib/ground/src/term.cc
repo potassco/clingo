@@ -251,16 +251,42 @@ auto insert_prefix(Util::OutputBuffer &buf, size_t &start, std::string_view pref
     start += prefix.size();
 }
 
+auto append_chr(Util::OutputBuffer &buf, Number const &num) -> bool {
+    // NOLINTBEGIN(readability-magic-numbers)
+    auto cp = static_cast<uint32_t>(num.as_int().value_or(-1));
+    if (num > 0x10FFFF || (num >= 0xD800 && num <= 0xDFFF)) {
+        buf.append('?');
+        return false;
+    }
+    if (cp < 0x80) {
+        buf.append(static_cast<char>(cp));
+    } else if (cp < 0x800) {
+        buf.append(static_cast<char>(0xC0 | (cp >> 6)));
+        buf.append(static_cast<char>(0x80 | (cp & 0x3F)));
+    } else if (cp < 0x10000) {
+        buf.append(static_cast<char>(0xE0 | (cp >> 12)));
+        buf.append(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        buf.append(static_cast<char>(0x80 | (cp & 0x3F)));
+    } else {
+        buf.append(static_cast<char>(0xF0 | (cp >> 18)));
+        buf.append(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+        buf.append(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        buf.append(static_cast<char>(0x80 | (cp & 0x3F)));
+    }
+    return true;
+    // NOLINTEND(readability-magic-numbers)
+}
+
 } // namespace
 
 auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
-
     buf_.reset();
     for (auto const &elem : elems_) {
-        std::visit(
+        auto res = std::visit(
             [this, &ctx]<class T>(T const &x) {
                 if constexpr (Util::is_among_v<T, SharedString>) {
                     buf_.append(x->view());
+                    return true;
                 } else {
                     static_assert(Util::is_among_v<T, std::pair<size_t, FormatSpec>>);
                     // TODO: handle accessors
@@ -268,7 +294,17 @@ auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Sy
                     auto const &val = ctx.ass()[x.first].value(); // NOLINT
                     if (val.type() == SymbolType::string && spec.conversion == FormatSpec::Conversion::str) {
                         align(buf_, val.str().view(), spec);
-                    } else if (val.type() == SymbolType::number) {
+                        return true;
+                    }
+                    if (val.type() == SymbolType::number && spec.type == FormatSpec::Type::character) {
+                        tmp_.reset();
+                        if (!append_chr(tmp_, val.num())) {
+                            return false;
+                        }
+                        align(buf_, tmp_.view(), spec);
+                        return true;
+                    }
+                    if (val.type() == SymbolType::number) {
                         tmp_.reset();
                         if (spec.sign == FormatSpec::Sign::space && val.num() >= 0) {
                             tmp_.append(' ');
@@ -330,9 +366,6 @@ auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Sy
                         //   - hex_lower
                         //   - hex_upper
                         //   - string
-                        // TODO:
-                        // - types:
-                        //   - character
 
                         size_t start = !tmp_.empty() && is_sign(tmp_.view().front()) ? 1 : 0;
 
@@ -382,14 +415,21 @@ auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Sy
                         }
 
                         align(buf_, tmp_.view(), spec, FormatSpec::Align::right);
-                    } else {
-                        tmp_.reset();
-                        tmp_ << val;
-                        align(buf_, tmp_.view(), spec);
+                        return true;
                     }
+                    if (spec.type == FormatSpec::Type::character) {
+                        return false;
+                    }
+                    tmp_.reset();
+                    tmp_ << val;
+                    align(buf_, tmp_.view(), spec);
+                    return true;
                 }
             },
             elem);
+        if (!res) {
+            return std::nullopt;
+        }
     }
     return SymbolStore::str_ref(ctx.store().string_ref(buf_.str()));
 }
