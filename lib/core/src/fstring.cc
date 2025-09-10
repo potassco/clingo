@@ -18,8 +18,8 @@ auto is_ascii(char c) -> bool {
 };
 
 auto match_pred(std::string_view &sv, auto pred) {
-    auto const *ib = sv.begin();
-    auto const *it = std::ranges::find_if_not(sv, pred);
+    auto ib = sv.begin(); // NOLINT
+    auto it = std::ranges::find_if_not(sv, pred);
     sv.remove_prefix(std::distance(ib, it));
     return std::string_view{ib, it};
 };
