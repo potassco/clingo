@@ -225,6 +225,7 @@ class TermFormatString : public Term {
 
     FormatFieldVec elems_;
     mutable Util::OutputBuffer buf_;
+    mutable Util::OutputBuffer tmp_;
 };
 
 //! A term capturing a variable.

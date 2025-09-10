@@ -1080,6 +1080,18 @@ auto operator<<(Util::OutputBuffer &out, Number const &num) -> Util::OutputBuffe
     return out;
 }
 
+void append(Util::OutputBuffer &out, Number const &num, int base) {
+    if (repr_is_int(num.repr_)) {
+        out.append(repr_to_int(num.repr_), base);
+    } else {
+        auto *z = repr_to_bigint(num.repr_);
+        auto len = mp_int_string_len(&z->num, base);
+        auto target = out.reserve(len);
+        handle_error(mp_int_to_string(&z->num, base, target.data(), len));
+        out.trim_zero(len);
+    }
+}
+
 auto bigint_refcount(uint64_t repr) -> std::atomic_size_t & {
     return repr_to_bigint(repr)->ref_count;
 }

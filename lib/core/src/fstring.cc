@@ -39,7 +39,7 @@ template <class T> auto match_num(std::string_view &sv) -> std::optional<T> {
     if (is_digit(sv.front())) {
         auto ret = T{};
         auto const *ib = sv.data();
-        auto const *ie = std::next(ib, static_cast<ssize_t>(sv.size()));
+        auto const *ie = std::next(ib, std::ssize(sv));
         auto [it, ec] = std::from_chars(ib, ie, ret);
         if (ec != std::errc{}) {
             return std::nullopt;
@@ -58,6 +58,7 @@ auto is_align(char c) -> std::optional<FormatSpec::Align> {
         return FormatSpec::Align::right;
     }
     if (c == '=') {
+        printf("the align is number!!!\n");
         return FormatSpec::Align::number;
     }
     if (c == '^') {

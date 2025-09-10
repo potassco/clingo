@@ -4,6 +4,7 @@
 #include <clingo/util/type_traits.hh>
 
 #include <algorithm>
+#include <ranges>
 #include <typeindex>
 
 namespace CppClingo::Ground {
@@ -176,7 +177,84 @@ auto TermFormatString::do_match(EvalContext const &ctx, Symbol sym) const -> boo
     return eval(ctx) == sym;
 }
 
-auto TermFormatString::do_eval([[maybe_unused]] EvalContext const &ctx) const -> std::optional<Symbol> {
+namespace {
+
+auto align(Util::OutputBuffer &out, std::string_view str, FormatSpec const &spec,
+           FormatSpec::Align def = FormatSpec::Align::left) {
+    auto fill = [&](size_t padding) {
+        std::ranges::fill_n(std::back_inserter(out), static_cast<ptrdiff_t>(padding), spec.fill.value_or(' '));
+    };
+    if (str.size() < spec.width) {
+        auto padding = spec.width - str.size();
+        switch (spec.align == FormatSpec::Align::none ? def : spec.align) {
+            case FormatSpec::Align::center: {
+                if (str.size() < spec.width) {
+                    auto left = padding / 2;
+                    auto right = padding - left;
+                    fill(left);
+                    out << str;
+                    fill(right);
+                }
+                break;
+            }
+            case FormatSpec::Align::right: {
+                fill(padding);
+                out << str;
+                break;
+            }
+            default: {
+                out << str;
+                fill(padding);
+                break;
+            }
+        }
+    } else {
+        out << str;
+    }
+}
+
+auto is_sign(char c) -> bool {
+    return c == '+' || c == '-' || c == ' ';
+}
+
+auto insert_sep(Util::OutputBuffer &tmp, size_t start, char sep, FormatSpec::Type type) {
+    auto digits = tmp.size() - start;
+    int width =
+        type == FormatSpec::Type::binary || type == FormatSpec::Type::hex_lower || type == FormatSpec::Type::hex_upper
+            ? 4
+            : 3;
+    if (digits <= static_cast<size_t>(width)) {
+        return;
+    }
+    auto seps = (digits - 1) / width;
+    tmp.reserve(static_cast<ptrdiff_t>(seps));
+
+    auto span = tmp.span();
+    auto jt = span.rbegin();
+    int group = -1;
+    for (char c : std::views::reverse(span.subspan(start, digits))) {
+        if (++group == width) {
+            *jt++ = sep;
+            group = 0;
+        }
+        *jt++ = c;
+    }
+}
+
+auto insert_prefix(Util::OutputBuffer &buf, size_t &start, std::string_view prefix) {
+    size_t digits = buf.size() - start;
+    buf.reserve(std::ssize(prefix));
+    auto span = buf.span();
+    auto num = span.subspan(start, digits);
+    std::ranges::copy_backward(num, buf.span().end());
+    std::ranges::copy(prefix, num.begin());
+    start += prefix.size();
+}
+
+} // namespace
+
+auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
+
     buf_.reset();
     for (auto const &elem : elems_) {
         std::visit(
@@ -185,7 +263,130 @@ auto TermFormatString::do_eval([[maybe_unused]] EvalContext const &ctx) const ->
                     buf_.append(x->view());
                 } else {
                     static_assert(Util::is_among_v<T, std::pair<size_t, FormatSpec>>);
-                    buf_ << *ctx.ass()[x.first];
+                    // TODO: handle accessors
+                    auto const &[var, spec] = x;
+                    auto const &val = ctx.ass()[x.first].value(); // NOLINT
+                    if (val.type() == SymbolType::string && spec.conversion == FormatSpec::Conversion::str) {
+                        align(buf_, val.str().view(), spec);
+                    } else if (val.type() == SymbolType::number) {
+                        tmp_.reset();
+                        if (spec.sign == FormatSpec::Sign::space && val.num() >= 0) {
+                            tmp_.append(' ');
+                        }
+                        if (spec.sign == FormatSpec::Sign::plus && val.num() >= 0) {
+                            tmp_.append('+');
+                        }
+                        switch (spec.type) {
+                            case FormatSpec::Type::binary: {
+                                append(tmp_, val.num(), 2);
+                                break;
+                            }
+                            case FormatSpec::Type::octal: {
+                                append(tmp_, val.num(), 8); // NOLINT
+                                break;
+                            }
+                            case FormatSpec::Type::hex_lower: {
+                                append(tmp_, val.num(), 16); // NOLINT
+                                auto span = tmp_.span();
+                                std::ranges::transform(span, span.begin(), [](char c) {
+                                    return static_cast<char>(static_cast<unsigned char>(std::tolower(c)));
+                                });
+                                break;
+                            }
+                            case FormatSpec::Type::hex_upper: {
+                                append(tmp_, val.num(), 16); // NOLINT
+                                auto span = tmp_.span();
+                                std::ranges::transform(span, span.begin(), [](char c) {
+                                    return static_cast<char>(static_cast<unsigned char>(std::toupper(c)));
+                                });
+                                break;
+                            }
+                            default: {
+                                append(tmp_, val.num(), 10); // NOLINT
+                                break;
+                            }
+                        }
+                        //! spec     ::= variable(accessor*)[[fill]align][sign]["#"]"][width][grouping][type]
+                        //! variable ::= <clingo variable>
+                        //! accessor ::= "." <clingo identifier> | "[" <unsigned number> "]"
+                        //! fill     ::= <any character>
+                        //! align    ::= "<" | ">" | "=" | "^"
+                        //! sign     ::= "+" | "-" | " "
+                        //! width    ::= <unsigned number>
+                        //! grouping ::= "," | "_"
+                        //! type     ::= "b" | "c" | "d" | "o" | "x" | "X" | "n" | "s"
+
+                        // DONE:
+                        // - fill
+                        // - align
+                        // - sign
+                        // - width
+                        // - alternate form
+                        // - grouping
+                        // - types:
+                        //   - binary
+                        //   - decimal
+                        //   - octal
+                        //   - hex_lower
+                        //   - hex_upper
+                        //   - string
+                        // TODO:
+                        // - types:
+                        //   - character
+
+                        size_t start = !tmp_.empty() && is_sign(tmp_.view().front()) ? 1 : 0;
+
+                        if (spec.grouping == FormatSpec::Grouping::comma) {
+                            insert_sep(tmp_, start, ',', spec.type);
+                        } else if (spec.grouping == FormatSpec::Grouping::underscore) {
+                            insert_sep(tmp_, start, '_', spec.type);
+                        } else if (spec.type == FormatSpec::Type::locale) {
+                            thread_local auto loc = std::locale{""};
+                            auto sep = std::use_facet<std::numpunct<char>>(loc).thousands_sep();
+                            insert_sep(tmp_, start, sep, spec.type);
+                        }
+
+                        if (spec.alternate_form) {
+                            switch (spec.type) {
+                                case FormatSpec::Type::binary: {
+                                    insert_prefix(tmp_, start, "0b");
+                                    break;
+                                }
+                                case FormatSpec::Type::octal: {
+                                    insert_prefix(tmp_, start, "0o");
+                                    break;
+                                }
+                                case FormatSpec::Type::hex_lower: {
+                                    insert_prefix(tmp_, start, "0x");
+                                    break;
+                                }
+                                case FormatSpec::Type::hex_upper: {
+                                    insert_prefix(tmp_, start, "0X");
+                                    break;
+                                }
+                                default: {
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (spec.align == FormatSpec::Align::number) {
+                            auto padding =
+                                static_cast<ptrdiff_t>(tmp_.size() < spec.width ? spec.width - tmp_.size() : 0);
+                            auto digits = tmp_.size() - start;
+                            tmp_.reserve(padding);
+                            auto span = tmp_.span();
+                            auto num = span.subspan(start, digits);
+                            std::ranges::copy_backward(num, span.end());
+                            std::ranges::fill_n(num.begin(), padding, spec.fill.value_or(' '));
+                        }
+
+                        align(buf_, tmp_.view(), spec, FormatSpec::Align::right);
+                    } else {
+                        tmp_.reset();
+                        tmp_ << val;
+                        align(buf_, tmp_.view(), spec);
+                    }
                 }
             },
             elem);
@@ -256,7 +457,7 @@ void TermFormatString::do_print(std::ostream &out) const {
                     out << Util::p_quoted(x->view());
                 } else {
                     static_assert(Util::is_among_v<T, std::pair<size_t, FormatSpec>>);
-                    out << "{X_" << x.first << ":" << x.second << "}";
+                    out << "{X_" << x.first << x.second << "}";
                 }
             },
             elem);
