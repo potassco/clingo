@@ -253,8 +253,10 @@ class TermTuple;
 
 class TermFunction;
 
+class TermFormatString;
+
 using Term = std::variant<TermVariable, TermSymbolic, TermAbsolute, TermUnaryOperation, TermBinaryOperation, TermTuple,
-                          TermFunction>;
+                          TermFunction, TermFormatString>;
 
 auto construct_term(clingo_ast_t *ast) -> Term;
 
@@ -264,6 +266,76 @@ using TermIterable = Iterable<Term>;
 auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray;
 
 using OptionalTerm = std::optional<Term>;
+
+class FormatFieldLiteral;
+
+class FormatFieldExpression;
+
+using FormatField = std::variant<FormatFieldLiteral, FormatFieldExpression>;
+
+auto construct_format_field(clingo_ast_t *ast) -> FormatField;
+
+using FormatFieldArray = std::vector<FormatField>;
+using FormatFieldIterable = Iterable<FormatField>;
+
+auto construct_format_field_array(clingo_ast_t **ast, size_t size) -> FormatFieldArray;
+
+class FormatFieldLiteral : public ASTBase {
+  public:
+    FormatFieldLiteral() = default;
+    FormatFieldLiteral(FormatFieldLiteral const &x) = default;
+    FormatFieldLiteral(FormatFieldLiteral &&x) noexcept = default;
+    auto operator=(FormatFieldLiteral const &x) -> FormatFieldLiteral & = default;
+    auto operator=(FormatFieldLiteral &&x) noexcept -> FormatFieldLiteral & = default;
+    ~FormatFieldLiteral() noexcept = default;
+
+    auto location() -> Location;
+    auto value() -> std::string_view;
+
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<FormatFieldLiteral>;
+    auto update(Library &lib, py::kwargs const &kwargs) -> FormatFieldLiteral;
+
+    static auto construct(Library &lib, Location const &location, std::string_view value) -> FormatFieldLiteral;
+    static auto acquire(clingo_ast_t *ast) -> FormatFieldLiteral { return {ast}; }
+
+    friend auto operator==(FormatFieldLiteral const &a, FormatFieldLiteral const &b) -> bool = default;
+    friend auto operator<=>(FormatFieldLiteral const &a, FormatFieldLiteral const &b) -> std::strong_ordering = default;
+
+  private:
+    FormatFieldLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
+};
+
+class FormatFieldExpression : public ASTBase {
+  public:
+    FormatFieldExpression() = default;
+    FormatFieldExpression(FormatFieldExpression const &x) = default;
+    FormatFieldExpression(FormatFieldExpression &&x) noexcept = default;
+    auto operator=(FormatFieldExpression const &x) -> FormatFieldExpression & = default;
+    auto operator=(FormatFieldExpression &&x) noexcept -> FormatFieldExpression & = default;
+    ~FormatFieldExpression() noexcept = default;
+
+    auto location() -> Location;
+    auto left() -> Term;
+    auto right() -> std::string_view;
+
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<FormatFieldExpression>;
+    auto update(Library &lib, py::kwargs const &kwargs) -> FormatFieldExpression;
+
+    static auto construct(Library &lib, Location const &location, Term const &left, std::string_view right)
+        -> FormatFieldExpression;
+    static auto acquire(clingo_ast_t *ast) -> FormatFieldExpression { return {ast}; }
+
+    friend auto operator==(FormatFieldExpression const &a, FormatFieldExpression const &b) -> bool = default;
+    friend auto operator<=>(FormatFieldExpression const &a, FormatFieldExpression const &b)
+        -> std::strong_ordering = default;
+
+  private:
+    FormatFieldExpression(clingo_ast_t *ast) : ASTBase{ast} {}
+};
 
 class Projection : public ASTBase {
   public:
@@ -317,6 +389,34 @@ using TermOrArgumentTupleArray = std::vector<TermOrArgumentTuple>;
 using TermOrArgumentTupleIterable = Iterable<TermOrArgumentTuple>;
 
 auto construct_term_or_argument_tuple_array(clingo_ast_t **ast, size_t size) -> TermOrArgumentTupleArray;
+
+class TermFormatString : public ASTBase {
+  public:
+    TermFormatString() = default;
+    TermFormatString(TermFormatString const &x) = default;
+    TermFormatString(TermFormatString &&x) noexcept = default;
+    auto operator=(TermFormatString const &x) -> TermFormatString & = default;
+    auto operator=(TermFormatString &&x) noexcept -> TermFormatString & = default;
+    ~TermFormatString() noexcept = default;
+
+    auto location() -> Location;
+    auto elements() -> FormatFieldArray;
+
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+        -> std::optional<TermFormatString>;
+    auto update(Library &lib, py::kwargs const &kwargs) -> TermFormatString;
+
+    static auto construct(Library &lib, Location const &location, FormatFieldIterable const &elements)
+        -> TermFormatString;
+    static auto acquire(clingo_ast_t *ast) -> TermFormatString { return {ast}; }
+
+    friend auto operator==(TermFormatString const &a, TermFormatString const &b) -> bool = default;
+    friend auto operator<=>(TermFormatString const &a, TermFormatString const &b) -> std::strong_ordering = default;
+
+  private:
+    TermFormatString(clingo_ast_t *ast) : ASTBase{ast} {}
+};
 
 class TermVariable : public ASTBase {
   public:
@@ -2349,6 +2449,9 @@ auto construct_term(clingo_ast_t *ast) -> Term {
         case clingo_ast_type_term_function: {
             return TermFunction::acquire(ast);
         }
+        case clingo_ast_type_term_format_string: {
+            return TermFormatString::acquire(ast);
+        }
         default: {
             clingo_ast_free(ast);
             throw std::runtime_error("unexpected ast type");
@@ -2371,6 +2474,128 @@ auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray {
         throw;
     }
     return ret;
+}
+
+auto construct_format_field(clingo_ast_t *ast) -> FormatField {
+    clingo_ast_type_t type = 0;
+    if (!clingo_ast_get_type(ast, &type)) {
+        clingo_ast_free(ast);
+        raise_error();
+    }
+    switch (type) {
+        case clingo_ast_type_format_field_literal: {
+            return FormatFieldLiteral::acquire(ast);
+        }
+        case clingo_ast_type_format_field_expression: {
+            return FormatFieldExpression::acquire(ast);
+        }
+        default: {
+            clingo_ast_free(ast);
+            throw std::runtime_error("unexpected ast type");
+        }
+    }
+}
+
+auto construct_format_field_array(clingo_ast_t **ast, size_t size) -> FormatFieldArray {
+    FormatFieldArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(construct_format_field(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
+auto FormatFieldLiteral::location() -> Location {
+    clingo_location_t const *ret = nullptr;
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
+    return Location{ret};
+}
+
+auto FormatFieldLiteral::value() -> std::string_view {
+    clingo_string_t ret;
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret));
+    return {ret.data, ret.size};
+}
+
+auto FormatFieldLiteral::construct(Library &lib, Location const &location, std::string_view value)
+    -> FormatFieldLiteral {
+    clingo_ast_t *res_ = nullptr;
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_format_field_literal, &res_,
+                                      static_cast<clingo_location_t const *>(location), value.data(), value.size()));
+    return FormatFieldLiteral::acquire(res_);
+}
+
+void FormatFieldLiteral::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                               [[maybe_unused]] py::kwargs const &kwargs) {
+}
+
+auto FormatFieldLiteral::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<FormatFieldLiteral> {
+    return std::nullopt;
+}
+
+auto FormatFieldLiteral::update(Library &lib, py::kwargs const &kwargs) -> FormatFieldLiteral {
+    return FormatFieldLiteral::construct(
+        lib, update_value<Location>(this, &FormatFieldLiteral::location, kwargs, "location"),
+        update_value<std::string_view>(this, &FormatFieldLiteral::value, kwargs, "value"));
+}
+
+auto FormatFieldExpression::location() -> Location {
+    clingo_location_t const *ret = nullptr;
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
+    return Location{ret};
+}
+
+auto FormatFieldExpression::left() -> Term {
+    clingo_ast_t *ast = nullptr;
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast));
+    return construct_term(ast);
+}
+
+auto FormatFieldExpression::right() -> std::string_view {
+    clingo_string_t ret;
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_right, &ret));
+    return {ret.data, ret.size};
+}
+
+auto FormatFieldExpression::construct(Library &lib, Location const &location, Term const &left, std::string_view right)
+    -> FormatFieldExpression {
+    clingo_ast_t *res_ = nullptr;
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_format_field_expression, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(left), right.data(),
+                                      right.size()));
+    return FormatFieldExpression::acquire(res_);
+}
+
+void FormatFieldExpression::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                  [[maybe_unused]] py::kwargs const &kwargs) {
+    visitor(left(), *args, **kwargs);
+}
+
+auto FormatFieldExpression::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                      [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<FormatFieldExpression> {
+    auto [left_value, left_changed] = transform_value(left(), transform, args, kwargs);
+    if (left_changed) {
+        return FormatFieldExpression::construct(lib, location(), left_value, right());
+    }
+    return std::nullopt;
+}
+
+auto FormatFieldExpression::update(Library &lib, py::kwargs const &kwargs) -> FormatFieldExpression {
+    return FormatFieldExpression::construct(
+        lib, update_value<Location>(this, &FormatFieldExpression::location, kwargs, "location"),
+        update_value<Term>(this, &FormatFieldExpression::left, kwargs, "left"),
+        update_value<std::string_view>(this, &FormatFieldExpression::right, kwargs, "right"));
 }
 
 auto Projection::location() -> Location {
@@ -2427,6 +2652,9 @@ auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
         }
         case clingo_ast_type_term_function: {
             return TermFunction::acquire(ast);
+        }
+        case clingo_ast_type_term_format_string: {
+            return TermFormatString::acquire(ast);
         }
         case clingo_ast_type_projection: {
             return Projection::acquire(ast);
@@ -2500,6 +2728,9 @@ auto construct_term_or_argument_tuple(clingo_ast_t *ast) -> TermOrArgumentTuple 
         case clingo_ast_type_term_function: {
             return TermFunction::acquire(ast);
         }
+        case clingo_ast_type_term_format_string: {
+            return TermFormatString::acquire(ast);
+        }
         case clingo_ast_type_argument_tuple: {
             return ArgumentTuple::acquire(ast);
         }
@@ -2525,6 +2756,49 @@ auto construct_term_or_argument_tuple_array(clingo_ast_t **ast, size_t size) -> 
         throw;
     }
     return ret;
+}
+
+auto TermFormatString::location() -> Location {
+    clingo_location_t const *ret = nullptr;
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
+    return Location{ret};
+}
+
+auto TermFormatString::elements() -> FormatFieldArray {
+    clingo_ast_t **ast = nullptr;
+    size_t size = 0;
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size));
+    return construct_format_field_array(ast, size);
+}
+
+auto TermFormatString::construct(Library &lib, Location const &location, FormatFieldIterable const &elements)
+    -> TermFormatString {
+    clingo_ast_t *res_ = nullptr;
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_term_format_string, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
+                                      elements.size()));
+    return TermFormatString::acquire(res_);
+}
+
+void TermFormatString::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                             [[maybe_unused]] py::kwargs const &kwargs) {
+    visit_array(ast_, clingo_ast_attribute_elements, visitor, args, kwargs, construct_format_field);
+}
+
+auto TermFormatString::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TermFormatString> {
+    auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
+    if (elements_changed) {
+        return TermFormatString::construct(lib, location(), elements_value);
+    }
+    return std::nullopt;
+}
+
+auto TermFormatString::update(Library &lib, py::kwargs const &kwargs) -> TermFormatString {
+    return TermFormatString::construct(
+        lib, update_value<Location>(this, &TermFormatString::location, kwargs, "location"),
+        update_value<FormatFieldArray>(this, &TermFormatString::elements, kwargs, "elements"));
 }
 
 auto TermVariable::location() -> Location {
@@ -6583,8 +6857,17 @@ This can be used to auto-generate most of the binding.)doc");
 
     auto py_comment_type = py::enum_<CommentType>(ast, "CommentType", R"doc(Enumeration of comment types.)doc");
 
+    auto py_format_field_literal =
+        py::class_<FormatFieldLiteral>(ast, "FormatFieldLiteral", R"doc(A literal part of a format string.)doc");
+
+    auto py_format_field_expression = py::class_<FormatFieldExpression>(
+        ast, "FormatFieldExpression", R"doc(An expression part of a format string.)doc");
+
     auto py_projection =
         py::class_<Projection>(ast, "Projection", R"doc(A placeholder for an argument to project.)doc");
+
+    auto py_term_format_string =
+        py::class_<TermFormatString>(ast, "TermFormatString", R"doc(A term representing a format string.)doc");
 
     auto py_term_variable = py::class_<TermVariable>(ast, "TermVariable", R"doc(A term representing a variable.)doc");
 
@@ -6803,6 +7086,83 @@ term.)doc");
     py_comment_type.value("Line", CommentType::Line, R"doc(For line comments.)doc")
         .value("Block", CommentType::Block, R"doc(For block comments.)doc");
 
+    make_comparable_base<FormatField>(py_format_field_literal)
+        .def(py::init(&FormatFieldLiteral::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
+             R"doc(Construct a FormatFieldLiteral object.
+
+Args:
+    lib: The library object for storing symbols.
+    location: The location of the literal.
+    value: The value of the literal.)doc")
+        .def("__str__", &FormatFieldLiteral::to_string)
+        .def_property_readonly("location", &FormatFieldLiteral::location, R"doc(The location of the literal.)doc")
+        .def_property_readonly("value", &FormatFieldLiteral::value, R"doc(The value of the literal.)doc")
+        .def("visit", &FormatFieldLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Args:
+    visitor: The visitor accepting the sub expressions.
+)doc")
+        .def("transform", &FormatFieldLiteral::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
+
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
+)doc")
+        .def("update", &FormatFieldLiteral::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
+)doc");
+
+    make_comparable_base<FormatField>(py_format_field_expression)
+        .def(py::init(&FormatFieldExpression::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
+             py::arg("right"), R"doc(Construct a FormatFieldExpression object.
+
+Args:
+    lib: The library object for storing symbols.
+    location: The location of the expression.
+    left: The term of the expression.
+    right: The format specifier of the expression.)doc")
+        .def("__str__", &FormatFieldExpression::to_string)
+        .def_property_readonly("location", &FormatFieldExpression::location, R"doc(The location of the expression.)doc")
+        .def_property_readonly("left", &FormatFieldExpression::left, R"doc(The term of the expression.)doc")
+        .def_property_readonly("right", &FormatFieldExpression::right,
+                               R"doc(The format specifier of the expression.)doc")
+        .def("visit", &FormatFieldExpression::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Args:
+    visitor: The visitor accepting the sub expressions.
+)doc")
+        .def("transform", &FormatFieldExpression::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
+
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
+)doc")
+        .def("update", &FormatFieldExpression::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
+)doc");
+
     make_comparable_base<TermOrProjection>(py_projection)
         .def(py::init(&Projection::construct), py::arg("lib"), py::arg("location"), R"doc(Construct a Projection object.
 
@@ -6828,6 +7188,43 @@ Returns:
     The transformed object or None.
 )doc")
         .def("update", &Projection::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
+)doc");
+
+    make_comparable_base<Term>(py_term_format_string)
+        .def(py::init(&TermFormatString::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
+             R"doc(Construct a TermFormatString object.
+
+Args:
+    lib: The library object for storing symbols.
+    location: The location of the format string.
+    elements: The elements of the format string.)doc")
+        .def("__str__", &TermFormatString::to_string)
+        .def_property_readonly("location", &TermFormatString::location, R"doc(The location of the format string.)doc")
+        .def_property_readonly("elements", &TermFormatString::elements, R"doc(The elements of the format string.)doc")
+        .def("visit", &TermFormatString::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Args:
+    visitor: The visitor accepting the sub expressions.
+)doc")
+        .def("transform", &TermFormatString::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
+
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
+)doc")
+        .def("update", &TermFormatString::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
