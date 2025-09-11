@@ -730,6 +730,8 @@ TEST_CASE("grounder_text") {
             // TODO:
             // nested terms
             // TODO:
+            // subsitution
+            REQUIRE(ground(R"(q(f"{X}") :- X=1.)") == SV{"1"});
         }
     }
     // Note: the current implementation takes two iterations to clean up everything

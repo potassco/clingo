@@ -135,13 +135,7 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(FormatField const &field) const -> std::optional<FormatField> {
-        if (auto term = accept_(field.lhs()); term) {
-            if (auto *var = std::get_if<TermVariable>(&*term); var != nullptr) {
-                return field.update(a_lhs = *std::move(var));
-            }
-            throw std::logic_error("FormatField lhs must be a TermVariable after transformation");
-        }
-        return std::nullopt;
+        return rewrite(field, a_lhs);
     }
 
     [[nodiscard]] auto accept_([[maybe_unused]] FormatFieldString const &field) const

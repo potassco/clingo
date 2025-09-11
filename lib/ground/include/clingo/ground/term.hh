@@ -199,7 +199,7 @@ class TermSymbol : public Term {
 //! A format specification.
 //!
 //! It is either a fixed string or a variable with format flags.
-using FormatField = std::variant<SharedString, std::pair<size_t, FormatSpec>>;
+using FormatField = std::variant<SharedString, std::pair<UTerm, FormatSpec>>;
 //! A vector of format fields.
 using FormatFieldVec = std::vector<FormatField>;
 

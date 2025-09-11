@@ -34,7 +34,7 @@ class GetDep {
         }
     }
 
-    void operator()(FormatField const &term) const { depend_->emplace_back(term.lhs().name()); }
+    void operator()(FormatField const &term) const { std::visit(*this, *term.lhs(), std::variant<bool>{false}); }
 
     void operator()([[maybe_unused]] FormatFieldString const &term) const {}
 

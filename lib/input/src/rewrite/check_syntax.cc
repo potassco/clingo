@@ -54,7 +54,7 @@ struct CheckSyntax {
     }
 
     auto operator()(FormatField const &field, SyntaxCheck check) const -> bool {
-        return operator()(field.lhs(), check);
+        return operator()(*field.lhs(), check);
     }
 
     auto operator()(TermFormatString const &term, SyntaxCheck check) const -> bool {

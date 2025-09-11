@@ -139,25 +139,22 @@ class TermSymbol : public Expression<TermSymbol> {
 };
 
 //! A format field with a variable and format specification.
-class FormatField : public Expression<FormatField> {
+class FormatField : public RecursiveExpression<FormatField> {
   public:
-    //! Construct a format field with a variable and format specification.
-    explicit FormatField(TermVariable variable, FormatSpec flags)
-        : variable_{std::move(variable)}, flags_{std::move(flags)} {}
-
     //! The record attributes.
-    static constexpr auto attributes() {
-        return std::tuple{a_lhs = &FormatField::variable_, a_rhs = &FormatField::flags_};
-    }
+    static constexpr auto attributes() { return std::tuple{a_lhs = &FormatField::lhs_, a_rhs = &FormatField::rhs_}; }
+
+    //! Construct a format field with a variable and format specification.
+    explicit FormatField(Util::immutable_value<Term> lhs, FormatSpec rhs);
 
     //! Get the variable and format specification.
-    [[nodiscard]] auto lhs() const -> TermVariable const & { return variable_; }
+    [[nodiscard]] auto lhs() const -> Util::immutable_value<Term> const & { return lhs_; }
     //! Get the specification.
-    [[nodiscard]] auto rhs() const -> FormatSpec const & { return flags_; }
+    [[nodiscard]] auto rhs() const -> FormatSpec const & { return rhs_; }
 
   private:
-    TermVariable variable_;
-    FormatSpec flags_;
+    Util::immutable_value<Term> lhs_;
+    FormatSpec rhs_;
 };
 
 //! A format field with a plain string value.
@@ -364,6 +361,20 @@ class TermBinary : public RecursiveExpression<TermBinary> {
 };
 
 //! @}
+
+// FormatField
+
+inline FormatField::FormatField(Util::immutable_value<Term> lhs, FormatSpec rhs)
+    : lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {
+}
+
+inline auto operator==(FormatField const &a, FormatField const &b) -> bool {
+    return a.equal(b);
+}
+
+inline auto operator<=>(FormatField const &a, FormatField const &b) -> std::strong_ordering {
+    return a.compare(b);
+}
 
 // ArgumentTuple
 

@@ -62,15 +62,16 @@ class BuilderTerm {
     BuilderTerm(bool &has_projection, Util::unordered_map<String, size_t> const &var_map)
         : has_projection_{&has_projection}, var_map_{&var_map} {}
 
-    //! Translate a variable.
+    //! Translate variables.
     auto operator()(Input::TermVariable const &term) const -> Ground::UTerm {
         assert(var_map_->contains(term.name()));
         return std::make_unique<Ground::TermVariable>(var_map_->find(term.name())->second);
     }
-    //! Translate a symbol.
+    //! Translate symbols.
     auto operator()(Input::TermSymbol const &term) const -> Ground::UTerm {
         return std::make_unique<Ground::TermSymbol>(term.value());
     }
+    // Traslate format strings.
     auto operator()(Input::TermFormatString const &term) const -> Ground::UTerm {
         auto elems = Ground::FormatFieldVec{};
         elems.reserve(term.elems().size());
@@ -78,9 +79,8 @@ class BuilderTerm {
             std::visit(
                 [&, this]<class T>(T const &elem) {
                     if constexpr (Util::matches<T, Input::FormatField>) {
-                        assert(var_map_->contains(elem.lhs().name()));
-                        elems.emplace_back(std::in_place_type<std::pair<size_t, FormatSpec>>,
-                                           var_map_->find(elem.lhs().name())->second, elem.rhs());
+                        elems.emplace_back(std::in_place_type<std::pair<Ground::UTerm, FormatSpec>>,
+                                           std::visit(*this, *elem.lhs()), elem.rhs());
                     } else {
                         static_assert(Util::matches<T, Input::FormatFieldString>);
                         elems.emplace_back(std::in_place_type<SharedString>, elem.value());
