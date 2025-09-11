@@ -727,7 +727,7 @@ TEST_CASE("grounder_text") {
             // character
             REQUIRE(ground(R"(q(f"{X:c}") :- z(X).)") == SV{"A", "́", "あ"});
             // accessors
-            // TODO:
+            REQUIRE(ground(R"(q(f"{X[0][0].name}") :- X=f(g(h(1))).)") == SV{"h"});
             // nested terms
             // TODO:
             // subsitution

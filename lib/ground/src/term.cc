@@ -312,6 +312,39 @@ auto append_num(Util::OutputBuffer &buf, Number const &num, FormatSpec const &sp
     }
 }
 
+auto access(std::optional<Symbol> sym, std::vector<std::variant<SharedString, size_t>> const &accessors)
+    -> std::optional<Symbol> {
+    if (!sym) {
+        return std::nullopt;
+    }
+    for (auto const &acc : accessors) {
+        sym = std::visit(
+            [&sym]<class T>(T const &x) -> std::optional<Symbol> {
+                if constexpr (Util::matches<T, size_t>) {
+                    if (sym->type() == SymbolType::function || sym->type() == SymbolType::tuple) {
+                        if (auto args = sym->args(); x < args.size()) {
+                            return args[x];
+                        }
+                    }
+                    return std::nullopt;
+                } else {
+                    static_assert(Util::matches<T, SharedString>);
+                    if (x == "name") {
+                        if (sym->type() == SymbolType::function) {
+                            return SymbolStore::str_ref(sym->name());
+                        }
+                    }
+                    return std::nullopt;
+                }
+            },
+            acc);
+        if (!sym) {
+            return std::nullopt;
+        }
+    }
+    return sym;
+}
+
 } // namespace
 
 auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
@@ -319,14 +352,13 @@ auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Sy
     for (auto const &elem : elems_) {
         auto res = std::visit(
             [this, &ctx]<class T>(T const &x) {
-                if constexpr (Util::is_among_v<T, SharedString>) {
+                if constexpr (Util::matches<T, SharedString>) {
                     buf_.append(x->view());
                     return true;
                 } else {
-                    static_assert(Util::is_among_v<T, std::pair<UTerm, FormatSpec>>);
-                    // TODO: handle accessors
-                    auto const &[var, spec] = x;
-                    auto const val = x.first->eval(ctx);
+                    static_assert(Util::matches<T, std::pair<UTerm, FormatSpec>>);
+                    auto const &[term, spec] = x;
+                    auto const val = access(term->eval(ctx), spec.accessors);
                     if (!val) {
                         return false;
                     }
@@ -417,7 +449,7 @@ auto TermFormatString::do_rename([[maybe_unused]] SymbolStore &store, RenameMode
     for (auto const &elem : elems_) {
         std::visit(
             [&]<class T>(T const &x) {
-                if constexpr (Util::is_among_v<T, SharedString>) {
+                if constexpr (Util::matches<T, SharedString>) {
                     renamed.emplace_back(x);
                 } else {
                     renamed.emplace_back(std::in_place_type<std::pair<UTerm, FormatSpec>>,
@@ -435,7 +467,7 @@ auto TermFormatString::do_rename(Util::unordered_map<size_t, size_t> &vars) cons
     for (auto const &elem : elems_) {
         std::visit(
             [&]<class T>(T const &x) {
-                if constexpr (Util::is_among_v<T, SharedString>) {
+                if constexpr (Util::matches<T, SharedString>) {
                     renamed.emplace_back(x);
                 } else {
                     renamed.emplace_back(std::in_place_type<std::pair<UTerm, FormatSpec>>, x.first->rename(vars),
@@ -451,12 +483,12 @@ void TermFormatString::do_vars(VariableSet &vars, bool provide) const {
     for (auto const &elem : elems_) {
         std::visit(
             [&]<class T>(T const &x) {
-                if constexpr (Util::is_among_v<T, std::pair<UTerm, FormatSpec>>) {
+                if constexpr (Util::matches<T, std::pair<UTerm, FormatSpec>>) {
                     if (!provide) {
                         x.first->vars(vars, provide);
                     }
                 } else {
-                    static_assert(Util::is_among_v<T, SharedString>);
+                    static_assert(Util::matches<T, SharedString>);
                 }
             },
             elem);
@@ -468,10 +500,10 @@ void TermFormatString::do_print(std::ostream &out) const {
     for (auto const &elem : elems_) {
         std::visit(
             [&out]<class T>(T const &x) {
-                if constexpr (Util::is_among_v<T, SharedString>) {
+                if constexpr (Util::matches<T, SharedString>) {
                     out << Util::p_quoted(x->view());
                 } else {
-                    static_assert(Util::is_among_v<T, std::pair<UTerm, FormatSpec>>);
+                    static_assert(Util::matches<T, std::pair<UTerm, FormatSpec>>);
                     out << "{X_" << *x.first << x.second << "}";
                 }
             },
@@ -486,10 +518,10 @@ auto TermFormatString::do_copy() const -> UTerm {
     for (auto const &elem : elems_) {
         std::visit(
             [&]<class T>(T const &x) {
-                if constexpr (Util::is_among_v<T, SharedString>) {
+                if constexpr (Util::matches<T, SharedString>) {
                     elems.emplace_back(x);
                 } else {
-                    static_assert(Util::is_among_v<T, std::pair<UTerm, FormatSpec>>);
+                    static_assert(Util::matches<T, std::pair<UTerm, FormatSpec>>);
                     elems.emplace_back(std::in_place_type<std::pair<UTerm, FormatSpec>>, x.first->copy(), x.second);
                 }
             },
