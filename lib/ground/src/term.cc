@@ -213,10 +213,6 @@ auto align(Util::OutputBuffer &out, std::string_view str, FormatSpec const &spec
     }
 }
 
-auto is_sign(char c) -> bool {
-    return c == '+' || c == '-' || c == ' ';
-}
-
 auto insert_sep(Util::OutputBuffer &tmp, size_t start, char sep, FormatSpec::Type type) {
     auto digits = tmp.size() - start;
     int width =
@@ -277,6 +273,45 @@ auto append_chr(Util::OutputBuffer &buf, Number const &num) -> bool {
     // NOLINTEND(readability-magic-numbers)
 }
 
+auto append_num(Util::OutputBuffer &buf, Number const &num, FormatSpec const &spec) -> void {
+    if (spec.sign == FormatSpec::Sign::space && num >= 0) {
+        buf.append(' ');
+    }
+    if (spec.sign == FormatSpec::Sign::plus && num >= 0) {
+        buf.append('+');
+    }
+    switch (spec.type) {
+        case FormatSpec::Type::binary: {
+            append(buf, num, 2);
+            break;
+        }
+        case FormatSpec::Type::octal: {
+            append(buf, num, 8); // NOLINT
+            break;
+        }
+        case FormatSpec::Type::hex_lower: {
+            append(buf, num, 16); // NOLINT
+            auto span = buf.span();
+            std::ranges::transform(span, span.begin(), [](char c) {
+                return static_cast<char>(static_cast<unsigned char>(std::tolower(c)));
+            });
+            break;
+        }
+        case FormatSpec::Type::hex_upper: {
+            append(buf, num, 16); // NOLINT
+            auto span = buf.span();
+            std::ranges::transform(span, span.begin(), [](char c) {
+                return static_cast<char>(static_cast<unsigned char>(std::toupper(c)));
+            });
+            break;
+        }
+        default: {
+            append(buf, num, 10); // NOLINT
+            break;
+        }
+    }
+}
+
 } // namespace
 
 auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
@@ -292,82 +327,18 @@ auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Sy
                     // TODO: handle accessors
                     auto const &[var, spec] = x;
                     auto const &val = ctx.ass()[x.first].value(); // NOLINT
-                    if (val.type() == SymbolType::string && spec.conversion == FormatSpec::Conversion::str) {
-                        align(buf_, val.str().view(), spec);
-                        return true;
-                    }
-                    if (val.type() == SymbolType::number && spec.type == FormatSpec::Type::character) {
-                        tmp_.reset();
-                        if (!append_chr(tmp_, val.num())) {
-                            return false;
-                        }
-                        align(buf_, tmp_.view(), spec);
-                        return true;
-                    }
                     if (val.type() == SymbolType::number) {
                         tmp_.reset();
-                        if (spec.sign == FormatSpec::Sign::space && val.num() >= 0) {
-                            tmp_.append(' ');
+                        if (spec.type == FormatSpec::Type::character) {
+                            if (!append_chr(tmp_, val.num())) {
+                                return false;
+                            }
+                            align(buf_, tmp_.view(), spec);
+                            return true;
                         }
-                        if (spec.sign == FormatSpec::Sign::plus && val.num() >= 0) {
-                            tmp_.append('+');
-                        }
-                        switch (spec.type) {
-                            case FormatSpec::Type::binary: {
-                                append(tmp_, val.num(), 2);
-                                break;
-                            }
-                            case FormatSpec::Type::octal: {
-                                append(tmp_, val.num(), 8); // NOLINT
-                                break;
-                            }
-                            case FormatSpec::Type::hex_lower: {
-                                append(tmp_, val.num(), 16); // NOLINT
-                                auto span = tmp_.span();
-                                std::ranges::transform(span, span.begin(), [](char c) {
-                                    return static_cast<char>(static_cast<unsigned char>(std::tolower(c)));
-                                });
-                                break;
-                            }
-                            case FormatSpec::Type::hex_upper: {
-                                append(tmp_, val.num(), 16); // NOLINT
-                                auto span = tmp_.span();
-                                std::ranges::transform(span, span.begin(), [](char c) {
-                                    return static_cast<char>(static_cast<unsigned char>(std::toupper(c)));
-                                });
-                                break;
-                            }
-                            default: {
-                                append(tmp_, val.num(), 10); // NOLINT
-                                break;
-                            }
-                        }
-                        //! spec     ::= variable(accessor*)[[fill]align][sign]["#"]"][width][grouping][type]
-                        //! variable ::= <clingo variable>
-                        //! accessor ::= "." <clingo identifier> | "[" <unsigned number> "]"
-                        //! fill     ::= <any character>
-                        //! align    ::= "<" | ">" | "=" | "^"
-                        //! sign     ::= "+" | "-" | " "
-                        //! width    ::= <unsigned number>
-                        //! grouping ::= "," | "_"
-                        //! type     ::= "b" | "c" | "d" | "o" | "x" | "X" | "n" | "s"
 
-                        // DONE:
-                        // - fill
-                        // - align
-                        // - sign
-                        // - width
-                        // - alternate form
-                        // - grouping
-                        // - types:
-                        //   - binary
-                        //   - decimal
-                        //   - octal
-                        //   - hex_lower
-                        //   - hex_upper
-                        //   - string
-
-                        size_t start = !tmp_.empty() && is_sign(tmp_.view().front()) ? 1 : 0;
+                        append_num(tmp_, val.num(), spec);
+                        size_t start = val.num() < 0 || spec.sign != FormatSpec::Sign::minus ? 1 : 0;
 
                         if (spec.grouping == FormatSpec::Grouping::comma) {
                             insert_sep(tmp_, start, ',', spec.type);
@@ -417,8 +388,9 @@ auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Sy
                         align(buf_, tmp_.view(), spec, FormatSpec::Align::right);
                         return true;
                     }
-                    if (spec.type == FormatSpec::Type::character) {
-                        return false;
+                    if (val.type() == SymbolType::string && spec.conversion == FormatSpec::Conversion::str) {
+                        align(buf_, val.str().view(), spec);
+                        return true;
                     }
                     tmp_.reset();
                     tmp_ << val;

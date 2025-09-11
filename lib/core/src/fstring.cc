@@ -58,7 +58,6 @@ auto is_align(char c) -> std::optional<FormatSpec::Align> {
         return FormatSpec::Align::right;
     }
     if (c == '=') {
-        printf("the align is number!!!\n");
         return FormatSpec::Align::number;
     }
     if (c == '^') {
