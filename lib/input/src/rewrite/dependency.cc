@@ -254,10 +254,10 @@ class Unifier {
                     return std::ranges::all_of(v_b.elems(), [name, this](auto const &elem) {
                         return std::visit(
                             [this, name]<class U>(U const &x) {
-                                if constexpr (Util::matches<U, FormatFieldString>) {
+                                if constexpr (Util::matches<U, FormatFieldLiteral>) {
                                     return true;
                                 } else {
-                                    static_assert(Util::matches<U, FormatField>);
+                                    static_assert(Util::matches<U, FormatFieldExpression>);
                                     return this->occurs_check_(name, x.lhs());
                                 }
                             },

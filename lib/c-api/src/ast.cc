@@ -170,6 +170,20 @@ auto make_ast(std::shared_ptr<U> owner, CppClingo::Input::Projection const &proj
 }
 
 template <class U>
+auto make_ast(std::shared_ptr<U> owner, CppClingo::Input::FormatField const &field) -> std::unique_ptr<clingo_ast_t> {
+    return std::visit(
+        [&owner]<class T>(T const &x) -> std::unique_ptr<clingo_ast_t> {
+            if constexpr (std::is_same_v<T, CppClingo::Input::FormatFieldExpression>) {
+                return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_format_field_expression, &x);
+            }
+            if constexpr (std::is_same_v<T, CppClingo::Input::FormatFieldLiteral>) {
+                return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_format_field_literal, &x);
+            }
+        },
+        field);
+}
+
+template <class U>
 auto make_ast(std::shared_ptr<U> owner, CppClingo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
     return std::visit(
         [&owner]<class T>(T const &x) -> std::unique_ptr<clingo_ast_t> {
@@ -177,8 +191,7 @@ auto make_ast(std::shared_ptr<U> owner, CppClingo::Input::Term const &term) -> s
                 return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_term_variable, &x);
             }
             if constexpr (std::is_same_v<T, CppClingo::Input::TermFormatString>) {
-                // FIXME: add implementation
-                throw std::logic_error("implement me: ast representation for format string");
+                return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_term_format_string, &x);
             }
             if constexpr (std::is_same_v<T, CppClingo::Input::TermSymbol>) {
                 return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_term_symbolic, &x);
@@ -518,6 +531,34 @@ template <class T> constexpr bool is_optional_v<std::optional<T>> = true;
 template <class T> constexpr bool is_immutable_v = false;
 
 template <class T> constexpr bool is_immutable_v<CppClingo::Util::immutable_value<T>> = true;
+
+template <typename T>
+    requires std::is_same_v<T, CppClingo::Input::FormatFieldLiteral>
+auto convert(clingo_ast_t const *ast) -> T {
+    return ast->cast<CppClingo::Input::FormatFieldLiteral>();
+}
+
+template <typename T>
+    requires std::is_same_v<T, CppClingo::Input::FormatFieldExpression>
+auto convert(clingo_ast_t const *ast) -> T {
+    return ast->cast<CppClingo::Input::FormatFieldExpression>();
+}
+
+template <typename T>
+    requires std::is_same_v<T, CppClingo::Input::FormatField>
+auto convert(clingo_ast_t const *ast) -> T {
+    switch (ast->get_type()) {
+        case clingo_ast_type_format_field_expression: {
+            return ast->cast<CppClingo::Input::FormatFieldExpression>();
+        }
+        case clingo_ast_type_format_field_literal: {
+            return ast->cast<CppClingo::Input::FormatFieldLiteral>();
+        }
+        default: {
+            throw std::runtime_error("format field expression or literal expected");
+        }
+    }
+}
 
 template <typename T>
     requires std::is_same_v<T, CppClingo::Input::Term>
@@ -951,6 +992,12 @@ template <class V>
 auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, CppClingo::Input::Projection const &> {
     using namespace CppClingo::Input;
     switch (type_) {
+        case clingo_ast_type_format_field_literal: {
+            return std::invoke(std::forward<V>(visit), cast<FormatFieldLiteral>());
+        }
+        case clingo_ast_type_format_field_expression: {
+            return std::invoke(std::forward<V>(visit), cast<FormatFieldExpression>());
+        }
         case clingo_ast_type_projection: {
             return std::invoke(std::forward<V>(visit), cast<Projection>());
         }
@@ -959,6 +1006,9 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, CppClingo::In
         }
         case clingo_ast_type_term_symbolic: {
             return std::invoke(std::forward<V>(visit), cast<TermSymbol>());
+        }
+        case clingo_ast_type_term_format_string: {
+            return std::invoke(std::forward<V>(visit), cast<TermFormatString>());
         }
         case clingo_ast_type_term_absolute: {
             return std::invoke(std::forward<V>(visit), cast<TermAbs>());
@@ -1268,10 +1318,16 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
     case clingo_ast_attribute_##attr: {                                                                                \
         return cast<Type>().value.view();                                                                              \
     }
+#define ATTR_STR(attr, value)                                                                                          \
+    case clingo_ast_attribute_##attr: {                                                                                \
+        return cast<Type>().value;                                                                                     \
+    }
 
 auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<std::string_view>{
     // clang-format off
     SWITCH(
+        TYPE(format_field_expression, FormatFieldExpression,
+            ATTR_STR(right, rhs_str()))
         TYPE(term_variable, TermVariable,
             ATTR(name, name()))
         TYPE(theory_term_variable, TheoryTermVariable,
@@ -1316,6 +1372,7 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
 }
 
 #undef ATTR
+#undef ATTR_STR
 #define ATTR(attr, value)                                                                                              \
     case clingo_ast_attribute_##attr: {                                                                                \
         return cast<Type>().value;                                                                                     \
@@ -1356,6 +1413,8 @@ auto clingo_ast::get_symbol_vec(clingo_ast_attribute_t attr) const -> std::optio
 auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>>{
     // clang-format off
     SWITCH(
+        TYPE(format_field_expression, FormatFieldExpression,
+            ATTR(left, lhs()))
         TYPE(term_unary_operation, TermUnary,
             ATTR(right, rhs()))
         TYPE(term_binary_operation, TermBinary,
@@ -1443,6 +1502,8 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
 auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec> {
     // clang-format off
     SWITCH(
+        TYPE(term_format_string, TermFormatString,
+            ATTR(elements, elems()))
         TYPE(argument_tuple, ArgumentTuple,
             ATTR(arguments, elems()))
         TYPE(term_absolute, TermAbs,
@@ -1594,6 +1655,33 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
         }
         *ast = nullptr;
         switch (static_cast<clingo_ast_type_e>(type)) {
+            case clingo_ast_type_format_field_literal: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *str = va_arg(args, char const *);
+                auto size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<CppClingo::Input::FormatFieldLiteral>(type, convert(loc),
+                                                                           lib->store->string({str, size}));
+                break;
+            }
+            case clingo_ast_type_format_field_expression: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *expr = va_arg(args, clingo_ast_t const *);
+                auto const *str = va_arg(args, char const *);
+                auto size = va_arg(args, size_t);
+                va_end(args);
+                auto spec = CppClingo::FormatSpec::build(*lib->store, {str, size});
+                if (!spec) {
+                    throw std::invalid_argument{"invalid format specification"};
+                }
+                *ast = construct_ast<CppClingo::Input::FormatFieldExpression>(
+                    type, convert(loc), convert<CppClingo::Util::immutable_value<CppClingo::Input::Term>>(expr), *spec);
+                break;
+            }
             case clingo_ast_type_projection: {
                 std::va_list args;
                 va_start(args, ast);
@@ -1612,6 +1700,17 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast = construct_ast<CppClingo::Input::TermVariable>(type, convert(loc),
                                                                      *lib->store->string({name, size}), anonymous != 0);
+                break;
+            }
+            case clingo_ast_type_term_format_string: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto elems_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<CppClingo::Input::TermFormatString>(
+                    type, convert(loc), convert<CppClingo::Input::FormatField>(elems, elems_size));
                 break;
             }
             case clingo_ast_type_term_symbolic: {

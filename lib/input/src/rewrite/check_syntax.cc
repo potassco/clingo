@@ -35,7 +35,7 @@ struct CheckSyntax {
     }
 
     template <class T> auto operator()([[maybe_unused]] T const &x, [[maybe_unused]] SyntaxCheck check) const -> bool {
-        static_assert(Util::is_among_v<T, LitBool, TheoryTerm, TermSymbol, FormatFieldString>);
+        static_assert(Util::is_among_v<T, LitBool, TheoryTerm, TermSymbol, FormatFieldLiteral>);
         return true;
     }
 
@@ -53,7 +53,7 @@ struct CheckSyntax {
         return true;
     }
 
-    auto operator()(FormatField const &field, SyntaxCheck check) const -> bool {
+    auto operator()(FormatFieldExpression const &field, SyntaxCheck check) const -> bool {
         return operator()(*field.lhs(), check);
     }
 

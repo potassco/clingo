@@ -346,11 +346,11 @@ class SimplifyTerm {
 
         flags &= ~SimplifyTermFlags::preserve_toplevel;
 
-        auto is_string = [](auto const &x) { return std::holds_alternative<FormatFieldString>(x); };
+        auto is_string = [](auto const &x) { return std::holds_alternative<FormatFieldLiteral>(x); };
         if (std::all_of(term.elems().begin(), term.elems().end(), is_string)) {
             auto res = std::string{};
             for (auto const &elem : term.elems()) {
-                res += std::get<FormatFieldString>(elem).value().view();
+                res += std::get<FormatFieldLiteral>(elem).value().view();
             }
             return SymbolStore::str_ref(ctx_->store().string_ref(std::move(res)));
         }

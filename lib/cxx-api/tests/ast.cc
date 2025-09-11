@@ -134,6 +134,29 @@ TEST_CASE_METHOD(Fixture, "ast term symbolic", "[cxx][ast][term_symbolic]") {
     REQUIRE(p.to_string() == "f(1,2)");
 }
 
+TEST_CASE_METHOD(Fixture, "ast term fstring", "[cxx][ast][term_fstring]") {
+    auto t = parse_term("f\"a{X:x}b\"");
+    REQUIRE(t.to_string() == "f\"a{X:x}b\"");
+    REQUIRE(t.type() == T::term_format_string);
+
+    auto elems = t.nodes(A::elements);
+    REQUIRE(elems.size() == 3);
+    REQUIRE(elems[0].to_string() == "a");
+    REQUIRE(elems[0].type() == T::format_field_literal);
+    REQUIRE(elems[1].to_string() == "{X:x}");
+    REQUIRE(elems[1].type() == T::format_field_expression);
+    REQUIRE(elems[2].to_string() == "b");
+    REQUIRE(elems[2].type() == T::format_field_literal);
+
+    auto const &expr = elems[1];
+    REQUIRE(expr.node(A::left).to_string() == "X");
+    REQUIRE(expr.string(A::right) == ":x");
+
+    REQUIRE(node<T::term_format_string>(loc, elems).to_string() == "f\"a{X:x}b\"");
+    REQUIRE(node<T::format_field_literal>(loc, "a").to_string() == "a");
+    REQUIRE(node<T::format_field_expression>(loc, parse_term("X"), ":x").to_string() == "{X:x}");
+}
+
 TEST_CASE_METHOD(Fixture, "ast term absolute", "[cxx][ast][term_absolute]") {
     auto p = node<T::term_absolute>(loc, std::array{parse_term("1"), parse_term("-2")});
 

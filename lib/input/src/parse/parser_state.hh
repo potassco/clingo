@@ -803,7 +803,7 @@ class ParserState {
     //! Compute the next token.
     auto lex_() -> TokenType;
     //! Parse an fstring field.
-    auto parse_ffield_() -> std::optional<FormatField>;
+    auto parse_ffield_() -> std::optional<FormatFieldExpression>;
     //! Parse an fstring.
     auto parse_fstring_() -> TokenType;
 

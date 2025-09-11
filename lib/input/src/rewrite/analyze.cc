@@ -266,10 +266,10 @@ class IsFact {
         for (auto const &field : term.elems()) {
             if (!std::visit(
                     [&res]<class T>(T const &x) {
-                        if constexpr (Util::is_among_v<T, FormatFieldString>) {
+                        if constexpr (Util::is_among_v<T, FormatFieldLiteral>) {
                             res += x.value().view();
                             return true;
-                        } else if constexpr (std::is_same_v<T, FormatField>) {
+                        } else if constexpr (std::is_same_v<T, FormatFieldExpression>) {
                             return false;
                         } else {
                             static_assert(Util::is_among_v<T, void>);

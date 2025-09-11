@@ -78,11 +78,11 @@ class BuilderTerm {
         for (auto const &elem : term.elems()) {
             std::visit(
                 [&, this]<class T>(T const &elem) {
-                    if constexpr (Util::matches<T, Input::FormatField>) {
+                    if constexpr (Util::matches<T, Input::FormatFieldExpression>) {
                         elems.emplace_back(std::in_place_type<std::pair<Ground::UTerm, FormatSpec>>,
                                            std::visit(*this, *elem.lhs()), elem.rhs());
                     } else {
-                        static_assert(Util::matches<T, Input::FormatFieldString>);
+                        static_assert(Util::matches<T, Input::FormatFieldLiteral>);
                         elems.emplace_back(std::in_place_type<SharedString>, elem.value());
                     }
                 },

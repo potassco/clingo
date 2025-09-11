@@ -71,7 +71,8 @@ template <class T> auto parse_num(std::string_view view) -> std::optional<T> {
 } // namespace
 
 //! Parse an fstring field.
-auto ParserState::parse_ffield_() -> std::optional<FormatField> {
+auto ParserState::parse_ffield_() -> std::optional<FormatFieldExpression> {
+    auto start = token_pos();
     // variable
     state_.start();
     for (;;) {
@@ -101,21 +102,22 @@ auto ParserState::parse_ffield_() -> std::optional<FormatField> {
         * { return std::nullopt; }
         */
     }
-    return FormatField{std::move(var), *std::move(spec)};
+    return FormatFieldExpression{start + cursor_pos(), std::move(var), *std::move(spec)};
 }
 
 //! Parse an fstring.
 auto ParserState::parse_fstring_() -> TokenType {
     auto start = token_pos();
-    auto fields = std::vector<std::variant<FormatFieldString, FormatField>>{};
+    auto fields = std::vector<FormatField>{};
     for (;;) {
         state_.start();
+        auto sub_start = token_pos();
         /*!re2c
           ([^\\"\n{}\000] | "\\\"" | "\\\\" | "\\n" | "{{" | "}}")+ {
               auto view = this->view();
               auto &buf = this->buf(view.size());
               Util::unquote(view, std::back_inserter(buf), true);
-              fields.emplace_back(std::in_place_type<FormatFieldString>, store().string(buf));
+              fields.emplace_back(std::in_place_type<FormatFieldLiteral>, loc(), store().string(buf));
               continue;
           }
           "{" {

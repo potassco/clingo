@@ -139,42 +139,66 @@ class TermSymbol : public Expression<TermSymbol> {
 };
 
 //! A format field with a variable and format specification.
-class FormatField : public RecursiveExpression<FormatField> {
+class FormatFieldExpression : public RecursiveExpression<FormatFieldExpression> {
   public:
     //! The record attributes.
-    static constexpr auto attributes() { return std::tuple{a_lhs = &FormatField::lhs_, a_rhs = &FormatField::rhs_}; }
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &FormatFieldExpression::loc_, a_lhs = &FormatFieldExpression::lhs_,
+                          a_rhs = &FormatFieldExpression::rhs_};
+    }
 
     //! Construct a format field with a variable and format specification.
-    explicit FormatField(Util::immutable_value<Term> lhs, FormatSpec rhs);
+    explicit FormatFieldExpression(Location loc, Util::immutable_value<Term> lhs, FormatSpec rhs);
 
+    //! Get the location of the field.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! Get the variable and format specification.
     [[nodiscard]] auto lhs() const -> Util::immutable_value<Term> const & { return lhs_; }
     //! Get the specification.
     [[nodiscard]] auto rhs() const -> FormatSpec const & { return rhs_; }
+    //! Get a string representation of the right-hand-side.
+    [[nodiscard]] auto rhs_str() const -> std::string_view {
+        if (rhs_view_ == "i") {
+            Util::OutputBuffer out;
+            out << rhs_;
+            rhs_view_ = out.str();
+        }
+        return rhs_view_;
+    }
 
   private:
+    Location loc_;
     Util::immutable_value<Term> lhs_;
     FormatSpec rhs_;
+    mutable std::string rhs_view_ = "i";
 };
 
 //! A format field with a plain string value.
-class FormatFieldString : public Expression<FormatFieldString> {
+class FormatFieldLiteral : public Expression<FormatFieldLiteral> {
   public:
     //! Construct a format field with a string value.
-    explicit FormatFieldString(SharedString value) : value_{std::move(value)} {}
+    explicit FormatFieldLiteral(Location loc, SharedString value) : loc_{std::move(loc)}, value_{std::move(value)} {}
 
     //! The record attributes.
-    static constexpr auto attributes() { return std::tuple{a_value = &FormatFieldString::value_}; }
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &FormatFieldLiteral::loc_, a_value = &FormatFieldLiteral::value_};
+    }
 
+    //! Get the location of the literal.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! Get the string value.
     [[nodiscard]] auto value() const -> String const & { return *value_; }
 
   private:
+    Location loc_;
     SharedString value_;
 };
 
-//! An array of format fields (sequence of plain strings and substitutable variables).
-using FormatFieldArray = Util::immutable_array<std::variant<FormatFieldString, FormatField>>;
+//! A format field (either a plain string or a term with format specification).
+using FormatField = std::variant<FormatFieldLiteral, FormatFieldExpression>;
+
+//! An array of format fields (sequence of plain strings and substitutable terms).
+using FormatFieldArray = Util::immutable_array<FormatField>;
 
 //! A format string term.
 class TermFormatString : public Expression<TermFormatString> {
@@ -364,15 +388,15 @@ class TermBinary : public RecursiveExpression<TermBinary> {
 
 // FormatField
 
-inline FormatField::FormatField(Util::immutable_value<Term> lhs, FormatSpec rhs)
-    : lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {
+inline FormatFieldExpression::FormatFieldExpression(Location loc, Util::immutable_value<Term> lhs, FormatSpec rhs)
+    : loc_{std::move(loc)}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {
 }
 
-inline auto operator==(FormatField const &a, FormatField const &b) -> bool {
+inline auto operator==(FormatFieldExpression const &a, FormatFieldExpression const &b) -> bool {
     return a.equal(b);
 }
 
-inline auto operator<=>(FormatField const &a, FormatField const &b) -> std::strong_ordering {
+inline auto operator<=>(FormatFieldExpression const &a, FormatFieldExpression const &b) -> std::strong_ordering {
     return a.compare(b);
 }
 

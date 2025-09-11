@@ -777,12 +777,12 @@ template <class T> void print_op(T &out, BinaryOperator op) {
     }
 }
 
-template <class T> auto print_field(T &out, FormatField const &field) -> T & {
+template <class T> auto print_field(T &out, FormatFieldExpression const &field) -> T & {
     out << "{" << field.lhs() << field.rhs() << "}";
     return out;
 }
 
-template <class T> auto print_field(T &out, FormatFieldString const &field) -> T & {
+template <class T> auto print_field(T &out, FormatFieldLiteral const &field) -> T & {
     out << Util::p_quoted(field.value().view(), true);
     return out;
 }
@@ -810,19 +810,19 @@ auto operator<<(Util::OutputBuffer &out, BinaryOperator op) -> Util::OutputBuffe
 
 // terms
 
-auto operator<<(std::ostream &out, FormatField const &field) -> std::ostream & {
+auto operator<<(std::ostream &out, FormatFieldExpression const &field) -> std::ostream & {
     return print_field(out, field);
 }
 
-auto operator<<(Util::OutputBuffer &out, FormatField const &field) -> Util::OutputBuffer & {
+auto operator<<(Util::OutputBuffer &out, FormatFieldExpression const &field) -> Util::OutputBuffer & {
     return print_field(out, field);
 }
 
-auto operator<<(std::ostream &out, FormatFieldString const &field) -> std::ostream & {
+auto operator<<(std::ostream &out, FormatFieldLiteral const &field) -> std::ostream & {
     return print_field(out, field);
 }
 
-auto operator<<(Util::OutputBuffer &out, FormatFieldString const &field) -> Util::OutputBuffer & {
+auto operator<<(Util::OutputBuffer &out, FormatFieldLiteral const &field) -> Util::OutputBuffer & {
     return print_field(out, field);
 }
 

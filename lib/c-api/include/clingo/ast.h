@@ -30,9 +30,12 @@ typedef struct clingo_control clingo_control_t;
 //! Enumeration of AST types.
 enum clingo_ast_type_e {
     // terms
+    clingo_ast_type_format_field_literal,
+    clingo_ast_type_format_field_expression,
     clingo_ast_type_projection,
     clingo_ast_type_term_variable,
     clingo_ast_type_term_symbolic,
+    clingo_ast_type_term_format_string,
     clingo_ast_type_term_absolute,
     clingo_ast_type_term_unary_operation,
     clingo_ast_type_term_binary_operation,

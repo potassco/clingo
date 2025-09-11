@@ -34,9 +34,11 @@ class GetDep {
         }
     }
 
-    void operator()(FormatField const &term) const { std::visit(*this, *term.lhs(), std::variant<bool>{false}); }
+    void operator()(FormatFieldExpression const &term) const {
+        std::visit(*this, *term.lhs(), std::variant<bool>{false});
+    }
 
-    void operator()([[maybe_unused]] FormatFieldString const &term) const {}
+    void operator()([[maybe_unused]] FormatFieldLiteral const &term) const {}
 
     void operator()(TermFormatString const &term, [[maybe_unused]] bool can_provide) const {
         for (auto const &elem : term.elems()) {
