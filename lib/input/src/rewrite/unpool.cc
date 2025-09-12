@@ -103,10 +103,25 @@ class Unpool {
         return std::nullopt;
     }
 
-    auto operator()([[maybe_unused]] TermFormatString const &term) const -> std::optional<std::vector<Term>> {
-        // TODO: implement unpooling
-        printf("warning unpooling not yet implemented for TermFormatString\n");
+    auto operator()(FormatField const &field) const -> std::optional<std::vector<FormatField>> {
+        return std::visit(*this, field);
+    }
+
+    auto operator()(FormatFieldArray const &arr) const -> std::optional<std::vector<FormatFieldArray>> {
+        return Util::transform_vec(unpool_crossproduct(arr, *this),
+                                   [](auto vec) { return FormatFieldArray(std::move(vec)); });
+    }
+
+    auto operator()([[maybe_unused]] FormatFieldLiteral const &term) const -> std::optional<std::vector<FormatField>> {
         return std::nullopt;
+    }
+
+    auto operator()(FormatFieldExpression const &term) const -> std::optional<std::vector<FormatField>> {
+        return unpool_rewrite<FormatField>(term, *this, a_lhs);
+    }
+
+    auto operator()(TermFormatString const &term) const -> std::optional<std::vector<Term>> {
+        return unpool_rewrite<Term>(term, *this, a_elems);
     }
 
     auto operator()(Argument const &elem) const -> std::optional<std::vector<Argument>> {
