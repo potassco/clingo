@@ -380,7 +380,7 @@ class Unifier {
                 // variables
                 if constexpr (Util::matches<A, TermVariable> || Util::matches<B, TermVariable>) {
                     if constexpr (Util::matches<A, TermVariable>) {
-                        if constexpr (Util::matches<B, TermAbs>) {
+                        if constexpr (Util::matches<B, TermAbs, TermFormatString>) {
                             return true;
                         } else if constexpr (Util::matches<B, TermUnary, TermBinary>) {
                             terms_.emplace_back(TermBinary{
@@ -414,7 +414,7 @@ class Unifier {
                         return unify_(b, a);
                     } else {
                         // NOTE: can only match symbols/variables handled above
-                        return false;
+                        return Util::matches<B, TermFormatString>;
                     }
                 }
                 // tuples

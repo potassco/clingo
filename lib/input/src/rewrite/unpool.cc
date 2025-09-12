@@ -104,6 +104,8 @@ class Unpool {
     }
 
     auto operator()([[maybe_unused]] TermFormatString const &term) const -> std::optional<std::vector<Term>> {
+        // TODO: implement unpooling
+        printf("warning unpooling not yet implemented for TermFormatString\n");
         return std::nullopt;
     }
 

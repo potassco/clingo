@@ -340,8 +340,10 @@ class SimplifyTerm {
     }
 
     //! Simplify the given format string.
-    auto operator()([[maybe_unused]] TermFormatString const &term, [[maybe_unused]] SimplifyTermFlags flags) const
-        -> TermResult {
+    auto operator()(TermFormatString const &term, SimplifyTermFlags flags) const -> TermResult {
+        // TODO: implement unpooling
+        printf("warning more simplification can be implemented for TermFormatString\n");
+
         bool preserve = intersects(flags, SimplifyTermFlags::preserve_toplevel);
 
         flags &= ~SimplifyTermFlags::preserve_toplevel;
