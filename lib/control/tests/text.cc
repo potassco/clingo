@@ -729,7 +729,7 @@ TEST_CASE("grounder_text") {
             // accessors
             REQUIRE(ground(R"(q(f"{X[0][0].name}") :- X=f(g(h(1))).)") == SV{"h"});
             // nested terms
-            // TODO:
+            REQUIRE(ground(R"(q(f"x{f"{Y-1:0=5}":*^10}z") :- Y=0.)") == SV{"x**-0001***z"});
             // subsitution
             REQUIRE(ground(R"(q(f"{X}") :- X=1.)") == SV{"1"});
         }

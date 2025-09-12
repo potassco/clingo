@@ -201,6 +201,71 @@ void cont_expr(ParserState &state) {
     }
 }
 
+//! Continue parsing a format string after an opening `f"` or some field has been added.
+auto cont_fstr(ParserState &state) -> bool {
+    auto &str = state.top_value<FStr>();
+    if (state.token() == TokenType::fstring_cont) {
+        if (auto view = state.view().substr(0, state.view().size() - 1); !view.empty()) {
+            auto loc =
+                Location{state.cursor_pos(), Position(state.file(), state.token_line(), state.token_column() - 1)};
+            str.fields.emplace_back(std::in_place_type<FormatFieldLiteral>, loc, state.store().string(view));
+        }
+        state.consume();
+        state.push(Prod::fstr_field);
+        state.push(Prod::term);
+    } else if (state.token() == TokenType::fstring_close) {
+        if (auto view = state.view().substr(0, state.view().size() - 1); !view.empty()) {
+            auto loc =
+                Location{state.cursor_pos(), Position(state.file(), state.token_line(), state.token_column() - 1)};
+            str.fields.emplace_back(std::in_place_type<FormatFieldLiteral>, loc, state.store().string(view));
+        }
+        auto fields = std::move(str.fields);
+        auto start = Position{state.file(), str.line, str.column};
+        state.replace_value<Term>(std::in_place_type<TermFormatString>, start + state.cursor_pos(), std::move(fields));
+        state.pop();
+        state.consume();
+        cont_expr(state);
+    } else {
+        return state.expected(TokenType::fstring_cont, TokenType::fstring_spec, TokenType::fstring_close);
+    }
+    return true;
+}
+
+//! Continue parsing a format string after a term has been parsed.
+auto cont_fstr_field(ParserState &state) -> bool {
+    state.pop();
+    auto term = state.pop_value<Term>();
+    auto &str = state.top_value<FStr>();
+    // The start is either after the f" of the f-string or directly after the last field.
+    auto start =
+        !str.fields.empty() ? location(str.fields.back()).end() : Position{state.file(), str.line, str.column + 2};
+    if (state.token() == TokenType::rbrace) {
+        str.fields.emplace_back(
+            FormatFieldExpression{std::move(start) + state.cursor_pos(), std::move(term), FormatSpec{}});
+        state.consume(Condition::fstring);
+    } else {
+        // NOTE: We unconsume the last token here to lex it differently.
+        state.unconsume();
+        state.consume(Condition::fstring_spec);
+        if (state.token() != TokenType::fstring_spec) {
+            return state.expected(TokenType::fstring_spec, TokenType::rbrace);
+        }
+        auto spec = FormatSpec::build(state.store(), state.view());
+        if (spec) {
+            state.consume();
+            if (state.token() != TokenType::rbrace) {
+                return state.expected(TokenType::rbrace);
+            }
+            str.fields.emplace_back(
+                FormatFieldExpression{std::move(start) + state.cursor_pos(), std::move(term), *std::move(spec)});
+            state.consume(Condition::fstring);
+        } else {
+            return state.expected(TokenType::fstring_spec);
+        }
+    }
+    return true;
+}
+
 //! Continue parsing an abs term after a '|' token.
 void cont_abs(ParserState &state) {
     assert(state.token() == TokenType::bar);
@@ -654,6 +719,18 @@ auto parse_term(ParserState &state) -> std::optional<Term> {
                 cont_expr(state);
                 continue;
             }
+            case Prod::fstr: {
+                if (!cont_fstr(state)) {
+                    return std::nullopt;
+                }
+                continue;
+            }
+            case Prod::fstr_field: {
+                if (!cont_fstr_field(state)) {
+                    return std::nullopt;
+                }
+                continue;
+            }
             case Prod::term: {
                 switch (state.token()) {
                     case TokenType::minus:
@@ -691,10 +768,14 @@ auto parse_term(ParserState &state) -> std::optional<Term> {
                         cont_expr(state);
                         continue;
                     }
-                    case TokenType::fstr: {
-                        state.push_value<Term>(state.fstr());
-                        state.consume();
-                        cont_expr(state);
+
+                    case TokenType::fstring_start: {
+                        state.push(Prod::fstr);
+                        state.push_value<FStr>(state.token_line(), state.token_column());
+                        state.consume(Condition::fstring);
+                        if (!cont_fstr(state)) {
+                            return std::nullopt;
+                        }
                         continue;
                     }
                     case TokenType::anon:

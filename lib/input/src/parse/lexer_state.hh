@@ -128,6 +128,16 @@ class LexerState {
         return token() == limit() - padding;
     }
 
+    void unconsume() {
+        assert(token_ <= cursor_);
+        column_ = token_;
+        cursor_ = token_;
+        marker_ = token_;
+        ctxmarker_ = token_;
+        cursor_column_ = token_column_;
+        cursor_line_ = token_line_;
+    }
+
   private:
     std::istream *in_ = nullptr;
     std::vector<char> buffer_;

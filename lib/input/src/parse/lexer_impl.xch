@@ -49,92 +49,14 @@ namespace CppClingo::Input::Parse {
     SIGN       = [+- ];
     GROUPING   = [,_];
     TYPE       = [bcdoxXns];
+    FLIT       = ([^\\"\n{}\000] | "\\\"" | "\\\\" | "\\n" | "{{" | "}}")*;
+    FSPEC      = ACCESSOR* CONVERSION? ([:] (DOT? ALIGN)? SIGN? [#]? POS? GROUPING? TYPE?)?;
 */
 
 /*!header:re2c:on*/
 /*!max:re2c*/
 /*!conditions:re2c*/
 /*!header:re2c:off*/
-
-namespace {
-
-template <class T> auto parse_num(std::string_view view) -> std::optional<T> {
-    auto res = T{};
-    auto const *end = view.data() + view.size();
-    auto [pos, err] = std::from_chars(view.data(), end, res);
-    if (err == std::errc{} && pos == end) {
-        return res;
-    }
-    return std::nullopt;
-}
-
-} // namespace
-
-//! Parse an fstring field.
-auto ParserState::parse_ffield_() -> std::optional<FormatFieldExpression> {
-    auto start = token_pos();
-    // variable
-    state_.start();
-    for (;;) {
-        state_.start();
-        /*!re2c
-          VARIABLE { break; }
-          * { return std::nullopt; }
-        */
-    }
-    auto var = TermVariable(loc(), store().string_ref(view()));
-    // spec
-    for (;;) {
-        state_.start();
-        /*!re2c
-        ACCESSOR* CONVERSION? ([:] (DOT? ALIGN)? SIGN? [#]? POS? GROUPING? TYPE?)? { break; }
-        */
-    }
-    auto spec = FormatSpec::build(store(), view());
-    if (!spec) {
-        return std::nullopt;
-    }
-    // closing brace
-    for (;;) {
-        state_.start();
-        /*!re2c
-        [}] { break; }
-        * { return std::nullopt; }
-        */
-    }
-    return FormatFieldExpression{start + cursor_pos(), std::move(var), *std::move(spec)};
-}
-
-//! Parse an fstring.
-auto ParserState::parse_fstring_() -> TokenType {
-    auto start = token_pos();
-    auto fields = std::vector<FormatField>{};
-    for (;;) {
-        state_.start();
-        auto sub_start = token_pos();
-        /*!re2c
-          ([^\\"\n{}\000] | "\\\"" | "\\\\" | "\\n" | "{{" | "}}")+ {
-              auto view = this->view();
-              auto &buf = this->buf(view.size());
-              Util::unquote(view, std::back_inserter(buf), true);
-              fields.emplace_back(std::in_place_type<FormatFieldLiteral>, loc(), store().string(buf));
-              continue;
-          }
-          "{" {
-              if (auto x = parse_ffield_()) {
-                 fields.emplace_back(std::move(*x));
-                 continue;
-              }
-              return TokenType::error;
-          }
-          "\"" {
-            fstring_.emplace(start + cursor_pos(), std::move(fields));
-            return TokenType::fstr;
-          }
-          * { return TokenType::error; }
-        */
-    }
-}
 
 auto ParserState::lex_() -> TokenType {
     state_.start();
@@ -209,7 +131,10 @@ auto ParserState::lex_() -> TokenType {
             <normal,theory,include> STRING { return TokenType::str; }
             <normal,theory> SUP            { return TokenType::sup; }
             <normal,theory> VARIABLE       { return TokenType::var; }
-            <normal> "f\""                 { return parse_fstring_(); }
+            <normal> "f\""                 { return TokenType::fstring_start; }
+            <fstring_spec> FSPEC / [}]     { return TokenType::fstring_spec; }
+            <fstring> FLIT [{] / [^{]      { return TokenType::fstring_cont; }
+            <fstring> FLIT ["]             { return TokenType::fstring_close; }
             <theory> THEORYOP              { return TokenType::theory_op; }
             <include> INCSTRING            { return TokenType::str_include; }
             <normal> KEYWORD               { return TokenType::error; }
@@ -226,9 +151,9 @@ auto ParserState::lex_() -> TokenType {
             <blockcomment> COMMENT         { continue; }
             <blockcomment> NULL            { return TokenType::error_bc; }
             <blockcomment> *               { continue; }
-            <program,normal,theory,include,script> NULL
+            <program,normal,theory,include,script,fstring,fstring_spec> NULL
                                            { return state_.end(YYMAXFILL) ? TokenType::end : TokenType::error; }
-            <program,normal,theory,include,script> *
+            <program,normal,theory,include,script,fstring,fstring_spec> *
                                            { return TokenType::error; }
         */
     }
