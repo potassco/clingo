@@ -379,6 +379,7 @@ TEST_CASE("simplify_fstring") {
     REQUIRE(simplify_statement(":- p(X,f\"{X}\").") == " :- p(X,__A_0); __A_0=f\"{X}\"., U");
     REQUIRE(simplify_statement(":- p(X,Y); Y=f\"{X}\".") == "<unchanged>, U");
     REQUIRE(simplify_term("f\"abc\"") == "\"abc\", U");
+    REQUIRE(simplify_term(R"(f"{1+3}")") == R"(f"{4}", U)");
 }
 
 } // namespace CppClingo::Input::Test
