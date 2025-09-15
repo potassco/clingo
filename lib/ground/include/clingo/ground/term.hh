@@ -3,6 +3,7 @@
 #include <clingo/ground/instantiator.hh>
 
 #include <clingo/core/core.hh>
+#include <clingo/core/fstring.hh>
 #include <clingo/core/location.hh>
 #include <clingo/core/logger.hh>
 #include <clingo/core/symbol.hh>
@@ -193,6 +194,38 @@ class TermSymbol : public Term {
     [[nodiscard]] auto do_compare_to(Term const &other) const -> std::strong_ordering override;
 
     SharedSymbol sym_;
+};
+
+//! A format specification.
+//!
+//! It is either a fixed string or a variable with format flags.
+using FormatField = std::variant<SharedString, std::pair<UTerm, FormatSpec>>;
+//! A vector of format fields.
+using FormatFieldVec = std::vector<FormatField>;
+
+//! A term capturing a symbol.
+class TermFormatString : public Term {
+  public:
+    //! Construct the term.
+    TermFormatString(FormatFieldVec elems) : elems_{std::move(elems)} {}
+
+  private:
+    [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
+    [[nodiscard]] auto do_match(EvalContext const &ctx, Symbol sym) const -> bool override;
+    [[nodiscard]] auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> override;
+    [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
+        -> UTerm override;
+    [[nodiscard]] auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
+    void do_vars(VariableSet &vars, bool provide) const override;
+    void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_copy() const -> UTerm override;
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Term const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Term const &other) const -> std::strong_ordering override;
+
+    FormatFieldVec elems_;
+    mutable Util::OutputBuffer buf_;
+    mutable Util::OutputBuffer tmp_;
 };
 
 //! A term capturing a variable.

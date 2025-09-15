@@ -77,12 +77,17 @@ template <class T> class Visitor {
     // igonre
 
     template <class U>
-        requires Util::is_among_v<U, Projection, String, SharedString, Relation, TermSymbol, TermVariable,
-                                  TheoryTermSymbol, TheoryTermVariable, LitBool, StmTheory, StmShowNothing, StmShowSig,
-                                  StmProjectSig, StmDefined, StmScript, StmInclude, StmProgram, StmParts, StmComment>
+        requires Util::is_among_v<U, Projection, FormatFieldLiteral, String, SharedString, Relation, TermSymbol,
+                                  TermVariable, TheoryTermSymbol, TheoryTermVariable, LitBool, StmTheory,
+                                  StmShowNothing, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
+                                  StmProgram, StmParts, StmComment>
     void accept_([[maybe_unused]] U const &x) const {}
 
     // terms
+
+    void accept_(FormatFieldExpression const &term) const { visit(term.lhs()); }
+
+    void accept_(TermFormatString const &term) const { visit(term.elems()); }
 
     void accept_(ArgumentTuple const &tuple) const { visit(tuple.elems()); }
 

@@ -62,14 +62,33 @@ class BuilderTerm {
     BuilderTerm(bool &has_projection, Util::unordered_map<String, size_t> const &var_map)
         : has_projection_{&has_projection}, var_map_{&var_map} {}
 
-    //! Translate a variable.
+    //! Translate variables.
     auto operator()(Input::TermVariable const &term) const -> Ground::UTerm {
-        assert(var_map_->find(term.name()) != var_map_->end());
+        assert(var_map_->contains(term.name()));
         return std::make_unique<Ground::TermVariable>(var_map_->find(term.name())->second);
     }
-    //! Translate a symbol.
+    //! Translate symbols.
     auto operator()(Input::TermSymbol const &term) const -> Ground::UTerm {
         return std::make_unique<Ground::TermSymbol>(term.value());
+    }
+    // Translate format strings.
+    auto operator()(Input::TermFormatString const &term) const -> Ground::UTerm {
+        auto elems = Ground::FormatFieldVec{};
+        elems.reserve(term.elems().size());
+        for (auto const &elem : term.elems()) {
+            std::visit(
+                [&, this]<class T>(T const &elem) {
+                    if constexpr (Util::matches<T, Input::FormatFieldExpression>) {
+                        elems.emplace_back(std::in_place_type<std::pair<Ground::UTerm, FormatSpec>>,
+                                           std::visit(*this, *elem.lhs()), elem.rhs());
+                    } else {
+                        static_assert(Util::matches<T, Input::FormatFieldLiteral>);
+                        elems.emplace_back(std::in_place_type<SharedString>, elem.value());
+                    }
+                },
+                elem);
+        }
+        return std::make_unique<Ground::TermFormatString>(std::move(elems));
     }
     //! Translate arguments of tuples and functions.
     [[nodiscard]] auto handle_args(Input::ArgumentArray const &args) const -> Ground::UTermVec {
@@ -97,14 +116,14 @@ class BuilderTerm {
         return std::make_unique<Ground::TermTuple>(
             handle_args(std::get<Input::ArgumentTuple>(term.pool().front()).elems()));
     }
-    //! Translate a function.
+    //! Translate functions.
     //!
     //! Assumes that the arguments consist of a single pool.
     auto operator()(Input::TermFunction const &term) const -> Ground::UTerm {
         assert(!term.external() && term.pool().size() == 1);
         return std::make_unique<Ground::TermFunction>(term.name(), handle_args(term.pool().front().elems()));
     }
-    //! Translate a function.
+    //! Translate absolute value terms.
     //!
     //! Assumes that there is a single argument.
     auto operator()(Input::TermAbs const &term) const -> Ground::UTerm {
@@ -112,19 +131,19 @@ class BuilderTerm {
         auto const &rhs = term.pool().front();
         return std::make_unique<Ground::TermUnary>(Ground::UnaryOperator::abs, location(rhs), std::visit(*this, rhs));
     }
-    //! Translate a unary term.
+    //! Translate unary terms.
     auto operator()(Input::TermUnary const &term) const -> Ground::UTerm {
         Ground::UnaryOperator op =
             term.op() == Input::UnaryOperator::minus ? Ground::UnaryOperator::minus : Ground::UnaryOperator::negate;
         return std::make_unique<Ground::TermUnary>(op, location(*term.rhs()), std::visit(*this, *term.rhs()));
     }
-    //! Translate a unary term.
+    //! Translate binary terms.
     //!
     //! Intervals must be removed by rewriting beforehand.
     auto operator()(Input::TermBinary const &term) const -> Ground::UTerm {
         assert(term.op() != Input::BinaryOperator::dots);
         if (auto lin = Input::check_linear(term); lin) {
-            assert(var_map_->find(lin->x()) != var_map_->end());
+            assert(var_map_->contains(lin->x()));
             return std::make_unique<Ground::TermLinear>(term.loc(), lin->m(), var_map_->find(lin->x())->second,
                                                         lin->n());
         }
@@ -153,12 +172,12 @@ class BuilderTheoryTerm {
     auto operator()([[maybe_unused]] Input::TheoryTermUnparsed const &term) const -> Ground::UTheoryTerm {
         throw std::logic_error("unexpected unparsed theory term");
     }
-    //! Translate a variable.
+    //! Translate theory variables.
     auto operator()(Input::TheoryTermVariable const &term) const -> Ground::UTheoryTerm {
-        assert(var_map_->find(term.name()) != var_map_->end());
+        assert(var_map_->contains(term.name()));
         return std::make_unique<Ground::TheoryTermVariable>(var_map_->find(term.name())->second);
     }
-    //! Translate a symbol.
+    //! Translate theory symbols.
     auto operator()(Input::TheoryTermSymbol const &term) const -> Ground::UTheoryTerm {
         return std::make_unique<Ground::TheoryTermSymbol>(term.value());
     }
@@ -175,7 +194,7 @@ class BuilderTheoryTerm {
     auto operator()(Input::TheoryTermTuple const &term) const -> Ground::UTheoryTerm {
         return std::make_unique<Ground::TheoryTermTuple>(term.type(), handle_args(term.elems()));
     }
-    //! Translate a function.
+    //! Translate functions.
     auto operator()(Input::TheoryTermFunction const &term) const -> Ground::UTheoryTerm {
         return std::make_unique<Ground::TheoryTermFunction>(term.name(), handle_args(term.args()));
     }

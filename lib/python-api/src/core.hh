@@ -39,7 +39,7 @@ inline void handle_error(bool res) {
 }
 
 // Similar to handle_error but also reraises if the code is succsess.
-void handle_error_no_code(bool res);
+void handle_error_no_code(bool res, int code);
 
 using Logger = std::function<void(clingo_message_e, std::string_view)>;
 

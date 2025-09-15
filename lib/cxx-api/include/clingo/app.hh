@@ -216,21 +216,16 @@ static constexpr clingo_application_t c_app = {
 //! @param lib the library to store symbols
 //! @param arguments the command line arguments
 //! @param app an optional application to customize solving
-//! @param raise_errors whether to raise or report errors
 //! @return the exit code
-inline auto main(Library &lib, std::span<std::string_view const> arguments = {}, App *app = nullptr,
-                 bool raise_errors = false) -> int {
+inline auto main(Library &lib, std::span<std::string_view const> arguments = {}, App *app = nullptr) -> int {
     auto code = 1;
     try {
         auto c_args = Detail::transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
         auto data = Detail::AppData{app, {}};
-        Detail::handle_error_no_code(clingo_main(c_cast(lib), c_args.data(), c_args.size(),
-                                                 app != nullptr ? &Detail::c_app : nullptr,
-                                                 app != nullptr ? static_cast<void *>(&data) : nullptr, &code));
+        auto res = clingo_main(c_cast(lib), c_args.data(), c_args.size(), app != nullptr ? &Detail::c_app : nullptr,
+                               app != nullptr ? static_cast<void *>(&data) : nullptr, &code);
+        Detail::handle_error_no_code(res, code);
     } catch (std::exception const &e) {
-        if (raise_errors) {
-            throw;
-        }
         auto name = app != nullptr ? app->program_name() : CLINGO_EXECUTABLE;
         fprintf(stderr, "*** ERROR: (%.*s): %s\n", static_cast<int>(name.size()), name.data(), e.what());
     }
@@ -244,11 +239,9 @@ inline auto main(Library &lib, std::span<std::string_view const> arguments = {},
 //! @param lib the library to store symbols
 //! @param arguments the command line arguments
 //! @param app an optional application to customize solving
-//! @param raise_errors whether to raise or report errors
 //! @return the exit code
-inline auto main(Library &lib, std::initializer_list<std::string_view const> arguments, App *app = nullptr,
-                 bool raise_errors = false) -> int {
-    return main(lib, std::span{arguments}, app, raise_errors);
+inline auto main(Library &lib, std::initializer_list<std::string_view const> arguments, App *app = nullptr) -> int {
+    return main(lib, std::span{arguments}, app);
 }
 
 //! @}

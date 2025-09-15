@@ -86,6 +86,10 @@ enum class TokenType : uint8_t {
     var,
     wif,
     aspif,
+    fstring_start,
+    fstring_spec,
+    fstring_cont,
+    fstring_close,
 };
 
 enum class AspifToken : uint8_t {
@@ -109,6 +113,8 @@ enum class Condition : uint8_t {
     theory = yyctheory,
     script = yycscript,
     include = yycinclude,
+    fstring = yycfstring,
+    fstring_spec = yycfstring_spec,
 };
 
 //! Output token in human readable form.
@@ -321,6 +327,18 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::aspif: {
             return out << "asp";
         }
+        case TokenType::fstring_start: {
+            return out << "f\"";
+        }
+        case TokenType::fstring_spec: {
+            return out << "<f-string-spec>";
+        }
+        case TokenType::fstring_cont: {
+            return out << "<f-string-literal>";
+        }
+        case TokenType::fstring_close: {
+            return out << "<f-string-close>";
+        }
     }
     return out;
 }
@@ -345,7 +363,9 @@ enum class Prod : uint8_t {
     bxor,
     interval,
     tup,
-    abs
+    abs,
+    fstr,
+    fstr_field,
 };
 
 //! Capture a position in a file.
@@ -437,6 +457,13 @@ struct SymTup {
 
     std::vector<Symbol> tup;
     bool term = true;
+};
+
+struct FStr {
+    FStr(size_t line, size_t column) : line{line}, column{column} {}
+    std::vector<FormatField> fields;
+    size_t line;
+    size_t column;
 };
 
 //! The parser implementation.
@@ -665,6 +692,12 @@ class ParserState {
     //! Compute the next token discarding the last one.
     void consume() { token_ = lex_(); }
 
+    //! Revert the last consume call.
+    //!
+    //! Note that this leaves the token as is and can only be used once after a
+    //! call to consume.
+    void unconsume() { state_.unconsume(); }
+
     //! Compute the next aspif token (excluding strings).
     //!
     //! Requires the parser to be in aspif mode.
@@ -787,7 +820,7 @@ class ParserState {
     }
 
   private:
-    using Value = std::variant<Pos, Term, Abs, Fun, Tup, TyTerm, TyFun, TySeq, Symbol, SymFun, SymTup>;
+    using Value = std::variant<Pos, Term, Abs, Fun, Tup, TyTerm, TyFun, TySeq, FStr, Symbol, SymFun, SymTup>;
 
     //! Compute the next token.
     auto lex_() -> TokenType;

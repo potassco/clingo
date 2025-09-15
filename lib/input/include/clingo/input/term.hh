@@ -2,6 +2,7 @@
 
 #include <clingo/input/attributes.hh>
 
+#include <clingo/core/fstring.hh>
 #include <clingo/core/location.hh>
 #include <clingo/core/symbol.hh>
 
@@ -33,6 +34,7 @@ class TermFunction;
 class TermAbs;
 class TermUnary;
 class TermBinary;
+class TermFormatString;
 
 //! The signature of a predicate.
 using Sig = std::tuple<String, size_t, bool>;
@@ -42,7 +44,8 @@ using SharedSig = std::tuple<SharedString, size_t, bool>;
 using SharedSigSet = Util::ordered_set<SharedSig>;
 
 //! Variant holding the different term types.
-using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;
+using Term =
+    std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary, TermFormatString>;
 
 //! A vector of terms.
 using TermArray = Util::immutable_array<Term>;
@@ -133,6 +136,88 @@ class TermSymbol : public Expression<TermSymbol> {
   private:
     Location loc_;
     SharedSymbol value_;
+};
+
+//! A format field with a variable and format specification.
+class FormatFieldExpression : public RecursiveExpression<FormatFieldExpression> {
+  public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &FormatFieldExpression::loc_, a_lhs = &FormatFieldExpression::lhs_,
+                          a_rhs = &FormatFieldExpression::rhs_};
+    }
+
+    //! Construct a format field with a variable and format specification.
+    explicit FormatFieldExpression(Location loc, Util::immutable_value<Term> lhs, FormatSpec rhs);
+
+    //! Get the location of the field.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! Get the variable and format specification.
+    [[nodiscard]] auto lhs() const -> Util::immutable_value<Term> const & { return lhs_; }
+    //! Get the specification.
+    [[nodiscard]] auto rhs() const -> FormatSpec const & { return rhs_; }
+    //! Get a string representation of the right-hand-side.
+    [[nodiscard]] auto rhs_str() const -> std::string_view {
+        if (rhs_view_ == "i") {
+            Util::OutputBuffer out;
+            out << rhs_;
+            rhs_view_ = out.str();
+        }
+        return rhs_view_;
+    }
+
+  private:
+    Location loc_;
+    Util::immutable_value<Term> lhs_;
+    FormatSpec rhs_;
+    mutable std::string rhs_view_ = "i";
+};
+
+//! A format field with a plain string value.
+class FormatFieldLiteral : public Expression<FormatFieldLiteral> {
+  public:
+    //! Construct a format field with a string value.
+    explicit FormatFieldLiteral(Location loc, SharedString value) : loc_{std::move(loc)}, value_{std::move(value)} {}
+
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &FormatFieldLiteral::loc_, a_value = &FormatFieldLiteral::value_};
+    }
+
+    //! Get the location of the literal.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! Get the string value.
+    [[nodiscard]] auto value() const -> String const & { return *value_; }
+
+  private:
+    Location loc_;
+    SharedString value_;
+};
+
+//! A format field (either a plain string or a term with format specification).
+using FormatField = std::variant<FormatFieldLiteral, FormatFieldExpression>;
+
+//! An array of format fields (sequence of plain strings and substitutable terms).
+using FormatFieldArray = Util::immutable_array<FormatField>;
+
+//! A format string term.
+class TermFormatString : public Expression<TermFormatString> {
+  public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TermFormatString::loc_, a_elems = &TermFormatString::elems};
+    }
+
+    //! Construct a projection indicator.
+    explicit TermFormatString(Location loc, FormatFieldArray elems) : loc_{std::move(loc)}, elems_{std::move(elems)} {}
+    //! The location of the projected position.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The associated fields.
+    [[nodiscard]] auto elems() const -> FormatFieldArray const & { return elems_; }
+
+  private:
+    Location loc_;
+    FormatFieldArray elems_;
 };
 
 //! A tuple element.
@@ -300,6 +385,20 @@ class TermBinary : public RecursiveExpression<TermBinary> {
 };
 
 //! @}
+
+// FormatField
+
+inline FormatFieldExpression::FormatFieldExpression(Location loc, Util::immutable_value<Term> lhs, FormatSpec rhs)
+    : loc_{std::move(loc)}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {
+}
+
+inline auto operator==(FormatFieldExpression const &a, FormatFieldExpression const &b) -> bool {
+    return a.equal(b);
+}
+
+inline auto operator<=>(FormatFieldExpression const &a, FormatFieldExpression const &b) -> std::strong_ordering {
+    return a.compare(b);
+}
 
 // ArgumentTuple
 

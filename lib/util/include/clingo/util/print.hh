@@ -23,6 +23,9 @@ namespace CppClingo::Util {
 //! current buffer content and flush the file.
 class OutputBuffer {
   public:
+    //! The value type of the buffer.
+    using value_type = char;
+
     //! Construt the buffer with an optional file handle.
     OutputBuffer(FILE *out = nullptr) : out_{out} {}
 
@@ -58,6 +61,9 @@ class OutputBuffer {
     [[nodiscard]] auto view() const -> std::string_view {
         return std::string_view{buf_.data(), static_cast<size_t>(size_)};
     }
+
+    //! Get a char span of the current buffer content.
+    [[nodiscard]] auto span() -> std::span<char> { return std::span{buf_.data(), static_cast<size_t>(size_)}; }
 
     //! Get a string with the current buffer content.
     [[nodiscard]] auto str() const -> std::string { return std::string{buf_.data(), static_cast<size_t>(size_)}; }
@@ -104,14 +110,17 @@ class OutputBuffer {
         ++size_;
     }
 
+    //! Alias for append(char) to support std::back_inserter.
+    void push_back(char c) { append(c); }
+
     //! Pop a char from the buffer.
     void pop() { --size_; }
 
     //! Append an integral to the buffer.
-    template <std::integral T> void append(T num) {
-        constexpr auto n = 128;
+    template <std::integral T> void append(T num, int base = 10) { // NOLINT
+        constexpr auto n = 256;
         auto *end = ensure_(n);
-        auto res = std::to_chars(end, limit_(), num);
+        auto res = std::to_chars(end, limit_(), num, base);
         size_ += res.ptr - end;
     }
 
@@ -244,13 +253,19 @@ template <class F> PrintFun(int, F &&) -> PrintFun<std::unwrap_ref_decay_t<F>>;
 class PrintQuoted {
   public:
     //! Construct the helper.
-    PrintQuoted(std::string_view str) : str_{str} {}
+    PrintQuoted(std::string_view str, bool fstring) : str_{str}, fstring_{fstring} {}
     //! Output quoted.
     template <class Out> friend auto operator<<(Out &out, PrintQuoted x) -> Out & {
-        out << '"';
+        if (!x.fstring_) {
+            out << '"';
+        }
         for (auto c : x.str_) {
             if (c == '\\') {
                 out << "\\\\";
+            } else if (x.fstring_ && c == '{') {
+                out << "{{";
+            } else if (x.fstring_ && c == '}') {
+                out << "}}";
             } else if (c == '\n') {
                 out << "\\n";
             } else if (c == '\t') {
@@ -261,12 +276,15 @@ class PrintQuoted {
                 out << c;
             }
         }
-        out << '"';
+        if (!x.fstring_) {
+            out << '"';
+        }
         return out;
     }
 
   private:
     std::string_view str_;
+    bool fstring_ = false;
 };
 
 } // namespace Detail
@@ -314,8 +332,8 @@ template <class T> auto p_range(T const &rng, char const *sep) {
 }
 
 //! Quote and print the given string.
-inline auto p_quoted(std::string_view str) {
-    return Detail::PrintQuoted{str};
+inline auto p_quoted(std::string_view str, bool fstring = false) {
+    return Detail::PrintQuoted{str, fstring};
 }
 
 //! @}

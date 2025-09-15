@@ -186,7 +186,7 @@ auto pyentry() -> int {
     return py::cast<int>(clingo_main(lib, argv));
 }
 
-auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<App *> app, bool raise_errors) -> int {
+auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<App *> app) -> int {
     auto capp = std::optional<clingo_application_t>{};
     if (app) {
         capp.emplace(app.value()->prepare());
@@ -195,21 +195,17 @@ auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<
     auto code = 0;
     auto ret = clingo_main(lib, cargs.data(), cargs.size(), capp ? &*capp : nullptr,
                            app ? static_cast<void *>(*app) : nullptr, &code);
-    // NOTE: Clasp's main is noexcept, it will just report the exception and
-    // return some arcane exit code. Hence, we simply check if an error has
-    // been set and forward it here.
+    // NOTE: Clasp's main is noexcept, it will report whether an exception was
+    // caught via the exit code. Whenever an exception is rethrown from within
+    // the internal C++ API, the clingo error will be cleared and *only* be
+    // reported by clasp. In this case, no clingo error is set but the exit
+    // code indicates an error.
     try {
-        handle_error_no_code(ret);
+        handle_error_no_code(ret, code);
     } catch (py::error_already_set const &e) {
-        if (raise_errors) {
-            throw;
-        }
         auto name = app ? app.value()->program_name() : CLINGO_EXECUTABLE;
         fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
     } catch (std::exception const &e) {
-        if (raise_errors) {
-            throw;
-        }
         auto name = app ? app.value()->program_name() : CLINGO_EXECUTABLE;
         fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
     }
@@ -408,15 +404,12 @@ Args:
 )"_d);
 
     app.def("clingo_main", &pymain, py::arg("lib"), py::arg("arguments"), py::arg("app") = std::nullopt,
-            py::arg("raise_errors") = false, R"(
+            R"(
 Entry point for running the Clingo application.
 
 This function initializes necessary components, processes input arguments, and
 then executes the main functionality of the Clingo application. It can
 optionally use a provided App instance to customize this behavior.
-
-The flag `raise_errors` might help for debugging purposes to obtain traces
-where errors originated from.
 
 Args:
 	lib:
@@ -425,8 +418,6 @@ Args:
 		A list of command-line arguments.
 	app:
 		An optional App instance containing application-specific logic.
-    raise_errors:
-        Whether to raise errors instead of just reporting them.
 
 Returns:
     An integer exit code.

@@ -38,6 +38,7 @@ auto variables_term(std::string const &str) -> std::string {
 TEST_CASE("variables_term") {
     REQUIRE(variables_term("f(X;Y)") == "[X, Y]");
     REQUIRE(variables_term("f(X,Z;X,Y,Z;X,Y)") == "[X, Y, Z]");
+    REQUIRE(variables_term("f\"{X}: {Y}\"") == "[X, Y]");
 }
 
 } // namespace CppClingo::Input::Test

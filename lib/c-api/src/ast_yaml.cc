@@ -193,12 +193,44 @@ term:
   - term_binary_operation
   - term_tuple
   - term_function
+  - term_format_string
 term_array:
   type: array
   value_type: term
 optional_term:
   type: optional
   value_type: term
+format_field:
+  type: union
+  types:
+  - format_field_literal
+  - format_field_expression
+format_field_array:
+  type: array
+  value_type: format_field
+format_field_literal:
+  type: record
+  doc: A literal part of a format string.
+  arguments:
+    location:
+      type: location
+      doc: The location of the literal.
+    value:
+      type: string
+      doc: The value of the literal.
+format_field_expression:
+  type: record
+  doc: An expression part of a format string.
+  arguments:
+    location:
+      type: location
+      doc: The location of the expression.
+    left:
+      type: term
+      doc: The term of the expression.
+    right:
+      type: string
+      doc: The format specifier of the expression.
 projection:
   type: record
   doc: A placeholder for an argument to project.
@@ -225,6 +257,16 @@ term_or_argument_tuple:
 term_or_argument_tuple_array:
   type: array
   value_type: term_or_argument_tuple
+term_format_string:
+  type: record
+  doc: A term representing a format string.
+  arguments:
+    location:
+      type: location
+      doc: The location of the format string.
+    elements:
+      type: format_field_array
+      doc: The elements of the format string.
 term_variable:
   type: record
   doc: A term representing a variable.

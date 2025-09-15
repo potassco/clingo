@@ -13,7 +13,7 @@ class Control;
 class Config {
   public:
     using Setter = TypeHint<"Callable[[str], None] | Callable[[str, Optional[int]], None] | None">;
-    using Getter = TypeHint<"Callable[[], Optional[str]] | Callable[Optional[int], Optional[str]] | None>">;
+    using Getter = TypeHint<"Callable[[], Optional[str]] | Callable[[Optional[int]], Optional[str]] | None">;
     using Size = TypeHint<"Optional[Callable[[], int]]">;
 
     Config(Control &ctl, clingo_config_t *config, clingo_id_t key) : ctl_{&ctl}, config_{config}, key_{key} {}

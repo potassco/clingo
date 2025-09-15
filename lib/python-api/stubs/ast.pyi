@@ -29,6 +29,77 @@ c(3).
 #show c/1.
 \"\"\"
 ```
+
+The next example hows how to visit and AST and collect variables.
+
+```python
+from functools import singledispatch
+
+from clingo.core import Library
+from clingo import ast
+
+@singledispatch
+def collect(stm, vars):
+    \"\"\"
+    Collect all variables occurring in statements.
+    \"\"\"
+    return stm.visit(collect, vars)
+
+@collect.register
+def _(var: ast.TermVariable | ast.TheoryTermVariable, vars):
+    vars.add(var.name)
+
+lib = Library()
+vars = set()
+
+ast.parse_string(
+    lib,
+    \"\"\"\\
+    a(X) :- b(X,Y).
+    b(Z).
+    \"\"\",
+    lambda stm: collect(stm, vars),
+)
+
+print(vars)
+```
+
+The last example shows how to use a transformer to modify an AST.
+
+```python
+from functools import singledispatch
+
+from clingo.core import Library
+from clingo import ast
+
+@singledispatch
+def rename(stm, lib):
+    \"\"\"
+    Replaces all occurrences of variable `X` with `Y` in the given statement
+    returning a new statement. If no replacement was made, `None` is returned.
+    \"\"\"
+    return stm.transform(lib, rename, lib)
+
+@rename.register
+def _(var: ast.TermVariable, lib):
+    return var.update(lib, name="Y") if var.name == "X" else None
+
+lib = Library()
+stms = []
+
+ast.parse_string(
+    lib,
+    \"\"\"\\
+    b(1,1).
+    b(2,3).
+    a(X) :- b(X,Y).
+    \"\"\",
+    stms.append,
+)
+
+for stm in stms:
+    print(rename(stm, lib) or stm)
+```
 """
 
 from __future__ import annotations
@@ -50,6 +121,8 @@ __all__ = [
     "BodyTheoryAtom",
     "CommentType",
     "Edge",
+    "FormatFieldExpression",
+    "FormatFieldLiteral",
     "HeadAggregate",
     "HeadAggregateElement",
     "HeadConditionalLiteral",
@@ -96,6 +169,7 @@ __all__ = [
     "StatementWeakConstraint",
     "TermAbsolute",
     "TermBinaryOperation",
+    "TermFormatString",
     "TermFunction",
     "TermSymbolic",
     "TermTuple",
@@ -315,6 +389,7 @@ def parse_term(
     | TermBinaryOperation
     | TermTuple
     | TermFunction
+    | TermFormatString
 ):
     """
     Parse a term.
@@ -923,6 +998,7 @@ class ArgumentTuple:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
             | Projection
         ] = [],
     ) -> None:
@@ -984,6 +1060,7 @@ class ArgumentTuple:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
         | Projection
     ]:
         """
@@ -1130,6 +1207,7 @@ class BodyAggregateElement:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ],
         condition: typing.Iterable[
             LiteralBoolean | LiteralComparison | LiteralSymbolic
@@ -1209,6 +1287,7 @@ class BodyAggregateElement:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ]:
         """
         The term tuple of the element.
@@ -1513,6 +1592,7 @@ class BodyTheoryAtom:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         elements: typing.Iterable[TheoryAtomElement],
         right: TheoryRightGuard | None,
@@ -1591,6 +1671,7 @@ class BodyTheoryAtom:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The name of the theory atom.
@@ -1634,6 +1715,7 @@ class Edge:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         v: (
             TermVariable
@@ -1643,6 +1725,7 @@ class Edge:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
     ) -> None:
         """
@@ -1704,6 +1787,7 @@ class Edge:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The start vertex.
@@ -1720,9 +1804,197 @@ class Edge:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The end vertex.
+        """
+
+class FormatFieldExpression:
+    """
+    An expression part of a format string.
+    """
+
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        left: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+        right: str,
+    ) -> None:
+        """
+        Construct a FormatFieldExpression object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the expression.
+            left: The term of the expression.
+            right: The format specifier of the expression.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> FormatFieldExpression | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> FormatFieldExpression:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def left(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
+        """
+        The term of the expression.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the expression.
+        """
+
+    @property
+    def right(self) -> str:
+        """
+        The format specifier of the expression.
+        """
+
+class FormatFieldLiteral:
+    """
+    A literal part of a format string.
+    """
+
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self, lib: clingo.core.Library, location: clingo.core.Location, value: str
+    ) -> None:
+        """
+        Construct a FormatFieldLiteral object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the literal.
+            value: The value of the literal.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> FormatFieldLiteral | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> FormatFieldLiteral:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the literal.
+        """
+
+    @property
+    def value(self) -> str:
+        """
+        The value of the literal.
         """
 
 class HeadAggregate:
@@ -1857,6 +2129,7 @@ class HeadAggregateElement:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ],
         literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
         condition: typing.Iterable[
@@ -1944,6 +2217,7 @@ class HeadAggregateElement:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ]:
         """
         The term tuple of the element.
@@ -2329,6 +2603,7 @@ class HeadTheoryAtom:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         elements: typing.Iterable[TheoryAtomElement],
         right: TheoryRightGuard | None,
@@ -2406,6 +2681,7 @@ class HeadTheoryAtom:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The name of the theory atom.
@@ -2443,6 +2719,7 @@ class LeftGuard:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         relation: Relation,
     ) -> None:
@@ -2511,6 +2788,7 @@ class LeftGuard:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The term of the guard.
@@ -2633,6 +2911,7 @@ class LiteralComparison:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         right: typing.Iterable[RightGuard],
     ) -> None:
@@ -2699,6 +2978,7 @@ class LiteralComparison:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The first term of the comparison.
@@ -2751,6 +3031,7 @@ class LiteralSymbolic:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
     ) -> None:
         """
@@ -2813,6 +3094,7 @@ class LiteralSymbolic:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The term representing the atom.
@@ -2941,6 +3223,7 @@ class OptimizeTuple:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         priority: (
             TermVariable
@@ -2950,6 +3233,7 @@ class OptimizeTuple:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
             | None
         ),
         terms: typing.Iterable[
@@ -2960,6 +3244,7 @@ class OptimizeTuple:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ],
     ) -> None:
         """
@@ -3022,6 +3307,7 @@ class OptimizeTuple:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
         | None
     ):
         """
@@ -3039,6 +3325,7 @@ class OptimizeTuple:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ]:
         """
         The remaining terms in the tuple.
@@ -3055,6 +3342,7 @@ class OptimizeTuple:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The weight of the tuple.
@@ -3342,6 +3630,7 @@ class RightGuard:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
     ) -> None:
         """
@@ -3409,6 +3698,7 @@ class RightGuard:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The term of the guard.
@@ -3624,6 +3914,7 @@ class StatementConst:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         precedence: Precedence,
     ) -> None:
@@ -3706,6 +3997,7 @@ class StatementConst:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The term of the statement.
@@ -3938,6 +4230,7 @@ class StatementExternal:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         body: typing.Iterable[
             BodySimpleLiteral
@@ -3954,6 +4247,7 @@ class StatementExternal:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
             | None
         ) = None,
     ) -> None:
@@ -4018,6 +4312,7 @@ class StatementExternal:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The atom to project.
@@ -4048,6 +4343,7 @@ class StatementExternal:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
         | None
     ):
         """
@@ -4087,6 +4383,7 @@ class StatementHeuristic:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         body: typing.Iterable[
             BodySimpleLiteral
@@ -4103,6 +4400,7 @@ class StatementHeuristic:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         modifier: (
             TermVariable
@@ -4112,6 +4410,7 @@ class StatementHeuristic:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         priority: (
             TermVariable
@@ -4121,6 +4420,7 @@ class StatementHeuristic:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
             | None
         ) = None,
     ) -> None:
@@ -4187,6 +4487,7 @@ class StatementHeuristic:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The atom to heuristically modify.
@@ -4223,6 +4524,7 @@ class StatementHeuristic:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The heuristic modifier.
@@ -4239,6 +4541,7 @@ class StatementHeuristic:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
         | None
     ):
         """
@@ -4256,6 +4559,7 @@ class StatementHeuristic:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The weight of the heuristic modification.
@@ -4644,6 +4948,7 @@ class StatementProject:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         body: typing.Iterable[
             BodySimpleLiteral
@@ -4713,6 +5018,7 @@ class StatementProject:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The atom to project.
@@ -5068,6 +5374,7 @@ class StatementShow:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         body: typing.Iterable[
             BodySimpleLiteral
@@ -5157,6 +5464,7 @@ class StatementShow:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The term to show.
@@ -5557,6 +5865,7 @@ class TermAbsolute:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ],
     ) -> None:
         """
@@ -5627,6 +5936,7 @@ class TermAbsolute:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ]:
         """
         The argument pool.
@@ -5660,6 +5970,7 @@ class TermBinaryOperation:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
         operator_type: BinaryOperator,
         right: (
@@ -5670,6 +5981,7 @@ class TermBinaryOperation:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
     ) -> None:
         """
@@ -5733,6 +6045,7 @@ class TermBinaryOperation:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The left argument of the operation.
@@ -5761,9 +6074,91 @@ class TermBinaryOperation:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The right argument of the operation.
+        """
+
+class TermFormatString:
+    """
+    A term representing a format string.
+    """
+
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        elements: typing.Iterable[FormatFieldLiteral | FormatFieldExpression],
+    ) -> None:
+        """
+        Construct a TermFormatString object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the format string.
+            elements: The elements of the format string.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TermFormatString | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TermFormatString:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[FormatFieldLiteral | FormatFieldExpression]:
+        """
+        The elements of the format string.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the format string.
         """
 
 class TermFunction:
@@ -5975,6 +6370,7 @@ class TermTuple:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
             | ArgumentTuple
         ],
     ) -> None:
@@ -6046,6 +6442,7 @@ class TermTuple:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
         | ArgumentTuple
     ]:
         """
@@ -6081,6 +6478,7 @@ class TermUnaryOperation:
             | TermBinaryOperation
             | TermTuple
             | TermFunction
+            | TermFormatString
         ),
     ) -> None:
         """
@@ -6155,6 +6553,7 @@ class TermUnaryOperation:
         | TermBinaryOperation
         | TermTuple
         | TermFunction
+        | TermFormatString
     ):
         """
         The argument of the operation.

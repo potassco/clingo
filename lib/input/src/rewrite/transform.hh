@@ -134,6 +134,19 @@ template <class T> class Transformer {
         return rewrite(term, a_pool);
     }
 
+    [[nodiscard]] auto accept_(FormatFieldExpression const &field) const -> std::optional<FormatFieldExpression> {
+        return rewrite(field, a_lhs);
+    }
+
+    [[nodiscard]] auto accept_([[maybe_unused]] FormatFieldLiteral const &field) const
+        -> std::optional<FormatFieldLiteral> {
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept_(TermFormatString const &term) const -> std::optional<Term> {
+        return rewrite(term, a_elems);
+    }
+
     [[nodiscard]] auto accept_(TermUnary const &term) const -> std::optional<Term> { return rewrite(term, a_rhs); }
 
     [[nodiscard]] auto accept_(TermBinary const &term) const -> std::optional<Term> {

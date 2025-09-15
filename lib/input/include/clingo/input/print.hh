@@ -30,6 +30,26 @@ auto operator<<(std::ostream &out, Projection const &projection) -> std::ostream
 //! Output the term to the given stream.
 auto operator<<(Util::OutputBuffer &out, Projection const &projection) -> Util::OutputBuffer &;
 
+//! Output an f-string format spec to the given stream.
+auto operator<<(std::ostream &out, FormatSpec const &spec) -> std::ostream &;
+//! Output an f-string format spec to the given stream.
+auto operator<<(Util::OutputBuffer &out, FormatSpec const &spec) -> Util::OutputBuffer &;
+
+//! Output an f-string format field to the given stream.
+auto operator<<(std::ostream &out, FormatFieldExpression const &field) -> std::ostream &;
+//! Output an f-string format field to the given stream.
+auto operator<<(Util::OutputBuffer &out, FormatFieldExpression const &field) -> Util::OutputBuffer &;
+
+//! Output an f-string format string field to the given stream.
+auto operator<<(std::ostream &out, FormatFieldLiteral const &field) -> std::ostream &;
+//! Output an f-string format string field to the given stream.
+auto operator<<(Util::OutputBuffer &out, FormatFieldLiteral const &field) -> Util::OutputBuffer &;
+
+//! Output the term to the given stream.
+auto operator<<(std::ostream &out, TermFormatString const &term) -> std::ostream &;
+//! Output the term to the given stream.
+auto operator<<(Util::OutputBuffer &out, TermFormatString const &term) -> Util::OutputBuffer &;
+
 //! Output the term to the given stream.
 auto operator<<(std::ostream &out, TermVariable const &term) -> std::ostream &;
 //! Output the term to the given stream.

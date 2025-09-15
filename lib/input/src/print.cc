@@ -4,6 +4,7 @@
 
 #include <clingo/util/algorithm.hh>
 #include <clingo/util/print.hh>
+#include <clingo/util/type_traits.hh>
 
 #include <cstring>
 #include <sstream>
@@ -191,6 +192,14 @@ template <class O> class Print {
     // term
 
     void operator()(Term const &term) const { std::visit(*this, term); }
+
+    void operator()(TermFormatString const &term) const {
+        *out_ << "f\"";
+        for (auto const &x : term.elems()) {
+            std::visit([this]<class T>(T const &x) { *out_ << x; }, x);
+        }
+        *out_ << '"';
+    }
 
     void operator()(TermSymbol const &term) const {
         char const *lp = "";
@@ -768,6 +777,16 @@ template <class T> void print_op(T &out, BinaryOperator op) {
     }
 }
 
+template <class T> auto print_field(T &out, FormatFieldExpression const &field) -> T & {
+    out << "{" << field.lhs() << field.rhs() << "}";
+    return out;
+}
+
+template <class T> auto print_field(T &out, FormatFieldLiteral const &field) -> T & {
+    out << Util::p_quoted(field.value().view(), true);
+    return out;
+}
+
 } // namespace
 
 auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
@@ -790,6 +809,32 @@ auto operator<<(Util::OutputBuffer &out, BinaryOperator op) -> Util::OutputBuffe
 }
 
 // terms
+
+auto operator<<(std::ostream &out, FormatFieldExpression const &field) -> std::ostream & {
+    return print_field(out, field);
+}
+
+auto operator<<(Util::OutputBuffer &out, FormatFieldExpression const &field) -> Util::OutputBuffer & {
+    return print_field(out, field);
+}
+
+auto operator<<(std::ostream &out, FormatFieldLiteral const &field) -> std::ostream & {
+    return print_field(out, field);
+}
+
+auto operator<<(Util::OutputBuffer &out, FormatFieldLiteral const &field) -> Util::OutputBuffer & {
+    return print_field(out, field);
+}
+
+auto operator<<(std::ostream &out, TermFormatString const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, TermFormatString const &term) -> Util::OutputBuffer & {
+    Print{out}(term);
+    return out;
+}
 
 auto operator<<(std::ostream &out, [[maybe_unused]] Projection const &projection) -> std::ostream & {
     out << "*";

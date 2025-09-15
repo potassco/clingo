@@ -28,15 +28,17 @@ void raise_error() {
     }
 }
 
-void handle_error_no_code(bool res) {
+void handle_error_no_code(bool res, int code) {
     if (!res) {
         raise_error();
     }
-    clingo_string_t str;
-    clingo_result_t rc = clingo_result_success;
-    clingo_get_error(&rc, &str);
-    if (rc != clingo_result_success) {
-        raise_error();
+    if ((code & 65) == 65 || (code & 33) == 33) { // NOLINT
+        clingo_string_t str;
+        clingo_result_t rc = clingo_result_success;
+        clingo_get_error(&rc, &str);
+        if (rc != clingo_result_success) {
+            raise_error();
+        }
     }
 }
 

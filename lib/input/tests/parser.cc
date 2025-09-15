@@ -96,6 +96,17 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("(-a)**b") == "(-a)**b");
         REQUIRE(parse("-f(1+2)") == "-f(1+2)");
         REQUIRE(parse("-f(1+X)") == "-f(1+X)");
+        REQUIRE(parse("f\"{X}\"") == "f\"{X}\"");
+        REQUIRE(parse("f\"{X[0].name}\"") == "f\"{X[0].name}\"");
+        REQUIRE(parse("f\"{X!r}\"") == "f\"{X!r}\"");
+        REQUIRE(parse("f\"{X:<}\"") == "f\"{X:<}\"");
+        REQUIRE(parse("f\"{X: <}\"") == "f\"{X: <}\"");
+        REQUIRE(parse("f\"{X:+}\"") == "f\"{X:+}\"");
+        REQUIRE(parse("f\"{X:#}\"") == "f\"{X:#}\"");
+        REQUIRE(parse("f\"{X:13}\"") == "f\"{X:13}\"");
+        REQUIRE(parse("f\"{X:,}\"") == "f\"{X:,}\"");
+        REQUIRE(parse("f\"{X:x}\"") == "f\"{X:x}\"");
+        REQUIRE(parse("f\"{X[0]!r: <+#13,x}\"") == "f\"{X[0]!r: <+#13,x}\"");
 
         REQUIRE(parse(R"(f((), (a), (@a,), (,), (,;), (;;a,;,;;), "a", _, X * 2 + 1, -1+2*3, g(;f,x;;g;)))") ==
                 R"(f((),a,(@a,),(),(;),(;;a,;;;),"a",_,X*2+1,-1+2*3,g(;f,x;;g;)))");

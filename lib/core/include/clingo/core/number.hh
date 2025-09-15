@@ -251,6 +251,8 @@ class Number {
     friend auto operator<<(std::ostream &out, Number const &num) -> std::ostream &;
     //! Output the given number.
     friend auto operator<<(Util::OutputBuffer &out, Number const &num) -> Util::OutputBuffer &;
+    //! Output the given number with the given base.
+    friend void append(Util::OutputBuffer &out, Number const &num, int base);
 
     // conversion between numbers and their representations
 

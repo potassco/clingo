@@ -6,6 +6,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <ranges>
+
 namespace CppClingo::Test {
 
 TEST_CASE("grounder_text") {
@@ -631,6 +633,105 @@ TEST_CASE("grounder_text") {
             REQUIRE(grd.ground(params));
             REQUIRE(buf.view() == "p(5).\n"
                                   "#show.\n");
+        }
+        SECTION("fstring") {
+            using SV = std::vector<std::string>;
+            auto ground = [&store](std::string_view prg) {
+                auto opts = Input::RewriteOptions{};
+                auto log = Logger{};
+                log.set_level(LogLevel::error);
+                auto buf = Util::OutputBuffer{};
+                auto out = Output::make_text_output(buf);
+                auto grd = Control::Grounder{log, *store, opts, *out};
+                auto params = Input::ProgramParamVec{{store->string("base"), {}}};
+                grd.parse(R"(
+                    p(12345).
+                    p(590438524098504958203485230458025823455).
+                    x(p(f("x", y))).
+                    x("xyz").
+                    y(abc).
+                    z(0x3042).
+                    z(0x301).
+                    z(0x41).
+                )");
+                grd.parse(prg);
+                REQUIRE(grd.ground(params));
+                auto res = SV{};
+                for (auto line : buf.view() | std::views::split('\n') |
+                                     std::views::filter([](auto sv) { return !sv.empty() && sv.front() == 'q'; })) {
+                    res.emplace_back();
+                    res.back().insert(res.back().end(), line.begin() + 3, line.end() - 3);
+                }
+                std::ranges::sort(res);
+                return res;
+            };
+            // numbers
+            REQUIRE(ground(R"(q(f"{X}") :- p(X).)") == SV{
+                                                           "12345",
+                                                           "590438524098504958203485230458025823455",
+                                                       });
+            REQUIRE(ground(R"(q(f"{X:b}") :- p(X).)") ==
+                    SV{
+                        "11000000111001",
+                        "1101111000011001001010010110010011001000000110010111011000111101011001000000010101110111000010"
+                        "00101111011111000000100110011011111",
+                    });
+            REQUIRE(ground(R"(q(f"{X:o}") :- p(X).)") == SV{
+                                                             "30071",
+                                                             "6741445131144031354365440127341057370046337",
+                                                         });
+            REQUIRE(ground(R"(q(f"{X:d}") :- p(X).)") == SV{
+                                                             "12345",
+                                                             "590438524098504958203485230458025823455",
+                                                         });
+            REQUIRE(ground(R"(q(f"{X:x}") :- p(X).)") == SV{
+                                                             "1bc3252c99032ec7ac80aee117be04cdf",
+                                                             "3039",
+                                                         });
+            REQUIRE(ground(R"(q(f"{X:X}") :- p(X).)") == SV{
+                                                             "1BC3252C99032EC7AC80AEE117BE04CDF",
+                                                             "3039",
+                                                         });
+            REQUIRE(ground(R"(q(f"{X:#x}") :- p(X).)") == SV{
+                                                              "0x1bc3252c99032ec7ac80aee117be04cdf",
+                                                              "0x3039",
+                                                          });
+            REQUIRE(ground(R"(q(f"{X:0=+55,}") :- p(X;-X).)") ==
+                    SV{
+                        "+00000000000000000000000000000000000000000000000012,345",
+                        "+000590,438,524,098,504,958,203,485,230,458,025,823,455",
+                        "-00000000000000000000000000000000000000000000000012,345",
+                        "-000590,438,524,098,504,958,203,485,230,458,025,823,455",
+                    });
+            REQUIRE(ground(R"(q(f"{X:0= #55_x}") :- p(X;-X).)") ==
+                    SV{
+                        " 0x0000000000000000000000000000000000000000000000003039",
+                        " 0x000000000001_bc32_52c9_9032_ec7a_c80a_ee11_7be0_4cdf",
+                        "-0x0000000000000000000000000000000000000000000000003039",
+                        "-0x000000000001_bc32_52c9_9032_ec7a_c80a_ee11_7be0_4cdf",
+                    });
+            // terms and strings
+            REQUIRE(ground(R"(q(f"{X!s}") :- x(X).)") == SV{
+                                                             "p(f(\\\"x\\\",y))",
+                                                             "xyz",
+                                                         });
+            REQUIRE(ground(R"(q(f"{X!r}") :- x(X).)") == SV{
+                                                             "\\\"xyz\\\"",
+                                                             "p(f(\\\"x\\\",y))",
+                                                         });
+            // alignment
+            REQUIRE(ground(R"(q(f"{X:.^7}") :- y(X).)") == SV{"..abc.."});
+            REQUIRE(ground(R"(q(f"{X:.<7}") :- y(X).)") == SV{"abc...."});
+            REQUIRE(ground(R"(q(f"{X:.>7}") :- y(X).)") == SV{"....abc"});
+            REQUIRE(ground(R"(q(f"{X:.^8}") :- y(X).)") == SV{"..abc..."});
+            // character
+            REQUIRE(ground(R"(q(f"{X:c}") :- z(X).)") == SV{"A", "́", "あ"});
+            // accessors
+            REQUIRE(ground(R"(q(f"{X[0][0].name}") :- X=f(g(h(1))).)") == SV{"h"});
+            // nested terms
+            REQUIRE(ground(R"(q(f"x{f"{Y-1:0=5}":*^10}z") :- Y=0.)") == SV{"x**-0001***z"});
+            // subsitution
+            REQUIRE(ground(R"(q(f"{X}") :- X=1.)") == SV{"1"});
         }
     }
     // Note: the current implementation takes two iterations to clean up everything

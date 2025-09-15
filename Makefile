@@ -1,6 +1,6 @@
 SHELL := /bin/zsh
-CLANG_CC := $(shell test -e /usr/bin/clang-18 && echo /usr/bin/clang-18 || echo clang)
-CLANG_CXX := $(shell test -e /usr/bin/clang++-18 && echo /usr/bin/clang++-18 || echo clang++)
+CLANG_CC := $(shell test -e /usr/bin/clang-20 && echo /usr/bin/clang-20 || echo clang)
+CLANG_CXX := $(shell test -e /usr/bin/clang++-20 && echo /usr/bin/clang++-20 || echo clang++)
 CPU_COUNT := $(shell test -e /usr/bin/nproc && nproc || echo "1")
 
 all: debug

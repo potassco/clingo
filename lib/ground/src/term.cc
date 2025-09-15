@@ -1,8 +1,10 @@
-#include <algorithm>
 #include <clingo/ground/term.hh>
 
 #include <clingo/util/optional.hh>
+#include <clingo/util/type_traits.hh>
 
+#include <algorithm>
+#include <ranges>
 #include <typeindex>
 
 namespace CppClingo::Ground {
@@ -159,6 +161,387 @@ auto TermSymbol::do_equal_to(Term const &other) const -> bool {
 auto TermSymbol::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
     if (auto const *x = dynamic_cast<TermSymbol const *>(&other); x != nullptr) {
         return sym_ <=> x->sym_;
+    }
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
+}
+
+// TermFormatString
+
+auto TermFormatString::do_score([[maybe_unused]] double size, [[maybe_unused]] std::vector<bool> const &bound) const
+    -> double {
+    // All variables in a format string must be bound.
+    return 0.0;
+}
+
+auto TermFormatString::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
+    return eval(ctx) == sym;
+}
+
+namespace {
+
+auto align(Util::OutputBuffer &out, std::string_view str, FormatSpec const &spec,
+           FormatSpec::Align def = FormatSpec::Align::left) {
+    auto fill = [&](size_t padding) {
+        std::ranges::fill_n(std::back_inserter(out), static_cast<ptrdiff_t>(padding), spec.fill.value_or(' '));
+    };
+    if (str.size() < spec.width) {
+        auto padding = spec.width - str.size();
+        switch (spec.align == FormatSpec::Align::none ? def : spec.align) {
+            case FormatSpec::Align::center: {
+                if (str.size() < spec.width) {
+                    auto left = padding / 2;
+                    auto right = padding - left;
+                    fill(left);
+                    out << str;
+                    fill(right);
+                }
+                break;
+            }
+            case FormatSpec::Align::right: {
+                fill(padding);
+                out << str;
+                break;
+            }
+            default: {
+                out << str;
+                fill(padding);
+                break;
+            }
+        }
+    } else {
+        out << str;
+    }
+}
+
+auto insert_sep(Util::OutputBuffer &tmp, size_t start, char sep, FormatSpec::Type type) {
+    auto digits = tmp.size() - start;
+    int width =
+        type == FormatSpec::Type::binary || type == FormatSpec::Type::hex_lower || type == FormatSpec::Type::hex_upper
+            ? 4
+            : 3;
+    if (digits <= static_cast<size_t>(width)) {
+        return;
+    }
+    auto seps = (digits - 1) / width;
+    tmp.reserve(static_cast<ptrdiff_t>(seps));
+
+    auto span = tmp.span();
+    auto jt = span.rbegin();
+    int group = -1;
+    for (char c : std::views::reverse(span.subspan(start, digits))) {
+        if (++group == width) {
+            *jt++ = sep;
+            group = 0;
+        }
+        *jt++ = c;
+    }
+}
+
+auto insert_prefix(Util::OutputBuffer &buf, size_t &start, std::string_view prefix) {
+    size_t digits = buf.size() - start;
+    buf.reserve(std::ssize(prefix));
+    auto span = buf.span();
+    auto num = span.subspan(start, digits);
+    std::ranges::copy_backward(num, buf.span().end());
+    std::ranges::copy(prefix, num.begin());
+    start += prefix.size();
+}
+
+auto append_chr(Util::OutputBuffer &buf, Number const &num) -> bool {
+    // NOLINTBEGIN(readability-magic-numbers)
+    auto cp = static_cast<uint32_t>(num.as_int().value_or(-1));
+    if (num > 0x10FFFF || (num >= 0xD800 && num <= 0xDFFF)) {
+        buf.append('?');
+        return false;
+    }
+    if (cp < 0x80) {
+        buf.append(static_cast<char>(cp));
+    } else if (cp < 0x800) {
+        buf.append(static_cast<char>(0xC0 | (cp >> 6)));
+        buf.append(static_cast<char>(0x80 | (cp & 0x3F)));
+    } else if (cp < 0x10000) {
+        buf.append(static_cast<char>(0xE0 | (cp >> 12)));
+        buf.append(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        buf.append(static_cast<char>(0x80 | (cp & 0x3F)));
+    } else {
+        buf.append(static_cast<char>(0xF0 | (cp >> 18)));
+        buf.append(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+        buf.append(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        buf.append(static_cast<char>(0x80 | (cp & 0x3F)));
+    }
+    return true;
+    // NOLINTEND(readability-magic-numbers)
+}
+
+auto append_num(Util::OutputBuffer &buf, Number const &num, FormatSpec const &spec) -> void {
+    if (spec.sign == FormatSpec::Sign::space && num >= 0) {
+        buf.append(' ');
+    }
+    if (spec.sign == FormatSpec::Sign::plus && num >= 0) {
+        buf.append('+');
+    }
+    switch (spec.type) {
+        case FormatSpec::Type::binary: {
+            append(buf, num, 2);
+            break;
+        }
+        case FormatSpec::Type::octal: {
+            append(buf, num, 8); // NOLINT
+            break;
+        }
+        case FormatSpec::Type::hex_lower: {
+            append(buf, num, 16); // NOLINT
+            auto span = buf.span();
+            std::ranges::transform(span, span.begin(), [](char c) {
+                return static_cast<char>(static_cast<unsigned char>(std::tolower(c)));
+            });
+            break;
+        }
+        case FormatSpec::Type::hex_upper: {
+            append(buf, num, 16); // NOLINT
+            auto span = buf.span();
+            std::ranges::transform(span, span.begin(), [](char c) {
+                return static_cast<char>(static_cast<unsigned char>(std::toupper(c)));
+            });
+            break;
+        }
+        default: {
+            append(buf, num, 10); // NOLINT
+            break;
+        }
+    }
+}
+
+auto access(std::optional<Symbol> sym, std::vector<std::variant<SharedString, size_t>> const &accessors)
+    -> std::optional<Symbol> {
+    if (!sym) {
+        return std::nullopt;
+    }
+    for (auto const &acc : accessors) {
+        sym = std::visit(
+            [&sym]<class T>(T const &x) -> std::optional<Symbol> {
+                if constexpr (Util::matches<T, size_t>) {
+                    if (sym->type() == SymbolType::function || sym->type() == SymbolType::tuple) {
+                        if (auto args = sym->args(); x < args.size()) {
+                            return args[x];
+                        }
+                    }
+                    return std::nullopt;
+                } else {
+                    static_assert(Util::matches<T, SharedString>);
+                    if (x == "name") {
+                        if (sym->type() == SymbolType::function) {
+                            return SymbolStore::str_ref(sym->name());
+                        }
+                    }
+                    return std::nullopt;
+                }
+            },
+            acc);
+        if (!sym) {
+            return std::nullopt;
+        }
+    }
+    return sym;
+}
+
+} // namespace
+
+auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
+    buf_.reset();
+    for (auto const &elem : elems_) {
+        auto res = std::visit(
+            [this, &ctx]<class T>(T const &x) {
+                if constexpr (Util::matches<T, SharedString>) {
+                    buf_.append(x->view());
+                    return true;
+                } else {
+                    static_assert(Util::matches<T, std::pair<UTerm, FormatSpec>>);
+                    auto const &[term, spec] = x;
+                    auto const val = access(term->eval(ctx), spec.accessors);
+                    if (!val) {
+                        return false;
+                    }
+                    if (val->type() == SymbolType::number) {
+                        tmp_.reset();
+                        if (spec.type == FormatSpec::Type::character) {
+                            if (!append_chr(tmp_, val->num())) {
+                                return false;
+                            }
+                            align(buf_, tmp_.view(), spec);
+                            return true;
+                        }
+
+                        append_num(tmp_, val->num(), spec);
+                        size_t start = val->num() < 0 || spec.sign != FormatSpec::Sign::minus ? 1 : 0;
+
+                        if (spec.grouping == FormatSpec::Grouping::comma) {
+                            insert_sep(tmp_, start, ',', spec.type);
+                        } else if (spec.grouping == FormatSpec::Grouping::underscore) {
+                            insert_sep(tmp_, start, '_', spec.type);
+                        } else if (spec.type == FormatSpec::Type::locale) {
+                            thread_local auto loc = std::locale{""};
+                            auto sep = std::use_facet<std::numpunct<char>>(loc).thousands_sep();
+                            insert_sep(tmp_, start, sep, spec.type);
+                        }
+
+                        if (spec.alternate_form) {
+                            switch (spec.type) {
+                                case FormatSpec::Type::binary: {
+                                    insert_prefix(tmp_, start, "0b");
+                                    break;
+                                }
+                                case FormatSpec::Type::octal: {
+                                    insert_prefix(tmp_, start, "0o");
+                                    break;
+                                }
+                                case FormatSpec::Type::hex_lower: {
+                                    insert_prefix(tmp_, start, "0x");
+                                    break;
+                                }
+                                case FormatSpec::Type::hex_upper: {
+                                    insert_prefix(tmp_, start, "0X");
+                                    break;
+                                }
+                                default: {
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (spec.align == FormatSpec::Align::number) {
+                            auto padding =
+                                static_cast<ptrdiff_t>(tmp_.size() < spec.width ? spec.width - tmp_.size() : 0);
+                            auto digits = tmp_.size() - start;
+                            tmp_.reserve(padding);
+                            auto span = tmp_.span();
+                            auto num = span.subspan(start, digits);
+                            std::ranges::copy_backward(num, span.end());
+                            std::ranges::fill_n(num.begin(), padding, spec.fill.value_or(' '));
+                        }
+
+                        align(buf_, tmp_.view(), spec, FormatSpec::Align::right);
+                        return true;
+                    }
+                    if (val->type() == SymbolType::string && spec.conversion == FormatSpec::Conversion::str) {
+                        align(buf_, val->str().view(), spec);
+                        return true;
+                    }
+                    tmp_.reset();
+                    tmp_ << *val;
+                    align(buf_, tmp_.view(), spec);
+                    return true;
+                }
+            },
+            elem);
+        if (!res) {
+            return std::nullopt;
+        }
+    }
+    return SymbolStore::str_ref(ctx.store().string_ref(buf_.str()));
+}
+
+auto TermFormatString::do_rename([[maybe_unused]] SymbolStore &store, RenameMode mode, String const *name,
+                                 size_t *vars) const -> UTerm {
+    assert(name == nullptr);
+    auto renamed = FormatFieldVec{};
+    renamed.reserve(elems_.size());
+    for (auto const &elem : elems_) {
+        std::visit(
+            [&]<class T>(T const &x) {
+                if constexpr (Util::matches<T, SharedString>) {
+                    renamed.emplace_back(x);
+                } else {
+                    renamed.emplace_back(std::in_place_type<std::pair<UTerm, FormatSpec>>,
+                                         x.first->rename(store, mode, name, vars), x.second);
+                }
+            },
+            elem);
+    }
+    return std::make_unique<TermFormatString>(std::move(renamed));
+}
+
+auto TermFormatString::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
+    auto renamed = FormatFieldVec{};
+    renamed.reserve(elems_.size());
+    for (auto const &elem : elems_) {
+        std::visit(
+            [&]<class T>(T const &x) {
+                if constexpr (Util::matches<T, SharedString>) {
+                    renamed.emplace_back(x);
+                } else {
+                    renamed.emplace_back(std::in_place_type<std::pair<UTerm, FormatSpec>>, x.first->rename(vars),
+                                         x.second);
+                }
+            },
+            elem);
+    }
+    return std::make_unique<TermFormatString>(std::move(renamed));
+}
+
+void TermFormatString::do_vars(VariableSet &vars, bool provide) const {
+    for (auto const &elem : elems_) {
+        std::visit(
+            [&]<class T>(T const &x) {
+                if constexpr (Util::matches<T, std::pair<UTerm, FormatSpec>>) {
+                    if (!provide) {
+                        x.first->vars(vars, provide);
+                    }
+                } else {
+                    static_assert(Util::matches<T, SharedString>);
+                }
+            },
+            elem);
+    }
+}
+
+void TermFormatString::do_print(std::ostream &out) const {
+    out << "f\"";
+    for (auto const &elem : elems_) {
+        std::visit(
+            [&out]<class T>(T const &x) {
+                if constexpr (Util::matches<T, SharedString>) {
+                    out << Util::p_quoted(x->view());
+                } else {
+                    static_assert(Util::matches<T, std::pair<UTerm, FormatSpec>>);
+                    out << "{X_" << *x.first << x.second << "}";
+                }
+            },
+            elem);
+    }
+    out << "\"";
+}
+
+auto TermFormatString::do_copy() const -> UTerm {
+    auto elems = FormatFieldVec{};
+    elems.reserve(elems_.size());
+    for (auto const &elem : elems_) {
+        std::visit(
+            [&]<class T>(T const &x) {
+                if constexpr (Util::matches<T, SharedString>) {
+                    elems.emplace_back(x);
+                } else {
+                    static_assert(Util::matches<T, std::pair<UTerm, FormatSpec>>);
+                    elems.emplace_back(std::in_place_type<std::pair<UTerm, FormatSpec>>, x.first->copy(), x.second);
+                }
+            },
+            elem);
+    }
+    return std::make_unique<TermFormatString>(std::move(elems));
+}
+
+auto TermFormatString::do_hash() const -> size_t {
+    return Util::value_hash_record<TermFormatString>(elems_);
+}
+
+auto TermFormatString::do_equal_to(Term const &other) const -> bool {
+    auto const *x = dynamic_cast<TermFormatString const *>(&other);
+    return x != nullptr && elems_ == x->elems_;
+}
+
+auto TermFormatString::do_compare_to(Term const &other) const -> std::strong_ordering {
+    if (auto const *x = dynamic_cast<TermFormatString const *>(&other); x != nullptr) {
+        return std::lexicographical_compare_three_way(elems_.begin(), elems_.end(), x->elems_.begin(), x->elems_.end());
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }

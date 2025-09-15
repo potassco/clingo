@@ -43,11 +43,17 @@ struct Arg {
 };
 
 // NOTE: a tuple of arrays would have been the better choice
-
+constexpr auto cons_format_field_literal =
+    std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_value, Arg::string}};
+constexpr auto cons_format_field_expression =
+    std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_left, Arg::node},
+               Arg{clingo_ast_attribute_right, Arg::string}};
 constexpr auto cons_projection = std::array{Arg{clingo_ast_attribute_location, Arg::location}};
 constexpr auto cons_term_variable =
     std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_name, Arg::string},
                Arg{clingo_ast_attribute_anonymous, Arg::integer}};
+constexpr auto cons_term_format_string =
+    std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_elements, Arg::node_array}};
 constexpr auto cons_term_symbolic =
     std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_symbol, Arg::symbol}};
 constexpr auto cons_term_absolute =
@@ -216,9 +222,12 @@ constexpr auto cons_statement_comment =
                Arg{clingo_ast_attribute_comment_type, Arg::integer}};
 
 constexpr auto cons = std::array{
+    std::span{cons_format_field_literal.data(), cons_format_field_literal.size()},
+    std::span{cons_format_field_expression.data(), cons_format_field_expression.size()},
     std::span{cons_projection.data(), cons_projection.size()},
     std::span{cons_term_variable.data(), cons_term_variable.size()},
     std::span{cons_term_symbolic.data(), cons_term_symbolic.size()},
+    std::span{cons_term_format_string.data(), cons_term_format_string.size()},
     std::span{cons_term_absolute.data(), cons_term_absolute.size()},
     std::span{cons_term_unary_operation.data(), cons_term_unary_operation.size()},
     std::span{cons_term_binary_operation.data(), cons_term_binary_operation.size()},

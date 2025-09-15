@@ -117,6 +117,38 @@ class TestAST:
         assert p.symbol == s
         assert str(p) == "f(1,2)"
 
+    def test_fstring(self):
+        """
+        Test format string terms.
+        """
+        t = ast.parse_term(self.lib, 'f"a{X:x}b"')
+        assert isinstance(t, ast.TermFormatString)
+        assert str(t) == 'f"a{X:x}b"'
+
+        elems = t.elements
+        assert len(elems) == 3
+        assert isinstance(elems[0], ast.FormatFieldLiteral)
+        assert str(elems[0]) == "a"
+        assert isinstance(elems[1], ast.FormatFieldExpression)
+        assert str(elems[1]) == "{X:x}"
+        assert isinstance(elems[2], ast.FormatFieldLiteral)
+        assert str(elems[2]) == "b"
+
+        expr = elems[1]
+        assert str(expr.left) == "X"
+        assert expr.right == ":x"
+
+        assert str(ast.TermFormatString(self.lib, self.loc, elems)) == 'f"a{X:x}b"'
+        assert str(ast.FormatFieldLiteral(self.lib, self.loc, "a")) == "a"
+        assert (
+            str(
+                ast.FormatFieldExpression(
+                    self.lib, self.loc, ast.parse_term(self.lib, "X"), ":x"
+                )
+            )
+            == "{X:x}"
+        )
+
     def test_absolute(self):
         """
         Test absolute term.

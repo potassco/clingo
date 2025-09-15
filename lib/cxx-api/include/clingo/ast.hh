@@ -147,7 +147,10 @@ enum class Attribute : clingo_ast_attribute_t {
 //! Each note type is associated with a set of attributes.
 enum class NodeType : clingo_ast_type_t {
     // terms
+    format_field_literal = clingo_ast_type_format_field_literal,
+    format_field_expression = clingo_ast_type_format_field_expression,
     projection = clingo_ast_type_projection,
+    term_format_string = clingo_ast_type_term_format_string,
     term_variable = clingo_ast_type_term_variable,
     term_symbolic = clingo_ast_type_term_symbolic,
     term_absolute = clingo_ast_type_term_absolute,

@@ -59,6 +59,7 @@ TEST_CASE("unpool_term") {
     REQUIRE(unpool_term("(1;2)+(3;4)") == "[1+3, 1+4, 2+3, 2+4]");
     REQUIRE(unpool_term("|(1;2);3|") == "[|1|, |2|, |3|]");
     REQUIRE(unpool_term("|1;2;3|") == "[|1|, |2|, |3|]");
+    REQUIRE(unpool_term(R"(f"num: {(X;-X):0= 5}")") == R"([f"num: {X:0= 5}", f"num: {-X:0= 5}"])");
 }
 
 TEST_CASE("unpool_literal") {

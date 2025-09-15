@@ -339,6 +339,101 @@ class SimplifyTerm {
         return TermType::any;
     }
 
+    //! Simplify the given format string.
+    auto operator()(TermFormatString const &term, SimplifyTermFlags flags) const -> TermResult {
+        // NOTE: Currently, there is no indicator like for functions and
+        // tuples. Hence, we use any.
+        // NOTE: In principle, constants could be simplified here. The code for
+        // this is currently in the grounding not the input module. There is
+        // probably not much to gain from this simplification, though.
+
+        bool preserve = intersects(flags, SimplifyTermFlags::preserve_toplevel);
+
+        flags &= ~SimplifyTermFlags::preserve_toplevel;
+
+        // initialzie the elements up to the given index
+        auto elems = std::optional<std::vector<FormatField>>{};
+        auto init = [&](ptrdiff_t i) -> std::vector<FormatField> & {
+            elems.emplace();
+            elems->reserve(term.elems().size());
+            elems->insert(elems->end(), term.elems().begin(), term.elems().begin() + i);
+            return *elems;
+        };
+
+        // simplify the elements
+        ptrdiff_t i = 0;
+        for (auto const &elem : term.elems()) {
+            if (auto const *field = std::get_if<FormatFieldExpression>(&elem)) {
+                if (!std::visit(
+                        [&, this]<class U>(U res) {
+                            // evaluation of argument failed
+                            if constexpr (std::is_same_v<U, TermResultFail>) {
+                                return false;
+                            }
+                            // argument evaluated to symbol
+                            if constexpr (std::is_same_v<U, TermResultSymbol>) {
+                                if (auto x = Term{TermSymbol{field->loc(), res}}; elems || x != *field->lhs()) {
+                                    init(i).emplace_back(field->update(a_lhs = std::move(x)));
+                                }
+                            }
+                            // argument evaluated to linear term
+                            if constexpr (std::is_same_v<U, TermResultLinear>) {
+                                if (auto x = linear_as_term(*ctx_, std::move(res)); elems || x != *field->lhs()) {
+                                    init(i).emplace_back(field->update(a_lhs = std::move(x)));
+                                }
+                            }
+                            // argument did not change
+                            if constexpr (std::is_same_v<U, TermResultUnchanged>) {
+                                if (elems) {
+                                    elems->emplace_back(elem);
+                                }
+                            }
+                            // argument changed
+                            if constexpr (std::is_same_v<U, TermResultChanged>) {
+                                init(i).emplace_back(field->update(a_lhs = std::move(res.term)));
+                            }
+                            return true;
+                        },
+                        operator()(*field->lhs(), flags))) {
+                    return TermResultFail{};
+                }
+            } else if (elems) {
+                elems->emplace_back(elem);
+            }
+            ++i;
+        }
+
+        // check if we can simplify to a single string
+        auto simplify = [&](auto const &elems) -> TermResult {
+            auto is_string = [](auto const &x) { return std::holds_alternative<FormatFieldLiteral>(x); };
+            if (std::all_of(elems.begin(), elems.end(), is_string)) {
+                auto res = std::string{};
+                for (auto const &elem : elems) {
+                    res += std::get<FormatFieldLiteral>(elem).value().view();
+                }
+                return SymbolStore::str_ref(ctx_->store().string_ref(std::move(res)));
+            }
+            return TermResultUnchanged{};
+        };
+        if (auto res = elems ? simplify(*elems) : simplify(term.elems());
+            !std::holds_alternative<TermResultUnchanged>(res)) {
+            return res;
+        }
+
+        // check if the format string has to be moved into an auxiliary term
+        auto res_term = term.rewrite(a_elems = std::move(elems));
+        if ((!preserve && intersects(flags, SimplifyTermFlags::matchable))) {
+            return TermResultChanged{TermType::any, map_term(*ctx_, std::move(res_term).value_or(term))};
+        }
+
+        //! return the changed term
+        if (res_term) {
+            return TermResultChanged{TermType::any, *std::move(res_term)};
+        }
+
+        return TermType::any;
+    }
+
     //! Simplify the given function term.
     auto operator()(TermFunction const &term, SimplifyTermFlags flags) const -> TermResult {
         if (term.pool().size() != 1) {
@@ -777,6 +872,12 @@ class MakeMatchableTerm {
 
     //! Make the given variable term matchable.
     auto operator()([[maybe_unused]] TermVariable const &term, [[maybe_unused]] SimplifyTermFlags flags) const
+        -> Result {
+        return std::nullopt;
+    }
+
+    //! Make the given format string term matchable.
+    auto operator()([[maybe_unused]] TermFormatString const &term, [[maybe_unused]] SimplifyTermFlags flags) const
         -> Result {
         return std::nullopt;
     }

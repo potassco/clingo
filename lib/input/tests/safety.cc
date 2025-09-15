@@ -87,6 +87,10 @@ TEST_CASE("check_safety") {
     REQUIRE(cs_stm("#heuristic p(X) : X=Y, not q(Y). [Z@Y,X]") == "<unsafe>");
     REQUIRE(cs_stm("#heuristic p(X) : X=Y, not q(Y). [X@Z,X]") == "<unsafe>");
     REQUIRE(cs_stm("#heuristic p(X) : X=Y, not q(Y). [X@Y,Z]") == "<unsafe>");
+
+    REQUIRE(cs_stm("p(f\"{X}\").") == "<unsafe>");
+    REQUIRE(cs_stm(":- p(f\"{X}\").") == "<unsafe>");
+    REQUIRE(cs_stm("p(f\"{X}\") :- X=1.") == "p(f\"{X}\") :- X=1., U");
 }
 
 } // namespace CppClingo::Input::Test

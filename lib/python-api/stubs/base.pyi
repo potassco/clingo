@@ -458,7 +458,7 @@ class TheoryBase:
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, value: TheoryAtom) -> bool:
         """
-        Get a reverse iterator for the sequence.
+        Check whether the sequence contains the given value.
         """
 
     def __getitem__(self, index: int) -> TheoryAtom:

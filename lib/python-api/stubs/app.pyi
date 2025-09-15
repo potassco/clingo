@@ -70,10 +70,7 @@ __all__ = ["App", "AppOptions", "Flag", "clingo_main"]
 
 def _pyclingo() -> int: ...
 def clingo_main(
-    lib: clingo.core.Library,
-    arguments: typing.Sequence[str],
-    app: App | None = None,
-    raise_errors: bool = False,
+    lib: clingo.core.Library, arguments: typing.Sequence[str], app: App | None = None
 ) -> int:
     """
     Entry point for running the Clingo application.
@@ -82,9 +79,6 @@ def clingo_main(
     then executes the main functionality of the Clingo application. It can
     optionally use a provided App instance to customize this behavior.
 
-    The flag `raise_errors` might help for debugging purposes to obtain traces
-    where errors originated from.
-
     Args:
         lib:
                 The Clingo core library interface.
@@ -92,8 +86,6 @@ def clingo_main(
                 A list of command-line arguments.
         app:
                 An optional App instance containing application-specific logic.
-        raise_errors:
-            Whether to raise errors instead of just reporting them.
 
     Returns:
         An integer exit code.

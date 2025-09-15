@@ -210,7 +210,7 @@ class Assignment:
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, value: int) -> bool:
         """
-        Get a reverse iterator for the sequence.
+        Check whether the sequence contains the given value.
         """
 
     def __getitem__(self, index: int) -> int:
@@ -710,7 +710,7 @@ class Trail:
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, value: int) -> bool:
         """
-        Get a reverse iterator for the sequence.
+        Check whether the sequence contains the given value.
         """
 
     @typing.overload
@@ -796,7 +796,7 @@ class _TrailView:
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, value: int) -> bool:
         """
-        Get a reverse iterator for the sequence.
+        Check whether the sequence contains the given value.
         """
 
     @typing.overload
