@@ -209,7 +209,10 @@ template <class T> class BackendAdapter : public Backend {
         prg_.theoryAtom(atomOrZero, termId, elements, op, rhs);
     }
 
-    void endStep() override { prg_.endStep(); }
+    void endStep() override {
+        prg_.endStep();
+        out_->flush();
+    }
 
   private:
     std::unique_ptr<std::ostream> out_;
