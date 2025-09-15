@@ -211,7 +211,9 @@ template <class T> class BackendAdapter : public Backend {
 
     void endStep() override {
         prg_.endStep();
-        out_->flush();
+        if (out_) {
+            out_->flush();
+        }
     }
 
   private:
