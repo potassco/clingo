@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       wip:
-        description: 'Publish work in progress package.'
+        description: "Publish work in progress package."
         required: false
-        default: 'true'
+        default: "true"
 
 jobs:
   build_sdist:
@@ -75,7 +75,7 @@ jobs:
             env:
               CIBW_ARCHS_LINUX: ppc64le
               CIBW_BUILD: "*-manylinux*"
-          - os: windows-2019
+          - os: windows-latest
             name: "cp*-win*"
             env:
               CIBW_BUILD: "cp*-win*"
