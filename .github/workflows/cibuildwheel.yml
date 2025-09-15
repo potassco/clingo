@@ -40,37 +40,37 @@ jobs:
     strategy:
       matrix:
         cfg:
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "*-manylinux_x86_64"
             env:
               CIBW_ARCHS_LINUX: x86_64
               CIBW_BUILD: "*-manylinux*"
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "*-musllinux_x86_64"
             env:
               CIBW_ARCHS_LINUX: x86_64
               CIBW_BUILD: "*-musllinux*"
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "*-manylinux_i686"
             env:
               CIBW_ARCHS_LINUX: i686
               CIBW_BUILD: "*-manylinux*"
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "*-musllinux-i686"
             env:
               CIBW_ARCHS_LINUX: i686
               CIBW_BUILD: "*-musllinux*"
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "cp*-manylinux-aarch64"
             env:
               CIBW_ARCHS_LINUX: aarch64
               CIBW_BUILD: "cp*-manylinux*"
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "pp*-manylinux-aarch64"
             env:
               CIBW_ARCHS_LINUX: aarch64
               CIBW_BUILD: "pp*-manylinux*"
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "*-manylinux-ppc64le"
             env:
               CIBW_ARCHS_LINUX: ppc64le
