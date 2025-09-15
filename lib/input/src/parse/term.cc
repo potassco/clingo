@@ -2,9 +2,6 @@
 
 #include "parser_state.hh"
 
-// TODO: remove
-#include <clingo/input/print.hh>
-
 namespace CppClingo::Input::Parse {
 
 namespace {
