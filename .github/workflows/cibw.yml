@@ -127,6 +127,7 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
 
       - name: Adjust version
+        shell: bash -l {0}
         run: |
           pip install toml
           python .github/adjust_version.py --build-number ${BUILD_NUMBER} --git-hash ${GIT_HASH}
