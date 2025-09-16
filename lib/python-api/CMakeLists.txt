@@ -106,13 +106,15 @@ elseif(CLINGO_INSTALL_DEFAULT)
         LIBRARY DESTINATION "${python_install_dir}")
 endif()
 
-# the embedded library
-add_library(clingo-python-embed STATIC)
-target_sources(clingo-python-embed PRIVATE "include/embed.h" "src/embed.cc")
-clingo_target_properties(TARGETS clingo-python-embed FOLDER lib TYPE extra)
-target_include_directories(clingo-python-embed PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_compile_definitions(clingo-python-embed PUBLIC CLINGO_PYTHON_ENABLED)
-target_link_libraries(clingo-python-embed PRIVATE pybind11::embed clingo clingo-python)
+if(CLINGO_BUILD_APP)
+    # the embedded library
+    add_library(clingo-python-embed STATIC)
+    target_sources(clingo-python-embed PRIVATE "include/embed.h" "src/embed.cc")
+    clingo_target_properties(TARGETS clingo-python-embed FOLDER lib TYPE extra)
+    target_include_directories(clingo-python-embed PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+    target_compile_definitions(clingo-python-embed PUBLIC CLINGO_PYTHON_ENABLED)
+    target_link_libraries(clingo-python-embed PRIVATE pybind11::embed clingo clingo-python)
+endif()
 
 if(CLINGO_BUILD_TESTS)
     pytest_discover_tests(

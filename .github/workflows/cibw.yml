@@ -58,45 +58,46 @@ jobs:
         include:
           - build: "cp312-manylinux_x86_64"
             os: ubuntu-latest
-          # - build: "cp313-manylinux_x86_64"
-          #   os: ubuntu-latest
-          # - build: "cp314-manylinux_x86_64"
-          #   os: ubuntu-latest
-          #
+          - build: "cp313-manylinux_x86_64"
+            os: ubuntu-latest
+          - build: "cp314-manylinux_x86_64"
+            os: ubuntu-latest
+
           - build: "cp312-manylinux_aarch64"
             os: ubuntu-latest
-          # - build: "cp313-manylinux_aarch64"
-          #   os: ubuntu-latest
-          # - build: "cp314-manylinux_aarch64"
-          #   os: ubuntu-latest
+          - build: "cp313-manylinux_aarch64"
+            os: ubuntu-latest
+          - build: "cp314-manylinux_aarch64"
+            os: ubuntu-latest
 
           - build: "cp313-pyodide_wasm32"
             os: ubuntu-latest
 
           - build: "cp312-manylinux_ppc64le"
             os: ubuntu-latest
-          # - build: "cp313-manylinux_ppc64le"
-          #   os: ubuntu-latest
-          # - build: "cp314-manylinux_ppc64le"
-          #   os: ubuntu-latest
+          - build: "cp313-manylinux_ppc64le"
+            os: ubuntu-latest
+          - build: "cp314-manylinux_ppc64le"
+            os: ubuntu-latest
 
-          # NOTE: not available yet
+          # NOTE: pp312 is not available yet
+          # it should be replaced as soon as it becomes available
           - build: "pp311-manylinux_x86_64"
             os: ubuntu-latest
 
           - build: "cp312-win_amd64"
             os: windows-latest
-          # - build: "cp313-win_amd64"
-          #   os: windows-latest
-          # - build: "cp314-win_amd64"
-          #   os: windows-latest
+          - build: "cp313-win_amd64"
+            os: windows-latest
+          - build: "cp314-win_amd64"
+            os: windows-latest
 
           - build: "cp312-macosx_arm64"
             os: macos-latest
-          # - build: "cp313-macosx_universal2"
-          #   os: macos-latest
-          # - build: "cp314-macosx_universal2"
-          #   os: macos-latest
+          - build: "cp313-macosx_universal2"
+            os: macos-latest
+          - build: "cp314-macosx_universal2"
+            os: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
