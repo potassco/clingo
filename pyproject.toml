@@ -37,7 +37,5 @@ manylinux-i686-image = "manylinux_2_34"
 manylinux-pypy_x86_64-image = "manylinux_2_34"
 manylinux-pypy_i686-image = "manylinux_2_34"
 
-[tool.cibuildwheel.macos]
-environment = {
-    MACOSX_DEPLOYMENT_TARGET="14.0"
-}
+[tool.cibuildwheel.macos.environment]
+MACOSX_DEPLOYMENT_TARGET = "14.0"
