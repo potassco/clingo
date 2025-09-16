@@ -1,0 +1,143 @@
+name: Deploy to the Python package index
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "The build number."
+        required: true
+        type: string
+      index:
+        description: "Target index: pypi or testpypi"
+        required: true
+        type: choice
+        options:
+          - pypi
+          - testpypi
+
+jobs:
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Adjust version
+        run: python .github/adjust_version.py
+
+      - name: Build sdist
+        run: pipx run build --sdist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibw-sdist
+          path: dist/*.tar.gz
+
+  build_wheels:
+    needs: [build_sdist]
+    name: Build ${{ matrix.build }} wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - build: "cp312-manylinux_x86_64"
+            os: ubuntu-latest
+          # - build: "cp313-manylinux_x86_64"
+          #   os: ubuntu-latest
+          # - build: "cp314-manylinux_x86_64"
+          #   os: ubuntu-latest
+          #
+          # - build: "cp312-manylinux_aarch64"
+          #   os: ubuntu-latest
+          # - build: "cp313-manylinux_aarch64"
+          #   os: ubuntu-latest
+          # - build: "cp314-manylinux_aarch64"
+          #   os: ubuntu-latest
+          #
+          # - build: "cp312-manylinux_ppc64le"
+          #   os: ubuntu-latest
+          # - build: "cp313-manylinux_ppc64le"
+          #   os: ubuntu-latest
+          # - build: "cp314-manylinux_ppc64le"
+          #   os: ubuntu-latest
+
+          - build: "pp312-manylinux_x86_64"
+            os: ubuntu-latest
+          # - build: "pp313-manylinux_x86_64"
+          #   os: ubuntu-latest
+
+          - build: "cp312-win_amd64"
+            os: windows-latest
+          # - build: "cp313-win_amd64"
+          #   os: windows-latest
+          # - build: "cp314-win_amd64"
+          #   os: windows-latest
+
+          - build: "cp312-win_arm64"
+            os: windows-latest
+          # - build: "cp313-win_arm64"
+          #   os: windows-latest
+          # - build: "cp314-win_arm64"
+          #   os: windows-latest
+
+          - build: "cp312-macos_universal2"
+            os: macos-latest
+          # - build: "cp313-macos_universal2"
+          #   os: macos-latest
+          # - build: "cp314-macos_universal2"
+          #   os: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up QEMU
+        if: endsWith(matrix.build, 'linux_ppc64le') || endsWith(matrix.build, 'linux_aarch64')
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Get build number and hash
+        shell: bash -l {0}
+        run: |
+          if [ "${{ inputs.build_number }}" == "auto" ]; then
+            echo "BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
+          else
+            echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
+          fi
+          echo "GIT_HASH=${GITHUB_HASH:0:7}" >> $GITHUB_ENV
+
+      - name: Adjust version
+        run: |
+          pip install toml
+          python .github/adjust_version.py --build-number ${BUILD_NUMBER} --git-hash ${GIT_HASH}
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.21.3
+        env:
+          CIBW_BUILD: ${{ matrix.build }}
+          CIBW_ENVIRONMENT: "${{ inputs.index == 'testpypi' && 'PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple' || '' }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibw-${{ matrix.build }}
+          path: ./wheelhouse/*.whl
+
+  upload_pypi:
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cibw-*
+          path: dist
+          merge-multiple: true
+
+      # - name: Publish distribution to PyPI
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     repository_url: ${{ inputs.index == 'pypi' && 'https://upload.pypi.org/legacy/' || 'https://test.pypi.org/legacy/' }}
