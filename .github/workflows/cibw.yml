@@ -56,7 +56,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - build: "cp312-manylinux_2_34_x86_64"
+          - build: "cp312-manylinux_x86_64"
             os: ubuntu-latest
           # - build: "cp313-manylinux_x86_64"
           #   os: ubuntu-latest
@@ -136,7 +136,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.21.3
         env:
           CIBW_BUILD: ${{ matrix.build }}
-          CIBW_ENVIRONMENT: "MACOSX_DEPLOYMENT_TARGET=14.0 ${{ inputs.index == 'testpypi' && 'PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple' || '' }}"
+          CIBW_ENVIRONMENT: "${{ inputs.index == 'testpypi' && 'PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple' || '' }}"
 
       - uses: actions/upload-artifact@v4
         with:
