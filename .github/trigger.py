@@ -102,11 +102,11 @@ def main():
             {"build_number": args.build_number, "index": "pypi"},
         )
     elif args.command == "dev":
-        # dispatch_workflow(
-        #     WORKFLOW_ID_CONDA,
-        #     args.branch,
-        #     {"build_number": "auto", "label": "dev-20"},
-        # )
+        dispatch_workflow(
+            WORKFLOW_ID_CONDA,
+            args.branch,
+            {"build_number": "auto", "label": "dev-20"},
+        )
         dispatch_workflow(
             WORKFLOW_ID_PYPI,
             args.branch,
