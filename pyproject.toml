@@ -32,7 +32,7 @@ ignore = ["E741"]
 min-public-methods = 1
 
 [tool.cibuildwheel]
-enable = ["pypy", "pyodide"]
+enable = ["pypy"]
 
 [tool.cibuildwheel.linux]
 manylinux-x86_64-image = "manylinux_2_34"
