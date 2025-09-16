@@ -140,6 +140,7 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.build }}
           CIBW_ENVIRONMENT: "MACOSX_DEPLOYMENT_TARGET=14.0 ${{ inputs.index == 'testpypi' && 'PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple' || '' }}"
+          CIBW_PLATFORM: ${{ contains(matrix.build, 'pyodide') && 'pyodide' || 'auto' }}
 
       - uses: actions/upload-artifact@v4
         with:
