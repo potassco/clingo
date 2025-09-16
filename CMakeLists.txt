@@ -82,7 +82,7 @@ else()
         set(CLINGO_INSTALL_EXTRA ON)
     endif()
     if(CLINGO_BUILD_PYTHON)
-        find_package(Python COMPONENTS Interpreter Development Development.Module Development.Embed)
+        find_package(Python 3.12 COMPONENTS Interpreter Development Development.Module Development.Embed REQUIRED)
     endif()
 endif()
 
