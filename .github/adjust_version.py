@@ -27,8 +27,10 @@ def adjust_version(build_number, git_hash):
     with open("pyproject.toml", "r", encoding="utf-8") as hnd:
         pyproject = toml.load(hnd)
 
-    pyproject["project"]["version"] = f"{version}+g{git_hash}"
-
+    pyproject["project"]["version"] = f"{version}"
+    pyproject["project"]["urls"]["Source"] = (
+        f"https://github.com/potassco/clingo/tree/{git_hash}"
+    )
     with open("pyproject.toml", "w", encoding="utf-8") as hnd:
         toml.dump(pyproject, hnd)
 
