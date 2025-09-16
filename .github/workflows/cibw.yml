@@ -15,6 +15,9 @@ on:
           - pypi
           - testpypi
 
+permissions:
+  id-token: write
+
 jobs:
   build_sdist:
     name: Build source distribution
