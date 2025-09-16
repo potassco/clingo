@@ -1,7 +1,6 @@
 name: PyPI
 
 on:
-  push:
   workflow_dispatch:
     inputs:
       build_number:
@@ -33,7 +32,9 @@ jobs:
           else
             echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
           fi
-          echo "GIT_HASH=${GITHUB_HASH:0:7}" >> $GITHUB_ENV
+          echo "GIT_HASH=${GITHUB_SHA:0:7}" >> $GITHUB_ENV
+        env:
+          GITHUB_SHA: ${{ github.sha }}
 
       - name: Adjust version
         run: |
@@ -121,7 +122,9 @@ jobs:
           else
             echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
           fi
-          echo "GIT_HASH=${GITHUB_HASH:0:7}" >> $GITHUB_ENV
+          echo "GIT_HASH=${GITHUB_SHA:0:7}" >> $GITHUB_ENV
+        env:
+          GITHUB_SHA: ${{ github.sha }}
 
       - name: Adjust version
         run: |
