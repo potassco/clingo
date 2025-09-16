@@ -56,7 +56,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - build: "cp312-manylinux_x86_64"
+          - build: "cp312-manylinux_2_34_x86_64"
             os: ubuntu-latest
           # - build: "cp313-manylinux_x86_64"
           #   os: ubuntu-latest
