@@ -114,6 +114,8 @@ if(CLINGO_BUILD_APP)
     target_include_directories(clingo-python-embed PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
     target_compile_definitions(clingo-python-embed PUBLIC CLINGO_PYTHON_ENABLED)
     target_link_libraries(clingo-python-embed PRIVATE pybind11::embed clingo clingo-python)
+
+    target_compile_definitions(pyclingo PUBLIC CLINGO_PYTHON_EMBED)
 endif()
 
 if(CLINGO_BUILD_TESTS)

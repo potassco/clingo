@@ -6,7 +6,7 @@
 #include <clingo/script.h>
 
 #include <pybind11/eval.h>
-#ifndef __PyPy__
+#ifdef CLINGO_PYTHON_EMBED
 #include <pybind11/embed.h>
 #endif
 
@@ -20,7 +20,7 @@ class Scope {
   public:
     Scope() {
         if (Py_IsInitialized() == 0) {
-#ifndef __PyPy__
+#ifdef CLINGO_PYTHON_EMBED
             // make sure that the python interpreter is finalized after the main code
             static auto si = std::make_unique<py::scoped_interpreter>();
 #endif
