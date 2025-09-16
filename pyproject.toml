@@ -44,5 +44,5 @@ manylinux-aarch64-image = "manylinux_2_34"
 manylinux-ppc64le-image = "manylinux_2_34"
 
 [tool.cibuildwheel.macos.environment]
-archs = ["universal2"]
+archs = ["x86_64", "arm64", "universal2"]
 MACOSX_DEPLOYMENT_TARGET = "14.0"
