@@ -31,6 +31,9 @@ ignore = ["E741"]
 [tool.pylint.design]
 min-public-methods = 1
 
+[tool.cibuildwheel]
+enable = ["pypy"]
+
 [tool.cibuildwheel.linux]
 manylinux-x86_64-image = "manylinux_2_34"
 manylinux-i686-image = "manylinux_2_34"
