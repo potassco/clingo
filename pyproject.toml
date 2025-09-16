@@ -35,9 +35,7 @@ min-public-methods = 1
 enable = ["pypy"]
 
 [tool.cibuildwheel.linux]
-
 archs = ["auto", "aarch64", "ppc64le"]
-
 manylinux-x86_64-image = "manylinux_2_34"
 manylinux-i686-image = "manylinux_2_34"
 manylinux-pypy_x86_64-image = "manylinux_2_34"
@@ -46,4 +44,5 @@ manylinux-aarch64-image = "manylinux_2_34"
 manylinux-ppc64le-image = "manylinux_2_34"
 
 [tool.cibuildwheel.macos.environment]
+archs = ["universal2"]
 MACOSX_DEPLOYMENT_TARGET = "14.0"
