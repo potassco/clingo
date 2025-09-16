@@ -136,7 +136,7 @@ jobs:
         uses: pypa/cibuildwheel@v3.1.4
         env:
           CIBW_BUILD: ${{ matrix.build }}
-          CIBW_ENVIRONMENT: "${{ inputs.index == 'testpypi' && 'PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple' || '' }}"
+          CIBW_ENVIRONMENT: "MACOSX_DEPLOYMENT_TARGET=14.0 ${{ inputs.index == 'testpypi' && 'PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple' || '' }}"
 
       - uses: actions/upload-artifact@v4
         with:
