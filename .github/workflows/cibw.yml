@@ -88,8 +88,9 @@ jobs:
           # - build: "cp314-win_amd64"
           #   os: windows-latest
 
-          - build: "cp312-win_arm64"
-            os: windows-latest
+          # NOTE: there seems to be an issue with arm64
+          # - build: "cp312-win_arm64"
+          #   os: windows-latest
           # - build: "cp313-win_arm64"
           #   os: windows-latest
           # - build: "cp314-win_arm64"
