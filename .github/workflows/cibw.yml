@@ -77,9 +77,8 @@ jobs:
           # - build: "cp314-manylinux_ppc64le"
           #   os: ubuntu-latest
 
+          # NOTE: not available yet
           # - build: "pp312-manylinux_x86_64"
-          #   os: ubuntu-latest
-          # - build: "pp313-manylinux_x86_64"
           #   os: ubuntu-latest
 
           - build: "cp312-win_amd64"
@@ -96,11 +95,11 @@ jobs:
           # - build: "cp314-win_arm64"
           #   os: windows-latest
 
-          - build: "cp312-macos_universal2"
+          - build: "cp312-macosx_14_0_universal2"
             os: macos-latest
-          # - build: "cp313-macos_universal2"
+          # - build: "cp313-macosx_14_0_universal2"
           #   os: macos-latest
-          # - build: "cp314-macos_universal2"
+          # - build: "cp314-macosx_14_0_universal2"
           #   os: macos-latest
 
     steps:
