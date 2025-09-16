@@ -5,8 +5,10 @@
 
 #include <clingo/script.h>
 
-#include <pybind11/embed.h>
 #include <pybind11/eval.h>
+#ifndef __PyPy__
+#include <pybind11/embed.h>
+#endif
 
 #include <utility>
 
@@ -18,8 +20,10 @@ class Scope {
   public:
     Scope() {
         if (Py_IsInitialized() == 0) {
+#ifndef __PyPy__
             // make sure that the python interpreter is finalized after the main code
             static auto si = std::make_unique<py::scoped_interpreter>();
+#endif
             py::module::import("clingo");
         }
         auto gil = py::gil_scoped_acquire{};
