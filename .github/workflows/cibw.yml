@@ -1,4 +1,4 @@
-name: Deploy to the Python package index
+name: PyPI
 
 on:
   push:
