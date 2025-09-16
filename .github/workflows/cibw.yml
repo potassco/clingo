@@ -99,13 +99,19 @@ jobs:
           # - build: "cp314-win_arm64"
           #   os: windows-latest
 
-          - build: "cp312-macosx_universal2"
+          - build: "cp312-macosx_x86_64"
             os: macos-latest
           # - build: "cp313-macosx_universal2"
           #   os: macos-latest
           # - build: "cp314-macosx_universal2"
           #   os: macos-latest
 
+          - build: "cp312-macosx_arm64"
+            os: macos-latest
+          # - build: "cp313-macosx_universal2"
+          #   os: macos-latest
+          # - build: "cp314-macosx_universal2"
+          #   os: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
