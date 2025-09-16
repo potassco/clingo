@@ -133,7 +133,7 @@ jobs:
           python .github/adjust_version.py --build-number ${BUILD_NUMBER} --git-hash ${GIT_HASH}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.3
+        uses: pypa/cibuildwheel@v3.1.4
         env:
           CIBW_BUILD: ${{ matrix.build }}
           CIBW_ENVIRONMENT: "${{ inputs.index == 'testpypi' && 'PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple' || '' }}"
