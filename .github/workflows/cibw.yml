@@ -77,8 +77,8 @@ jobs:
           # - build: "cp314-manylinux_ppc64le"
           #   os: ubuntu-latest
 
-          - build: "pp312-manylinux_x86_64"
-            os: ubuntu-latest
+          # - build: "pp312-manylinux_x86_64"
+          #   os: ubuntu-latest
           # - build: "pp313-manylinux_x86_64"
           #   os: ubuntu-latest
 
