@@ -14,6 +14,7 @@ API_URL = f"https://api.github.com/repos/{OWNER}/{REPO}"
 TOKEN_FILE = os.path.expanduser("~/.tokens")
 WORKFLOW_ID_CONDA = "165237057"
 WORKFLOW_ID_PYPI = "189686367"
+WORKFLOW_ID_PPA = "190109021"
 
 
 def get_token():
@@ -101,6 +102,11 @@ def main():
             args.branch,
             {"build_number": args.build_number, "index": "pypi"},
         )
+        dispatch_workflow(
+            WORKFLOW_ID_PPA,
+            args.branch,
+            {"build_number": args.build_number, "type": "stable"},
+        )
     elif args.command == "dev":
         dispatch_workflow(
             WORKFLOW_ID_CONDA,
@@ -111,6 +117,11 @@ def main():
             WORKFLOW_ID_PYPI,
             args.branch,
             {"build_number": "auto", "index": "testpypi"},
+        )
+        dispatch_workflow(
+            WORKFLOW_ID_PPA,
+            args.branch,
+            {"build_number": "auto", "type": "wip-20"},
         )
     else:
         parser.print_help()
