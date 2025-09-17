@@ -73,8 +73,9 @@ jobs:
           - build: "cp314-manylinux_aarch64"
             os: ubuntu-latest
 
-          - build: "cp313-pyodide_wasm32"
-            os: ubuntu-latest
+            # NOTE: pyodid wheels cannot be published on pypi
+          # - build: "cp313-pyodide_wasm32"
+          #   os: ubuntu-latest
 
           - build: "cp312-manylinux_ppc64le"
             os: ubuntu-latest
