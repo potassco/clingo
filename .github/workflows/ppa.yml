@@ -1,0 +1,51 @@
+name: Ubuntu PPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "The build number."
+        required: true
+        type: string
+      type:
+        description: "Type: wip-20"
+        required: true
+        type: choice
+        options:
+          - wip-20
+
+jobs:
+  build_packages:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        distribution: [noble]
+
+    steps:
+      - name: Install prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dh-make dput dh-python
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup gpg
+        run: |
+          echo "$POTASSCO_PPA_GPGKEY" | base64 --decode | gpg --batch --import
+        env:
+          POTASSCO_PPA_GPGKEY: ${{ secrets.POTASSCO_PPA_GPGKEY }}
+
+      - name: Deploy package
+        run: |
+          if [[ "${{ inputs.build_number }}" == "auto" ]]; then
+            echo "BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
+          else
+            echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
+          fi
+          cd .github/ppa
+          ./build.sh --build-number "${BUILD_NUMBER}" "${{ inputs.type }}" "${{ matrix.distribution }}" create sync changes build put
