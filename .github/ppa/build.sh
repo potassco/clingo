@@ -97,7 +97,7 @@ for act in "${@}"; do
             exit 1
         fi
         cat >"${rep}/debian/changelog" <<EOF
-clingo (${VERSION}-${rep}${BUILD_NUMBER} ${rep}; urgency=medium
+clingo (${VERSION}-${rep}${BUILD_NUMBER}) ${rep}; urgency=medium
 
   * build for git revision $(git rev-parse HEAD)
 
