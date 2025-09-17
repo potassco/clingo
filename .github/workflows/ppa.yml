@@ -43,9 +43,9 @@ jobs:
       - name: Deploy package
         run: |
           if [[ "${{ inputs.build_number }}" == "auto" ]]; then
-            echo "BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
+            BUILD_NUMBER="${{ github.run_number }}"
           else
-            echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
+            BUILD_NUMBER="${{ inputs.build_number }}"
           fi
           cd .github/ppa
           ./build.sh --build-number "${BUILD_NUMBER}" "${{ inputs.type }}" "${{ matrix.distribution }}" create sync changes build put
