@@ -46,7 +46,7 @@ namespace CppClingo::Input::Parse {
     ACCESSOR   = [.] IDENTIFIER | "[" POS "]";
     CONVERSION = [!][rs];
     ALIGN      = [<>=^];
-    SIGN       = [+- ];
+    SIGN       = [-+ ];
     GROUPING   = [,_];
     TYPE       = [bcdoxXns];
     FLIT       = ([^\\"\n{}\000] | "\\\"" | "\\\\" | "\\n" | "{{" | "}}")*;

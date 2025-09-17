@@ -1,6 +1,36 @@
 [project]
 name = "clingo"
 version = "6.0.0"
+description="Python bindings to the clingo solver."
+readme = {file = "README.md", content-type = "text/markdown"}
+authors = [
+  { name = "Roland Kaminski", email = "kaminski@cs.uni-potsdam.de" }
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+keywords = [
+  "artificial intelligence",
+  "logic programming",
+  "answer set programming",
+  "constraint solving",
+  "AI",
+  "ASP",
+  "SAT",
+  "Potassco",
+  "clingo",
+  "solver"
+]
+
+[project.urls]
+Homepage = "https://potassco.org"
+Repository = "https://github.com/potassco/clingo"
+Documentation = "https://github.com/potassco/guide"
 
 [project.scripts]
 pyclingo = "clingo.app:_pyclingo"
@@ -30,3 +60,19 @@ ignore = ["E741"]
 
 [tool.pylint.design]
 min-public-methods = 1
+
+[tool.cibuildwheel]
+enable = ["pypy"]
+
+[tool.cibuildwheel.linux]
+archs = ["auto", "aarch64", "ppc64le"]
+manylinux-x86_64-image = "manylinux_2_34"
+manylinux-i686-image = "manylinux_2_34"
+manylinux-pypy_x86_64-image = "manylinux_2_34"
+manylinux-pypy_i686-image = "manylinux_2_34"
+manylinux-aarch64-image = "manylinux_2_34"
+manylinux-ppc64le-image = "manylinux_2_34"
+
+[tool.cibuildwheel.macos.environment]
+archs = ["arm64"]
+MACOSX_DEPLOYMENT_TARGET = "14.0"
