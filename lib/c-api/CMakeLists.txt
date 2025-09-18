@@ -79,6 +79,7 @@ if(WIN32 AND CLINGO_BUILD_SHARED)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:clingo>" "${target_dir}")
     endforeach()
 endif()
+
 target_include_directories(clingo PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
@@ -98,6 +99,9 @@ endif()
 if(CLINGO_INSTALL_DEFAULT)
     install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h")
 elseif(CLINGO_INSTALL_WHEEL AND CLINGO_BUILD_SHARED)
+    if(APPLE)
+        set_target_properties(clingo PROPERTIES INSTALL_NAME_DIR "@loader_path")
+    endif()
     install(DIRECTORY include/ DESTINATION clingo-include FILES_MATCHING PATTERN "*.h")
     install(
         TARGETS clingo

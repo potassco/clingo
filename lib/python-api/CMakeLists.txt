@@ -62,16 +62,10 @@ if(CLINGO_INSTALL_WHEEL)
     install(TARGETS pyclingo
         RUNTIME DESTINATION "."
         LIBRARY DESTINATION ".")
-    if(CLINGO_BUILD_SHARED)
-        if(APPLE)
-            set_target_properties(pyclingo
-                PROPERTIES INSTALL_RPATH "@loader_path"
-                BUILD_WITH_INSTALL_RPATH TRUE)
-        elseif(UNIX)
-            set_target_properties(pyclingo
-                PROPERTIES INSTALL_RPATH "$ORIGIN"
-                BUILD_WITH_INSTALL_RPATH TRUE)
-        endif()
+    if(CLINGO_BUILD_SHARED AND UNIX AND NOT APPLE)
+        set_target_properties(pyclingo
+            PROPERTIES INSTALL_RPATH "$ORIGIN"
+            BUILD_WITH_INSTALL_RPATH TRUE)
     endif()
 elseif(CLINGO_INSTALL_DEFAULT)
     if(PYCLINGO_INSTALL_DIR STREQUAL "")
