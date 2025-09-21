@@ -56,6 +56,7 @@ set(source
     ${source-group})
 # ]]]
 
+set(libtype STATIC)
 if(CLINGO_BUILD_SHARED)
     set(libtype SHARED)
 endif()
