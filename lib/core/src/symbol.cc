@@ -1145,7 +1145,7 @@ auto compare(Symbol const &a, Symbol const &b) -> int {
             return compare(a.num(), b.num());
         }
         case SymbolType::string: {
-            return std::strcmp(a.str().c_str(), a.str().c_str());
+            return std::strcmp(a.str().c_str(), b.str().c_str());
         }
         case SymbolType::tuple:
         case SymbolType::function: {

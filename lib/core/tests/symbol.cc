@@ -92,6 +92,10 @@ TEST_CASE("string") {
         REQUIRE(sx1 == sx1);
         REQUIRE(sx1 == sx2);
         REQUIRE(!(sx1 == sy));
+        REQUIRE(sx1 < sy);
+        REQUIRE(!(sy < sx1));
+        REQUIRE(sy > sx1);
+        REQUIRE(!(sx1 > sy));
 
         REQUIRE(store.gc() == std::make_tuple(0_uz, 0_uz, 2_uz));
     });
@@ -112,6 +116,10 @@ TEST_CASE("symbol_string") {
         REQUIRE(!(sym_sx.str() == sy));
         REQUIRE(sym_sx == sym_sx);
         REQUIRE(!(sym_sx == sym_sy));
+        REQUIRE(sym_sx < sym_sy);
+        REQUIRE(sym_sy > sym_sx);
+        REQUIRE(!(sym_sy < sym_sx));
+        REQUIRE(!(sym_sx > sym_sy));
 
         REQUIRE(store.gc() == std::make_tuple(0_uz, 0_uz, 2_uz));
     });

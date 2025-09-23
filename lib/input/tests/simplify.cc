@@ -382,4 +382,10 @@ TEST_CASE("simplify_fstring") {
     REQUIRE(simplify_term(R"(f"{1+3}")") == R"(f"{4}", U)");
 }
 
+TEST_CASE("simplify_relation") {
+    auto flags = SimplifyLiteralFlags::matchable;
+    REQUIRE(simplify_literal(R"("a" < "b")", flags) == "#true, T");
+    REQUIRE(simplify_literal(R"("b" < "a")", flags) == "#false, B");
+}
+
 } // namespace CppClingo::Input::Test
