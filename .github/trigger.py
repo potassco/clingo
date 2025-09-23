@@ -15,6 +15,7 @@ TOKEN_FILE = os.path.expanduser("~/.tokens")
 WORKFLOW_ID_CONDA = "165237057"
 WORKFLOW_ID_PYPI = "189686367"
 WORKFLOW_ID_PPA = "190109021"
+WORKFLOW_ID_CLOUDSMITH = "191817760"
 
 
 def get_token():
@@ -107,6 +108,11 @@ def main():
             args.branch,
             {"build_number": args.build_number, "type": "stable"},
         )
+        dispatch_workflow(
+            WORKFLOW_ID_CLOUDSMITH,
+            args.branch,
+            {"build_number": args.build_number, "type": "stable"},
+        )
     elif args.command == "dev":
         dispatch_workflow(
             WORKFLOW_ID_CONDA,
@@ -120,6 +126,11 @@ def main():
         )
         dispatch_workflow(
             WORKFLOW_ID_PPA,
+            args.branch,
+            {"build_number": "auto", "type": "wip-20"},
+        )
+        dispatch_workflow(
+            WORKFLOW_ID_CLOUDSMITH,
             args.branch,
             {"build_number": "auto", "type": "wip-20"},
         )
