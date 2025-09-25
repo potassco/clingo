@@ -102,6 +102,13 @@ jobs:
             os: macos-latest
           - build: "cp314-macosx_arm64"
             os: macos-latest
+
+          - build: "cp312-macosx_x86_64"
+            os: macos-latest
+          - build: "cp313-macosx_x86_64"
+            os: macos-latest
+          - build: "cp314-macosx_x86_64"
+            os: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -132,7 +139,7 @@ jobs:
           python .github/adjust_version.py --build-number ${BUILD_NUMBER} --git-hash ${GIT_HASH}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.1.4
+        uses: pypa/cibuildwheel@v3.2.0
         env:
           CIBW_BUILD: ${{ matrix.build }}
           CIBW_ENVIRONMENT: "MACOSX_DEPLOYMENT_TARGET=14.0 ${{ inputs.index == 'testpypi' && 'PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple' || '' }}"
