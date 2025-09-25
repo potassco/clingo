@@ -5,14 +5,14 @@ This are mainly tests that were used in clingo 5 to detect bugs.
 """
 
 import json
-from importlib.resources import files
+from pathlib import Path
 
 import pytest
 from clingo.control import Control
 from clingo.core import Library
 from util import MCB
 
-FILES = [path.name for path in files(__name__).joinpath("resources").iterdir()]
+FILES = [path.name for path in Path(__file__).parent.joinpath("resources").iterdir()]
 
 
 class TestASP:
@@ -41,7 +41,7 @@ class TestASP:
         """
         Run all test programs found under resources.
         """
-        for path in files(__name__).joinpath("resources").iterdir():
+        for path in Path(__file__).parent.joinpath("resources").iterdir():
             if path.name == file:
                 self.run_file(path.read_text())
                 return
