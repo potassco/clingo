@@ -59,7 +59,7 @@ Development packages are available on the separate package index at
 
 ### ☁️ Cloudsmith
 
-Debian packages for Debian and Ubuntu are available on [Cloudsmith]:
+Packages for Debian and Ubuntu are available on [Cloudsmith]:
 
 ```sh
 # stable
