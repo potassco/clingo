@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage {
-    echo "./$(basename "$0") --build-number <n> {wip-20} {noble} {create,sync,changes,build,put,clean}*"
+    echo "./$(basename "$0") --type={ppa,cloudsmith} --build-number <n> {wip-20} {noble,trixie} {create,sync,changes,build,put,clean}*"
 }
 
 if [[ $# -lt 1 ]]; then
@@ -10,8 +10,9 @@ if [[ $# -lt 1 ]]; then
 fi
 
 BUILD_NUMBER=""
+BUILD_TYPE="ppa"
 
-if ! ARGS=$(getopt -o '' --long build-number: -- "$@"); then
+if ! ARGS=$(getopt -o '' --long build-number:,type: -- "$@"); then
     usage
     exit 1
 fi
@@ -21,6 +22,10 @@ while true; do
     case "$1" in
     --build-number)
         BUILD_NUMBER="$2"
+        shift 2
+        ;;
+    --type)
+        BUILD_TYPE="$2"
         shift 2
         ;;
     --)
@@ -34,10 +39,19 @@ while true; do
     esac
 done
 
-set -e
+set -ex
 
 ref="${1}"
 shift
+
+case "${BUILD_TYPE}" in
+ppa) ;;
+cloudsmith) ;;
+*)
+    usage
+    exit 1
+    ;;
+esac
 
 case "${ref}" in
 wip-20) ;;
@@ -50,8 +64,14 @@ esac
 rep="${1}"
 shift
 
+DISTRIBUTION=ubuntu
+PBUILDER_ARGS=()
 case "${rep}" in
 noble) ;;
+trixie)
+    PBUILDER_ARGS+=(--mirror http://deb.debian.org/debian)
+    DISTRIBUTION=debian
+    ;;
 *)
     usage
     exit 1
@@ -62,13 +82,23 @@ for act in "${@}"; do
     echo "${act}"
     case "${act}" in
     _ppa)
-        apt-get install -y software-properties-common
-        #add-apt-repository -y "ppa:potassco/${ref}"
+        if [[ "${DISTRIBUTION}" == ubuntu ]]; then
+            apt-get install -y software-properties-common
+            add-apt-repository -y "ppa:potassco/${ref}"
+        else
+            # could for example setup cloudforge repository here
+            :
+        fi
         apt-get update
         apt-get install -y tree debhelper
         ;;
     create)
-        sudo pbuilder create --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz" --distribution "${rep}" --debootstrapopts --variant=buildd
+        sudo apt-get update
+        sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dh-make dput dh-python
+        if [[ "${DISTRIBUTION}" == debian ]]; then
+            sudo apt-get install debian-archive-keyring
+        fi
+        sudo pbuilder create --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz" --distribution "${rep}" "${PBUILDER_ARGS[@]}" --debootstrapopts --variant=buildd
         sudo pbuilder execute --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz" --save-after-exec -- build.sh "${ref}" "${rep}" _ppa
         ;;
     sync)
@@ -96,8 +126,13 @@ for act in "${@}"; do
             echo "No build number given"
             exit 1
         fi
+        if [[ "$DISTRIBUTION" == "ubuntu" ]]; then
+            SUFFIX="-${rep}${BUILD_NUMBER}"
+        else
+            SUFFIX=".${BUILD_NUMBER}"
+        fi
         cat >"${rep}/debian/changelog" <<EOF
-clingo (${VERSION}-${rep}${BUILD_NUMBER}) ${rep}; urgency=medium
+clingo (${VERSION}${SUFFIX}) ${rep}; urgency=medium
 
   * build for git revision $(git rev-parse HEAD)
 
@@ -105,13 +140,20 @@ clingo (${VERSION}-${rep}${BUILD_NUMBER}) ${rep}; urgency=medium
 EOF
         ;;
     build)
-        VERSION="$(head -n 1 "${rep}/debian/changelog" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\(-[a-z0-9]\+\)\?')"
-        (
-            cd "${rep}"
-            pdebuild --buildresult .. --auto-debsign --debsign-k 744d959e10f5ad73f9cf17cc1d150536980033d5 -- --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz" --source-only-changes
-            sed -i '/\.buildinfo$/d' "../clingo_${VERSION}_source.changes"
-            debsign --re-sign -k744d959e10f5ad73f9cf17cc1d150536980033d5 "../clingo_${VERSION}_source.changes"
-        )
+        if [[ "${BUILD_TYPE}" == "ppa" ]]; then
+            VERSION="$(head -n 1 "${rep}/debian/changelog" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\(-[a-z0-9]\+\)\?')"
+            (
+                cd "${rep}"
+                pdebuild --buildresult .. --auto-debsign --debsign-k 744d959e10f5ad73f9cf17cc1d150536980033d5 -- --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz" --source-only-changes
+                sed -i '/\.buildinfo$/d' "../clingo_${VERSION}_source.changes"
+                debsign --re-sign -k744d959e10f5ad73f9cf17cc1d150536980033d5 "../clingo_${VERSION}_source.changes"
+            )
+        else
+            (
+                cd "${rep}"
+                pdebuild --buildresult .. -- --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz" --source-only-changes
+            )
+        fi
         ;;
     put)
         VERSION="$(head -n 1 "${rep}/debian/changelog" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\(-[a-z0-9]\+\)\?')"
@@ -125,10 +167,6 @@ EOF
             "${rep}"/lib* \
             "${rep}"/third_party \
             "${rep}"/CMakeLists.txt \
-            "${rep}"/README.md \
-            "${rep}"/INSTALL.md \
-            "${rep}"/LICENSE.md \
-            "${rep}"/CHANGES.md \
             "${rep}"/debian/files \
             "${rep}"/debian/.debhelper \
             "${rep}"/debian/clingo.debhelper.log \
@@ -137,6 +175,7 @@ EOF
             "${rep}"/debian/debhelper-build-stamp \
             "${rep}"/debian/tmp \
             "${rep}"/obj-x86_64-linux-gnu \
+            ./*.md \
             ./*.build \
             ./*.deb \
             ./*.dsc \
