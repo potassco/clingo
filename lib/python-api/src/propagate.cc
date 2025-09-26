@@ -335,8 +335,8 @@ auto Propagator::decide(Assignment &assignment, clingo_literal_t lit) -> clingo_
     PYBIND11_OVERRIDE_NAME(clingo_literal_t, Propagator, "decide", decide_, assignment, lit);
 }
 
-auto Propagator::decide_([[maybe_unused]] Assignment &assignment,
-                         [[maybe_unused]] clingo_literal_t lit) -> clingo_literal_t {
+auto Propagator::decide_([[maybe_unused]] Assignment &assignment, [[maybe_unused]] clingo_literal_t lit)
+    -> clingo_literal_t {
     static_cast<void>(this);
     return lit;
 }
