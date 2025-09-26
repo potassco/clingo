@@ -23,11 +23,5 @@ WarningsAsErrors: ""
 HeaderFilterRegex: ""
 FormatStyle: none
 CheckOptions:
-  - {
-      key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor,
-      value: true,
-    }
-  - {
-      key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted,
-      value: true,
-    }
+  - key: modernize-use-trailing-return-type.TransformLambdas
+    value: none
