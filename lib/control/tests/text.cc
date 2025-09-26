@@ -660,6 +660,7 @@ TEST_CASE("grounder_text") {
                 for (auto line : buf.view() | std::views::split('\n') |
                                      std::views::filter([](auto sv) { return !sv.empty() && sv.front() == 'q'; })) {
                     res.emplace_back();
+                    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
                     res.back().insert(res.back().end(), line.begin() + 3, line.end() - 3);
                 }
                 std::ranges::sort(res);

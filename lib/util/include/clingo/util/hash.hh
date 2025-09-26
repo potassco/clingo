@@ -198,14 +198,14 @@ inline auto hash_combine(size_t seed, size_t h) -> size_t {
         seed *= 0x4cf5ad432745937f;
         seed ^= h;
         seed = (seed >> 27) | (seed << 37);
-        seed = seed * 5 + 0x52dce729;
+        seed = (seed * 5) + 0x52dce729;
     } else {
         seed *= 0xcc9e2d51;
         seed = (seed >> 17) | (seed << 15);
         seed *= 0x1b873593;
         seed ^= h;
         seed = (seed >> 19) | (seed << 13);
-        seed = seed * 5 + 0xe6546b64;
+        seed = (seed * 5) + 0xe6546b64;
     }
     return seed;
     // NOLINTEND(readability-magic-numbers)

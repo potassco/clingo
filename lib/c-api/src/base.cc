@@ -351,6 +351,7 @@ extern "C" auto clingo_term_base_condition(clingo_term_base_t const *terms, size
         res_sizes.clear();
         uint32_t sz = 0;
         for (auto cond : cpp_cast(terms)->clasp_program().getShowTerm(term_id).conditions()) {
+            // NOLINTNEXTLINE(bugprone-bitwise-pointer-cast)
             res_lits.emplace_back(std::bit_cast<clingo_literal_t const *>(cond.data()));
             res_sizes.emplace_back(cond.size());
             ++sz;

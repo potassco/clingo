@@ -1,6 +1,7 @@
 #include <clingo/control/config.hh>
 
 #include <algorithm>
+#include <utility>
 
 namespace CppClingo::Control {
 
@@ -76,7 +77,7 @@ auto ClingoConfig::description(KeyType key) const -> std::string_view {
     if (key == key_root() && !nodes_.empty()) {
         int clasp_keys = 0;
         config_->getKeyInfo(key_root(), &clasp_keys, nullptr, nullptr, nullptr);
-        if (index >= static_cast<KeyType>(clasp_keys)) {
+        if (std::cmp_greater_equal(index, clasp_keys)) {
             if (auto name = nodes_.front().map_nth(index - clasp_keys)) {
                 return *name;
             }
@@ -293,7 +294,9 @@ auto ClingoConfig::parse_name_(std::string_view &name) -> std::optional<IndexTyp
             res = index_invalid();
         } else {
             res = 0;
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             auto [ptr, code] = std::from_chars(index_str.data(), index_str.data() + index_str.size(), *res);
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             if (code != std::errc{} && ptr != index_str.data() + index_str.size()) {
                 error_("invalid index");
             }

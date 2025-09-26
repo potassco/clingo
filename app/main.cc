@@ -41,6 +41,7 @@ auto main(int argc, char *argv[]) -> int {
     auto args = std::vector<clingo_string_t>{};
     try {
         args.reserve(argc - 1);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         std::ranges::transform(std::span{argv + 1, static_cast<size_t>(argc - 1)}, std::back_inserter(args),
                                [](auto const &x) { return clingo_string_t{x, strlen(x)}; });
     } catch (std::exception const &e) {

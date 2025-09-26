@@ -30,6 +30,7 @@ template <class T> constexpr auto type_name() -> std::string_view {
     using namespace std;
 #ifdef __clang__
     string_view p = __PRETTY_FUNCTION__;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return {p.data() + 34, p.size() - 34 - 1};
 #elif defined(__GNUC__)
     string_view p = __PRETTY_FUNCTION__;

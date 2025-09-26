@@ -587,7 +587,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     //! Intercept and report models.
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         if (eh_) {
-            auto guard = std::lock_guard{*lock_};
+            auto guard = std::scoped_lock{*lock_};
             mdl_->set_model(&mdl);
             return eh_->on_model(*mdl_);
         }
@@ -601,7 +601,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
         if (eh_) {
             if (auto const *res = event_cast<ClaspFacade::StepReady>(event); res != nullptr) {
                 try {
-                    auto guard = std::lock_guard{*lock_};
+                    auto guard = std::scoped_lock{*lock_};
                     if (auto *stats = mdl_->clasp().getStats(); stats != nullptr) {
                         eh_->on_stats(*stats);
                     }
@@ -613,7 +613,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
             }
         }
         if (auto const *log = event_cast<LogEvent>(event); log != nullptr && log->isWarning()) {
-            auto guard = std::lock_guard{*lock_};
+            auto guard = std::scoped_lock{*lock_};
             logger_->print(MessageCode::warn, log->msg);
         }
     }
@@ -626,7 +626,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
             bound_.reserve(ctx->minimizer()->numRules());
             bound_.assign(mdl.costs.begin(), mdl.costs.begin() + lower.level);
             bound_.push_back(lower.bound);
-            auto guard = std::lock_guard{*lock_};
+            auto guard = std::scoped_lock{*lock_};
             eh_->on_unsat(bound_);
         }
         return true;
@@ -635,7 +635,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     //! Report unsatisfiable cores.
     void onCore(Potassco::LitSpan core) {
         if (eh_) {
-            auto guard = std::lock_guard{*lock_};
+            auto guard = std::scoped_lock{*lock_};
             eh_->on_core(core);
         }
     }
@@ -865,7 +865,7 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
         }
         auto &base = solver_->grd_.base().add_base(*sig);
         auto it = base.add(sym, Ground::StateAtom::derived, [lit]() { return lit; }).first;
-        if (static_cast<prg_lit_t>(it->second.id) != lit) {
+        if (std::cmp_not_equal(it->second.id, lit)) {
             throw std::runtime_error{"redefinition of atom in aspif file"};
         }
         added_.emplace_back(lit, sym);

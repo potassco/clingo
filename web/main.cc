@@ -15,7 +15,7 @@ static constexpr auto message_limit = 25;
 //! files are given and writes to stdout.
 //!
 //! @param[in] args the command line arguments
-int run(std::string input, std::vector<std::string> const &args) {
+auto run(std::string input, std::vector<std::string> const &args) -> int {
     static clingo_application_t app = {
         nullptr,
         nullptr,
@@ -49,7 +49,7 @@ int run(std::string input, std::vector<std::string> const &args) {
 //! files are given and writes to stdout.
 //!
 //! @param[in] args the command line arguments
-int run_default(std::vector<std::string> const &args) {
+auto run_default(std::vector<std::string> const &args) -> int {
     int code = 1;
     clingo_lib_t *lib = nullptr;
     auto c_args = std::vector<clingo_string_t>(args.size());

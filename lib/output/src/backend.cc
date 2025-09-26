@@ -6,6 +6,7 @@
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/print.hh>
 #include <clingo/util/type_traits.hh>
+#include <utility>
 
 // #define CLINGO_DEBUG_AGGREGATES
 #ifdef CLINGO_DEBUG_AGGREGATES
@@ -359,7 +360,7 @@ class BuilderBase {
     //! @return a reference to the info
     [[nodiscard]] auto info(prg_lit_t lit) -> LitInfo & {
         assert(lit > 0);
-        while (static_cast<prg_lit_t>(infos_.size()) < lit) {
+        while (std::cmp_less(infos_.size(), lit)) {
             infos_.emplace_back();
         }
         return infos_[lit - 1];

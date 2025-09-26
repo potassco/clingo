@@ -281,7 +281,7 @@ class Evaluate {
         }
         if (!val.has_value()) {
             CLINGO_REPORT_LOC(*log_, info_operation_undefined, location(term)) << "operation undefined:\n"
-                                                                               << "  |" << val.value() << "|\n"
+                                                                               << "  |" << term << "|\n"
                                                                                << ErrorContext{root_};
             return std::nullopt;
         }

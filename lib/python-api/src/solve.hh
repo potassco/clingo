@@ -82,7 +82,7 @@ class SolveHandle : public reference_keeper<SolveHandle> {
     SolveHandle(SolveHandle &&other) noexcept = delete;
     auto operator=(SolveHandle const &other) -> SolveHandle & = delete;
     auto operator=(SolveHandle &&other) noexcept -> SolveHandle & = delete;
-    ~SolveHandle() { close(); }
+    ~SolveHandle() noexcept(false) { close(); }
 
     auto get() -> SolveResult;
     void cancel();

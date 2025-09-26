@@ -27,7 +27,7 @@ constexpr auto TYPE_MASK = static_cast<uint64_t>((1 << TYPE_SIZE) - 1);
 constexpr auto EXT_TYPE_SIZE = static_cast<uint64_t>(TYPE_SIZE + 2);
 constexpr auto EXT_TYPE_MASK = static_cast<uint64_t>((1 << EXT_TYPE_SIZE) - 1);
 
-// NOLINTNEXTLINE(performance-enum-size)
+// NOLINTNEXTLINE(performance-enum-size,cppcoreguidelines-use-enum-class)
 enum RepType : uint64_t {
     REP_NUM_OR_CONSTANT = 0,
     REP_STR = 1,
@@ -39,7 +39,7 @@ enum RepType : uint64_t {
     REP_BIGINT = 7,
 };
 
-// NOLINTNEXTLINE(performance-enum-size)
+// NOLINTNEXTLINE(performance-enum-size,cppcoreguidelines-use-enum-class)
 enum ExtRepType : uint64_t {
     EXT_REP_NUM = 0,
     EXT_REP_INF = 1 << TYPE_SIZE,

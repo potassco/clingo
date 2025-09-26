@@ -28,5 +28,6 @@ repos:
         args: [--style=file, --version=21]
       - id: clang-tidy
         types_or: [c++, c]
+        exclude: ^(web/main\.cc)$
         args:
           [--checks=.clang-tidy, --version=21, "-fix", "--warnings-as-errors=*"]

@@ -37,7 +37,8 @@ struct Array {
 };
 
 struct Arg {
-    enum Type { node, node_array, optional_node, integer, symbol, symbol_array, string, string_array, location };
+    enum class Type { node, node_array, optional_node, integer, symbol, symbol_array, string, string_array, location };
+    using enum Type;
     clingo_ast_attribute_t attr;
     Type type;
 };

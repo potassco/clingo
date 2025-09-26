@@ -352,6 +352,7 @@ void StateHdAggr::propagate(OutputStm &out, Queue &queue) {
 #endif
         }
         // propagate the elements
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         if (state.propagate(guards_, it.key() + global_.size())) {
             for (auto elem_idx : state.todo()) {
                 for (auto &[sym, head, cond] : tuples_.nth(elem_idx).value()) {
@@ -469,6 +470,7 @@ void StateHdAggr::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolSt
                 auto const &[tuple, conds] = *tuples_.nth(elem_idx);
                 elems.emplace_back(tuple->span(), conds);
             }
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             auto const *it = tuple + global_.size();
             for (auto &guard : guards_) {
                 guards.emplace_back(guard.first, *it);

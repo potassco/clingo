@@ -44,7 +44,7 @@ class AIFFBPropagator : public Propagator {
     void do_attach([[maybe_unused]] Assignment assignment, [[maybe_unused]] PropagateControl ctl) override {
         auto thread_id = assignment.thread_id();
         REQUIRE(thread_id < n_threads);
-        auto lock = std::lock_guard{mut};
+        auto lock = std::scoped_lock{mut};
         REQUIRE(attached.insert(thread_id).second);
     }
 
@@ -52,18 +52,18 @@ class AIFFBPropagator : public Propagator {
         auto thread_id = assignment.thread_id();
         for (int p : {slit_a, slit_b}) {
             if (!control.has_watch(p)) {
-                auto lock = std::lock_guard{mut};
+                auto lock = std::scoped_lock{mut};
                 errors.push_back("solver " + std::to_string(thread_id) + " misses watch " + std::to_string(p));
             }
         }
         {
-            auto lock = std::lock_guard{mut};
+            auto lock = std::scoped_lock{mut};
             REQUIRE(attached.contains(thread_id));
         }
         if (barrier) {
             barrier->arrive_and_wait();
             {
-                auto lock = std::lock_guard{mut};
+                auto lock = std::scoped_lock{mut};
                 if (barrier) {
                     barrier.reset();
                 }

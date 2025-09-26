@@ -367,6 +367,7 @@ auto StateBdAggr::propagate() -> bool {
 #endif
         }
 
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         if (auto [match, fact] = state.propagate(guards_, it.key() + global_.size()); match) {
             if (fact && (monotone() || single_pass_elems())) {
                 state.state(AtomBdAggrState::fact);
@@ -471,6 +472,7 @@ void StateBdAggr::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolSt
                 auto const &[tuple, conds] = *tuples_.nth(elem_idx);
                 elems.emplace_back(tuple->span(), conds);
             }
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             auto const *it = tuple + global_.size();
             for (auto &guard : guards_) {
                 guards.emplace_back(guard.first, *it);

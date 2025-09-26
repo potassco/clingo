@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#if defined CLINGO_NO_VISIBILITY
+#ifdef CLINGO_NO_VISIBILITY
 #define CLINGO_VISIBILITY_DEFAULT
 #define CLINGO_VISIBILITY_PRIVATE
 #elif defined __EMSCRIPTEN__
@@ -27,7 +27,7 @@
 #define CLINGO_VISIBILITY_PRIVATE
 #endif
 
-#if defined __GNUC__
+#ifdef __GNUC__
 #define CLINGO_DEPRECATED __attribute__((deprecated))
 #elif defined _MSC_VER
 #define CLINGO_DEPRECATED __declspec(deprecated)

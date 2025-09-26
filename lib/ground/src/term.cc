@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <ranges>
 #include <typeindex>
+#include <utility>
 
 namespace CppClingo::Ground {
 
@@ -219,7 +220,7 @@ auto insert_sep(Util::OutputBuffer &tmp, size_t start, char sep, FormatSpec::Typ
         type == FormatSpec::Type::binary || type == FormatSpec::Type::hex_lower || type == FormatSpec::Type::hex_upper
             ? 4
             : 3;
-    if (digits <= static_cast<size_t>(width)) {
+    if (std::cmp_less_equal(digits, width)) {
         return;
     }
     auto seps = (digits - 1) / width;

@@ -27,14 +27,14 @@ enum class PropagatorUndoMode : clingo_propagator_undo_mode_t {
 };
 
 //! Enumeration of weight constraint types.
-enum WeightConstraintType : clingo_weight_constraint_type_t {
+enum class WeightConstraintType : clingo_weight_constraint_type_t {
     implication_left = clingo_weight_constraint_type_implication_left,   //!< The weight constraint implies the literal.
     implication_right = clingo_weight_constraint_type_implication_right, //!< The literal implies the weight constraint.
     equivalence = clingo_weight_constraint_type_equivalence, //!< The weight constraint is equivalent to the literal.
 };
 
 //! Enumeration of clause flags.
-enum ClauseFlags : clingo_clause_type_t {
+enum class ClauseFlags : clingo_clause_type_t {
     none = clingo_clause_type_learnt,  //!< The empty set of flags.
     lock = clingo_clause_type_static,  //!< Exempt the clause from deletion.
     tag = clingo_clause_type_volatile, //!< Delete the clause at the end of the current solving step.
@@ -364,8 +364,8 @@ class PropagateControl {
     //! @return whether the constraint was added without a conflict
     [[nodiscard]] auto add_weight_constraint(SolverLiteral literal, WeightedLiteralSpan literals, Weight bound,
                                              WeightConstraintType type) const -> bool {
-        return Detail::call<clingo_propagate_control_add_weight_constraint>(ctl_, literal, literals.data(),
-                                                                            literals.size(), bound, type);
+        return Detail::call<clingo_propagate_control_add_weight_constraint>(
+            ctl_, literal, literals.data(), literals.size(), bound, static_cast<clingo_weight_constraint_type_t>(type));
     }
 
     //! Add a nogood to the solver.

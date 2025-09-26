@@ -105,24 +105,38 @@ class TheoryBackend {
   private:
     friend class ProgramBackend;
 
-    struct Free {
-        Free() {
-            // NOTE: We assume that backends are only created during normal
-            // operation - not during exception handling.
-            assert(std::uncaught_exceptions() == 0);
+    class Ptr {
+      public:
+        Ptr() = default;
+        explicit Ptr(clingo_backend_t *backend) : ptr_{backend} {}
+        Ptr(Ptr const &other) = delete;
+        Ptr(Ptr &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {}
+        auto operator=(Ptr const &other) -> Ptr & = delete;
+        auto operator=(Ptr &&other) noexcept -> Ptr & {
+            // NOTE: we ensure moves are noexcept and do not throw each object
+            // will be freed in its exception context.
+            std::swap(ptr_, other.ptr_);
+            return *this;
         }
-        auto operator()(clingo_backend_t *backend) const noexcept(false) -> void {
-            if (std::uncaught_exceptions() == 0) {
-                Detail::handle_error(clingo_backend_close(std::exchange(backend, nullptr)));
+        ~Ptr() noexcept(false) {
+            if (std::uncaught_exceptions() == uncaught_) {
+                close();
             }
         }
+
+        [[nodiscard]] auto get() const -> clingo_backend_t * { return ptr_; }
+        void close() { Detail::handle_error(clingo_backend_close(std::exchange(ptr_, nullptr))); }
+
+      private:
+        clingo_backend_t *ptr_ = nullptr;
+        int uncaught_ = std::uncaught_exceptions();
     };
 
     explicit TheoryBackend(clingo_backend_t *backend) : backend_{backend} {}
 
     ~TheoryBackend() = default;
 
-    std::unique_ptr<clingo_backend_t, Free> backend_;
+    Ptr backend_;
 };
 
 //! Program backend to add atoms and statements.
@@ -142,7 +156,7 @@ class ProgramBackend : private TheoryBackend {
     //!
     //! After closing the backend, it must no longer be used. If this function
     //! is called, the destructor is guaranteed to not throw.
-    void close() { Detail::handle_error(clingo_backend_close(backend_.release())); }
+    void close() { backend_.close(); }
 
     //! Create a fresh program atom.
     //!
