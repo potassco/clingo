@@ -31,6 +31,34 @@ TEST_CASE("grounder_text") {
             REQUIRE(buf.view() == "a.\n"
                                   "b.\n#show.\n");
         }
+        SECTION("bug-min") {
+            grd.parse(R"(
+                edge(1,2).
+                edge(2,3).
+
+                dom(1,2).
+                dom(2,3).
+                dom(1,3).
+
+                dist(X,X,0) :- X=1..3.
+                dist(X,Y,M+1) :- dom(X,Y), M = #min{N: dist(X,Z,N), edge(Z,Y)}, M != #sup.)");
+            REQUIRE(grd.ground(params));
+            REQUIRE(buf.view() == "edge(1,2).\n"
+                                  "edge(2,3).\n"
+                                  "dom(1,2).\n"
+                                  "dom(2,3).\n"
+                                  "dom(1,3).\n"
+                                  "dist(1,1,0).\n"
+                                  "dist(2,2,0).\n"
+                                  "dist(3,3,0).\n"
+                                  "dist(1,2,1) :- #min { 0 } = 0.\n"
+                                  "dist(2,3,1) :- #min { 0 } = 0.\n"
+                                  "dist(1,3,2) :- #min { 1: dist(1,2,1) } = 1.\n"
+                                  "#show edge/2.\n"
+                                  "#show dom/2.\n"
+                                  "#show dist/3.\n"
+                                  "#show.\n");
+        }
         SECTION("normal") {
             grd.parse("#show. a :- not b. b :- not a.");
             REQUIRE(grd.ground(params));

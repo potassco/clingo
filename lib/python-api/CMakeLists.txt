@@ -109,7 +109,7 @@ if(CLINGO_BUILD_APP)
     target_compile_definitions(clingo-python-embed PUBLIC CLINGO_PYTHON_ENABLED)
     target_link_libraries(clingo-python-embed PRIVATE pybind11::embed clingo clingo-python)
 
-    target_compile_definitions(pyclingo PUBLIC CLINGO_PYTHON_EMBED)
+    target_compile_definitions(clingo-python PUBLIC CLINGO_PYTHON_EMBED)
 endif()
 
 if(CLINGO_BUILD_TESTS)
