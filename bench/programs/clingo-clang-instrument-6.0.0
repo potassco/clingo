@@ -1,0 +1,4 @@
+#!/bin/bash
+
+loc="$(dirname "$(realpath "$0")")"
+LLVM_PROFILE_FILE="profile-%p.profraw" exec "${loc}/_clingo-clang-instrument-6.0.0" "${@}"

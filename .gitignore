@@ -23,6 +23,5 @@
 /test*
 CMakeLists.txt.user
 __pycache__
-bench
 compile_commands.json
 wheelhouse

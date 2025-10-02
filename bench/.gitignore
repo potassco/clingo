@@ -1,0 +1,8 @@
+benchmarks/
+output/
+programs/_clingo-clang-instrument-*
+programs/clingo-clang-*
+programs/clingo-clang-lto-*
+programs/clingo-clang-pgo-*
+programs/runlim
+results/

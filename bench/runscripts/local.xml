@@ -1,0 +1,37 @@
+<runscript output="output">
+
+	<machine name="precision-3480" cpu="i7-1370P" memory="32GB"/>
+
+	<config name="default" template="templates/seq-generic.sh"/>
+
+	<system name="clingo-clang-instrument" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
+		<setting name="default" cmdline="--opt-str=usc" tag="instrument"/>
+	</system>
+
+	<system name="clingo-clang" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
+		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
+	</system>
+
+	<system name="clingo-clang-lto" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
+		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
+	</system>
+
+	<system name="clingo-clang-pgo" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
+		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
+	</system>
+
+	<seqjob name="default" timeout="300s" runs="1" parallel="1"/>
+
+	<benchmark name="clingo">
+		<folder path="benchmarks/"></folder>
+	</benchmark>
+
+	<project name="clingo-instrument" job="default">
+		<runtag machine="precision-3480" benchmark="clingo" tag="instrument"/>
+	</project>
+
+	<project name="clingo-benchmark" job="default">
+		<runtag machine="precision-3480" benchmark="clingo" tag="benchmark"/>
+	</project>
+
+</runscript>
