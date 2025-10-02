@@ -42,10 +42,12 @@ void AtomAssignAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact
             if (fact) {
                 if (auto *it = std::ranges::lower_bound(vals, val, cmp); it != vals.end()) {
                     vals.erase(it, vals.end());
+                    propagated_vals_ = std::min(vals.size(), propagated_vals_);
                     vals.emplace_back(val);
                 }
             } else {
                 if (auto *it = std::ranges::lower_bound(vals, val, cmp); it != vals.end() && *it != val) {
+                    propagated_vals_ = std::min(static_cast<size_t>(it - vals.begin()), propagated_vals_);
                     vals.emplace(it, val);
                 }
             }
@@ -575,7 +577,7 @@ void StmAssignAggrElem::do_init(size_t gen) {
 auto StmAssignAggrElem::get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool> {
     bool fact = true;
     auto &out = ctx.out().cond();
-    for (auto const &lit : body_) {
+    for (auto const &lit : std::span{body_}.subspan(0, num_cond_)) {
         if (lit->output(ctx, out)) {
             fact = false;
         }

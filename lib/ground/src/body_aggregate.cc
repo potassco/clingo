@@ -679,7 +679,7 @@ void StmBdAggrElem::do_init(size_t gen) {
 auto StmBdAggrElem::get_cond_(EvalContext const &ctx) -> std::pair<size_t, bool> {
     bool fact = true;
     auto &out = ctx.out().cond();
-    for (auto const &lit : body_) {
+    for (auto const &lit : std::span{body_}.subspan(0, num_cond_)) {
         if (lit->output(ctx, out)) {
             fact = false;
         }
