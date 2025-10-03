@@ -4,9 +4,30 @@
 
 	<config name="default" template="templates/seq-generic.sh"/>
 
+    <!-- gcc -->
+
+	<system name="clingo-instrument" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
+		<setting name="default" cmdline="--opt-str=usc" tag="instrument"/>
+	</system>
+
+	<system name="clingo" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
+		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
+	</system>
+
+	<system name="clingo-lto" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
+		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
+	</system>
+
+	<system name="clingo-pgo" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
+		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
+	</system>
+
+    <!-- clang -->
+
 	<system name="clingo-clang-instrument" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
 		<setting name="default" cmdline="--opt-str=usc" tag="instrument"/>
 	</system>
+
 
 	<system name="clingo-clang" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
 		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
