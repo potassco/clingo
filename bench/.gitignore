@@ -1,6 +1,4 @@
 benchmarks/
 output/
-programs/clingo-*
 programs/runlim
 results/
-gcov-*

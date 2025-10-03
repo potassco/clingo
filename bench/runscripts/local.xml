@@ -4,41 +4,15 @@
 
 	<config name="default" template="templates/seq-generic.sh"/>
 
-    <!-- gcc -->
-
-	<system name="clingo-instrument" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
-		<setting name="default" cmdline="--opt-str=usc" tag="instrument"/>
-	</system>
-
-	<system name="clingo" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
-		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
-	</system>
-
-	<system name="clingo-lto" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
-		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
-	</system>
-
-	<system name="clingo-pgo" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
-		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
-	</system>
-
-    <!-- clang -->
-
-	<system name="clingo-clang-instrument" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
-		<setting name="default" cmdline="--opt-str=usc" tag="instrument"/>
-	</system>
-
-
-	<system name="clingo-clang" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
-		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
-	</system>
-
-	<system name="clingo-clang-lto" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
-		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
-	</system>
-
-	<system name="clingo-clang-pgo" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q --project-anonymous">
-		<setting name="default" cmdline="--opt-str=usc" tag="benchmark"/>
+	<system name="clingo" version="6.0.0" measures="clasp" config="default" cmdline="">
+		<setting name="gcc-opt"          cmdline="gcc-opt          --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="gcc-lto"          cmdline="gcc-lto          --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="gcc-pgo"          cmdline="gcc-pgo          --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="gcc-instrument"   cmdline="gcc-instrument   --opt-str=usc --stats -q --project-anonymous" tag="instrument"/>
+		<setting name="clang-opt"        cmdline="clang-opt        --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="clang-lto"        cmdline="clang-lto        --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="clang-pgo"        cmdline="clang-pgo        --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="clang-instrument" cmdline="clang-instrument --opt-str=usc --stats -q --project-anonymous" tag="instrument"/>
 	</system>
 
 	<seqjob name="default" timeout="300s" runs="1" parallel="1"/>
