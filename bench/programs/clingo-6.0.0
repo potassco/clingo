@@ -8,6 +8,10 @@ function usage() {
 [[ $# -gt 0 ]] || usage
 
 loc="$(realpath "$(dirname "$0")")"
+tbbmalloc=/usr/lib/x86_64-linux-gnu/libtbbmalloc_proxy.so.2
+jemalloc=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+mimalloc=/usr/lib/x86_64-linux-gnu/libmimalloc.so.2
+tcmalloc=/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4
 
 case $1 in
 gcc-opt)
@@ -22,6 +26,22 @@ gcc-pgo)
 gcc-instrument)
     dir=release_instrument
     ;;
+gcc-tbbmalloc)
+    export LD_PRELOAD="${tbbmalloc}"
+    dir=release_pgo
+    ;;
+gcc-jemalloc)
+    export LD_PRELOAD="${jemalloc}"
+    dir=release_pgo
+    ;;
+gcc-mimalloc)
+    export LD_PRELOAD="${mimalloc}"
+    dir=release_pgo
+    ;;
+gcc-tcmalloc)
+    export LD_PRELOAD="${tcmalloc}"
+    dir=release_pgo
+    ;;
 clang-opt)
     dir=release
     ;;
@@ -33,6 +53,22 @@ clang-pgo)
     ;;
 clang-instrument)
     dir=release_clang_instrument
+    ;;
+clang-tbbmalloc)
+    export LD_PRELOAD="${tbbmalloc}"
+    dir=release_clang_pgo
+    ;;
+clang-jemalloc)
+    export LD_PRELOAD="${jemalloc}"
+    dir=release_clang_pgo
+    ;;
+clang-mimalloc)
+    export LD_PRELOAD="${mimalloc}"
+    dir=release_clang_pgo
+    ;;
+clang-tcmalloc)
+    export LD_PRELOAD="${tcmalloc}"
+    dir=release_clang_pgo
     ;;
 *)
     usage

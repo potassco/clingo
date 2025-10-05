@@ -8,10 +8,18 @@
 		<setting name="gcc-opt"          cmdline="gcc-opt          --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
 		<setting name="gcc-lto"          cmdline="gcc-lto          --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
 		<setting name="gcc-pgo"          cmdline="gcc-pgo          --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="gcc-tbbmalloc"    cmdline="gcc-tbbmalloc    --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="gcc-jemalloc"     cmdline="gcc-jemalloc     --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="gcc-mimalloc"     cmdline="gcc-mimalloc     --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="gcc-tcmalloc"     cmdline="gcc-tcmalloc     --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
 		<setting name="gcc-instrument"   cmdline="gcc-instrument   --opt-str=usc --stats -q --project-anonymous" tag="instrument"/>
 		<setting name="clang-opt"        cmdline="clang-opt        --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
 		<setting name="clang-lto"        cmdline="clang-lto        --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
 		<setting name="clang-pgo"        cmdline="clang-pgo        --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="clang-tbbmalloc"  cmdline="clang-tbbmalloc  --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="clang-jemalloc"   cmdline="clang-jemalloc   --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="clang-mimalloc"   cmdline="clang-mimalloc   --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
+		<setting name="clang-tcmalloc"   cmdline="clang-tcmalloc   --opt-str=usc --stats -q --project-anonymous" tag="benchmark"/>
 		<setting name="clang-instrument" cmdline="clang-instrument --opt-str=usc --stats -q --project-anonymous" tag="instrument"/>
 	</system>
 
