@@ -12,68 +12,85 @@ tbbmalloc=/usr/lib/x86_64-linux-gnu/libtbbmalloc_proxy.so.2
 jemalloc=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
 mimalloc=/usr/lib/x86_64-linux-gnu/libmimalloc.so.2
 tcmalloc=/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4
+dir=""
 
-case $1 in
-gcc-opt)
-    dir=release
-    ;;
-gcc-lto)
-    dir=release_lto
-    ;;
-gcc-pgo)
-    dir=release_pgo
-    ;;
-gcc-instrument)
-    dir=release_instrument
-    ;;
-gcc-tbbmalloc)
-    export LD_PRELOAD="${tbbmalloc}"
-    dir=release_pgo
-    ;;
-gcc-jemalloc)
-    export LD_PRELOAD="${jemalloc}"
-    dir=release_pgo
-    ;;
-gcc-mimalloc)
-    export LD_PRELOAD="${mimalloc}"
-    dir=release_pgo
-    ;;
-gcc-tcmalloc)
-    export LD_PRELOAD="${tcmalloc}"
-    dir=release_pgo
-    ;;
-clang-opt)
-    dir=release
-    ;;
-clang-lto)
-    dir=release_clang_lto
-    ;;
-clang-pgo)
-    dir=release_clang_pgo
-    ;;
-clang-instrument)
-    dir=release_clang_instrument
-    ;;
-clang-tbbmalloc)
-    export LD_PRELOAD="${tbbmalloc}"
-    dir=release_clang_pgo
-    ;;
-clang-jemalloc)
-    export LD_PRELOAD="${jemalloc}"
-    dir=release_clang_pgo
-    ;;
-clang-mimalloc)
-    export LD_PRELOAD="${mimalloc}"
-    dir=release_clang_pgo
-    ;;
-clang-tcmalloc)
-    export LD_PRELOAD="${tcmalloc}"
-    dir=release_clang_pgo
-    ;;
-*)
-    usage
-    ;;
-esac
 shift
 
-exec "$loc/../../build/$dir/bin/clingo" "$@"
+options=()
+extra_options=()
+for arg in "$@"; do
+    case "${arg}" in
+    gcc-opt)
+        dir=release
+        ;;
+    gcc-lto)
+        dir=release_lto
+        ;;
+    gcc-pgo)
+        dir=release_pgo
+        ;;
+    gcc-instrument)
+        dir=release_instrument
+        ;;
+    gcc-tbbmalloc)
+        export LD_PRELOAD="${tbbmalloc}"
+        dir=release_pgo
+        ;;
+    gcc-jemalloc)
+        export LD_PRELOAD="${jemalloc}"
+        dir=release_pgo
+        ;;
+    gcc-mimalloc)
+        export LD_PRELOAD="${mimalloc}"
+        dir=release_pgo
+        ;;
+    gcc-tcmalloc)
+        export LD_PRELOAD="${tcmalloc}"
+        dir=release_pgo
+        ;;
+    clang-opt)
+        dir=release
+        ;;
+    clang-lto)
+        dir=release_clang_lto
+        ;;
+    clang-pgo)
+        dir=release_clang_pgo
+        ;;
+    clang-instrument)
+        dir=release_clang_instrument
+        ;;
+    clang-tbbmalloc)
+        export LD_PRELOAD="${tbbmalloc}"
+        dir=release_clang_pgo
+        ;;
+    clang-jemalloc)
+        export LD_PRELOAD="${jemalloc}"
+        dir=release_clang_pgo
+        ;;
+    clang-mimalloc)
+        export LD_PRELOAD="${mimalloc}"
+        dir=release_clang_pgo
+        ;;
+    clang-tcmalloc)
+        export LD_PRELOAD="${tcmalloc}"
+        dir=release_clang_pgo
+        ;;
+    */encoding.lp)
+        options+=("$arg")
+        opts="$(dirname "${arg}")/options.txt"
+        if [[ -e "${opts}" ]]; then
+            mapfile -t extra_options <"${opts}"
+        fi
+        ;;
+    *)
+        options+=("$arg")
+        ;;
+    esac
+done
+
+if [[ "${dir}" == "" ]]; then
+    usage
+fi
+
+exec "$loc/../../build/$dir/bin/clingo" "${options[@]}" "${extra_options[@]}"
