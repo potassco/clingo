@@ -110,7 +110,8 @@ def gcc_instrument():
     """
     shutil.rmtree(GCC_INSTR_PATH, ignore_errors=True)
     prefix = shlex.quote(os.path.join(os.getcwd(), GCC_INSTR_PATH))
-    flags = f"-fprofile-generate=./gcov-data -fprofile-prefix-path={prefix}"
+    gcov_data = shlex.quote(os.path.join(os.getcwd(), "gcov-data"))
+    flags = f"-fprofile-generate={gcov_data} -fprofile-prefix-path={prefix}"
     run_command(
         [
             CMAKE,
@@ -173,29 +174,33 @@ def gcc_build(files):
     """
     Merge and build with GCC using the given gcov profile data.
     """
-    merged = os.path.join(os.getcwd(), "gcov-merged")
-    shutil.rmtree(merged, ignore_errors=True)
-    gcov_files = []
-    for arg in files:
-        p = Path(arg)
-        if p.is_dir():
-            gcov_files.extend(p.rglob("gcov-data"))
-        else:
-            perror(f"{arg} is not a valid directory.")
-    if not gcov_files:
-        perror("No gcov-data directories found.")
-    i = 0
-    lst = f"{merged}_{0}"
-    for file in gcov_files:
-        cur = f"{merged}_{i}"
-        if lst == cur:
-            shutil.copytree(file, cur)
-        else:
-            run_command([GCOV_TOOL, "merge", "-o", lst, cur, str(file)])
-            shutil.rmtree(lst, ignore_errors=True)
-        lst = cur
-        i += 1
-    shutil.move(lst, merged)
+    merged = os.path.join(os.getcwd(), "gcov-data")
+
+    # shutil.rmtree(merged, ignore_errors=True)
+    # gcov_files = []
+    # for arg in files:
+    #     p = Path(arg)
+    #     if p.is_dir():
+    #         gcov_files.extend(p.rglob("gcov-data"))
+    #     else:
+    #         perror(f"{arg} is not a valid directory.")
+    # if not gcov_files:
+    #     perror("No gcov-data directories found.")
+    #
+    # i = 0
+    # lst = f"{merged}_{0}"
+    # for file in gcov_files:
+    #     cur = f"{merged}_{i}"
+    #     if lst == cur:
+    #         print(f"Copying {file} to {cur}")
+    #         shutil.copytree(file, cur)
+    #     else:
+    #         print(f"Merging {lst} and {file} -> {cur}")
+    #         run_command([GCOV_TOOL, "merge", "-o", cur, lst, str(file)])
+    #         shutil.rmtree(lst, ignore_errors=True)
+    #     lst = cur
+    #     i += 1
+    # shutil.move(lst, merged)
 
     shutil.rmtree(GCC_BUILD_PATH, ignore_errors=True)
     prefix = shlex.quote(os.path.join(os.getcwd(), GCC_BUILD_PATH))
@@ -242,7 +247,7 @@ def main():
         "build", help="Merge and use profile data for final build."
     )
     build_parser.add_argument(
-        "inputs", nargs="+", help="profraw file(s) or directory(ies) to search"
+        "inputs", nargs="*", help="profraw file(s) or directory(ies) to search"
     )
 
     args = parser.parse_args()

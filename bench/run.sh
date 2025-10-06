@@ -43,14 +43,14 @@ gather)
             find . -name "${source}" | while read -r file; do
                 loc="$(dirname "$file")"
                 class="${loc#*/*/}"
-                echo "        <files path=\"benchmarks/${class}\">" >>runscripts/local.xml
+                echo '        <files path="benchmarks">' >>runscripts/local.xml
                 echo "            <encoding file=\"benchmarks/${class}/encoding.lp\"/>" >>runscripts/local.xml
                 cat "${file}" | while read -r instance; do
                     if [[ ! -e benchmarks/${class}/${instance} ]]; then
                         echo "Instance benchmarks/${class}/${instance} not found, skipping" >&2
                         continue
                     fi
-                    echo "            <add file=\"${instance}\"/>" >>runscripts/local.xml
+                    echo "            <add file=\"${class}/${instance}\"/>" >>runscripts/local.xml
                 done
                 echo '        </files>' >>runscripts/local.xml
             done
@@ -69,6 +69,7 @@ gather)
     done
     ;;
 profile)
+    rm -rf ../gcov-data
     ./output/clingo-instrument/precision-3480/start.py
     ;;
 build)
