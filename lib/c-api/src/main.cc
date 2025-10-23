@@ -171,7 +171,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     using BaseType::run;
 
     auto getProblemType() -> ProblemType override {
-        return mode_ != Mode::clasp ? Clasp::ProblemType::asp : Clasp::ClaspFacade::detectProblemType(getStream());
+        return mode_ != Mode::clasp ? Clasp::ProblemType::asp : detectProblemType();
     }
 
     auto onEvent(const Clasp::Event &ev) -> void override {
@@ -208,36 +208,33 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         setExitCode(0);
     }
 
-    auto createTextOutput(const ClaspAppBase::TextOptions &options) -> ClaspOutput * override {
-        if (mode_ == Mode::solve && app_.has_print_model()) {
-            class CustomTextOutput : public Clasp::Cli::TextOutput {
-              public:
-                using BaseType = Clasp::Cli::TextOutput;
-                CustomTextOutput(ClingoApp &app, Clasp::Cli::ClaspAppBase::TextOptions const &opts)
-                    : TextOutput(opts.verbosity, opts.format, opts.catAtom, opts.ifs), self_{&app} {}
-
-              private:
-                void printModelValues(Clasp::OutputTable const &out, Clasp::Model const &mdl) override {
-                    auto prt = [&]() { BaseType::printModelValues(out, mdl); };
-                    // NOTE: the function can only be called while the solve handle is alive
-                    auto guard = CppClingo::Control::unlock_guard{self_->ctl_->slv->get_lock()};
-                    self_->app_.print_model(self_->ctl_->slv->map_model(mdl), prt);
-                }
-                ClingoApp *self_;
-            };
-            return new CustomTextOutput(*this, options);
+    auto createOutput(Clasp::Cli::OutputSink sink, ProblemType f, Clasp::Cli::ClaspAppOptions::OutputFormat outf)
+        -> std::unique_ptr<Clasp::Cli::Output> override {
+        if (mode_ != Mode::solve && mode_ != Mode::clasp) {
+            return nullptr;
         }
-        return mode_ == Mode::solve || mode_ == Mode::clasp ? BaseType::createTextOutput(options) : nullptr;
+        if (!app_.has_print_model() || !Clasp::Cli::ClaspAppOptions::isTextOutput(outf)) {
+            return ClaspAppBase::createOutput(sink, f, outf);
+        }
+        auto output = createTextOutput(sink, f);
+        output->setModelPrinter(
+            [this](Clasp::Cli::TextOutput &out, const Clasp::SharedContext &ctx, const Clasp::Model &mdl) {
+                auto prt = [&]() { out.printModelValues(ctx, mdl); };
+                // NOTE: the function can only be called while the solve handle is alive
+                auto guard = CppClingo::Control::unlock_guard{ctl_->slv->get_lock()};
+                app_.print_model(ctl_->slv->map_model(mdl), prt);
+            });
+        return output;
     }
 
     void run(Clasp::ClaspFacade &clasp) override {
         if (mode_ != Mode::clasp) {
             if (mode_ == Mode::solve) {
-                clasp.startAsp(claspConfig_, false);
+                clasp.startAsp(config(), false);
             }
             opts_.mode() = static_cast<AppMode>(mode_);
             auto slv = CppClingo::Control::Solver{clasp,
-                                                  claspConfig_,
+                                                  config(),
                                                   ctl_->lib->log,
                                                   *ctl_->lib->store,
                                                   ctl_->lib->scripts,
@@ -250,13 +247,13 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 
             POTASSCO_SCOPE_EXIT({ ctl_->slv->print_summary(true); });
 
-            if (app_.has_main()) {
+            if (auto in = input(); app_.has_main()) {
                 if (mode_ == Mode::solve) {
                     ctl_->clasp->enableProgramUpdates();
                 }
-                app_.main(ctl_.get(), claspAppOpts_.input);
+                app_.main(ctl_.get(), in);
             } else {
-                ctl_->slv->main(std::vector<std::string_view>{claspAppOpts_.input.begin(), claspAppOpts_.input.end()});
+                ctl_->slv->main(std::vector<std::string_view>{in.begin(), in.end()});
             }
         } else {
             BaseType::run(clasp);
