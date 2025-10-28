@@ -1,5 +1,6 @@
 <runscript output="output">
     <machine name="precision-3480" cpu="i7-1370P" memory="32GB"/>
+    <machine name="kr-node" cpu="E3-1260L" memory="32GB"/>
     <config name="default" template="templates/seq-generic.sh"/>
     <system name="clingo" version="6.0.0" measures="clasp" config="default" cmdline="--stats -q">
         <setting name="gcc-opt"          cmdline="gcc-opt"          tag="benchmark"/>
@@ -19,7 +20,8 @@
         <setting name="clang-tcmalloc"   cmdline="clang-tcmalloc"   tag="benchmark"/>
         <setting name="clang-instrument" cmdline="clang-instrument" tag="instrument"/>
     </system>
-    <seqjob name="default" timeout="600s" runs="1" parallel="1"/>
+    <seqjob name="instrument" timeout="600s" runs="1" parallel="1"/>
+    <distjob name="benchmark" timeout="1200s" runs="1" script_mode="timeout" walltime="30h" cpt="4" partition="kr"/>
     <benchmark name="clingo-instrument">
         <files path="benchmarks">
             <encoding file="benchmarks/graceful-graphs/encoding.lp"/>
@@ -675,11 +677,10 @@
             <add file="incremental-scheduling/0322-incremental_scheduling-48000-0.lp"/>
         </files>
     </benchmark>
-    <project name="clingo-instrument" job="default">
-        <runtag machine="precision-3480" benchmark="clingo-instrument" tag="instrument"/>
+    <project name="clingo-instrument" job="instrument">
+        <runtag machine="kr-node" benchmark="clingo-instrument" tag="instrument"/>
     </project>
-    <project name="clingo-benchmark" job="default">
-        <!-- TODO: for testing this justs uses the instrument set -->
-        <runtag machine="precision-3480" benchmark="clingo-instrument" tag="benchmark"/>
+    <project name="clingo-benchmark" job="benchmark">
+        <runtag machine="kr-node" benchmark="clingo" tag="benchmark"/>
     </project>
 </runscript>

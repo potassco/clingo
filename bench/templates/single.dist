@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH --output=out.%j
+#SBATCH --error=err.%j
+#SBATCH --time={walltime}        # walltime
+#SBATCH --cpus-per-task={cpt}    # number of processor cores (i.e. tasks)
+#SBATCH --partition={partition}
+{dist_options}                  # additional dist options (specified via runscript setting)
+
+# Good Idea to stop operation on first error.
+set -e
+
+# Run jobs
+jobs="{jobs}"
+echo running jobs@$(hostname)...
+echo ""
+echo "jobs:" $jobs
+echo ""
+for i in $jobs
+do
+    echo "running " $i
+    $i
+done

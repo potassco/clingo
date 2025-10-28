@@ -34,5 +34,8 @@ set(LIB_POTASSCO_INSTALL_LIB OFF CACHE BOOL "forced to off by clingo" FORCE)
 add_subdirectory(clasp)
 set_property(TARGET libclasp PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET libpotassco PROPERTY POSITION_INDEPENDENT_CODE ON)
+if(CLINGO_BUILD_TESTS)
+    include(Catch)
+endif()
 
 clingo_target_properties(TARGETS libclasp libpotassco potassco_default_warnings imath ordered_map hopscotch_map TYPE extra)

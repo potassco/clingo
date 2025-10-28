@@ -8,13 +8,21 @@ function usage() {
 [[ $# -gt 0 ]] || usage
 
 loc="$(realpath "$(dirname "$0")")"
+jemalloc_conda="$CONDA_PREFIX/lib/libjemalloc.so"
+mimalloc_conda="$CONDA_PREFIX/lib/libmimalloc.so"
+if [ -e "$jemalloc_conda" ]; then
+    jemalloc="$jemalloc_conda"
+else
+    jemalloc=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+fi
+if [ -e "$mimalloc_conda" ]; then
+    mimalloc="$mimalloc_conda"
+else
+    mimalloc=/usr/lib/x86_64-linux-gnu/libmimalloc.so.2
+fi
 tbbmalloc=/usr/lib/x86_64-linux-gnu/libtbbmalloc_proxy.so.2
-jemalloc=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
-mimalloc=/usr/lib/x86_64-linux-gnu/libmimalloc.so.2
 tcmalloc=/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4
 dir=""
-
-shift
 
 options=()
 extra_options=()

@@ -2,6 +2,10 @@ SHELL := /bin/zsh
 CLANG_CC := $(shell test -e /usr/bin/clang-20 && echo /usr/bin/clang-20 || echo clang)
 CLANG_CXX := $(shell test -e /usr/bin/clang++-20 && echo /usr/bin/clang++-20 || echo clang++)
 CPU_COUNT := $(shell test -e /usr/bin/nproc && nproc || echo "1")
+CLANG_LDFLAGS := -fuse-ld=lld
+ifdef CONDA_PREFIX
+  CLANG_LDFLAGS := -Wl,-rpath=$(CONDA_PREFIX)/lib -L$(CONDA_PREFIX)/lib $(CLANG_LDFLAGS)
+endif
 
 all: debug
 
@@ -29,9 +33,9 @@ build/debug/CMakeCache.txt: .venv
 		-DCMAKE_BUILD_TYPE=debug \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=On \
 		-DCLINGO_BUILD_TESTS=On \
-		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
-		-DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
-		-DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld" \
+		-DCMAKE_EXE_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
+		-DCMAKE_MODULE_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
+		-DCMAKE_SHARED_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
 		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -Wall -Wextra -pedantic" \
 		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic"
 
@@ -65,9 +69,9 @@ release_clang:
 		-DCLINGO_BUILD_TESTS=On \
 		-DCMAKE_CXX_COMPILER="$(CLANG_CXX)" \
 		-DCMAKE_C_COMPILER="$(CLANG_CC)" \
-		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
-		-DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
-		-DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld" \
+		-DCMAKE_EXE_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
+		-DCMAKE_MODULE_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
+		-DCMAKE_SHARED_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
 		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -Wall -Wextra -pedantic" \
 		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic"
 	$(MAKE) -C build/$@
@@ -80,9 +84,9 @@ release_clang_lto:
 		-DCLINGO_BUILD_TESTS=On \
 		-DCMAKE_CXX_COMPILER="$(CLANG_CXX)" \
 		-DCMAKE_C_COMPILER="$(CLANG_CC)" \
-		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
-		-DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
-		-DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld" \
+		-DCMAKE_EXE_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
+		-DCMAKE_MODULE_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
+		-DCMAKE_SHARED_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
 		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -flto -Wall -Wextra -pedantic" \
 		-DCMAKE_C_FLAGS="-flto -Wall -Wextra -pedantic"
 	$(MAKE) -C build/$@

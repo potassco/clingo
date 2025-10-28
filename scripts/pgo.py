@@ -12,14 +12,23 @@ import subprocess
 import sys
 from pathlib import Path
 
+def command(cmd, alt):
+    return cmd if shutil.which(cmd) is not None else alt
+
 CMAKE = "cmake"
-CLANG = "clang-20"
-CLANGXX = "clang++-20"
-LLD = "lld-20"
-LLVM_PROFDATA = "llvm-profdata-20"
+CLANG = command("clang-20", "clang")
+CLANGXX = command("clang++-20", "clang++")
+LLD = command("lld-20", "lld")
+LLVM_PROFDATA = command("llvm-profdata-20", "llvm-profdata")
 GCC = "gcc"
 GXX = "g++"
 GCOV_TOOL = "gcov-tool"
+
+if CONDA_PREFIX := os.environ.get("CONDA_PREFIX", ""):
+    CONDA_LIB_PATH = f"{shlex.quote(CONDA_PREFIX)}/lib"
+    EXTRA_FLAGS = f" -L{CONDA_LIB_PATH} -Wl,-rpath={CONDA_LIB_PATH}"
+else:
+    EXTRA_FLAGS = ""
 
 CMAKE_OPTIONS = [
     "-DCMAKE_BUILD_TYPE=Release",
@@ -34,7 +43,7 @@ CLANG_CMAKE_OPTIONS = [
     f"-DCMAKE_CXX_COMPILER={shlex.quote(CLANGXX)}",
     *CMAKE_OPTIONS,
 ]
-CLANG_C_FLAGS = f"-flto -fuse-ld={shlex.quote(LLD)} -Wunused-command-line-argument"
+CLANG_C_FLAGS = f"-flto -fuse-ld={shlex.quote(LLD)} -Wno-unused-command-line-argument{EXTRA_FLAGS}"
 CLANG_CXX_FLAGS = f"-stdlib=libc++ {CLANG_C_FLAGS}"
 
 GCC_INSTR_PATH = "build/release_instrument"
@@ -44,7 +53,7 @@ GCC_CMAKE_OPTIONS = [
     f"-DCMAKE_CXX_COMPILER={shlex.quote(GXX)}",
     *CMAKE_OPTIONS,
 ]
-GCC_C_FLAGS = "-flto=auto -fuse-linker-plugin"
+GCC_C_FLAGS = "-flto=2 -fuse-linker-plugin"
 GCC_CXX_FLAGS = GCC_C_FLAGS
 
 
