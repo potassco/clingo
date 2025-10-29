@@ -2,3 +2,5 @@ benchmarks/
 output/
 programs/runlim
 results/
+*.out
+*.err

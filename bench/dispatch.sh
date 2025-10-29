@@ -9,6 +9,9 @@
 source ~/.local/opt/conda/etc/profile.d/conda.sh
 conda activate clang
 case $1 in
+clean)
+	rm -rf output ../gcov-data
+	;;
 instrument-gcc)
 	(cd ..; ./scripts/pgo.py --compiler gcc instrument)
 	;;

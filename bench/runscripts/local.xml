@@ -21,7 +21,7 @@
         <setting name="clang-instrument" cmdline="clang-instrument" tag="instrument"/>
     </system>
     <seqjob name="instrument" timeout="600s" runs="1" parallel="1"/>
-    <distjob name="benchmark" timeout="1200s" runs="1" script_mode="timeout" walltime="30h" cpt="4" partition="kr"/>
+    <distjob name="benchmark" timeout="1200s" runs="1" script_mode="timeout" walltime="30h" cpt="8" partition="kr"/>
     <benchmark name="clingo-instrument">
         <files path="benchmarks">
             <encoding file="benchmarks/graceful-graphs/encoding.lp"/>
