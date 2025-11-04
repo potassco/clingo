@@ -1,16 +1,20 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from pandas_ods_reader import read_ods
 
 # NOTE: the file has to be opened and saved once with LibreOffice because the
 # generated ODS file does not contain computed values.
 df = read_ods("results/results.ods", sheet=1, headers=False)
 
+stride = 1
+first_row = df.iloc[0]
+while pd.isna(first_row[1 + stride]) or first_row[1 + stride] == "":
+    stride += 1
 
-stride = 2
-sum_index = df.index[df.iloc[:, 0] == "SUM"].tolist()[-1]
+sum_index = df.index[df.iloc[:, 0] == "SUM"].tolist()[-1] + 1
+
 sum_row = df.iloc[sum_index]
-
 systems = df.iloc[0, 1::stride][:-3].tolist()
 times = df.iloc[sum_index, 1::stride][:-3].astype(float).tolist()
 timeouts = df.iloc[sum_index, 2::stride][:-3].astype(float).tolist()
@@ -20,7 +24,7 @@ assert (
 ), "Mismatched lengths between systems, times, and timeouts"
 
 systems_sorted, times_sorted, timeouts_sorted = zip(
-    *sorted(list(zip(systems, times, timeouts)), key=lambda x: (x[2], x[1]))
+    *sorted(list(zip(systems, times, timeouts)), key=lambda x: (x[1], x[2]))
 )
 
 x = np.arange(len(systems_sorted))
