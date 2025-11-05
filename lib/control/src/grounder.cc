@@ -41,9 +41,10 @@ class Builder : public Input::DependencyBuilder {
   public:
     //! Construct the builder.
     Builder(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, TheorySigVec theory_directives,
-            Ground::Bases &base, Ground::ScriptCallback *context, OutputStm &out, ProfileProgram &profile)
+            Ground::Bases &base, Ground::ScriptCallback *context, OutputStm &out, ProfileProgram &profile,
+            Util::StopFlag *stop)
         : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{std::move(theory_directives)}, bases_{&base},
-          context_{context}, out_{&out}, profile_{&profile} {}
+          context_{context}, out_{&out}, profile_{&profile}, stop_{stop} {}
 
   private:
     //! Handle program parameters.
@@ -69,7 +70,7 @@ class Builder : public Input::DependencyBuilder {
     }
 
     //! Translate components.
-    auto do_components(Input::Components const &comps) -> bool override {
+    auto do_components(Input::Components const &comps) -> GroundResult override {
         auto lin = Ground::Linearizer{*mbr_};
         for (auto const &ref_comps : comps) {
             CLINGO_REPORT(*log_, debug) << "  component";
@@ -108,16 +109,14 @@ class Builder : public Input::DependencyBuilder {
                                      var_map, body,  states,  context_,           *profile_};
                     build_stm(ctx, *stm, src_it != src_ie ? *src_it++ : nullptr);
                 }
-                auto queue = Ground::Queue{};
+                auto queue = Ground::Queue{stop_};
                 lin.start(queue);
                 for (auto const &stm : gcomp.stms()) {
                     CLINGO_REPORT(*log_, debug) << "      " << *stm;
-                    // TODO::
-                    // - instantiators should associated profiling data with source context
                     lin.prepare(*stm, stm->body(), stm->important());
                 }
-                if (!queue.process(*log_, *store_, *out_)) {
-                    return false;
+                if (auto res = queue.process(*log_, *store_, *out_); res != GroundResult::ok) {
+                    return res;
                 }
                 for (auto &state : states) {
                     state->output(*log_, *store_, *out_);
@@ -125,7 +124,7 @@ class Builder : public Input::DependencyBuilder {
             }
             out_->flush();
         }
-        return true;
+        return GroundResult::ok;
     }
 
     std::pmr::monotonic_buffer_resource *mbr_;
@@ -136,6 +135,7 @@ class Builder : public Input::DependencyBuilder {
     Ground::ScriptCallback *context_;
     OutputStm *out_;
     ProfileProgram *profile_;
+    Util::StopFlag *stop_;
     std::ostringstream buf_;
 };
 
@@ -280,8 +280,8 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
     ProfileProgram profile;
     //! The output.
     OutputStm *out;
-    //! Indicate that the logic program might still be satisfiable.
-    bool is_sat = true;
+    //! The current grounding status.
+    GroundResult status = GroundResult::ok;
 };
 
 Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
@@ -291,7 +291,7 @@ Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, 
 Grounder::~Grounder() noexcept = default;
 
 void Grounder::add_const(String name, Symbol value) {
-    if (impl_->is_sat) {
+    if (impl_->status == GroundResult::ok) {
         auto lock = GCLock{*impl_->store};
         auto str = impl_->store->string_ref("<cli>");
         auto loc = Location(Position{str, 1, 1}, Position{str, 1, 1});
@@ -302,7 +302,7 @@ void Grounder::add_const(String name, Symbol value) {
 }
 
 void Grounder::join(Input::UnprocessedProgram const &prg) {
-    if (impl_->is_sat) {
+    if (impl_->status == GroundResult::ok) {
         GCLock lock{*impl_->store};
         impl_->unprocessed_prg.join(prg);
     }
@@ -313,7 +313,7 @@ auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinI
 #ifdef CLINGO_PROFILE
     auto prof = Profiler{"clingo-parse.prof"};
 #endif
-    if (impl_->is_sat) {
+    if (impl_->status == GroundResult::ok) {
         GCLock lock{*impl_->store};
         auto prs = ParseHelper{*impl_->log, *impl_->store,
                                [&](Input::Stm stm) { impl_->unprocessed_prg.add(store(), std::move(stm)); }, code};
@@ -328,7 +328,7 @@ auto Grounder::parse(std::span<std::string_view const> const &files, Ground::Scr
 #ifdef CLINGO_PROFILE
     auto prof = Profiler{"clingo-parse.prof"};
 #endif
-    if (impl_->is_sat) {
+    if (impl_->status == GroundResult::ok) {
         GCLock lock{*impl_->store};
         auto prs = ParseHelper{
             *impl_->log, *impl_->store, [&](Input::Stm stm) { impl_->unprocessed_prg.add(store(), std::move(stm)); },
@@ -341,7 +341,7 @@ auto Grounder::parse(std::span<std::string_view const> const &files, Ground::Scr
 void Grounder::prepare_() {
     if (!impl_->unprocessed_prg.empty()) {
         CLINGO_REPORT(*impl_->log, debug) << "preparing...";
-        if (impl_->is_sat) {
+        if (impl_->status == GroundResult::ok) {
             GCLock lock{*impl_->store};
             impl_->prg.join(*impl_->log, *impl_->store, impl_->unprocessed_prg);
             impl_->unprocessed_prg.clear();
@@ -369,7 +369,8 @@ void Grounder::accept(Ground::ProfileNode::Visitor const &visit) const {
     impl_->profile.accept(visit);
 }
 
-auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context) -> bool {
+auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context, Util::StopFlag *stop)
+    -> GroundResult {
     prepare_();
     CLINGO_REPORT(*impl_->log, debug) << "grounding...";
     GCLock lock{*impl_->store};
@@ -380,12 +381,13 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
     if (p != Input::ProfileFlags::off && !params.empty()) {
         impl_->profile.begin_step();
     }
-    if (impl_->is_sat) {
+    if (impl_->status == GroundResult::ok) {
         impl_->prg.check(*impl_->log);
         impl_->bases.clear_aux();
-        auto bld = Builder{impl_->mbr,   *impl_->log, *impl_->store, impl_->prg.theory_directives(),
-                           impl_->bases, context,     *impl_->out,   impl_->profile};
-        impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
+        auto bld =
+            Builder{impl_->mbr,  *impl_->log,    *impl_->store, impl_->prg.theory_directives(), impl_->bases, context,
+                    *impl_->out, impl_->profile, stop};
+        impl_->status = impl_->prg.analyze(*impl_->store, params, bld);
         impl_->meta();
         impl_->project();
         impl_->clear();
@@ -394,7 +396,7 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
     if (p != Input::ProfileFlags::off && !params.empty()) {
         impl_->profile.end_step();
     }
-    return impl_->is_sat;
+    return impl_->status;
 }
 
 void Grounder::output_unprocessed_program(std::ostream &out) {

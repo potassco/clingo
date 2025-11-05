@@ -6,6 +6,8 @@
 #include <clingo/core/output.hh>
 #include <clingo/core/symbol.hh>
 
+#include <clingo/util/thread.hh>
+
 #include <memory>
 #include <utility>
 #include <vector>
@@ -171,7 +173,8 @@ class Instantiator {
     //! Find all assignments for the added matchers.
     //!
     //! Assignments are reported via the InstanceCallback.
-    [[nodiscard]] auto instantiate(Logger &log, SymbolStore &store, OutputStm &out) -> bool;
+    [[nodiscard]] auto instantiate(Logger &log, SymbolStore &store, OutputStm &out, Util::StopFlag *stop)
+        -> GroundResult;
     //! Add instantiators that need grounding to queue.
     void propagate(SymbolStore &store, OutputStm &out, Queue &queue);
     //! Print the instantiator.
@@ -222,13 +225,13 @@ using InstantiatorVec = std::vector<Instantiator>;
 class Queue {
   public:
     //! Construct an empty queue.
-    Queue() = default;
+    Queue(Util::StopFlag *stop = nullptr) : stop_{stop} {}
     //! Register an instantiator with the queue.
     void insert(Instantiator inst, std::optional<size_t> index);
     //! Propagate instantiators with the given index.
     void propagate(size_t index);
     //! Process previously enqueued instantiators.
-    [[nodiscard]] auto process(Logger &log, SymbolStore &store, OutputStm &out) -> bool;
+    [[nodiscard]] auto process(Logger &log, SymbolStore &store, OutputStm &out) -> GroundResult;
     //! Release the contained instantiators.
     auto release() -> std::vector<Instantiator> { return std::move(insts_); }
 
@@ -241,6 +244,7 @@ class Queue {
     std::vector<std::vector<Instantiator *>> queues_;
     size_t size_ = 0;
     size_t max_prio_ = 0;
+    Util::StopFlag *stop_;
 };
 
 //! @}

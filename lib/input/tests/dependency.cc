@@ -175,7 +175,7 @@ TEST_CASE("dependency") {
                     flush();
                 }
             }
-            auto do_components(Components const &comps) -> bool override {
+            auto do_components(Components const &comps) -> GroundResult override {
                 for (auto const &ref_comps : comps) {
                     oss << "% component";
                     flush();
@@ -188,7 +188,7 @@ TEST_CASE("dependency") {
                         }
                     }
                 }
-                return true;
+                return GroundResult::ok;
             }
             std::ostringstream oss;
             std::vector<std::string> res;

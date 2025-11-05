@@ -5,6 +5,8 @@
 
 #include <clingo/output/backend.hh>
 
+#include <clingo/util/thread.hh>
+
 #include <clasp/clasp_facade.h>
 #include <clasp/cli/clasp_options.h>
 
@@ -588,6 +590,77 @@ class Grounded : public Clasp::Event {
     std::span<Input::ProgramParamVec::value_type const> params;
 };
 
+class Grounder;
+
+//! This callback interface provides grounding events.
+//!
+//! It extends the script callback interface with an callback that is called
+//! when grounding has finished.
+class GroundEventHandler : public Ground::ScriptCallback {
+  public:
+    //! Callback to inform that the grounding has finished.
+    //!
+    //! Note that this function is not called from the main thread when solving
+    //! asynchronously to allow for thread synchronization.
+    //!
+    //! @param result the result of the ground call
+    void on_finish(GroundResult result) { do_on_finish(result); }
+
+  private:
+    virtual void do_on_finish([[maybe_unused]] GroundResult result) {}
+};
+
+//! A unique pointer to a ground event handler.
+using UGroundEventHandler = std::unique_ptr<GroundEventHandler>;
+
+//! A handle for asynchronous grounding.
+//!
+//! The handle can be moved but not copied.
+class GroundHandle {
+  public:
+    //! Start grounding with the given params and context.
+    GroundHandle(Solver &solver, Input::ProgramParamVec params, UGroundEventHandler handler);
+    //! Destroy the ground handle.
+    //!
+    //! If grounding has not stopped yet, this requests grounding to stop and
+    //! joins the grounding thread.
+    ~GroundHandle() noexcept;
+
+    //! Prevent copying.
+    GroundHandle(GroundHandle const &other) = delete;
+    //! Enable moving.
+    GroundHandle(GroundHandle &&other) noexcept;
+    //! Enable moving.
+    auto operator=(GroundHandle &&other) noexcept -> GroundHandle &;
+    //! Prevent copying.
+    auto operator=(GroundHandle const &other) -> GroundHandle & = delete;
+
+    //! Wait for grounding to finish.
+    //!
+    //! If the timeout is greater than zero, the method blocks for at most
+    //! timeout seconds. If the timeout is zero, the method does not block. If
+    //! the timeout is negative, the method blocks until grounding has
+    //! finished.
+    //!
+    //! The function returns true if grounding has finished, false otherwise.
+    //!
+    //! @param timeout The maximum time to wait in seconds.
+    [[nodiscard]] auto wait(double timeout) -> bool;
+    //! Get the result of grounding.
+    //!
+    //! Blocks until grounding has finished. Raises exceptions thrown during
+    //! grounding.
+    [[nodiscard]] auto get() -> GroundResult;
+    //! Stop grounding.
+    //!
+    //! Blocks until grounding has finished.
+    void cancel();
+
+  private:
+    class Impl;
+    std::unique_ptr<Impl> impl_;
+};
+
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
@@ -615,8 +688,11 @@ class Solver : public BaseView {
     void add_const(String name, Symbol value);
     //! Get the const map.
     [[nodiscard]] auto const_map() -> Input::ConstMap const &;
+    //! Ground the program asynchronously.
+    [[nodiscard]] auto start_ground(ProgramParamVec params, UGroundEventHandler handler) -> GroundHandle;
     //! Ground the program.
-    void ground(ProgramParamVec const &params, Ground::ScriptCallback *ctx);
+    auto ground(ProgramParamVec const &params, Ground::ScriptCallback *ctx, Util::StopFlag *stop = nullptr)
+        -> GroundResult;
     //! Solve the program.
     //!
     //! @param handler optional event handler

@@ -183,6 +183,13 @@ using TheorySig = std::tuple<String, size_t>;
 //! A vector of theory atom signatures.
 using TheorySigVec = std::vector<TheorySig>;
 
+//! Available grounding results.
+enum class GroundResult : uint8_t {
+    ok,            //!< The grounding was successful.
+    unsatisfiable, //!< The grounding was successful but an inconsistency was derived.
+    interrupted,   //!< The grounding was interrupted.
+};
+
 //! @}
 
 } // namespace CppClingo

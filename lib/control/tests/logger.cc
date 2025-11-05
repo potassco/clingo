@@ -21,7 +21,7 @@ TEST_CASE("logger_test") {
         Control::Grounder grd{log, *store, opts, *out};
         grd.parse(str);
         auto params = Input::ProgramParamVec{{store->string("base"), {}}};
-        REQUIRE(grd.ground(params));
+        REQUIRE(grd.ground(params) == GroundResult::ok);
         return msgs;
     };
     SECTION("term") {

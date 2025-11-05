@@ -116,7 +116,7 @@ void Instantiator::print(std::ostream &out) const {
     });
 }
 
-auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
+auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out, Util::StopFlag *stop) -> GroundResult {
     auto timer = ProfileTimer{stats_ != nullptr ? &stats_->time_instantiate : nullptr};
     enqueued_ = false;
     auto ie = matchers_.rend();
@@ -126,6 +126,9 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
     it->match(ctx);
     CLINGO_REPORT(log, trace) << "  instantiate: " << *this;
     do {
+        if (stop != nullptr && stop->stop_requested()) {
+            return GroundResult::interrupted;
+        }
         CLINGO_REPORT(log, trace) << "    start at " << std::distance(it, ie) - 1;
         if (it->next(ctx)) {
             if (stats_ != nullptr) {
@@ -144,7 +147,7 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
                 ++stats_->instances;
             }
             if (!icb_->report(ctx)) {
-                return false;
+                return GroundResult::unsatisfiable;
             }
         }
         CLINGO_REPORT(log, trace) << "    block: " << Util::p_range(it->depend());
@@ -155,7 +158,7 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
         }
         CLINGO_REPORT(log, trace) << "    backjumped to " << std::distance(it, ie) - 1;
     } while (it != ie);
-    return true;
+    return GroundResult::ok;
 }
 
 void Instantiator::propagate(SymbolStore &store, OutputStm &out, Queue &queue) {
@@ -200,7 +203,7 @@ void Queue::propagate(size_t index) {
     }
 }
 
-auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
+auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> GroundResult {
     // ground
     CLINGO_REPORT(log, debug) << "      instantiators: ";
     for (auto i = size_t{0}; i < insts_.size(); ++i) {
@@ -218,8 +221,8 @@ auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
                 inst->init(InstantiationContext{log, store, out}, gen);
             }
             for (auto *inst : current) {
-                if (!inst->instantiate(log, store, out)) {
-                    return false;
+                if (auto res = inst->instantiate(log, store, out, stop_); res != GroundResult::ok) {
+                    return res;
                 }
             }
             for (auto *inst : current) {
@@ -227,7 +230,7 @@ auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
             }
         }
     }
-    return true;
+    return GroundResult::ok;
 }
 
 } // namespace CppClingo::Ground

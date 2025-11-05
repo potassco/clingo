@@ -648,7 +648,7 @@ class MatcherAssignAggrStrat : public Matcher {
             // ground elems
             CLINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
             for (auto &inst : insts_) {
-                std::ignore = inst.instantiate(ctx.log(), ctx.store(), ctx.out());
+                std::ignore = inst.instantiate(ctx.log(), ctx.store(), ctx.out(), nullptr);
             }
             CLINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
             // propagate aggregate

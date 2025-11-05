@@ -7,6 +7,7 @@
 #include <potassco/aspif_text.h>
 #include <potassco/theory_data.h>
 
+#include <future>
 #include <utility>
 
 // #define DEBUG_BACKEND
@@ -1206,12 +1207,112 @@ auto Solver::const_map() -> Input::ConstMap const & {
     return grd_.const_map();
 }
 
-void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) {
+class GroundHandle::Impl {
+  public:
+    Impl() = default;
+
+    Impl(Impl const &) = delete;
+    Impl(Impl &&other) noexcept = delete;
+    auto operator=(Impl const &) -> Impl & = delete;
+    auto operator=(Impl &&other) noexcept -> Impl & = delete;
+
+    void start(Solver &slv, Input::ProgramParamVec params, UGroundEventHandler handler) {
+        assert(!future_.valid());
+        future_ =
+            std::async(std::launch::async, [this, &slv, handler = std::move(handler), params = std::move(params)]() {
+                try {
+                    auto res = slv.ground(params, handler.get(), &stop_);
+                    handler->on_finish(res);
+                    return res;
+                } catch (...) {
+                    try {
+                        handler->on_finish(GroundResult::interrupted);
+                    } catch (...) {
+                        fprintf(stderr, "Error: exception thrown in finish callback during grounding\n");
+                        fflush(stderr);
+                        std::terminate();
+                    }
+                    throw;
+                }
+            });
+    }
+
+    [[nodiscard]] auto wait(double timeout) -> bool {
+        if (!future_.valid()) {
+            return true;
+        }
+        if (timeout < 0) {
+            future_.wait();
+            return true;
+        }
+        return future_.wait_for(std::chrono::duration<double>(timeout)) == std::future_status::ready;
+    }
+
+    [[nodiscard]] auto get() -> GroundResult {
+        if (future_.valid()) {
+            res_ = future_.get();
+        }
+        return res_;
+    }
+
+    void cancel() {
+        if (future_.valid()) {
+            stop_.request_stop();
+            future_.wait();
+        }
+    }
+
+    ~Impl() noexcept {
+        try {
+            cancel();
+        } catch (...) {
+            std::terminate();
+        }
+    }
+
+  private:
+    std::future<GroundResult> future_;
+    GroundResult res_ = GroundResult::interrupted;
+    Util::StopFlag stop_;
+};
+
+GroundHandle::GroundHandle(Solver &solver, Input::ProgramParamVec params, UGroundEventHandler handler)
+    : impl_{std::make_unique<Impl>()} {
+    impl_->start(solver, std::move(params), std::move(handler));
+}
+
+GroundHandle::~GroundHandle() noexcept = default;
+
+GroundHandle::GroundHandle(GroundHandle &&other) noexcept = default;
+
+auto GroundHandle::operator=(GroundHandle &&other) noexcept -> GroundHandle & = default;
+
+auto GroundHandle::wait(double timeout) -> bool {
+    return impl_->wait(timeout);
+}
+
+void GroundHandle::cancel() {
+    impl_->cancel();
+}
+
+auto GroundHandle::get() -> GroundResult {
+    return impl_->get();
+}
+
+auto Solver::start_ground(Input::ProgramParamVec params, UGroundEventHandler handler) -> GroundHandle {
+    auto res = GroundHandle{*this, std::move(params), std::move(handler)};
+    return res;
+}
+
+auto Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx, Util::StopFlag *stop)
+    -> GroundResult {
+    auto res = GroundResult::ok;
     if (opts_.mode >= AppMode::ground) {
         prepare_();
-        std::ignore = grd_.ground(params, ctx != nullptr ? ctx : scripts_);
+        res = grd_.ground(params, ctx != nullptr ? ctx : scripts_, stop);
         clasp_->ctx.report(Grounded{params});
     }
+    return res;
 }
 
 void Solver::output_unprocessed_program(std::ostream &out) {

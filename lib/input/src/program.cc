@@ -218,7 +218,7 @@ auto Program::theory_directives() const -> TheorySigVec {
     return res;
 }
 
-auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) -> bool {
+auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) -> GroundResult {
     bld.meta(meta_stms_);
     auto stms = StmVec{};
     auto srcs = std::vector<Stm const *>{};
