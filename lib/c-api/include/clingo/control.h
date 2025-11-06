@@ -2,6 +2,7 @@
 #define CLINGO_CONTROL_H
 
 #include <clingo/core.h>
+#include <clingo/ground.h>
 #include <clingo/symbol.h>
 
 #ifdef __cplusplus
@@ -42,70 +43,6 @@ enum clingo_mode_e {
 };
 //! The corresponding type to ::clingo_mode_e.
 typedef int clingo_mode_t;
-
-//! Struct used to specify the program parts that have to be grounded.
-//!
-//! Programs may be structured into parts, which can be grounded independently with ::clingo_control_ground.
-//! Program parts are mainly interesting for incremental grounding and multi-shot solving.
-//! For single-shot solving, program parts are not needed.
-//!
-//! @note Parts of a logic program without an explicit <tt>\#program</tt>
-//! specification are by default put into a program called `base` without
-//! arguments.
-//!
-//! @see clingo_control_ground()
-typedef struct clingo_part {
-    char const *name;              //!< name of the program part
-    size_t name_size;              //!< the size of the name
-    clingo_symbol_t const *params; //!< array of parameters
-    size_t params_size;            //!< number of parameters
-} clingo_part_t;
-
-//! Callback function to implement external functions.
-//!
-//! If an external function of form <tt>\@name(parameters)</tt> occurs in a logic program,
-//! then this function is called with its location, name, parameters, and a callback to inject symbols as arguments.
-//! The callback can be called multiple times; all symbols passed are injected.
-//!
-//! If a (non-recoverable) clingo API function fails in this callback, for example, the symbol callback, the callback
-//! must return its return code. In case of errors not related to clingo, this function can use clingo_set_error().
-//!
-//! @param[in] lib the library object
-//! @param[in] location location from which the external function was called
-//! @param[in] name name of the called external function
-//! @param[in] arguments arguments of the called external function
-//! @param[in] arguments_size number of arguments
-//! @param[in] data user data of the callback
-//! @param[in] symbol_callback function to inject symbols
-//! @param[in] symbol_callback_data user data for the symbol callback
-//!            (must be passed untouched)
-//! @return whether the call was successful
-//! @see clingo_control_ground()
-//!
-//! The following example implements the external function <tt>\@f()</tt> returning 42.
-//! ~~~~~~~~~~~~~~~{.c}
-//! bool
-//! ground_callback(clingo_lib_t *lib,
-//!                 clingo_location_t const *location,
-//!                 char const *name,
-//!                 size_t name_size,
-//!                 clingo_symbol_t const *arguments,
-//!                 size_t arguments_size,
-//!                 void *data,
-//!                 clingo_symbol_callback_t symbol_callback,
-//!                 void *symbol_callback_data) {
-//!   if (size == 1 && strncmp(name, "f", 1) == 0 && arguments_size == 0) {
-//!     clingo_symbol_t sym;
-//!     sym = clingo_symbol_create_number(42);
-//!     return symbol_callback(&sym, 1, symbol_callback_data);
-//!   }
-//!   return clingo_set_error(lib, clingo_result_runtime, "function not found", 18);
-//! }
-//! ~~~~~~~~~~~~~~~
-typedef bool (*clingo_ground_callback_t)(clingo_lib_t *lib, clingo_location_t const *location, char const *name,
-                                         size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
-                                         void *data, clingo_symbol_callback_t symbol_callback,
-                                         void *symbol_callback_data);
 
 //! A map from constantns to their values.
 typedef struct clingo_const_map clingo_const_map_t;
@@ -200,6 +137,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_string(clingo_control_t *con
 //! specification are by default put into a program called `base` without
 //! arguments.
 //!
+//! @see clingo_control_start_ground()
+//!
 //! @param[in] control the target
 //! @param[in] parts array of parts to ground
 //! @param[in] size size of the parts array
@@ -208,6 +147,29 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_string(clingo_control_t *con
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t size,
                                                      clingo_ground_callback_t ground_callback, void *data);
+
+//! Start grounding a program asynchronously.
+//!
+//! The function returns a handle and immediatly starts grounding in the
+//! background. The handle can be used to wait for the grounding to finish, get
+//! the result, or cancel the grounding. Stopping grounding leaves the program
+//! in an unpredictable state. There is currently no way to rollback a
+//! partially grounded program.
+//!
+//! The returned handle must be released using ::clingo_ground_handle_close().
+//!
+//! @see clingo_control_ground()
+//!
+//! @param[in] control the target
+//! @param[in] parts array of parts to ground
+//! @param[in] size size of the parts array
+//! @param[in] ground_callback callback to implement external functions
+//! @param[in] data user data for ground_callback
+//! @param[out] handle the resulting ground handle
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_start_ground(clingo_control_t *control, clingo_part_t const *parts,
+                                                           size_t size, clingo_ground_callback_t ground_callback,
+                                                           void *data, clingo_ground_handle_t **handle);
 
 //! Execute the default ground and solve flow after parsing.
 //!

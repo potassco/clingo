@@ -37,6 +37,8 @@
 
 //! @defgroup c_backend Ground Program Extension
 
+//! @defgroup c_ground Grounding
+
 //! @defgroup c_model Model Inspection
 
 //! @defgroup c_solve Solving
