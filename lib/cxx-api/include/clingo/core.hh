@@ -304,6 +304,87 @@ template <class T, class P> class intrusive_handle {
     P *ptr_ = nullptr;
 };
 
+//! Manager for user data passed to C callbacks.
+//!
+//! The user data manager handles ownership and casting of user data from void
+//! pointers.
+template <typename Value> class UserDataManager {
+  public:
+    using ValueType = Value;
+    using PointerType = Value *;
+
+    //! Construct the managed user data from the given value.
+    template <class T>
+    UserDataManager(T &&value) // NOLINT
+        : owned(std::make_unique<ValueType>(std::forward<T>(value))), data(owned.get()) {}
+
+    //! Check whether the managed data is not null.
+    explicit operator bool() const { return data != nullptr; }
+    //! Get the managed data and release ownership.
+    auto release() -> PointerType {
+        owned.release();
+        return data;
+    }
+
+    //! Cast the managed data to the pointer type.
+    static auto cast(void *data) -> PointerType { return static_cast<PointerType>(data); }
+    //! Free the managed data.
+    static auto free(void *data) { std::default_delete<ValueType>()(cast(data)); }
+
+  private:
+    std::unique_ptr<ValueType> owned;
+    PointerType data = nullptr;
+};
+
+//! Specialization for nullptr_t.
+template <> class UserDataManager<std::nullptr_t> {
+  public:
+    using ValueType = std::nullptr_t;
+    using PointerType = std::nullptr_t;
+
+    UserDataManager([[maybe_unused]] std::nullptr_t value) {}
+
+    explicit operator bool() const { return false; }
+    auto release() -> PointerType {
+        static_cast<void>(this);
+        return nullptr;
+    }
+
+    static auto cast([[maybe_unused]] void *data) -> PointerType { return nullptr; }
+    static auto free([[maybe_unused]] void *data) {}
+};
+
+//! Specialization for reference wrappers.
+template <typename Value> class UserDataManager<std::reference_wrapper<Value>> {
+  public:
+    using ValueType = Value;
+    using PointerType = Value *;
+
+    UserDataManager(std::reference_wrapper<Value> value) : data_(&value.get()) {}
+
+    explicit operator bool() const { return data_ != nullptr; }
+    auto release() -> PointerType { return data_; }
+
+    static auto cast(void *data) -> PointerType { return static_cast<PointerType>(data); }
+    static auto free([[maybe_unused]] void *data) {}
+
+  private:
+    PointerType data_ = nullptr;
+};
+
+//! Create a user data manager from the given value.
+template <class T> auto make_user_data_manager(T &&value) -> UserDataManager<std::remove_cvref_t<T>> {
+    return UserDataManager<std::remove_cvref_t<T>>{std::forward<T>(value)};
+}
+
+//! Checks whether a type can be used as user data.
+//!
+//! The type must either derive from the given base class or be a null pointer.
+//! We use std::unwrap_reference_t here to support reference wrappers.
+template <typename Value, typename Base>
+concept UserData = std::derived_from<std::remove_reference_t<std::unwrap_reference_t<Value>>, Base> ||
+                   std::is_null_pointer_v<std::remove_reference_t<Value>>;
+
 template <typename T> class ArrowProxy {
   public:
     constexpr ArrowProxy(T value) : value_(std::move(value)) {}

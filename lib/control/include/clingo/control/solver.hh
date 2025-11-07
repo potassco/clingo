@@ -5,8 +5,6 @@
 
 #include <clingo/output/backend.hh>
 
-#include <clingo/util/thread.hh>
-
 #include <clasp/clasp_facade.h>
 #include <clasp/cli/clasp_options.h>
 

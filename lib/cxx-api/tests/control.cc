@@ -101,6 +101,60 @@ q(3).
     REQUIRE(ctl.buffer() == res);
 }
 
+class TestGroundEventHandler : public GroundEventHandler {
+    auto do_callable(std::string_view name, size_t args) -> bool override { return name == "fun" && args == 1; }
+    auto do_call([[maybe_unused]] Location const &loc, [[maybe_unused]] std::string_view name, SymbolSpan args)
+        -> SymbolVector override {
+        return {Number(args.front().number() + 1)};
+    }
+    void do_finish([[maybe_unused]] GroundResult result) noexcept override {}
+};
+
+TEST_CASE("control start_ground value", "[cxx][control][start_ground]") {
+    auto lib = Library{};
+    auto ctl = Control{lib, {"--mode=ground"}};
+
+    ctl.parse_string("#show.");
+    ctl.parse_string("p(@fun(1)).");
+    auto hnd = ctl.start_ground({{"base", {}}}, TestGroundEventHandler());
+    auto res = hnd.get();
+    constexpr auto grd = R"(p(2).
+#show.
+)";
+    REQUIRE(res == GroundResult::ok);
+    REQUIRE(ctl.buffer() == grd);
+}
+
+TEST_CASE("control start_ground ref", "[cxx][control][start_ground]") {
+    auto lib = Library{};
+    auto ctl = Control{lib, {"--mode=ground"}};
+
+    ctl.parse_string("#show.");
+    ctl.parse_string("p(@fun(1)).");
+    TestGroundEventHandler handler;
+    auto hnd = ctl.start_ground({{"base", {}}}, std::ref(handler));
+    auto res = hnd.get();
+    constexpr auto grd = R"(p(2).
+#show.
+)";
+    REQUIRE(res == GroundResult::ok);
+    REQUIRE(ctl.buffer() == grd);
+}
+
+TEST_CASE("control start_ground interrupt", "[cxx][control][start_ground]") {
+    auto lib = Library{};
+    auto ctl = Control{lib, {"--mode=ground"}};
+
+    ctl.parse_string("#show.");
+    ctl.parse_string("p(0).");
+    ctl.parse_string("p(X+1) :- p(X).");
+    auto hnd = ctl.start_ground({{"base", {}}});
+    REQUIRE(!hnd.wait(0.1));
+    hnd.cancel();
+    auto res = hnd.get();
+    REQUIRE(res == GroundResult::interrupted);
+}
+
 TEST_CASE("control incmode", "[cxx][control][incmode]") {
     auto lib = Library{};
     auto ctl = Control{lib, {"0"}};

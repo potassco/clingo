@@ -6,7 +6,7 @@
 #include <clingo/core/output.hh>
 #include <clingo/core/symbol.hh>
 
-#include <clingo/util/thread.hh>
+#include <clingo/util/sync.hh>
 
 #include <memory>
 #include <utility>

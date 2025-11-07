@@ -1045,7 +1045,7 @@ void Solver::interrupt() noexcept {
         clasp_facade().interrupt(random_signal);
     } catch (std::exception const &e) {
         printf("panic: %s\n", e.what());
-        std::abort();
+        std::terminate();
     }
 }
 
@@ -1222,10 +1222,14 @@ class GroundHandle::Impl {
             std::async(std::launch::async, [this, &slv, handler = std::move(handler), params = std::move(params)]() {
                 try {
                     auto res = slv.ground(params, handler.get(), &stop_);
-                    handler->finish(res);
+                    if (handler) {
+                        handler->finish(res);
+                    }
                     return res;
                 } catch (...) {
-                    handler->finish(GroundResult::interrupted);
+                    if (handler) {
+                        handler->finish(GroundResult::interrupted);
+                    }
                     throw;
                 }
             });
@@ -1259,7 +1263,8 @@ class GroundHandle::Impl {
     ~Impl() noexcept {
         try {
             cancel();
-        } catch (...) {
+        } catch (std::exception const &e) {
+            printf("panic: %s\n", e.what());
             std::terminate();
         }
     }
@@ -1294,8 +1299,7 @@ auto GroundHandle::get() -> GroundResult {
 }
 
 auto Solver::start_ground(Input::ProgramParamVec params, UGroundEventHandler handler) -> GroundHandle {
-    auto res = GroundHandle{*this, std::move(params), std::move(handler)};
-    return res;
+    return GroundHandle{*this, std::move(params), std::move(handler)};
 }
 
 auto Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx, Util::StopFlag *stop)

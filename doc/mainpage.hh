@@ -84,6 +84,10 @@
 
 //! @defgroup cpp_backend Ground Program Extension
 
+//! @defgroup cpp_ground Grounding
+
+//! @defgroup cpp_profile Profile Grounding
+
 //! @defgroup cpp_solve Solving
 
 //! @defgroup cpp_config Solver Configuration

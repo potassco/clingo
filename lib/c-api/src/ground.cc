@@ -3,11 +3,6 @@
 #include <clingo/control.h>
 #include <clingo/script.h>
 
-#include <clasp/cli/clasp_options.h>
-
-#include <potassco/program_opts/program_options.h>
-#include <potassco/program_opts/typed_value.h>
-
 #include "control.hh"
 #include "lib.hh"
 
@@ -18,12 +13,6 @@ class Handler : public CppClingo::Control::GroundEventHandler {
   public:
     Handler(clingo_lib_t *lib, CHandler<clingo_ground_event_handler_t> handler) noexcept
         : lib_{lib}, handler_{std::move(handler)} {}
-
-    ~Handler() override {
-        if (handler_->free != nullptr) {
-            handler_->free(handler_.data());
-        }
-    }
 
   private:
     auto do_callable(std::string_view name, size_t args) -> bool override {
@@ -113,9 +102,11 @@ extern "C" void clingo_ground_handle_close(clingo_ground_handle_t *handle) {
 extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t size,
                                       clingo_ground_event_handler_t const *handler, void *data) -> bool {
     CLINGO_TRY {
-        auto hnd = CHandler{handler, data};
-        auto ctx = hnd ? std::make_optional<Handler>(control->lib, std::move(hnd)) : std::nullopt;
-        control->slv->ground(convert(control, parts, size), ctx ? &ctx.value() : nullptr);
+        auto ctx = std::optional<Handler>{};
+        if (auto hnd = CHandler{handler, data}; hnd) {
+            ctx.emplace(control->lib, std::move(hnd));
+        }
+        control->slv->ground(convert(control, parts, size), ctx ? &*ctx : nullptr);
     }
     CLINGO_CATCH;
 }
