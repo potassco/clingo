@@ -604,10 +604,10 @@ class GroundEventHandler : public Ground::ScriptCallback {
     //! asynchronously to allow for thread synchronization.
     //!
     //! @param result the result of the ground call
-    void on_finish(GroundResult result) { do_on_finish(result); }
+    void finish(GroundResult result) noexcept { do_finish(result); }
 
   private:
-    virtual void do_on_finish([[maybe_unused]] GroundResult result) {}
+    virtual void do_finish([[maybe_unused]] GroundResult result) noexcept {}
 };
 
 //! A unique pointer to a ground event handler.

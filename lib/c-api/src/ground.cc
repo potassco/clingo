@@ -14,20 +14,40 @@
 namespace CppClingo::CAPI {
 namespace {
 
-class Context : public CppClingo::Ground::ScriptCallback {
+class Handler : public CppClingo::Control::GroundEventHandler {
   public:
-    Context(clingo_lib_t *lib, clingo_ground_callback_t cb, void *data) : lib_{lib}, cb_{cb}, data_{data} {}
+    Handler(clingo_lib_t *lib, CHandler<clingo_ground_event_handler_t> handler) noexcept
+        : lib_{lib}, handler_{std::move(handler)} {}
+
+    ~Handler() override {
+        if (handler_->free != nullptr) {
+            handler_->free(handler_.data());
+        }
+    }
 
   private:
-    auto do_callable([[maybe_unused]] std::string_view name, [[maybe_unused]] size_t args) -> bool override {
-        return true;
+    auto do_callable(std::string_view name, size_t args) -> bool override {
+        bool result = false;
+        if (handler_->callable != nullptr) {
+            handle_error(handler_->callable(name.data(), name.size(), args, handler_.data(), &result));
+        }
+        return result;
     }
 
     void do_call(CppClingo::Location const &loc, std::string_view name, CppClingo::SymbolSpan args,
                  CppClingo::SymbolVec &out) override {
-        auto c_name = std::string{name};
-        handle_error(cb_(lib_, c_cast(&loc), c_name.data(), c_name.size(), c_cast(args.data()), args.size(), data_,
-                         &Context::sym_cb_, &out));
+        if (handler_->call != nullptr) {
+            handle_error(handler_->call(lib_, c_cast(&loc), name.data(), name.size(), c_cast(args.data()), args.size(),
+                                        handler_.data(), &Handler::sym_cb_, &out));
+        } else {
+            throw std::logic_error("call function not implemented");
+        }
+    }
+
+    void do_finish(GroundResult result) noexcept override {
+        if (handler_->finish != nullptr) {
+            handler_->finish(static_cast<clingo_ground_result_t>(result), handler_.data());
+        }
     }
 
     static auto sym_cb_(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> bool {
@@ -39,25 +59,18 @@ class Context : public CppClingo::Ground::ScriptCallback {
         CLINGO_CATCH;
     }
 
-    clingo_lib_t *lib_;
-    clingo_ground_callback_t cb_;
-    void *data_;
+    clingo_lib_t *lib_ = nullptr;
+    CHandler<clingo_ground_event_handler_t> handler_;
 };
 
-//! Struct ensuring that the context lives at least as long as the handle.
-struct GroundHandle {
-    std::unique_ptr<Context> context;
-    Control::GroundHandle handle;
-};
-
-auto cpp_cast(clingo_ground_handle_t *hnd) -> GroundHandle * {
+auto cpp_cast(clingo_ground_handle_t *hnd) -> CppClingo::Control::GroundHandle * {
     if (hnd == nullptr) {
         throw std::runtime_error("ground handle is null");
     }
-    return reinterpret_cast<GroundHandle *>(hnd); // NOLINT
+    return reinterpret_cast<CppClingo::Control::GroundHandle *>(hnd); // NOLINT
 }
 
-auto c_cast(GroundHandle *hnd) -> clingo_ground_handle_t * {
+auto c_cast(CppClingo::Control::GroundHandle *hnd) -> clingo_ground_handle_t * {
     return reinterpret_cast<clingo_ground_handle_t *>(hnd); // NOLINT
 }
 
@@ -74,21 +87,21 @@ static_assert(static_cast<clingo_ground_result_e>(CppClingo::GroundResult::inter
 
 extern "C" auto clingo_ground_handle_get(clingo_ground_handle_t *handle, clingo_ground_result_t *result) -> bool {
     CLINGO_TRY {
-        *result = static_cast<clingo_ground_result_t>(cpp_cast(handle)->handle.get());
+        *result = static_cast<clingo_ground_result_t>(cpp_cast(handle)->get());
     }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_ground_handle_wait(clingo_ground_handle_t *handle, double timeout, bool *result) -> bool {
     CLINGO_TRY {
-        *result = cpp_cast(handle)->handle.wait(timeout);
+        *result = cpp_cast(handle)->wait(timeout);
     }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_ground_handle_cancel(clingo_ground_handle_t *handle) -> bool {
     CLINGO_TRY {
-        cpp_cast(handle)->handle.cancel();
+        cpp_cast(handle)->cancel();
     }
     CLINGO_CATCH;
 }
@@ -98,26 +111,24 @@ extern "C" void clingo_ground_handle_close(clingo_ground_handle_t *handle) {
 }
 
 extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t size,
-                                      clingo_ground_callback_t ground_callback, void *data) -> bool {
+                                      clingo_ground_event_handler_t const *handler, void *data) -> bool {
     CLINGO_TRY {
-        auto ctx = ground_callback != nullptr ? std::make_optional<Context>(control->lib, ground_callback, data)
-                                              : std::nullopt;
+        auto hnd = CHandler{handler, data};
+        auto ctx = hnd ? std::make_optional<Handler>(control->lib, std::move(hnd)) : std::nullopt;
         control->slv->ground(convert(control, parts, size), ctx ? &ctx.value() : nullptr);
     }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_control_start_ground(clingo_control_t *control, clingo_part_t const *parts, size_t size,
-                                            clingo_ground_callback_t ground_callback, void *data,
+                                            clingo_ground_event_handler_t const *handler, void *data,
                                             clingo_ground_handle_t **handle) -> bool {
     CLINGO_TRY {
-        auto ctx =
-            ground_callback != nullptr ? std::make_unique<Context>(control->lib, ground_callback, data) : nullptr;
-        auto hnd = std::make_unique<GroundHandle>(nullptr,
-                                                  control->slv->start_ground(convert(control, parts, size), ctx.get()));
-        // tie handle and context lifetime
-        hnd->context = std::move(ctx);
-        *handle = c_cast(hnd.release());
+        auto hnd = CHandler{handler, data};
+        auto ctx = hnd ? std::make_unique<Handler>(control->lib, std::move(hnd)) : nullptr;
+        *handle = c_cast(std::make_unique<CppClingo::Control::GroundHandle>(
+                             control->slv->start_ground(convert(control, parts, size), std::move(ctx)))
+                             .release());
     }
     CLINGO_CATCH;
 }

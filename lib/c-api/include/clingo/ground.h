@@ -48,52 +48,6 @@ typedef struct clingo_part {
     size_t params_size;            //!< number of parameters
 } clingo_part_t;
 
-//! Callback function to implement external functions.
-//!
-//! If an external function of form <tt>\@name(parameters)</tt> occurs in a logic program,
-//! then this function is called with its location, name, parameters, and a callback to inject symbols as arguments.
-//! The callback can be called multiple times; all symbols passed are injected.
-//!
-//! If a (non-recoverable) clingo API function fails in this callback, for example, the symbol callback, the callback
-//! must return its return code. In case of errors not related to clingo, this function can use clingo_set_error().
-//!
-//! @param[in] lib the library object
-//! @param[in] location location from which the external function was called
-//! @param[in] name name of the called external function
-//! @param[in] arguments arguments of the called external function
-//! @param[in] arguments_size number of arguments
-//! @param[in] data user data of the callback
-//! @param[in] symbol_callback function to inject symbols
-//! @param[in] symbol_callback_data user data for the symbol callback
-//!            (must be passed untouched)
-//! @return whether the call was successful
-//! @see clingo_control_ground()
-//!
-//! The following example implements the external function <tt>\@f()</tt> returning 42.
-//! ~~~~~~~~~~~~~~~{.c}
-//! bool
-//! ground_callback(clingo_lib_t *lib,
-//!                 clingo_location_t const *location,
-//!                 char const *name,
-//!                 size_t name_size,
-//!                 clingo_symbol_t const *arguments,
-//!                 size_t arguments_size,
-//!                 void *data,
-//!                 clingo_symbol_callback_t symbol_callback,
-//!                 void *symbol_callback_data) {
-//!   if (size == 1 && strncmp(name, "f", 1) == 0 && arguments_size == 0) {
-//!     clingo_symbol_t sym;
-//!     sym = clingo_symbol_create_number(42);
-//!     return symbol_callback(&sym, 1, symbol_callback_data);
-//!   }
-//!   return clingo_set_error(lib, clingo_result_runtime, "function not found", 18);
-//! }
-//! ~~~~~~~~~~~~~~~
-typedef bool (*clingo_ground_callback_t)(clingo_lib_t *lib, clingo_location_t const *location, char const *name,
-                                         size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
-                                         void *data, clingo_symbol_callback_t symbol_callback,
-                                         void *symbol_callback_data);
-
 //! @enum clingo_ground_result_e
 //! Enumeration of ground call results.
 enum clingo_ground_result_e {
@@ -103,6 +57,78 @@ enum clingo_ground_result_e {
 };
 //! Corresponding type to ::clingo_ground_result_e.
 typedef unsigned clingo_ground_result_t;
+
+//! The ground event handler interface.
+typedef struct clingo_ground_event_handler {
+    //! Check if the function with the given name and number of arguments is callable.
+    //!
+    //! @param[in] name name of the called external function
+    //! @param[in] name_size size of the name
+    //! @param[in] arguments_size number of arguments
+    //! @param[in] data user data of the callback
+    //! @param[out] result whether the function is callable
+    //! @return whether the call was successful
+    bool (*callable)(char const *name, size_t name_size, size_t arguments_size, void *data, bool *result);
+    //! Callback function to implement external functions.
+    //!
+    //! If an external function of form <tt>\@name(parameters)</tt> occurs in a
+    //! logic program, then this function is called with its location, name,
+    //! parameters, and a callback to inject symbols as arguments. The callback
+    //! can be called multiple times; all symbols passed are injected.
+    //!
+    //! If a (non-recoverable) clingo API function fails in this callback, for
+    //! example, the symbol callback, the callback must return its return code.
+    //! In case of errors not related to clingo, this function can use
+    //! clingo_set_error().
+    //!
+    //! @param[in] lib the library object
+    //! @param[in] location location from which the external function was called
+    //! @param[in] name name of the called external function
+    //! @param[in] arguments arguments of the called external function
+    //! @param[in] arguments_size number of arguments
+    //! @param[in] data user data of the callback
+    //! @param[in] symbol_callback function to inject symbols
+    //! @param[in] symbol_callback_data user data for the symbol callback
+    //!            (must be passed untouched)
+    //! @return whether the call was successful
+    //! @see clingo_control_ground()
+    //!
+    //! The following example implements the external function <tt>\@f()</tt> returning 42.
+    //! ~~~~~~~~~~~~~~~{.c}
+    //! bool
+    //! call(clingo_lib_t *lib,
+    //!      clingo_location_t const *location,
+    //!      char const *name,
+    //!      size_t name_size,
+    //!      clingo_symbol_t const *arguments,
+    //!      size_t arguments_size,
+    //!      void *data,
+    //!      clingo_symbol_callback_t symbol_callback,
+    //!      void *symbol_callback_data) {
+    //!   if (size == 1 && strncmp(name, "f", 1) == 0 && arguments_size == 0) {
+    //!     clingo_symbol_t sym;
+    //!     sym = clingo_symbol_create_number(42);
+    //!     return symbol_callback(&sym, 1, symbol_callback_data);
+    //!   }
+    //!   return clingo_set_error(lib, clingo_result_runtime, "function not found", 18);
+    //! }
+    //! ~~~~~~~~~~~~~~~
+    bool (*call)(clingo_lib_t *lib, clingo_location_t const *location, char const *name, size_t name_size,
+                 clingo_symbol_t const *arguments, size_t arguments_size, void *data,
+                 clingo_symbol_callback_t symbol_callback, void *symbol_callback_data);
+    //! Callback to notify that the grounding has finished.
+    //!
+    //! This can be used for thread synchronization as the function is not
+    //! called in the main thread when grounding asynchronously.
+    //!
+    //! @param result the ground result
+    //! @param data the user data
+    void (*finish)(clingo_ground_result_t result, void *data);
+    //! Callback to free the userdata of the handler.
+    //!
+    //! @param data the user data
+    void (*free)(void *data);
+} clingo_ground_event_handler_t;
 
 //! Handle to an asynchronous ground call.
 //!

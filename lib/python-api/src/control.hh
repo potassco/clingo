@@ -86,9 +86,19 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
   private:
     using Parent = registered_handle<Control, clingo_control_t>;
     Control(clingo_control_t *ctl) : Parent{ctl} {}
-    static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name, size_t name_size,
-                     clingo_symbol_t const *arguments, size_t arguments_size, void *data,
-                     clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool;
+    static auto callable_([[maybe_unused]] char const *name, [[maybe_unused]] size_t name_size,
+                          [[maybe_unused]] size_t arguments_size, [[maybe_unused]] void *data, bool *result) -> bool {
+        CLINGO_TRY {
+            *result = true;
+        }
+        CLINGO_CATCH;
+    }
+    static auto call_(clingo_lib_t *lib, clingo_location_t const *location, char const *name, size_t name_size,
+                      clingo_symbol_t const *arguments, size_t arguments_size, void *data,
+                      clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool;
+
+    constexpr static clingo_ground_event_handler_t ctx_ =
+        clingo_ground_event_handler_t{&callable_, &call_, nullptr, nullptr};
 };
 
 void register_control(pybind11::module &m);

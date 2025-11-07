@@ -142,11 +142,11 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_string(clingo_control_t *con
 //! @param[in] control the target
 //! @param[in] parts array of parts to ground
 //! @param[in] size size of the parts array
-//! @param[in] ground_callback callback to implement external functions
+//! @param[in] handler handler for grounding events
 //! @param[in] data user data for ground_callback
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t size,
-                                                     clingo_ground_callback_t ground_callback, void *data);
+                                                     clingo_ground_event_handler_t const *handler, void *data);
 
 //! Start grounding a program asynchronously.
 //!
@@ -163,12 +163,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 //! @param[in] control the target
 //! @param[in] parts array of parts to ground
 //! @param[in] size size of the parts array
-//! @param[in] ground_callback callback to implement external functions
+//! @param[in] handler handler for grounding events
 //! @param[in] data user data for ground_callback
 //! @param[out] handle the resulting ground handle
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_start_ground(clingo_control_t *control, clingo_part_t const *parts,
-                                                           size_t size, clingo_ground_callback_t ground_callback,
+                                                           size_t size, clingo_ground_event_handler_t const *handler,
                                                            void *data, clingo_ground_handle_t **handle);
 
 //! Execute the default ground and solve flow after parsing.

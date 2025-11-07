@@ -561,9 +561,19 @@ class Control {
   private:
     friend class Detail::intrusive_handle<Control, clingo_control_t>;
 
-    static auto ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
-                     char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
-                     void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
+    constexpr static auto callable_([[maybe_unused]] char const *name, [[maybe_unused]] size_t name_size,
+                                    [[maybe_unused]] size_t arguments_size, [[maybe_unused]] void *data, bool *result)
+        -> bool {
+        CLINGO_TRY {
+            *result = true;
+        }
+        CLINGO_CATCH;
+    }
+
+    constexpr static auto call_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
+                                char const *name, size_t name_size, clingo_symbol_t const *arguments,
+                                size_t arguments_size, void *data, clingo_symbol_callback_t symbol_callback,
+                                void *symbol_callback_data) -> bool {
         CLINGO_TRY {
             auto &cb = *static_cast<std::function<SymbolVector(std::string_view, SymbolSpan)> *>(data);
             auto syms = cb({name, name_size}, {cpp_cast(arguments), arguments_size});
@@ -572,6 +582,9 @@ class Control {
         }
         CLINGO_CATCH;
     }
+
+    constexpr static clingo_ground_event_handler_t ctx_ =
+        clingo_ground_event_handler_t{&callable_, &call_, nullptr, nullptr};
 
     static auto acquire(clingo_control_t *ptr) { clingo_control_acquire(ptr); }
 

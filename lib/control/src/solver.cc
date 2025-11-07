@@ -1222,16 +1222,10 @@ class GroundHandle::Impl {
             std::async(std::launch::async, [this, &slv, handler = std::move(handler), params = std::move(params)]() {
                 try {
                     auto res = slv.ground(params, handler.get(), &stop_);
-                    handler->on_finish(res);
+                    handler->finish(res);
                     return res;
                 } catch (...) {
-                    try {
-                        handler->on_finish(GroundResult::interrupted);
-                    } catch (...) {
-                        fprintf(stderr, "Error: exception thrown in finish callback during grounding\n");
-                        fflush(stderr);
-                        std::terminate();
-                    }
+                    handler->finish(GroundResult::interrupted);
                     throw;
                 }
             });

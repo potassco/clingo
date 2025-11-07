@@ -86,9 +86,9 @@ void Control::parse_files(std::span<std::string const> files) {
     handle_error(clingo_control_parse_files(get(), cfiles.data(), cfiles.size()));
 }
 
-auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
-                   char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
-                   void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
+auto Control::call_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
+                    char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
+                    void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
     auto &handle = *static_cast<py::handle *>(data);
     CLINGO_TRY {
         auto syms = [&] {
