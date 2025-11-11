@@ -250,22 +250,7 @@ class Control {
     //! @param parts the parts to ground the control object with
     //! @param ctx the context to use for grounding
     void ground(std::optional<PartSpan> parts = std::nullopt, Context ctx = nullptr) const {
-        std::optional<PartVector> default_parts;
-        std::vector<clingo_part_t> c_parts;
-        if (default_parts = !parts ? this->parts() : std::nullopt; default_parts) {
-            parts = default_parts;
-        }
-        if (parts) {
-            c_parts.reserve(parts->size());
-            for (auto const &part : *parts) {
-                c_parts.emplace_back(part.name.data(), part.name.size(), c_cast(part.params.data()),
-                                     part.params.size());
-            }
-        } else {
-            c_parts.reserve(1);
-            c_parts.emplace_back("base", 4, nullptr, 0);
-        }
-
+        auto [default_parts, c_parts] = c_parts_(parts);
         constexpr static clingo_ground_event_handler_t handler = clingo_ground_event_handler_t{
             []([[maybe_unused]] char const *name, [[maybe_unused]] size_t name_size,
                [[maybe_unused]] size_t arguments_size, [[maybe_unused]] void *data, bool *result) -> bool {
@@ -307,35 +292,20 @@ class Control {
     //! Ground the logic program with the given parameters.
     //!
     //! The given parts determine which program parts are grounded with which
-    //! paramaters. If no parts are given, the parts given by the parts
+    //! parameters. If no parts are given, those specified by the parts
     //! directive are grounded.
     //!
     //! A handler implementing the GroundEventHandler interface can be given to
-    //! handle grounding events. The handler can be passed by
-    //! value/reference/pointer. If passed by value, the handler must be
-    //! copyable. If passed by reference/pointer, lifetime must be managed by
-    //! the caller.
+    //! handle grounding events. The handler is passed by value; use std::ref
+    //! if you want to manage its lifetime externally. The handler is optional
+    //! and can be set to nullptr to ignore events.
     //!
     //! @param parts the parts to ground the control object with
     //! @param handler the context to use for grounding
     template <Detail::UserData<GroundEventHandler> Handler = std::nullptr_t>
     [[nodiscard]] auto start_ground(std::optional<PartSpan> parts = std::nullopt, Handler &&handler = nullptr) const
         -> GroundHandle {
-        std::optional<PartVector> default_parts;
-        std::vector<clingo_part_t> c_parts;
-        if (default_parts = !parts ? this->parts() : std::nullopt; default_parts) {
-            parts = default_parts;
-        }
-        if (parts) {
-            c_parts.reserve(parts->size());
-            for (auto const &part : *parts) {
-                c_parts.emplace_back(part.name.data(), part.name.size(), c_cast(part.params.data()),
-                                     part.params.size());
-            }
-        } else {
-            c_parts.reserve(1);
-            c_parts.emplace_back("base", 4, nullptr, 0);
-        }
+        auto [default_parts, c_parts] = c_parts_(parts);
         auto user_data = Detail::make_user_data_manager(std::forward<Handler>(handler));
         using UserData = decltype(user_data);
         clingo_ground_event_handler_t const *c_handler_ptr = nullptr;
@@ -604,6 +574,26 @@ class Control {
                                                   handler != nullptr ? &Detail::c_solve_event_handler : nullptr,
                                                   handler != nullptr ? handler : nullptr, &res));
         return SolveHandle{res};
+    }
+
+    [[nodiscard]] auto c_parts_(std::optional<PartSpan> parts = std::nullopt) const
+        -> std::pair<std::optional<PartVector>, std::vector<clingo_part_t>> {
+        auto res = std::pair<std::optional<PartVector>, std::vector<clingo_part_t>>{};
+        auto &[default_parts, c_parts] = res;
+        if (default_parts = !parts ? this->parts() : std::nullopt; default_parts) {
+            parts = default_parts;
+        }
+        if (parts) {
+            c_parts.reserve(parts->size());
+            for (auto const &part : *parts) {
+                c_parts.emplace_back(part.name.data(), part.name.size(), c_cast(part.params.data()),
+                                     part.params.size());
+            }
+        } else {
+            c_parts.reserve(1);
+            c_parts.emplace_back("base", 4, nullptr, 0);
+        }
+        return res;
     }
 
     Detail::intrusive_handle<Control, clingo_control_t> ctl_;

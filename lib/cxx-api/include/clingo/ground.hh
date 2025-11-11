@@ -128,7 +128,7 @@ class GroundHandle {
 
   private:
     struct Del {
-        void operator()(clingo_ground_handle_t *hnd) const { clingo_ground_handle_close(hnd); }
+        void operator()(clingo_ground_handle_t *hnd) const noexcept { clingo_ground_handle_close(hnd); }
     };
     using Ptr = std::unique_ptr<clingo_ground_handle_t, Del>;
 

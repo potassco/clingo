@@ -148,7 +148,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ground_handle_get(clingo_ground_handle_t *
 //!
 //! If the time is set to zero, this function can be used to poll if grounding
 //! is still active. If the time is negative, the function blocks until the
-//! groinding is finished.
+//! grounding is finished.
 //!
 //! @param[in] handle the target
 //! @param[in] timeout the maximum time to wait

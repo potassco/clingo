@@ -54,7 +54,7 @@ class Handler : public CppClingo::Control::GroundEventHandler {
 
 auto cpp_cast(clingo_ground_handle_t *hnd) -> CppClingo::Control::GroundHandle * {
     if (hnd == nullptr) {
-        throw std::runtime_error("ground handle is null");
+        throw std::logic_error("ground handle is null");
     }
     return reinterpret_cast<CppClingo::Control::GroundHandle *>(hnd); // NOLINT
 }

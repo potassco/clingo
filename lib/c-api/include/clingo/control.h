@@ -150,7 +150,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 
 //! Start grounding a program asynchronously.
 //!
-//! The function returns a handle and immediatly starts grounding in the
+//! The function returns a handle and immediately starts grounding in the
 //! background. The handle can be used to wait for the grounding to finish, get
 //! the result, or cancel the grounding. Stopping grounding leaves the program
 //! in an unpredictable state. There is currently no way to rollback a
