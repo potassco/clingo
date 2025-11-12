@@ -586,18 +586,17 @@ class Control {
         -> std::pair<std::optional<PartVector>, std::vector<clingo_part_t>> {
         auto res = std::pair<std::optional<PartVector>, std::vector<clingo_part_t>>{};
         auto &[default_parts, c_parts] = res;
-        if (default_parts = !parts ? this->parts() : std::nullopt; default_parts) {
-            parts = default_parts;
+        if (!parts) {
+            parts = default_parts = this->parts();
         }
-        if (parts) {
-            c_parts.reserve(parts->size());
-            for (auto const &part : *parts) {
-                c_parts.emplace_back(part.name.data(), part.name.size(), c_cast(part.params.data()),
-                                     part.params.size());
-            }
-        } else {
-            c_parts.reserve(1);
-            c_parts.emplace_back("base", 4, nullptr, 0);
+        if (!parts) {
+            static auto default_part = Part{"base", {}};
+            parts = PartSpan{&default_part, 1};
+        }
+        assert(parts);
+        c_parts.reserve(parts->size());
+        for (auto const &part : *parts) {
+            c_parts.emplace_back(part.name.data(), part.name.size(), c_cast(part.params.data()), part.params.size());
         }
         return res;
     }

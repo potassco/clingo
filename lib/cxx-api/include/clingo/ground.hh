@@ -18,7 +18,7 @@ struct Part {
     //!
     //! @param name the name of the part
     //! @param params the parameters of the part
-    Part(std::string name, SymbolVector params = {}) : name{std::move(name)}, params(std::move(params)) {
+    constexpr Part(std::string name, SymbolVector params = {}) : name{std::move(name)}, params(std::move(params)) {
         assert(!this->name.empty());
     }
 
