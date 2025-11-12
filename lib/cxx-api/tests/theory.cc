@@ -196,7 +196,7 @@ TEST_CASE_METHOD(Fixture, "theory", "[cxx][theory]") {
     ctl.ground();
     thy.prepare(ctl);
     REQUIRE(dta->prepared);
-    REQUIRE(ctl.solve(*this).get().satisfiable());
+    REQUIRE(ctl.solve(std::ref(*this)).get().satisfiable());
     REQUIRE(dta->models == 1);
     REQUIRE(ctl.stats()["user_step"]["test_key"].value() == 3.14);
 }

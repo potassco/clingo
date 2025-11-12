@@ -290,14 +290,6 @@ class Model : public ConstModel {
 //! Interface to handle events during solving.
 class SolveEventHandler {
   public:
-    //! The default constructor.
-    SolveEventHandler() = default;
-
-    //! Disable copy and move operations.
-    SolveEventHandler(SolveEventHandler &&other) = delete;
-    //! Disable copy and move operations.
-    auto operator=(SolveEventHandler &&other) -> SolveEventHandler & = delete;
-
     //! The default destructor.
     virtual ~SolveEventHandler() = default;
 

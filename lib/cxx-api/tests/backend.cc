@@ -160,18 +160,21 @@ TEST_CASE_METHOD(Fixture, "backend minimize", "[cxx][backend][minimize]") {
     }
     std::optional<std::vector<std::string>> model;
     {
-        struct OM : SolveEventHandler {
-            OM(std::optional<std::vector<std::string>> &model) : model{&model} {}
+        class OM : public SolveEventHandler {
+          public:
+            OM(std::optional<std::vector<std::string>> &model) : model_{&model} {}
+
+          private:
             auto do_model(Model model) -> bool override {
                 std::vector<std::string> syms;
                 for (auto &sym : model.symbols(ShowFlags::shown)) {
                     syms.push_back(sym.to_string());
                 }
                 std::ranges::sort(syms);
-                *this->model = syms;
+                *this->model_ = syms;
                 return true;
             }
-            std::optional<std::vector<std::string>> *model;
+            std::optional<std::vector<std::string>> *model_;
         } mcb{model};
         auto hnd = ctl.solve(mcb);
         REQUIRE(hnd.get().satisfiable());

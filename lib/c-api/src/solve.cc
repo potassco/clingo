@@ -33,7 +33,7 @@ auto cpp_cast(clingo_solve_handle_t *hnd, bool not_null = true) -> CppClingo::Co
     return reinterpret_cast<CppClingo::Control::SolveHandle *>(hnd); // NOLINT
 }
 
-class SolveEventHandler : public CppClingo::Control::EventHandler {
+class SolveEventHandler : public CppClingo::Control::SolveEventHandler {
   public:
     SolveEventHandler(clingo_solve_event_handler_t const *hnd, void *data) : hnd_{hnd, data} {}
 
@@ -142,7 +142,7 @@ extern "C" auto clingo_control_solve(clingo_control_t *control, clingo_solve_mod
             cpp_mode |= CppClingo::Control::SolveMode::async;
         }
         auto cpp_assumptions = std::span{assumptions, assumptions_size};
-        auto cpp_eh = CppClingo::Control::UEventHandler{};
+        auto cpp_eh = CppClingo::Control::USolveEventHandler{};
         if (handler != nullptr) {
             cpp_eh = std::make_unique<SolveEventHandler>(handler, data);
         }

@@ -576,13 +576,13 @@ auto convert(Clasp::SolveResult cres) -> SolveResult {
 }
 
 //! An event handler that adapts clingo's event handler to clasp's.
-class EventHandlerAdapter : public Clasp::EventHandler {
+class SolveEventHandlerAdapter : public Clasp::EventHandler {
   public:
     //! Construct a solve event handler adapter.
     //!
     //! This initializes the underlying solve handle, which in turn starts
     //! solving.
-    EventHandlerAdapter(CallbackLock &lock, Logger &logger, ModelImpl &mdl, Control::UEventHandler eh)
+    SolveEventHandlerAdapter(CallbackLock &lock, Logger &logger, ModelImpl &mdl, Control::USolveEventHandler eh)
         : lock_{&lock}, logger_{&logger}, mdl_{&mdl}, eh_{std::move(eh)} {}
 
     //! Intercept and report models.
@@ -663,7 +663,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     Logger *logger_;
     ModelImpl *mdl_;
     Clasp::SumVec bound_;
-    Control::UEventHandler eh_;
+    Control::USolveEventHandler eh_;
     std::exception_ptr ptr_;
 };
 
@@ -699,7 +699,7 @@ constexpr int kill_signal = 9;
 //! The solve handle implementation.
 class SolveHandleImpl : public SolveHandle {
   public:
-    SolveHandleImpl(CallbackLock &lock, Logger &log, ModelImpl &mdl, SolveMode mode, UEventHandler eh,
+    SolveHandleImpl(CallbackLock &lock, Logger &log, ModelImpl &mdl, SolveMode mode, USolveEventHandler eh,
                     std::function<void()> simplify)
         : eh_{lock, log, mdl, std::move(eh)}, hnd_{mdl.clasp().solve(convert(mode), {}, &eh_)},
           simplify_{std::move(simplify)} {}
@@ -759,7 +759,7 @@ class SolveHandleImpl : public SolveHandle {
         return hnd_.waitFor(timeout);
     }
 
-    EventHandlerAdapter eh_;
+    SolveEventHandlerAdapter eh_;
     Clasp::ClaspFacade::SolveHandle hnd_;
     std::function<void()> simplify_;
     Potassco::LitVec mutable core_;
@@ -1158,7 +1158,7 @@ auto Solver::map_model(Clasp::Model const &mdl) -> Model & {
     return *mdl_;
 }
 
-auto Solver::solve(UEventHandler handler, PrgLitSpan assumptions, SolveMode mode) -> USolveHandle {
+auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode mode) -> USolveHandle {
     if (opts_.mode == AppMode::solve) {
         auto guard = unlock_guard{lock_};
         if (state_ == State::solved || state_ == State::initial) {

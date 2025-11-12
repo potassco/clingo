@@ -420,9 +420,10 @@ class Control {
     //! @param assumptions the assumptions to use for solving
     //! @param flags the flags to use for solving
     //! @return a handle to the solve operation
-    [[nodiscard]] auto solve(SolveEventHandler &handler, ProgramLiteralSpan const &assumptions = {},
+    template <Detail::UserData<SolveEventHandler> Handler>
+    [[nodiscard]] auto solve(Handler &&handler, ProgramLiteralSpan const &assumptions = {},
                              SolveFlags flags = SolveFlags::empty) const -> SolveHandle {
-        return solve_(&handler, assumptions, flags);
+        return solve_(std::forward<Handler>(handler), assumptions, flags);
     }
 
     //! Solve the grounded program with the given assumptions and flags.
@@ -565,13 +566,61 @@ class Control {
 
     static auto release(clingo_control_t *ptr) { clingo_control_release(ptr); }
 
-    [[nodiscard]] auto solve_(SolveEventHandler *handler, ProgramLiteralSpan const &assumptions, SolveFlags flags) const
+    template <Detail::UserData<SolveEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto solve_(Handler &&handler, ProgramLiteralSpan const &assumptions, SolveFlags flags) const
         -> SolveHandle {
+        auto user_data = Detail::make_user_data_manager(std::forward<Handler>(handler));
+        using UserData = decltype(user_data);
+        clingo_solve_event_handler_t const *c_handler_ptr = nullptr;
+        if constexpr (!std::is_null_pointer_v<typename UserData::ValueType>) {
+            static constexpr auto c_solve_event_handler = clingo_solve_event_handler_t{
+                [](clingo_model_t *model, void *data, bool *goon) -> bool {
+                    CLINGO_TRY {
+                        auto *hnd = UserData::cast(data);
+                        assert(hnd != nullptr);
+                        auto mdl = Model{model};
+                        *goon = hnd->model(mdl);
+                        return true;
+                    }
+                    CLINGO_CATCH;
+                },
+                [](int64_t const *values, size_t size, void *data) -> bool {
+                    CLINGO_TRY {
+                        auto *hnd = UserData::cast(data);
+                        assert(hnd != nullptr);
+                        hnd->unsat({values, size});
+                    }
+                    CLINGO_CATCH;
+                },
+                [](clingo_stats_t *stats, void *data) -> bool {
+                    CLINGO_TRY {
+                        auto *hnd = UserData::cast(data);
+                        assert(hnd != nullptr);
+                        std::string_view user_step = "user_step";
+                        std::string_view user_accu = "user_accu";
+                        uint64_t root = Detail::call<clingo_stats_root>(stats);
+                        uint64_t step = Detail::call<clingo_stats_map_add_subkey>(
+                            stats, root, user_step.data(), user_step.size(), clingo_stats_type_map);
+                        uint64_t accu = Detail::call<clingo_stats_map_add_subkey>(
+                            stats, root, user_accu.data(), user_accu.size(), clingo_stats_type_map);
+                        hnd->stats(Stats{stats, step}, Stats{stats, accu});
+                    }
+                    CLINGO_CATCH;
+                },
+                [](clingo_solve_result_bitset_t result, void *data) -> void {
+                    auto *hnd = UserData::cast(data);
+                    assert(hnd != nullptr);
+                    hnd->finish(static_cast<SolveResult>(result));
+                },
+                [](void *data) { UserData::free(data); },
+            };
+            c_handler_ptr = &c_solve_event_handler;
+        }
+
         clingo_solve_handle_t *res = nullptr;
         Detail::handle_error(clingo_control_solve(ctl_.get(), static_cast<clingo_solve_mode_bitset_t>(flags),
-                                                  assumptions.data(), assumptions.size(),
-                                                  handler != nullptr ? &Detail::c_solve_event_handler : nullptr,
-                                                  handler != nullptr ? handler : nullptr, &res));
+                                                  assumptions.data(), assumptions.size(), c_handler_ptr,
+                                                  user_data.release(), &res));
         return SolveHandle{res};
     }
 

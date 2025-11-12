@@ -393,7 +393,8 @@ template <class T> auto make_user_data_manager(T &&value) -> UserDataManager<std
 //! The type must either derive from the given base class or be a null pointer.
 //! We use std::unwrap_reference_t here to support reference wrappers.
 template <typename Value, typename Base>
-concept UserData = std::derived_from<std::remove_reference_t<std::unwrap_reference_t<Value>>, Base> ||
+concept UserData = (std::derived_from<std::remove_reference_t<std::unwrap_reference_t<Value>>, Base> &&
+                    std::is_move_constructible_v<std::remove_reference_t<Value>>) ||
                    std::is_null_pointer_v<std::remove_reference_t<Value>>;
 
 template <typename T> class ArrowProxy {

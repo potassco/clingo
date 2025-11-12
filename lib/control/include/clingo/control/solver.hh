@@ -380,9 +380,9 @@ class SolveHandle {
 using USolveHandle = std::unique_ptr<SolveHandle>;
 
 //! The event handler interface.
-class EventHandler {
+class SolveEventHandler {
   public:
-    virtual ~EventHandler() = default;
+    virtual ~SolveEventHandler() = default;
 
     //! Callback to intercept models.
     //!
@@ -427,7 +427,7 @@ class EventHandler {
     virtual void do_on_finish([[maybe_unused]] SolveResult result) {}
 };
 //! A unique pointer for an event handler.
-using UEventHandler = std::unique_ptr<EventHandler>;
+using USolveEventHandler = std::unique_ptr<SolveEventHandler>;
 
 //! The available solve modes.
 //!
@@ -697,7 +697,7 @@ class Solver : public BaseView {
     //! @param assumptions assumptions for solving
     //! @param mode mode for solving
     //! @return solve handle to control the search
-    auto solve(UEventHandler handler = {}, PrgLitSpan assumptions = {}, SolveMode mode = SolveMode::none)
+    auto solve(USolveEventHandler handler = {}, PrgLitSpan assumptions = {}, SolveMode mode = SolveMode::none)
         -> USolveHandle;
 
     //! Output the current unprocessed program.
