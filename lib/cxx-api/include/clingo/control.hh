@@ -576,6 +576,13 @@ class Control {
         return SolveHandle{res};
     }
 
+    //! Convert parts to their C representation.
+    //!
+    //! Returns a pair:
+    //! - The first element stores the default value for parts if none are
+    //!   provided.
+    //! - The second element is a vector of C representations, which may
+    //!   reference the first element.
     [[nodiscard]] auto c_parts_(std::optional<PartSpan> parts = std::nullopt) const
         -> std::pair<std::optional<PartVector>, std::vector<clingo_part_t>> {
         auto res = std::pair<std::optional<PartVector>, std::vector<clingo_part_t>>{};

@@ -316,14 +316,27 @@ template <typename Value> class UserDataManager {
     //! Construct the managed user data from the given value.
     template <class T>
     UserDataManager(T &&value) // NOLINT
-        : owned(std::make_unique<ValueType>(std::forward<T>(value))), data(owned.get()) {}
+        : owned_(std::make_unique<ValueType>(std::forward<T>(value))), data_{owned_.get()} {}
+    //! Disable copy operations.
+    UserDataManager(UserDataManager const &other) = delete;
+    //! Enable move operations.
+    UserDataManager(UserDataManager &&other) noexcept
+        : owned_{std::move(other.owned_)}, data_{std::exchange(other.data_, nullptr)} {}
+    //! Disable copy operations.
+    auto operator=(UserDataManager const &other) -> UserDataManager & = delete;
+    //! Enable move operations.
+    auto operator=(UserDataManager &&other) noexcept -> UserDataManager & {
+        owned_ = std::move(other.owned_);
+        data_ = std::exchange(other.data_, nullptr);
+        return *this;
+    }
 
     //! Check whether the managed data is not null.
-    explicit operator bool() const { return data != nullptr; }
+    explicit operator bool() const { return data_ != nullptr; }
     //! Get the managed data and release ownership.
     auto release() -> PointerType {
-        owned.release();
-        return data;
+        owned_.release();
+        return data_;
     }
 
     //! Cast the managed data to the pointer type.
@@ -332,8 +345,8 @@ template <typename Value> class UserDataManager {
     static auto free(void *data) { std::default_delete<ValueType>()(cast(data)); }
 
   private:
-    std::unique_ptr<ValueType> owned;
-    PointerType data = nullptr;
+    std::unique_ptr<ValueType> owned_;
+    PointerType data_ = nullptr;
 };
 
 //! Specialization for nullptr_t.
@@ -360,7 +373,14 @@ template <typename Value> class UserDataManager<std::reference_wrapper<Value>> {
     using ValueType = Value;
     using PointerType = Value *;
 
-    UserDataManager(std::reference_wrapper<Value> value) : data_(&value.get()) {}
+    UserDataManager(std::reference_wrapper<Value> value) : data_{&value.get()} {}
+    UserDataManager(UserDataManager const &other) = delete;
+    UserDataManager(UserDataManager &&other) noexcept : data_{std::exchange(other.data_, nullptr)} {}
+    auto operator=(UserDataManager const &other) -> UserDataManager & = delete;
+    auto operator=(UserDataManager &&other) noexcept -> UserDataManager & {
+        data_ = std::exchange(other.data_, nullptr);
+        return *this;
+    }
 
     explicit operator bool() const { return data_ != nullptr; }
     auto release() -> PointerType { return data_; }
@@ -369,7 +389,7 @@ template <typename Value> class UserDataManager<std::reference_wrapper<Value>> {
     static auto free([[maybe_unused]] void *data) {}
 
   private:
-    PointerType data_ = nullptr;
+    PointerType data_;
 };
 
 //! Create a user data manager from the given value.
