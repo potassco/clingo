@@ -704,7 +704,14 @@ class SolveHandleImpl : public SolveHandle {
         : eh_{lock, log, mdl, std::move(eh)}, hnd_{mdl.clasp().solve(convert(mode), {}, &eh_)},
           simplify_{std::move(simplify)} {}
 
-    ~SolveHandleImpl() override { cancel(); }
+    ~SolveHandleImpl() override {
+        try {
+            cancel();
+        } catch (std::exception &e) {
+            printf("panic: shutting down the solve handle failed with %s\n", e.what());
+            std::terminate();
+        }
+    }
 
   private:
     auto do_get() -> SolveResult override {

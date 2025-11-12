@@ -230,7 +230,7 @@ auto SolveHandle::wait(std::optional<double> timeout) -> bool {
 void SolveHandle::close() {
     if (hnd_ != nullptr) {
         auto release = py::gil_scoped_release{};
-        handle_error(clingo_solve_handle_close(std::exchange(hnd_, nullptr)));
+        clingo_solve_handle_close(std::exchange(hnd_, nullptr));
     }
 }
 

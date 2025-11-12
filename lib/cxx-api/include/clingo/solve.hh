@@ -445,14 +445,6 @@ class SolveHandle {
     //! This is a blocking operation.
     void cancel() { Detail::handle_error(clingo_solve_handle_cancel(hnd_.get())); }
 
-    //! Close the solve handle.
-    //!
-    //! This is a blocking operation.
-    //!
-    //! Closing a solver handle guarantees that the destructor of the solve
-    //! handle does not throw.
-    void close() { hnd_.close(); }
-
     //! Resume the current search.
     //!
     //! In a asynchronous context, this will start the search for the next
@@ -522,41 +514,11 @@ class SolveHandle {
   private:
     friend class Control;
 
-    class Ptr {
-      public:
-        Ptr() = default;
-        explicit Ptr(clingo_solve_handle_t *backend) : hnd_{backend} {}
-        Ptr(Ptr const &other) = delete;
-        Ptr(Ptr &&other) noexcept : hnd_{std::exchange(other.hnd_, nullptr)} {}
-        auto operator=(Ptr const &other) -> Ptr & = delete;
-        auto operator=(Ptr &&other) noexcept -> Ptr & {
-            // NOTE: we ensure moves are noexcept and do not throw each object
-            // will be freed in its exception context.
-            std::swap(hnd_, other.hnd_);
-            return *this;
-        }
-        ~Ptr() noexcept(false) {
-            try {
-                // NOTE: currently the solve handle calls cancel and then
-                // deletes clasp's underlying solve handle. I am not sure
-                // whether this can actually throw or not.
-                close();
-            } catch (...) {
-                if (std::uncaught_exceptions() == uncaught_ + 1) {
-                    throw;
-                }
-            }
-        }
-
-        [[nodiscard]] auto get() const -> clingo_solve_handle_t * { return hnd_; }
-        void close() { Detail::handle_error(clingo_solve_handle_close(std::exchange(hnd_, nullptr))); }
-
-      private:
-        clingo_solve_handle_t *hnd_ = nullptr;
-        int uncaught_ = std::uncaught_exceptions();
+    struct Close {
+        void operator()(clingo_solve_handle_t *ptr) const noexcept { clingo_solve_handle_close(ptr); }
     };
 
-    Ptr hnd_;
+    std::unique_ptr<clingo_solve_handle_t, Close> hnd_;
 };
 static_assert(std::input_iterator<SolveHandle::iterator>);
 static_assert(std::sentinel_for<SolveHandle::sentinel, SolveHandle::iterator>);
