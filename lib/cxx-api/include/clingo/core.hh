@@ -316,28 +316,20 @@ template <typename Value> class UserDataManager {
     //! Construct the managed user data from the given value.
     template <class T>
     UserDataManager(T &&value) // NOLINT
-        : owned_(std::make_unique<ValueType>(std::forward<T>(value))), data_{owned_.get()} {}
+        : owned_(std::make_unique<ValueType>(std::forward<T>(value))) {}
     //! Disable copy operations.
     UserDataManager(UserDataManager const &other) = delete;
     //! Enable move operations.
-    UserDataManager(UserDataManager &&other) noexcept
-        : owned_{std::move(other.owned_)}, data_{std::exchange(other.data_, nullptr)} {}
+    UserDataManager(UserDataManager &&other) noexcept = default;
     //! Disable copy operations.
     auto operator=(UserDataManager const &other) -> UserDataManager & = delete;
     //! Enable move operations.
-    auto operator=(UserDataManager &&other) noexcept -> UserDataManager & {
-        owned_ = std::move(other.owned_);
-        data_ = std::exchange(other.data_, nullptr);
-        return *this;
-    }
+    auto operator=(UserDataManager &&other) noexcept -> UserDataManager & = default;
 
     //! Check whether the managed data is not null.
-    explicit operator bool() const { return data_ != nullptr; }
+    explicit operator bool() const { return owned_; }
     //! Get the managed data and release ownership.
-    auto release() -> PointerType {
-        owned_.release();
-        return data_;
-    }
+    auto release() -> PointerType { return owned_.release(); }
 
     //! Cast the managed data to the pointer type.
     static auto cast(void *data) -> PointerType { return static_cast<PointerType>(data); }
@@ -346,7 +338,6 @@ template <typename Value> class UserDataManager {
 
   private:
     std::unique_ptr<ValueType> owned_;
-    PointerType data_ = nullptr;
 };
 
 //! Specialization for nullptr_t.

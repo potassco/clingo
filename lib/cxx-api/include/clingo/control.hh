@@ -337,9 +337,8 @@ class Control {
             c_handler_ptr = &c_handler;
         }
         clingo_ground_handle_t *handle = nullptr;
-        Detail::handle_error(clingo_control_start_ground(ctl_.get(), c_parts.data(), c_parts.size(),
-                                                         user_data ? c_handler_ptr : nullptr, user_data.release(),
-                                                         &handle));
+        Detail::handle_error(clingo_control_start_ground(ctl_.get(), c_parts.data(), c_parts.size(), c_handler_ptr,
+                                                         user_data.release(), &handle));
         return GroundHandle{handle};
     }
 
