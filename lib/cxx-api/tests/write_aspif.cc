@@ -34,8 +34,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif rule", "[cxx][write_aspif][rule]") {
         ctl.parse_files({tmp.path().string()});
     }
     {
-        auto mcb = MCB(models);
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{"a"}, {"a", "b", "c"}});
@@ -49,8 +48,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif aggregate", "[cxx][write_aspif][aggregate
         ctl.parse_files({tmp.path().string()});
     }
     {
-        auto mcb = MCB(models);
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{}, {"a"}, {"a", "b", "c"}, {"b"}, {"c"}});
@@ -62,8 +60,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif disjunction", "[cxx][write_aspif][disjunc
         ctl.parse_files({tmp.path().string()});
     }
     {
-        auto mcb = MCB(models);
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{"a", "b"}, {"c"}});
@@ -75,8 +72,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif minimize", "[cxx][write_aspif][minimize]"
         ctl.parse_files({tmp.path().string()});
     }
     {
-        auto mcb = MCB(models);
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{"a", "b"}, {"c"}});
@@ -89,8 +85,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif project", "[cxx][write_aspif][project]") 
         ctl.parse_files({tmp.path().string()});
     }
     {
-        auto mcb = MCB(models);
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{}, {}, {"a"}, {"a"}});
@@ -103,8 +98,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif output", "[cxx][write_aspif][output]") {
         ctl.parse_files({tmp.path().string()});
     }
     {
-        auto mcb = MCB(models);
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{"a"}, {"a", "b", "c"}, {"b"}});
@@ -116,8 +110,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif external", "[cxx][write_aspif][external]"
         ctl.parse_files({tmp.path().string()});
     }
     {
-        auto mcb = MCB(models);
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{"a"}, {"a", "c"}});
@@ -133,8 +126,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif heuristic", "[cxx][write_aspif][heuristic
         ctl.parse_files({tmp.path().string()});
     }
     {
-        auto mcb = MCB(models);
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{"a"}});
@@ -148,8 +140,7 @@ TEST_CASE_METHOD(Fixture, "write_aspif edge", "[cxx][write_aspif][edge]") {
         ctl.parse_files({tmp.path().string()});
     }
     {
-        auto mcb = MCB(models);
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{}, {"a"}, {"b"}});

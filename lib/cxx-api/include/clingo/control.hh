@@ -306,10 +306,10 @@ class Control {
     [[nodiscard]] auto start_ground(std::optional<PartSpan> parts = std::nullopt, Handler &&handler = nullptr) const
         -> GroundHandle {
         auto [default_parts, c_parts] = c_parts_(parts);
-        auto user_data = Detail::make_user_data_manager(std::forward<Handler>(handler));
-        using UserData = decltype(user_data);
+        using UserData = Detail::UserDataTraits<Handler>;
+        auto user_data = UserData::create(std::forward<Handler>(handler));
         clingo_ground_event_handler_t const *c_handler_ptr = nullptr;
-        if constexpr (!std::is_null_pointer_v<typename UserData::ValueType>) {
+        if constexpr (UserData::has_data) {
             static constexpr auto c_handler = clingo_ground_event_handler_t{
                 [](char const *name, size_t name_size, size_t arguments_size, void *data, bool *result) -> bool {
                     CLINGO_TRY {
@@ -338,7 +338,7 @@ class Control {
         }
         clingo_ground_handle_t *handle = nullptr;
         Detail::handle_error(clingo_control_start_ground(ctl_.get(), c_parts.data(), c_parts.size(), c_handler_ptr,
-                                                         user_data.release(), &handle));
+                                                         UserData::release(user_data), &handle));
         return GroundHandle{handle};
     }
 
@@ -569,10 +569,10 @@ class Control {
     template <Detail::UserData<SolveEventHandler> Handler = std::nullptr_t>
     [[nodiscard]] auto solve_(Handler &&handler, ProgramLiteralSpan const &assumptions, SolveFlags flags) const
         -> SolveHandle {
-        auto user_data = Detail::make_user_data_manager(std::forward<Handler>(handler));
-        using UserData = decltype(user_data);
+        using UserData = Detail::UserDataTraits<Handler>;
+        auto user_data = UserData::create(std::forward<Handler>(handler));
         clingo_solve_event_handler_t const *c_handler_ptr = nullptr;
-        if constexpr (!std::is_null_pointer_v<typename UserData::ValueType>) {
+        if constexpr (UserData::has_data) {
             static constexpr auto c_solve_event_handler = clingo_solve_event_handler_t{
                 [](clingo_model_t *model, void *data, bool *goon) -> bool {
                     CLINGO_TRY {
@@ -620,7 +620,7 @@ class Control {
         clingo_solve_handle_t *res = nullptr;
         Detail::handle_error(clingo_control_solve(ctl_.get(), static_cast<clingo_solve_mode_bitset_t>(flags),
                                                   assumptions.data(), assumptions.size(), c_handler_ptr,
-                                                  user_data.release(), &res));
+                                                  UserData::release(user_data), &res));
         return SolveHandle{res};
     }
 

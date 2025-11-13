@@ -55,8 +55,7 @@ TEST_CASE_METHOD(Fixture, "incremental minimize", "[cxx][incremental][simplify][
     ctl.ground();
     auto models = MV{};
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{"b"}});
@@ -64,8 +63,7 @@ TEST_CASE_METHOD(Fixture, "incremental minimize", "[cxx][incremental][simplify][
     ctl.parse_string("#program x. :- not a. :- not b.");
     ctl.ground({{"x", {}}});
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{"a", "b"}});
@@ -73,8 +71,7 @@ TEST_CASE_METHOD(Fixture, "incremental minimize", "[cxx][incremental][simplify][
     ctl.parse_string("#program y. {c}. #minimize{ 1: b; 2 : not c }.");
     ctl.ground({{"y", {}}});
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{"a", "b", "c"}});

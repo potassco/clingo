@@ -49,11 +49,10 @@ TEST_CASE_METHOD(Fixture, "stats solve", "[cxx][stats][solve]") {
     ctl.parse_string("1 { a; b; c; d } 1.");
     ctl.ground();
     {
-        auto mcb = MCB{models};
 #ifndef __EMSCRIPTEN__
-        auto hnd = ctl.solve(mcb, {}, SolveFlags::async | SolveFlags::yield);
+        auto hnd = ctl.solve(MCB{models}, {}, SolveFlags::async | SolveFlags::yield);
 #else
-        auto hnd = ctl.solve(mcb, {}, SolveFlags::yield);
+        auto hnd = ctl.solve(MCB{models}, {}, SolveFlags::yield);
 #endif
         REQUIRE_THROWS_AS(ctl.stats(), std::invalid_argument);
         for ([[maybe_unused]] auto const &mdl : hnd) {

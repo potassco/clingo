@@ -49,8 +49,7 @@ TEST_CASE("solve basic", "[cxx][solve][basic]") {
 
     auto models = std::vector<std::vector<std::string>>{};
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == expected);

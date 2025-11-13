@@ -73,16 +73,14 @@ p(@fun(k)).
 
     ctl.ground({{"one", {Number(1)}}});
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{"p(1)"}});
 
     ctl.ground({{"ext", {Number(2)}}});
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == MV{{"p(1)", "p(3)"}});

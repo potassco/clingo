@@ -23,8 +23,7 @@ void run_file(std::string_view prg) {
     ctl.ground();
     std::vector<std::vector<std::string>> models;
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(!hnd.get().interrupted());
     }
     REQUIRE(models == data.solutions);

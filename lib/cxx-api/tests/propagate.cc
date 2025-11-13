@@ -337,8 +337,7 @@ TEST_CASE_METHOD(Fixture, "propagate a iff b", "[cxx][propagate]") {
 
         auto models = MV{};
         {
-            auto mcb = MCB{models};
-            auto hnd = ctl.solve(mcb);
+            auto hnd = ctl.solve(MCB{models});
             REQUIRE(hnd.get().satisfiable());
             REQUIRE(ref.n_threads == n);
             REQUIRE(ref.errors.empty());
@@ -365,8 +364,7 @@ TEST_CASE_METHOD(Fixture, "propagate exception", "[cxx][propagate][exception]") 
         ref.fail_thread = n - 1;
         auto models = MV{};
         auto solve = [&]() {
-            auto mcb = MCB{models};
-            auto hnd = ctl.solve(mcb);
+            auto hnd = ctl.solve(MCB{models});
             REQUIRE(hnd.get().satisfiable());
         };
 
@@ -398,8 +396,7 @@ TEST_CASE_METHOD(Fixture, "propagate init", "[cxx][propagate][init]") {
 
     auto models = MV{};
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
 
@@ -411,8 +408,7 @@ TEST_CASE_METHOD(Fixture, "propagate add_literal", "[cxx][propagate][add_literal
 
     auto models = MV{};
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
 
@@ -428,8 +424,7 @@ TEST_CASE_METHOD(Fixture, "propagate heuristic", "[cxx][propagate][heuristic]") 
 
     auto models = MV{};
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
 
@@ -444,8 +439,7 @@ TEST_CASE_METHOD(Fixture, "propagate control", "[cxx][propagate][control]") {
 
     MV models;
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
 

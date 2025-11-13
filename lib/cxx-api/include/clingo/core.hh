@@ -306,87 +306,54 @@ template <class T, class P> class intrusive_handle {
 
 //! Manager for user data passed to C callbacks.
 //!
-//! The user data manager handles ownership and casting of user data from void
-//! pointers.
-template <typename Value> class UserDataManager {
-  public:
-    using ValueType = Value;
-    using PointerType = Value *;
-
-    //! Construct the managed user data from the given value.
-    template <class T>
-    UserDataManager(T &&value) // NOLINT
-        : owned_(std::make_unique<ValueType>(std::forward<T>(value))) {}
-    //! Disable copy operations.
-    UserDataManager(UserDataManager const &other) = delete;
-    //! Enable move operations.
-    UserDataManager(UserDataManager &&other) noexcept = default;
-    //! Disable copy operations.
-    auto operator=(UserDataManager const &other) -> UserDataManager & = delete;
-    //! Enable move operations.
-    auto operator=(UserDataManager &&other) noexcept -> UserDataManager & = default;
-
-    //! Check whether the managed data is not null.
-    explicit operator bool() const { return owned_; }
-    //! Get the managed data and release ownership.
-    auto release() -> PointerType { return owned_.release(); }
-
-    //! Cast the managed data to the pointer type.
-    static auto cast(void *data) -> PointerType { return static_cast<PointerType>(data); }
-    //! Free the managed data.
-    static auto free(void *data) { std::default_delete<ValueType>()(cast(data)); }
-
-  private:
-    std::unique_ptr<ValueType> owned_;
-};
-
-//! Specialization for nullptr_t.
-template <> class UserDataManager<std::nullptr_t> {
-  public:
-    using ValueType = std::nullptr_t;
-    using PointerType = std::nullptr_t;
-
-    UserDataManager([[maybe_unused]] std::nullptr_t value) {}
-
-    explicit operator bool() const { return false; }
-    auto release() -> PointerType {
-        static_cast<void>(this);
-        return nullptr;
+//! Manages ownership semantics and type-safe casting for user data stored as
+//! void pointers. By default, user data is forwarded into a holder object.
+//! Reference wrappers are stored as raw pointers, avoiding unnecessary copying
+//! or moving of the underlying data. Types representing null pointers are
+//! explicitly marked to indicate the absence of user data.
+template <typename T> struct UserDataTraits {
+    //! The type after removing cv and reference qualifiers.
+    using PlainType = std::remove_cvref_t<T>;
+    //! The type after unwrapping reference wrappers.
+    using UnwrapType = std::unwrap_reference_t<PlainType>;
+    //! The type of the value stored.
+    using ValueType = std::remove_reference_t<UnwrapType>;
+    //! Whether the user data has actual data.
+    static constexpr auto has_data = !std::is_null_pointer_v<ValueType>;
+    //! Whether the user data should be copied/moved.
+    static constexpr auto clone = has_data && !std::is_reference_v<UnwrapType>;
+    //! A pointer type to the value.
+    using PtrType = std::conditional_t<has_data, std::add_pointer_t<ValueType>, void *>;
+    //! The holder type for the user data.
+    using HolderType = std::conditional_t<clone, std::unique_ptr<ValueType>, PtrType>;
+    //! Create the holder from the given data.
+    template <typename U> static auto create(U &&data) -> HolderType {
+        if constexpr (clone) {
+            return std::make_unique<ValueType>(std::forward<U>(data));
+        } else if constexpr (has_data) {
+            return &data.get();
+        } else {
+            // NOTE: data is a nullptr type
+            return data;
+        }
     }
-
-    static auto cast([[maybe_unused]] void *data) -> PointerType { return nullptr; }
-    static auto free([[maybe_unused]] void *data) {}
-};
-
-//! Specialization for reference wrappers.
-template <typename Value> class UserDataManager<std::reference_wrapper<Value>> {
-  public:
-    using ValueType = Value;
-    using PointerType = Value *;
-
-    UserDataManager(std::reference_wrapper<Value> value) : data_{&value.get()} {}
-    UserDataManager(UserDataManager const &other) = delete;
-    UserDataManager(UserDataManager &&other) noexcept : data_{std::exchange(other.data_, nullptr)} {}
-    auto operator=(UserDataManager const &other) -> UserDataManager & = delete;
-    auto operator=(UserDataManager &&other) noexcept -> UserDataManager & {
-        data_ = std::exchange(other.data_, nullptr);
-        return *this;
+    //! Release the pointer to the value from the holder.
+    static auto release(HolderType &holder) -> PtrType {
+        if constexpr (clone) {
+            return holder.release();
+        } else {
+            return holder;
+        }
     }
-
-    explicit operator bool() const { return data_ != nullptr; }
-    auto release() -> PointerType { return data_; }
-
-    static auto cast(void *data) -> PointerType { return static_cast<PointerType>(data); }
-    static auto free([[maybe_unused]] void *data) {}
-
-  private:
-    PointerType data_;
+    //! Cast the void pointer to the pointer type.
+    static auto cast(void *ptr) -> PtrType { return static_cast<PtrType>(ptr); }
+    //! Free the value pointed to by the void pointer.
+    static void free(void *ptr) {
+        if constexpr (clone) {
+            std::default_delete<ValueType>{}(cast(ptr));
+        }
+    }
 };
-
-//! Create a user data manager from the given value.
-template <class T> auto make_user_data_manager(T &&value) -> UserDataManager<std::remove_cvref_t<T>> {
-    return UserDataManager<std::remove_cvref_t<T>>{std::forward<T>(value)};
-}
 
 //! Checks whether a type can be used as user data.
 //!

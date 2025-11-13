@@ -48,8 +48,7 @@ TEST_CASE_METHOD(Fixture, "backend rule", "[cxx][backend][rule]") {
     }
     std::vector<std::vector<std::string>> models;
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == std::vector<std::vector<std::string>>{{"p(1)"}, {"p(1)", "p(2)", "p(3)", "p(4)"}});
@@ -67,8 +66,7 @@ TEST_CASE_METHOD(Fixture, "backend edge", "[cxx][backend][edge]") {
     }
     std::vector<std::vector<std::string>> models;
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == std::vector<std::vector<std::string>>{{}, {"a"}, {"b"}});
@@ -84,8 +82,7 @@ TEST_CASE_METHOD(Fixture, "backend external", "[cxx][backend][external]") {
         }
         std::vector<std::vector<std::string>> models;
         {
-            auto mcb = MCB{models};
-            auto hnd = ctl.solve(mcb);
+            auto hnd = ctl.solve(MCB{models});
             REQUIRE(hnd.get().satisfiable());
         }
         return models;
@@ -114,8 +111,7 @@ TEST_CASE_METHOD(Fixture, "backend assume", "[cxx][backend][assume]") {
         }
         std::vector<std::vector<std::string>> models;
         {
-            auto mcb = MCB{models};
-            auto hnd = ctl.solve(mcb);
+            auto hnd = ctl.solve(MCB{models});
             REQUIRE(hnd.get().satisfiable());
         }
         return models;
@@ -140,8 +136,7 @@ TEST_CASE_METHOD(Fixture, "backend project", "[cxx][backend][project]") {
     }
     std::vector<std::vector<std::string>> models;
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models.size() == 3);
@@ -202,8 +197,7 @@ TEST_CASE_METHOD(Fixture, "backend heuristic", "[cxx][backend][heuristic]") {
     }
     std::vector<std::vector<std::string>> models;
     {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
+        auto hnd = ctl.solve(MCB{models});
         REQUIRE(hnd.get().satisfiable());
     }
     REQUIRE(models == std::vector<std::vector<std::string>>{{"a", "c"}});
