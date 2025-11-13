@@ -22,7 +22,7 @@ TEST_CASE("control solve", "[cxx][control][solve]") {
     auto ctl = Control{lib, {"0"}};
     ctl.parse_string("{a(@f(1)); b(@g(1))}.");
     ctl.ground(std::nullopt, ctx);
-    auto hnd = ctl.solve();
+    auto hnd = ctl.start_solve();
     auto mdls = std::vector<std::string>{};
     for (auto mdl : hnd) {
         auto oss = std::ostringstream{};
@@ -181,8 +181,7 @@ q(k) :- c(k).
     auto c3 = Function(lib, "c", {Number(3)});
     {
         size_t n = 0;
-        auto hnd = ctl.solve();
-        for (auto &&mdl : hnd) {
+        for (auto hnd = ctl.start_solve(); auto &&mdl : hnd) {
             REQUIRE(mdl.contains(c3));
             ++n;
         }

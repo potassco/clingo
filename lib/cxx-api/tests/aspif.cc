@@ -43,10 +43,7 @@ TEST_CASE_METHOD(Fixture, "aspif rule", "[cxx][aspif][rule]") {
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {"p(1)", "p(2)", "p(3)"},
                           {"p(1)", "p(2)", "q(3)"},
@@ -59,10 +56,7 @@ TEST_CASE_METHOD(Fixture, "aspif rule", "[cxx][aspif][rule]") {
                       });
     ctl.parse_string("r(X) :- q(X-1), p(X), q(X+1).");
     ctl.ground();
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {"p(1)", "p(2)", "p(3)"},
                           {"p(1)", "p(2)", "q(3)"},
@@ -85,10 +79,7 @@ TEST_CASE_METHOD(Fixture, "aspif choice", "[cxx][aspif][choice]") {
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {},
                           {"a"},
@@ -112,10 +103,7 @@ TEST_CASE_METHOD(Fixture, "aspif disjunction", "[cxx][aspif][disjunction]") {
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {"a", "b"},
                           {"c", "d"},
@@ -137,10 +125,7 @@ TEST_CASE_METHOD(Fixture, "aspif project", "[cxx][aspif][project]") {
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {},
                           {"a"},
@@ -157,10 +142,7 @@ TEST_CASE_METHOD(Fixture, "aspif output v1 fact", "[cxx][aspif][output_v1][fact]
     REQUIRE(!ctl.base().terms().contains(sym));
     REQUIRE(ctl.base().contains(sym));
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {"a"},
                       });
@@ -176,10 +158,7 @@ TEST_CASE_METHOD(Fixture, "aspif output v1 cond", "[cxx][aspif][output_v1][cond]
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {"a", "b", "c", "d"},
                           {"a", "d"},
@@ -209,10 +188,7 @@ TEST_CASE_METHOD(Fixture, "aspif output v2 cond", "[cxx][aspif][output_v2][cond]
     REQUIRE(ctl.base().terms().contains(b));
     REQUIRE(ctl.base().terms().contains(c));
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {"a"},
                           {"a"},
@@ -239,10 +215,7 @@ TEST_CASE_METHOD(Fixture, "aspif output symbols", "[cxx][aspif][output_v2][symbo
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {"p(1)", "p(2)", "p(3)"},
                       });
@@ -265,10 +238,7 @@ c
 0
 )");
     models.clear();
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     const auto *res = R"(p(#inf,#sup,"a\"b\nc",f(1),(1,),()))";
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {res},
@@ -286,10 +256,7 @@ TEST_CASE_METHOD(Fixture, "aspif external", "[cxx][aspif][external]") {
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {"a"},
                           {"a", "c"},
@@ -306,10 +273,7 @@ TEST_CASE_METHOD(Fixture, "aspif assume", "[cxx][aspif][assume]") {
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {"a"},
                           {"a", "c"},
@@ -327,10 +291,7 @@ TEST_CASE_METHOD(Fixture, "aspif heuristic", "[cxx][aspif][heuristic]") {
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {"a"},
                       });
@@ -346,10 +307,7 @@ TEST_CASE_METHOD(Fixture, "aspif edge", "[cxx][aspif][edge]") {
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {},
                           {"a"},
@@ -415,10 +373,7 @@ TEST_CASE_METHOD(Fixture, "aspif comment", "[cxx][aspif][comment]") {
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {},
                           {"a"},
@@ -435,10 +390,7 @@ TEST_CASE_METHOD(Fixture, "aspif incremental", "[cxx][aspif][incremental]") {
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {},
                           {"a"},
@@ -485,10 +437,7 @@ TEST_CASE_METHOD(Fixture, "aspif incremental assume", "[cxx][aspif][incremental]
 0
 )");
     auto models = std::vector<std::vector<std::string>>{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{
                           {"a", "b"},
                           {"b"},

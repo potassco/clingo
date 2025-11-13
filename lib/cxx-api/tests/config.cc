@@ -49,24 +49,15 @@ TEST_CASE_METHOD(Fixture, "config solve", "[cxx][config][solve]") {
     auto models_value = cfg.map().get("solve").map().get("models");
 
     models_value.value("0");
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == res);
 
     models_value.value("2");
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models.size() == 2);
 
     models_value.value("0");
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == res);
 }
 

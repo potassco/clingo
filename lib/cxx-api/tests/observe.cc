@@ -219,7 +219,7 @@ TEST_CASE_METHOD(Fixture, "observe preprocess", "[cxx][observe][preprocess]") {
         REQUIRE(std::get<2>(obs.rules[0]));
     }
 
-    std::ignore = ctl.solve().get();
+    std::ignore = ctl.solve();
     {
         auto obs = ExampleObserver{};
         ctl.observe(obs);

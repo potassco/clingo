@@ -414,29 +414,45 @@ class Control {
         return std::move(builder.roots);
     }
 
-    //! Solve the grounded program with the given assumptions and flags.
+    //! Solve the grounded program with the given assumptions.
     //!
+    //! @param assumptions the assumptions to use for solving
     //! @param handler the solve event handler to report events to
+    //! @return the solve result
+    template <Detail::UserData<SolveEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto solve(ProgramLiteralSpan assumptions = {}, Handler &&handler = nullptr) const -> SolveResult {
+        return solve_(std::forward<Handler>(handler), assumptions, SolveFlags::empty).get();
+    }
+
+    //! @copydoc solve
+    template <Detail::UserData<SolveEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto solve(std::initializer_list<ProgramLiteral> assumptions, Handler &&handler = nullptr) const
+        -> SolveResult {
+        return solve_(std::forward<Handler>(handler), ProgramLiteralSpan{assumptions}, SolveFlags::empty).get();
+    }
+
+    //! Start solving the grounded program with the given assumptions and flags.
+    //!
+    //! Depending on the flags, models can be yielded as they are found and
+    //! search can be started in the background. By default models are yielded
+    //! as they are found.
+    //!
     //! @param assumptions the assumptions to use for solving
     //! @param flags the flags to use for solving
+    //! @param handler the solve event handler to report events to
     //! @return a handle to the solve operation
-    template <Detail::UserData<SolveEventHandler> Handler>
-    [[nodiscard]] auto solve(Handler &&handler, ProgramLiteralSpan const &assumptions = {},
-                             SolveFlags flags = SolveFlags::empty) const -> SolveHandle {
+    template <Detail::UserData<SolveEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto start_solve(ProgramLiteralSpan assumptions = {}, SolveFlags flags = SolveFlags::yield,
+                                   Handler &&handler = nullptr) const -> SolveHandle {
         return solve_(std::forward<Handler>(handler), assumptions, flags);
     }
 
-    //! Solve the grounded program with the given assumptions and flags.
-    //!
-    //! This function does not take a solve event handler. Instead, the
-    //! returned solve handle is configured to yield models as they are found.
-    //!
-    //! @param assumptions the assumptions to use for solving
-    //! @param flags the flags to use for solving
-    //! @return a handle to the solve operation
-    [[nodiscard]] auto solve(ProgramLiteralSpan const &assumptions = {}, SolveFlags flags = SolveFlags::yield) const
+    //! @copydoc start_solve
+    template <Detail::UserData<SolveEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto start_solve(std::initializer_list<ProgramLiteral> assumptions,
+                                   SolveFlags flags = SolveFlags::yield, Handler &&handler = nullptr) const
         -> SolveHandle {
-        return solve_(nullptr, assumptions, flags);
+        return solve_(std::forward<Handler>(handler), ProgramLiteralSpan{assumptions}, flags);
     }
 
     //! Run the default ground and solve flow.

@@ -336,12 +336,9 @@ TEST_CASE_METHOD(Fixture, "propagate a iff b", "[cxx][propagate]") {
         ctl.config()["solve"]["parallel_mode"].value(std::to_string(n));
 
         auto models = MV{};
-        {
-            auto hnd = ctl.solve(MCB{models});
-            REQUIRE(hnd.get().satisfiable());
-            REQUIRE(ref.n_threads == n);
-            REQUIRE(ref.errors.empty());
-        }
+        REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
+        REQUIRE(ref.n_threads == n);
+        REQUIRE(ref.errors.empty());
         REQUIRE(models == MV{{"a", "b"}});
     }
 }
@@ -363,12 +360,7 @@ TEST_CASE_METHOD(Fixture, "propagate exception", "[cxx][propagate][exception]") 
         ctl.config()["solve"]["parallel_mode"].value(std::to_string(n));
         ref.fail_thread = n - 1;
         auto models = MV{};
-        auto solve = [&]() {
-            auto hnd = ctl.solve(MCB{models});
-            REQUIRE(hnd.get().satisfiable());
-        };
-
-        REQUIRE_THROWS_MATCHES(solve(), std::runtime_error,
+        REQUIRE_THROWS_MATCHES(ctl.solve({}, MCB{models}), std::runtime_error,
                                MessageMatches(ContainsSubstring("solver " + std::to_string(n - 1))));
         REQUIRE(ref.n_threads == n);
         REQUIRE(ref.attached.size() == n);
@@ -383,8 +375,7 @@ TEST_CASE_METHOD(Fixture, "propagate asserting", "[cxx][propagate][asserting]") 
     ctl.parse_string("start. {value}. {end}.");
     ctl.ground();
 
-    auto hnd = ctl.solve();
-    REQUIRE(hnd.get().satisfiable());
+    REQUIRE(ctl.solve().satisfiable());
 }
 
 TEST_CASE_METHOD(Fixture, "propagate init", "[cxx][propagate][init]") {
@@ -395,11 +386,7 @@ TEST_CASE_METHOD(Fixture, "propagate init", "[cxx][propagate][init]") {
     ctl.register_propagator(std::make_unique<InitPropagator>());
 
     auto models = MV{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
-
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == MV{{"a", "b", "c"}});
 }
 
@@ -407,11 +394,7 @@ TEST_CASE_METHOD(Fixture, "propagate add_literal", "[cxx][propagate][add_literal
     ctl.register_propagator(std::make_unique<AddLiteralPropagator>());
 
     auto models = MV{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
-
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == MV{{}, {}});
 }
 
@@ -423,11 +406,7 @@ TEST_CASE_METHOD(Fixture, "propagate heuristic", "[cxx][propagate][heuristic]") 
     ctl.register_propagator(std::make_unique<HeuristicPropagator>());
 
     auto models = MV{};
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
-
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == MV{{"a"}});
 }
 
@@ -438,11 +417,7 @@ TEST_CASE_METHOD(Fixture, "propagate control", "[cxx][propagate][control]") {
     ctl.register_propagator(std::make_unique<PropagateControlPropagator>());
 
     MV models;
-    {
-        auto hnd = ctl.solve(MCB{models});
-        REQUIRE(hnd.get().satisfiable());
-    }
-
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == MV{{"a"}});
 }
 

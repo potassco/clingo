@@ -26,7 +26,7 @@ class AppTest : public App {
         events.emplace_back("main");
         control.parse_files(files);
         control.ground();
-        std::ignore = control.solve(MCB{models}).get();
+        std::ignore = control.solve({}, MCB{models});
     }
     void do_register_options(Options options) override {
         events.emplace_back("register");
