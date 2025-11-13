@@ -26,3 +26,4 @@ CMakeLists.txt.user
 __pycache__
 compile_commands.json
 wheelhouse
+/bug*

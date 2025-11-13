@@ -408,7 +408,11 @@ auto LitSymbolic::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTy
 
 auto LitSymbolic::do_score(std::vector<bool> const &bound) const -> double {
     if (sign_ != Sign::once) {
-        return atom_->score(static_cast<double>(base_->size()), bound);
+        auto size = base_->size();
+        if (single_pass() && size == 0) {
+            return -1;
+        }
+        return atom_->score(static_cast<double>(size), bound);
     }
     return 0;
 }
@@ -490,6 +494,7 @@ auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
         void do_match(EvalContext const &ctx) override { matcher_->match(ctx); }
         auto do_next(EvalContext const &ctx) -> bool override { return matcher_->next(ctx); }
         void do_print(std::ostream &out) const override { matcher_->print(out); }
+        [[nodiscard]] auto do_type() const -> MatcherType override { return matcher_->type(); }
 
         ProjectState *state_;
         UMatcher matcher_;
@@ -513,7 +518,11 @@ auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
 
 auto LitProject::do_score(std::vector<bool> const &bound) const -> double {
     if (sign_ != Sign::once) {
-        return atom_->score(static_cast<double>(state_->base().size()), bound);
+        auto size = state_->base().size();
+        if (single_pass() && size == 0) {
+            return -1;
+        }
+        return atom_->score(static_cast<double>(size), bound);
     }
     return 0;
 }
