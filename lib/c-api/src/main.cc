@@ -213,10 +213,11 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         if (mode_ != Mode::solve && mode_ != Mode::clasp) {
             return nullptr;
         }
+        auto om = mode_ == Mode::clasp ? Clasp::Cli::Output::mode_default : Clasp::Cli::Output::mode_clingo;
         if (!app_.has_print_model() || !Clasp::Cli::ClaspAppOptions::isTextOutput(outf)) {
-            return ClaspAppBase::createOutput(sink, f, outf);
+            return ClaspAppBase::createOutput(sink, f, outf, om);
         }
-        auto output = createTextOutput(sink, f);
+        auto output = createTextOutput(sink, f, om);
         output->setModelPrinter(
             [this](Clasp::Cli::TextOutput &out, const Clasp::SharedContext &ctx, const Clasp::Model &mdl) {
                 auto prt = [&]() { out.printModelValues(ctx, mdl); };
