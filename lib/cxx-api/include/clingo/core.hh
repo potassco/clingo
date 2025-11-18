@@ -304,6 +304,41 @@ template <class T, class P> class intrusive_handle {
     P *ptr_ = nullptr;
 };
 
+enum class UserDataType {
+    null,
+    ref,
+    ptr,
+    val,
+};
+
+template <typename T> struct UserDataTraitsBase {
+    using ValueType = T;
+    using PtrType = ValueType *;
+    using HolderType = std::unique_ptr<ValueType>;
+    static constexpr auto type = UserDataType::val;
+};
+
+template <typename T> struct UserDataTraitsBase<std::reference_wrapper<T>> {
+    using ValueType = std::reference_wrapper<T>::type;
+    using PtrType = ValueType *;
+    using HolderType = PtrType;
+    static constexpr auto type = UserDataType::ref;
+};
+
+template <typename T> struct UserDataTraitsBase<std::unique_ptr<T>> {
+    using ValueType = T;
+    using PtrType = ValueType *;
+    using HolderType = std::unique_ptr<ValueType>;
+    static constexpr auto type = UserDataType::ptr;
+};
+
+template <> struct UserDataTraitsBase<std::nullptr_t> {
+    using ValueType = nullptr_t;
+    using PtrType = nullptr_t;
+    using HolderType = nullptr_t;
+    static constexpr auto type = UserDataType::null;
+};
+
 //! Manager for user data passed to C callbacks.
 //!
 //! Manages ownership semantics and type-safe casting for user data stored as
@@ -311,35 +346,28 @@ template <class T, class P> class intrusive_handle {
 //! Reference wrappers are stored as raw pointers, avoiding unnecessary copying
 //! or moving of the underlying data. Types representing null pointers are
 //! explicitly marked to indicate the absence of user data.
-template <typename T> struct UserDataTraits {
-    //! The type after removing cv and reference qualifiers.
-    using PlainType = std::remove_cvref_t<T>;
-    //! The type after unwrapping reference wrappers.
-    using UnwrapType = std::unwrap_reference_t<PlainType>;
-    //! The type of the value stored.
-    using ValueType = std::remove_reference_t<UnwrapType>;
-    //! Whether the user data has actual data.
-    static constexpr auto has_data = !std::is_null_pointer_v<ValueType>;
-    //! Whether the user data should be copied/moved.
-    static constexpr auto clone = has_data && !std::is_reference_v<UnwrapType>;
-    //! A pointer type to the value.
-    using PtrType = std::conditional_t<has_data, std::add_pointer_t<ValueType>, void *>;
-    //! The holder type for the user data.
-    using HolderType = std::conditional_t<clone, std::unique_ptr<ValueType>, PtrType>;
+template <typename T> struct UserDataTraits : private UserDataTraitsBase<std::remove_cvref_t<T>> {
+    using BaseType = UserDataTraitsBase<std::remove_cvref_t<T>>;
+    using ValueType = BaseType::ValueType;
+    using HolderType = BaseType::HolderType;
+    using PtrType = BaseType::PtrType;
+    using BaseType::type;
+
+    static constexpr bool has_data = type != UserDataType::null;
+
     //! Create the holder from the given data.
     template <typename U> static auto create(U &&data) -> HolderType {
-        if constexpr (clone) {
+        if constexpr (type == UserDataType::val) {
             return std::make_unique<ValueType>(std::forward<U>(data));
-        } else if constexpr (has_data) {
+        } else if constexpr (type == UserDataType::ref) {
             return &data.get();
         } else {
-            // NOTE: data is a nullptr type
             return data;
         }
     }
     //! Release the pointer to the value from the holder.
     static auto release(HolderType &holder) -> PtrType {
-        if constexpr (clone) {
+        if constexpr (type != UserDataType::ref && type != UserDataType::null) {
             return holder.release();
         } else {
             return holder;
@@ -349,20 +377,27 @@ template <typename T> struct UserDataTraits {
     static auto cast(void *ptr) -> PtrType { return static_cast<PtrType>(ptr); }
     //! Free the value pointed to by the void pointer.
     static void free(void *ptr) {
-        if constexpr (clone) {
+        if constexpr (type != UserDataType::ref && type != UserDataType::null) {
             std::default_delete<ValueType>{}(cast(ptr));
         }
     }
 };
 
+template <typename Value, typename Base> struct IsUserData : std::is_base_of<Base, Value> {};
+
+template <typename T, typename Base> struct IsUserData<std::reference_wrapper<T>, Base> : std::is_base_of<Base, T> {};
+
+template <typename T, typename Base> struct IsUserData<std::unique_ptr<T>, Base> : std::is_base_of<Base, T> {};
+
+template <typename Base> struct IsUserData<std::nullptr_t, Base> : std::true_type {};
+
 //! Checks whether a type can be used as user data.
 //!
 //! The type must either derive from the given base class or be a null pointer.
-//! We use std::unwrap_reference_t here to support reference wrappers.
+//! Additionally, reference wrappers and unique pointers to types deriving from
+//! the base class are also accepted.
 template <typename Value, typename Base>
-concept UserData = (std::derived_from<std::remove_reference_t<std::unwrap_reference_t<Value>>, Base> &&
-                    std::is_move_constructible_v<std::remove_reference_t<Value>>) ||
-                   std::is_null_pointer_v<std::remove_reference_t<Value>>;
+concept UserData = IsUserData<std::remove_cvref_t<Value>, Base>::value;
 
 template <typename T> class ArrowProxy {
   public:
