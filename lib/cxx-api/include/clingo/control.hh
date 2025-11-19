@@ -559,16 +559,73 @@ class Control {
 
     //! Register a propagator with the control object.
     //!
-    //! Can be used to register both propagators with and without heuristics.
+    //! The propagator must implement the Propagator or the Heuristic
+    //! interface, it can be passed by value, std::ref, or std::unique_ptr.
     //!
     //! @param propagator the propagator to register
     //! @return a reference to the registered propagator
-    template <std::derived_from<Propagator> T> auto register_propagator(std::unique_ptr<T> propagator) const -> T & {
-        assert(propagator != nullptr);
-        auto &res = *propagator;
-        Detail::handle_error(clingo_control_register_propagator(
-            ctl_.get(), std::is_base_of_v<Heuristic, T> ? &Detail::c_heuristic : &Detail::c_propagator,
-            propagator.release()));
+    template <Detail::UserData<Propagator> P> auto register_propagator(P &&propagator) const -> decltype(auto) {
+        using UserData = Detail::UserDataTraits<P>;
+        static_assert(UserData::has_data);
+        auto user_data = UserData::create(std::forward<P>(propagator));
+        assert(UserData::has_value(user_data));
+        auto &res = *UserData::get(user_data);
+
+        static constexpr auto decide = []() {
+            if constexpr (std::is_base_of_v<Heuristic, typename UserData::ValueType>) {
+                return [](clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data,
+                          clingo_literal_t *decision) -> bool {
+                    CLINGO_TRY {
+                        *decision = UserData::cast(data)->decide(Assignment{assignment}, fallback);
+                    }
+                    CLINGO_CATCH;
+                };
+            } else {
+                return nullptr;
+            }
+        };
+
+        static constexpr auto c_propagator = clingo_propagator_t{
+            [](clingo_assignment_t const *assignment, clingo_propagate_init_t *init, void *data) -> bool {
+                CLINGO_TRY {
+                    UserData::cast(data)->init(Assignment{assignment}, PropagateInit{init});
+                }
+                CLINGO_CATCH;
+            },
+            [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, void *data) {
+                CLINGO_TRY {
+                    UserData::cast(data)->attach(Assignment{assignment}, PropagateControl{control});
+                }
+                CLINGO_CATCH;
+            },
+            [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control,
+               clingo_literal_t const *changes, size_t size, void *data) -> bool {
+                CLINGO_TRY {
+                    UserData::cast(data)->propagate(Assignment{assignment}, PropagateControl{control},
+                                                    SolverLiteralSpan{changes, size});
+                }
+                CLINGO_CATCH;
+            },
+            [](clingo_assignment_t const *assignment, clingo_literal_t const *changes, size_t size, void *data) {
+                try {
+                    UserData::cast(data)->undo(Assignment{assignment}, SolverLiteralSpan{changes, size});
+                } catch (std::exception const &e) {
+                    printf("panic: %s\n", e.what());
+                    std::abort();
+                }
+            },
+            [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, void *data) -> bool {
+                CLINGO_TRY {
+                    UserData::cast(data)->check(Assignment{assignment}, PropagateControl{control});
+                }
+                CLINGO_CATCH;
+            },
+            decide(),
+            [](void *data) { UserData::free(data); },
+        };
+
+        Detail::handle_error(
+            clingo_control_register_propagator(ctl_.get(), &c_propagator, UserData::release(user_data)));
         return res;
     }
 
