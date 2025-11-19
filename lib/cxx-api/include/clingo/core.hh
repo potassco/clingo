@@ -310,13 +310,13 @@ template <typename HT, typename PT> struct UserDataStorageTypes {
 };
 template <typename T> struct UserDataStorageTraits : UserDataStorageTypes<std::unique_ptr<T>, T *> {
     using ValueType = T;
-    using has_release = void;
+    using is_holder = void;
 };
 template <typename T> struct UserDataStorageTraits<std::reference_wrapper<T>> : UserDataStorageTypes<T *, T *> {
     using is_ref = void;
 };
 template <typename T> struct UserDataStorageTraits<std::unique_ptr<T>> : UserDataStorageTypes<std::unique_ptr<T>, T *> {
-    using has_release = void;
+    using is_holder = void;
 };
 template <> struct UserDataStorageTraits<std::nullptr_t> : UserDataStorageTypes<std::nullptr_t, std::nullptr_t> {
     using is_null = void;
@@ -331,6 +331,9 @@ template <> struct UserDataStorageTraits<std::nullptr_t> : UserDataStorageTypes<
 //! explicitly marked to indicate the absence of user data.
 template <typename T> struct UserDataTraits {
     using StorageTraits = UserDataStorageTraits<std::remove_cvref_t<T>>;
+    using PointerType = typename StorageTraits::PtrType;
+    using ValueType = std::remove_pointer_t<PointerType>;
+    using ReferenceType = std::add_lvalue_reference_t<PointerType>;
 
     //! True if there is (potentially null) user data.
     static constexpr auto has_data = !requires { typename StorageTraits::is_null; };
@@ -345,17 +348,19 @@ template <typename T> struct UserDataTraits {
             return data;
         }
     }
-    //! Check whether the holder contains a value.
-    static auto has_value(StorageTraits::HolderType &holder) -> bool {
-        if constexpr (requires { typename StorageTraits::has_release; }) {
-            return holder.get() != nullptr;
+    //! Get the value from the holder.
+    static auto get(StorageTraits::HolderType &holder) -> PointerType {
+        if constexpr (requires { typename StorageTraits::is_holder; }) {
+            return holder.get();
         } else {
-            return holder != nullptr;
+            return holder;
         }
     }
+    //! Check whether the holder contains a value.
+    static auto has_value(StorageTraits::HolderType &holder) -> bool { return get(holder) != nullptr; }
     //! Release the pointer to the value from the holder.
     static auto release(StorageTraits::HolderType &holder) -> StorageTraits::PtrType {
-        if constexpr (requires { typename StorageTraits::has_release; }) {
+        if constexpr (requires { typename StorageTraits::is_holder; }) {
             return holder.release();
         } else {
             return holder;
@@ -365,7 +370,7 @@ template <typename T> struct UserDataTraits {
     static auto cast(void *ptr) -> StorageTraits::PtrType { return static_cast<StorageTraits::PtrType>(ptr); }
     //! Free the value pointed to by the void pointer.
     static void free(void *ptr) {
-        if constexpr (requires { typename StorageTraits::has_release; }) {
+        if constexpr (requires { typename StorageTraits::is_holder; }) {
             typename StorageTraits::HolderType{cast(ptr)};
         }
     }
