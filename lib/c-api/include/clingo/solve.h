@@ -177,7 +177,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t 
 //! Blocks until the search is stopped (as if an implicit cancel was called before the handle is released).
 //!
 //! @param[in] handle the target
-//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT void clingo_solve_handle_close(clingo_solve_handle_t *handle);
 
 //! Solve the currently grounded logic program enumerating its models.
