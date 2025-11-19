@@ -218,7 +218,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_element(clingo_backend_t *b
 //!
 //! If the theory atom does not exist yet, the atom receives a fresh program
 //! atom, if atom_id is NULL; or *atom_in, otherwise. Note that value zero can
-//! be used to mark program directives. The ouput paramater atom_out is set to
+//! be used to mark program directives. The output parameter atom_out is set to
 //! the final value.
 //!
 //! @param[in] backend the target backend

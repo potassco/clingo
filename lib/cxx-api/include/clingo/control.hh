@@ -244,7 +244,7 @@ class Control {
     //! Ground the logic program with the given parameters.
     //!
     //! The given parts determine which program parts are grounded with which
-    //! paramaters. If no parts are given, the parts given by the parts
+    //! parameters. If no parts are given, the parts given by the parts
     //! directive are grounded.
     //!
     //! @param parts the parts to ground the control object with
@@ -280,8 +280,9 @@ class Control {
 
     //! Ground the control object with the given parts.
     //!
-    //! The given parts determine which program parts are grounded with which paramaters. If no parts are given, the
-    //! parts given by the parts directive are grounded.
+    //! The given parts determine which program parts are grounded with which
+    //! parameters. If no parts are given, the parts given by the parts
+    //! directive are grounded.
     //!
     //! @param parts the parts to ground the control object with
     //! @param ctx the context to use for grounding
@@ -564,11 +565,12 @@ class Control {
     //!
     //! @param propagator the propagator to register
     //! @return a reference to the registered propagator
-    template <Detail::UserData<Propagator> P> auto register_propagator(P &&propagator) const -> decltype(auto) {
+    template <Detail::UserData<Propagator, false> P> auto register_propagator(P &&propagator) const -> decltype(auto) {
         using UserData = Detail::UserDataTraits<P>;
-        static_assert(UserData::has_data);
         auto user_data = UserData::create(std::forward<P>(propagator));
-        assert(UserData::has_value(user_data));
+        if (!UserData::has_value(user_data)) {
+            throw std::invalid_argument{"propagator cannot be null"};
+        }
         auto &res = *UserData::get(user_data);
 
         static constexpr auto decide = []() {

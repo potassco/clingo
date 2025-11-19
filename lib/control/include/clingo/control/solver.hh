@@ -592,7 +592,7 @@ class Grounder;
 
 //! This callback interface provides grounding events.
 //!
-//! It extends the script callback interface with an callback that is called
+//! It extends the script callback interface with n callback that is called
 //! when grounding has finished.
 class GroundEventHandler : public Ground::ScriptCallback {
   public:
