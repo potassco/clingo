@@ -304,39 +304,22 @@ template <class T, class P> class intrusive_handle {
     P *ptr_ = nullptr;
 };
 
-enum class UserDataType {
-    null,
-    ref,
-    ptr,
-    val,
+template <typename HT, typename PT> struct UserDataStorageTypes {
+    using HolderType = HT;
+    using PtrType = PT;
 };
-
-template <typename T> struct UserDataTraitsBase {
+template <typename T> struct UserDataStorageTraits : UserDataStorageTypes<std::unique_ptr<T>, T *> {
     using ValueType = T;
-    using PtrType = ValueType *;
-    using HolderType = std::unique_ptr<ValueType>;
-    static constexpr auto type = UserDataType::val;
+    using has_release = void;
 };
-
-template <typename T> struct UserDataTraitsBase<std::reference_wrapper<T>> {
-    using ValueType = std::reference_wrapper<T>::type;
-    using PtrType = ValueType *;
-    using HolderType = PtrType;
-    static constexpr auto type = UserDataType::ref;
+template <typename T> struct UserDataStorageTraits<std::reference_wrapper<T>> : UserDataStorageTypes<T *, T *> {
+    using is_ref = void;
 };
-
-template <typename T> struct UserDataTraitsBase<std::unique_ptr<T>> {
-    using ValueType = T;
-    using PtrType = ValueType *;
-    using HolderType = std::unique_ptr<ValueType>;
-    static constexpr auto type = UserDataType::ptr;
+template <typename T> struct UserDataStorageTraits<std::unique_ptr<T>> : UserDataStorageTypes<std::unique_ptr<T>, T *> {
+    using has_release = void;
 };
-
-template <> struct UserDataTraitsBase<std::nullptr_t> {
-    using ValueType = nullptr_t;
-    using PtrType = nullptr_t;
-    using HolderType = nullptr_t;
-    static constexpr auto type = UserDataType::null;
+template <> struct UserDataStorageTraits<std::nullptr_t> : UserDataStorageTypes<std::nullptr_t, std::nullptr_t> {
+    using is_null = void;
 };
 
 //! Manager for user data passed to C callbacks.
@@ -346,39 +329,44 @@ template <> struct UserDataTraitsBase<std::nullptr_t> {
 //! Reference wrappers are stored as raw pointers, avoiding unnecessary copying
 //! or moving of the underlying data. Types representing null pointers are
 //! explicitly marked to indicate the absence of user data.
-template <typename T> struct UserDataTraits : private UserDataTraitsBase<std::remove_cvref_t<T>> {
-    using BaseType = UserDataTraitsBase<std::remove_cvref_t<T>>;
-    using ValueType = BaseType::ValueType;
-    using HolderType = BaseType::HolderType;
-    using PtrType = BaseType::PtrType;
-    using BaseType::type;
+template <typename T> struct UserDataTraits {
+    using StorageTraits = UserDataStorageTraits<std::remove_cvref_t<T>>;
 
-    static constexpr bool has_data = type != UserDataType::null;
+    //! True if there is (potentially null) user data.
+    static constexpr auto has_data = !requires { typename StorageTraits::is_null; };
 
     //! Create the holder from the given data.
-    template <typename U> static auto create(U &&data) -> HolderType {
-        if constexpr (type == UserDataType::val) {
-            return std::make_unique<ValueType>(std::forward<U>(data));
-        } else if constexpr (type == UserDataType::ref) {
+    template <typename U> static auto create(U &&data) -> StorageTraits::HolderType {
+        if constexpr (requires { typename StorageTraits::ValueType; }) {
+            return std::make_unique<typename StorageTraits::ValueType>(std::forward<U>(data));
+        } else if constexpr (requires { typename StorageTraits::is_ref; }) {
             return &data.get();
         } else {
             return data;
         }
     }
+    //! Check whether the holder contains a value.
+    static auto has_value(StorageTraits::HolderType &holder) -> bool {
+        if constexpr (requires { typename StorageTraits::has_release; }) {
+            return holder.get() != nullptr;
+        } else {
+            return holder != nullptr;
+        }
+    }
     //! Release the pointer to the value from the holder.
-    static auto release(HolderType &holder) -> PtrType {
-        if constexpr (type != UserDataType::ref && type != UserDataType::null) {
+    static auto release(StorageTraits::HolderType &holder) -> StorageTraits::PtrType {
+        if constexpr (requires { typename StorageTraits::has_release; }) {
             return holder.release();
         } else {
             return holder;
         }
     }
     //! Cast the void pointer to the pointer type.
-    static auto cast(void *ptr) -> PtrType { return static_cast<PtrType>(ptr); }
+    static auto cast(void *ptr) -> StorageTraits::PtrType { return static_cast<StorageTraits::PtrType>(ptr); }
     //! Free the value pointed to by the void pointer.
     static void free(void *ptr) {
-        if constexpr (type != UserDataType::ref && type != UserDataType::null) {
-            std::default_delete<ValueType>{}(cast(ptr));
+        if constexpr (requires { typename StorageTraits::has_release; }) {
+            typename StorageTraits::HolderType{cast(ptr)};
         }
     }
 };
