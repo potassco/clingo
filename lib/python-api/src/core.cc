@@ -1,6 +1,8 @@
 #include "core.hh"
 #include "util.hh"
 
+#include <pybind11/native_enum.h>
+
 #include <sstream>
 
 namespace PyClingo {
@@ -298,14 +300,15 @@ Returns:
     A tuple (major, minor, revision) representing the Clingo version.
 )"_d);
 
-    py::enum_<clingo_log_level_e>(core, "LogLevel", "The available log levels.")
+    py::native_enum<clingo_log_level_e>(core, "LogLevel", "enum.IntEnum", "The available log levels.")
         .value("Trace", clingo_log_level_trace, R"(Report trace messages (includes debug level).)")
         .value("Debug", clingo_log_level_debug, R"(Report debug messages (includes info level).)")
         .value("Info", clingo_log_level_info, R"(Report info messages (includes warning level).)")
         .value("Warn", clingo_log_level_warn, R"(Report warning messages (includes error level).)")
-        .value("Error", clingo_log_level_error, R"(Report error messages.)");
+        .value("Error", clingo_log_level_error, R"(Report error messages.)")
+        .finalize();
 
-    py::enum_<clingo_message_e>(core, "MessageType", "Message categories emitted by the logger.")
+    py::native_enum<clingo_message_e>(core, "MessageType", "enum.IntEnum", "Message categories emitted by the logger.")
         .value("Trace", clingo_message_trace, R"(A trace message.)")
         .value("Debug", clingo_message_debug, R"(A debug message.)")
         .value("Info", clingo_message_info, R"(A generic info message.)")
@@ -316,7 +319,8 @@ Returns:
         .value("GlobalVariable", clingo_message_global_variable,
                R"(An info message about a global variable in the tuple of an aggregate.)")
         .value("Warn", clingo_message_warn, R"(A warning message.)")
-        .value("Error", clingo_message_error, R"(An error message.)");
+        .value("Error", clingo_message_error, R"(An error message.)")
+        .finalize();
 
     py::class_<Library>(core, "Library", py::custom_type_setup(&Library::setup),
                         R"(

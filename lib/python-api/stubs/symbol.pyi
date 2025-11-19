@@ -27,6 +27,7 @@ p(3)
 
 from __future__ import annotations
 
+import enum
 import typing
 
 import clingo.core
@@ -106,23 +107,9 @@ def parse_term(lib: clingo.core.Library, string: str) -> Symbol:
 Infimum: Symbol  # value = Infimum
 Supremum: Symbol  # value = Supremum
 
-class SymbolType:
+class SymbolType(enum.IntEnum):
     """
     Enumeration of symbols types.
-
-    Members:
-
-      Number : A numeric symbol, e.g., `1`.
-
-      Infimum : The `#inf` symbol.
-
-      Supremum : The `#sup` symbol.
-
-      String : A string symbol, e.g., `"a"`.
-
-      Tuple : "A tuple symbol `(1,a)`."
-
-      Function : A function symbol, e.g., `c`, `-c`, or `f(1,"a")`.
     """
 
     Function: typing.ClassVar[SymbolType]  # value = <SymbolType.Function: 5>
@@ -131,25 +118,12 @@ class SymbolType:
     String: typing.ClassVar[SymbolType]  # value = <SymbolType.String: 3>
     Supremum: typing.ClassVar[SymbolType]  # value = <SymbolType.Supremum: 1>
     Tuple: typing.ClassVar[SymbolType]  # value = <SymbolType.Tuple: 4>
-    __members__: typing.ClassVar[
-        dict[str, SymbolType]
-    ]  # value = {'Number': <SymbolType.Number: 0>, 'Infimum': <SymbolType.Infimum: 2>, 'Supremum': <SymbolType.Supremum: 1>, 'String': <SymbolType.String: 3>, 'Tuple': <SymbolType.Tuple: 4>, 'Function': <SymbolType.Function: 5>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
 class Symbol:
     """
@@ -183,7 +157,9 @@ class Symbol:
     def __repr__(self) -> str: ...
     def __str__(self) -> str: ...
     @typing.overload
-    def match(self, name: str, arity: int = 0, is_positive: bool = True) -> bool:
+    def match(
+        self, name: str, arity: int | typing.SupportsIndex = 0, is_positive: bool = True
+    ) -> bool:
         """
         Check if this is a function symbol with the given signature.
 
@@ -197,7 +173,7 @@ class Symbol:
         """
 
     @typing.overload
-    def match(self, arity: int = 0) -> bool:
+    def match(self, arity: int | typing.SupportsIndex = 0) -> bool:
         """
         Check if this is a tuple symbol with the given arity.
 

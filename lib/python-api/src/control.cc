@@ -7,6 +7,8 @@
 #include <clingo/profile.h>
 #include <clingo/solve.h>
 
+#include <pybind11/native_enum.h>
+
 #include <span>
 
 namespace PyClingo {
@@ -428,11 +430,12 @@ SAT
 
     make_mapping(py::class_<ConstMap>(control, "_ConstMap", R"(The map from constants defined by #const directives.)"));
 
-    py::enum_<clingo_mode_e>(control, "ControlMode", "Available control modes.")
+    py::native_enum<clingo_mode_e>(control, "ControlMode", "enum.IntEnum", "Available control modes.")
         .value("Parse", clingo_mode_parse, R"(Parse only.)")
         .value("Rewrite", clingo_mode_rewrite, R"(Parse and rewrite.)")
         .value("Ground", clingo_mode_ground, R"(Parse, rewrite, and ground.)")
-        .value("Solve", clingo_mode_solve, R"(Parse, rewrite, ground, and solve.)");
+        .value("Solve", clingo_mode_solve, R"(Parse, rewrite, ground, and solve.)")
+        .finalize();
 
     py::class_<Control>(control, "Control", py::custom_type_setup(&Control::setup),
                         R"(A control object for grounding and solving.)")

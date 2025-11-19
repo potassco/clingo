@@ -41,45 +41,25 @@ option only basic stats are reported.
 
 from __future__ import annotations
 
+import enum
 import typing
 
 __all__ = ["Stats", "StatsArray", "StatsMap", "StatsType"]
 
-class StatsType:
+class StatsType(enum.IntEnum):
     """
     The type of a stats object.
-
-    Members:
-
-      Map : Indicate a map of stats.
-
-      Array : Indicate an array of stats.
-
-      Value : Indicate a value of stats.
     """
 
     Array: typing.ClassVar[StatsType]  # value = <StatsType.Array: 1>
     Map: typing.ClassVar[StatsType]  # value = <StatsType.Map: 2>
     Value: typing.ClassVar[StatsType]  # value = <StatsType.Value: 0>
-    __members__: typing.ClassVar[
-        dict[str, StatsType]
-    ]  # value = {'Map': <StatsType.Map: 2>, 'Array': <StatsType.Array: 1>, 'Value': <StatsType.Value: 0>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
 class Stats:
     """
@@ -139,7 +119,7 @@ class Stats:
         """
 
     @value.setter
-    def value(self, arg1: typing.SupportsFloat) -> None: ...
+    def value(self, arg1: typing.SupportsFloat | typing.SupportsIndex) -> None: ...
 
 class StatsArray:
     """
@@ -155,7 +135,7 @@ class StatsArray:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __getitem__(self, arg0: int) -> Stats:
+    def __getitem__(self, arg0: int | typing.SupportsIndex) -> Stats:
         """
         Get the element at the given index.
         """
@@ -165,7 +145,7 @@ class StatsArray:
         Get the length of the array.
         """
 
-    def __setitem__(self, arg0: int, arg1: typing.Any) -> None:
+    def __setitem__(self, arg0: int | typing.SupportsIndex, arg1: typing.Any) -> None:
         """
         Set the element at the given index to the given value.
         """

@@ -1,6 +1,8 @@
 #include "symbol.hh"
 #include "util.hh"
 
+#include <pybind11/native_enum.h>
+
 #include <sstream>
 
 namespace PyClingo {
@@ -276,13 +278,14 @@ p(3)
 ```
 )"_d);
 
-    py::enum_<clingo_symbol_type_e>(symbol, "SymbolType", R"(Enumeration of symbols types.)")
+    py::native_enum<clingo_symbol_type_e>(symbol, "SymbolType", "enum.IntEnum", R"(Enumeration of symbols types.)")
         .value("Number", clingo_symbol_type_number, R"(A numeric symbol, e.g., `1`.)")
         .value("Infimum", clingo_symbol_type_infimum, R"(The `#inf` symbol.)")
         .value("Supremum", clingo_symbol_type_supremum, R"(The `#sup` symbol.)")
         .value("String", clingo_symbol_type_string, R"(A string symbol, e.g., `"a"`.)")
         .value("Tuple", clingo_symbol_type_tuple, R"("A tuple symbol `(1,a)`.")")
-        .value("Function", clingo_symbol_type_function, R"(A function symbol, e.g., `c`, `-c`, or `f(1,"a")`.)");
+        .value("Function", clingo_symbol_type_function, R"(A function symbol, e.g., `c`, `-c`, or `f(1,"a")`.)")
+        .finalize();
 
     make_comparable(py::class_<Symbol>(symbol, "Symbol", R"(
 Represents a clingo symbol.

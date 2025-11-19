@@ -109,17 +109,19 @@ class Rewriter:
         pattern = r"(\w+):\s*typing\.ClassVar\[(.*?)\].*?#\s*value\s*=\s*<.*?\.\w+:\s*(-?\d+)>"
         matches = re.findall(pattern, class_def, re.DOTALL)
 
+        def repl(match):
+            member, _, value = match.groups()
+            return f"{member} = {value}"
+
+        class_def = re.sub(pattern, repl, class_def)
+        class_def = re.sub(r"@classmethod[\s\S]*", "", class_def)
+
         repr_impl = ""
         # Generate assignments
-        assignments = []
-        for member, class_name, value in matches:
-            assignment = f"{class_name}.{member} = {class_name}({value})"
-            assignments.append(assignment)
+        for member, class_name, _value in matches:
             repr_impl += f'if self.{member} is self: return "{class_name}.{member}"\n'
 
-        return (
-            self.patch_repr(class_def, repr_impl) + "\n" + "\n".join(assignments) + "\n"
-        )
+        return self.patch_repr(class_def, repr_impl) + "\n"
 
     def enums_to_top(self, content: str):
         """

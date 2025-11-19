@@ -35,6 +35,8 @@ False
 
 from __future__ import annotations
 
+import collections.abc
+import enum
 import typing
 
 import clingo.symbol
@@ -52,23 +54,9 @@ __all__ = [
     "TheoryTermType",
 ]
 
-class TheoryTermType:
+class TheoryTermType(enum.IntEnum):
     """
     Enumeration of theory term types.
-
-    Members:
-
-      Number : For numeric theory terms.
-
-      Symbol : For symbolic theory terms (simple strings).
-
-      Tuple : For tuple theory terms.
-
-      List : For list theory term.
-
-      Set : For set theory terms.
-
-      Function : For function theory terms.
     """
 
     Function: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Function: 3>
@@ -77,25 +65,12 @@ class TheoryTermType:
     Set: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Set: 2>
     Symbol: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Symbol: 5>
     Tuple: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Tuple: 0>
-    __members__: typing.ClassVar[
-        dict[str, TheoryTermType]
-    ]  # value = {'Number': <TheoryTermType.Number: 4>, 'Symbol': <TheoryTermType.Symbol: 5>, 'Tuple': <TheoryTermType.Tuple: 0>, 'List': <TheoryTermType.List: 1>, 'Set': <TheoryTermType.Set: 2>, 'Function': <TheoryTermType.Function: 3>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
 class Atom:
     """
@@ -142,7 +117,7 @@ class AtomBase:
         Get the value for the given key.
         """
 
-    def __iter__(self) -> typing.Iterator[clingo.symbol.Symbol]:
+    def __iter__(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
         """
         Get an iterator over the keys in the map.
         """
@@ -153,23 +128,23 @@ class AtomBase:
         """
 
     def get(
-        self, key: clingo.symbol.Symbol, default: Atom | None = None
-    ) -> Atom | None:
+        self, key: clingo.symbol.Symbol, default: clingo.base.Atom | None = None
+    ) -> clingo.base.Atom | None:
         """
         Get the value for the given key or the default if absent.
         """
 
-    def items(self) -> typing.Iterator[tuple[clingo.symbol.Symbol, Atom]]:
+    def items(self) -> collections.abc.Iterator[tuple[clingo.symbol.Symbol, Atom]]:
         """
         Get an iterator over the items in the map.
         """
 
-    def keys(self) -> typing.Iterator[clingo.symbol.Symbol]:
+    def keys(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
         """
         Get an iterator over the keys in the map.
         """
 
-    def values(self) -> typing.Iterator[Atom]:
+    def values(self) -> collections.abc.Iterator[Atom]:
         """
         Get an iterator over the values in the map.
         """
@@ -191,13 +166,13 @@ class Base:
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     @typing.overload
-    def __contains__(self, key: tuple[str, int, bool]) -> bool:
+    def __contains__(self, key: tuple[str, int | typing.SupportsIndex, bool]) -> bool:
         """
         Check if the map contains the given key.
         """
 
     @typing.overload
-    def __contains__(self, signature: tuple[str, int]) -> bool:
+    def __contains__(self, signature: tuple[str, int | typing.SupportsIndex]) -> bool:
         """
         Check if there is an atom base with the given (short) signature.
         """
@@ -209,7 +184,9 @@ class Base:
         """
 
     @typing.overload
-    def __getitem__(self, key: tuple[str, int, bool]) -> AtomBase:
+    def __getitem__(
+        self, key: tuple[str, int | typing.SupportsIndex, bool]
+    ) -> AtomBase:
         """
         Get the value for the given key.
         """
@@ -221,14 +198,16 @@ class Base:
         """
 
     @typing.overload
-    def __getitem__(self, signature: tuple[str, int]) -> AtomBase:
+    def __getitem__(
+        self, signature: tuple[str, int | typing.SupportsIndex]
+    ) -> AtomBase:
         """
         Get the atom base with the given (short) signature.
 
         This function provides a shortcut assuming the sign is positive.
         """
 
-    def __iter__(self) -> typing.Iterator[tuple[str, int, bool]]:
+    def __iter__(self) -> collections.abc.Iterator[tuple[str, int, bool]]:
         """
         Get an iterator over the keys in the map.
         """
@@ -239,13 +218,15 @@ class Base:
         """
 
     def get(
-        self, key: tuple[str, int, bool], default: AtomBase | None = None
-    ) -> AtomBase | None:
+        self,
+        key: tuple[str, int | typing.SupportsIndex, bool],
+        default: clingo.base.AtomBase | None = None,
+    ) -> clingo.base.AtomBase | None:
         """
         Get the value for the given key or the default if absent.
         """
 
-    def is_current(self, literal: int) -> bool:
+    def is_current(self, literal: int | typing.SupportsIndex) -> bool:
         """
         Check whether a literal has been introduced in the current step.
 
@@ -258,7 +239,7 @@ class Base:
             Whether the literal is subject to projection.
         """
 
-    def is_external(self, literal: int) -> bool:
+    def is_external(self, literal: int | typing.SupportsIndex) -> bool:
         """
         Check whether the given program literal corresponds to an external.
 
@@ -268,7 +249,7 @@ class Base:
             Whether the literal is external.
         """
 
-    def is_fact(self, literal: int) -> bool:
+    def is_fact(self, literal: int | typing.SupportsIndex) -> bool:
         """
         Check whether the literal is a fact.
 
@@ -278,7 +259,7 @@ class Base:
             Whether the literal is a fact.
         """
 
-    def is_projected(self, literal: int) -> bool:
+    def is_projected(self, literal: int | typing.SupportsIndex) -> bool:
         """
         Check whether the literal is part of a `#project` directive.
 
@@ -288,7 +269,7 @@ class Base:
             Whether the literal is subject to projection.
         """
 
-    def is_shown(self, literal: int) -> bool:
+    def is_shown(self, literal: int | typing.SupportsIndex) -> bool:
         """
         Check whether the literal is shown via a `#show` directive.
 
@@ -298,17 +279,17 @@ class Base:
             Whether the literal is shown.
         """
 
-    def items(self) -> typing.Iterator[tuple[tuple[str, int, bool], AtomBase]]:
+    def items(self) -> collections.abc.Iterator[tuple[tuple[str, int, bool], AtomBase]]:
         """
         Get an iterator over the items in the map.
         """
 
-    def keys(self) -> typing.Iterator[tuple[str, int, bool]]:
+    def keys(self) -> collections.abc.Iterator[tuple[str, int, bool]]:
         """
         Get an iterator over the keys in the map.
         """
 
-    def values(self) -> typing.Iterator[AtomBase]:
+    def values(self) -> collections.abc.Iterator[AtomBase]:
         """
         Get an iterator over the values in the map.
         """
@@ -372,7 +353,7 @@ class TermBase:
         Get the value for the given key.
         """
 
-    def __iter__(self) -> typing.Iterator[clingo.symbol.Symbol]:
+    def __iter__(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
         """
         Get an iterator over the keys in the map.
         """
@@ -383,23 +364,23 @@ class TermBase:
         """
 
     def get(
-        self, key: clingo.symbol.Symbol, default: Term | None = None
-    ) -> Term | None:
+        self, key: clingo.symbol.Symbol, default: clingo.base.Term | None = None
+    ) -> clingo.base.Term | None:
         """
         Get the value for the given key or the default if absent.
         """
 
-    def items(self) -> typing.Iterator[tuple[clingo.symbol.Symbol, Term]]:
+    def items(self) -> collections.abc.Iterator[tuple[clingo.symbol.Symbol, Term]]:
         """
         Get an iterator over the items in the map.
         """
 
-    def keys(self) -> typing.Iterator[clingo.symbol.Symbol]:
+    def keys(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
         """
         Get an iterator over the keys in the map.
         """
 
-    def values(self) -> typing.Iterator[Term]:
+    def values(self) -> collections.abc.Iterator[Term]:
         """
         Get an iterator over the values in the map.
         """
@@ -461,12 +442,12 @@ class TheoryBase:
         Check whether the sequence contains the given value.
         """
 
-    def __getitem__(self, index: int) -> TheoryAtom:
+    def __getitem__(self, index: int | typing.SupportsIndex) -> TheoryAtom:
         """
         Get the value at the given index.
         """
 
-    def __iter__(self) -> typing.Iterator[TheoryAtom]:
+    def __iter__(self) -> collections.abc.Iterator[TheoryAtom]:
         """
         Get an iterator for the sequence.
         """
@@ -476,7 +457,7 @@ class TheoryBase:
         Get the size of the sequence.
         """
 
-    def __reversed__(self) -> typing.Iterator[TheoryAtom]:
+    def __reversed__(self) -> collections.abc.Iterator[TheoryAtom]:
         """
         Get a reverse iterator for the sequence.
         """

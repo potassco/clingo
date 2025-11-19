@@ -6,6 +6,7 @@
 #include "util.hh"
 
 #include <pybind11/functional.h>
+#include <pybind11/native_enum.h>
 #include <pybind11/operators.h>
 
 #include <algorithm>
@@ -6823,39 +6824,46 @@ for stm in stms:
 
 This can be used to auto-generate most of the binding.)doc");
 
-    auto py_projection_mode =
-        py::enum_<ProjectionMode>(ast, "ProjectionMode", R"doc(Available projection modes.)doc")
-            .value("Disabled", ProjectionMode::Disabled, R"doc(Do not project.)doc")
-            .value("Anonymous", ProjectionMode::Anonymous, R"doc(Only project anonymous variables.)doc")
-            .value("Pure", ProjectionMode::Pure, R"doc(Project pure variables.)doc");
+    py::native_enum<ProjectionMode>(ast, "ProjectionMode", "enum.IntEnum", R"doc(Available projection modes.)doc")
+        .value("Disabled", ProjectionMode::Disabled, R"doc(Do not project.)doc")
+        .value("Anonymous", ProjectionMode::Anonymous, R"doc(Only project anonymous variables.)doc")
+        .value("Pure", ProjectionMode::Pure, R"doc(Project pure variables.)doc")
+        .finalize();
 
-    auto py_unary_operator = py::enum_<UnaryOperator>(ast, "UnaryOperator", R"doc(Available unary operators.)doc");
+    auto py_unary_operator =
+        py::native_enum<UnaryOperator>(ast, "UnaryOperator", "enum.IntEnum", R"doc(Available unary operators.)doc");
 
-    auto py_binary_operator = py::enum_<BinaryOperator>(ast, "BinaryOperator", R"doc(Available binary operators.)doc");
+    auto py_binary_operator =
+        py::native_enum<BinaryOperator>(ast, "BinaryOperator", "enum.IntEnum", R"doc(Available binary operators.)doc");
 
-    auto py_sign = py::enum_<Sign>(ast, "Sign", R"doc(The available signs.)doc");
+    auto py_sign = py::native_enum<Sign>(ast, "Sign", "enum.IntEnum", R"doc(The available signs.)doc");
 
-    auto py_relation = py::enum_<Relation>(ast, "Relation", R"doc(Available relation symbols.)doc");
+    auto py_relation =
+        py::native_enum<Relation>(ast, "Relation", "enum.IntEnum", R"doc(Available relation symbols.)doc");
 
-    auto py_aggregate_function =
-        py::enum_<AggregateFunction>(ast, "AggregateFunction", R"doc(Enumeration of aggregate functions.)doc");
+    auto py_aggregate_function = py::native_enum<AggregateFunction>(ast, "AggregateFunction", "enum.IntEnum",
+                                                                    R"doc(Enumeration of aggregate functions.)doc");
 
-    auto py_theory_operator_type =
-        py::enum_<TheoryOperatorType>(ast, "TheoryOperatorType", R"doc(Enumeration of theory operators.)doc");
+    auto py_theory_operator_type = py::native_enum<TheoryOperatorType>(ast, "TheoryOperatorType", "enum.IntEnum",
+                                                                       R"doc(Enumeration of theory operators.)doc");
 
-    auto py_theory_tuple_type =
-        py::enum_<TheoryTupleType>(ast, "TheoryTupleType", R"doc(Enumeration of theory tuple types.)doc");
+    auto py_theory_tuple_type = py::native_enum<TheoryTupleType>(ast, "TheoryTupleType", "enum.IntEnum",
+                                                                 R"doc(Enumeration of theory tuple types.)doc");
 
-    auto py_theory_atom_type =
-        py::enum_<TheoryAtomType>(ast, "TheoryAtomType", R"doc(Enumeration of the theory atom types.)doc");
+    auto py_theory_atom_type = py::native_enum<TheoryAtomType>(ast, "TheoryAtomType", "enum.IntEnum",
+                                                               R"doc(Enumeration of the theory atom types.)doc");
 
-    auto py_optimize_type = py::enum_<OptimizeType>(ast, "OptimizeType", R"doc(Enumeration of optimization types.)doc");
+    auto py_optimize_type = py::native_enum<OptimizeType>(ast, "OptimizeType", "enum.IntEnum",
+                                                          R"doc(Enumeration of optimization types.)doc");
 
-    auto py_include_type = py::enum_<IncludeType>(ast, "IncludeType", R"doc(Enumeration of include types.)doc");
+    auto py_include_type =
+        py::native_enum<IncludeType>(ast, "IncludeType", "enum.IntEnum", R"doc(Enumeration of include types.)doc");
 
-    auto py_precedence = py::enum_<Precedence>(ast, "Precedence", R"doc(Enumeration of precedences values.)doc");
+    auto py_precedence =
+        py::native_enum<Precedence>(ast, "Precedence", "enum.IntEnum", R"doc(Enumeration of precedences values.)doc");
 
-    auto py_comment_type = py::enum_<CommentType>(ast, "CommentType", R"doc(Enumeration of comment types.)doc");
+    auto py_comment_type =
+        py::native_enum<CommentType>(ast, "CommentType", "enum.IntEnum", R"doc(Enumeration of comment types.)doc");
 
     auto py_format_field_literal =
         py::class_<FormatFieldLiteral>(ast, "FormatFieldLiteral", R"doc(A literal part of a format string.)doc");
@@ -7032,7 +7040,8 @@ term.)doc");
     auto py_statement_comment = py::class_<StatementComment>(ast, "StatementComment", R"doc(A comment.)doc");
 
     py_unary_operator.value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
-        .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
+        .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc")
+        .finalize();
 
     py_binary_operator.value("And", BinaryOperator::And, R"doc(Operator `&`.)doc")
         .value("Division", BinaryOperator::Division, R"doc(Operator `/`.)doc")
@@ -7042,49 +7051,60 @@ term.)doc");
         .value("Or", BinaryOperator::Or, R"doc(Operator `|`.)doc")
         .value("Plus", BinaryOperator::Plus, R"doc(Operator `+`.)doc")
         .value("Power", BinaryOperator::Power, R"doc(Operator `**`.)doc")
-        .value("Xor", BinaryOperator::Xor, R"doc(Operator `^`.)doc");
+        .value("Xor", BinaryOperator::Xor, R"doc(Operator `^`.)doc")
+        .finalize();
 
     py_sign.value("NoSign", Sign::NoSign, R"doc(No sign.)doc")
         .value("Single", Sign::Single, R"doc(One sign.)doc")
-        .value("Double", Sign::Double, R"doc(Two signs.)doc");
+        .value("Double", Sign::Double, R"doc(Two signs.)doc")
+        .finalize();
 
     py_relation.value("Equal", Relation::Equal, R"doc(The equal to relation.)doc")
         .value("NotEqual", Relation::NotEqual, R"doc(The not equal to relation.)doc")
         .value("Less", Relation::Less, R"doc(The less than relation.)doc")
         .value("LessEqual", Relation::LessEqual, R"doc(The less than or equal to relation.)doc")
         .value("Greater", Relation::Greater, R"doc(The greater than relation.)doc")
-        .value("GreaterEqual", Relation::GreaterEqual, R"doc(The greater than or equal to relation.)doc");
+        .value("GreaterEqual", Relation::GreaterEqual, R"doc(The greater than or equal to relation.)doc")
+        .finalize();
 
     py_aggregate_function.value("Count", AggregateFunction::Count, R"doc(Aggregate function `#count`.)doc")
         .value("Sum", AggregateFunction::Sum, R"doc(Aggregate function `#sum`.)doc")
         .value("Sump", AggregateFunction::Sump, R"doc(Aggregate function `#sum+`)doc")
         .value("Min", AggregateFunction::Min, R"doc(Aggregate function `#min`.)doc")
-        .value("Max", AggregateFunction::Max, R"doc(Aggregate function `#max`.)doc");
+        .value("Max", AggregateFunction::Max, R"doc(Aggregate function `#max`.)doc")
+        .finalize();
 
     py_theory_operator_type.value("Unary", TheoryOperatorType::Unary, R"doc(An unary theory operator.)doc")
         .value("BinaryLeft", TheoryOperatorType::BinaryLeft, R"doc(A left associative binary operator.)doc")
-        .value("BinaryRight", TheoryOperatorType::BinaryRight, R"doc(A right associative binary operator.)doc");
+        .value("BinaryRight", TheoryOperatorType::BinaryRight, R"doc(A right associative binary operator.)doc")
+        .finalize();
 
     py_theory_tuple_type.value("Tuple", TheoryTupleType::Tuple, R"doc(Theory tuples "(t1,...,tn)".)doc")
         .value("Set", TheoryTupleType::Set, R"doc(Theory sets "{t1,...,tn}".)doc")
-        .value("List", TheoryTupleType::List, R"doc(Theory lists "[t1,...,tn]".)doc");
+        .value("List", TheoryTupleType::List, R"doc(Theory lists "[t1,...,tn]".)doc")
+        .finalize();
 
     py_theory_atom_type.value("Head", TheoryAtomType::Head, R"doc(For theory atoms that can appear in the head.)doc")
         .value("Body", TheoryAtomType::Body, R"doc(For theory atoms that can appear in the body.)doc")
         .value("Any", TheoryAtomType::Any, R"doc(For theory atoms that can appear in both head and body.)doc")
-        .value("Directive", TheoryAtomType::Directive, R"doc(For theory atoms that must not have a body.)doc");
+        .value("Directive", TheoryAtomType::Directive, R"doc(For theory atoms that must not have a body.)doc")
+        .finalize();
 
     py_optimize_type.value("Minimize", OptimizeType::Minimize, R"doc(For `#minimize` statements.)doc")
-        .value("Maximize", OptimizeType::Maximize, R"doc(For `#maximize` statements.)doc");
+        .value("Maximize", OptimizeType::Maximize, R"doc(For `#maximize` statements.)doc")
+        .finalize();
 
     py_include_type.value("System", IncludeType::System, R"doc(For file includes.)doc")
-        .value("Inbuild", IncludeType::Inbuild, R"doc(For inbuild includes.)doc");
+        .value("Inbuild", IncludeType::Inbuild, R"doc(For inbuild includes.)doc")
+        .finalize();
 
     py_precedence.value("Default", Precedence::Default, R"doc(The default precedence.)doc")
-        .value("Override", Precedence::Override, R"doc(Override values with default precedence.)doc");
+        .value("Override", Precedence::Override, R"doc(Override values with default precedence.)doc")
+        .finalize();
 
     py_comment_type.value("Line", CommentType::Line, R"doc(For line comments.)doc")
-        .value("Block", CommentType::Block, R"doc(For block comments.)doc");
+        .value("Block", CommentType::Block, R"doc(For block comments.)doc")
+        .finalize();
 
     make_comparable_base<FormatField>(py_format_field_literal)
         .def(py::init(&FormatFieldLiteral::construct), py::arg("lib"), py::arg("location"), py::arg("value"),

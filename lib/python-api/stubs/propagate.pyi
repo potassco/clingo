@@ -57,6 +57,8 @@ SAT
 
 from __future__ import annotations
 
+import collections.abc
+import enum
 import typing
 
 import clingo.base
@@ -73,89 +75,39 @@ __all__ = [
     "WeightConstraintType",
 ]
 
-class CheckMode:
+class CheckMode(enum.IntEnum):
     """
     Enumeration of check modes.
-
-    Members:
-
-      Off : Do not call `Propagator.check()` at all.
-
-      Fixpoint : Call `Propagator.check()` on propagation fixpoints.
-
-      Total : Call `Propagator.check()` on total assignments.
-
-      Both : Call `Propagator.check()` on propagation fixpoints and total assignments.
     """
 
     Both: typing.ClassVar[CheckMode]  # value = <CheckMode.Both: 3>
     Fixpoint: typing.ClassVar[CheckMode]  # value = <CheckMode.Fixpoint: 2>
     Off: typing.ClassVar[CheckMode]  # value = <CheckMode.Off: 0>
     Total: typing.ClassVar[CheckMode]  # value = <CheckMode.Total: 1>
-    __members__: typing.ClassVar[
-        dict[str, CheckMode]
-    ]  # value = {'Off': <CheckMode.Off: 0>, 'Fixpoint': <CheckMode.Fixpoint: 2>, 'Total': <CheckMode.Total: 1>, 'Both': <CheckMode.Both: 3>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
-class UndoMode:
+class UndoMode(enum.IntEnum):
     """
     Enumeration of undo modes.
-
-    Members:
-
-      Default : Call `Propagator.undo()` for decision levels with non-emty changes.
-
-      Always : Additionally call `Propagator.undo()` when check has been called.
     """
 
     Always: typing.ClassVar[UndoMode]  # value = <UndoMode.Always: 1>
     Default: typing.ClassVar[UndoMode]  # value = <UndoMode.Default: 0>
-    __members__: typing.ClassVar[
-        dict[str, UndoMode]
-    ]  # value = {'Default': <UndoMode.Default: 0>, 'Always': <UndoMode.Always: 1>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
-class WeightConstraintType:
+class WeightConstraintType(enum.IntEnum):
     """
     Enumeration of weight constraint types.
-
-    Members:
-
-      Equivalence : The weight constraint is equal to its literal.
-
-      LeftImplication : The weight constraint implies its literal.
-
-      RightImplication : The literal implies the weight constraint.
     """
 
     Equivalence: typing.ClassVar[
@@ -167,25 +119,12 @@ class WeightConstraintType:
     RightImplication: typing.ClassVar[
         WeightConstraintType
     ]  # value = <WeightConstraintType.RightImplication: 1>
-    __members__: typing.ClassVar[
-        dict[str, WeightConstraintType]
-    ]  # value = {'Equivalence': <WeightConstraintType.Equivalence: 0>, 'LeftImplication': <WeightConstraintType.LeftImplication: -1>, 'RightImplication': <WeightConstraintType.RightImplication: 1>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
 class Assignment:
     """
@@ -208,17 +147,17 @@ class Assignment:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __contains__(self, value: int) -> bool:
+    def __contains__(self, value: int | typing.SupportsIndex) -> bool:
         """
         Check whether the sequence contains the given value.
         """
 
-    def __getitem__(self, index: int) -> int:
+    def __getitem__(self, index: int | typing.SupportsIndex) -> int:
         """
         Get the value at the given index.
         """
 
-    def __iter__(self) -> typing.Iterator[int]:
+    def __iter__(self) -> collections.abc.Iterator[int]:
         """
         Get an iterator for the sequence.
         """
@@ -228,17 +167,17 @@ class Assignment:
         Get the size of the sequence.
         """
 
-    def __reversed__(self) -> typing.Iterator[int]:
+    def __reversed__(self) -> collections.abc.Iterator[int]:
         """
         Get a reverse iterator for the sequence.
         """
 
-    def count(self, value: int) -> int:
+    def count(self, value: int | typing.SupportsIndex) -> int:
         """
         Count how often the given value occurs in the sequence.
         """
 
-    def decision(self, level: int) -> int:
+    def decision(self, level: int | typing.SupportsIndex) -> int:
         """
         Returns the decision literal of the given level.
 
@@ -251,12 +190,12 @@ class Assignment:
             The decision literal.
         """
 
-    def index(self, value: int) -> int:
+    def index(self, value: int | typing.SupportsIndex) -> int:
         """
         Get the index of the given value in the sequence.
         """
 
-    def is_false(self, literal: int) -> bool:
+    def is_false(self, literal: int | typing.SupportsIndex) -> bool:
         """
         Check if the given literal is false.
 
@@ -266,7 +205,7 @@ class Assignment:
             Whether the literal is false.
         """
 
-    def is_fixed(self, literal: int) -> bool:
+    def is_fixed(self, literal: int | typing.SupportsIndex) -> bool:
         """
         Checks if the truth value of the literal is fixed.
 
@@ -276,7 +215,7 @@ class Assignment:
             Whether the literal is fixed.
         """
 
-    def is_free(self, literal: int) -> bool:
+    def is_free(self, literal: int | typing.SupportsIndex) -> bool:
         """
         Check if the given literal is free.
 
@@ -286,7 +225,7 @@ class Assignment:
             Whether the literal is free.
         """
 
-    def is_true(self, literal: int) -> bool:
+    def is_true(self, literal: int | typing.SupportsIndex) -> bool:
         """
         Check if the given literal is true.
 
@@ -296,7 +235,7 @@ class Assignment:
             Whether the literal is true.
         """
 
-    def level(self, literal: int) -> int:
+    def level(self, literal: int | typing.SupportsIndex) -> int:
         """
         Returns the decision level of the given literal.
 
@@ -309,7 +248,7 @@ class Assignment:
             The decision level of the literal.
         """
 
-    def value(self, literal: int) -> bool | None:
+    def value(self, literal: int | typing.SupportsIndex) -> bool | None:
         """
         Returns the truth value of the literal, or None if unassigned.
 
@@ -372,7 +311,10 @@ class PropagateControl:
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def add_clause(
-        self, literals: typing.Sequence[int], tag: bool = False, lock: bool = False
+        self,
+        literals: typing.Sequence[int | typing.SupportsIndex],
+        tag: bool = False,
+        lock: bool = False,
     ) -> bool:
         """
         Add a clause to the solver.
@@ -410,7 +352,10 @@ class PropagateControl:
         """
 
     def add_nogood(
-        self, literals: typing.Sequence[int], tag: bool = False, lock: bool = False
+        self,
+        literals: typing.Sequence[int | typing.SupportsIndex],
+        tag: bool = False,
+        lock: bool = False,
     ) -> bool:
         """
         A shortcut for `add_clause([-literal for literal in literals], tag, lock)`.
@@ -427,7 +372,7 @@ class PropagateControl:
             Whether the nogood could be integrated without conflict.
         """
 
-    def add_watch(self, literal: int) -> None:
+    def add_watch(self, literal: int | typing.SupportsIndex) -> None:
         """
         Add a watch for the given solver literal.
 
@@ -437,9 +382,9 @@ class PropagateControl:
 
     def add_weight_constraint(
         self,
-        literal: int,
+        literal: int | typing.SupportsIndex,
         literals: typing.Sequence[tuple[int, int]],
-        bound: int,
+        bound: int | typing.SupportsIndex,
         type: WeightConstraintType = WeightConstraintType.Equivalence,
     ) -> bool:
         """
@@ -461,7 +406,7 @@ class PropagateControl:
             Whether the weight constraint could be added without conflict.
         """
 
-    def has_watch(self, literal: int) -> bool:
+    def has_watch(self, literal: int | typing.SupportsIndex) -> bool:
         """
         Check if a watch exists for the given solver literal.
 
@@ -484,7 +429,7 @@ class PropagateControl:
             True if propagation was successful, False otherwise.
         """
 
-    def remove_watch(self, literal: int) -> None:
+    def remove_watch(self, literal: int | typing.SupportsIndex) -> None:
         """
         Remove the watch for the given literal.
 
@@ -504,7 +449,12 @@ class PropagateInit(PropagateControl):
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def add_minimize(self, literal: int, weight: int, priority: int = 0) -> None:
+    def add_minimize(
+        self,
+        literal: int | typing.SupportsIndex,
+        weight: int | typing.SupportsIndex,
+        priority: int | typing.SupportsIndex = 0,
+    ) -> None:
         """
         Add a weighted literal to minimize to the solver.
 
@@ -517,7 +467,7 @@ class PropagateInit(PropagateControl):
                 The priority of the literal.
         """
 
-    def freeze_literal(self, literal: int) -> None:
+    def freeze_literal(self, literal: int | typing.SupportsIndex) -> None:
         """
         Freeze the given literal.
 
@@ -529,7 +479,7 @@ class PropagateInit(PropagateControl):
                 The literal to freeze.
         """
 
-    def solver_literal(self, literal: int) -> int:
+    def solver_literal(self, literal: int | typing.SupportsIndex) -> int:
         """
         Map the given program literal to a solver literal.
 
@@ -620,7 +570,9 @@ class Propagator:
                 The propagate control object for managing propagation.
         """
 
-    def decide(self, assignment: Assignment, fallback: int) -> int:
+    def decide(
+        self, assignment: Assignment, fallback: int | typing.SupportsIndex
+    ) -> int:
         """
         Make a decision on the next literal to assign.
 
@@ -655,7 +607,7 @@ class Propagator:
         self,
         assignment: Assignment,
         control: PropagateControl,
-        changes: typing.Sequence[int],
+        changes: typing.Sequence[int | typing.SupportsIndex],
     ) -> None:
         """
         Propagate given set of changes.
@@ -675,7 +627,11 @@ class Propagator:
                 A list of literals that have changed.
         """
 
-    def undo(self, assignment: Assignment, changes: typing.Sequence[int]) -> None:
+    def undo(
+        self,
+        assignment: Assignment,
+        changes: typing.Sequence[int | typing.SupportsIndex],
+    ) -> None:
         """
         Undo previous assignments.
 
@@ -708,13 +664,13 @@ class Trail:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __contains__(self, value: int) -> bool:
+    def __contains__(self, value: int | typing.SupportsIndex) -> bool:
         """
         Check whether the sequence contains the given value.
         """
 
     @typing.overload
-    def __getitem__(self, index: int) -> int:
+    def __getitem__(self, index: int | typing.SupportsIndex) -> int:
         """
         Get the value at the given index.
         """
@@ -725,7 +681,7 @@ class Trail:
         Slice the sequence.
         """
 
-    def __iter__(self) -> typing.Iterator[int]:
+    def __iter__(self) -> collections.abc.Iterator[int]:
         """
         Get an iterator for the sequence.
         """
@@ -735,12 +691,12 @@ class Trail:
         Get the size of the sequence.
         """
 
-    def __reversed__(self) -> typing.Iterator[int]:
+    def __reversed__(self) -> collections.abc.Iterator[int]:
         """
         Get a reverse iterator for the sequence.
         """
 
-    def begin(self, level: int) -> int:
+    def begin(self, level: int | typing.SupportsIndex) -> int:
         """
         Get the index of the first literal on the given level.
 
@@ -752,12 +708,12 @@ class Trail:
             The index of the decision literal.
         """
 
-    def count(self, value: int) -> int:
+    def count(self, value: int | typing.SupportsIndex) -> int:
         """
         Count how often the given value occurs in the sequence.
         """
 
-    def end(self, level: int) -> int:
+    def end(self, level: int | typing.SupportsIndex) -> int:
         """
         Get the index after the last literal on the given level.
 
@@ -767,12 +723,12 @@ class Trail:
             The index after the last literal.
         """
 
-    def index(self, value: int) -> int:
+    def index(self, value: int | typing.SupportsIndex) -> int:
         """
         Get the index of the given value in the sequence.
         """
 
-    def level(self, level: int) -> typing.Sequence[int]:
+    def level(self, level: int | typing.SupportsIndex) -> typing.Sequence[int]:
         """
         Get the literals assigned at the given decision level.
 
@@ -794,13 +750,13 @@ class _TrailView:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __contains__(self, value: int) -> bool:
+    def __contains__(self, value: int | typing.SupportsIndex) -> bool:
         """
         Check whether the sequence contains the given value.
         """
 
     @typing.overload
-    def __getitem__(self, index: int) -> int:
+    def __getitem__(self, index: int | typing.SupportsIndex) -> int:
         """
         Get the value at the given index.
         """
@@ -811,7 +767,7 @@ class _TrailView:
         Slice the sequence.
         """
 
-    def __iter__(self) -> typing.Iterator[int]:
+    def __iter__(self) -> collections.abc.Iterator[int]:
         """
         Get an iterator for the sequence.
         """
@@ -821,17 +777,17 @@ class _TrailView:
         Get the size of the sequence.
         """
 
-    def __reversed__(self) -> typing.Iterator[int]:
+    def __reversed__(self) -> collections.abc.Iterator[int]:
         """
         Get a reverse iterator for the sequence.
         """
 
-    def count(self, value: int) -> int:
+    def count(self, value: int | typing.SupportsIndex) -> int:
         """
         Count how often the given value occurs in the sequence.
         """
 
-    def index(self, value: int) -> int:
+    def index(self, value: int | typing.SupportsIndex) -> int:
         """
         Get the index of the given value in the sequence.
         """
