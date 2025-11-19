@@ -376,21 +376,24 @@ template <typename T> struct UserDataTraits {
     }
 };
 
-template <typename Value, typename Base> struct IsUserData : std::is_base_of<Base, Value> {};
+template <typename Value, typename Base, bool Null> struct IsUserData : std::is_base_of<Base, Value> {};
 
-template <typename T, typename Base> struct IsUserData<std::reference_wrapper<T>, Base> : std::is_base_of<Base, T> {};
+template <typename T, typename Base, bool Null>
+struct IsUserData<std::reference_wrapper<T>, Base, Null> : std::is_base_of<Base, T> {};
 
-template <typename T, typename Base> struct IsUserData<std::unique_ptr<T>, Base> : std::is_base_of<Base, T> {};
+template <typename T, typename Base, bool Null>
+struct IsUserData<std::unique_ptr<T>, Base, Null> : std::is_base_of<Base, T> {};
 
-template <typename Base> struct IsUserData<std::nullptr_t, Base> : std::true_type {};
+template <typename Base, bool Null>
+struct IsUserData<std::nullptr_t, Base, Null> : std::conditional_t<Null, std::true_type, std::false_type> {};
 
 //! Checks whether a type can be used as user data.
 //!
 //! The type must either derive from the given base class or be a null pointer.
 //! Additionally, reference wrappers and unique pointers to types deriving from
 //! the base class are also accepted.
-template <typename Value, typename Base>
-concept UserData = IsUserData<std::remove_cvref_t<Value>, Base>::value;
+template <typename Value, typename Base, bool Null = true>
+concept UserData = IsUserData<std::remove_cvref_t<Value>, Base, Null>::value;
 
 template <typename T> class ArrowProxy {
   public:
