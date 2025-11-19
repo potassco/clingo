@@ -708,7 +708,7 @@ class SolveHandleImpl : public SolveHandle {
         try {
             cancel();
         } catch (std::exception &e) {
-            printf("panic: shutting down the solve handle failed with %s\n", e.what());
+            fprintf(stderr, "panic: shutting down the solve handle failed with %s\n", e.what());
             std::terminate();
         }
     }
@@ -1051,7 +1051,7 @@ void Solver::interrupt() noexcept {
     try {
         clasp_facade().interrupt(random_signal);
     } catch (std::exception const &e) {
-        printf("panic: %s\n", e.what());
+        fprintf(stderr, "panic: %s\n", e.what());
         std::terminate();
     }
 }
@@ -1271,7 +1271,7 @@ class GroundHandle::Impl {
         try {
             cancel();
         } catch (std::exception const &e) {
-            printf("panic: %s\n", e.what());
+            fprintf(stderr, "panic: %s\n", e.what());
             std::terminate();
         }
     }

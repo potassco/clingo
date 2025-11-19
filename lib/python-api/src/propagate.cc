@@ -378,8 +378,8 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
                 auto py_ass = Assignment{assignment};
                 self->undo(py_ass, LitSpan{changes, size});
             } catch (std::exception const &e) {
-                printf("panic: %s\n", e.what());
-                std::abort();
+                fprintf(stderr, "panic: %s\n", e.what());
+                std::terminate();
             }
         },
         [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, void *data) -> bool {

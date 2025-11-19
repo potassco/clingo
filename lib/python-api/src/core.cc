@@ -131,7 +131,7 @@ clingo_logger_t Library::c_logger = {
             auto hnd = py::reinterpret_borrow<py::object>(static_cast<PyObject *>(log));
             hnd.cast<Logger>()(static_cast<clingo_message_e>(code), {message, size});
         } catch (std::exception const &e) {
-            printf("panic: exception with message %s thrown in logger\n", e.what());
+            fprintf(stderr, "panic: exception with message %s thrown in logger\n", e.what());
             std::terminate();
         }
     },
