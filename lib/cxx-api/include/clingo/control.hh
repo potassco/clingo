@@ -310,31 +310,33 @@ class Control {
         auto user_data = UserData::create(std::forward<Handler>(handler));
         clingo_ground_event_handler_t const *c_handler_ptr = nullptr;
         if constexpr (UserData::has_data) {
-            static constexpr auto c_handler = clingo_ground_event_handler_t{
-                [](char const *name, size_t name_size, size_t arguments_size, void *data, bool *result) -> bool {
-                    CLINGO_TRY {
-                        *result = UserData::cast(data)->callable(std::string_view{name, name_size}, arguments_size);
-                    }
-                    CLINGO_CATCH;
-                },
-                []([[maybe_unused]] clingo_lib_t *lib, clingo_location_t const *location, char const *name,
-                   size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size, void *data,
-                   clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
-                    CLINGO_TRY {
-                        Location loc{location};
-                        auto syms =
-                            UserData::cast(data)->call(loc, {name, name_size}, {cpp_cast(arguments), arguments_size});
-                        auto const *c_syms = c_cast(syms.data());
-                        return symbol_callback(c_syms, syms.size(), symbol_callback_data);
-                    }
-                    CLINGO_CATCH;
-                },
-                [](clingo_ground_result_t result, void *data) {
-                    UserData::cast(data)->finish(static_cast<GroundResult>(result));
-                },
-                [](void *data) { UserData::free(data); },
-            };
-            c_handler_ptr = &c_handler;
+            if (UserData::has_value(user_data)) {
+                static constexpr auto c_handler = clingo_ground_event_handler_t{
+                    [](char const *name, size_t name_size, size_t arguments_size, void *data, bool *result) -> bool {
+                        CLINGO_TRY {
+                            *result = UserData::cast(data)->callable(std::string_view{name, name_size}, arguments_size);
+                        }
+                        CLINGO_CATCH;
+                    },
+                    []([[maybe_unused]] clingo_lib_t *lib, clingo_location_t const *location, char const *name,
+                       size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size, void *data,
+                       clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
+                        CLINGO_TRY {
+                            Location loc{location};
+                            auto syms = UserData::cast(data)->call(loc, {name, name_size},
+                                                                   {cpp_cast(arguments), arguments_size});
+                            auto const *c_syms = c_cast(syms.data());
+                            return symbol_callback(c_syms, syms.size(), symbol_callback_data);
+                        }
+                        CLINGO_CATCH;
+                    },
+                    [](clingo_ground_result_t result, void *data) {
+                        UserData::cast(data)->finish(static_cast<GroundResult>(result));
+                    },
+                    [](void *data) { UserData::free(data); },
+                };
+                c_handler_ptr = &c_handler;
+            }
         }
         clingo_ground_handle_t *handle = nullptr;
         Detail::handle_error(clingo_control_start_ground(ctl_.get(), c_parts.data(), c_parts.size(), c_handler_ptr,
@@ -589,48 +591,50 @@ class Control {
         auto user_data = UserData::create(std::forward<Handler>(handler));
         clingo_solve_event_handler_t const *c_handler_ptr = nullptr;
         if constexpr (UserData::has_data) {
-            static constexpr auto c_solve_event_handler = clingo_solve_event_handler_t{
-                [](clingo_model_t *model, void *data, bool *goon) -> bool {
-                    CLINGO_TRY {
+            if (UserData::has_value(user_data)) {
+                static constexpr auto c_solve_event_handler = clingo_solve_event_handler_t{
+                    [](clingo_model_t *model, void *data, bool *goon) -> bool {
+                        CLINGO_TRY {
+                            auto *hnd = UserData::cast(data);
+                            assert(hnd != nullptr);
+                            auto mdl = Model{model};
+                            *goon = hnd->model(mdl);
+                            return true;
+                        }
+                        CLINGO_CATCH;
+                    },
+                    [](int64_t const *values, size_t size, void *data) -> bool {
+                        CLINGO_TRY {
+                            auto *hnd = UserData::cast(data);
+                            assert(hnd != nullptr);
+                            hnd->unsat({values, size});
+                        }
+                        CLINGO_CATCH;
+                    },
+                    [](clingo_stats_t *stats, void *data) -> bool {
+                        CLINGO_TRY {
+                            auto *hnd = UserData::cast(data);
+                            assert(hnd != nullptr);
+                            std::string_view user_step = "user_step";
+                            std::string_view user_accu = "user_accu";
+                            uint64_t root = Detail::call<clingo_stats_root>(stats);
+                            uint64_t step = Detail::call<clingo_stats_map_add_subkey>(
+                                stats, root, user_step.data(), user_step.size(), clingo_stats_type_map);
+                            uint64_t accu = Detail::call<clingo_stats_map_add_subkey>(
+                                stats, root, user_accu.data(), user_accu.size(), clingo_stats_type_map);
+                            hnd->stats(Stats{stats, step}, Stats{stats, accu});
+                        }
+                        CLINGO_CATCH;
+                    },
+                    [](clingo_solve_result_bitset_t result, void *data) -> void {
                         auto *hnd = UserData::cast(data);
                         assert(hnd != nullptr);
-                        auto mdl = Model{model};
-                        *goon = hnd->model(mdl);
-                        return true;
-                    }
-                    CLINGO_CATCH;
-                },
-                [](int64_t const *values, size_t size, void *data) -> bool {
-                    CLINGO_TRY {
-                        auto *hnd = UserData::cast(data);
-                        assert(hnd != nullptr);
-                        hnd->unsat({values, size});
-                    }
-                    CLINGO_CATCH;
-                },
-                [](clingo_stats_t *stats, void *data) -> bool {
-                    CLINGO_TRY {
-                        auto *hnd = UserData::cast(data);
-                        assert(hnd != nullptr);
-                        std::string_view user_step = "user_step";
-                        std::string_view user_accu = "user_accu";
-                        uint64_t root = Detail::call<clingo_stats_root>(stats);
-                        uint64_t step = Detail::call<clingo_stats_map_add_subkey>(
-                            stats, root, user_step.data(), user_step.size(), clingo_stats_type_map);
-                        uint64_t accu = Detail::call<clingo_stats_map_add_subkey>(
-                            stats, root, user_accu.data(), user_accu.size(), clingo_stats_type_map);
-                        hnd->stats(Stats{stats, step}, Stats{stats, accu});
-                    }
-                    CLINGO_CATCH;
-                },
-                [](clingo_solve_result_bitset_t result, void *data) -> void {
-                    auto *hnd = UserData::cast(data);
-                    assert(hnd != nullptr);
-                    hnd->finish(static_cast<SolveResult>(result));
-                },
-                [](void *data) { UserData::free(data); },
-            };
-            c_handler_ptr = &c_solve_event_handler;
+                        hnd->finish(static_cast<SolveResult>(result));
+                    },
+                    [](void *data) { UserData::free(data); },
+                };
+                c_handler_ptr = &c_solve_event_handler;
+            }
         }
 
         clingo_solve_handle_t *res = nullptr;
