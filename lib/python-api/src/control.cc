@@ -278,8 +278,8 @@ auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<Mo
                 hnd->finish_(static_cast<SolveResult>(result));
             }
             catch (std::exception &e) {
-                printf("panic: %s\n", e.what());
-                std::abort();
+                fprintf(stderr, "panic: %s\n", e.what());
+                std::terminate();
             }
         } : nullptr,
         nullptr,

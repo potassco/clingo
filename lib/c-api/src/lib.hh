@@ -32,6 +32,8 @@ template <class Handler> class CHandler {
     CHandler(Handler const *handler, void *data) noexcept
         : handler_{handler != nullptr ? std::optional{*handler} : std::nullopt}, data_{data} {}
 
+    ~CHandler() { cleanup(); }
+
     CHandler(const CHandler &other) = delete;
     auto operator=(const CHandler &other) -> CHandler & = delete;
 
@@ -47,12 +49,10 @@ template <class Handler> class CHandler {
     }
 
     auto operator->() -> Handler * { return handler(); }
-    operator bool() const noexcept { return handler_.has_value(); }
+    explicit operator bool() const noexcept { return handler_.has_value(); }
 
     auto handler() -> Handler * { return handler_ ? &*handler_ : nullptr; }
     auto data() -> void * { return data_; }
-
-    ~CHandler() { cleanup(); }
 
   private:
     void cleanup() noexcept {
