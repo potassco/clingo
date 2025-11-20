@@ -733,9 +733,9 @@ class MatcherBdAggrStrat : public OnceMatcher {
         : state_{&state}, insts_{std::move(insts)}, offset_{&offset}, positive_{positive} {}
 
   private:
-    void do_init(InstantiationContext const &ctx, [[maybe_unused]] size_t gen) override {
+    void do_init(InstantiationContext const &ctx, size_t gen) override {
         for (auto &inst : insts_) {
-            inst.init(ctx, 0);
+            inst.init(ctx, gen);
         }
     }
     auto do_once(EvalContext const &ctx) -> bool override {
