@@ -13,7 +13,10 @@ Examples
 
 from __future__ import annotations
 
+import enum
 import typing
+
+import typing_extensions
 
 __all__ = ["Library", "Location", "LogLevel", "MessageType", "Position", "version"]
 
@@ -25,21 +28,9 @@ def version() -> tuple[int, int, int]:
         A tuple (major, minor, revision) representing the Clingo version.
     """
 
-class LogLevel:
+class LogLevel(enum.IntEnum):
     """
     The available log levels.
-
-    Members:
-
-      Trace : Report trace messages (includes debug level).
-
-      Debug : Report debug messages (includes info level).
-
-      Info : Report info messages (includes warning level).
-
-      Warn : Report warning messages (includes error level).
-
-      Error : Report error messages.
     """
 
     Debug: typing.ClassVar[LogLevel]  # value = <LogLevel.Debug: 1>
@@ -47,49 +38,16 @@ class LogLevel:
     Info: typing.ClassVar[LogLevel]  # value = <LogLevel.Info: 2>
     Trace: typing.ClassVar[LogLevel]  # value = <LogLevel.Trace: 0>
     Warn: typing.ClassVar[LogLevel]  # value = <LogLevel.Warn: 7>
-    __members__: typing.ClassVar[
-        dict[str, LogLevel]
-    ]  # value = {'Trace': <LogLevel.Trace: 0>, 'Debug': <LogLevel.Debug: 1>, 'Info': <LogLevel.Info: 2>, 'Warn': <LogLevel.Warn: 7>, 'Error': <LogLevel.Error: 8>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
-class MessageType:
+class MessageType(enum.IntEnum):
     """
     Message categories emitted by the logger.
-
-    Members:
-
-      Trace : A trace message.
-
-      Debug : A debug message.
-
-      Info : A generic info message.
-
-      OperationUndefined : An info message about an undefined operation.
-
-      AtomUndefined : An info message about an undefined atom.
-
-      FileIncluded : An info message about an already included file.
-
-      GlobalVariable : An info message about a global variable in the tuple of an aggregate.
-
-      Warn : A warning message.
-
-      Error : An error message.
     """
 
     AtomUndefined: typing.ClassVar[
@@ -107,25 +65,12 @@ class MessageType:
     ]  # value = <MessageType.OperationUndefined: 3>
     Trace: typing.ClassVar[MessageType]  # value = <MessageType.Trace: 0>
     Warn: typing.ClassVar[MessageType]  # value = <MessageType.Warn: 7>
-    __members__: typing.ClassVar[
-        dict[str, MessageType]
-    ]  # value = {'Trace': <MessageType.Trace: 0>, 'Debug': <MessageType.Debug: 1>, 'Info': <MessageType.Info: 2>, 'OperationUndefined': <MessageType.OperationUndefined: 3>, 'AtomUndefined': <MessageType.AtomUndefined: 4>, 'FileIncluded': <MessageType.FileIncluded: 5>, 'GlobalVariable': <MessageType.GlobalVariable: 6>, 'Warn': <MessageType.Warn: 7>, 'Error': <MessageType.Error: 8>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
 class Library:
     """
@@ -154,8 +99,8 @@ class Library:
         shared: bool = True,
         slotted: bool = True,
         log_level: LogLevel = LogLevel.Info,
-        logger: typing.Callable[[MessageType, str], None] | None = None,
-        message_limit: int = 25,
+        logger: collections.abc.Callable[[MessageType, str], None] | None = None,
+        message_limit: int | typing.SupportsIndex = 25,
     ) -> None:
         """
         Create a library object.
@@ -171,7 +116,7 @@ class Library:
             message_limit: The maximum number of messages to emit.
         """
 
-    def _capsule(self) -> types.CapsuleType:
+    def _capsule(self) -> typing_extensions.CapsuleType:
         """
         Get a capsule holding the underlying C library object.
         """
@@ -239,7 +184,13 @@ class Position:
         Compute a hash for the object.
         """
 
-    def __init__(self, lib: Library, file: str, line: int, column: int) -> None:
+    def __init__(
+        self,
+        lib: Library,
+        file: str,
+        line: int | typing.SupportsIndex,
+        column: int | typing.SupportsIndex,
+    ) -> None:
         """
         Create a position object.
 

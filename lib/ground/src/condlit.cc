@@ -416,16 +416,13 @@ class MatcherCondLitStrat : public OnceMatcher {
     MatcherCondLitStrat(StateCondLit &state, Instantiator inst) : state_{&state}, inst_{std::move(inst)} {}
 
   private:
+    void do_init(InstantiationContext const &ctx, size_t gen) override { inst_.init(ctx, gen); }
     auto do_once(EvalContext const &ctx) -> bool override {
-        if (init_) {
-            state_->base_empty().update(0);
-        } else {
-            init_ = true;
-            inst_.init(ctx, 0);
-        }
+        state_->base_empty().update(0);
         auto [it, ins] = state_->add_empty(ctx.ass());
         if (ins) {
             CLINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
+            // NOTE: marks the previously inserted element as new
             state_->base_empty().update(1);
             std::ignore = inst_.instantiate(ctx.log(), ctx.store(), ctx.out(), nullptr);
             CLINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
@@ -444,7 +441,6 @@ class MatcherCondLitStrat : public OnceMatcher {
 
     StateCondLit *state_;
     Instantiator inst_;
-    bool init_ = false;
 };
 
 } // namespace

@@ -5,6 +5,8 @@
 
 #include <clingo/solve.h>
 
+#include <pybind11/native_enum.h>
+
 #include <utility>
 
 namespace PyClingo {
@@ -330,12 +332,13 @@ Args:
 )"_d)
         .def_property_readonly("base", &SolveControl::base, R"(Get the atom/term bases of the program.)");
 
-    py::enum_<clingo_model_type_e>(solve, "ModelType", R"(Enumeration of model types.)")
+    py::native_enum<clingo_model_type_e>(solve, "ModelType", "enum.IntEnum", R"(Enumeration of model types.)")
         .value("StableModel", clingo_model_type_stable_model, R"(The model captures a stable model.)")
         .value("CautiousConsequences", clingo_model_type_cautious_consequences,
                R"(The model stores the set of cautious consequences.)")
         .value("BraveConsequences", clingo_model_type_brave_consequences,
-               R"(The model stores the set of brave consequences.)");
+               R"(The model stores the set of brave consequences.)")
+        .finalize();
 
     py::class_<Model>(solve, "Model", R"(A view on the solver's current solution.)")
         .def("symbols", &Model::symbols, py::arg("shown") = false, py::arg("atoms") = false, py::arg("terms") = false,

@@ -48,6 +48,7 @@ The next example shows how to add theory atoms to a program:
 
 from __future__ import annotations
 
+import enum
 import typing
 
 import clingo.base
@@ -62,62 +63,25 @@ __all__ = [
     "TheorySequenceType",
 ]
 
-class ExternalType:
+class ExternalType(enum.IntEnum):
     """
     Available external types.
-
-    Members:
-
-      True_ : Make an external atom true.
-
-      False_ : Make an external atom false.
-
-      Free : Make an external atom a choice.
-
-      Release : Release an external atom.
     """
 
     False_: typing.ClassVar[ExternalType]  # value = <ExternalType.False_: 2>
     Free: typing.ClassVar[ExternalType]  # value = <ExternalType.Free: 0>
     Release: typing.ClassVar[ExternalType]  # value = <ExternalType.Release: 3>
     True_: typing.ClassVar[ExternalType]  # value = <ExternalType.True_: 1>
-    __members__: typing.ClassVar[
-        dict[str, ExternalType]
-    ]  # value = {'True_': <ExternalType.True_: 1>, 'False_': <ExternalType.False_: 2>, 'Free': <ExternalType.Free: 0>, 'Release': <ExternalType.Release: 3>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
-class HeuristicType:
+class HeuristicType(enum.IntEnum):
     """
     Available heuristic types.
-
-    Members:
-
-      Level : The level modifier.
-
-      Factor : The factor modifier.
-
-      True_ : The true modifier.
-
-      False_ : The false modifier.
-
-      Init : The init modifier.
-
-      Sign : The sign modifier.
     """
 
     Factor: typing.ClassVar[HeuristicType]  # value = <HeuristicType.Factor: 2>
@@ -126,61 +90,27 @@ class HeuristicType:
     Level: typing.ClassVar[HeuristicType]  # value = <HeuristicType.Level: 0>
     Sign: typing.ClassVar[HeuristicType]  # value = <HeuristicType.Sign: 1>
     True_: typing.ClassVar[HeuristicType]  # value = <HeuristicType.True_: 4>
-    __members__: typing.ClassVar[
-        dict[str, HeuristicType]
-    ]  # value = {'Level': <HeuristicType.Level: 0>, 'Factor': <HeuristicType.Factor: 2>, 'True_': <HeuristicType.True_: 4>, 'False_': <HeuristicType.False_: 5>, 'Init': <HeuristicType.Init: 3>, 'Sign': <HeuristicType.Sign: 1>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
-class TheorySequenceType:
+class TheorySequenceType(enum.IntEnum):
     """
     Available theory sequence types.
-
-    Members:
-
-      Tuple : Sequences enclosed in parentheses.
-
-      List : Sequences enclosed in brackets.
-
-      Set : Sequences enclosed in braces.
     """
 
     List: typing.ClassVar[TheorySequenceType]  # value = <TheorySequenceType.List: 2>
     Set: typing.ClassVar[TheorySequenceType]  # value = <TheorySequenceType.Set: 1>
     Tuple: typing.ClassVar[TheorySequenceType]  # value = <TheorySequenceType.Tuple: 0>
-    __members__: typing.ClassVar[
-        dict[str, TheorySequenceType]
-    ]  # value = {'Tuple': <TheorySequenceType.Tuple: 0>, 'List': <TheorySequenceType.List: 2>, 'Set': <TheorySequenceType.Set: 1>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
 class Backend:
     """
@@ -196,7 +126,7 @@ class Backend:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def assume(self, literals: typing.Sequence[int]) -> None:
+    def assume(self, literals: typing.Sequence[int | typing.SupportsIndex]) -> None:
         """
         Add an assumption directive to the solver.
 
@@ -222,7 +152,12 @@ class Backend:
                 The program atom representing the atom.
         """
 
-    def edge(self, node_u: int, node_v: int, condition: typing.Sequence[int]) -> None:
+    def edge(
+        self,
+        node_u: int | typing.SupportsIndex,
+        node_v: int | typing.SupportsIndex,
+        condition: typing.Sequence[int | typing.SupportsIndex],
+    ) -> None:
         """
         Add an edge directive.
 
@@ -235,7 +170,7 @@ class Backend:
             condition: Sequence of literals representing the edge condition.
         """
 
-    def external(self, atom: int, type: ExternalType) -> None:
+    def external(self, atom: int | typing.SupportsIndex, type: ExternalType) -> None:
         """
         Add an external directive.
 
@@ -251,11 +186,11 @@ class Backend:
 
     def heuristic(
         self,
-        atom: int,
+        atom: int | typing.SupportsIndex,
         type: HeuristicType,
-        weight: int,
-        priority: int = 0,
-        condition: typing.Sequence[int] = [],
+        weight: int | typing.SupportsIndex,
+        priority: int | typing.SupportsIndex = 0,
+        condition: typing.Sequence[int | typing.SupportsIndex] = [],
     ) -> None:
         """
         Add a heuristic directive for an atom.
@@ -273,7 +208,9 @@ class Backend:
         """
 
     def minimize(
-        self, literals: typing.Sequence[tuple[int, int]], priority: int = 0
+        self,
+        literals: typing.Sequence[tuple[int, int]],
+        priority: int | typing.SupportsIndex = 0,
     ) -> None:
         """
         Add a minimize constraint to the program.
@@ -288,7 +225,7 @@ class Backend:
                 priority: Priority of the constraint (default: 0).
         """
 
-    def project(self, atoms: typing.Sequence[int]) -> None:
+    def project(self, atoms: typing.Sequence[int | typing.SupportsIndex]) -> None:
         """
         Add a projection directive to the program.
 
@@ -302,8 +239,8 @@ class Backend:
 
     def rule(
         self,
-        head: typing.Sequence[int],
-        body: typing.Sequence[int] = [],
+        head: typing.Sequence[int | typing.SupportsIndex],
+        body: typing.Sequence[int | typing.SupportsIndex] = [],
         choice: bool = False,
     ) -> None:
         """
@@ -325,10 +262,10 @@ class Backend:
 
     def theory_atom(
         self,
-        atom: int | None,
+        atom: int | typing.SupportsIndex | None,
         name: clingo.symbol.Symbol,
-        elements: typing.Sequence[int],
-        guard: tuple[str, int] | None = None,
+        elements: typing.Sequence[int | typing.SupportsIndex],
+        guard: tuple[str, int | typing.SupportsIndex] | None = None,
     ) -> int:
         """
         Create a theory atom and return its associated program atom.
@@ -350,7 +287,9 @@ class Backend:
         """
 
     def theory_element(
-        self, tuple: typing.Sequence[int], condition: typing.Sequence[int]
+        self,
+        tuple: typing.Sequence[int | typing.SupportsIndex],
+        condition: typing.Sequence[int | typing.SupportsIndex],
     ) -> int:
         """
         Create a theory element.
@@ -367,7 +306,9 @@ class Backend:
                 The unique id of the created theory element.
         """
 
-    def theory_function(self, name: str, arguments: typing.Sequence[int]) -> int:
+    def theory_function(
+        self, name: str, arguments: typing.Sequence[int | typing.SupportsIndex]
+    ) -> int:
         """
         Create a function theory term.
 
@@ -383,7 +324,7 @@ class Backend:
                 The unique id of the created function theory term.
         """
 
-    def theory_number(self, number: int) -> int:
+    def theory_number(self, number: int | typing.SupportsIndex) -> int:
         """
         Create a numeric theory term.
 
@@ -399,7 +340,9 @@ class Backend:
         """
 
     def theory_sequence(
-        self, type: TheorySequenceType, elements: typing.Sequence[int]
+        self,
+        type: TheorySequenceType,
+        elements: typing.Sequence[int | typing.SupportsIndex],
     ) -> int:
         """
         Create a sequence theory term.
@@ -448,8 +391,8 @@ class Backend:
 
     def weight_rule(
         self,
-        head: typing.Sequence[int],
-        lower_bound: int,
+        head: typing.Sequence[int | typing.SupportsIndex],
+        lower_bound: int | typing.SupportsIndex,
         body: typing.Sequence[tuple[int, int]],
         choice: bool = False,
     ) -> None:
@@ -503,7 +446,7 @@ class Observer:
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(self) -> None: ...
-    def assume(self, literals: typing.Sequence[int]) -> None:
+    def assume(self, literals: typing.Sequence[int | typing.SupportsIndex]) -> None:
         """
         Called for assumptions in the solver.
 
@@ -518,7 +461,12 @@ class Observer:
         Called at the beginning of a step.
         """
 
-    def edge(self, node_u: int, node_v: int, condition: typing.Sequence[int]) -> None:
+    def edge(
+        self,
+        node_u: int | typing.SupportsIndex,
+        node_v: int | typing.SupportsIndex,
+        condition: typing.Sequence[int | typing.SupportsIndex],
+    ) -> None:
         """
         Called for edge directives in the program.
 
@@ -535,7 +483,7 @@ class Observer:
         Called at the end of a step.
         """
 
-    def external(self, atom: int, type: ExternalType) -> None:
+    def external(self, atom: int | typing.SupportsIndex, type: ExternalType) -> None:
         """
         Called for external directives in the program.
 
@@ -548,11 +496,11 @@ class Observer:
 
     def heuristic(
         self,
-        atom: int,
+        atom: int | typing.SupportsIndex,
         type: HeuristicType,
-        weight: int,
-        priority: int,
-        condition: typing.Sequence[int],
+        weight: int | typing.SupportsIndex,
+        priority: int | typing.SupportsIndex,
+        condition: typing.Sequence[int | typing.SupportsIndex],
     ) -> None:
         """
         Called for heuristic directives in the program.
@@ -579,7 +527,9 @@ class Observer:
         """
 
     def minimize(
-        self, literals: typing.Sequence[tuple[int, int]], priority: int
+        self,
+        literals: typing.Sequence[tuple[int, int]],
+        priority: int | typing.SupportsIndex,
     ) -> None:
         """
         Called for minimize constraints in the program.
@@ -591,7 +541,7 @@ class Observer:
                 priority: Priority of the constraint (default: 0).
         """
 
-    def project(self, atoms: typing.Sequence[int]) -> None:
+    def project(self, atoms: typing.Sequence[int | typing.SupportsIndex]) -> None:
         """
         Called for projection directives in the program.
 
@@ -602,7 +552,10 @@ class Observer:
         """
 
     def rule(
-        self, head: typing.Sequence[int], body: typing.Sequence[int], choice: bool
+        self,
+        head: typing.Sequence[int | typing.SupportsIndex],
+        body: typing.Sequence[int | typing.SupportsIndex],
+        choice: bool,
     ) -> None:
         """
         Called for rules in the program.
@@ -617,8 +570,8 @@ class Observer:
 
     def weight_rule(
         self,
-        head: typing.Sequence[int],
-        lower_bound: int,
+        head: typing.Sequence[int | typing.SupportsIndex],
+        lower_bound: int | typing.SupportsIndex,
         body: typing.Sequence[tuple[int, int]],
         choice: bool,
     ) -> None:

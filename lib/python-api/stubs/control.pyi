@@ -50,6 +50,8 @@ SAT
 
 from __future__ import annotations
 
+import collections.abc
+import enum
 import typing
 
 import clingo.ast
@@ -64,44 +66,21 @@ import clingo.symbol
 
 __all__ = ["Control", "ControlMode"]
 
-class ControlMode:
+class ControlMode(enum.IntEnum):
     """
     Available control modes.
-
-    Members:
-
-      Parse : Parse only.
-
-      Rewrite : Parse and rewrite.
-
-      Ground : Parse, rewrite, and ground.
-
-      Solve : Parse, rewrite, ground, and solve.
     """
 
     Ground: typing.ClassVar[ControlMode]  # value = <ControlMode.Ground: 2>
     Parse: typing.ClassVar[ControlMode]  # value = <ControlMode.Parse: 0>
     Rewrite: typing.ClassVar[ControlMode]  # value = <ControlMode.Rewrite: 1>
     Solve: typing.ClassVar[ControlMode]  # value = <ControlMode.Solve: 3>
-    __members__: typing.ClassVar[
-        dict[str, ControlMode]
-    ]  # value = {'Parse': <ControlMode.Parse: 0>, 'Rewrite': <ControlMode.Rewrite: 1>, 'Ground': <ControlMode.Ground: 2>, 'Solve': <ControlMode.Solve: 3>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
 class Control:
     """
@@ -233,13 +212,25 @@ class Control:
 
     def solve(
         self,
-        assumptions: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int] = [],
-        on_model: typing.Callable[[clingo.solve.Model], bool | None] | None = None,
-        on_unsat: typing.Callable[[typing.Sequence[int]], None] | None = None,
-        on_stats: (
-            typing.Callable[[clingo.stats.Stats, clingo.stats.Stats], None] | None
+        assumptions: typing.Sequence[
+            tuple[clingo.symbol.Symbol, bool] | int | typing.SupportsIndex
+        ] = [],
+        on_model: (
+            collections.abc.Callable[[clingo.solve.Model], bool | None] | None
         ) = None,
-        on_finish: typing.Callable[[clingo.solve.SolveResult], None] | None = None,
+        on_unsat: (
+            collections.abc.Callable[
+                [typing.Sequence[int | typing.SupportsIndex]], None
+            ]
+            | None
+        ) = None,
+        on_stats: (
+            collections.abc.Callable[[clingo.stats.Stats, clingo.stats.Stats], None]
+            | None
+        ) = None,
+        on_finish: (
+            collections.abc.Callable[[clingo.solve.SolveResult], None] | None
+        ) = None,
         yield_: bool = False,
         async_: bool = False,
     ) -> clingo.solve.SolveHandle:
@@ -401,7 +392,7 @@ class _ConstMap:
         Get the value for the given key.
         """
 
-    def __iter__(self) -> typing.Iterator[str]:
+    def __iter__(self) -> collections.abc.Iterator[str]:
         """
         Get an iterator over the keys in the map.
         """
@@ -418,17 +409,17 @@ class _ConstMap:
         Get the value for the given key or the default if absent.
         """
 
-    def items(self) -> typing.Iterator[tuple[str, clingo.symbol.Symbol]]:
+    def items(self) -> collections.abc.Iterator[tuple[str, clingo.symbol.Symbol]]:
         """
         Get an iterator over the items in the map.
         """
 
-    def keys(self) -> typing.Iterator[str]:
+    def keys(self) -> collections.abc.Iterator[str]:
         """
         Get an iterator over the keys in the map.
         """
 
-    def values(self) -> typing.Iterator[clingo.symbol.Symbol]:
+    def values(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
         """
         Get an iterator over the values in the map.
         """

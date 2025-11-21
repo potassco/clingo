@@ -1,6 +1,8 @@
 
 #include <clingo/base.h>
 
+#include <pybind11/native_enum.h>
+
 #include "base.hh"
 #include "iterable.hh" // IWYU pragma: keep
 #include "util.hh"
@@ -404,13 +406,15 @@ The base is established by the show directives occurring in a program.
 Implements `Mapping[Symbol, Term]`.
 )"_d));
 
-    py::enum_<clingo_theory_term_type_e>(base, "TheoryTermType", "Enumeration of theory term types.")
+    py::native_enum<clingo_theory_term_type_e>(base, "TheoryTermType", "enum.IntEnum",
+                                               "Enumeration of theory term types.")
         .value("Number", clingo_theory_term_type_number, R"(For numeric theory terms.)")
         .value("Symbol", clingo_theory_term_type_symbol, R"(For symbolic theory terms (simple strings).)")
         .value("Tuple", clingo_theory_term_type_tuple, R"(For tuple theory terms.)")
         .value("List", clingo_theory_term_type_list, R"(For list theory term.)")
         .value("Set", clingo_theory_term_type_set, R"(For set theory terms.)")
-        .value("Function", clingo_theory_term_type_function, R"(For function theory terms.)");
+        .value("Function", clingo_theory_term_type_function, R"(For function theory terms.)")
+        .finalize();
 
     make_hashable(py::class_<TheoryTerm>(base, "TheoryTerm", R"(A view to inspect a theory term.)"))
         .def("__str__", &TheoryTerm::str, R"(Get a string representation of the term.)")
