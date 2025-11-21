@@ -630,11 +630,11 @@ class MatcherAssignAggrStrat : public Matcher {
         : state_{&state}, insts_{std::move(insts)}, matcher_{std::move(matcher)} {}
 
   private:
-    void do_init(InstantiationContext const &ctx, [[maybe_unused]] size_t gen) override {
+    void do_init(InstantiationContext const &ctx, size_t gen) override {
         for (auto &inst : insts_) {
-            inst.init(ctx, 0);
+            inst.init(ctx, gen);
         }
-        matcher_->init(ctx, 0);
+        matcher_->init(ctx, gen);
     }
     void do_match(EvalContext const &ctx) override {
         auto [it, ins] = state_->insert_atom(ctx);
