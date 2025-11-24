@@ -18,6 +18,7 @@ set(source-group
     "src/core.cc"
     "src/core.hh"
     "src/embed.cc"
+    "src/ground.cc"
     "src/iterable.hh"
     "src/iterator.hh"
     "src/module.cc"

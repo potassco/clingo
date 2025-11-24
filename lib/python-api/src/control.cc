@@ -131,6 +131,51 @@ void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
         clingo_control_ground(get(), parts->data(), parts->size(), !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
 }
 
+auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
+                           Annotation<std::optional<GroundFinishCallback>> on_finish) -> Annotation<GroundHandle> {
+    if (!parts) {
+        parts = this->parts();
+    }
+    if (!parts) {
+        static constexpr auto part = clingo_part_t{"base", 4, nullptr, 0};
+        parts.emplace(&part, 1);
+    }
+    auto res = py::cast(std::make_unique<GroundHandle>());
+    auto *hnd = res.cast<GroundHandle *>();
+    auto store = [&](auto &src, py::handle &dst) -> void {
+        if (!src.is_none()) {
+            // keep the callback alive
+            hnd->tie(src);
+            // store a reference to the callback
+            dst = src;
+        }
+    };
+    store(ctx, hnd->ctx_);
+    store(on_finish, hnd->finish_);
+    auto c_event_handler = clingo_ground_event_handler_t{
+        &callable_,
+        &call_,
+        hnd->finish_ ? +[](clingo_solve_result_bitset_t result, void *data) -> void {
+            try {
+                auto guard = py::gil_scoped_acquire{};
+                auto *hnd = static_cast<SolveHandle *>(data);
+                assert(hnd != nullptr);
+                hnd->finish_(static_cast<SolveResult>(result));
+            }
+            catch (std::exception &e) {
+                fprintf(stderr, "panic: %s\n", e.what());
+                std::terminate();
+            }
+        } : nullptr,
+            nullptr,
+    };
+    auto has_handler = hnd->ctx_ || hnd->finish_;
+    handle_error(clingo_control_start_ground(get(), parts->data(), parts->size(),
+                                             has_handler ? &c_event_handler : nullptr,
+                                             has_handler ? ctx.ptr() : nullptr, &hnd->handle()));
+    return res;
+}
+
 auto Control::base() -> Base {
     clingo_base_t const *base = nullptr;
     clingo_control_base(get(), &base);
@@ -381,9 +426,9 @@ void register_control(pybind11::module &m) {
     auto control = m.def_submodule("control", R"(
 Module containing the Control class responsible for grounding and solving.
 
-# Examples
+# Example
 
-The first example shows the most straightforward way to ground and solve a
+The example shows the most straightforward way to ground and solve a
 small test program:
 
 ```python
@@ -397,34 +442,6 @@ small test program:
 >>> with ctl.solve(on_model=print) as hnd:
 ...     hnd.get()
 a
-```
-
-The second example shows how to call functions from within a program:
-
-```python
->>> from clingo.core import Library
->>> from clingo.symbol import Number
->>> from clingo.control import Control
->>>
->>> class Context:
-...     def __init__(self, lib):
-...       self.lib = lib
-...     def inc(self, x):
-...         return Number(self.lib, x.number + 1)
-...     def seq(self, x, y):
-...         return [x, y]
-...
->>> lib = Library()
->>> ctl = Control(lib)
->>> ctl.parse_string("""
-... p(@inc(10)).
-... q(@seq(1,2)).
-... """)
->>> ctl.ground(context=Context(lib))
->>> with ctl.solve(on_model=print) as hnd:
-...     print(hnd.get())
-p(11) q(1) q(2)
-SAT
 ```
 )"_d);
 
@@ -512,6 +529,23 @@ Args:
     context:
 		An optional object providing functions that can be called during
 		grounding.
+)"_d)
+        .def("start_ground", &Control::start_ground, py::arg("parts") = std::nullopt, py::arg("context") = py::none(),
+             py::arg("on_finish") = py::none(), R"(
+Ground the given program parts.
+
+Starts grounding in the background and returns a `clingo.ground.GroundHandle`
+to the running grounding. See `Control.ground` for details on grounding program
+parts.
+
+Args:
+    parts:
+		A sequence of parts to ground.
+    context:
+		An optional object providing functions that can be called during
+		grounding.
+    on_finish:
+        An optional callback called once grounding has finished.
 )"_d)
         .def("solve", &Control::solve, py::arg("assumptions") = MixedLitSpan{}, py::arg("on_model") = std::nullopt,
              py::arg("on_unsat") = std::nullopt, py::arg("on_stats") = std::nullopt,

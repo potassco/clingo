@@ -6,6 +6,7 @@
 #include "config.hh"
 #include "control.hh"
 #include "core.hh"
+#include "ground.hh"
 #include "propagate.hh"
 #include "script.hh"
 #include "solve.hh"
@@ -131,6 +132,7 @@ information.
     PyClingo::AST::register_ast(m);
     PyClingo::register_base(m);
     PyClingo::register_backend(m);
+    PyClingo::register_ground(m);
     PyClingo::register_solve(m);
     PyClingo::register_config(m);
     PyClingo::register_stats(m);
