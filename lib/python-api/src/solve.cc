@@ -417,7 +417,7 @@ Args:
         .def_property_readonly("exhausted", &SolveResult::exhausted, R"(Whether all models have been enumerated.)")
         .def_property_readonly("interrupted", &SolveResult::interrupted, R"(Whether the search was interrupted.)");
 
-    py::class_<SolveHandle>(solve, "SolveHandle", R"(
+    py::class_<SolveHandle>(solve, "SolveHandle", py::custom_type_setup(SolveHandle::setup), R"(
 An object to interact with a running search.
 
 It can be used to control solving, like, retrieving models or cancelling a

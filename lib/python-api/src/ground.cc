@@ -99,7 +99,7 @@ start_ground status: finished
         .value("Interrupted", clingo_ground_result_interrupted, R"(Grounding was interrupted.)")
         .finalize();
 
-    py::class_<GroundHandle>(ground, "GroundHandle", R"(
+    py::class_<GroundHandle>(ground, "GroundHandle", py::custom_type_setup(GroundHandle::setup), R"(
 An object to interact with a running search.
 
 It can be used to control solving, like, retrieving models or cancelling a
