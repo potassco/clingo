@@ -137,16 +137,16 @@ class AssertingPropagator(Propagator):
             init.add_watch(lit)
             init.add_watch(-lit)
 
-    def propagate(self, ass: Assignment, control: PropagateControl, changes):
+    def propagate(self, assignment: Assignment, control: PropagateControl, changes):
         """
         Test propagate.
         """
         assert changes
-        if ass.is_false(self._value_lit) and ass.is_false(self._end_lit):
+        if assignment.is_false(self._value_lit) and assignment.is_false(self._end_lit):
             nogood = [self._start_lit, -self._end_lit, -self._value_lit]
-            dl = ass.decision_level
+            dl = assignment.decision_level
             result = control.add_nogood(nogood, tag=False, lock=self._lock)
-            assert ass.decision_level == dl
+            assert assignment.decision_level == dl
             assert not result
 
     def decide(self, assignment: Assignment, fallback: int) -> int:
@@ -208,9 +208,12 @@ class InitPropagator(Propagator):
         assert len(assignment) == 5
         assert len(list(assignment)) == 5
 
-    def attach(self, assignment: Assignment, ctl: PropagateControl):
+    def attach(self, assignment: Assignment, control: PropagateControl):
+        """
+        Test attach.
+        """
         assert assignment
-        assert ctl
+        assert control
         assert self._init
 
 
@@ -225,6 +228,9 @@ class AddLiteralPropagator(Propagator):
         self._lit = 0
 
     def add_lit(self, control: PropagateControl):
+        """
+        Add a literal.
+        """
         self._lit = control.add_literal()
         assert not control.has_watch(self._lit)
         control.add_watch(self._lit)
@@ -233,6 +239,9 @@ class AddLiteralPropagator(Propagator):
         assert not control.has_watch(self._lit)
 
     def attach(self, assignment: Assignment, control: PropagateControl) -> None:
+        """
+        Attach
+        """
         assert self._lit == 0
         assert assignment
         self.add_lit(control)
@@ -309,24 +318,24 @@ class PropagateControlPropagator(Propagator):
 
     def propagate(
         self,
-        ass: Assignment,
+        assignment: Assignment,
         control: PropagateControl,
         changes: Sequence[int],
     ):
         """
         Test propagation.
         """
-        trail = ass.trail
-        lvl = ass.decision_level
+        trail = assignment.trail
+        lvl = assignment.decision_level
         assert -self._lit_a in changes
         assert lvl >= 1
-        assert ass.level(self._lit_a) >= 1
+        assert assignment.level(self._lit_a) >= 1
         assert len(trail) >= 1
         assert len(list(trail)) >= 1
         assert trail[trail.begin(lvl)] == -self._lit_a
         assert list(trail[trail.begin(lvl) : trail.end(lvl)]) == [-self._lit_a]
-        assert ass.decision(lvl) == -self._lit_a
-        assert ass.thread_id == 0
+        assert assignment.decision(lvl) == -self._lit_a
+        assert assignment.thread_id == 0
         assert control.has_watch(-self._lit_a)
         assert control.propagate()
         assert not control.add_clause([self._lit_a])
@@ -430,8 +439,7 @@ class TestPropagate:
         self.ctl.ground()
         self.ctl.register_propagator(InitPropagator(self.lib))
         mcb = MCB()
-        with self.ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == [["a", "b", "c"]]
 
     def test_control(self):
@@ -442,8 +450,7 @@ class TestPropagate:
         self.ctl.ground()
         self.ctl.register_propagator(PropagateControlPropagator(self.lib))
         mcb = MCB()
-        with self.ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == [["a"]]
 
     def test_mode(self):
@@ -454,8 +461,7 @@ class TestPropagate:
         self.ctl.register_propagator(tpm)
         self.ctl.parse_string("{a; b; c}.")
         self.ctl.ground()
-        with self.ctl.solve() as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve().satisfiable
         assert tpm.level == [0]
         assert tpm.num_check >= 16
         assert tpm.num_undo >= 8
@@ -467,8 +473,7 @@ class TestPropagate:
         self.ctl.ground()
         self.ctl.register_propagator(AddLiteralPropagator())
         mcb = MCB()
-        with self.ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == [[], [], [], []]
 
     def test_heuristic(self):
@@ -480,8 +485,7 @@ class TestPropagate:
         self.ctl.ground()
         self.ctl.register_propagator(HeuristicPropagator(self.lib))
         mcb = MCB()
-        with self.ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == [["a"]]
 
     @pytest.mark.parametrize("locked", [False, True])
@@ -493,8 +497,7 @@ class TestPropagate:
         self.ctl.register_propagator(prop)
         self.ctl.parse_string("start. {value}. {end}.")
         self.ctl.ground()
-        with self.ctl.solve() as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve().satisfiable
 
     def test_aiffb(self):
         """
@@ -508,8 +511,7 @@ class TestPropagate:
         for n in [1, 3]:
             self.ctl.config.solve.parallel_mode = n
             mcb = MCB()
-            with self.ctl.solve(on_model=mcb) as hnd:
-                assert hnd.get().satisfiable
+            assert self.ctl.solve(on_model=mcb).satisfiable
             assert prop.n_threads == n, "init called with wrong number of threads"
             assert not prop.errors
             assert mcb.symbols == [["a", "b"]]
@@ -525,8 +527,7 @@ class TestPropagate:
         prop.weight_con = True
 
         mcb = MCB()
-        with self.ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve(on_model=mcb).satisfiable
         assert not prop.errors
         assert mcb.symbols == [["a", "b"]]
 
@@ -544,6 +545,5 @@ class TestPropagate:
             mcb = MCB()
 
             with pytest.raises(ValueError, match=f".* solver {n - 1}"):
-                with self.ctl.solve(on_model=mcb) as hnd:
-                    assert hnd.get().satisfiable
+                assert self.ctl.solve(on_model=mcb).satisfiable
                 assert prop.n_threads == n, "init called with wrong number of threads"

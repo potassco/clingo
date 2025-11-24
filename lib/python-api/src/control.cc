@@ -10,6 +10,7 @@
 #include <pybind11/native_enum.h>
 
 #include <span>
+#include <utility>
 
 namespace PyClingo {
 
@@ -269,7 +270,17 @@ auto Control::profile() -> py::list {
 auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
                     Annotation<std::optional<UnsatCallback>> on_unsat,
                     Annotation<std::optional<StatsCallback>> on_stats,
-                    Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
+                    Annotation<std::optional<FinishCallback>> on_finish) -> SolveResult {
+    return start_solve(assumptions, std::move(on_model), std::move(on_unsat), std::move(on_stats), std::move(on_finish),
+                       false, false)
+        .cast<SolveHandle *>()
+        ->get();
+}
+
+auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
+                          Annotation<std::optional<UnsatCallback>> on_unsat,
+                          Annotation<std::optional<StatsCallback>> on_stats,
+                          Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
     -> Annotation<SolveHandle> {
     auto res = py::cast(std::make_unique<SolveHandle>());
     auto *hnd = res.cast<SolveHandle *>();
@@ -563,6 +574,32 @@ Args:
 )"_d)
         .def("solve", &Control::solve, py::arg("assumptions") = MixedLitSpan{}, py::arg("on_model") = std::nullopt,
              py::arg("on_unsat") = std::nullopt, py::arg("on_stats") = std::nullopt,
+             py::arg("on_finish") = std::nullopt, R"(
+Solve the current ground program.
+
+This function is semantically equivalent to the following `start_solve` call:
+
+```python
+with self.start_solve(assumptions, on_model, on_unsat, on_stats, on_finish) as hnd:
+    return hnd.get()
+```
+
+Args:
+    assumptions:
+		A list of assumptions.
+    on_model:
+        Optional callback to intercept models.
+    on_unsat:
+        Optional callback to intercept lower bounds during optimization.
+    on_stats:
+        Optional callback extend statistics.
+    on_finish:
+		Optional callback called once search has finished.
+Returns:
+    A `clingo.solve.SolveResult` representing the result of the search.
+)"_d)
+        .def("start_solve", &Control::start_solve, py::arg("assumptions") = MixedLitSpan{},
+             py::arg("on_model") = std::nullopt, py::arg("on_unsat") = std::nullopt, py::arg("on_stats") = std::nullopt,
              py::arg("on_finish") = std::nullopt, py::arg("yield_") = false, py::arg("async_") = false, R"(
 Solve the current ground program.
 

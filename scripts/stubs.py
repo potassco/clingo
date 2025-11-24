@@ -131,6 +131,7 @@ class Rewriter:
         content, docstrings = self.extract_docstrings(content)
         content = self.simplify_comparisons(content)
         content = self.replace_list_returns(content)
+        content = content.replace(" | typing.SupportsIndex", "")
         class_pattern = re.compile(r"(?m)^class\s[^:]+:\n(?:\n|(?:    .*\n))*")
         classes = class_pattern.findall(content)
         for class_def in classes:

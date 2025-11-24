@@ -171,8 +171,7 @@ class TestControl:
         ctl.ground([("base", [])])
 
         mcb = MCB()
-        with ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == [["a", "b"]]
 
     def test_incmode(self):

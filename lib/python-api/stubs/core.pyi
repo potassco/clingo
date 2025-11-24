@@ -100,7 +100,7 @@ class Library:
         slotted: bool = True,
         log_level: LogLevel = LogLevel.Info,
         logger: collections.abc.Callable[[MessageType, str], None] | None = None,
-        message_limit: int | typing.SupportsIndex = 25,
+        message_limit: int = 25,
     ) -> None:
         """
         Create a library object.
@@ -184,13 +184,7 @@ class Position:
         Compute a hash for the object.
         """
 
-    def __init__(
-        self,
-        lib: Library,
-        file: str,
-        line: int | typing.SupportsIndex,
-        column: int | typing.SupportsIndex,
-    ) -> None:
+    def __init__(self, lib: Library, file: str, line: int, column: int) -> None:
         """
         Create a position object.
 

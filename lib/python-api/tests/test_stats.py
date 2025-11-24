@@ -46,7 +46,7 @@ class TestStats:
         ctl.parse_string("1 { a; b; c; d } 1.")
         ctl.ground()
         mcb = MCB()
-        with ctl.solve(on_model=mcb, async_=True, yield_=True) as hnd:
+        with ctl.start_solve(on_model=mcb, async_=True, yield_=True) as hnd:
             with pytest.raises(ValueError):
                 _ = ctl.stats
             for _ in hnd:
@@ -76,8 +76,7 @@ class TestStats:
             accu.update({"Test": {"x": lambda x: x + 2}})
             accu.update({"Test": {"y": lambda x: [y + 1 for y in x]}})
 
-        with ctl.solve(on_model=mcb, on_stats=on_stats) as hnd:
-            assert hnd.get().satisfiable
+        assert ctl.solve(on_model=mcb, on_stats=on_stats).satisfiable
         assert mcb.symbols == res
 
         stats = ctl.stats

@@ -119,7 +119,7 @@ class Stats:
         """
 
     @value.setter
-    def value(self, arg1: typing.SupportsFloat | typing.SupportsIndex) -> None: ...
+    def value(self, arg1: typing.SupportsFloat) -> None: ...
 
 class StatsArray:
     """
@@ -135,7 +135,7 @@ class StatsArray:
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __getitem__(self, arg0: int | typing.SupportsIndex) -> Stats:
+    def __getitem__(self, arg0: int) -> Stats:
         """
         Get the element at the given index.
         """
@@ -145,7 +145,7 @@ class StatsArray:
         Get the length of the array.
         """
 
-    def __setitem__(self, arg0: int | typing.SupportsIndex, arg1: typing.Any) -> None:
+    def __setitem__(self, arg0: int, arg1: typing.Any) -> None:
         """
         Set the element at the given index to the given value.
         """

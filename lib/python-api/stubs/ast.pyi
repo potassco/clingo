@@ -3841,7 +3841,7 @@ class StatementDefined:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         name: str,
-        arity: int | typing.SupportsIndex,
+        arity: int,
         sign: bool = False,
     ) -> None:
         """
@@ -4882,7 +4882,7 @@ class StatementProjectSignature:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         name: str,
-        arity: int | typing.SupportsIndex,
+        arity: int,
         sign: bool = False,
     ) -> None:
         """
@@ -5379,7 +5379,7 @@ class StatementShowSignature:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         name: str,
-        arity: int | typing.SupportsIndex,
+        arity: int,
         sign: bool = False,
     ) -> None:
         """
@@ -6496,7 +6496,7 @@ class TheoryAtomDefinition:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         name: str,
-        arity: int | typing.SupportsIndex,
+        arity: int,
         term: str,
         guard: clingo.ast.TheoryGuardDefinition | None,
         atom_type: TheoryAtomType,
@@ -6800,7 +6800,7 @@ class TheoryOperatorDefinition:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         name: str,
-        priority: int | typing.SupportsIndex,
+        priority: int,
         operator_type: TheoryOperatorType,
     ) -> None:
         """

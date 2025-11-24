@@ -33,7 +33,7 @@ class Theory:
                 A capsule object holding a function pointer to initialize the theory.
         """
 
-    def assignment(self, thread_id: int | typing.SupportsIndex) -> TheoryAssignment:
+    def assignment(self, thread_id: int) -> TheoryAssignment:
         """
         Get the symbols and values currently assigned by the theory
 
@@ -191,7 +191,7 @@ class Theory:
         """
 
     def value(
-        self, thread_id: int | typing.SupportsIndex, symbol: clingo.symbol.Symbol
+        self, thread_id: int, symbol: clingo.symbol.Symbol
     ) -> clingo.symbol.Symbol | int | float | None:
         """
         Get the value of the symbol in the assignment of the given thread.
@@ -245,7 +245,7 @@ class TheoryAssignment:
         """
 
     def at(
-        self, index: int | typing.SupportsIndex
+        self, index: int
     ) -> tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]:
         """
         Get the value at the given index in the assignment.

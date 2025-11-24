@@ -141,7 +141,7 @@ class Model:
                 symbols: The symbols to add to the model.
         """
 
-    def is_consequence(self, literal: int | typing.SupportsIndex) -> bool | None:
+    def is_consequence(self, literal: int) -> bool | None:
         """
         Check if the given program literal is a consequence.
 
@@ -162,7 +162,7 @@ class Model:
             Whether the given program literal is a consequence.
         """
 
-    def is_true(self, literal: int | typing.SupportsIndex) -> bool:
+    def is_true(self, literal: int) -> bool:
         """
         Check if the given program literal is true.
 
@@ -243,10 +243,7 @@ class SolveControl:
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def add_clause(
-        self,
-        clause: typing.Sequence[
-            tuple[clingo.symbol.Symbol, bool] | int | typing.SupportsIndex
-        ],
+        self, clause: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
     ) -> None:
         """
         Add a clause that applies to the current solving step during the search.
@@ -256,10 +253,7 @@ class SolveControl:
         """
 
     def add_nogood(
-        self,
-        nogood: typing.Sequence[
-            tuple[clingo.symbol.Symbol, bool] | int | typing.SupportsIndex
-        ],
+        self, nogood: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
     ) -> None:
         """
         Add a nogood that applies to the current solving step during the search.
@@ -351,9 +345,7 @@ class SolveHandle:
         in the background.
         """
 
-    def wait(
-        self, timeout: typing.SupportsFloat | typing.SupportsIndex | None = None
-    ) -> bool:
+    def wait(self, timeout: typing.SupportsFloat | None = None) -> bool:
         """
         Wait for the solve call to finish or the next result with an optional timeout.
 

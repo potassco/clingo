@@ -55,7 +55,12 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
                       Annotation<std::optional<GroundFinishCallback>> on_finish) -> Annotation<GroundHandle>;
     auto solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
                Annotation<std::optional<UnsatCallback>> on_unsat, Annotation<std::optional<StatsCallback>> on_stats,
-               Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async) -> Annotation<SolveHandle>;
+               Annotation<std::optional<FinishCallback>> on_finish) -> SolveResult;
+    auto start_solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
+                     Annotation<std::optional<UnsatCallback>> on_unsat,
+                     Annotation<std::optional<StatsCallback>> on_stats,
+                     Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
+        -> Annotation<SolveHandle>;
     auto base() -> Base;
     void observe(Observer &obs, bool preprocess);
     auto backend() -> BackendManager;

@@ -185,18 +185,78 @@ class Control:
 
     def solve(
         self,
-        assumptions: typing.Sequence[
-            tuple[clingo.symbol.Symbol, bool] | int | typing.SupportsIndex
-        ] = [],
+        assumptions: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int] = [],
         on_model: (
             collections.abc.Callable[[clingo.solve.Model], bool | None] | None
         ) = None,
-        on_unsat: (
-            collections.abc.Callable[
-                [typing.Sequence[int | typing.SupportsIndex]], None
-            ]
+        on_unsat: collections.abc.Callable[[typing.Sequence[int]], None] | None = None,
+        on_stats: (
+            collections.abc.Callable[[clingo.stats.Stats, clingo.stats.Stats], None]
             | None
         ) = None,
+        on_finish: (
+            collections.abc.Callable[[clingo.solve.SolveResult], None] | None
+        ) = None,
+    ) -> clingo.solve.SolveResult:
+        """
+        Solve the current ground program.
+
+        This function is semantically equivalent to the following `start_solve` call:
+
+        ```python
+        with self.start_solve(assumptions, on_model, on_unsat, on_stats, on_finish) as hnd:
+            return hnd.get()
+        ```
+
+        Args:
+            assumptions:
+                        A list of assumptions.
+            on_model:
+                Optional callback to intercept models.
+            on_unsat:
+                Optional callback to intercept lower bounds during optimization.
+            on_stats:
+                Optional callback extend statistics.
+            on_finish:
+                        Optional callback called once search has finished.
+        Returns:
+            A `clingo.solve.SolveResult` representing the result of the search.
+        """
+
+    def start_ground(
+        self,
+        parts: (
+            typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None
+        ) = None,
+        context: typing.Any = None,
+        on_finish: (
+            collections.abc.Callable[[clingo.ground.GroundResult], None] | None
+        ) = None,
+    ) -> clingo.ground.GroundHandle:
+        """
+        Ground the given program parts.
+
+        Starts grounding in the background and returns a `clingo.ground.GroundHandle`
+        to the running grounding. See `Control.ground` for details on grounding program
+        parts.
+
+        Args:
+            parts:
+                        A sequence of parts to ground.
+            context:
+                        An optional object providing functions that can be called during
+                        grounding.
+            on_finish:
+                An optional callback called once grounding has finished.
+        """
+
+    def start_solve(
+        self,
+        assumptions: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int] = [],
+        on_model: (
+            collections.abc.Callable[[clingo.solve.Model], bool | None] | None
+        ) = None,
+        on_unsat: collections.abc.Callable[[typing.Sequence[int]], None] | None = None,
         on_stats: (
             collections.abc.Callable[[clingo.stats.Stats, clingo.stats.Stats], None]
             | None
@@ -253,33 +313,6 @@ class Control:
 
         See Also:
             clingo.solve: Contains examples on using this function.
-        """
-
-    def start_ground(
-        self,
-        parts: (
-            typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None
-        ) = None,
-        context: typing.Any = None,
-        on_finish: (
-            collections.abc.Callable[[clingo.ground.GroundResult], None] | None
-        ) = None,
-    ) -> clingo.ground.GroundHandle:
-        """
-        Ground the given program parts.
-
-        Starts grounding in the background and returns a `clingo.ground.GroundHandle`
-        to the running grounding. See `Control.ground` for details on grounding program
-        parts.
-
-        Args:
-            parts:
-                        A sequence of parts to ground.
-            context:
-                        An optional object providing functions that can be called during
-                        grounding.
-            on_finish:
-                An optional callback called once grounding has finished.
         """
 
     def write_aspif(

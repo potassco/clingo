@@ -157,9 +157,7 @@ class Symbol:
     def __repr__(self) -> str: ...
     def __str__(self) -> str: ...
     @typing.overload
-    def match(
-        self, name: str, arity: int | typing.SupportsIndex = 0, is_positive: bool = True
-    ) -> bool:
+    def match(self, name: str, arity: int = 0, is_positive: bool = True) -> bool:
         """
         Check if this is a function symbol with the given signature.
 
@@ -173,7 +171,7 @@ class Symbol:
         """
 
     @typing.overload
-    def match(self, arity: int | typing.SupportsIndex = 0) -> bool:
+    def match(self, arity: int = 0) -> bool:
         """
         Check if this is a tuple symbol with the given arity.
 

@@ -155,7 +155,7 @@ class Config:
         Get the configuration entry with the given name.
         """
 
-    def __getitem__(self, index: int | typing.SupportsIndex) -> Config:
+    def __getitem__(self, index: int) -> Config:
         """
         Get the index-th element of a sequence.
         """

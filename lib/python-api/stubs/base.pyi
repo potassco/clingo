@@ -166,13 +166,13 @@ class Base:
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     @typing.overload
-    def __contains__(self, key: tuple[str, int | typing.SupportsIndex, bool]) -> bool:
+    def __contains__(self, key: tuple[str, int, bool]) -> bool:
         """
         Check if the map contains the given key.
         """
 
     @typing.overload
-    def __contains__(self, signature: tuple[str, int | typing.SupportsIndex]) -> bool:
+    def __contains__(self, signature: tuple[str, int]) -> bool:
         """
         Check if there is an atom base with the given (short) signature.
         """
@@ -184,9 +184,7 @@ class Base:
         """
 
     @typing.overload
-    def __getitem__(
-        self, key: tuple[str, int | typing.SupportsIndex, bool]
-    ) -> AtomBase:
+    def __getitem__(self, key: tuple[str, int, bool]) -> AtomBase:
         """
         Get the value for the given key.
         """
@@ -198,9 +196,7 @@ class Base:
         """
 
     @typing.overload
-    def __getitem__(
-        self, signature: tuple[str, int | typing.SupportsIndex]
-    ) -> AtomBase:
+    def __getitem__(self, signature: tuple[str, int]) -> AtomBase:
         """
         Get the atom base with the given (short) signature.
 
@@ -218,15 +214,13 @@ class Base:
         """
 
     def get(
-        self,
-        key: tuple[str, int | typing.SupportsIndex, bool],
-        default: clingo.base.AtomBase | None = None,
+        self, key: tuple[str, int, bool], default: clingo.base.AtomBase | None = None
     ) -> clingo.base.AtomBase | None:
         """
         Get the value for the given key or the default if absent.
         """
 
-    def is_current(self, literal: int | typing.SupportsIndex) -> bool:
+    def is_current(self, literal: int) -> bool:
         """
         Check whether a literal has been introduced in the current step.
 
@@ -239,7 +233,7 @@ class Base:
             Whether the literal is subject to projection.
         """
 
-    def is_external(self, literal: int | typing.SupportsIndex) -> bool:
+    def is_external(self, literal: int) -> bool:
         """
         Check whether the given program literal corresponds to an external.
 
@@ -249,7 +243,7 @@ class Base:
             Whether the literal is external.
         """
 
-    def is_fact(self, literal: int | typing.SupportsIndex) -> bool:
+    def is_fact(self, literal: int) -> bool:
         """
         Check whether the literal is a fact.
 
@@ -259,7 +253,7 @@ class Base:
             Whether the literal is a fact.
         """
 
-    def is_projected(self, literal: int | typing.SupportsIndex) -> bool:
+    def is_projected(self, literal: int) -> bool:
         """
         Check whether the literal is part of a `#project` directive.
 
@@ -269,7 +263,7 @@ class Base:
             Whether the literal is subject to projection.
         """
 
-    def is_shown(self, literal: int | typing.SupportsIndex) -> bool:
+    def is_shown(self, literal: int) -> bool:
         """
         Check whether the literal is shown via a `#show` directive.
 
@@ -442,7 +436,7 @@ class TheoryBase:
         Check whether the sequence contains the given value.
         """
 
-    def __getitem__(self, index: int | typing.SupportsIndex) -> TheoryAtom:
+    def __getitem__(self, index: int) -> TheoryAtom:
         """
         Get the value at the given index.
         """

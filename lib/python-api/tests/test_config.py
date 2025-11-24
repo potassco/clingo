@@ -139,20 +139,17 @@ class TestConfig:
 
         ctl.config.solve.models = 0
         mcb = MCB()
-        with ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == res
 
         ctl.config.solve.models = 2
         mcb = MCB()
-        with ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert ctl.solve(on_model=mcb).satisfiable
         assert len(mcb.symbols) == 2
 
         ctl.config.solve.models = 0
         mcb = MCB()
-        with ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == res
 
     def test_extend(self):

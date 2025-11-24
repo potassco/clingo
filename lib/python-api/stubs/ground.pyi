@@ -123,9 +123,7 @@ class GroundHandle:
         the search.
         """
 
-    def wait(
-        self, timeout: typing.SupportsFloat | typing.SupportsIndex | None = None
-    ) -> bool:
+    def wait(self, timeout: typing.SupportsFloat | None = None) -> bool:
         """
         Wait for the ground call to finish or the next result with an optional timeout.
 
