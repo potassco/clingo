@@ -1,9 +1,9 @@
 """
 Module containing the Control class responsible for grounding and solving.
 
-# Examples
+# Example
 
-The first example shows the most straightforward way to ground and solve a
+The example shows the most straightforward way to ground and solve a
 small test program:
 
 ```python
@@ -18,34 +18,6 @@ small test program:
 ...     hnd.get()
 a
 ```
-
-The second example shows how to call functions from within a program:
-
-```python
->>> from clingo.core import Library
->>> from clingo.symbol import Number
->>> from clingo.control import Control
->>>
->>> class Context:
-...     def __init__(self, lib):
-...       self.lib = lib
-...     def inc(self, x):
-...         return Number(self.lib, x.number + 1)
-...     def seq(self, x, y):
-...         return [x, y]
-...
->>> lib = Library()
->>> ctl = Control(lib)
->>> ctl.parse_string(\"\"\"
-... p(@inc(10)).
-... q(@seq(1,2)).
-... \"\"\")
->>> ctl.ground(context=Context(lib))
->>> with ctl.solve(on_model=print) as hnd:
-...     print(hnd.get())
-p(11) q(1) q(2)
-SAT
-```
 """
 
 from __future__ import annotations
@@ -59,6 +31,7 @@ import clingo.backend
 import clingo.base
 import clingo.config
 import clingo.core
+import clingo.ground
 import clingo.propagate
 import clingo.solve
 import clingo.stats
@@ -280,6 +253,33 @@ class Control:
 
         See Also:
             clingo.solve: Contains examples on using this function.
+        """
+
+    def start_ground(
+        self,
+        parts: (
+            typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None
+        ) = None,
+        context: typing.Any = None,
+        on_finish: (
+            collections.abc.Callable[[clingo.ground.GroundResult], None] | None
+        ) = None,
+    ) -> clingo.ground.GroundHandle:
+        """
+        Ground the given program parts.
+
+        Starts grounding in the background and returns a `clingo.ground.GroundHandle`
+        to the running grounding. See `Control.ground` for details on grounding program
+        parts.
+
+        Args:
+            parts:
+                        A sequence of parts to ground.
+            context:
+                        An optional object providing functions that can be called during
+                        grounding.
+            on_finish:
+                An optional callback called once grounding has finished.
         """
 
     def write_aspif(

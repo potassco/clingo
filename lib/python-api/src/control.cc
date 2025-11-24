@@ -153,26 +153,40 @@ auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
     store(ctx, hnd->ctx_);
     store(on_finish, hnd->finish_);
     auto c_event_handler = clingo_ground_event_handler_t{
-        &callable_,
-        &call_,
-        hnd->finish_ ? +[](clingo_solve_result_bitset_t result, void *data) -> void {
+        hnd->ctx_ ? +[](char const *name, size_t name_size, size_t arguments_size,  void *data, bool *result) -> bool {
+            CLINGO_TRY {
+                auto &ctx = static_cast<GroundHandle*>(data)->ctx_;
+                return callable_(name, name_size, arguments_size, &ctx, result);
+            }
+            CLINGO_CATCH;
+        }: nullptr,
+        hnd->ctx_ ? +[](clingo_lib_t *lib, clingo_location_t const *location, char const *name,
+                        size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
+                        void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
+            CLINGO_TRY {
+                auto &ctx = static_cast<GroundHandle *>(data)->ctx_;
+                return call_(lib, location, name, name_size, arguments, arguments_size, &ctx, symbol_callback, symbol_callback_data);
+            }
+            CLINGO_CATCH;
+        } : nullptr,
+        hnd->finish_ ? +[](clingo_ground_result_t result, void *data) -> void {
             try {
                 auto guard = py::gil_scoped_acquire{};
-                auto *hnd = static_cast<SolveHandle *>(data);
+                auto *hnd = static_cast<GroundHandle *>(data);
                 assert(hnd != nullptr);
-                hnd->finish_(static_cast<SolveResult>(result));
+                hnd->finish_(static_cast<clingo_ground_result_e>(result));
             }
             catch (std::exception &e) {
                 fprintf(stderr, "panic: %s\n", e.what());
                 std::terminate();
             }
         } : nullptr,
-            nullptr,
+        nullptr,
     };
     auto has_handler = hnd->ctx_ || hnd->finish_;
     handle_error(clingo_control_start_ground(get(), parts->data(), parts->size(),
-                                             has_handler ? &c_event_handler : nullptr,
-                                             has_handler ? ctx.ptr() : nullptr, &hnd->handle()));
+                                             has_handler ? &c_event_handler : nullptr, has_handler ? hnd : nullptr,
+                                             &hnd->handle()));
     return res;
 }
 
