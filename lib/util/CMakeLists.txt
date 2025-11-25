@@ -20,6 +20,7 @@ set(header-group-clingo-util
     "include/clingo/util/record.hh"
     "include/clingo/util/small_vector.hh"
     "include/clingo/util/string.hh"
+    "include/clingo/util/sync.hh"
     "include/clingo/util/type_traits.hh"
     "include/clingo/util/unordered_map.hh"
     "include/clingo/util/unordered_set.hh")

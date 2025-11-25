@@ -8,6 +8,7 @@ set(source-group
     "base-theory.c"
     "config.c"
     "control.c"
+    "ground.c"
     "model.c"
     "profile.c"
     "propagate.c"
