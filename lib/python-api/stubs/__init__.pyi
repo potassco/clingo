@@ -73,8 +73,7 @@ def f(lib: Library, x: Symbol):
 def main(lib: Library, ctl: Control, parts: Parts):
     for part in parts:
         ctl.ground(part)
-        with ctl.solve() as hnd:
-            hnd.get()
+        ctl.solve()
 
 #end.
 
@@ -102,8 +101,7 @@ information.
 ...     ctl = Control(lib, ["0"])
 ...     ctl.parse_string("1 {p(1..2)} 1. q(@f(X)) :- p(X).")
 ...     ctl.ground(context=Context(lib))
-...     with ctl.solve(on_model=print) as hnd:
-...         print(hnd.get())
+...     ctl.solve(on_model=print)
 ```
 """
 

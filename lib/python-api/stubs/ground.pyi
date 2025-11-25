@@ -25,8 +25,7 @@ The example shows how call external functions during grounding:
 ... q(@seq(1,2)).
 ... \"\"\")
 >>> ctl.ground(context=Context(lib))
->>> with ctl.solve(on_model=print) as hnd:
-...     print(hnd.get())
+>>> print(ctl.solve(on_model=print))
 p(11) q(1) q(2)
 SAT
 ```

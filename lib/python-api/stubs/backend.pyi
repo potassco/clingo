@@ -18,8 +18,7 @@ The first example shows how to add a fact to a program:
 ...     bck.rule([atm_a])
 >>> ctl.base.is_fact(ctl.base[sym].literal)
 True
->>> with ctl.solve(on_model=print) as hnd:
-...     hnd.get()
+>>> print(ctl.solve(on_model=print))
 a
 SAT
 ```

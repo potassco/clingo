@@ -494,15 +494,13 @@ class DLApp(App):
             control.main()
         elif self._minimize is None:
             control.ground(control.parts)
-            with control.solve(on_model=self._on_model) as hnd:
-                hnd.get()
+            control.solve(on_model=self._on_model)
         else:
             control.ground(control.parts)
             control.parse_string("#program bound(b, v). &__diff_h { v-0 } <= b.")
             while True:
-                with control.solve(on_model=self._on_model) as hnd:
-                    if not hnd.get().satisfiable:
-                        break
+                if not control.solve(on_model=self._on_model).satisfiable:
+                    break
                 if self._bound is None:
                     break
                 print(f"Found new bound: {self._bound}")

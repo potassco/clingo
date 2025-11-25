@@ -256,9 +256,7 @@ The following example shows how to intercept models with a callback:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(on_model=print) as hnd:
-    ...     print(hnd.get())
-    ...
+    >>> print(ctl.solve(on_model=print))
     a
     b
     SAT
@@ -272,7 +270,7 @@ The following example shows how to yield models:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(yield_=True) as hnd:
+    >>> with ctl.start_solve(yield_=True) as hnd:
     ...     for mdl in hnd:
     ...         print(mdl)
     ...     print(hnd.get())
@@ -290,9 +288,7 @@ The following example shows how to solve asynchronously:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(on_model=print, async_=True) as hnd:
-    ...     print(hnd.get())
-    ...
+    >>> print(ctl.solve(on_model=print, async_=True))
     a
     b
     SAT
@@ -306,7 +302,7 @@ This example shows how to solve both iteratively and asynchronously:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(yield_=True, async_=True) as hnd:
+    >>> with ctl.start_solve(yield_=True, async_=True) as hnd:
     ...     while mdl := hnd.model():
     ...         print(mdl)
     ...         hnd.resume()

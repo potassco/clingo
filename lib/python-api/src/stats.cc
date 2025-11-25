@@ -218,11 +218,9 @@ The following example shows how to add custom stats and access the stats:
 >>> ctl = Control(lib, ['--stats'])
 >>> ctl.parse_string("{a}.")
 >>> ctl.ground()
->>> with ctl.solve(on_stats=on_stats) as hnd:
-...     print(hnd.get())
+>>> print(ctl.solve(on_stats=on_stats))
 SAT
->>> with ctl.solve(on_stats=on_stats) as hnd:
-...     print(hnd.get())
+>>> print(ctl.solve(on_stats=on_stats))
 SAT
 >>> ctl.stats['user_step']
 { "example": [21.0] }

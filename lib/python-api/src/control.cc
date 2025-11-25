@@ -464,9 +464,9 @@ small test program:
 >>> ctl = Control(lib)
 >>> ctl.parse_string("1 { a; b }.")
 >>> ctl.ground()
->>> with ctl.solve(on_model=print) as hnd:
-...     hnd.get()
+>>> print(ctl.solve(on_model=print))
 a
+SAT
 ```
 )"_d);
 

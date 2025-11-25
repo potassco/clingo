@@ -228,8 +228,7 @@ opt_stop: "-1,opt,no"\
 >>> ctl.config.solve.models = 0
 >>> ctl.parse_string("1 {a; b}.")
 >>> ctl.ground()
->>> with ctl.solve(on_model=print) as hnd:
-...     print(hnd.get())
+>>> print(ctl.solve(on_model=print))
 b
 a
 a b

@@ -470,8 +470,7 @@ Functions and classes to implement custom propagators.
 >>> ctl.register_propagator(AIFFB())
 >>> ctl.parse_string("1 { a; b }.")
 >>> ctl.ground()
->>> with ctl.solve(on_model=print) as hnd:
->>>     print(hnd.get())
+>>> print(ctl.solve(on_model=print))
 a b
 SAT
 ```
