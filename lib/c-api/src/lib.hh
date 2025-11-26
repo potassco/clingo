@@ -23,6 +23,48 @@ struct clingo_lib {
 
 namespace CppClingo::CAPI {
 
+//! Helper to manage C handlers with userdata.
+//!
+//! The handlers are expected to have a `free` function pointer to cleanup the
+//! userdata.
+template <class Handler> class CHandler {
+  public:
+    CHandler(Handler const *handler, void *data) noexcept
+        : handler_{handler != nullptr ? std::optional{*handler} : std::nullopt}, data_{data} {}
+
+    ~CHandler() { cleanup(); }
+
+    CHandler(const CHandler &other) = delete;
+    auto operator=(const CHandler &other) -> CHandler & = delete;
+
+    CHandler(CHandler &&other) noexcept
+        : handler_{std::exchange(other.handler_, std::nullopt)}, data_{std::exchange(other.data_, nullptr)} {}
+    auto operator=(CHandler &&other) noexcept -> CHandler & {
+        if (this != &other) {
+            cleanup();
+            handler_ = std::exchange(other.handler_, std::nullopt);
+            data_ = std::exchange(other.data_, nullptr);
+        }
+        return *this;
+    }
+
+    auto operator->() -> Handler * { return handler(); }
+    explicit operator bool() const noexcept { return handler_.has_value(); }
+
+    auto handler() -> Handler * { return handler_ ? &*handler_ : nullptr; }
+    auto data() -> void * { return data_; }
+
+  private:
+    void cleanup() noexcept {
+        if (handler_ && handler_->free) {
+            handler_->free(data_);
+        }
+    }
+
+    std::optional<Handler> handler_;
+    void *data_;
+};
+
 static constexpr auto c_cast(std::strong_ordering cmp) noexcept -> int {
     // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     return (cmp < 0) ? -1 : ((cmp == 0) ? 0 : 1);

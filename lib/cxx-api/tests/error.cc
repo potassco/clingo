@@ -113,7 +113,7 @@ TEST_CASE_METHOD(Fixture, "error on_model", "[cxx][error][on_model]") {
         auto do_model(Model model) -> bool override { throw std::runtime_error(model.to_string()); };
     } eh;
 
-    REQUIRE_THROWS_MATCHES(ctl.solve(eh), std::runtime_error, MessageMatches(ContainsSubstring("a, b")));
+    REQUIRE_THROWS_MATCHES(ctl.solve({}, eh), std::runtime_error, MessageMatches(ContainsSubstring("a, b")));
 }
 
 TEST_CASE_METHOD(Fixture, "error script", "[cxx][error][script]") {
@@ -150,12 +150,8 @@ TEST_CASE_METHOD(Fixture, "error propagator", "[cxx][error][propagator]") {
 
     SECTION("main") {
         ctl.register_propagator(std::make_unique<TestPropagator>(throw_str));
-        REQUIRE_THROWS_MATCHES(
-            [&] {
-                auto hnd = ctl.solve({}, SolveFlags::empty);
-                std::ignore = hnd.get();
-            }(),
-            std::runtime_error, MessageMatches(ContainsSubstring(msg)));
+        REQUIRE_THROWS_MATCHES([&] { std::ignore = ctl.solve(); }(), std::runtime_error,
+                               MessageMatches(ContainsSubstring(msg)));
     }
 }
 

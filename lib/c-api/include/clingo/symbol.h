@@ -56,7 +56,7 @@ typedef uint64_t clingo_symbol_t;
 //! @param symbols_size size of the symbol array
 //! @param data user data of the callback
 //! @return whether the call was successful
-//! @see ::clingo_ground_callback_t
+//! @see ::clingo_ground_event_handler_t
 typedef bool (*clingo_symbol_callback_t)(clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 
 //! @name Symbol Construction Functions

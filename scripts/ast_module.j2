@@ -6,6 +6,7 @@
 #include "util.hh"
 
 #include <pybind11/functional.h>
+#include <pybind11/native_enum.h>
 #include <pybind11/operators.h>
 
 #include <algorithm>
@@ -601,15 +602,15 @@ for stm in stms:
 
 This can be used to auto-generate most of the binding.)doc");
 
-    auto py_projection_mode =
-        py::enum_<ProjectionMode>(ast, "ProjectionMode", R"doc(Available projection modes.)doc")
-            .value("Disabled", ProjectionMode::Disabled, R"doc(Do not project.)doc")
-            .value("Anonymous", ProjectionMode::Anonymous, R"doc(Only project anonymous variables.)doc")
-            .value("Pure", ProjectionMode::Pure, R"doc(Project pure variables.)doc");
+    py::native_enum<ProjectionMode>(ast, "ProjectionMode", "enum.IntEnum", R"doc(Available projection modes.)doc")
+        .value("Disabled", ProjectionMode::Disabled, R"doc(Do not project.)doc")
+        .value("Anonymous", ProjectionMode::Anonymous, R"doc(Only project anonymous variables.)doc")
+        .value("Pure", ProjectionMode::Pure, R"doc(Project pure variables.)doc")
+        .finalize();
 {%  for type_name, type in types.items() -%}
 {%    set c_type_name = type_name | camel -%}
 {%    if type.type == 'enum' %}
-    auto py_{{ type_name }} = py::enum_<{{ c_type_name }}>(ast, "{{ c_type_name }}", R"doc({{ type.doc }})doc");
+    auto py_{{ type_name }} = py::native_enum<{{ c_type_name }}>(ast, "{{ c_type_name }}", "enum.IntEnum", R"doc({{ type.doc }})doc");
 {%    elif type.type == 'record' %}
     auto py_{{ type_name }} = py::class_<{{ c_type_name }}>(ast, "{{ c_type_name }}", R"doc({{ type.doc | doc }})doc");
 {%    endif %}
@@ -620,7 +621,8 @@ This can be used to auto-generate most of the binding.)doc");
     py_{{ type_name }}
 {%-     for value_name, value_type in type["values"].items() %}
         .value("{{ value_name | camel }}", {{ c_type_name }}::{{ value_name | camel }}, R"doc({{ value_type.doc }})doc")
-{%-       if loop.last %};{% endif -%}
+{%-       if loop.last %}
+        .finalize();{% endif -%}
 {%-     endfor %}
 {%    elif type.type == 'record' %}
     {{ type_name | comp }}(py_{{ type_name }})

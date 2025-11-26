@@ -38,4 +38,4 @@ if(CLINGO_BUILD_TESTS)
     include(Catch)
 endif()
 
-clingo_target_properties(TARGETS libclasp libpotassco potassco_default_warnings imath ordered_map hopscotch_map TYPE extra)
+clingo_target_properties(TARGETS libclasp libpotassco potassco_default_warnings potassco_default_options imath ordered_map hopscotch_map TYPE extra)

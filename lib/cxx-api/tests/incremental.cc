@@ -30,14 +30,14 @@ TEST_CASE_METHOD(Fixture, "incremental", "[cxx][incremental][simplify]") {
     REQUIRE(!bse.is_fact(lq2));
     REQUIRE(!bse.is_fact(lp2));
     REQUIRE(bse.is_fact(lq1) != bse.is_fact(lp3));
-    REQUIRE(ctl.solve().get().satisfiable());
+    REQUIRE(ctl.solve().satisfiable());
     REQUIRE(bse.is_fact(lq1));
     REQUIRE(bse.is_fact(lp3));
     REQUIRE(!bse.is_fact(lq2));
     REQUIRE(!bse.is_fact(lp2));
     ctl.parse_string("#program x. :- p(2).");
     ctl.ground({{"x", {}}});
-    REQUIRE(ctl.solve().get().satisfiable());
+    REQUIRE(ctl.solve().satisfiable());
     auto bp = bse.get(std::pair{"p", 1});
     auto bq = bse.get(std::pair{"q", 1});
     REQUIRE(bp->size() == 1);
@@ -54,29 +54,17 @@ TEST_CASE_METHOD(Fixture, "incremental minimize", "[cxx][incremental][simplify][
         #minimize { 1: a; 2 : not b }.)");
     ctl.ground();
     auto models = MV{};
-    {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == MV{{"b"}});
     REQUIRE(ctl.stats()["summary"]["costs"][0].value() == 0.0);
     ctl.parse_string("#program x. :- not a. :- not b.");
     ctl.ground({{"x", {}}});
-    {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == MV{{"a", "b"}});
     REQUIRE(ctl.stats()["summary"]["costs"][0].value() == 1.0);
     ctl.parse_string("#program y. {c}. #minimize{ 1: b; 2 : not c }.");
     ctl.ground({{"y", {}}});
-    {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == MV{{"a", "b", "c"}});
     REQUIRE(ctl.stats()["summary"]["costs"][0].value() == 1.0);
 }

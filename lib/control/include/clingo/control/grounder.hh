@@ -34,7 +34,8 @@ class Grounder {
     //! Get the const map.
     auto const_map() -> Input::ConstMap const &;
     //! Ground the program.
-    [[nodiscard]] auto ground(ProgramParamVec const &params, Ground::ScriptCallback *context = nullptr) -> bool;
+    [[nodiscard]] auto ground(ProgramParamVec const &params, Ground::ScriptCallback *context = nullptr,
+                              Util::StopFlag *stop = nullptr) -> GroundResult;
     //! Print per step summaries.
     void print_summary(bool final);
     //! Accept a visitor for the profile nodes.

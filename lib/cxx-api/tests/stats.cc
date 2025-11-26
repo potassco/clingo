@@ -49,11 +49,10 @@ TEST_CASE_METHOD(Fixture, "stats solve", "[cxx][stats][solve]") {
     ctl.parse_string("1 { a; b; c; d } 1.");
     ctl.ground();
     {
-        auto mcb = MCB{models};
 #ifndef __EMSCRIPTEN__
-        auto hnd = ctl.solve(mcb, {}, SolveFlags::async | SolveFlags::yield);
+        auto hnd = ctl.start_solve({}, SolveFlags::async | SolveFlags::yield, MCB{models});
 #else
-        auto hnd = ctl.solve(mcb, {}, SolveFlags::yield);
+        auto hnd = ctl.start_solve({}, SolveFlags::yield, MCB{models});
 #endif
         REQUIRE_THROWS_AS(ctl.stats(), std::invalid_argument);
         for ([[maybe_unused]] auto const &mdl : hnd) {
@@ -69,11 +68,7 @@ TEST_CASE_METHOD(Fixture, "stats solve", "[cxx][stats][solve]") {
 TEST_CASE_METHOD(Fixture, "stats user", "[cxx][stats][user]") {
     ctl.parse_string("1 { a; b; c; d } 1.");
     ctl.ground();
-    {
-        auto scb = SCB{models};
-        auto hnd = ctl.solve(scb);
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, SCB{models}).satisfiable());
     REQUIRE(models == MV{{"a"}, {"b"}, {"c"}, {"d"}});
 
     auto stats = ctl.stats();

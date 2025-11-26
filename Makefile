@@ -127,7 +127,7 @@ stubs: debug
 pdoc: debug venv
 	source .venv/bin/activate && python scripts/stubs.py --python
 	cd pdoc && python3 -m venv .venv
-	cd pdoc && source .venv/bin/activate && pip install pdoc
+	cd pdoc && source .venv/bin/activate && pip install pdoc typing_extensions
 	cd pdoc && source .venv/bin/activate && rm -rf html && pdoc -o html --no-show-source -d google ./clingo
 
 .PHONY: all doc test compdb stubs pdoc venv debug gen format_yaml debug release release_lto release_clang release_clang_lto web

@@ -49,8 +49,7 @@ class TestSolve:
         # default
         mcb = MCB()
         ofr = []
-        with ctl.solve(on_model=mcb, on_finish=ofr.append) as hnd:
-            assert hnd.get().satisfiable
+        assert ctl.solve(on_model=mcb, on_finish=ofr.append).satisfiable
         assert mcb.symbols == res
         assert len(ofr) == 1
         assert ofr[0].satisfiable
@@ -58,7 +57,7 @@ class TestSolve:
         # yield
         mcb = MCB()
         mcc = MCB()
-        with ctl.solve(on_model=mcb, yield_=True) as hnd:
+        with ctl.start_solve(on_model=mcb, yield_=True) as hnd:
             for mdl in hnd:
                 mcc(mdl)
             assert hnd.get().satisfiable
@@ -67,14 +66,14 @@ class TestSolve:
 
         # async
         mcb = MCB()
-        with ctl.solve(on_model=mcb, async_=True) as hnd:
+        with ctl.start_solve(on_model=mcb, async_=True) as hnd:
             assert hnd.get().satisfiable
         assert mcc.symbols == res
 
         # yield+async
         mcb = MCB()
         mcc = MCB()
-        with ctl.solve(on_model=mcb, yield_=True, async_=True) as hnd:
+        with ctl.start_solve(on_model=mcb, yield_=True, async_=True) as hnd:
             while mdl := hnd.model():
                 mcc(mdl)
                 hnd.resume()
@@ -96,7 +95,7 @@ class TestSolve:
 
         assumptions = [lit("a"), lit("b"), lit("c")]
 
-        with ctl.solve(assumptions=assumptions) as hnd:
+        with ctl.start_solve(assumptions=assumptions) as hnd:
             assert hnd.get().unsatisfiable
             assert sorted(hnd.core()) == sorted(assumptions[:2])
 
@@ -115,7 +114,7 @@ class TestSolve:
         a = next(ctl.base[("a", 0)].values()).literal
         i = 0
 
-        with ctl.solve(yield_=True) as hnd:
+        with ctl.start_solve(yield_=True) as hnd:
             for mdl in hnd:
                 i += 1
                 assert mdl.type == ModelType.StableModel
@@ -145,7 +144,7 @@ class TestSolve:
         ctl.parse_string("1 {a; b} 1. #minimize { 1:a; 2: b }.")
         ctl.ground()
 
-        with ctl.solve(yield_=True) as hnd:
+        with ctl.start_solve(yield_=True) as hnd:
             for mdl in hnd:
                 assert mdl.priorities == [0]
                 assert not mdl.optimality_proven
@@ -166,8 +165,7 @@ class TestSolve:
         )
         ctl.ground()
         lower = []
-        with ctl.solve(on_unsat=lower.append) as hnd:
-            assert hnd.get().satisfiable
+        assert ctl.solve(on_unsat=lower.append).satisfiable
         assert ctl.stats["summary"]["lower"] == [3.0]
         assert lower == [[1], [2], [3]]
 
@@ -182,7 +180,7 @@ class TestSolve:
         def lit(name: str) -> int:
             return next(ctl.base[(name, 0)].values()).literal
 
-        with ctl.solve(yield_=True) as hnd:
+        with ctl.start_solve(yield_=True) as hnd:
             it = iter(hnd)
             mdl = next(it)
             n1, n2 = "b", "c"
@@ -228,7 +226,7 @@ class TestSolve:
         def extend(mdl: Model):
             mdl.extend([sym("b"), sym("c")])
 
-        with ctl.solve(on_model=extend) as hnd:
+        with ctl.start_solve(on_model=extend) as hnd:
             assert hnd.get().satisfiable
             last = hnd.last()
             assert last
@@ -271,5 +269,4 @@ class TestSolve:
         ctl.config.solve.enum_mode = "cautious"
         ctl.parse_string("a. b | c.")
         ctl.ground([("base", [])])
-        with ctl.solve(on_model=on_model) as hnd:
-            assert hnd.get().satisfiable
+        assert ctl.solve(on_model=on_model).satisfiable

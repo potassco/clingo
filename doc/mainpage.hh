@@ -37,6 +37,8 @@
 
 //! @defgroup c_backend Ground Program Extension
 
+//! @defgroup c_ground Grounding
+
 //! @defgroup c_model Model Inspection
 
 //! @defgroup c_solve Solving
@@ -81,6 +83,10 @@
 //! @defgroup cpp_observe Ground Program Inspection
 
 //! @defgroup cpp_backend Ground Program Extension
+
+//! @defgroup cpp_ground Grounding
+
+//! @defgroup cpp_profile Profile Grounding
 
 //! @defgroup cpp_solve Solving
 

@@ -48,8 +48,7 @@ Functions and classes to implement custom propagators.
 >>> ctl.register_propagator(AIFFB())
 >>> ctl.parse_string("1 { a; b }.")
 >>> ctl.ground()
->>> with ctl.solve(on_model=print) as hnd:
->>>     print(hnd.get())
+>>> print(ctl.solve(on_model=print))
 a b
 SAT
 ```
@@ -57,6 +56,8 @@ SAT
 
 from __future__ import annotations
 
+import collections.abc
+import enum
 import typing
 
 import clingo.base
@@ -73,89 +74,39 @@ __all__ = [
     "WeightConstraintType",
 ]
 
-class CheckMode:
+class CheckMode(enum.IntEnum):
     """
     Enumeration of check modes.
-
-    Members:
-
-      Off : Do not call `Propagator.check()` at all.
-
-      Fixpoint : Call `Propagator.check()` on propagation fixpoints.
-
-      Total : Call `Propagator.check()` on total assignments.
-
-      Both : Call `Propagator.check()` on propagation fixpoints and total assignments.
     """
 
     Both: typing.ClassVar[CheckMode]  # value = <CheckMode.Both: 3>
     Fixpoint: typing.ClassVar[CheckMode]  # value = <CheckMode.Fixpoint: 2>
     Off: typing.ClassVar[CheckMode]  # value = <CheckMode.Off: 0>
     Total: typing.ClassVar[CheckMode]  # value = <CheckMode.Total: 1>
-    __members__: typing.ClassVar[
-        dict[str, CheckMode]
-    ]  # value = {'Off': <CheckMode.Off: 0>, 'Fixpoint': <CheckMode.Fixpoint: 2>, 'Total': <CheckMode.Total: 1>, 'Both': <CheckMode.Both: 3>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
-class UndoMode:
+class UndoMode(enum.IntEnum):
     """
     Enumeration of undo modes.
-
-    Members:
-
-      Default : Call `Propagator.undo()` for decision levels with non-emty changes.
-
-      Always : Additionally call `Propagator.undo()` when check has been called.
     """
 
     Always: typing.ClassVar[UndoMode]  # value = <UndoMode.Always: 1>
     Default: typing.ClassVar[UndoMode]  # value = <UndoMode.Default: 0>
-    __members__: typing.ClassVar[
-        dict[str, UndoMode]
-    ]  # value = {'Default': <UndoMode.Default: 0>, 'Always': <UndoMode.Always: 1>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
-class WeightConstraintType:
+class WeightConstraintType(enum.IntEnum):
     """
     Enumeration of weight constraint types.
-
-    Members:
-
-      Equivalence : The weight constraint is equal to its literal.
-
-      LeftImplication : The weight constraint implies its literal.
-
-      RightImplication : The literal implies the weight constraint.
     """
 
     Equivalence: typing.ClassVar[
@@ -167,25 +118,12 @@ class WeightConstraintType:
     RightImplication: typing.ClassVar[
         WeightConstraintType
     ]  # value = <WeightConstraintType.RightImplication: 1>
-    __members__: typing.ClassVar[
-        dict[str, WeightConstraintType]
-    ]  # value = {'Equivalence': <WeightConstraintType.Equivalence: 0>, 'LeftImplication': <WeightConstraintType.LeftImplication: -1>, 'RightImplication': <WeightConstraintType.RightImplication: 1>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
 class Assignment:
     """
@@ -218,7 +156,7 @@ class Assignment:
         Get the value at the given index.
         """
 
-    def __iter__(self) -> typing.Iterator[int]:
+    def __iter__(self) -> collections.abc.Iterator[int]:
         """
         Get an iterator for the sequence.
         """
@@ -228,7 +166,7 @@ class Assignment:
         Get the size of the sequence.
         """
 
-    def __reversed__(self) -> typing.Iterator[int]:
+    def __reversed__(self) -> collections.abc.Iterator[int]:
         """
         Get a reverse iterator for the sequence.
         """
@@ -725,7 +663,7 @@ class Trail:
         Slice the sequence.
         """
 
-    def __iter__(self) -> typing.Iterator[int]:
+    def __iter__(self) -> collections.abc.Iterator[int]:
         """
         Get an iterator for the sequence.
         """
@@ -735,7 +673,7 @@ class Trail:
         Get the size of the sequence.
         """
 
-    def __reversed__(self) -> typing.Iterator[int]:
+    def __reversed__(self) -> collections.abc.Iterator[int]:
         """
         Get a reverse iterator for the sequence.
         """
@@ -811,7 +749,7 @@ class _TrailView:
         Slice the sequence.
         """
 
-    def __iter__(self) -> typing.Iterator[int]:
+    def __iter__(self) -> collections.abc.Iterator[int]:
         """
         Get an iterator for the sequence.
         """
@@ -821,7 +759,7 @@ class _TrailView:
         Get the size of the sequence.
         """
 
-    def __reversed__(self) -> typing.Iterator[int]:
+    def __reversed__(self) -> collections.abc.Iterator[int]:
         """
         Get a reverse iterator for the sequence.
         """

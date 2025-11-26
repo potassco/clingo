@@ -416,9 +416,8 @@ auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Sy
                             auto digits = tmp_.size() - start;
                             tmp_.reserve(padding);
                             auto span = tmp_.span();
-                            auto num = span.subspan(start, digits);
-                            std::ranges::copy_backward(num, span.end());
-                            std::ranges::fill_n(num.begin(), padding, spec.fill.value_or(' '));
+                            std::ranges::copy_backward(span.subspan(start, digits), span.end());
+                            std::ranges::fill(span.subspan(start, padding), spec.fill.value_or(' '));
                         }
 
                         align(buf_, tmp_.view(), spec, FormatSpec::Align::right);

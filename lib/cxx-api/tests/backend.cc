@@ -47,11 +47,7 @@ TEST_CASE_METHOD(Fixture, "backend rule", "[cxx][backend][rule]") {
         bck.weight_rule(std::array{a4}, 4, std::to_array<WeightedLiteral>({{lit(a1), 2}, {lit(a2), 1}, {lit(a3), 1}}));
     }
     std::vector<std::vector<std::string>> models;
-    {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{{"p(1)"}, {"p(1)", "p(2)", "p(3)", "p(4)"}});
 }
 
@@ -66,11 +62,7 @@ TEST_CASE_METHOD(Fixture, "backend edge", "[cxx][backend][edge]") {
         bck.edge(2, 1, std::array{lit(b)});
     }
     std::vector<std::vector<std::string>> models;
-    {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{{}, {"a"}, {"b"}});
 }
 
@@ -83,11 +75,7 @@ TEST_CASE_METHOD(Fixture, "backend external", "[cxx][backend][external]") {
             bck.external(a, t);
         }
         std::vector<std::vector<std::string>> models;
-        {
-            auto mcb = MCB{models};
-            auto hnd = ctl.solve(mcb);
-            REQUIRE(hnd.get().satisfiable());
-        }
+        REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
         return models;
     };
 
@@ -113,11 +101,7 @@ TEST_CASE_METHOD(Fixture, "backend assume", "[cxx][backend][assume]") {
             bck.assume(std::array{t ? lit(a) : lit(-a)});
         }
         std::vector<std::vector<std::string>> models;
-        {
-            auto mcb = MCB{models};
-            auto hnd = ctl.solve(mcb);
-            REQUIRE(hnd.get().satisfiable());
-        }
+        REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
         return models;
     };
 
@@ -139,11 +123,7 @@ TEST_CASE_METHOD(Fixture, "backend project", "[cxx][backend][project]") {
         bck.project(std::array{a, b});
     }
     std::vector<std::vector<std::string>> models;
-    {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models.size() == 3);
 }
 
@@ -160,21 +140,23 @@ TEST_CASE_METHOD(Fixture, "backend minimize", "[cxx][backend][minimize]") {
     }
     std::optional<std::vector<std::string>> model;
     {
-        struct OM : SolveEventHandler {
-            OM(std::optional<std::vector<std::string>> &model) : model{&model} {}
+        class OM : public SolveEventHandler {
+          public:
+            OM(std::optional<std::vector<std::string>> &model) : model_{&model} {}
+
+          private:
             auto do_model(Model model) -> bool override {
                 std::vector<std::string> syms;
                 for (auto &sym : model.symbols(ShowFlags::shown)) {
                     syms.push_back(sym.to_string());
                 }
                 std::ranges::sort(syms);
-                *this->model = syms;
+                *this->model_ = syms;
                 return true;
             }
-            std::optional<std::vector<std::string>> *model;
-        } mcb{model};
-        auto hnd = ctl.solve(mcb);
-        REQUIRE(hnd.get().satisfiable());
+            std::optional<std::vector<std::string>> *model_;
+        };
+        REQUIRE(ctl.solve({}, OM{model}).satisfiable());
     }
     REQUIRE(model.has_value());
     REQUIRE(*model == std::vector<std::string>{"b", "d"});
@@ -198,11 +180,7 @@ TEST_CASE_METHOD(Fixture, "backend heuristic", "[cxx][backend][heuristic]") {
         bck.heuristic(d, HeuristicType::false_, 1);
     }
     std::vector<std::vector<std::string>> models;
-    {
-        auto mcb = MCB{models};
-        auto hnd = ctl.solve(mcb);
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
     REQUIRE(models == std::vector<std::vector<std::string>>{{"a", "c"}});
 }
 
@@ -223,10 +201,7 @@ TEST_CASE_METHOD(Fixture, "backend theory", "[cxx][backend][theory]") {
         std::ignore = thy.atom(0, n, std::vector{e});
     }
     REQUIRE(ctl.base().theory().at(0).to_string() == "&p(2) { f(p(2),a,1),[a,1],{1,p(2)},(p(2),a) }");
-    {
-        auto hnd = ctl.solve();
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve().satisfiable());
 
     ctl.ground();
     {
@@ -237,10 +212,7 @@ TEST_CASE_METHOD(Fixture, "backend theory", "[cxx][backend][theory]") {
         std::ignore = thy.atom(0, n, {}, std::make_pair(std::string("<="), num));
     }
     REQUIRE(ctl.base().theory().at(0).to_string() == "&p { } <= 1");
-    {
-        auto hnd = ctl.solve();
-        REQUIRE(hnd.get().satisfiable());
-    }
+    REQUIRE(ctl.solve().satisfiable());
 }
 
 } // namespace Clingo::Test

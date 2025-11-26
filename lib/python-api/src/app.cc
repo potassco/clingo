@@ -103,8 +103,8 @@ class App : public reference_keeper<App> {
             res->data = str.data();
             res->size = str.size();
         } catch (std::exception const &e) {
-            printf("panic: %s\n", e.what());
-            std::abort();
+            fprintf(stderr, "panic: %s\n", e.what());
+            std::terminate();
         }
     }
 
@@ -115,8 +115,8 @@ class App : public reference_keeper<App> {
             res->data = str.data();
             res->size = str.size();
         } catch (std::exception const &e) {
-            printf("panic: %s\n", e.what());
-            std::abort();
+            fprintf(stderr, "panic: %s\n", e.what());
+            std::terminate();
         }
     }
 

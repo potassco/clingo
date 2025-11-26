@@ -7,8 +7,33 @@ from textwrap import dedent
 from clingo import ast
 from clingo.control import Control
 from clingo.core import Library
+from clingo.ground import GroundResult
 from clingo.symbol import Number
 from util import MCB
+
+
+class Context:
+    """
+    Simple test context.
+    """
+
+    def __init__(self, lib):
+        """
+        Initialize the context.
+        """
+        self._lib = lib
+
+    def fun(self, arg):
+        """
+        Test function f.
+        """
+        return [arg, Number(self._lib, arg.number + 1)]
+
+    def gun(self, arg):
+        """
+        Test function g.
+        """
+        return Number(self._lib, arg.number + 1)
 
 
 class TestControl:
@@ -38,6 +63,45 @@ class TestControl:
         """
         assert self._lib is not None
         return self._lib
+
+    def test_start_ground(self):
+        """
+        Test start_ground method with event handler and interruption.
+        """
+        ctl = Control(self.lib, ["--mode=ground"])
+        ctl.parse_string("#show.")
+        ctl.parse_string("p(@fun(1)).")
+        fres = None
+
+        def f(res):
+            nonlocal fres
+            fres = res
+
+        with ctl.start_ground(context=Context(self.lib), on_finish=f) as hnd:
+            res = hnd.get()
+        assert res == fres
+        assert res == GroundResult.Ok
+        assert ctl.buffer == dedent(
+            """\
+            p(1).
+            p(2).
+            #show.
+            """
+        )
+
+    def test_start_ground_interrupt(self):
+        """
+        Test start_ground method with interruption.
+        """
+        ctl = Control(self.lib, ["--mode=ground"])
+        ctl.parse_string("#show.")
+        ctl.parse_string("p(0).")
+        ctl.parse_string("p(X+1) :- p(X).")
+        with ctl.start_ground() as hnd:
+            assert not hnd.wait(0.1)
+            hnd.cancel()
+            res = hnd.get()
+        assert res == GroundResult.Interrupted
 
     def test_ground(self):
         """
@@ -77,29 +141,6 @@ class TestControl:
         Test the grounding context.
         """
 
-        class Context:
-            """
-            Simple test context.
-            """
-
-            def __init__(self, lib):
-                """
-                Initialize the context.
-                """
-                self._lib = lib
-
-            def fun(self, arg):
-                """
-                Test function f.
-                """
-                return [arg, Number(self._lib, arg.number + 1)]
-
-            def gun(self, arg):
-                """
-                Test function g.
-                """
-                return Number(self._lib, arg.number + 1)
-
         ctl = Control(self.lib, ["--mode=ground"])
 
         ctl.parse_string("p(@fun(1)).")
@@ -130,8 +171,7 @@ class TestControl:
         ctl.ground([("base", [])])
 
         mcb = MCB()
-        with ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == [["a", "b"]]
 
     def test_incmode(self):

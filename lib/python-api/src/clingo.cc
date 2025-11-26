@@ -6,6 +6,7 @@
 #include "config.hh"
 #include "control.hh"
 #include "core.hh"
+#include "ground.hh"
 #include "propagate.hh"
 #include "script.hh"
 #include "solve.hh"
@@ -93,8 +94,7 @@ def f(lib: Library, x: Symbol):
 def main(lib: Library, ctl: Control, parts: Parts):
     for part in parts:
         ctl.ground(part)
-        with ctl.solve() as hnd:
-            hnd.get()
+        ctl.solve()
 
 #end.
 
@@ -122,8 +122,7 @@ information.
 ...     ctl = Control(lib, ["0"])
 ...     ctl.parse_string("1 {p(1..2)} 1. q(@f(X)) :- p(X).")
 ...     ctl.ground(context=Context(lib))
-...     with ctl.solve(on_model=print) as hnd:
-...         print(hnd.get())
+...     ctl.solve(on_model=print)
 ```
 )doc"_d;
     PyClingo::register_core(m);
@@ -131,6 +130,7 @@ information.
     PyClingo::AST::register_ast(m);
     PyClingo::register_base(m);
     PyClingo::register_backend(m);
+    PyClingo::register_ground(m);
     PyClingo::register_solve(m);
     PyClingo::register_config(m);
     PyClingo::register_stats(m);

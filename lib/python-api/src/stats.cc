@@ -1,6 +1,8 @@
 #include "stats.hh"
 #include "core.hh"
 
+#include <pybind11/native_enum.h>
+
 namespace PyClingo {
 
 namespace {
@@ -216,11 +218,9 @@ The following example shows how to add custom stats and access the stats:
 >>> ctl = Control(lib, ['--stats'])
 >>> ctl.parse_string("{a}.")
 >>> ctl.ground()
->>> with ctl.solve(on_stats=on_stats) as hnd:
-...     print(hnd.get())
+>>> print(ctl.solve(on_stats=on_stats))
 SAT
->>> with ctl.solve(on_stats=on_stats) as hnd:
-...     print(hnd.get())
+>>> print(ctl.solve(on_stats=on_stats))
 SAT
 >>> ctl.stats['user_step']
 { "example": [21.0] }
@@ -238,10 +238,11 @@ Note that the control object is created passing options `--stats`; without this
 option only basic stats are reported.
 )"_d);
 
-    py::enum_<StatsType>(module, "StatsType", "The type of a stats object.")
+    py::native_enum<StatsType>(module, "StatsType", "enum.IntEnum", "The type of a stats object.")
         .value("Map", StatsType::map, R"(Indicate a map of stats.)")
         .value("Array", StatsType::array, R"(Indicate an array of stats.)")
-        .value("Value", StatsType::value, R"(Indicate a value of stats.)");
+        .value("Value", StatsType::value, R"(Indicate a value of stats.)")
+        .finalize();
 
     auto stats = py::class_<Stats>(module, "Stats", R"(Class representing solver stats.)");
 

@@ -1,5 +1,7 @@
 #include <clingo/propagate.h>
 
+#include <pybind11/native_enum.h>
+
 #include <algorithm>
 #include <utility>
 
@@ -378,8 +380,8 @@ void register_propagator(clingo_control_t *ctl, Propagator &prop) {
                 auto py_ass = Assignment{assignment};
                 self->undo(py_ass, LitSpan{changes, size});
             } catch (std::exception const &e) {
-                printf("panic: %s\n", e.what());
-                std::abort();
+                fprintf(stderr, "panic: %s\n", e.what());
+                std::terminate();
             }
         },
         [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, void *data) -> bool {
@@ -468,8 +470,7 @@ Functions and classes to implement custom propagators.
 >>> ctl.register_propagator(AIFFB())
 >>> ctl.parse_string("1 { a; b }.")
 >>> ctl.ground()
->>> with ctl.solve(on_model=print) as hnd:
->>>     print(hnd.get())
+>>> print(ctl.solve(on_model=print))
 a b
 SAT
 ```
@@ -525,28 +526,32 @@ Returns:
     The index after the last literal.
 )"_d);
 
-    py::enum_<clingo_weight_constraint_type_e>(propagate, "WeightConstraintType",
-                                               "Enumeration of weight constraint types.")
+    py::native_enum<clingo_weight_constraint_type_e>(propagate, "WeightConstraintType", "enum.IntEnum",
+                                                     "Enumeration of weight constraint types.")
         .value("Equivalence", clingo_weight_constraint_type_equivalence,
                R"(The weight constraint is equal to its literal.)")
         .value("LeftImplication", clingo_weight_constraint_type_implication_left,
                R"(The weight constraint implies its literal.)")
         .value("RightImplication", clingo_weight_constraint_type_implication_right,
-               R"(The literal implies the weight constraint.)");
+               R"(The literal implies the weight constraint.)")
+        .finalize();
 
-    py::enum_<clingo_propagator_check_mode_e>(propagate, "CheckMode", "Enumeration of check modes.")
+    py::native_enum<clingo_propagator_check_mode_e>(propagate, "CheckMode", "enum.IntEnum",
+                                                    "Enumeration of check modes.")
         .value("Off", clingo_propagator_check_mode_none, R"(Do not call `Propagator.check()` at all.)")
         .value("Fixpoint", clingo_propagator_check_mode_fixpoint,
                R"(Call `Propagator.check()` on propagation fixpoints.)")
         .value("Total", clingo_propagator_check_mode_total, R"(Call `Propagator.check()` on total assignments.)")
         .value("Both", clingo_propagator_check_mode_both,
-               R"(Call `Propagator.check()` on propagation fixpoints and total assignments.)");
+               R"(Call `Propagator.check()` on propagation fixpoints and total assignments.)")
+        .finalize();
 
-    py::enum_<clingo_propagator_undo_mode_e>(propagate, "UndoMode", "Enumeration of undo modes.")
+    py::native_enum<clingo_propagator_undo_mode_e>(propagate, "UndoMode", "enum.IntEnum", "Enumeration of undo modes.")
         .value("Default", clingo_propagator_undo_mode_default,
                R"(Call `Propagator.undo()` for decision levels with non-emty changes.)")
         .value("Always", clingo_propagator_undo_mode_always,
-               R"(Additionally call `Propagator.undo()` when check has been called.)");
+               R"(Additionally call `Propagator.undo()` when check has been called.)")
+        .finalize();
 
     make_sequence(py::class_<Assignment>(propagate, "Assignment", R"(
 Provides information about the current state of literals in the solver.

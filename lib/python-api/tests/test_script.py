@@ -144,15 +144,13 @@ class TestScript:
         ctl.parse_string("#program one(k). p(k).")
         ctl.ground([("one", [Number(self.lib, 1)])])
         mcb = MCB()
-        with ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == [["p(1)"]]
 
         ctl.parse_string("#program ext(k). p(@fun(k)).")
         ctl.ground([("ext", [Number(self.lib, i)]) for i in range(1, 1000, 257)])
         mcb = MCB()
-        with ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == [
             [
                 "p(1)",

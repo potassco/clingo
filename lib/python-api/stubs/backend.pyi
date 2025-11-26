@@ -18,8 +18,7 @@ The first example shows how to add a fact to a program:
 ...     bck.rule([atm_a])
 >>> ctl.base.is_fact(ctl.base[sym].literal)
 True
->>> with ctl.solve(on_model=print) as hnd:
-...     hnd.get()
+>>> print(ctl.solve(on_model=print))
 a
 SAT
 ```
@@ -48,6 +47,7 @@ The next example shows how to add theory atoms to a program:
 
 from __future__ import annotations
 
+import enum
 import typing
 
 import clingo.base
@@ -62,62 +62,25 @@ __all__ = [
     "TheorySequenceType",
 ]
 
-class ExternalType:
+class ExternalType(enum.IntEnum):
     """
     Available external types.
-
-    Members:
-
-      True_ : Make an external atom true.
-
-      False_ : Make an external atom false.
-
-      Free : Make an external atom a choice.
-
-      Release : Release an external atom.
     """
 
     False_: typing.ClassVar[ExternalType]  # value = <ExternalType.False_: 2>
     Free: typing.ClassVar[ExternalType]  # value = <ExternalType.Free: 0>
     Release: typing.ClassVar[ExternalType]  # value = <ExternalType.Release: 3>
     True_: typing.ClassVar[ExternalType]  # value = <ExternalType.True_: 1>
-    __members__: typing.ClassVar[
-        dict[str, ExternalType]
-    ]  # value = {'True_': <ExternalType.True_: 1>, 'False_': <ExternalType.False_: 2>, 'Free': <ExternalType.Free: 0>, 'Release': <ExternalType.Release: 3>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
-class HeuristicType:
+class HeuristicType(enum.IntEnum):
     """
     Available heuristic types.
-
-    Members:
-
-      Level : The level modifier.
-
-      Factor : The factor modifier.
-
-      True_ : The true modifier.
-
-      False_ : The false modifier.
-
-      Init : The init modifier.
-
-      Sign : The sign modifier.
     """
 
     Factor: typing.ClassVar[HeuristicType]  # value = <HeuristicType.Factor: 2>
@@ -126,61 +89,27 @@ class HeuristicType:
     Level: typing.ClassVar[HeuristicType]  # value = <HeuristicType.Level: 0>
     Sign: typing.ClassVar[HeuristicType]  # value = <HeuristicType.Sign: 1>
     True_: typing.ClassVar[HeuristicType]  # value = <HeuristicType.True_: 4>
-    __members__: typing.ClassVar[
-        dict[str, HeuristicType]
-    ]  # value = {'Level': <HeuristicType.Level: 0>, 'Factor': <HeuristicType.Factor: 2>, 'True_': <HeuristicType.True_: 4>, 'False_': <HeuristicType.False_: 5>, 'Init': <HeuristicType.Init: 3>, 'Sign': <HeuristicType.Sign: 1>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
-class TheorySequenceType:
+class TheorySequenceType(enum.IntEnum):
     """
     Available theory sequence types.
-
-    Members:
-
-      Tuple : Sequences enclosed in parentheses.
-
-      List : Sequences enclosed in brackets.
-
-      Set : Sequences enclosed in braces.
     """
 
     List: typing.ClassVar[TheorySequenceType]  # value = <TheorySequenceType.List: 2>
     Set: typing.ClassVar[TheorySequenceType]  # value = <TheorySequenceType.Set: 1>
     Tuple: typing.ClassVar[TheorySequenceType]  # value = <TheorySequenceType.Tuple: 0>
-    __members__: typing.ClassVar[
-        dict[str, TheorySequenceType]
-    ]  # value = {'Tuple': <TheorySequenceType.Tuple: 0>, 'List': <TheorySequenceType.List: 2>, 'Set': <TheorySequenceType.Set: 1>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
 class Backend:
     """

@@ -17,9 +17,7 @@ The following example shows how to intercept models with a callback:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(on_model=print) as hnd:
-    ...     print(hnd.get())
-    ...
+    >>> print(ctl.solve(on_model=print))
     a
     b
     SAT
@@ -33,7 +31,7 @@ The following example shows how to yield models:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(yield_=True) as hnd:
+    >>> with ctl.start_solve(yield_=True) as hnd:
     ...     for mdl in hnd:
     ...         print(mdl)
     ...     print(hnd.get())
@@ -51,9 +49,7 @@ The following example shows how to solve asynchronously:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(on_model=print, async_=True) as hnd:
-    ...     print(hnd.get())
-    ...
+    >>> print(ctl.solve(on_model=print, async_=True))
     a
     b
     SAT
@@ -67,7 +63,7 @@ This example shows how to solve both iteratively and asynchronously:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(yield_=True, async_=True) as hnd:
+    >>> with ctl.start_solve(yield_=True, async_=True) as hnd:
     ...     while mdl := hnd.model():
     ...         print(mdl)
     ...         hnd.resume()
@@ -80,6 +76,8 @@ This example shows how to solve both iteratively and asynchronously:
 
 from __future__ import annotations
 
+import collections.abc
+import enum
 import typing
 
 import clingo.base
@@ -87,17 +85,9 @@ import clingo.symbol
 
 __all__ = ["Model", "ModelType", "SolveControl", "SolveHandle", "SolveResult"]
 
-class ModelType:
+class ModelType(enum.IntEnum):
     """
     Enumeration of model types.
-
-    Members:
-
-      StableModel : The model captures a stable model.
-
-      CautiousConsequences : The model stores the set of cautious consequences.
-
-      BraveConsequences : The model stores the set of brave consequences.
     """
 
     BraveConsequences: typing.ClassVar[
@@ -107,25 +97,12 @@ class ModelType:
         ModelType
     ]  # value = <ModelType.CautiousConsequences: 2>
     StableModel: typing.ClassVar[ModelType]  # value = <ModelType.StableModel: 0>
-    __members__: typing.ClassVar[
-        dict[str, ModelType]
-    ]  # value = {'StableModel': <ModelType.StableModel: 0>, 'CautiousConsequences': <ModelType.CautiousConsequences: 2>, 'BraveConsequences': <ModelType.BraveConsequences: 1>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
 class Model:
     """
@@ -317,7 +294,7 @@ class SolveHandle:
         Stop the search closing the handle.
         """
 
-    def __iter__(self) -> typing.Iterator[Model]:
+    def __iter__(self) -> collections.abc.Iterator[Model]:
         """
         Get an iterator over the models.
         """
@@ -343,7 +320,7 @@ class SolveHandle:
         the search.
         """
 
-    def last(self) -> Model | None:
+    def last(self) -> clingo.solve.Model | None:
         """
         Get the last computed model, if any.
 
@@ -351,7 +328,7 @@ class SolveHandle:
         function returns `None`.
         """
 
-    def model(self) -> Model | None:
+    def model(self) -> clingo.solve.Model | None:
         """
         Get the current model if there is any.
         """

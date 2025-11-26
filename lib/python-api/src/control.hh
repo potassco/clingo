@@ -3,6 +3,7 @@
 #include "backend.hh"
 #include "base.hh"
 #include "config.hh"
+#include "ground.hh"
 #include "iterable.hh"
 #include "propagate.hh"
 #include "solve.hh"
@@ -50,9 +51,16 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     void write_aspif(std::string_view path, bool symbols, bool append, std::optional<bool> preamble, bool preprocess);
     void join(AST::Program &prg);
     void ground(std::optional<PartSpan> parts, py::handle ctx);
+    auto start_ground(std::optional<PartSpan> parts, py::handle ctx,
+                      Annotation<std::optional<GroundFinishCallback>> on_finish) -> Annotation<GroundHandle>;
     auto solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
                Annotation<std::optional<UnsatCallback>> on_unsat, Annotation<std::optional<StatsCallback>> on_stats,
-               Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async) -> Annotation<SolveHandle>;
+               Annotation<std::optional<FinishCallback>> on_finish) -> SolveResult;
+    auto start_solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
+                     Annotation<std::optional<UnsatCallback>> on_unsat,
+                     Annotation<std::optional<StatsCallback>> on_stats,
+                     Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
+        -> Annotation<SolveHandle>;
     auto base() -> Base;
     void observe(Observer &obs, bool preprocess);
     auto backend() -> BackendManager;
@@ -86,9 +94,19 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
   private:
     using Parent = registered_handle<Control, clingo_control_t>;
     Control(clingo_control_t *ctl) : Parent{ctl} {}
-    static auto ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name, size_t name_size,
-                     clingo_symbol_t const *arguments, size_t arguments_size, void *data,
-                     clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool;
+    static auto callable_([[maybe_unused]] char const *name, [[maybe_unused]] size_t name_size,
+                          [[maybe_unused]] size_t arguments_size, [[maybe_unused]] void *data, bool *result) -> bool {
+        CLINGO_TRY {
+            *result = true;
+        }
+        CLINGO_CATCH;
+    }
+    static auto call_(clingo_lib_t *lib, clingo_location_t const *location, char const *name, size_t name_size,
+                      clingo_symbol_t const *arguments, size_t arguments_size, void *data,
+                      clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool;
+
+    constexpr static clingo_ground_event_handler_t ctx_ =
+        clingo_ground_event_handler_t{&callable_, &call_, nullptr, nullptr};
 };
 
 void register_control(pybind11::module &m);

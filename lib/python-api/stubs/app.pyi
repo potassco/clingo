@@ -60,6 +60,7 @@ with Library() as lib:
 
 from __future__ import annotations
 
+import collections.abc
 import typing
 
 import clingo.control
@@ -70,7 +71,9 @@ __all__ = ["App", "AppOptions", "Flag", "clingo_main"]
 
 def _pyclingo() -> int: ...
 def clingo_main(
-    lib: clingo.core.Library, arguments: typing.Sequence[str], app: App | None = None
+    lib: clingo.core.Library,
+    arguments: typing.Sequence[str],
+    app: clingo.app.App | None = None,
 ) -> int:
     """
     Entry point for running the Clingo application.
@@ -135,7 +138,9 @@ class App:
         """
 
     def print_model(
-        self, model: clingo.solve.Model, default_printer: typing.Callable[[], None]
+        self,
+        model: clingo.solve.Model,
+        default_printer: collections.abc.Callable[[], None],
     ) -> None:
         """
         Print the given model in a custom format.
@@ -185,7 +190,7 @@ class AppOptions:
         group: str,
         option: str,
         description: str,
-        parser: typing.Callable[[str], None],
+        parser: collections.abc.Callable[[str], None],
         multi: bool = False,
         argument: str | None = None,
     ) -> None:

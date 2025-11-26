@@ -179,7 +179,7 @@ TEST_CASE_METHOD(Fixture, "theory base", "[cxx][base][theory]") {
     REQUIRE(b.arguments().size() == 2);
     REQUIRE(b.to_string() == "{4,5}");
 
-    std::ignore = ctl.solve().get();
+    std::ignore = ctl.solve();
     ctl.parse_string("#program x. &p {} < q(x).");
     ctl.ground({{"x", {}}});
 

@@ -278,8 +278,7 @@ class TestError:
             ctl = Control(self.lib, ["0"])
             ctl.register_propagator(Prop(throw))
             with pytest.raises(RuntimeError, match=msg):
-                with ctl.solve() as hnd:
-                    hnd.get()
+                ctl.solve()
 
     def run_app_test(self, mode, pattern: str):
         """

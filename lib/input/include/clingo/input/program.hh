@@ -142,13 +142,13 @@ class DependencyBuilder {
     //! Add facts.
     void fact(std::vector<Symbol> const &facts) { do_fact(facts); }
     //! Add components.
-    [[nodiscard]] auto components(Components const &comps) -> bool { return do_components(comps); }
+    [[nodiscard]] auto components(Components const &comps) -> GroundResult { return do_components(comps); }
 
   private:
     virtual void do_param(ProgramParam const &param) = 0;
     virtual void do_meta(std::vector<Stm> const &stms) = 0;
     virtual void do_fact(SymbolVec const &facts) = 0;
-    [[nodiscard]] virtual auto do_components(Components const &comps) -> bool = 0;
+    [[nodiscard]] virtual auto do_components(Components const &comps) -> GroundResult = 0;
 };
 
 //! A program consisting of parts.
@@ -207,7 +207,8 @@ class Program {
     auto meta_stms() -> StmVec const & { return meta_stms_; }
 
     //! Prepare the statements in a program for grounding.
-    [[nodiscard]] auto analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) -> bool;
+    [[nodiscard]] auto analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld)
+        -> GroundResult;
 
     //! Mark symbols occurring in the program.
     void mark(SymbolCollector &gc) const;

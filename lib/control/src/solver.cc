@@ -7,6 +7,7 @@
 #include <potassco/aspif_text.h>
 #include <potassco/theory_data.h>
 
+#include <future>
 #include <utility>
 
 // #define DEBUG_BACKEND
@@ -575,13 +576,13 @@ auto convert(Clasp::SolveResult cres) -> SolveResult {
 }
 
 //! An event handler that adapts clingo's event handler to clasp's.
-class EventHandlerAdapter : public Clasp::EventHandler {
+class SolveEventHandlerAdapter : public Clasp::EventHandler {
   public:
     //! Construct a solve event handler adapter.
     //!
     //! This initializes the underlying solve handle, which in turn starts
     //! solving.
-    EventHandlerAdapter(CallbackLock &lock, Logger &logger, ModelImpl &mdl, Control::UEventHandler eh)
+    SolveEventHandlerAdapter(CallbackLock &lock, Logger &logger, ModelImpl &mdl, Control::USolveEventHandler eh)
         : lock_{&lock}, logger_{&logger}, mdl_{&mdl}, eh_{std::move(eh)} {}
 
     //! Intercept and report models.
@@ -662,7 +663,7 @@ class EventHandlerAdapter : public Clasp::EventHandler {
     Logger *logger_;
     ModelImpl *mdl_;
     Clasp::SumVec bound_;
-    Control::UEventHandler eh_;
+    Control::USolveEventHandler eh_;
     std::exception_ptr ptr_;
 };
 
@@ -698,12 +699,19 @@ constexpr int kill_signal = 9;
 //! The solve handle implementation.
 class SolveHandleImpl : public SolveHandle {
   public:
-    SolveHandleImpl(CallbackLock &lock, Logger &log, ModelImpl &mdl, SolveMode mode, UEventHandler eh,
+    SolveHandleImpl(CallbackLock &lock, Logger &log, ModelImpl &mdl, SolveMode mode, USolveEventHandler eh,
                     std::function<void()> simplify)
         : eh_{lock, log, mdl, std::move(eh)}, hnd_{mdl.clasp().solve(convert(mode), {}, &eh_)},
           simplify_{std::move(simplify)} {}
 
-    ~SolveHandleImpl() override { cancel(); }
+    ~SolveHandleImpl() override {
+        try {
+            cancel();
+        } catch (std::exception &e) {
+            fprintf(stderr, "panic: shutting down the solve handle failed with %s\n", e.what());
+            std::terminate();
+        }
+    }
 
   private:
     auto do_get() -> SolveResult override {
@@ -751,7 +759,7 @@ class SolveHandleImpl : public SolveHandle {
         return hnd_.waitFor(timeout);
     }
 
-    EventHandlerAdapter eh_;
+    SolveEventHandlerAdapter eh_;
     Clasp::ClaspFacade::SolveHandle hnd_;
     std::function<void()> simplify_;
     Potassco::LitVec mutable core_;
@@ -1043,8 +1051,8 @@ void Solver::interrupt() noexcept {
     try {
         clasp_facade().interrupt(random_signal);
     } catch (std::exception const &e) {
-        printf("panic: %s\n", e.what());
-        std::abort();
+        fprintf(stderr, "panic: %s\n", e.what());
+        std::terminate();
     }
 }
 
@@ -1150,7 +1158,7 @@ auto Solver::map_model(Clasp::Model const &mdl) -> Model & {
     return *mdl_;
 }
 
-auto Solver::solve(UEventHandler handler, PrgLitSpan assumptions, SolveMode mode) -> USolveHandle {
+auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode mode) -> USolveHandle {
     if (opts_.mode == AppMode::solve) {
         auto guard = unlock_guard{lock_};
         if (state_ == State::solved || state_ == State::initial) {
@@ -1206,12 +1214,110 @@ auto Solver::const_map() -> Input::ConstMap const & {
     return grd_.const_map();
 }
 
-void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) {
+class GroundHandle::Impl {
+  public:
+    Impl() = default;
+
+    Impl(Impl const &) = delete;
+    Impl(Impl &&other) noexcept = delete;
+    auto operator=(Impl const &) -> Impl & = delete;
+    auto operator=(Impl &&other) noexcept -> Impl & = delete;
+
+    void start(Solver &slv, Input::ProgramParamVec params, UGroundEventHandler handler) {
+        assert(!future_.valid());
+        future_ =
+            std::async(std::launch::async, [this, &slv, handler = std::move(handler), params = std::move(params)]() {
+                try {
+                    auto res = slv.ground(params, handler.get(), &stop_);
+                    if (handler) {
+                        handler->finish(res);
+                    }
+                    return res;
+                } catch (...) {
+                    if (handler) {
+                        handler->finish(GroundResult::interrupted);
+                    }
+                    throw;
+                }
+            });
+    }
+
+    [[nodiscard]] auto wait(double timeout) -> bool {
+        if (!future_.valid()) {
+            return true;
+        }
+        if (timeout < 0) {
+            future_.wait();
+            return true;
+        }
+        return future_.wait_for(std::chrono::duration<double>(timeout)) == std::future_status::ready;
+    }
+
+    [[nodiscard]] auto get() -> GroundResult {
+        if (future_.valid()) {
+            res_ = future_.get();
+        }
+        return res_;
+    }
+
+    void cancel() {
+        if (future_.valid()) {
+            stop_.request_stop();
+            future_.wait();
+        }
+    }
+
+    ~Impl() noexcept {
+        try {
+            cancel();
+        } catch (std::exception const &e) {
+            fprintf(stderr, "panic: %s\n", e.what());
+            std::terminate();
+        }
+    }
+
+  private:
+    std::future<GroundResult> future_;
+    GroundResult res_ = GroundResult::interrupted;
+    Util::StopFlag stop_;
+};
+
+GroundHandle::GroundHandle(Solver &solver, Input::ProgramParamVec params, UGroundEventHandler handler)
+    : impl_{std::make_unique<Impl>()} {
+    impl_->start(solver, std::move(params), std::move(handler));
+}
+
+GroundHandle::~GroundHandle() noexcept = default;
+
+GroundHandle::GroundHandle(GroundHandle &&other) noexcept = default;
+
+auto GroundHandle::operator=(GroundHandle &&other) noexcept -> GroundHandle & = default;
+
+auto GroundHandle::wait(double timeout) -> bool {
+    return impl_->wait(timeout);
+}
+
+void GroundHandle::cancel() {
+    impl_->cancel();
+}
+
+auto GroundHandle::get() -> GroundResult {
+    return impl_->get();
+}
+
+auto Solver::start_ground(Input::ProgramParamVec params, UGroundEventHandler handler) -> GroundHandle {
+    return GroundHandle{*this, std::move(params), std::move(handler)};
+}
+
+auto Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx, Util::StopFlag *stop)
+    -> GroundResult {
+    auto res = GroundResult::ok;
     if (opts_.mode >= AppMode::ground) {
         prepare_();
-        std::ignore = grd_.ground(params, ctx != nullptr ? ctx : scripts_);
+        res = grd_.ground(params, ctx != nullptr ? ctx : scripts_, stop);
         clasp_->ctx.report(Grounded{params});
     }
+    return res;
 }
 
 void Solver::output_unprocessed_program(std::ostream &out) {

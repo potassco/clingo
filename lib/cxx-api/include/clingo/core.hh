@@ -304,6 +304,97 @@ template <class T, class P> class intrusive_handle {
     P *ptr_ = nullptr;
 };
 
+template <typename HT, typename PT> struct UserDataStorageTypes {
+    using HolderType = HT;
+    using PtrType = PT;
+};
+template <typename T> struct UserDataStorageTraits : UserDataStorageTypes<std::unique_ptr<T>, T *> {
+    using ValueType = T;
+    using is_holder = void;
+};
+template <typename T> struct UserDataStorageTraits<std::reference_wrapper<T>> : UserDataStorageTypes<T *, T *> {
+    using is_ref = void;
+};
+template <typename T> struct UserDataStorageTraits<std::unique_ptr<T>> : UserDataStorageTypes<std::unique_ptr<T>, T *> {
+    using is_holder = void;
+};
+template <> struct UserDataStorageTraits<std::nullptr_t> : UserDataStorageTypes<std::nullptr_t, std::nullptr_t> {
+    using is_null = void;
+};
+
+//! Manager for user data passed to C callbacks.
+//!
+//! Manages ownership semantics and type-safe casting for user data stored as
+//! void pointers. By default, user data is forwarded into a holder object.
+//! Reference wrappers are stored as raw pointers, avoiding unnecessary copying
+//! or moving of the underlying data. Types representing null pointers are
+//! explicitly marked to indicate the absence of user data.
+template <typename T> struct UserDataTraits {
+    using StorageTraits = UserDataStorageTraits<std::remove_cvref_t<T>>;
+    using PointerType = typename StorageTraits::PtrType;
+    using ValueType = std::remove_pointer_t<PointerType>;
+    using ReferenceType = std::add_lvalue_reference_t<PointerType>;
+
+    //! True if there is (potentially null) user data.
+    static constexpr auto has_data = !requires { typename StorageTraits::is_null; };
+
+    //! Create the holder from the given data.
+    template <typename U> static auto create(U &&data) -> StorageTraits::HolderType {
+        if constexpr (requires { typename StorageTraits::ValueType; }) {
+            return std::make_unique<typename StorageTraits::ValueType>(std::forward<U>(data));
+        } else if constexpr (requires { typename StorageTraits::is_ref; }) {
+            return &data.get();
+        } else {
+            return data;
+        }
+    }
+    //! Get the value from the holder.
+    static auto get(StorageTraits::HolderType &holder) -> PointerType {
+        if constexpr (requires { typename StorageTraits::is_holder; }) {
+            return holder.get();
+        } else {
+            return holder;
+        }
+    }
+    //! Check whether the holder contains a value.
+    static auto has_value(StorageTraits::HolderType &holder) -> bool { return get(holder) != nullptr; }
+    //! Release the pointer to the value from the holder.
+    static auto release(StorageTraits::HolderType &holder) -> StorageTraits::PtrType {
+        if constexpr (requires { typename StorageTraits::is_holder; }) {
+            return holder.release();
+        } else {
+            return holder;
+        }
+    }
+    //! Cast the void pointer to the pointer type.
+    static auto cast(void *ptr) -> StorageTraits::PtrType { return static_cast<StorageTraits::PtrType>(ptr); }
+    //! Free the value pointed to by the void pointer.
+    static void free(void *ptr) {
+        if constexpr (requires { typename StorageTraits::is_holder; }) {
+            typename StorageTraits::HolderType{cast(ptr)};
+        }
+    }
+};
+
+template <typename Value, typename Base, bool Null> struct IsUserData : std::is_base_of<Base, Value> {};
+
+template <typename T, typename Base, bool Null>
+struct IsUserData<std::reference_wrapper<T>, Base, Null> : std::is_base_of<Base, T> {};
+
+template <typename T, typename Base, bool Null>
+struct IsUserData<std::unique_ptr<T>, Base, Null> : std::is_base_of<Base, T> {};
+
+template <typename Base, bool Null>
+struct IsUserData<std::nullptr_t, Base, Null> : std::conditional_t<Null, std::true_type, std::false_type> {};
+
+//! Checks whether a type can be used as user data.
+//!
+//! The type must either derive from the given base class or be a null pointer.
+//! Additionally, reference wrappers and unique pointers to types deriving from
+//! the base class are also accepted.
+template <typename Value, typename Base, bool Null = true>
+concept UserData = IsUserData<std::remove_cvref_t<Value>, Base, Null>::value;
+
 template <typename T> class ArrowProxy {
   public:
     constexpr ArrowProxy(T value) : value_(std::move(value)) {}

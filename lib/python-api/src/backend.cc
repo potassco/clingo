@@ -1,6 +1,8 @@
 #include <clingo/backend.h>
 #include <clingo/observe.h>
 
+#include <pybind11/native_enum.h>
+
 #include "backend.hh"
 #include "base.hh"
 #include "iterable.hh" // IWYU pragma: keep
@@ -259,8 +261,7 @@ The first example shows how to add a fact to a program:
 ...     bck.rule([atm_a])
 >>> ctl.base.is_fact(ctl.base[sym].literal)
 True
->>> with ctl.solve(on_model=print) as hnd:
-...     hnd.get()
+>>> print(ctl.solve(on_model=print))
 a
 SAT
 ```
@@ -287,24 +288,30 @@ The next example shows how to add theory atoms to a program:
 ```
 )"_d);
 
-    py::enum_<clingo_heuristic_type_e>(backend, "HeuristicType", R"doc(Available heuristic types.)doc")
+    py::native_enum<clingo_heuristic_type_e>(backend, "HeuristicType", "enum.IntEnum",
+                                             R"doc(Available heuristic types.)doc")
         .value("Level", clingo_heuristic_type_level, R"doc(The level modifier.)doc")
         .value("Factor", clingo_heuristic_type_factor, R"doc(The factor modifier.)doc")
         .value("True_", clingo_heuristic_type_true, R"doc(The true modifier.)doc")
         .value("False_", clingo_heuristic_type_false, R"doc(The false modifier.)doc")
         .value("Init", clingo_heuristic_type_init, R"doc(The init modifier.)doc")
-        .value("Sign", clingo_heuristic_type_sign, R"doc(The sign modifier.)doc");
+        .value("Sign", clingo_heuristic_type_sign, R"doc(The sign modifier.)doc")
+        .finalize();
 
-    py::enum_<clingo_external_type_e>(backend, "ExternalType", R"doc(Available external types.)doc")
+    py::native_enum<clingo_external_type_e>(backend, "ExternalType", "enum.IntEnum",
+                                            R"doc(Available external types.)doc")
         .value("True_", clingo_external_type_true, R"(Make an external atom true.)")
         .value("False_", clingo_external_type_false, R"(Make an external atom false.)")
         .value("Free", clingo_external_type_free, R"(Make an external atom a choice.)")
-        .value("Release", clingo_external_type_release, R"(Release an external atom.)");
+        .value("Release", clingo_external_type_release, R"(Release an external atom.)")
+        .finalize();
 
-    py::enum_<clingo_theory_sequence_type_e>(backend, "TheorySequenceType", R"(Available theory sequence types.)")
+    py::native_enum<clingo_theory_sequence_type_e>(backend, "TheorySequenceType", "enum.IntEnum",
+                                                   R"(Available theory sequence types.)")
         .value("Tuple", clingo_theory_sequence_type_tuple, R"(Sequences enclosed in parentheses.)")
         .value("List", clingo_theory_sequence_type_list, R"(Sequences enclosed in brackets.)")
-        .value("Set", clingo_theory_sequence_type_set, R"(Sequences enclosed in braces.)");
+        .value("Set", clingo_theory_sequence_type_set, R"(Sequences enclosed in braces.)")
+        .finalize();
 
     py::class_<Observer>(backend, "Observer", R"(
 ABC to inspect aspif directives.

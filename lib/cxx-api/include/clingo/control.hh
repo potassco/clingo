@@ -4,8 +4,9 @@
 #include <clingo/base.hh>
 #include <clingo/config.hh>
 #include <clingo/core.hh>
+#include <clingo/ground.hh>
 #include <clingo/observe.hh>
-#include <clingo/profile.h>
+#include <clingo/profile.hh>
 #include <clingo/propagate.hh>
 #include <clingo/solve.hh>
 #include <clingo/stats.hh>
@@ -16,7 +17,6 @@
 #include <cassert>
 #include <optional>
 #include <span>
-#include <variant>
 
 namespace Clingo {
 
@@ -37,28 +37,6 @@ void join(clingo_control_t *ctx, clingo_program_t const *prg);
 //! Functions to control the grounding and solving process.
 //!
 //! @{
-
-//! A program part to provide inputs to program directives.
-struct Part {
-    //! Constructs a program part with the given name and parameters.
-    //!
-    //! @param name the name of the part
-    //! @param params the parameters of the part
-    Part(std::string name, SymbolVector params = {}) : name{std::move(name)}, params(std::move(params)) {
-        assert(!this->name.empty());
-    }
-
-    //! The name of the part.
-    std::string name;
-    //! The parameters of the part.
-    SymbolVector params;
-};
-//! A span of program parts.
-using PartSpan = std::span<Part const>;
-//! An initializer list of program parts.
-using PartList = std::initializer_list<Part>;
-//! A vector of program parts.
-using PartVector = std::vector<Part>;
 
 //! Class to providing a view on the const directives in a logic program.
 //!
@@ -173,53 +151,6 @@ enum class DiscardType {
     project = clingo_discard_type_e::project,   //!< Discard project statements.
 };
 
-//! Enumeration of the types of profiling data.
-enum class ProfileType : clingo_profile_type_t {
-    step = clingo_profile_type_step, //!< Indicate per step profiling data.
-    accu = clingo_profile_type_accu, //!< Indicate accumulated profiling data.
-};
-
-//! Class to hold profiling data for an expression in a logic program.
-struct ProfileNodeLeaf {
-    //! Constructs a profile leaf node with the given type and profiling data.
-    //!
-    //! @param type the type of the profiling data
-    //! @param matches the number of matches for the expression
-    //! @param instances the number of instances of the expression
-    //! @param time_instantiate the time spent instantiating the expression
-    //! @param time_propagate the time spent propagating the expression
-    ProfileNodeLeaf(ProfileType type, uint64_t matches = 0, uint64_t instances = 0, uint64_t time_instantiate = 0,
-                    uint64_t time_propagate = 0)
-        : type{type}, matches{matches}, instances{instances}, time_instantiate{time_instantiate},
-          time_propagate{time_propagate} {}
-
-    ProfileType type;          //!< The type of the profiling data.
-    uint64_t matches;          //!< The number of matches for the expression.
-    uint64_t instances;        //!< The number of instances of the expression.
-    uint64_t time_instantiate; //!< The time spent instantiating the expression.
-    uint64_t time_propagate;   //!< The time spent propagating the expression.
-};
-
-struct ProfileNodeInternal;
-//! A profile node that can be either an internal node or a leaf node.
-using ProfileNode = std::variant<ProfileNodeInternal, ProfileNodeLeaf>;
-
-//! Class to hold profiling data for an expression in a logic program.
-struct ProfileNodeInternal {
-    //! Constructs a profile internal node with the given key.
-    //!
-    //! @param key the key of the profile node
-    //! @param nested whether times are included in the parent
-    ProfileNodeInternal(std::string key, bool nested) : key{std::move(key)}, nested{nested} {}
-
-    //! The key of the profile node.
-    std::string key;
-    //! Whether times are included in the parent.
-    bool nested;
-    //! The children of the profile node.
-    std::vector<ProfileNode> children;
-};
-
 //! The main control class for grounding and solving logic programs.
 //!
 //! Control objects are reference counted. For example, care must be taken not
@@ -310,43 +241,115 @@ class Control {
         Detail::handle_error(clingo_control_parse_string(ctl_.get(), program.data(), program.size()));
     }
 
-    //! Ground the control object with the given parts.
+    //! Ground the logic program with the given parameters.
     //!
     //! The given parts determine which program parts are grounded with which
-    //! paramaters. If no parts are given, the parts given by the parts
+    //! parameters. If no parts are given, the parts given by the parts
     //! directive are grounded.
     //!
     //! @param parts the parts to ground the control object with
     //! @param ctx the context to use for grounding
     void ground(std::optional<PartSpan> parts = std::nullopt, Context ctx = nullptr) const {
-        std::optional<PartVector> default_parts;
-        std::vector<clingo_part_t> c_parts;
-        if (default_parts = !parts ? this->parts() : std::nullopt; default_parts) {
-            parts = default_parts;
-        }
-        if (parts) {
-            c_parts.reserve(parts->size());
-            for (auto const &part : *parts) {
-                c_parts.emplace_back(part.name.data(), part.name.size(), c_cast(part.params.data()),
-                                     part.params.size());
-            }
-        } else {
-            c_parts.reserve(1);
-            c_parts.emplace_back("base", 4, nullptr, 0);
-        }
+        auto [default_parts, c_parts] = c_parts_(parts);
+        constexpr static clingo_ground_event_handler_t handler = clingo_ground_event_handler_t{
+            []([[maybe_unused]] char const *name, [[maybe_unused]] size_t name_size,
+               [[maybe_unused]] size_t arguments_size, [[maybe_unused]] void *data, bool *result) -> bool {
+                CLINGO_TRY {
+                    *result = true;
+                }
+                CLINGO_CATCH;
+            },
+            []([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location, char const *name,
+               size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size, void *data,
+               clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
+                CLINGO_TRY {
+                    auto &cb = *static_cast<std::function<SymbolVector(std::string_view, SymbolSpan)> *>(data);
+                    auto syms = cb({name, name_size}, {cpp_cast(arguments), arguments_size});
+                    auto const *c_syms = c_cast(syms.data());
+                    return symbol_callback(c_syms, syms.size(), symbol_callback_data);
+                }
+                CLINGO_CATCH;
+            },
+            nullptr,
+            nullptr,
+        };
+
         Detail::handle_error(
-            clingo_control_ground(ctl_.get(), c_parts.data(), c_parts.size(), ctx ? &ctx_ : nullptr, &ctx));
+            clingo_control_ground(ctl_.get(), c_parts.data(), c_parts.size(), ctx ? &handler : nullptr, &ctx));
     }
 
     //! Ground the control object with the given parts.
     //!
-    //! The given parts determine which program parts are grounded with which paramaters. If no parts are given, the
-    //! parts given by the parts directive are grounded.
+    //! The given parts determine which program parts are grounded with which
+    //! parameters. If no parts are given, the parts given by the parts
+    //! directive are grounded.
     //!
     //! @param parts the parts to ground the control object with
     //! @param ctx the context to use for grounding
     void ground(std::initializer_list<Part> parts, Context ctx = nullptr) const {
         ground(PartSpan{parts}, std::move(ctx));
+    }
+
+    //! Ground the logic program with the given parameters.
+    //!
+    //! The given parts determine which program parts are grounded with which
+    //! parameters. If no parts are given, those specified by the parts
+    //! directive are grounded.
+    //!
+    //! A handler implementing the GroundEventHandler interface can be given to
+    //! handle grounding events. The handler is passed by value; use std::ref
+    //! if you want to manage its lifetime externally. The handler is optional
+    //! and can be set to nullptr to ignore events.
+    //!
+    //! @param parts the parts to ground the control object with
+    //! @param handler the context to use for grounding
+    template <Detail::UserData<GroundEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto start_ground(std::optional<PartSpan> parts = std::nullopt, Handler &&handler = nullptr) const
+        -> GroundHandle {
+        auto [default_parts, c_parts] = c_parts_(parts);
+        using UserData = Detail::UserDataTraits<Handler>;
+        auto user_data = UserData::create(std::forward<Handler>(handler));
+        clingo_ground_event_handler_t const *c_handler_ptr = nullptr;
+        if constexpr (UserData::has_data) {
+            if (UserData::has_value(user_data)) {
+                static constexpr auto c_handler = clingo_ground_event_handler_t{
+                    [](char const *name, size_t name_size, size_t arguments_size, void *data, bool *result) -> bool {
+                        CLINGO_TRY {
+                            *result = UserData::cast(data)->callable(std::string_view{name, name_size}, arguments_size);
+                        }
+                        CLINGO_CATCH;
+                    },
+                    []([[maybe_unused]] clingo_lib_t *lib, clingo_location_t const *location, char const *name,
+                       size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size, void *data,
+                       clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
+                        CLINGO_TRY {
+                            Location loc{location};
+                            auto syms = UserData::cast(data)->call(loc, {name, name_size},
+                                                                   {cpp_cast(arguments), arguments_size});
+                            auto const *c_syms = c_cast(syms.data());
+                            return symbol_callback(c_syms, syms.size(), symbol_callback_data);
+                        }
+                        CLINGO_CATCH;
+                    },
+                    [](clingo_ground_result_t result, void *data) {
+                        UserData::cast(data)->finish(static_cast<GroundResult>(result));
+                    },
+                    [](void *data) { UserData::free(data); },
+                };
+                c_handler_ptr = &c_handler;
+            }
+        }
+        clingo_ground_handle_t *handle = nullptr;
+        Detail::handle_error(clingo_control_start_ground(ctl_.get(), c_parts.data(), c_parts.size(), c_handler_ptr,
+                                                         UserData::release(user_data), &handle));
+        return GroundHandle{handle};
+    }
+
+    //! @copydoc start_ground
+    template <Detail::UserData<GroundEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto start_ground(std::initializer_list<Part> parts, Handler &&handler = nullptr) const
+        -> GroundHandle {
+        return start_ground(PartSpan{parts}, std::forward<Handler>(handler));
     }
 
     //! Get the base of the program.
@@ -414,28 +417,45 @@ class Control {
         return std::move(builder.roots);
     }
 
-    //! Solve the grounded program with the given assumptions and flags.
+    //! Solve the grounded program with the given assumptions.
     //!
-    //! @param handler the solve event handler to report events to
     //! @param assumptions the assumptions to use for solving
-    //! @param flags the flags to use for solving
-    //! @return a handle to the solve operation
-    [[nodiscard]] auto solve(SolveEventHandler &handler, ProgramLiteralSpan const &assumptions = {},
-                             SolveFlags flags = SolveFlags::empty) const -> SolveHandle {
-        return solve_(&handler, assumptions, flags);
+    //! @param handler the solve event handler to report events to
+    //! @return the solve result
+    template <Detail::UserData<SolveEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto solve(ProgramLiteralSpan assumptions = {}, Handler &&handler = nullptr) const -> SolveResult {
+        return solve_(std::forward<Handler>(handler), assumptions, SolveFlags::empty).get();
     }
 
-    //! Solve the grounded program with the given assumptions and flags.
+    //! @copydoc solve
+    template <Detail::UserData<SolveEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto solve(std::initializer_list<ProgramLiteral> assumptions, Handler &&handler = nullptr) const
+        -> SolveResult {
+        return solve_(std::forward<Handler>(handler), ProgramLiteralSpan{assumptions}, SolveFlags::empty).get();
+    }
+
+    //! Start solving the grounded program with the given assumptions and flags.
     //!
-    //! This function does not take a solve event handler. Instead, the
-    //! returned solve handle is configured to yield models as they are found.
+    //! Depending on the flags, models can be yielded as they are found and
+    //! search can be started in the background. By default models are yielded
+    //! as they are found.
     //!
     //! @param assumptions the assumptions to use for solving
     //! @param flags the flags to use for solving
+    //! @param handler the solve event handler to report events to
     //! @return a handle to the solve operation
-    [[nodiscard]] auto solve(ProgramLiteralSpan const &assumptions = {}, SolveFlags flags = SolveFlags::yield) const
+    template <Detail::UserData<SolveEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto start_solve(ProgramLiteralSpan assumptions = {}, SolveFlags flags = SolveFlags::yield,
+                                   Handler &&handler = nullptr) const -> SolveHandle {
+        return solve_(std::forward<Handler>(handler), assumptions, flags);
+    }
+
+    //! @copydoc start_solve
+    template <Detail::UserData<SolveEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto start_solve(std::initializer_list<ProgramLiteral> assumptions,
+                                   SolveFlags flags = SolveFlags::yield, Handler &&handler = nullptr) const
         -> SolveHandle {
-        return solve_(nullptr, assumptions, flags);
+        return solve_(std::forward<Handler>(handler), ProgramLiteralSpan{assumptions}, flags);
     }
 
     //! Run the default ground and solve flow.
@@ -540,16 +560,74 @@ class Control {
 
     //! Register a propagator with the control object.
     //!
-    //! Can be used to register both propagators with and without heuristics.
+    //! The propagator must implement the Propagator or the Heuristic
+    //! interface, it can be passed by value, std::ref, or std::unique_ptr.
     //!
     //! @param propagator the propagator to register
     //! @return a reference to the registered propagator
-    template <std::derived_from<Propagator> T> auto register_propagator(std::unique_ptr<T> propagator) const -> T & {
-        assert(propagator != nullptr);
-        auto &res = *propagator;
-        Detail::handle_error(clingo_control_register_propagator(
-            ctl_.get(), std::is_base_of_v<Heuristic, T> ? &Detail::c_heuristic : &Detail::c_propagator,
-            propagator.release()));
+    template <Detail::UserData<Propagator, false> P> auto register_propagator(P &&propagator) const -> decltype(auto) {
+        using UserData = Detail::UserDataTraits<P>;
+        auto user_data = UserData::create(std::forward<P>(propagator));
+        if (!UserData::has_value(user_data)) {
+            throw std::invalid_argument{"propagator cannot be null"};
+        }
+        auto &res = *UserData::get(user_data);
+
+        static constexpr auto decide = []() {
+            if constexpr (std::is_base_of_v<Heuristic, typename UserData::ValueType>) {
+                return [](clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data,
+                          clingo_literal_t *decision) -> bool {
+                    CLINGO_TRY {
+                        *decision = UserData::cast(data)->decide(Assignment{assignment}, fallback);
+                    }
+                    CLINGO_CATCH;
+                };
+            } else {
+                return nullptr;
+            }
+        };
+
+        static constexpr auto c_propagator = clingo_propagator_t{
+            [](clingo_assignment_t const *assignment, clingo_propagate_init_t *init, void *data) -> bool {
+                CLINGO_TRY {
+                    UserData::cast(data)->init(Assignment{assignment}, PropagateInit{init});
+                }
+                CLINGO_CATCH;
+            },
+            [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, void *data) {
+                CLINGO_TRY {
+                    UserData::cast(data)->attach(Assignment{assignment}, PropagateControl{control});
+                }
+                CLINGO_CATCH;
+            },
+            [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control,
+               clingo_literal_t const *changes, size_t size, void *data) -> bool {
+                CLINGO_TRY {
+                    UserData::cast(data)->propagate(Assignment{assignment}, PropagateControl{control},
+                                                    SolverLiteralSpan{changes, size});
+                }
+                CLINGO_CATCH;
+            },
+            [](clingo_assignment_t const *assignment, clingo_literal_t const *changes, size_t size, void *data) {
+                try {
+                    UserData::cast(data)->undo(Assignment{assignment}, SolverLiteralSpan{changes, size});
+                } catch (std::exception const &e) {
+                    fprintf(stderr, "panic: %s\n", e.what());
+                    std::terminate();
+                }
+            },
+            [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, void *data) -> bool {
+                CLINGO_TRY {
+                    UserData::cast(data)->check(Assignment{assignment}, PropagateControl{control});
+                }
+                CLINGO_CATCH;
+            },
+            decide(),
+            [](void *data) { UserData::free(data); },
+        };
+
+        Detail::handle_error(
+            clingo_control_register_propagator(ctl_.get(), &c_propagator, UserData::release(user_data)));
         return res;
     }
 
@@ -561,30 +639,94 @@ class Control {
   private:
     friend class Detail::intrusive_handle<Control, clingo_control_t>;
 
-    static auto ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
-                     char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
-                     void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
-        CLINGO_TRY {
-            auto &cb = *static_cast<std::function<SymbolVector(std::string_view, SymbolSpan)> *>(data);
-            auto syms = cb({name, name_size}, {cpp_cast(arguments), arguments_size});
-            auto const *c_syms = c_cast(syms.data());
-            return symbol_callback(c_syms, syms.size(), symbol_callback_data);
-        }
-        CLINGO_CATCH;
-    }
-
     static auto acquire(clingo_control_t *ptr) { clingo_control_acquire(ptr); }
 
     static auto release(clingo_control_t *ptr) { clingo_control_release(ptr); }
 
-    [[nodiscard]] auto solve_(SolveEventHandler *handler, ProgramLiteralSpan const &assumptions, SolveFlags flags) const
+    template <Detail::UserData<SolveEventHandler> Handler = std::nullptr_t>
+    [[nodiscard]] auto solve_(Handler &&handler, ProgramLiteralSpan const &assumptions, SolveFlags flags) const
         -> SolveHandle {
+        using UserData = Detail::UserDataTraits<Handler>;
+        auto user_data = UserData::create(std::forward<Handler>(handler));
+        clingo_solve_event_handler_t const *c_handler_ptr = nullptr;
+        if constexpr (UserData::has_data) {
+            if (UserData::has_value(user_data)) {
+                static constexpr auto c_solve_event_handler = clingo_solve_event_handler_t{
+                    [](clingo_model_t *model, void *data, bool *goon) -> bool {
+                        CLINGO_TRY {
+                            auto *hnd = UserData::cast(data);
+                            assert(hnd != nullptr);
+                            auto mdl = Model{model};
+                            *goon = hnd->model(mdl);
+                            return true;
+                        }
+                        CLINGO_CATCH;
+                    },
+                    [](int64_t const *values, size_t size, void *data) -> bool {
+                        CLINGO_TRY {
+                            auto *hnd = UserData::cast(data);
+                            assert(hnd != nullptr);
+                            hnd->unsat({values, size});
+                        }
+                        CLINGO_CATCH;
+                    },
+                    [](clingo_stats_t *stats, void *data) -> bool {
+                        CLINGO_TRY {
+                            auto *hnd = UserData::cast(data);
+                            assert(hnd != nullptr);
+                            std::string_view user_step = "user_step";
+                            std::string_view user_accu = "user_accu";
+                            uint64_t root = Detail::call<clingo_stats_root>(stats);
+                            uint64_t step = Detail::call<clingo_stats_map_add_subkey>(
+                                stats, root, user_step.data(), user_step.size(), clingo_stats_type_map);
+                            uint64_t accu = Detail::call<clingo_stats_map_add_subkey>(
+                                stats, root, user_accu.data(), user_accu.size(), clingo_stats_type_map);
+                            hnd->stats(Stats{stats, step}, Stats{stats, accu});
+                        }
+                        CLINGO_CATCH;
+                    },
+                    [](clingo_solve_result_bitset_t result, void *data) -> void {
+                        auto *hnd = UserData::cast(data);
+                        assert(hnd != nullptr);
+                        hnd->finish(static_cast<SolveResult>(result));
+                    },
+                    [](void *data) { UserData::free(data); },
+                };
+                c_handler_ptr = &c_solve_event_handler;
+            }
+        }
+
         clingo_solve_handle_t *res = nullptr;
         Detail::handle_error(clingo_control_solve(ctl_.get(), static_cast<clingo_solve_mode_bitset_t>(flags),
-                                                  assumptions.data(), assumptions.size(),
-                                                  handler != nullptr ? &Detail::c_solve_event_handler : nullptr,
-                                                  handler != nullptr ? handler : nullptr, &res));
+                                                  assumptions.data(), assumptions.size(), c_handler_ptr,
+                                                  UserData::release(user_data), &res));
         return SolveHandle{res};
+    }
+
+    //! Convert parts to their C representation.
+    //!
+    //! Returns a pair:
+    //! - The first element stores the default value for parts if none are
+    //!   provided.
+    //! - The second element is a vector of C representations, which may
+    //!   reference the first element.
+    [[nodiscard]] auto c_parts_(std::optional<PartSpan> parts = std::nullopt) const
+        -> std::pair<std::optional<PartVector>, std::vector<clingo_part_t>> {
+        auto res = std::pair<std::optional<PartVector>, std::vector<clingo_part_t>>{};
+        auto &[default_parts, c_parts] = res;
+        if (!parts) {
+            parts = default_parts = this->parts();
+        }
+        if (!parts) {
+            static auto default_part = Part{"base", {}};
+            parts = PartSpan{&default_part, 1};
+        }
+        assert(parts);
+        c_parts.reserve(parts->size());
+        for (auto const &part : *parts) {
+            c_parts.emplace_back(part.name.data(), part.name.size(), c_cast(part.params.data()), part.params.size());
+        }
+        return res;
     }
 
     Detail::intrusive_handle<Control, clingo_control_t> ctl_;

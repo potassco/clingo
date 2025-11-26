@@ -1,9 +1,9 @@
 """
 Module containing the Control class responsible for grounding and solving.
 
-# Examples
+# Example
 
-The first example shows the most straightforward way to ground and solve a
+The example shows the most straightforward way to ground and solve a
 small test program:
 
 ```python
@@ -14,42 +14,16 @@ small test program:
 >>> ctl = Control(lib)
 >>> ctl.parse_string("1 { a; b }.")
 >>> ctl.ground()
->>> with ctl.solve(on_model=print) as hnd:
-...     hnd.get()
+>>> print(ctl.solve(on_model=print))
 a
-```
-
-The second example shows how to call functions from within a program:
-
-```python
->>> from clingo.core import Library
->>> from clingo.symbol import Number
->>> from clingo.control import Control
->>>
->>> class Context:
-...     def __init__(self, lib):
-...       self.lib = lib
-...     def inc(self, x):
-...         return Number(self.lib, x.number + 1)
-...     def seq(self, x, y):
-...         return [x, y]
-...
->>> lib = Library()
->>> ctl = Control(lib)
->>> ctl.parse_string(\"\"\"
-... p(@inc(10)).
-... q(@seq(1,2)).
-... \"\"\")
->>> ctl.ground(context=Context(lib))
->>> with ctl.solve(on_model=print) as hnd:
-...     print(hnd.get())
-p(11) q(1) q(2)
 SAT
 ```
 """
 
 from __future__ import annotations
 
+import collections.abc
+import enum
 import typing
 
 import clingo.ast
@@ -57,6 +31,7 @@ import clingo.backend
 import clingo.base
 import clingo.config
 import clingo.core
+import clingo.ground
 import clingo.propagate
 import clingo.solve
 import clingo.stats
@@ -64,44 +39,21 @@ import clingo.symbol
 
 __all__ = ["Control", "ControlMode"]
 
-class ControlMode:
+class ControlMode(enum.IntEnum):
     """
     Available control modes.
-
-    Members:
-
-      Parse : Parse only.
-
-      Rewrite : Parse and rewrite.
-
-      Ground : Parse, rewrite, and ground.
-
-      Solve : Parse, rewrite, ground, and solve.
     """
 
     Ground: typing.ClassVar[ControlMode]  # value = <ControlMode.Ground: 2>
     Parse: typing.ClassVar[ControlMode]  # value = <ControlMode.Parse: 0>
     Rewrite: typing.ClassVar[ControlMode]  # value = <ControlMode.Rewrite: 1>
     Solve: typing.ClassVar[ControlMode]  # value = <ControlMode.Solve: 3>
-    __members__: typing.ClassVar[
-        dict[str, ControlMode]
-    ]  # value = {'Parse': <ControlMode.Parse: 0>, 'Rewrite': <ControlMode.Rewrite: 1>, 'Ground': <ControlMode.Ground: 2>, 'Solve': <ControlMode.Solve: 3>}
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __getstate__(self) -> int: ...
-    def __hash__(self) -> int: ...
-    def __index__(self) -> int: ...
-    def __init__(self, value: int) -> None: ...
-    def __int__(self) -> int: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __setstate__(self, state: int) -> None: ...
-    def __str__(self) -> str: ...
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
+    @classmethod
+    def __new__(cls, value): ...
+    def __format__(self, format_spec):
+        """
+        Convert to a string according to format_spec.
+        """
 
 class Control:
     """
@@ -234,12 +186,84 @@ class Control:
     def solve(
         self,
         assumptions: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int] = [],
-        on_model: typing.Callable[[clingo.solve.Model], bool | None] | None = None,
-        on_unsat: typing.Callable[[typing.Sequence[int]], None] | None = None,
-        on_stats: (
-            typing.Callable[[clingo.stats.Stats, clingo.stats.Stats], None] | None
+        on_model: (
+            collections.abc.Callable[[clingo.solve.Model], bool | None] | None
         ) = None,
-        on_finish: typing.Callable[[clingo.solve.SolveResult], None] | None = None,
+        on_unsat: collections.abc.Callable[[typing.Sequence[int]], None] | None = None,
+        on_stats: (
+            collections.abc.Callable[[clingo.stats.Stats, clingo.stats.Stats], None]
+            | None
+        ) = None,
+        on_finish: (
+            collections.abc.Callable[[clingo.solve.SolveResult], None] | None
+        ) = None,
+    ) -> clingo.solve.SolveResult:
+        """
+        Solve the current ground program.
+
+        This function is semantically equivalent to the following `start_solve` call:
+
+        ```python
+        with self.start_solve(assumptions, on_model, on_unsat, on_stats, on_finish) as hnd:
+            return hnd.get()
+        ```
+
+        Args:
+            assumptions:
+                        A list of assumptions.
+            on_model:
+                Optional callback to intercept models.
+            on_unsat:
+                Optional callback to intercept lower bounds during optimization.
+            on_stats:
+                Optional callback extend statistics.
+            on_finish:
+                        Optional callback called once search has finished.
+        Returns:
+            A `clingo.solve.SolveResult` representing the result of the search.
+        """
+
+    def start_ground(
+        self,
+        parts: (
+            typing.Sequence[tuple[str, typing.Sequence[clingo.symbol.Symbol]]] | None
+        ) = None,
+        context: typing.Any = None,
+        on_finish: (
+            collections.abc.Callable[[clingo.ground.GroundResult], None] | None
+        ) = None,
+    ) -> clingo.ground.GroundHandle:
+        """
+        Ground the given program parts.
+
+        Starts grounding in the background and returns a `clingo.ground.GroundHandle`
+        to the running grounding. See `Control.ground` for details on grounding program
+        parts.
+
+        Args:
+            parts:
+                        A sequence of parts to ground.
+            context:
+                        An optional object providing functions that can be called during
+                        grounding.
+            on_finish:
+                An optional callback called once grounding has finished.
+        """
+
+    def start_solve(
+        self,
+        assumptions: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int] = [],
+        on_model: (
+            collections.abc.Callable[[clingo.solve.Model], bool | None] | None
+        ) = None,
+        on_unsat: collections.abc.Callable[[typing.Sequence[int]], None] | None = None,
+        on_stats: (
+            collections.abc.Callable[[clingo.stats.Stats, clingo.stats.Stats], None]
+            | None
+        ) = None,
+        on_finish: (
+            collections.abc.Callable[[clingo.solve.SolveResult], None] | None
+        ) = None,
         yield_: bool = False,
         async_: bool = False,
     ) -> clingo.solve.SolveHandle:
@@ -401,7 +425,7 @@ class _ConstMap:
         Get the value for the given key.
         """
 
-    def __iter__(self) -> typing.Iterator[str]:
+    def __iter__(self) -> collections.abc.Iterator[str]:
         """
         Get an iterator over the keys in the map.
         """
@@ -418,17 +442,17 @@ class _ConstMap:
         Get the value for the given key or the default if absent.
         """
 
-    def items(self) -> typing.Iterator[tuple[str, clingo.symbol.Symbol]]:
+    def items(self) -> collections.abc.Iterator[tuple[str, clingo.symbol.Symbol]]:
         """
         Get an iterator over the items in the map.
         """
 
-    def keys(self) -> typing.Iterator[str]:
+    def keys(self) -> collections.abc.Iterator[str]:
         """
         Get an iterator over the keys in the map.
         """
 
-    def values(self) -> typing.Iterator[clingo.symbol.Symbol]:
+    def values(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
         """
         Get an iterator over the values in the map.
         """

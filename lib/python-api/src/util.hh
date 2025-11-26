@@ -167,24 +167,41 @@ template <class T> class reference_keeper {
         auto *type = &heap_type->ht_type;
         type->tp_flags |= Py_TPFLAGS_HAVE_GC;
         type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
-            auto &self = py::cast<T &>(py::handle(self_base));
-            Py_VISIT(self.list_.ptr());
+            auto *self = py::cast<T *>(py::handle(self_base));
+            if (constructed_.contains(self)) {
+                Py_VISIT(self->list_.ptr());
+            }
             return 0;
         };
         type->tp_clear = [](PyObject *self_base) -> int {
-            auto &self = py::cast<T &>(py::handle(self_base));
-            Py_CLEAR(self.list_.ptr());
+            auto *self = py::cast<T *>(py::handle(self_base));
+            if (constructed_.contains(self)) {
+                Py_CLEAR(self->list_.ptr());
+            }
             return 0;
         };
     }
 
+    reference_keeper(reference_keeper const &other) = delete;
+    reference_keeper(reference_keeper &&other) noexcept = delete;
+    auto operator=(reference_keeper const &other) -> reference_keeper & = delete;
+    auto operator=(reference_keeper &&other) noexcept -> reference_keeper & = delete;
+    ~reference_keeper() { constructed_.erase(static_cast<T *>(this)); }
+
   private:
     friend T;
 
-    reference_keeper() = default;
+    // NOTE: we keep a set of constructed objects to avoid traversing/clearing
+    // objects whose constructor has not been called. This is a bug in pybind11
+    // tracked in issue: <https://github.com/pybind/pybind11/issues/4869>.
+    static std::unordered_set<T *> constructed_;
+
+    reference_keeper() { constructed_.emplace(static_cast<T *>(this)); }
 
     py::list list_;
 };
+
+template <class T> inline std::unordered_set<T *> reference_keeper<T>::constructed_ = {};
 
 // NOLINTBEGIN
 // A compile time string literal.

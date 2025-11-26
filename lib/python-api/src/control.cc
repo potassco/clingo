@@ -7,7 +7,10 @@
 #include <clingo/profile.h>
 #include <clingo/solve.h>
 
+#include <pybind11/native_enum.h>
+
 #include <span>
+#include <utility>
 
 namespace PyClingo {
 
@@ -86,9 +89,9 @@ void Control::parse_files(std::span<std::string const> files) {
     handle_error(clingo_control_parse_files(get(), cfiles.data(), cfiles.size()));
 }
 
-auto Control::ctx_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
-                   char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
-                   void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
+auto Control::call_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
+                    char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
+                    void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
     auto &handle = *static_cast<py::handle *>(data);
     CLINGO_TRY {
         auto syms = [&] {
@@ -127,6 +130,65 @@ void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
     }
     handle_error(
         clingo_control_ground(get(), parts->data(), parts->size(), !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
+}
+
+auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
+                           Annotation<std::optional<GroundFinishCallback>> on_finish) -> Annotation<GroundHandle> {
+    if (!parts) {
+        parts = this->parts();
+    }
+    if (!parts) {
+        static constexpr auto part = clingo_part_t{"base", 4, nullptr, 0};
+        parts.emplace(&part, 1);
+    }
+    auto res = py::cast(std::make_unique<GroundHandle>());
+    auto *hnd = res.cast<GroundHandle *>();
+    auto store = [&](auto &src, py::handle &dst) -> void {
+        if (!src.is_none()) {
+            // keep the callback alive
+            hnd->tie(src);
+            // store a reference to the callback
+            dst = src;
+        }
+    };
+    store(ctx, hnd->ctx_);
+    store(on_finish, hnd->finish_);
+    auto c_event_handler = clingo_ground_event_handler_t{
+        hnd->ctx_ ? +[](char const *name, size_t name_size, size_t arguments_size,  void *data, bool *result) -> bool {
+            CLINGO_TRY {
+                auto &ctx = static_cast<GroundHandle*>(data)->ctx_;
+                return callable_(name, name_size, arguments_size, &ctx, result);
+            }
+            CLINGO_CATCH;
+        }: nullptr,
+        hnd->ctx_ ? +[](clingo_lib_t *lib, clingo_location_t const *location, char const *name,
+                        size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
+                        void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
+            CLINGO_TRY {
+                auto &ctx = static_cast<GroundHandle *>(data)->ctx_;
+                return call_(lib, location, name, name_size, arguments, arguments_size, &ctx, symbol_callback, symbol_callback_data);
+            }
+            CLINGO_CATCH;
+        } : nullptr,
+        hnd->finish_ ? +[](clingo_ground_result_t result, void *data) -> void {
+            try {
+                auto guard = py::gil_scoped_acquire{};
+                auto *hnd = static_cast<GroundHandle *>(data);
+                assert(hnd != nullptr);
+                hnd->finish_(static_cast<clingo_ground_result_e>(result));
+            }
+            catch (std::exception &e) {
+                fprintf(stderr, "panic: %s\n", e.what());
+                std::terminate();
+            }
+        } : nullptr,
+        nullptr,
+    };
+    auto has_handler = hnd->ctx_ || hnd->finish_;
+    handle_error(clingo_control_start_ground(get(), parts->data(), parts->size(),
+                                             has_handler ? &c_event_handler : nullptr, has_handler ? hnd : nullptr,
+                                             &hnd->handle()));
+    return res;
 }
 
 auto Control::base() -> Base {
@@ -208,7 +270,17 @@ auto Control::profile() -> py::list {
 auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
                     Annotation<std::optional<UnsatCallback>> on_unsat,
                     Annotation<std::optional<StatsCallback>> on_stats,
-                    Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
+                    Annotation<std::optional<FinishCallback>> on_finish) -> SolveResult {
+    return start_solve(assumptions, std::move(on_model), std::move(on_unsat), std::move(on_stats), std::move(on_finish),
+                       false, false)
+        .cast<SolveHandle *>()
+        ->get();
+}
+
+auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
+                          Annotation<std::optional<UnsatCallback>> on_unsat,
+                          Annotation<std::optional<StatsCallback>> on_stats,
+                          Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
     -> Annotation<SolveHandle> {
     auto res = py::cast(std::make_unique<SolveHandle>());
     auto *hnd = res.cast<SolveHandle *>();
@@ -278,8 +350,8 @@ auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<Mo
                 hnd->finish_(static_cast<SolveResult>(result));
             }
             catch (std::exception &e) {
-                printf("panic: %s\n", e.what());
-                std::abort();
+                fprintf(stderr, "panic: %s\n", e.what());
+                std::terminate();
             }
         } : nullptr,
         nullptr,
@@ -379,9 +451,9 @@ void register_control(pybind11::module &m) {
     auto control = m.def_submodule("control", R"(
 Module containing the Control class responsible for grounding and solving.
 
-# Examples
+# Example
 
-The first example shows the most straightforward way to ground and solve a
+The example shows the most straightforward way to ground and solve a
 small test program:
 
 ```python
@@ -392,47 +464,20 @@ small test program:
 >>> ctl = Control(lib)
 >>> ctl.parse_string("1 { a; b }.")
 >>> ctl.ground()
->>> with ctl.solve(on_model=print) as hnd:
-...     hnd.get()
+>>> print(ctl.solve(on_model=print))
 a
-```
-
-The second example shows how to call functions from within a program:
-
-```python
->>> from clingo.core import Library
->>> from clingo.symbol import Number
->>> from clingo.control import Control
->>>
->>> class Context:
-...     def __init__(self, lib):
-...       self.lib = lib
-...     def inc(self, x):
-...         return Number(self.lib, x.number + 1)
-...     def seq(self, x, y):
-...         return [x, y]
-...
->>> lib = Library()
->>> ctl = Control(lib)
->>> ctl.parse_string("""
-... p(@inc(10)).
-... q(@seq(1,2)).
-... """)
->>> ctl.ground(context=Context(lib))
->>> with ctl.solve(on_model=print) as hnd:
-...     print(hnd.get())
-p(11) q(1) q(2)
 SAT
 ```
 )"_d);
 
     make_mapping(py::class_<ConstMap>(control, "_ConstMap", R"(The map from constants defined by #const directives.)"));
 
-    py::enum_<clingo_mode_e>(control, "ControlMode", "Available control modes.")
+    py::native_enum<clingo_mode_e>(control, "ControlMode", "enum.IntEnum", "Available control modes.")
         .value("Parse", clingo_mode_parse, R"(Parse only.)")
         .value("Rewrite", clingo_mode_rewrite, R"(Parse and rewrite.)")
         .value("Ground", clingo_mode_ground, R"(Parse, rewrite, and ground.)")
-        .value("Solve", clingo_mode_solve, R"(Parse, rewrite, ground, and solve.)");
+        .value("Solve", clingo_mode_solve, R"(Parse, rewrite, ground, and solve.)")
+        .finalize();
 
     py::class_<Control>(control, "Control", py::custom_type_setup(&Control::setup),
                         R"(A control object for grounding and solving.)")
@@ -510,8 +555,51 @@ Args:
 		An optional object providing functions that can be called during
 		grounding.
 )"_d)
+        .def("start_ground", &Control::start_ground, py::arg("parts") = std::nullopt, py::arg("context") = py::none(),
+             py::arg("on_finish") = py::none(), R"(
+Ground the given program parts.
+
+Starts grounding in the background and returns a `clingo.ground.GroundHandle`
+to the running grounding. See `Control.ground` for details on grounding program
+parts.
+
+Args:
+    parts:
+		A sequence of parts to ground.
+    context:
+		An optional object providing functions that can be called during
+		grounding.
+    on_finish:
+        An optional callback called once grounding has finished.
+)"_d)
         .def("solve", &Control::solve, py::arg("assumptions") = MixedLitSpan{}, py::arg("on_model") = std::nullopt,
              py::arg("on_unsat") = std::nullopt, py::arg("on_stats") = std::nullopt,
+             py::arg("on_finish") = std::nullopt, R"(
+Solve the current ground program.
+
+This function is semantically equivalent to the following `start_solve` call:
+
+```python
+with self.start_solve(assumptions, on_model, on_unsat, on_stats, on_finish) as hnd:
+    return hnd.get()
+```
+
+Args:
+    assumptions:
+		A list of assumptions.
+    on_model:
+        Optional callback to intercept models.
+    on_unsat:
+        Optional callback to intercept lower bounds during optimization.
+    on_stats:
+        Optional callback extend statistics.
+    on_finish:
+		Optional callback called once search has finished.
+Returns:
+    A `clingo.solve.SolveResult` representing the result of the search.
+)"_d)
+        .def("start_solve", &Control::start_solve, py::arg("assumptions") = MixedLitSpan{},
+             py::arg("on_model") = std::nullopt, py::arg("on_unsat") = std::nullopt, py::arg("on_stats") = std::nullopt,
              py::arg("on_finish") = std::nullopt, py::arg("yield_") = false, py::arg("async_") = false, R"(
 Solve the current ground program.
 

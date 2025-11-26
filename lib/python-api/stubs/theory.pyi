@@ -4,6 +4,7 @@ This module allows for using theories implemented in C from Python.
 
 from __future__ import annotations
 
+import collections.abc
 import typing
 
 import clingo.app
@@ -120,7 +121,7 @@ class Theory:
             | clingo.ast.StatementConst
             | clingo.ast.StatementComment
         ),
-        callback: typing.Callable[
+        callback: collections.abc.Callable[
             [
                 clingo.ast.StatementRule
                 | clingo.ast.StatementTheory

@@ -75,68 +75,72 @@ class Script {
     virtual auto do_version() -> std::string_view = 0;
 };
 
-//! @}
+//! Register the given script with the library.
+//!
+//! The script can be passed by value, std::ref, or std::unique_ptr.
+//!
+//! @param lib the library to register the script with
+//! @param script the script to register
+//! @return a reference to the registered script
+template <Detail::UserData<Script, false> T> auto register_script(Library const &lib, T &&script) -> decltype(auto) {
+    using UserData = Detail::UserDataTraits<T>;
+    auto user_data = UserData::create(std::forward<T>(script));
+    if (!UserData::has_value(user_data)) {
+        throw std::invalid_argument("script cannot be null");
+    }
 
-namespace Detail {
-
-static constexpr clingo_script_t c_script = {
-    [](char const *code, size_t size, void *data) -> bool {
-        CLINGO_TRY {
-            static_cast<Script *>(data)->execute(std::string_view{code, size});
-        }
-        CLINGO_CATCH;
-    },
-    [](clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name, size_t name_size,
-       clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t symbol_callback,
-       void *symbol_callback_data, void *data) -> bool {
-        CLINGO_TRY {
-            auto &self = *static_cast<Script *>(data);
-            auto args = transform(arguments, std::next(arguments, static_cast<std::ptrdiff_t>(arguments_size)),
-                                  [](auto sym) { return Symbol{sym, true}; });
-            auto cpp_lib = Library{lib, true};
-            auto syms = self.call(cpp_lib, {name, name_size}, args);
-            auto const *c_syms = c_cast(syms.data());
-            return symbol_callback(c_syms, syms.size(), symbol_callback_data);
-        }
-        CLINGO_CATCH;
-    },
-    [](char const *name, size_t size, size_t arguments, bool *result, void *data) -> bool {
-        CLINGO_TRY {
-            auto &self = *static_cast<Script *>(data);
-            *result = self.callable({name, size}, arguments);
-        }
-        CLINGO_CATCH;
-    },
-    [](clingo_lib_t *lib, clingo_control_t *control, void *data) -> bool {
-        CLINGO_TRY {
-            auto &self = *static_cast<Script *>(data);
-            auto cpp_lib = Library{lib, true};
-            auto cpp_ctl = Control{control, true};
-            self.main(cpp_lib, cpp_ctl);
-        }
-        CLINGO_CATCH;
-    },
-    [](void *data, clingo_string_t *name) {
-        auto &self = *static_cast<Script *>(data);
-        auto str = self.name();
-        name->data = str.data();
-        name->size = str.size();
-    },
-    [](void *data, clingo_string_t *version) {
-        auto &self = *static_cast<Script *>(data);
-        auto str = self.name();
-        version->data = str.data();
-        version->size = str.size();
-    },
-    [](void *data) { std::ignore = std::unique_ptr<Script>(static_cast<Script *>(data)); },
-};
-
-} // namespace Detail
-
-template <std::derived_from<Script> T> auto register_script(Library const &lib, std::unique_ptr<T> script) -> T & {
-    auto &res = *script;
-    Detail::handle_error(clingo_script_register(c_cast(lib), &Detail::c_script, script.release()));
+    static constexpr clingo_script_t c_script = {
+        [](char const *code, size_t size, void *data) -> bool {
+            CLINGO_TRY {
+                UserData::cast(data)->execute(std::string_view{code, size});
+            }
+            CLINGO_CATCH;
+        },
+        [](clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name, size_t name_size,
+           clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t symbol_callback,
+           void *symbol_callback_data, void *data) -> bool {
+            CLINGO_TRY {
+                auto args =
+                    Detail::transform(arguments, std::next(arguments, static_cast<std::ptrdiff_t>(arguments_size)),
+                                      [](auto sym) { return Symbol{sym, true}; });
+                auto cpp_lib = Library{lib, true};
+                auto syms = UserData::cast(data)->call(cpp_lib, {name, name_size}, args);
+                auto const *c_syms = c_cast(syms.data());
+                return symbol_callback(c_syms, syms.size(), symbol_callback_data);
+            }
+            CLINGO_CATCH;
+        },
+        [](char const *name, size_t size, size_t arguments, bool *result, void *data) -> bool {
+            CLINGO_TRY {
+                *result = UserData::cast(data)->callable({name, size}, arguments);
+            }
+            CLINGO_CATCH;
+        },
+        [](clingo_lib_t *lib, clingo_control_t *control, void *data) -> bool {
+            CLINGO_TRY {
+                auto cpp_lib = Library{lib, true};
+                auto cpp_ctl = Control{control, true};
+                UserData::cast(data)->main(cpp_lib, cpp_ctl);
+            }
+            CLINGO_CATCH;
+        },
+        [](void *data, clingo_string_t *name) {
+            auto str = UserData::cast(data)->name();
+            name->data = str.data();
+            name->size = str.size();
+        },
+        [](void *data, clingo_string_t *version) {
+            auto str = UserData::cast(data)->version();
+            version->data = str.data();
+            version->size = str.size();
+        },
+        [](void *data) { UserData::free(data); },
+    };
+    auto &res = *UserData::get(user_data);
+    Detail::handle_error(clingo_script_register(c_cast(lib), &c_script, UserData::release(user_data)));
     return res;
 }
+
+//! @}
 
 } // namespace Clingo

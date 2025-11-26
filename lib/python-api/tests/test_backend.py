@@ -66,8 +66,7 @@ class TestBackend:
             bck.weight_rule([a4], 4, [(a1, 2), (a2, 1), (a3, 1)])
 
         mcb = MCB()
-        with self.ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == [["p(1)"], ["p(1)", "p(2)", "p(3)", "p(4)"]]
 
     def test_edge(self):
@@ -82,8 +81,7 @@ class TestBackend:
             bck.edge(2, 1, [b])
 
         mcb = MCB()
-        with self.ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == [[], ["a"], ["b"]]
 
     def test_external(self):
@@ -96,8 +94,7 @@ class TestBackend:
                 a = bck.atom(Function(self.lib, "a"))
                 bck.external(a, t)
             mcb = MCB()
-            with self.ctl.solve(on_model=mcb) as hnd:
-                assert hnd.get().satisfiable
+            assert self.ctl.solve(on_model=mcb).satisfiable
             return mcb.symbols
 
         assert run(ExternalType.Free) == [[], ["a"]]
@@ -115,8 +112,7 @@ class TestBackend:
                 a = bck.atom(Function(self.lib, "a"))
                 bck.assume([a if t else -a])
             mcb = MCB()
-            with self.ctl.solve(on_model=mcb) as hnd:
-                assert hnd.get().satisfiable
+            self.ctl.solve(on_model=mcb).satisfiable
             return mcb.symbols
 
         with self.ctl.backend as bck:
@@ -139,8 +135,7 @@ class TestBackend:
             bck.rule([a, b, c, d])
             bck.project([a, b])
         mcb = MCB()
-        with self.ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve(on_model=mcb).satisfiable
         assert len(mcb.symbols) == 3
 
     def test_minimize(self):
@@ -155,7 +150,7 @@ class TestBackend:
             bck.rule([a, b, c, d], choice=True)
             bck.minimize([(a, 1), (b, -1), (c, 1), (d, -1)])
 
-        with self.ctl.solve() as hnd:
+        with self.ctl.start_solve() as hnd:
             assert hnd.get().satisfiable
             last = hnd.last()
             assert last is not None
@@ -179,8 +174,7 @@ class TestBackend:
             bck.heuristic(c, HeuristicType.True_, 1)
             bck.heuristic(d, HeuristicType.False_, 1)
         mcb = MCB()
-        with self.ctl.solve(on_model=mcb) as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve(on_model=mcb).satisfiable
         assert mcb.symbols == [["a", "c"]]
 
     def test_theory(self):
@@ -202,13 +196,11 @@ class TestBackend:
             str(self.ctl.base.theory[0])
             == "&p(2) { f(p(2),a,1),[a,1],{1,p(2)},(p(2),a) }"
         )
-        with self.ctl.solve() as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve().satisfiable
 
         with self.ctl.backend as bck:
             n = Function(self.lib, "p", [])
             num = bck.theory_number(1)
             bck.theory_atom(0, n, [], ("<=", num))
         assert str(self.ctl.base.theory[0]) == "&p { } <= 1"
-        with self.ctl.solve() as hnd:
-            assert hnd.get().satisfiable
+        assert self.ctl.solve().satisfiable

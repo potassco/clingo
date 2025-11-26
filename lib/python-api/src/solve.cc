@@ -5,6 +5,8 @@
 
 #include <clingo/solve.h>
 
+#include <pybind11/native_enum.h>
+
 #include <utility>
 
 namespace PyClingo {
@@ -230,7 +232,7 @@ auto SolveHandle::wait(std::optional<double> timeout) -> bool {
 void SolveHandle::close() {
     if (hnd_ != nullptr) {
         auto release = py::gil_scoped_release{};
-        handle_error(clingo_solve_handle_close(std::exchange(hnd_, nullptr)));
+        clingo_solve_handle_close(std::exchange(hnd_, nullptr));
     }
 }
 
@@ -254,9 +256,7 @@ The following example shows how to intercept models with a callback:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(on_model=print) as hnd:
-    ...     print(hnd.get())
-    ...
+    >>> print(ctl.solve(on_model=print))
     a
     b
     SAT
@@ -270,7 +270,7 @@ The following example shows how to yield models:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(yield_=True) as hnd:
+    >>> with ctl.start_solve(yield_=True) as hnd:
     ...     for mdl in hnd:
     ...         print(mdl)
     ...     print(hnd.get())
@@ -288,9 +288,7 @@ The following example shows how to solve asynchronously:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(on_model=print, async_=True) as hnd:
-    ...     print(hnd.get())
-    ...
+    >>> print(ctl.solve(on_model=print, async_=True))
     a
     b
     SAT
@@ -304,7 +302,7 @@ This example shows how to solve both iteratively and asynchronously:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.solve(yield_=True, async_=True) as hnd:
+    >>> with ctl.start_solve(yield_=True, async_=True) as hnd:
     ...     while mdl := hnd.model():
     ...         print(mdl)
     ...         hnd.resume()
@@ -330,12 +328,13 @@ Args:
 )"_d)
         .def_property_readonly("base", &SolveControl::base, R"(Get the atom/term bases of the program.)");
 
-    py::enum_<clingo_model_type_e>(solve, "ModelType", R"(Enumeration of model types.)")
+    py::native_enum<clingo_model_type_e>(solve, "ModelType", "enum.IntEnum", R"(Enumeration of model types.)")
         .value("StableModel", clingo_model_type_stable_model, R"(The model captures a stable model.)")
         .value("CautiousConsequences", clingo_model_type_cautious_consequences,
                R"(The model stores the set of cautious consequences.)")
         .value("BraveConsequences", clingo_model_type_brave_consequences,
-               R"(The model stores the set of brave consequences.)");
+               R"(The model stores the set of brave consequences.)")
+        .finalize();
 
     py::class_<Model>(solve, "Model", R"(A view on the solver's current solution.)")
         .def("symbols", &Model::symbols, py::arg("shown") = false, py::arg("atoms") = false, py::arg("terms") = false,
@@ -414,7 +413,7 @@ Args:
         .def_property_readonly("exhausted", &SolveResult::exhausted, R"(Whether all models have been enumerated.)")
         .def_property_readonly("interrupted", &SolveResult::interrupted, R"(Whether the search was interrupted.)");
 
-    py::class_<SolveHandle>(solve, "SolveHandle", R"(
+    py::class_<SolveHandle>(solve, "SolveHandle", py::custom_type_setup(SolveHandle::setup), R"(
 An object to interact with a running search.
 
 It can be used to control solving, like, retrieving models or cancelling a
