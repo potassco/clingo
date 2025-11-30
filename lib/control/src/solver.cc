@@ -368,6 +368,7 @@ class ModelExtend : public Clasp::OutputTable::Theory {
   public:
     auto first([[maybe_unused]] const Clasp::Model &m) -> char const * override {
         index_ = 0;
+        std::ranges::sort(syms_);
         return next();
     }
     auto next() -> char const * override {
