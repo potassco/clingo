@@ -235,6 +235,20 @@ class AppOptions:
                 A Flag object that holds the value of the flag.
         """
 
+    def set_default_value(self, option: str, value: str) -> None:
+        """
+        Set the default value for an existing clingo option.
+
+        This function can be used to adjust the default value of a clingo option, which
+        will be used if no value is given on the command-line.
+
+        Args:
+            option:
+                The name of the option for which a default value should be set.
+            value:
+                The new default value to set.
+        """
+
 class Flag:
     """
     Boolean flag with value management.

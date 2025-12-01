@@ -41,6 +41,10 @@ class Options {
                                              description.data(), description.size(), &cflag.value));
     }
 
+    void set_default_value(std::string_view option, std::string_view value) {
+        handle_error(clingo_options_set_default_value(opts_, option.data(), option.size(), value.data(), value.size()));
+    }
+
     auto c_ptr() -> clingo_options_t * { return opts_; }
 
   private:
@@ -342,6 +346,18 @@ Args:
         A brief description of the flag option.
     flag:
         A Flag object that holds the value of the flag.
+)"_d)
+        .def("set_default_value", &Options::set_default_value, py::arg("option"), py::arg("value"), R"(
+Set the default value for an existing clingo option.
+
+This function can be used to adjust the default value of a clingo option, which
+will be used if no value is given on the command-line.
+
+Args:
+    option:
+        The name of the option for which a default value should be set.
+    value:
+        The new default value to set.
 )"_d);
 
     py::class_<App>(app, "App", py::custom_type_setup(&App::setup), R"(
