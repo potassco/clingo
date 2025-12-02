@@ -9,7 +9,6 @@ using MV = std::vector<std::vector<std::string>>;
 class MCB : public SolveEventHandler {
   public:
     MCB(MV &models) : models_{&models} { models_->clear(); }
-    ~MCB() override { std::ranges::sort(*models_); }
 
     using SolveEventHandler::model;
 
@@ -28,6 +27,7 @@ class MCB : public SolveEventHandler {
 
   private:
     auto do_model(Model model) -> bool override { return MCB::model(static_cast<ConstModel>(model)); }
+    auto do_finish([[maybe_unused]] SolveResult result) noexcept -> void override { std::ranges::sort(*models_); }
     MV *models_;
     bool proven = false;
 };
