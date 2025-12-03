@@ -220,9 +220,8 @@ class TModeApp(App):
 
         Integrates the Transformer into a clingo.App for use with clingo_main.
         """
-        # TODO: step -> state
         options.set_default_value("out-pred-sep", "\n")
-        options.set_default_value("out-step", "last")
+        options.set_default_value("out-step", "last:State")
         options.set_default_value("iquery", "finally")
 
     def main(self, control: Control, files: Sequence[str]) -> None:
