@@ -1050,14 +1050,18 @@ statement_show_signature:
       doc: The location of the statement.
     name:
       type: string
-      doc: The name of the atom to show.
+      doc: The name of the predicate to show.
     arity:
       type: number
-      doc: The arity of the atom to show.
+      doc: The arity of the predicate to show.
     sign:
       type: bool
       default: false
       doc: The classical sign of the atom.
+    value:
+      type: bool
+      default: true
+      doc: Whether to show or hide the predicate.
 statement_project:
   type: record
   doc: A project statement.

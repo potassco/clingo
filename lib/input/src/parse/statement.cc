@@ -148,7 +148,26 @@ auto parse_show(ParserState &state) -> std::optional<Stm> {
             state.consume();
             if (auto res = check_term_sig(*term)) {
                 auto [sign, name, arity] = *std::move(res);
-                return StmShowSig{std::move(loc), sign, name, arity};
+                auto value = true;
+                if (state.branch(TokenType::lbrack)) {
+                    if (!state.expect(TokenType::id)) {
+                        return std::nullopt;
+                    }
+                    auto id = state.str();
+                    if (id == "false") {
+                        value = false;
+                    } else if (id != "true") {
+                        return state.expected<std::nullopt>("true", "false");
+                    }
+                    state.consume();
+                    if (!state.expect(TokenType::rbrack)) {
+                        return std::nullopt;
+                    }
+                    loc += state.cursor_pos();
+                    state.mark_stms();
+                    state.consume();
+                }
+                return StmShowSig{std::move(loc), sign, name, arity, value};
             }
             return StmShow{state.loc(), *std::move(term), {}};
         }

@@ -762,16 +762,21 @@ class TestAST:
 
         s2 = ast.StatementShowSignature(self.lib, self.loc, "p", 2)
         s3 = ast.StatementShowSignature(self.lib, self.loc, "q", 2, True)
+        s4 = ast.StatementShowSignature(self.lib, self.loc, "p", 2, False, False)
         assert s2.location == self.loc
         assert s2.name == "p"
         assert s2.arity == 2
         assert not s2.sign
+        assert s2.value
         assert s3.sign
-        assert str(s2) == "#show p/2."
-        assert str(s3) == "#show -q/2."
+        assert s3.value
+        assert not s4.value
+        assert str(s2) == "#show p/2. [true]"
+        assert str(s3) == "#show -q/2. [true]"
+        assert str(s4) == "#show p/2. [false]"
 
-        s4 = ast.StatementShowNothing(self.lib, self.loc)
-        assert str(s4) == "#show."
+        s5 = ast.StatementShowNothing(self.lib, self.loc)
+        assert str(s5) == "#show."
 
     def test_statement_project(self):
         """

@@ -183,7 +183,8 @@ constexpr auto cons_statement_show =
 constexpr auto cons_statement_show_nothing = std::array{Arg{clingo_ast_attribute_location, Arg::location}};
 constexpr auto cons_statement_show_signature =
     std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_name, Arg::string},
-               Arg{clingo_ast_attribute_arity, Arg::integer}, Arg{clingo_ast_attribute_sign, Arg::integer}};
+               Arg{clingo_ast_attribute_arity, Arg::integer}, Arg{clingo_ast_attribute_sign, Arg::integer},
+               Arg{clingo_ast_attribute_value, Arg::integer}};
 constexpr auto cons_statement_project =
     std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_atom, Arg::node},
                Arg{clingo_ast_attribute_body, Arg::node_array}};

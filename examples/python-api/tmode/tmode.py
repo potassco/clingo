@@ -22,6 +22,7 @@ Example:
 import sys
 from collections.abc import Sequence
 from functools import singledispatchmethod
+from textwrap import dedent
 from typing import Any
 
 from clingo import ast
@@ -219,9 +220,7 @@ class TModeApp(App):
 
         Integrates the Transformer into a clingo.App for use with clingo_main.
         """
-        # TODO:
-        # - step -> state
-        # - hide initially and query
+        # TODO: step -> state
         options.set_default_value("out-pred-sep", "\n")
         options.set_default_value("out-step", "last")
         options.set_default_value("iquery", "finally")
@@ -235,7 +234,17 @@ class TModeApp(App):
             files: List of input file paths.
         """
         control.join(Transformer(self._lib)(files))
-        control.parse_string("#include <incmode>. #program base. initially(0).")
+        control.parse_string(
+            dedent(
+                """\
+                #include <incmode>.
+                #program base.
+                initially(0).
+                #show initially/1. [false]
+                #show finally/1. [false]
+                """
+            )
+        )
         control.main()
 
 

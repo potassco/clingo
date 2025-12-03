@@ -356,8 +356,10 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("#minimize {1@2;3@4}.") == "#minimize { 1@2; 3@4 }.");
 
         // show
-        REQUIRE(parse("#show a/2.") == "#show a/2.");
-        REQUIRE(parse("#show -a/2.") == "#show -a/2.");
+        REQUIRE(parse("#show a/2.") == "#show a/2. [true]");
+        REQUIRE(parse("#show -a/2.") == "#show -a/2. [true]");
+        REQUIRE(parse("#show -a/2. [true]") == "#show -a/2. [true]");
+        REQUIRE(parse("#show -a/2. [false]") == "#show -a/2. [false]");
         // Note: the print function could be refined to omit the parenthesis
         REQUIRE(parse("#show a()/2.") == "#show (a/2): .");
         REQUIRE(parse("#show -a()/2.") == "#show (-a/2): .");

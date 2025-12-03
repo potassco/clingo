@@ -2048,14 +2048,15 @@ class StatementShowSignature : public ASTBase {
     auto name() -> std::string_view;
     auto arity() -> int;
     auto sign() -> bool;
+    auto value() -> bool;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementShowSignature>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShowSignature;
 
-    static auto construct(Library &lib, Location const &location, std::string_view name, int arity, bool sign)
-        -> StatementShowSignature;
+    static auto construct(Library &lib, Location const &location, std::string_view name, int arity, bool sign,
+                          bool value) -> StatementShowSignature;
     static auto acquire(clingo_ast_t *ast) -> StatementShowSignature { return {ast}; }
 
     friend auto operator==(StatementShowSignature const &a, StatementShowSignature const &b) -> bool = default;
@@ -5795,12 +5796,18 @@ auto StatementShowSignature::sign() -> bool {
     return ret != 0;
 }
 
+auto StatementShowSignature::value() -> bool {
+    int ret = 0;
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_value, &ret));
+    return ret != 0;
+}
+
 auto StatementShowSignature::construct(Library &lib, Location const &location, std::string_view name, int arity,
-                                       bool sign) -> StatementShowSignature {
+                                       bool sign, bool value) -> StatementShowSignature {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_show_signature, &res_,
                                       static_cast<clingo_location_t const *>(location), name.data(), name.size(), arity,
-                                      static_cast<int>(sign)));
+                                      static_cast<int>(sign), static_cast<int>(value)));
     return StatementShowSignature::acquire(res_);
 }
 
@@ -5819,7 +5826,8 @@ auto StatementShowSignature::update(Library &lib, py::kwargs const &kwargs) -> S
         lib, update_value<Location>(this, &StatementShowSignature::location, kwargs, "location"),
         update_value<std::string_view>(this, &StatementShowSignature::name, kwargs, "name"),
         update_value<int>(this, &StatementShowSignature::arity, kwargs, "arity"),
-        update_value<bool>(this, &StatementShowSignature::sign, kwargs, "sign"));
+        update_value<bool>(this, &StatementShowSignature::sign, kwargs, "sign"),
+        update_value<bool>(this, &StatementShowSignature::value, kwargs, "value"));
 }
 
 auto StatementProject::location() -> Location {
@@ -9196,19 +9204,23 @@ Returns:
 
     make_comparable_base<Statement>(py_statement_show_signature)
         .def(py::init(&StatementShowSignature::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
-             py::arg("arity"), py::arg("sign") = false, R"doc(Construct a StatementShowSignature object.
+             py::arg("arity"), py::arg("sign") = false, py::arg("value") = true,
+             R"doc(Construct a StatementShowSignature object.
 
 Args:
     lib: The library object for storing symbols.
     location: The location of the statement.
-    name: The name of the atom to show.
-    arity: The arity of the atom to show.
-    sign: The classical sign of the atom.)doc")
+    name: The name of the predicate to show.
+    arity: The arity of the predicate to show.
+    sign: The classical sign of the atom.
+    value: Whether to show or hide the predicate.)doc")
         .def("__str__", &StatementShowSignature::to_string)
         .def_property_readonly("location", &StatementShowSignature::location, R"doc(The location of the statement.)doc")
-        .def_property_readonly("name", &StatementShowSignature::name, R"doc(The name of the atom to show.)doc")
-        .def_property_readonly("arity", &StatementShowSignature::arity, R"doc(The arity of the atom to show.)doc")
+        .def_property_readonly("name", &StatementShowSignature::name, R"doc(The name of the predicate to show.)doc")
+        .def_property_readonly("arity", &StatementShowSignature::arity, R"doc(The arity of the predicate to show.)doc")
         .def_property_readonly("sign", &StatementShowSignature::sign, R"doc(The classical sign of the atom.)doc")
+        .def_property_readonly("value", &StatementShowSignature::value,
+                               R"doc(Whether to show or hide the predicate.)doc")
         .def("visit", &StatementShowSignature::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
 Args:
