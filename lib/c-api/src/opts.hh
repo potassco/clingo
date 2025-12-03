@@ -55,6 +55,24 @@ class ClingoOptions {
             solver_opts_.imax = 0;
             return Potassco::stringTo(value, *solver_opts_.imax) == std::errc{};
         };
+        auto parse_iquery = [this](std::string_view value) {
+            bool is_id = false;
+            for (auto c : value) {
+                if ('a' <= c && c <= 'z') {
+                    is_id = true;
+                    continue;
+                }
+                if (c == '_' || c == '\'') {
+                    continue;
+                }
+                if (is_id && (('A' <= c && c <= 'Z') || ('0' <= c && c <= '9'))) {
+                    continue;
+                }
+                return false;
+            }
+            solver_opts_.iquery = value;
+            return is_id;
+        };
         auto parse_level = [this](std::string_view value) {
             if (auto lvl = LogLevel::info; values<LogLevel>({{"error", LogLevel::error},
                                                              {"warn", LogLevel::warn},
@@ -161,6 +179,7 @@ class ClingoOptions {
             ("parts", parse(parse_parts), "Parse comma-separated program parts to ground")       //
             ("imin", parse(parse_imin).arg("<n>"), "Minimum number of steps for incmode")        //
             ("imax", parse(parse_imax).arg("{none|<n>}"), "Maximum number of steps for incmode") //
+            ("@3,iquery", parse(parse_iquery), "The name of the query atom")                     //
             ("istop",
              storeTo(solver_opts_.istop, values<Control::IStop>({{"none", Control::IStop::none},
                                                                  {"sat", Control::IStop::sat},

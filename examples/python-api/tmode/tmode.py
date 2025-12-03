@@ -22,12 +22,15 @@ Example:
 import sys
 from collections.abc import Sequence
 from functools import singledispatchmethod
+from typing import Any
 
 from clingo import ast
 from clingo.app import App, AppOptions, clingo_main
 from clingo.control import Control
-from clingo.core import Library
+from clingo.core import Library, Location
 from clingo.symbol import Function, Number, Symbol, SymbolType
+
+Term = ast.TermSymbolic | ast.TermBinaryOperation
 
 
 class Transformer:
@@ -35,8 +38,8 @@ class Transformer:
     Transformer to convert temporal logic programs into incremental ones.
 
     Adds a time parameter to all symbolic atoms and program directives.
-    Converts 'final' programs into 'static' ones with an additional 'query(T)'
-    atom in their body.
+    Converts 'final' programs into 'static' ones with an additional
+    'finally(T)' atom in their body.
 
     Args:
         lib: clingo AST library instance.
@@ -56,7 +59,7 @@ class Transformer:
         self._final = False
         self._current = "initial"
 
-    def _get_param(self, name, location):
+    def _get_param(self, name: str, location: Location) -> tuple[str, Term]:
         """
         Extract the time parameter from the given name.
 
@@ -69,10 +72,10 @@ class Transformer:
         """
         n = name.replace("'", "")
         primes = len(name) - len(n)
-        if n == "finally":
-            n = "query"
         if self._current == "base":
-            param = ast.TermSymbolic(self._lib, location, Number(self._lib, -primes))
+            param: Term = ast.TermSymbolic(
+                self._lib, location, Number(self._lib, -primes)
+            )
         else:
             param = ast.TermSymbolic(self._lib, location, self._param)
             if primes > 0:
@@ -86,7 +89,7 @@ class Transformer:
         return n, param
 
     @singledispatchmethod
-    def _rewrite_term(self, expr):
+    def _rewrite_term(self, expr: Any) -> Any:
         """
         Recursively rewrite terms by adding the time parameter.
 
@@ -99,7 +102,7 @@ class Transformer:
         return expr.transform(self._lib, self._rewrite_term)
 
     @_rewrite_term.register
-    def _(self, expr: ast.TermFunction):
+    def _(self, expr: ast.TermFunction) -> Any:
         name, param = self._get_param(expr.name, expr.location)
         pool = []
         for args in expr.pool:
@@ -109,10 +112,10 @@ class Transformer:
         return expr.update(self._lib, name=name, pool=pool)
 
     @_rewrite_term.register
-    def _(self, expr: ast.TermSymbolic):
+    def _(self, expr: ast.TermSymbolic) -> Any:
         if expr.symbol.type == SymbolType.Function:
             name, param = self._get_param(expr.symbol.name, expr.location)
-            args = []
+            args: list[Term] = []
             for arg in expr.symbol.arguments:
                 args.append(ast.TermSymbolic(self._lib, expr.location, arg))
             args.append(param)
@@ -122,12 +125,12 @@ class Transformer:
         raise RuntimeError("not implemented")
 
     @singledispatchmethod
-    def _rewrite_stm(self, expr):
+    def _rewrite_stm(self, expr: Any) -> Any:
         """
         Rewrite statements by adding the time parameter.
 
         If the program section is 'final', converts it to 'static' and adds a
-        'query(T)' atom to the body.
+        'finally(T)' atom to the body.
 
         Args:
             expr: AST statement.
@@ -140,7 +143,7 @@ class Transformer:
             loc = ret.location
             sym = ast.TermSymbolic(self._lib, loc, self._param)
             arg = ast.ArgumentTuple(self._lib, [sym])
-            fun = ast.TermFunction(self._lib, loc, "query", [arg], False)
+            fun = ast.TermFunction(self._lib, loc, "finally", [arg], False)
             lit = ast.LiteralSymbolic(self._lib, loc, ast.Sign.NoSign, fun)
             bdy = list(ret.body)
             bdy.append(ast.BodySimpleLiteral(self._lib, lit))
@@ -148,11 +151,11 @@ class Transformer:
         return ret
 
     @_rewrite_stm.register
-    def _(self, expr: ast.LiteralSymbolic):
+    def _(self, expr: ast.LiteralSymbolic) -> Any:
         return expr.update(self._lib, atom=self._rewrite_term(expr.atom))
 
     @_rewrite_stm.register
-    def _(self, expr: ast.StatementProgram):
+    def _(self, expr: ast.StatementProgram) -> Any:
         args = list(expr.arguments)
         name = expr.name
         self._final = False
@@ -175,11 +178,11 @@ class Transformer:
         return expr.update(self._lib, name=name, arguments=args)
 
     @_rewrite_stm.register
-    def _(self, expr: ast.StatementShowSignature):
+    def _(self, expr: ast.StatementShowSignature) -> Any:
         return expr.update(self._lib, arity=expr.arity + 1)
 
     @_rewrite_stm.register
-    def _(self, expr: ast.StatementProjectSignature):
+    def _(self, expr: ast.StatementProjectSignature) -> Any:
         return expr.update(self._lib, arity=expr.arity + 1)
 
     def __call__(self, files: Sequence[str]) -> ast.Program:
@@ -206,7 +209,7 @@ class TModeApp(App):
 
     _lib: Library
 
-    def __init__(self, lib):
+    def __init__(self, lib: Library):
         super().__init__("tmode", "1.0.0")
         self._lib = lib
 
@@ -221,6 +224,7 @@ class TModeApp(App):
         # - hide initially and query
         options.set_default_value("out-pred-sep", "\n")
         options.set_default_value("out-step", "last")
+        options.set_default_value("iquery", "finally")
 
     def main(self, control: Control, files: Sequence[str]) -> None:
         """
