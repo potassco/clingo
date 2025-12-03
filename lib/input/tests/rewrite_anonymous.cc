@@ -78,7 +78,7 @@ TEST_CASE("rewrite_anonymous_statement") {
             "#minimize { Y@Z: not p(X), not p(__A_0) }.");
     REQUIRE(rewrite_statement(":~ not p(X), not p(_). [Y]") == " :~ not p(X); not p(__A_0). [Y]");
     REQUIRE(rewrite_statement("#show p(X,Y): not p(X); not q(_).") == "#show p(X,Y): not p(X); not q(__A_0).");
-    REQUIRE(rewrite_statement("#show p/2.") == "#show p/2.");
+    REQUIRE(rewrite_statement("#show p/2.") == "#show p/2. [true]");
     REQUIRE(rewrite_statement("#project p(X): not q(Y), not q(_).") == "#project p(X): not q(Y); not q(__A_0).");
     REQUIRE(rewrite_statement("#project p/2.") == "#project p/2.");
     REQUIRE(rewrite_statement("#defined p/2.") == "#defined p/2.");

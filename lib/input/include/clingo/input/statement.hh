@@ -363,12 +363,12 @@ class StmShowSig : public Expression<StmShowSig> {
     //! The record attributes.
     static constexpr auto attributes() {
         return std::tuple{a_loc = &StmShowSig::loc_, a_name = &StmShowSig::name, a_sign = &StmShowSig::sign_,
-                          a_arity = &StmShowSig::arity_};
+                          a_arity = &StmShowSig::arity_, a_value = &StmShowSig::value_};
     }
 
     //! Construct a show signature statement.
-    explicit StmShowSig(Location loc, bool sign, String name, int arity)
-        : loc_{std::move(loc)}, name_{name}, arity_{arity}, sign_{sign} {}
+    explicit StmShowSig(Location loc, bool sign, String name, int arity, bool value)
+        : loc_{std::move(loc)}, name_{name}, arity_{arity}, sign_{sign}, value_{value} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -378,12 +378,15 @@ class StmShowSig : public Expression<StmShowSig> {
     [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
+    //! The value.
+    [[nodiscard]] auto value() const -> bool { return value_; }
 
   private:
     Location loc_;
     SharedString name_;
     int arity_;
     bool sign_;
+    bool value_;
 };
 
 //! A show signature statement.

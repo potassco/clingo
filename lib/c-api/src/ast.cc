@@ -1279,7 +1279,8 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
             ATTR(optimize_type, type()))
         TYPE(statement_show_signature, StmShowSig,
             ATTR(sign, sign())
-            ATTR(arity, arity()))
+            ATTR(arity, arity())
+            ATTR(value, value()))
         TYPE(statement_project_signature, StmProjectSig,
             ATTR(sign, sign())
             ATTR(arity, arity()))
@@ -2322,9 +2323,10 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto name_size = va_arg(args, size_t);
                 auto arity = va_arg(args, int);
                 auto sign = va_arg(args, int);
+                auto value = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmShowSig>(type, convert(loc), sign != 0,
-                                                                   *lib->store->string({name, name_size}), arity);
+                *ast = construct_ast<CppClingo::Input::StmShowSig>(
+                    type, convert(loc), sign != 0, *lib->store->string({name, name_size}), arity, value != 0);
                 break;
             }
             case clingo_ast_type_statement_project: {

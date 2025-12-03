@@ -84,6 +84,12 @@ class Options {
                                                      description.data(), description.size(), &flag));
     }
 
+    //! Set `value` as default value for the option with the given name.
+    void set_default_value(std::string_view option, std::string_view value) {
+        Detail::handle_error(
+            clingo_options_set_default_value(opts_, option.data(), option.size(), value.data(), value.size()));
+    }
+
   private:
     clingo_options_t *opts_;
     ParserList *parsers_;

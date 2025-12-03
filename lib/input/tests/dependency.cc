@@ -204,7 +204,7 @@ TEST_CASE("dependency") {
         auto prg = Program{ph.ctx().options()};
         prg.join(ph, ph, uprg);
         std::ignore = prg.analyze(ph, {ProgramParam{ph.store().string("p"), {ph.store().num(Number(1))}}}, bld);
-        REQUIRE(bld.res == std::vector<std::string>{"#show p/2.", "p(b).", "#program_p(1).", "% component",
+        REQUIRE(bld.res == std::vector<std::string>{"#show p/2. [true]", "p(b).", "#program_p(1).", "% component",
                                                     "% refined component", "p($0) :- #program_p($0).", "% component",
                                                     "% refined component", "p(X,$0) :- #program_p($0); f(X)."});
     }

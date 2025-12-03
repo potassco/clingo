@@ -368,6 +368,7 @@ class ModelExtend : public Clasp::OutputTable::Theory {
   public:
     auto first([[maybe_unused]] const Clasp::Model &m) -> char const * override {
         index_ = 0;
+        std::ranges::sort(syms_);
         return next();
     }
     auto next() -> char const * override {
@@ -1030,7 +1031,7 @@ auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
                Scripts &scripts, Input::RewriteOptions ropts, SolverOptions sopts, FILE *out)
     : clasp_{&clasp}, config_{clasp_config}, buf_{out}, out_{make_output_(store, sopts.mode)},
-      grd_{log, store, ropts, *out_}, scripts_{&scripts}, opts_{sopts} {
+      grd_{log, store, ropts, *out_}, scripts_{&scripts}, opts_{std::move(sopts)} {
 }
 
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
@@ -1066,13 +1067,12 @@ void Solver::incmode_() {
     auto part_check = store.string("check");
     auto part_step = store.string("step");
     auto part_base = store.string("base");
-    auto part_query = store.string("query");
 
-    parse(R"(#program check(t).
-#external query(t). [true]
-#program step(t).
-#external query(t-1). [release]
-)");
+    parse(std::string{"#program check(t).\n#external "} + opts_.iquery +
+          "(t). [true]\n"
+          "#program step(t).\n"
+          "#external " +
+          opts_.iquery + "(t-1). [release]\n");
 
     size_t step = 0;
     auto ret = SolveResult::empty;

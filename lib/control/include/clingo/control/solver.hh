@@ -77,6 +77,8 @@ struct SolverOptions {
     std::optional<size_t> imax = std::nullopt;
     //! The stop condition for the incremental mode.
     IStop istop = IStop::sat;
+    //! The name of the query atom.
+    std::string iquery = "query";
     //! Restrict to single shot-solving.
     bool single_shot = false;
 };

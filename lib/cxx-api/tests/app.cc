@@ -24,6 +24,9 @@ class AppTest : public App {
     auto do_version() noexcept -> std::string_view override { return "1.2.3"; }
     void do_main(Control const &control, std::span<std::string_view const> files) override {
         events.emplace_back("main");
+        if (auto val = control.config()["configuration"].value(); val == config.path().string()) {
+            events.emplace_back("default");
+        }
         control.parse_files(files);
         control.ground();
         std::ignore = control.solve({}, MCB{models});
@@ -33,6 +36,7 @@ class AppTest : public App {
         options.add("Clingo.Test", "test", "test description",
                     [this](std::string_view val) { return this->parse_test(val); });
         options.add_flag("Clingo.Test", "flag", "test description", flag);
+        options.set_default_value("configuration", config.path().string());
     }
 
     void do_validate_options() override {
@@ -41,6 +45,7 @@ class AppTest : public App {
     }
 
     MV models;
+    TempFile config{""};
     std::vector<std::string> events;
     bool flag = false;
 };
@@ -62,7 +67,7 @@ TEST_CASE("app", "[cxx][app]") {
     auto ret = Clingo::main(lib, arg, &app);
 
     REQUIRE(ret == 30);
-    REQUIRE(app.events == std::vector<std::string>{"register", "parse", "validate", "main", "logger"});
+    REQUIRE(app.events == std::vector<std::string>{"register", "parse", "validate", "main", "default", "logger"});
     REQUIRE(app.models == MV{{"a"}, {"a", "b"}, {"b"}});
 }
 

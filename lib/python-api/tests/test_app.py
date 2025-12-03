@@ -22,19 +22,20 @@ class AppTest(App):
     Note that I did not find a nice way to test model printing.
     """
 
+    _df: str
     _queue: Queue
     program_name = "test"
     version = "1.2.3"
     message_limit = 17
 
-    def __init__(self, queue: Queue):
+    def __init__(self, df: str, queue: Queue):
         super().__init__(AppTest.program_name, AppTest.version)
+        self._df = df
         self._queue = queue
         self._flag = Flag()
 
-    def _parse_test(self, value):
+    def _parse_test(self, value) -> None:
         self._queue.put(("parse", value))
-        return True
 
     def register_options(self, options: AppOptions) -> None:
         """
@@ -44,6 +45,8 @@ class AppTest(App):
         group = "Clingo.Test"
         options.add(group, "test", "test description", self._parse_test)
         options.add_flag(group, "flag", "test description", self._flag)
+        # Apply default value
+        options.set_default_value("configuration", self._df)
 
     def validate_options(self) -> None:
         """
@@ -61,6 +64,7 @@ class AppTest(App):
         Run the main loop.
         """
         self._queue.put("main")
+        self._queue.put(("configuration", control.config.configuration.value))
         control.parse_files(files)
         control.ground(control.parts)
         mcb = MCB()
@@ -69,7 +73,11 @@ class AppTest(App):
 
 
 def _run_process(
-    app: Callable[[Queue], App], program: str, queue: Queue, args: Sequence[str]
+    app: Callable[[str, Queue], App],
+    df: str,
+    program: str,
+    queue: Queue,
+    args: Sequence[str],
 ) -> None:
     """
     Run clingo application with given program and intercept results.
@@ -85,7 +93,7 @@ def _run_process(
             queue.put((code, re.sub("^.*:(?=[0-9]+:)", "", msg)))
 
         with Library(logger=logger) as lib:
-            ret = clingo_main(lib, [name, "--outf=3"] + list(args), app(queue))
+            ret = clingo_main(lib, [name, "--outf=3"] + list(args), app(df, queue))
             queue.put(int(ret))
             queue.close()
     finally:
@@ -96,14 +104,14 @@ AppResult = Tuple[int, List[Any]]
 
 
 def run_app(
-    app: Callable[[Queue], App], program: str, *args: Sequence[str]
+    app: Callable[[str, Queue], App], df: str, program: str, *args: Sequence[str]
 ) -> AppResult:
     """
     Run clingo application in subprocess via multiprocessing module.
     """
     q: Queue
     q = Queue()
-    p = Process(target=_run_process, args=(app, program, q, tuple(args)))
+    p = Process(target=_run_process, args=(app, df, program, q, tuple(args)))
 
     p.start()
     seq: List[Any]
@@ -131,17 +139,25 @@ class TestApplication:
         """
         Test application.
         """
-        ret, seq = run_app(AppTest, "1 {a; b; c(1/0)}.", "0", "--test=x", "--flag")
-        assert ret == 30
-        assert seq == [
-            "register",
-            ("parse", "x"),
-            "validate",
-            ("flag", True),
-            "main",
-            (
-                MessageType.OperationUndefined,
-                "1:12-15: info: operation undefined:\n  1/0\n",
-            ),
-            ("models", [["a"], ["a", "b"], ["b"]]),
-        ]
+        with NamedTemporaryFile(mode="wt", delete=False) as fp:
+            name = fp.name
+        try:
+            ret, seq = run_app(
+                AppTest, name, "1 {a; b; c(1/0)}.", "0", "--test=x", "--flag"
+            )
+            assert ret == 30
+            assert seq == [
+                "register",
+                ("parse", "x"),
+                "validate",
+                ("flag", True),
+                "main",
+                ("configuration", name),
+                (
+                    MessageType.OperationUndefined,
+                    "1:12-15: info: operation undefined:\n  1/0\n",
+                ),
+                ("models", [["a"], ["a", "b"], ["b"]]),
+            ]
+        finally:
+            os.unlink(name)

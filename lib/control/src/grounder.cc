@@ -183,6 +183,7 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
                 out->show_atom(atom, it.value().id);
             }
         };
+        auto hide = Util::unordered_set<Input::Sig>{};
         for (auto const &stm : prg.meta_stms()) {
             std::visit(
                 [&, this]<class T>(T const &stm) {
@@ -196,10 +197,14 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
                     } else if constexpr (Util::matches<T, Input::StmShowNothing>) {
                         show_all = false;
                     } else if constexpr (Util::matches<T, Input::StmShowSig>) {
-                        show_all = false;
-                        if (auto *base = bases.get_base(Input::Sig{stm.name(), stm.arity(), stm.sign()});
-                            base != nullptr) {
-                            show_base(*base);
+                        if (stm.value()) {
+                            show_all = false;
+                            if (auto *base = bases.get_base(Input::Sig{stm.name(), stm.arity(), stm.sign()});
+                                base != nullptr) {
+                                show_base(*base);
+                            }
+                        } else {
+                            hide.emplace(Input::Sig{stm.name(), stm.arity(), stm.sign()});
                         }
                     }
                 },
@@ -207,7 +212,9 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
         }
         if (show_all) {
             for (auto const &[sig, base] : bases.atoms()) {
-                show_base(*base);
+                if (!hide.contains(sig)) {
+                    show_base(*base);
+                }
             }
         }
         // handle classical negation
@@ -428,7 +435,7 @@ void Grounder::show(Input::SharedSig const &sig) {
     auto prg = Input::UnprocessedProgram{};
     auto pos = Position{*impl_->store->string("<cmd>"), 1, 1};
     auto loc = Location{pos, pos};
-    prg.add(*impl_->store, Input::StmShowSig{loc, get<2>(sig), *get<0>(sig), static_cast<int>(get<1>(sig))});
+    prg.add(*impl_->store, Input::StmShowSig{loc, get<2>(sig), *get<0>(sig), static_cast<int>(get<1>(sig)), true});
     impl_->prg.join(*impl_->log, *impl_->store, prg);
 }
 

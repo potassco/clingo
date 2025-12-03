@@ -646,18 +646,23 @@ TEST_CASE_METHOD(Fixture, "ast statement show", "[cxx][ast][statement_show]") {
     REQUIRE(std::ranges::equal(s1.nodes(A::body), std::vector{l1, l2}));
     REQUIRE(s1.to_string() == "#show -p(X): q(X); p(X).");
 
-    auto s2 = node<T::statement_show_signature>(loc, "p", 2, false);
-    auto s3 = node<T::statement_show_signature>(loc, "q", 2, true);
+    auto s2 = node<T::statement_show_signature>(loc, "p", 2, false, true);
+    auto s3 = node<T::statement_show_signature>(loc, "q", 2, true, true);
+    auto s4 = node<T::statement_show_signature>(loc, "p", 2, false, false);
     REQUIRE((s2.location(A::location) == loc));
     REQUIRE(s2.string(A::name) == "p");
     REQUIRE(s2.number(A::arity) == 2);
     REQUIRE(s2.number(A::sign) == 0);
+    REQUIRE(s2.number(A::value) == 1);
     REQUIRE(s3.number(A::sign) == 1);
-    REQUIRE(s2.to_string() == "#show p/2.");
-    REQUIRE(s3.to_string() == "#show -q/2.");
+    REQUIRE(s3.number(A::value) == 1);
+    REQUIRE(s4.number(A::value) == 0);
+    REQUIRE(s2.to_string() == "#show p/2. [true]");
+    REQUIRE(s3.to_string() == "#show -q/2. [true]");
+    REQUIRE(s4.to_string() == "#show p/2. [false]");
 
-    auto s4 = node<T::statement_show_nothing>(loc);
-    REQUIRE(s4.to_string() == "#show.");
+    auto s5 = node<T::statement_show_nothing>(loc);
+    REQUIRE(s5.to_string() == "#show.");
 }
 
 TEST_CASE_METHOD(Fixture, "ast statement project", "[cxx][ast][statement_project]") {

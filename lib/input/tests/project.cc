@@ -96,7 +96,8 @@ TEST_CASE("project_statement") {
     REQUIRE(project_statement("#minimize { X,Y: p(X), p(Z) }.") == "#minimize { X,Y: p(X), p(*) }.");
     REQUIRE(project_statement(":~ p(X), p(Z). [X,Y]") == " :~ p(X); p(*). [X,Y]");
     REQUIRE(project_statement("#show p(X,Y): q(X,Z).") == "#show p(X,Y): q(X,*).");
-    REQUIRE(project_statement("#show p/2.") == "#show p/2.");
+    REQUIRE(project_statement("#show p/2. [true]") == "#show p/2. [true]");
+    REQUIRE(project_statement("#show p/2. [false]") == "#show p/2. [false]");
     REQUIRE(project_statement("#project p(X,Y): q(X,Z).") == "#project p(X,Y): q(X,*).");
     REQUIRE(project_statement("#project p/2.") == "#project p/2.");
     REQUIRE(project_statement("#defined p/2.") == "#defined p/2.");

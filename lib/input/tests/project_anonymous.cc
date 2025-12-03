@@ -77,7 +77,7 @@ TEST_CASE("project_anonymous_statement") {
     REQUIRE(project_statement("#minimize { Y@Z: not p(X), not p(_) }.") == "#minimize { Y@Z: not p(X), not p(*) }.");
     REQUIRE(project_statement(":~ not p(X); not p(_). [Y]") == " :~ not p(X); not p(*). [Y]");
     REQUIRE(project_statement("#show p(X,Y): not p(X), not q(_).") == "#show p(X,Y): not p(X); not q(*).");
-    REQUIRE(project_statement("#show p/2.") == "#show p/2.");
+    REQUIRE(project_statement("#show p/2.") == "#show p/2. [true]");
     REQUIRE(project_statement("#project p(X): not q(Y), not q(_).") == "#project p(X): not q(Y); not q(*).");
     REQUIRE(project_statement("#project p/2.") == "#project p/2.");
     REQUIRE(project_statement("#defined p/2.") == "#defined p/2.");

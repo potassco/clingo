@@ -12,7 +12,6 @@
 
 #include <clasp/cli/clasp_app.h>
 
-#include <forward_list>
 #include <utility>
 
 using namespace CppClingo::CAPI;
@@ -21,10 +20,10 @@ namespace CppClingo::CAPI {
 namespace {
 
 using namespace CppClingo::Input;
-
 class AppOptions {
   public:
     using OptionParser = std::function<bool(std::string_view)>;
+    explicit AppOptions(Potassco::ProgramOptions::OptionContext &root) : root_(&root) {}
 
     void add_option(std::string_view group, std::string_view option, std::string_view description, OptionParser parser,
                     std::optional<std::string_view> argument, bool multi = false) {
@@ -46,31 +45,21 @@ class AppOptions {
         add_option_value_(group, option, std::move(value), description);
     }
 
-    void init(Potassco::ProgramOptions::OptionContext &root) {
-        for (auto const &group : groups_) {
-            root.add(group);
+    auto set_default_value(std::string_view option, std::string_view value) -> bool {
+        if (!root_->option(option).assignDefault(value)) {
+            throw std::invalid_argument(std::string("Invalid value for option '").append(option).append("'"));
         }
+        return true;
     }
 
   private:
     void add_option_value_(std::string_view group, std::string_view option, Potassco::ProgramOptions::ValueDesc value,
                            std::string_view description) {
-        auto init = add_option_group_(group).addOptions();
+        auto init = root_->addOptions(group);
         init(option, std::move(value), description);
     }
 
-    auto add_option_group_(std::string_view group) -> Potassco::ProgramOptions::OptionGroup & {
-        auto it = groups_.before_begin();
-        for (auto &option_group : groups_) {
-            if (option_group.caption() == group) {
-                return option_group;
-            }
-            ++it;
-        }
-        return *groups_.emplace_after(it, group);
-    }
-
-    std::forward_list<Potassco::ProgramOptions::OptionGroup> groups_;
+    Potassco::ProgramOptions::OptionContext *root_ = nullptr;
 };
 
 auto c_cast(AppOptions *opts) -> clingo_options_t * {
@@ -106,8 +95,8 @@ class AppAdapter {
 
     void register_options(Potassco::ProgramOptions::OptionContext &root) {
         if (app_ != nullptr && app_->register_options != nullptr) {
-            handle_error(app_->register_options(c_cast(&opts_), data_));
-            opts_.init(root);
+            AppOptions opts(root);
+            handle_error(app_->register_options(c_cast(&opts), data_));
         }
     }
 
@@ -142,7 +131,6 @@ class AppAdapter {
     }
 
   private:
-    AppOptions opts_;
     clingo_application_t const *app_;
     void *data_;
 };
@@ -305,6 +293,15 @@ extern "C" auto clingo_options_add_flag(clingo_options_t *options, char const *g
     CLINGO_TRY {
         auto *opts = cpp_cast(options);
         opts->add_flag({group, group_size}, {option, option_size}, {description, description_size}, *target);
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_options_set_default_value(clingo_options_t *options, char const *option, size_t option_size,
+                                                 char const *value, size_t value_size) -> bool {
+    CLINGO_TRY {
+        auto *opts = cpp_cast(options);
+        opts->set_default_value({option, option_size}, {value, value_size});
     }
     CLINGO_CATCH;
 }

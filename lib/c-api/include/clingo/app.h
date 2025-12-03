@@ -107,7 +107,7 @@ typedef bool (*clingo_option_parser_t)(char const *value, size_t size, void *dat
 //! @param[in] group options are grouped into sections as given by this string
 //! @param[in] group_size the size of the group
 //! @param[in] option specifies the command line option
-//! @param[in] option_size teh size of the option
+//! @param[in] option_size the size of the option
 //! @param[in] description the description of the option
 //! @param[in] description_size the size of the description
 //! @param[in] parser callback to parse the value of the option
@@ -129,7 +129,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_options_add(clingo_options_t *options, cha
 //! @param[in] group options are grouped into sections as given by this string
 //! @param[in] group_size the size of the group
 //! @param[in] option specifies the command line option
-//! @param[in] option_size teh size of the option
+//! @param[in] option_size the size of the option
 //! @param[in] description the description of the option
 //! @param[in] description_size the size of the description
 //! @param[in] target boolean set to true if the flag is given on the command-line
@@ -137,6 +137,21 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_options_add(clingo_options_t *options, cha
 CLINGO_VISIBILITY_DEFAULT bool clingo_options_add_flag(clingo_options_t *options, char const *group, size_t group_size,
                                                        char const *option, size_t option_size, char const *description,
                                                        size_t description_size, bool *target);
+
+//! Set the default value for an existing clingo option.
+//!
+//! This function can be used to adjust the default value of a clingo option,
+//! which will be used if no value is given on the command-line.
+//!
+//! @param[in] options object to set the default value for
+//! @param[in] option specifies the command line option
+//! @param[in] option_size the size of the option
+//! @param[in] value the default value to set
+//! @param[in] value_size the size of the value
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_options_set_default_value(clingo_options_t *options, char const *option,
+                                                                size_t option_size, char const *value,
+                                                                size_t value_size);
 
 //! Run an application with the given library and arguments.
 //!
