@@ -367,8 +367,10 @@ class TheoryBackendAdapter : public TheoryBackend {
 class ModelExtend : public Clasp::OutputTable::Theory {
   public:
     auto first([[maybe_unused]] const Clasp::Model &m) -> char const * override {
+        if (!std::exchange(sorted_, true)) {
+            std::ranges::sort(syms_);
+        }
         index_ = 0;
-        std::ranges::sort(syms_);
         return next();
     }
     auto next() -> char const * override {
@@ -379,14 +381,21 @@ class ModelExtend : public Clasp::OutputTable::Theory {
         }
         return nullptr;
     }
-    void clear() { syms_.clear(); }
-    void add(SymbolSpan symbols) { syms_.insert(syms_.end(), symbols.begin(), symbols.end()); }
+    void clear() {
+        syms_.clear();
+        sorted_ = true;
+    }
+    void add(SymbolSpan symbols) {
+        syms_.insert(syms_.end(), symbols.begin(), symbols.end());
+        sorted_ = sorted_ && std::ranges::is_sorted(syms_);
+    }
     [[nodiscard]] auto symbols() const -> SymbolSpan { return syms_; }
 
   private:
     Util::OutputBuffer buf_;
     SymbolVec syms_;
     size_t index_ = 0;
+    bool sorted_ = true;
 };
 
 //! Implementation of the model interface.
