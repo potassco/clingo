@@ -5381,6 +5381,7 @@ class StatementShowSignature:
         name: str,
         arity: int,
         sign: bool = False,
+        value: bool = True,
     ) -> None:
         """
         Construct a StatementShowSignature object.
@@ -5388,9 +5389,10 @@ class StatementShowSignature:
         Args:
             lib: The library object for storing symbols.
             location: The location of the statement.
-            name: The name of the atom to show.
-            arity: The arity of the atom to show.
+            name: The name of the predicate to show.
+            arity: The arity of the predicate to show.
             sign: The classical sign of the atom.
+            value: Whether to show or hide the predicate.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5435,7 +5437,7 @@ class StatementShowSignature:
     @property
     def arity(self) -> int:
         """
-        The arity of the atom to show.
+        The arity of the predicate to show.
         """
 
     @property
@@ -5447,13 +5449,19 @@ class StatementShowSignature:
     @property
     def name(self) -> str:
         """
-        The name of the atom to show.
+        The name of the predicate to show.
         """
 
     @property
     def sign(self) -> bool:
         """
         The classical sign of the atom.
+        """
+
+    @property
+    def value(self) -> bool:
+        """
+        Whether to show or hide the predicate.
         """
 
 class StatementTheory:
