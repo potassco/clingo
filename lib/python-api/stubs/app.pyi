@@ -71,9 +71,7 @@ __all__ = ["App", "AppOptions", "Flag", "clingo_main"]
 
 def _pyclingo() -> int: ...
 def clingo_main(
-    lib: clingo.core.Library,
-    arguments: typing.Sequence[str],
-    app: clingo.app.App | None = None,
+    lib: clingo.core.Library, arguments: typing.Sequence[str], app: App | None = None
 ) -> int:
     """
     Entry point for running the Clingo application.

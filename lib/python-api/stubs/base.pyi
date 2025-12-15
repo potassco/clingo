@@ -128,8 +128,8 @@ class AtomBase:
         """
 
     def get(
-        self, key: clingo.symbol.Symbol, default: clingo.base.Atom | None = None
-    ) -> clingo.base.Atom | None:
+        self, key: clingo.symbol.Symbol, default: Atom | None = None
+    ) -> Atom | None:
         """
         Get the value for the given key or the default if absent.
         """
@@ -214,8 +214,8 @@ class Base:
         """
 
     def get(
-        self, key: tuple[str, int, bool], default: clingo.base.AtomBase | None = None
-    ) -> clingo.base.AtomBase | None:
+        self, key: tuple[str, int, bool], default: AtomBase | None = None
+    ) -> AtomBase | None:
         """
         Get the value for the given key or the default if absent.
         """
@@ -358,8 +358,8 @@ class TermBase:
         """
 
     def get(
-        self, key: clingo.symbol.Symbol, default: clingo.base.Term | None = None
-    ) -> clingo.base.Term | None:
+        self, key: clingo.symbol.Symbol, default: Term | None = None
+    ) -> Term | None:
         """
         Get the value for the given key or the default if absent.
         """

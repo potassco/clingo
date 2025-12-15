@@ -320,7 +320,7 @@ class SolveHandle:
         the search.
         """
 
-    def last(self) -> clingo.solve.Model | None:
+    def last(self) -> Model | None:
         """
         Get the last computed model, if any.
 
@@ -328,7 +328,7 @@ class SolveHandle:
         function returns `None`.
         """
 
-    def model(self) -> clingo.solve.Model | None:
+    def model(self) -> Model | None:
         """
         Get the current model if there is any.
         """

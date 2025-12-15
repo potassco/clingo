@@ -106,6 +106,7 @@ from __future__ import annotations
 
 import collections.abc
 import enum
+import types
 import typing
 
 import clingo.core
@@ -118,22 +119,27 @@ __all__ = [
     "BodyAggregate",
     "BodyAggregateElement",
     "BodyConditionalLiteral",
+    "BodyLiteral",
     "BodySetAggregate",
     "BodySimpleLiteral",
     "BodyTheoryAtom",
     "CommentType",
+    "DisjunctionElement",
     "Edge",
+    "FormatField",
     "FormatFieldExpression",
     "FormatFieldLiteral",
     "HeadAggregate",
     "HeadAggregateElement",
     "HeadConditionalLiteral",
     "HeadDisjunction",
+    "HeadLiteral",
     "HeadSetAggregate",
     "HeadSimpleLiteral",
     "HeadTheoryAtom",
     "IncludeType",
     "LeftGuard",
+    "Literal",
     "LiteralBoolean",
     "LiteralComparison",
     "LiteralSymbolic",
@@ -150,6 +156,7 @@ __all__ = [
     "RightGuard",
     "SetAggregateElement",
     "Sign",
+    "Statement",
     "StatementComment",
     "StatementConst",
     "StatementDefined",
@@ -169,10 +176,13 @@ __all__ = [
     "StatementShowSignature",
     "StatementTheory",
     "StatementWeakConstraint",
+    "Term",
     "TermAbsolute",
     "TermBinaryOperation",
     "TermFormatString",
     "TermFunction",
+    "TermOrArgumentTuple",
+    "TermOrProjection",
     "TermSymbolic",
     "TermTuple",
     "TermUnaryOperation",
@@ -184,6 +194,7 @@ __all__ = [
     "TheoryOperatorDefinition",
     "TheoryOperatorType",
     "TheoryRightGuard",
+    "TheoryTerm",
     "TheoryTermDefinition",
     "TheoryTermFunction",
     "TheoryTermSymbolic",
@@ -214,11 +225,11 @@ def _type_info_yaml() -> str:
 def parse_body_literal(
     lib: clingo.core.Library, string: str
 ) -> (
-    clingo.ast.BodySimpleLiteral
-    | clingo.ast.BodyAggregate
-    | clingo.ast.BodySetAggregate
-    | clingo.ast.BodyTheoryAtom
-    | clingo.ast.BodyConditionalLiteral
+    BodySimpleLiteral
+    | BodyAggregate
+    | BodySetAggregate
+    | BodyTheoryAtom
+    | BodyConditionalLiteral
 ):
     """
     Parse a body literal.
@@ -236,25 +247,25 @@ def parse_files(
     files: typing.Sequence[str],
     callback: collections.abc.Callable[
         [
-            clingo.ast.StatementRule
-            | clingo.ast.StatementTheory
-            | clingo.ast.StatementOptimize
-            | clingo.ast.StatementWeakConstraint
-            | clingo.ast.StatementShow
-            | clingo.ast.StatementShowNothing
-            | clingo.ast.StatementShowSignature
-            | clingo.ast.StatementProject
-            | clingo.ast.StatementProjectSignature
-            | clingo.ast.StatementDefined
-            | clingo.ast.StatementExternal
-            | clingo.ast.StatementEdge
-            | clingo.ast.StatementHeuristic
-            | clingo.ast.StatementScript
-            | clingo.ast.StatementInclude
-            | clingo.ast.StatementProgram
-            | clingo.ast.StatementParts
-            | clingo.ast.StatementConst
-            | clingo.ast.StatementComment
+            StatementRule
+            | StatementTheory
+            | StatementOptimize
+            | StatementWeakConstraint
+            | StatementShow
+            | StatementShowNothing
+            | StatementShowSignature
+            | StatementProject
+            | StatementProjectSignature
+            | StatementDefined
+            | StatementExternal
+            | StatementEdge
+            | StatementHeuristic
+            | StatementScript
+            | StatementInclude
+            | StatementProgram
+            | StatementParts
+            | StatementConst
+            | StatementComment
         ],
         None,
     ],
@@ -277,11 +288,11 @@ def parse_files(
 def parse_head_literal(
     lib: clingo.core.Library, string: str
 ) -> (
-    clingo.ast.HeadSimpleLiteral
-    | clingo.ast.HeadAggregate
-    | clingo.ast.HeadSetAggregate
-    | clingo.ast.HeadTheoryAtom
-    | clingo.ast.HeadDisjunction
+    HeadSimpleLiteral
+    | HeadAggregate
+    | HeadSetAggregate
+    | HeadTheoryAtom
+    | HeadDisjunction
 ):
     """
     Parse a head literal.
@@ -296,11 +307,7 @@ def parse_head_literal(
 
 def parse_literal(
     lib: clingo.core.Library, string: str
-) -> (
-    clingo.ast.LiteralBoolean
-    | clingo.ast.LiteralComparison
-    | clingo.ast.LiteralSymbolic
-):
+) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
     """
     Parse a literal.
 
@@ -315,25 +322,25 @@ def parse_literal(
 def parse_statement(
     lib: clingo.core.Library, string: str
 ) -> (
-    clingo.ast.StatementRule
-    | clingo.ast.StatementTheory
-    | clingo.ast.StatementOptimize
-    | clingo.ast.StatementWeakConstraint
-    | clingo.ast.StatementShow
-    | clingo.ast.StatementShowNothing
-    | clingo.ast.StatementShowSignature
-    | clingo.ast.StatementProject
-    | clingo.ast.StatementProjectSignature
-    | clingo.ast.StatementDefined
-    | clingo.ast.StatementExternal
-    | clingo.ast.StatementEdge
-    | clingo.ast.StatementHeuristic
-    | clingo.ast.StatementScript
-    | clingo.ast.StatementInclude
-    | clingo.ast.StatementProgram
-    | clingo.ast.StatementParts
-    | clingo.ast.StatementConst
-    | clingo.ast.StatementComment
+    StatementRule
+    | StatementTheory
+    | StatementOptimize
+    | StatementWeakConstraint
+    | StatementShow
+    | StatementShowNothing
+    | StatementShowSignature
+    | StatementProject
+    | StatementProjectSignature
+    | StatementDefined
+    | StatementExternal
+    | StatementEdge
+    | StatementHeuristic
+    | StatementScript
+    | StatementInclude
+    | StatementProgram
+    | StatementParts
+    | StatementConst
+    | StatementComment
 ):
     """
     Parse a statement.
@@ -351,25 +358,25 @@ def parse_string(
     program: str,
     callback: collections.abc.Callable[
         [
-            clingo.ast.StatementRule
-            | clingo.ast.StatementTheory
-            | clingo.ast.StatementOptimize
-            | clingo.ast.StatementWeakConstraint
-            | clingo.ast.StatementShow
-            | clingo.ast.StatementShowNothing
-            | clingo.ast.StatementShowSignature
-            | clingo.ast.StatementProject
-            | clingo.ast.StatementProjectSignature
-            | clingo.ast.StatementDefined
-            | clingo.ast.StatementExternal
-            | clingo.ast.StatementEdge
-            | clingo.ast.StatementHeuristic
-            | clingo.ast.StatementScript
-            | clingo.ast.StatementInclude
-            | clingo.ast.StatementProgram
-            | clingo.ast.StatementParts
-            | clingo.ast.StatementConst
-            | clingo.ast.StatementComment
+            StatementRule
+            | StatementTheory
+            | StatementOptimize
+            | StatementWeakConstraint
+            | StatementShow
+            | StatementShowNothing
+            | StatementShowSignature
+            | StatementProject
+            | StatementProjectSignature
+            | StatementDefined
+            | StatementExternal
+            | StatementEdge
+            | StatementHeuristic
+            | StatementScript
+            | StatementInclude
+            | StatementProgram
+            | StatementParts
+            | StatementConst
+            | StatementComment
         ],
         None,
     ],
@@ -388,14 +395,14 @@ def parse_string(
 def parse_term(
     lib: clingo.core.Library, string: str
 ) -> (
-    clingo.ast.TermVariable
-    | clingo.ast.TermSymbolic
-    | clingo.ast.TermAbsolute
-    | clingo.ast.TermUnaryOperation
-    | clingo.ast.TermBinaryOperation
-    | clingo.ast.TermTuple
-    | clingo.ast.TermFunction
-    | clingo.ast.TermFormatString
+    TermVariable
+    | TermSymbolic
+    | TermAbsolute
+    | TermUnaryOperation
+    | TermBinaryOperation
+    | TermTuple
+    | TermFunction
+    | TermFormatString
 ):
     """
     Parse a term.
@@ -411,11 +418,11 @@ def parse_term(
 def parse_theory_term(
     lib: clingo.core.Library, string: str
 ) -> (
-    clingo.ast.TheoryTermVariable
-    | clingo.ast.TheoryTermSymbolic
-    | clingo.ast.TheoryTermTuple
-    | clingo.ast.TheoryTermFunction
-    | clingo.ast.TheoryTermUnparsed
+    TheoryTermVariable
+    | TheoryTermSymbolic
+    | TheoryTermTuple
+    | TheoryTermFunction
+    | TheoryTermUnparsed
 ):
     """
     Parse a theory term.
@@ -431,46 +438,46 @@ def parse_theory_term(
 def rewrite_statement(
     ctx: RewriteContext,
     statement: (
-        clingo.ast.StatementRule
-        | clingo.ast.StatementTheory
-        | clingo.ast.StatementOptimize
-        | clingo.ast.StatementWeakConstraint
-        | clingo.ast.StatementShow
-        | clingo.ast.StatementShowNothing
-        | clingo.ast.StatementShowSignature
-        | clingo.ast.StatementProject
-        | clingo.ast.StatementProjectSignature
-        | clingo.ast.StatementDefined
-        | clingo.ast.StatementExternal
-        | clingo.ast.StatementEdge
-        | clingo.ast.StatementHeuristic
-        | clingo.ast.StatementScript
-        | clingo.ast.StatementInclude
-        | clingo.ast.StatementProgram
-        | clingo.ast.StatementParts
-        | clingo.ast.StatementConst
-        | clingo.ast.StatementComment
+        StatementRule
+        | StatementTheory
+        | StatementOptimize
+        | StatementWeakConstraint
+        | StatementShow
+        | StatementShowNothing
+        | StatementShowSignature
+        | StatementProject
+        | StatementProjectSignature
+        | StatementDefined
+        | StatementExternal
+        | StatementEdge
+        | StatementHeuristic
+        | StatementScript
+        | StatementInclude
+        | StatementProgram
+        | StatementParts
+        | StatementConst
+        | StatementComment
     ),
 ) -> typing.Sequence[
-    clingo.ast.StatementRule
-    | clingo.ast.StatementTheory
-    | clingo.ast.StatementOptimize
-    | clingo.ast.StatementWeakConstraint
-    | clingo.ast.StatementShow
-    | clingo.ast.StatementShowNothing
-    | clingo.ast.StatementShowSignature
-    | clingo.ast.StatementProject
-    | clingo.ast.StatementProjectSignature
-    | clingo.ast.StatementDefined
-    | clingo.ast.StatementExternal
-    | clingo.ast.StatementEdge
-    | clingo.ast.StatementHeuristic
-    | clingo.ast.StatementScript
-    | clingo.ast.StatementInclude
-    | clingo.ast.StatementProgram
-    | clingo.ast.StatementParts
-    | clingo.ast.StatementConst
-    | clingo.ast.StatementComment
+    StatementRule
+    | StatementTheory
+    | StatementOptimize
+    | StatementWeakConstraint
+    | StatementShow
+    | StatementShowNothing
+    | StatementShowSignature
+    | StatementProject
+    | StatementProjectSignature
+    | StatementDefined
+    | StatementExternal
+    | StatementEdge
+    | StatementHeuristic
+    | StatementScript
+    | StatementInclude
+    | StatementProgram
+    | StatementParts
+    | StatementConst
+    | StatementComment
 ]:
     """
     Simplify the given statement.
@@ -710,15 +717,15 @@ class ArgumentTuple:
         self,
         lib: clingo.core.Library,
         arguments: typing.Iterable[
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
-            | clingo.ast.Projection
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+            | Projection
         ] = [],
     ) -> None:
         """
@@ -735,7 +742,7 @@ class ArgumentTuple:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.ArgumentTuple | None:
+    ) -> ArgumentTuple | None:
         """
         Transform the expression.
 
@@ -772,15 +779,15 @@ class ArgumentTuple:
     def arguments(
         self,
     ) -> typing.Sequence[
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
-        | clingo.ast.Projection
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+        | Projection
     ]:
         """
         The arguments of the tuple.
@@ -806,10 +813,10 @@ class BodyAggregate:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         sign: Sign,
-        left: clingo.ast.LeftGuard | None,
+        left: LeftGuard | None,
         function: AggregateFunction,
         elements: typing.Iterable[BodyAggregateElement],
-        right: clingo.ast.RightGuard | None,
+        right: RightGuard | None,
     ) -> None:
         """
         Construct a BodyAggregate object.
@@ -830,7 +837,7 @@ class BodyAggregate:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.BodyAggregate | None:
+    ) -> BodyAggregate | None:
         """
         Transform the expression.
 
@@ -876,7 +883,7 @@ class BodyAggregate:
         """
 
     @property
-    def left(self) -> clingo.ast.LeftGuard | None:
+    def left(self) -> LeftGuard | None:
         """
         The left guard of the aggregate.
         """
@@ -888,7 +895,7 @@ class BodyAggregate:
         """
 
     @property
-    def right(self) -> clingo.ast.RightGuard | None:
+    def right(self) -> RightGuard | None:
         """
         The right guard of the aggregate.
         """
@@ -919,19 +926,17 @@ class BodyAggregateElement:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         tuple: typing.Iterable[
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ],
         condition: typing.Iterable[
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
         ],
     ) -> None:
         """
@@ -950,7 +955,7 @@ class BodyAggregateElement:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.BodyAggregateElement | None:
+    ) -> BodyAggregateElement | None:
         """
         Transform the expression.
 
@@ -986,11 +991,7 @@ class BodyAggregateElement:
     @property
     def condition(
         self,
-    ) -> typing.Sequence[
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ]:
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
@@ -1005,14 +1006,14 @@ class BodyAggregateElement:
     def tuple(
         self,
     ) -> typing.Sequence[
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ]:
         """
         The term tuple of the element.
@@ -1037,15 +1038,9 @@ class BodyConditionalLiteral:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        literal: (
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
-        ),
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
         condition: typing.Iterable[
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
         ],
     ) -> None:
         """
@@ -1064,7 +1059,7 @@ class BodyConditionalLiteral:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.BodyConditionalLiteral | None:
+    ) -> BodyConditionalLiteral | None:
         """
         Transform the expression.
 
@@ -1100,23 +1095,13 @@ class BodyConditionalLiteral:
     @property
     def condition(
         self,
-    ) -> typing.Sequence[
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ]:
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
 
     @property
-    def literal(
-        self,
-    ) -> (
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ):
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
         """
         The literal of the element.
         """
@@ -1147,9 +1132,9 @@ class BodySetAggregate:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         sign: Sign,
-        left: clingo.ast.LeftGuard | None,
+        left: LeftGuard | None,
         elements: typing.Iterable[SetAggregateElement],
-        right: clingo.ast.RightGuard | None,
+        right: RightGuard | None,
     ) -> None:
         """
         Construct a BodySetAggregate object.
@@ -1169,7 +1154,7 @@ class BodySetAggregate:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.BodySetAggregate | None:
+    ) -> BodySetAggregate | None:
         """
         Transform the expression.
 
@@ -1209,7 +1194,7 @@ class BodySetAggregate:
         """
 
     @property
-    def left(self) -> clingo.ast.LeftGuard | None:
+    def left(self) -> LeftGuard | None:
         """
         The left guard of the aggregate.
         """
@@ -1221,7 +1206,7 @@ class BodySetAggregate:
         """
 
     @property
-    def right(self) -> clingo.ast.RightGuard | None:
+    def right(self) -> RightGuard | None:
         """
         The right guard of the aggregate.
         """
@@ -1250,11 +1235,7 @@ class BodySimpleLiteral:
     def __init__(
         self,
         lib: clingo.core.Library,
-        literal: (
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
-        ),
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
     ) -> None:
         """
         Construct a BodySimpleLiteral object.
@@ -1270,7 +1251,7 @@ class BodySimpleLiteral:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.BodySimpleLiteral | None:
+    ) -> BodySimpleLiteral | None:
         """
         Transform the expression.
 
@@ -1304,13 +1285,7 @@ class BodySimpleLiteral:
         """
 
     @property
-    def literal(
-        self,
-    ) -> (
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ):
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
         """
         The literal.
         """
@@ -1336,17 +1311,17 @@ class BodyTheoryAtom:
         location: clingo.core.Location,
         sign: Sign,
         name: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         elements: typing.Iterable[TheoryAtomElement],
-        right: clingo.ast.TheoryRightGuard | None,
+        right: TheoryRightGuard | None,
     ) -> None:
         """
         Construct a BodyTheoryAtom object.
@@ -1366,7 +1341,7 @@ class BodyTheoryAtom:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.BodyTheoryAtom | None:
+    ) -> BodyTheoryAtom | None:
         """
         Transform the expression.
 
@@ -1415,21 +1390,21 @@ class BodyTheoryAtom:
     def name(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The name of the theory atom.
         """
 
     @property
-    def right(self) -> clingo.ast.TheoryRightGuard | None:
+    def right(self) -> TheoryRightGuard | None:
         """
         The right guard of the theory atom.
         """
@@ -1459,24 +1434,24 @@ class Edge:
         self,
         lib: clingo.core.Library,
         u: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         v: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
     ) -> None:
         """
@@ -1494,7 +1469,7 @@ class Edge:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.Edge | None:
+    ) -> Edge | None:
         """
         Transform the expression.
 
@@ -1531,14 +1506,14 @@ class Edge:
     def u(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The start vertex.
@@ -1548,14 +1523,14 @@ class Edge:
     def v(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The end vertex.
@@ -1581,14 +1556,14 @@ class FormatFieldExpression:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         left: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         right: str,
     ) -> None:
@@ -1608,7 +1583,7 @@ class FormatFieldExpression:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.FormatFieldExpression | None:
+    ) -> FormatFieldExpression | None:
         """
         Transform the expression.
 
@@ -1645,14 +1620,14 @@ class FormatFieldExpression:
     def left(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The term of the expression.
@@ -1703,7 +1678,7 @@ class FormatFieldLiteral:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.FormatFieldLiteral | None:
+    ) -> FormatFieldLiteral | None:
         """
         Transform the expression.
 
@@ -1767,10 +1742,10 @@ class HeadAggregate:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        left: clingo.ast.LeftGuard | None,
+        left: LeftGuard | None,
         function: AggregateFunction,
         elements: typing.Iterable[HeadAggregateElement],
-        right: clingo.ast.RightGuard | None,
+        right: RightGuard | None,
     ) -> None:
         """
         Construct a HeadAggregate object.
@@ -1790,7 +1765,7 @@ class HeadAggregate:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.HeadAggregate | None:
+    ) -> HeadAggregate | None:
         """
         Transform the expression.
 
@@ -1836,7 +1811,7 @@ class HeadAggregate:
         """
 
     @property
-    def left(self) -> clingo.ast.LeftGuard | None:
+    def left(self) -> LeftGuard | None:
         """
         The left guard of the aggregate.
         """
@@ -1848,7 +1823,7 @@ class HeadAggregate:
         """
 
     @property
-    def right(self) -> clingo.ast.RightGuard | None:
+    def right(self) -> RightGuard | None:
         """
         The right guard of the aggregate.
         """
@@ -1873,24 +1848,18 @@ class HeadAggregateElement:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         tuple: typing.Iterable[
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ],
-        literal: (
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
-        ),
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
         condition: typing.Iterable[
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
         ],
     ) -> None:
         """
@@ -1910,7 +1879,7 @@ class HeadAggregateElement:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.HeadAggregateElement | None:
+    ) -> HeadAggregateElement | None:
         """
         Transform the expression.
 
@@ -1946,23 +1915,13 @@ class HeadAggregateElement:
     @property
     def condition(
         self,
-    ) -> typing.Sequence[
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ]:
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
 
     @property
-    def literal(
-        self,
-    ) -> (
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ):
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
         """
         The literal of the element.
         """
@@ -1977,14 +1936,14 @@ class HeadAggregateElement:
     def tuple(
         self,
     ) -> typing.Sequence[
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ]:
         """
         The term tuple of the element.
@@ -2009,15 +1968,9 @@ class HeadConditionalLiteral:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        literal: (
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
-        ),
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
         condition: typing.Iterable[
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
         ],
     ) -> None:
         """
@@ -2036,7 +1989,7 @@ class HeadConditionalLiteral:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.HeadConditionalLiteral | None:
+    ) -> HeadConditionalLiteral | None:
         """
         Transform the expression.
 
@@ -2072,23 +2025,13 @@ class HeadConditionalLiteral:
     @property
     def condition(
         self,
-    ) -> typing.Sequence[
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ]:
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
 
     @property
-    def literal(
-        self,
-    ) -> (
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ):
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
         """
         The literal of the element.
         """
@@ -2119,10 +2062,10 @@ class HeadDisjunction:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         elements: typing.Iterable[
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
-            | clingo.ast.HeadConditionalLiteral
+            LiteralBoolean
+            | LiteralComparison
+            | LiteralSymbolic
+            | HeadConditionalLiteral
         ],
     ) -> None:
         """
@@ -2140,7 +2083,7 @@ class HeadDisjunction:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.HeadDisjunction | None:
+    ) -> HeadDisjunction | None:
         """
         Transform the expression.
 
@@ -2177,10 +2120,7 @@ class HeadDisjunction:
     def elements(
         self,
     ) -> typing.Sequence[
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-        | clingo.ast.HeadConditionalLiteral
+        LiteralBoolean | LiteralComparison | LiteralSymbolic | HeadConditionalLiteral
     ]:
         """
         The elements of the disjunction.
@@ -2211,9 +2151,9 @@ class HeadSetAggregate:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        left: clingo.ast.LeftGuard | None,
+        left: LeftGuard | None,
         elements: typing.Iterable[SetAggregateElement],
-        right: clingo.ast.RightGuard | None,
+        right: RightGuard | None,
     ) -> None:
         """
         Construct a HeadSetAggregate object.
@@ -2232,7 +2172,7 @@ class HeadSetAggregate:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.HeadSetAggregate | None:
+    ) -> HeadSetAggregate | None:
         """
         Transform the expression.
 
@@ -2272,7 +2212,7 @@ class HeadSetAggregate:
         """
 
     @property
-    def left(self) -> clingo.ast.LeftGuard | None:
+    def left(self) -> LeftGuard | None:
         """
         The left guard of the aggregate.
         """
@@ -2284,7 +2224,7 @@ class HeadSetAggregate:
         """
 
     @property
-    def right(self) -> clingo.ast.RightGuard | None:
+    def right(self) -> RightGuard | None:
         """
         The right guard of the aggregate.
         """
@@ -2307,11 +2247,7 @@ class HeadSimpleLiteral:
     def __init__(
         self,
         lib: clingo.core.Library,
-        literal: (
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
-        ),
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
     ) -> None:
         """
         Construct a HeadSimpleLiteral object.
@@ -2327,7 +2263,7 @@ class HeadSimpleLiteral:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.HeadSimpleLiteral | None:
+    ) -> HeadSimpleLiteral | None:
         """
         Transform the expression.
 
@@ -2361,13 +2297,7 @@ class HeadSimpleLiteral:
         """
 
     @property
-    def literal(
-        self,
-    ) -> (
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ):
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
         """
         The literal.
         """
@@ -2392,17 +2322,17 @@ class HeadTheoryAtom:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         name: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         elements: typing.Iterable[TheoryAtomElement],
-        right: clingo.ast.TheoryRightGuard | None,
+        right: TheoryRightGuard | None,
     ) -> None:
         """
         Construct a HeadTheoryAtom object.
@@ -2421,7 +2351,7 @@ class HeadTheoryAtom:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.HeadTheoryAtom | None:
+    ) -> HeadTheoryAtom | None:
         """
         Transform the expression.
 
@@ -2470,21 +2400,21 @@ class HeadTheoryAtom:
     def name(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The name of the theory atom.
         """
 
     @property
-    def right(self) -> clingo.ast.TheoryRightGuard | None:
+    def right(self) -> TheoryRightGuard | None:
         """
         The right guard of the theory atom.
         """
@@ -2508,14 +2438,14 @@ class LeftGuard:
         self,
         lib: clingo.core.Library,
         term: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         relation: Relation,
     ) -> None:
@@ -2534,7 +2464,7 @@ class LeftGuard:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.LeftGuard | None:
+    ) -> LeftGuard | None:
         """
         Transform the expression.
 
@@ -2577,14 +2507,14 @@ class LeftGuard:
     def term(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The term of the guard.
@@ -2628,7 +2558,7 @@ class LiteralBoolean:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.LiteralBoolean | None:
+    ) -> LiteralBoolean | None:
         """
         Transform the expression.
 
@@ -2700,14 +2630,14 @@ class LiteralComparison:
         location: clingo.core.Location,
         sign: Sign,
         left: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         right: typing.Iterable[RightGuard],
     ) -> None:
@@ -2730,7 +2660,7 @@ class LiteralComparison:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.LiteralComparison | None:
+    ) -> LiteralComparison | None:
         """
         Transform the expression.
 
@@ -2767,14 +2697,14 @@ class LiteralComparison:
     def left(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The first term of the comparison.
@@ -2820,14 +2750,14 @@ class LiteralSymbolic:
         location: clingo.core.Location,
         sign: Sign,
         atom: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
     ) -> None:
         """
@@ -2846,7 +2776,7 @@ class LiteralSymbolic:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.LiteralSymbolic | None:
+    ) -> LiteralSymbolic | None:
         """
         Transform the expression.
 
@@ -2883,14 +2813,14 @@ class LiteralSymbolic:
     def atom(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The term representing the atom.
@@ -2928,9 +2858,7 @@ class OptimizeElement:
         lib: clingo.core.Library,
         tuple: OptimizeTuple,
         condition: typing.Iterable[
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
         ],
     ) -> None:
         """
@@ -2948,7 +2876,7 @@ class OptimizeElement:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.OptimizeElement | None:
+    ) -> OptimizeElement | None:
         """
         Transform the expression.
 
@@ -2984,11 +2912,7 @@ class OptimizeElement:
     @property
     def condition(
         self,
-    ) -> typing.Sequence[
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ]:
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
@@ -3018,35 +2942,35 @@ class OptimizeTuple:
         self,
         lib: clingo.core.Library,
         weight: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         priority: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
             | None
         ),
         terms: typing.Iterable[
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ],
     ) -> None:
         """
@@ -3065,7 +2989,7 @@ class OptimizeTuple:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.OptimizeTuple | None:
+    ) -> OptimizeTuple | None:
         """
         Transform the expression.
 
@@ -3102,14 +3026,14 @@ class OptimizeTuple:
     def priority(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
         | None
     ):
         """
@@ -3120,14 +3044,14 @@ class OptimizeTuple:
     def terms(
         self,
     ) -> typing.Sequence[
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ]:
         """
         The remaining terms in the tuple.
@@ -3137,14 +3061,14 @@ class OptimizeTuple:
     def weight(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The weight of the tuple.
@@ -3168,25 +3092,25 @@ class Program:
     def add(
         self,
         statement: (
-            clingo.ast.StatementRule
-            | clingo.ast.StatementTheory
-            | clingo.ast.StatementOptimize
-            | clingo.ast.StatementWeakConstraint
-            | clingo.ast.StatementShow
-            | clingo.ast.StatementShowNothing
-            | clingo.ast.StatementShowSignature
-            | clingo.ast.StatementProject
-            | clingo.ast.StatementProjectSignature
-            | clingo.ast.StatementDefined
-            | clingo.ast.StatementExternal
-            | clingo.ast.StatementEdge
-            | clingo.ast.StatementHeuristic
-            | clingo.ast.StatementScript
-            | clingo.ast.StatementInclude
-            | clingo.ast.StatementProgram
-            | clingo.ast.StatementParts
-            | clingo.ast.StatementConst
-            | clingo.ast.StatementComment
+            StatementRule
+            | StatementTheory
+            | StatementOptimize
+            | StatementWeakConstraint
+            | StatementShow
+            | StatementShowNothing
+            | StatementShowSignature
+            | StatementProject
+            | StatementProjectSignature
+            | StatementDefined
+            | StatementExternal
+            | StatementEdge
+            | StatementHeuristic
+            | StatementScript
+            | StatementInclude
+            | StatementProgram
+            | StatementParts
+            | StatementConst
+            | StatementComment
         ),
     ) -> None:
         """
@@ -3232,7 +3156,7 @@ class ProgramPart:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.ProgramPart | None:
+    ) -> ProgramPart | None:
         """
         Transform the expression.
 
@@ -3309,7 +3233,7 @@ class Projection:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.Projection | None:
+    ) -> Projection | None:
         """
         Transform the expression.
 
@@ -3425,14 +3349,14 @@ class RightGuard:
         lib: clingo.core.Library,
         relation: Relation,
         term: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
     ) -> None:
         """
@@ -3450,7 +3374,7 @@ class RightGuard:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.RightGuard | None:
+    ) -> RightGuard | None:
         """
         Transform the expression.
 
@@ -3493,14 +3417,14 @@ class RightGuard:
     def term(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The term of the guard.
@@ -3525,15 +3449,9 @@ class SetAggregateElement:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        literal: (
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
-        ),
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
         condition: typing.Iterable[
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
         ],
     ) -> None:
         """
@@ -3552,7 +3470,7 @@ class SetAggregateElement:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.SetAggregateElement | None:
+    ) -> SetAggregateElement | None:
         """
         Transform the expression.
 
@@ -3588,23 +3506,13 @@ class SetAggregateElement:
     @property
     def condition(
         self,
-    ) -> typing.Sequence[
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ]:
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
 
     @property
-    def literal(
-        self,
-    ) -> (
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ):
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
         """
         The literal of the element.
         """
@@ -3653,7 +3561,7 @@ class StatementComment:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementComment | None:
+    ) -> StatementComment | None:
         """
         Transform the expression.
 
@@ -3725,14 +3633,14 @@ class StatementConst:
         location: clingo.core.Location,
         name: str,
         value: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         precedence: Precedence,
     ) -> None:
@@ -3753,7 +3661,7 @@ class StatementConst:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementConst | None:
+    ) -> StatementConst | None:
         """
         Transform the expression.
 
@@ -3808,14 +3716,14 @@ class StatementConst:
     def value(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The term of the statement.
@@ -3861,7 +3769,7 @@ class StatementDefined:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementDefined | None:
+    ) -> StatementDefined | None:
         """
         Transform the expression.
 
@@ -3939,11 +3847,11 @@ class StatementEdge:
         location: clingo.core.Location,
         pool: typing.Iterable[Edge],
         body: typing.Iterable[
-            clingo.ast.BodySimpleLiteral
-            | clingo.ast.BodyAggregate
-            | clingo.ast.BodySetAggregate
-            | clingo.ast.BodyTheoryAtom
-            | clingo.ast.BodyConditionalLiteral
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
         ],
     ) -> None:
         """
@@ -3962,7 +3870,7 @@ class StatementEdge:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementEdge | None:
+    ) -> StatementEdge | None:
         """
         Transform the expression.
 
@@ -3999,11 +3907,11 @@ class StatementEdge:
     def body(
         self,
     ) -> typing.Sequence[
-        clingo.ast.BodySimpleLiteral
-        | clingo.ast.BodyAggregate
-        | clingo.ast.BodySetAggregate
-        | clingo.ast.BodyTheoryAtom
-        | clingo.ast.BodyConditionalLiteral
+        BodySimpleLiteral
+        | BodyAggregate
+        | BodySetAggregate
+        | BodyTheoryAtom
+        | BodyConditionalLiteral
     ]:
         """
         The body of the statement.
@@ -4041,31 +3949,31 @@ class StatementExternal:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         atom: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         body: typing.Iterable[
-            clingo.ast.BodySimpleLiteral
-            | clingo.ast.BodyAggregate
-            | clingo.ast.BodySetAggregate
-            | clingo.ast.BodyTheoryAtom
-            | clingo.ast.BodyConditionalLiteral
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
         ],
         external_type: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
             | None
         ) = None,
     ) -> None:
@@ -4086,7 +3994,7 @@ class StatementExternal:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementExternal | None:
+    ) -> StatementExternal | None:
         """
         Transform the expression.
 
@@ -4123,14 +4031,14 @@ class StatementExternal:
     def atom(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The atom to project.
@@ -4140,11 +4048,11 @@ class StatementExternal:
     def body(
         self,
     ) -> typing.Sequence[
-        clingo.ast.BodySimpleLiteral
-        | clingo.ast.BodyAggregate
-        | clingo.ast.BodySetAggregate
-        | clingo.ast.BodyTheoryAtom
-        | clingo.ast.BodyConditionalLiteral
+        BodySimpleLiteral
+        | BodyAggregate
+        | BodySetAggregate
+        | BodyTheoryAtom
+        | BodyConditionalLiteral
     ]:
         """
         The body of the statement.
@@ -4154,14 +4062,14 @@ class StatementExternal:
     def external_type(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
         | None
     ):
         """
@@ -4194,51 +4102,51 @@ class StatementHeuristic:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         atom: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         body: typing.Iterable[
-            clingo.ast.BodySimpleLiteral
-            | clingo.ast.BodyAggregate
-            | clingo.ast.BodySetAggregate
-            | clingo.ast.BodyTheoryAtom
-            | clingo.ast.BodyConditionalLiteral
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
         ],
         weight: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         modifier: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         priority: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
             | None
         ) = None,
     ) -> None:
@@ -4261,7 +4169,7 @@ class StatementHeuristic:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementHeuristic | None:
+    ) -> StatementHeuristic | None:
         """
         Transform the expression.
 
@@ -4298,14 +4206,14 @@ class StatementHeuristic:
     def atom(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The atom to heuristically modify.
@@ -4315,11 +4223,11 @@ class StatementHeuristic:
     def body(
         self,
     ) -> typing.Sequence[
-        clingo.ast.BodySimpleLiteral
-        | clingo.ast.BodyAggregate
-        | clingo.ast.BodySetAggregate
-        | clingo.ast.BodyTheoryAtom
-        | clingo.ast.BodyConditionalLiteral
+        BodySimpleLiteral
+        | BodyAggregate
+        | BodySetAggregate
+        | BodyTheoryAtom
+        | BodyConditionalLiteral
     ]:
         """
         The body of the statement.
@@ -4335,14 +4243,14 @@ class StatementHeuristic:
     def modifier(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The heuristic modifier.
@@ -4352,14 +4260,14 @@ class StatementHeuristic:
     def priority(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
         | None
     ):
         """
@@ -4370,14 +4278,14 @@ class StatementHeuristic:
     def weight(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The weight of the heuristic modification.
@@ -4421,7 +4329,7 @@ class StatementInclude:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementInclude | None:
+    ) -> StatementInclude | None:
         """
         Transform the expression.
 
@@ -4510,7 +4418,7 @@ class StatementOptimize:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementOptimize | None:
+    ) -> StatementOptimize | None:
         """
         Transform the expression.
 
@@ -4599,7 +4507,7 @@ class StatementParts:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementParts | None:
+    ) -> StatementParts | None:
         """
         Transform the expression.
 
@@ -4688,7 +4596,7 @@ class StatementProgram:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementProgram | None:
+    ) -> StatementProgram | None:
         """
         Transform the expression.
 
@@ -4759,21 +4667,21 @@ class StatementProject:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         atom: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         body: typing.Iterable[
-            clingo.ast.BodySimpleLiteral
-            | clingo.ast.BodyAggregate
-            | clingo.ast.BodySetAggregate
-            | clingo.ast.BodyTheoryAtom
-            | clingo.ast.BodyConditionalLiteral
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
         ],
     ) -> None:
         """
@@ -4792,7 +4700,7 @@ class StatementProject:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementProject | None:
+    ) -> StatementProject | None:
         """
         Transform the expression.
 
@@ -4829,14 +4737,14 @@ class StatementProject:
     def atom(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The atom to project.
@@ -4846,11 +4754,11 @@ class StatementProject:
     def body(
         self,
     ) -> typing.Sequence[
-        clingo.ast.BodySimpleLiteral
-        | clingo.ast.BodyAggregate
-        | clingo.ast.BodySetAggregate
-        | clingo.ast.BodyTheoryAtom
-        | clingo.ast.BodyConditionalLiteral
+        BodySimpleLiteral
+        | BodyAggregate
+        | BodySetAggregate
+        | BodyTheoryAtom
+        | BodyConditionalLiteral
     ]:
         """
         The body of the statement.
@@ -4902,7 +4810,7 @@ class StatementProjectSignature:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementProjectSignature | None:
+    ) -> StatementProjectSignature | None:
         """
         Transform the expression.
 
@@ -4979,18 +4887,18 @@ class StatementRule:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         head: (
-            clingo.ast.HeadSimpleLiteral
-            | clingo.ast.HeadAggregate
-            | clingo.ast.HeadSetAggregate
-            | clingo.ast.HeadTheoryAtom
-            | clingo.ast.HeadDisjunction
+            HeadSimpleLiteral
+            | HeadAggregate
+            | HeadSetAggregate
+            | HeadTheoryAtom
+            | HeadDisjunction
         ),
         body: typing.Iterable[
-            clingo.ast.BodySimpleLiteral
-            | clingo.ast.BodyAggregate
-            | clingo.ast.BodySetAggregate
-            | clingo.ast.BodyTheoryAtom
-            | clingo.ast.BodyConditionalLiteral
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
         ],
     ) -> None:
         """
@@ -5009,7 +4917,7 @@ class StatementRule:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementRule | None:
+    ) -> StatementRule | None:
         """
         Transform the expression.
 
@@ -5046,11 +4954,11 @@ class StatementRule:
     def body(
         self,
     ) -> typing.Sequence[
-        clingo.ast.BodySimpleLiteral
-        | clingo.ast.BodyAggregate
-        | clingo.ast.BodySetAggregate
-        | clingo.ast.BodyTheoryAtom
-        | clingo.ast.BodyConditionalLiteral
+        BodySimpleLiteral
+        | BodyAggregate
+        | BodySetAggregate
+        | BodyTheoryAtom
+        | BodyConditionalLiteral
     ]:
         """
         The body of the statement.
@@ -5060,11 +4968,11 @@ class StatementRule:
     def head(
         self,
     ) -> (
-        clingo.ast.HeadSimpleLiteral
-        | clingo.ast.HeadAggregate
-        | clingo.ast.HeadSetAggregate
-        | clingo.ast.HeadTheoryAtom
-        | clingo.ast.HeadDisjunction
+        HeadSimpleLiteral
+        | HeadAggregate
+        | HeadSetAggregate
+        | HeadTheoryAtom
+        | HeadDisjunction
     ):
         """
         The head literal.
@@ -5114,7 +5022,7 @@ class StatementScript:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementScript | None:
+    ) -> StatementScript | None:
         """
         Transform the expression.
 
@@ -5185,21 +5093,21 @@ class StatementShow:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         term: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         body: typing.Iterable[
-            clingo.ast.BodySimpleLiteral
-            | clingo.ast.BodyAggregate
-            | clingo.ast.BodySetAggregate
-            | clingo.ast.BodyTheoryAtom
-            | clingo.ast.BodyConditionalLiteral
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
         ],
     ) -> None:
         """
@@ -5218,7 +5126,7 @@ class StatementShow:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementShow | None:
+    ) -> StatementShow | None:
         """
         Transform the expression.
 
@@ -5255,11 +5163,11 @@ class StatementShow:
     def body(
         self,
     ) -> typing.Sequence[
-        clingo.ast.BodySimpleLiteral
-        | clingo.ast.BodyAggregate
-        | clingo.ast.BodySetAggregate
-        | clingo.ast.BodyTheoryAtom
-        | clingo.ast.BodyConditionalLiteral
+        BodySimpleLiteral
+        | BodyAggregate
+        | BodySetAggregate
+        | BodyTheoryAtom
+        | BodyConditionalLiteral
     ]:
         """
         The body of the statement.
@@ -5275,14 +5183,14 @@ class StatementShow:
     def term(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The term to show.
@@ -5320,7 +5228,7 @@ class StatementShowNothing:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementShowNothing | None:
+    ) -> StatementShowNothing | None:
         """
         Transform the expression.
 
@@ -5401,7 +5309,7 @@ class StatementShowSignature:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementShowSignature | None:
+    ) -> StatementShowSignature | None:
         """
         Transform the expression.
 
@@ -5504,7 +5412,7 @@ class StatementTheory:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementTheory | None:
+    ) -> StatementTheory | None:
         """
         Transform the expression.
 
@@ -5581,11 +5489,11 @@ class StatementWeakConstraint:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         body: typing.Iterable[
-            clingo.ast.BodySimpleLiteral
-            | clingo.ast.BodyAggregate
-            | clingo.ast.BodySetAggregate
-            | clingo.ast.BodyTheoryAtom
-            | clingo.ast.BodyConditionalLiteral
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
         ],
         tuple: OptimizeTuple,
     ) -> None:
@@ -5605,7 +5513,7 @@ class StatementWeakConstraint:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.StatementWeakConstraint | None:
+    ) -> StatementWeakConstraint | None:
         """
         Transform the expression.
 
@@ -5642,11 +5550,11 @@ class StatementWeakConstraint:
     def body(
         self,
     ) -> typing.Sequence[
-        clingo.ast.BodySimpleLiteral
-        | clingo.ast.BodyAggregate
-        | clingo.ast.BodySetAggregate
-        | clingo.ast.BodyTheoryAtom
-        | clingo.ast.BodyConditionalLiteral
+        BodySimpleLiteral
+        | BodyAggregate
+        | BodySetAggregate
+        | BodyTheoryAtom
+        | BodyConditionalLiteral
     ]:
         """
         The body of the statement.
@@ -5684,14 +5592,14 @@ class TermAbsolute:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         pool: typing.Iterable[
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ],
     ) -> None:
         """
@@ -5712,7 +5620,7 @@ class TermAbsolute:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TermAbsolute | None:
+    ) -> TermAbsolute | None:
         """
         Transform the expression.
 
@@ -5755,14 +5663,14 @@ class TermAbsolute:
     def pool(
         self,
     ) -> typing.Sequence[
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ]:
         """
         The argument pool.
@@ -5789,25 +5697,25 @@ class TermBinaryOperation:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         left: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
         operator_type: BinaryOperator,
         right: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
     ) -> None:
         """
@@ -5827,7 +5735,7 @@ class TermBinaryOperation:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TermBinaryOperation | None:
+    ) -> TermBinaryOperation | None:
         """
         Transform the expression.
 
@@ -5864,14 +5772,14 @@ class TermBinaryOperation:
     def left(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The left argument of the operation.
@@ -5893,14 +5801,14 @@ class TermBinaryOperation:
     def right(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The right argument of the operation.
@@ -5925,9 +5833,7 @@ class TermFormatString:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        elements: typing.Iterable[
-            clingo.ast.FormatFieldLiteral | clingo.ast.FormatFieldExpression
-        ],
+        elements: typing.Iterable[FormatFieldLiteral | FormatFieldExpression],
     ) -> None:
         """
         Construct a TermFormatString object.
@@ -5944,7 +5850,7 @@ class TermFormatString:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TermFormatString | None:
+    ) -> TermFormatString | None:
         """
         Transform the expression.
 
@@ -5978,11 +5884,7 @@ class TermFormatString:
         """
 
     @property
-    def elements(
-        self,
-    ) -> typing.Sequence[
-        clingo.ast.FormatFieldLiteral | clingo.ast.FormatFieldExpression
-    ]:
+    def elements(self) -> typing.Sequence[FormatFieldLiteral | FormatFieldExpression]:
         """
         The elements of the format string.
         """
@@ -6036,7 +5938,7 @@ class TermFunction:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TermFunction | None:
+    ) -> TermFunction | None:
         """
         Transform the expression.
 
@@ -6130,7 +6032,7 @@ class TermSymbolic:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TermSymbolic | None:
+    ) -> TermSymbolic | None:
         """
         Transform the expression.
 
@@ -6195,15 +6097,15 @@ class TermTuple:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         pool: typing.Iterable[
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
-            | clingo.ast.ArgumentTuple
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+            | ArgumentTuple
         ],
     ) -> None:
         """
@@ -6224,7 +6126,7 @@ class TermTuple:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TermTuple | None:
+    ) -> TermTuple | None:
         """
         Transform the expression.
 
@@ -6267,15 +6169,15 @@ class TermTuple:
     def pool(
         self,
     ) -> typing.Sequence[
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
-        | clingo.ast.ArgumentTuple
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+        | ArgumentTuple
     ]:
         """
         The argument pool of the tuple.
@@ -6303,14 +6205,14 @@ class TermUnaryOperation:
         location: clingo.core.Location,
         operator_type: UnaryOperator,
         right: (
-            clingo.ast.TermVariable
-            | clingo.ast.TermSymbolic
-            | clingo.ast.TermAbsolute
-            | clingo.ast.TermUnaryOperation
-            | clingo.ast.TermBinaryOperation
-            | clingo.ast.TermTuple
-            | clingo.ast.TermFunction
-            | clingo.ast.TermFormatString
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
     ) -> None:
         """
@@ -6329,7 +6231,7 @@ class TermUnaryOperation:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TermUnaryOperation | None:
+    ) -> TermUnaryOperation | None:
         """
         Transform the expression.
 
@@ -6378,14 +6280,14 @@ class TermUnaryOperation:
     def right(
         self,
     ) -> (
-        clingo.ast.TermVariable
-        | clingo.ast.TermSymbolic
-        | clingo.ast.TermAbsolute
-        | clingo.ast.TermUnaryOperation
-        | clingo.ast.TermBinaryOperation
-        | clingo.ast.TermTuple
-        | clingo.ast.TermFunction
-        | clingo.ast.TermFormatString
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
     ):
         """
         The argument of the operation.
@@ -6432,7 +6334,7 @@ class TermVariable:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TermVariable | None:
+    ) -> TermVariable | None:
         """
         Transform the expression.
 
@@ -6506,7 +6408,7 @@ class TheoryAtomDefinition:
         name: str,
         arity: int,
         term: str,
-        guard: clingo.ast.TheoryGuardDefinition | None,
+        guard: TheoryGuardDefinition | None,
         atom_type: TheoryAtomType,
     ) -> None:
         """
@@ -6528,7 +6430,7 @@ class TheoryAtomDefinition:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TheoryAtomDefinition | None:
+    ) -> TheoryAtomDefinition | None:
         """
         Transform the expression.
 
@@ -6574,7 +6476,7 @@ class TheoryAtomDefinition:
         """
 
     @property
-    def guard(self) -> clingo.ast.TheoryGuardDefinition | None:
+    def guard(self) -> TheoryGuardDefinition | None:
         """
         An optional guard definition.
         """
@@ -6617,16 +6519,14 @@ class TheoryAtomElement:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         tuple: typing.Iterable[
-            clingo.ast.TheoryTermVariable
-            | clingo.ast.TheoryTermSymbolic
-            | clingo.ast.TheoryTermTuple
-            | clingo.ast.TheoryTermFunction
-            | clingo.ast.TheoryTermUnparsed
+            TheoryTermVariable
+            | TheoryTermSymbolic
+            | TheoryTermTuple
+            | TheoryTermFunction
+            | TheoryTermUnparsed
         ],
         condition: typing.Iterable[
-            clingo.ast.LiteralBoolean
-            | clingo.ast.LiteralComparison
-            | clingo.ast.LiteralSymbolic
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
         ],
     ) -> None:
         """
@@ -6645,7 +6545,7 @@ class TheoryAtomElement:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TheoryAtomElement | None:
+    ) -> TheoryAtomElement | None:
         """
         Transform the expression.
 
@@ -6681,11 +6581,7 @@ class TheoryAtomElement:
     @property
     def condition(
         self,
-    ) -> typing.Sequence[
-        clingo.ast.LiteralBoolean
-        | clingo.ast.LiteralComparison
-        | clingo.ast.LiteralSymbolic
-    ]:
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
         """
         The condition of the element.
         """
@@ -6700,11 +6596,11 @@ class TheoryAtomElement:
     def tuple(
         self,
     ) -> typing.Sequence[
-        clingo.ast.TheoryTermVariable
-        | clingo.ast.TheoryTermSymbolic
-        | clingo.ast.TheoryTermTuple
-        | clingo.ast.TheoryTermFunction
-        | clingo.ast.TheoryTermUnparsed
+        TheoryTermVariable
+        | TheoryTermSymbolic
+        | TheoryTermTuple
+        | TheoryTermFunction
+        | TheoryTermUnparsed
     ]:
         """
         The theory term tuple of the element.
@@ -6743,7 +6639,7 @@ class TheoryGuardDefinition:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TheoryGuardDefinition | None:
+    ) -> TheoryGuardDefinition | None:
         """
         Transform the expression.
 
@@ -6828,7 +6724,7 @@ class TheoryOperatorDefinition:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TheoryOperatorDefinition | None:
+    ) -> TheoryOperatorDefinition | None:
         """
         Transform the expression.
 
@@ -6906,11 +6802,11 @@ class TheoryRightGuard:
         lib: clingo.core.Library,
         theory_operator: str,
         term: (
-            clingo.ast.TheoryTermVariable
-            | clingo.ast.TheoryTermSymbolic
-            | clingo.ast.TheoryTermTuple
-            | clingo.ast.TheoryTermFunction
-            | clingo.ast.TheoryTermUnparsed
+            TheoryTermVariable
+            | TheoryTermSymbolic
+            | TheoryTermTuple
+            | TheoryTermFunction
+            | TheoryTermUnparsed
         ),
     ) -> None:
         """
@@ -6928,7 +6824,7 @@ class TheoryRightGuard:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TheoryRightGuard | None:
+    ) -> TheoryRightGuard | None:
         """
         Transform the expression.
 
@@ -6965,11 +6861,11 @@ class TheoryRightGuard:
     def term(
         self,
     ) -> (
-        clingo.ast.TheoryTermVariable
-        | clingo.ast.TheoryTermSymbolic
-        | clingo.ast.TheoryTermTuple
-        | clingo.ast.TheoryTermFunction
-        | clingo.ast.TheoryTermUnparsed
+        TheoryTermVariable
+        | TheoryTermSymbolic
+        | TheoryTermTuple
+        | TheoryTermFunction
+        | TheoryTermUnparsed
     ):
         """
         The theory term of the guard.
@@ -7019,7 +6915,7 @@ class TheoryTermDefinition:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TheoryTermDefinition | None:
+    ) -> TheoryTermDefinition | None:
         """
         Transform the expression.
 
@@ -7091,11 +6987,11 @@ class TheoryTermFunction:
         location: clingo.core.Location,
         name: str,
         arguments: typing.Iterable[
-            clingo.ast.TheoryTermVariable
-            | clingo.ast.TheoryTermSymbolic
-            | clingo.ast.TheoryTermTuple
-            | clingo.ast.TheoryTermFunction
-            | clingo.ast.TheoryTermUnparsed
+            TheoryTermVariable
+            | TheoryTermSymbolic
+            | TheoryTermTuple
+            | TheoryTermFunction
+            | TheoryTermUnparsed
         ],
     ) -> None:
         """
@@ -7114,7 +7010,7 @@ class TheoryTermFunction:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TheoryTermFunction | None:
+    ) -> TheoryTermFunction | None:
         """
         Transform the expression.
 
@@ -7151,11 +7047,11 @@ class TheoryTermFunction:
     def arguments(
         self,
     ) -> typing.Sequence[
-        clingo.ast.TheoryTermVariable
-        | clingo.ast.TheoryTermSymbolic
-        | clingo.ast.TheoryTermTuple
-        | clingo.ast.TheoryTermFunction
-        | clingo.ast.TheoryTermUnparsed
+        TheoryTermVariable
+        | TheoryTermSymbolic
+        | TheoryTermTuple
+        | TheoryTermFunction
+        | TheoryTermUnparsed
     ]:
         """
         The arguments of the function.
@@ -7209,7 +7105,7 @@ class TheoryTermSymbolic:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TheoryTermSymbolic | None:
+    ) -> TheoryTermSymbolic | None:
         """
         Transform the expression.
 
@@ -7275,11 +7171,11 @@ class TheoryTermTuple:
         location: clingo.core.Location,
         tuple_type: TheoryTupleType,
         arguments: typing.Iterable[
-            clingo.ast.TheoryTermVariable
-            | clingo.ast.TheoryTermSymbolic
-            | clingo.ast.TheoryTermTuple
-            | clingo.ast.TheoryTermFunction
-            | clingo.ast.TheoryTermUnparsed
+            TheoryTermVariable
+            | TheoryTermSymbolic
+            | TheoryTermTuple
+            | TheoryTermFunction
+            | TheoryTermUnparsed
         ],
     ) -> None:
         """
@@ -7298,7 +7194,7 @@ class TheoryTermTuple:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TheoryTermTuple | None:
+    ) -> TheoryTermTuple | None:
         """
         Transform the expression.
 
@@ -7335,11 +7231,11 @@ class TheoryTermTuple:
     def arguments(
         self,
     ) -> typing.Sequence[
-        clingo.ast.TheoryTermVariable
-        | clingo.ast.TheoryTermSymbolic
-        | clingo.ast.TheoryTermTuple
-        | clingo.ast.TheoryTermFunction
-        | clingo.ast.TheoryTermUnparsed
+        TheoryTermVariable
+        | TheoryTermSymbolic
+        | TheoryTermTuple
+        | TheoryTermFunction
+        | TheoryTermUnparsed
     ]:
         """
         The arguments of the tuple.
@@ -7393,7 +7289,7 @@ class TheoryTermUnparsed:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TheoryTermUnparsed | None:
+    ) -> TheoryTermUnparsed | None:
         """
         Transform the expression.
 
@@ -7479,7 +7375,7 @@ class TheoryTermVariable:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.TheoryTermVariable | None:
+    ) -> TheoryTermVariable | None:
         """
         Transform the expression.
 
@@ -7551,11 +7447,11 @@ class UnparsedElement:
         lib: clingo.core.Library,
         operators: typing.Iterable[str],
         term: (
-            clingo.ast.TheoryTermVariable
-            | clingo.ast.TheoryTermSymbolic
-            | clingo.ast.TheoryTermTuple
-            | clingo.ast.TheoryTermFunction
-            | clingo.ast.TheoryTermUnparsed
+            TheoryTermVariable
+            | TheoryTermSymbolic
+            | TheoryTermTuple
+            | TheoryTermFunction
+            | TheoryTermUnparsed
         ),
     ) -> None:
         """
@@ -7573,7 +7469,7 @@ class UnparsedElement:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> clingo.ast.UnparsedElement | None:
+    ) -> UnparsedElement | None:
         """
         Transform the expression.
 
@@ -7616,12 +7512,92 @@ class UnparsedElement:
     def term(
         self,
     ) -> (
-        clingo.ast.TheoryTermVariable
-        | clingo.ast.TheoryTermSymbolic
-        | clingo.ast.TheoryTermTuple
-        | clingo.ast.TheoryTermFunction
-        | clingo.ast.TheoryTermUnparsed
+        TheoryTermVariable
+        | TheoryTermSymbolic
+        | TheoryTermTuple
+        | TheoryTermFunction
+        | TheoryTermUnparsed
     ):
         """
         The theory term.
         """
+
+BodyLiteral = (
+    BodySimpleLiteral
+    | BodyAggregate
+    | BodySetAggregate
+    | BodyTheoryAtom
+    | BodyConditionalLiteral
+)
+DisjunctionElement = (
+    LiteralBoolean | LiteralComparison | LiteralSymbolic | HeadConditionalLiteral
+)
+FormatField = FormatFieldLiteral | FormatFieldExpression
+HeadLiteral = (
+    HeadSimpleLiteral
+    | HeadAggregate
+    | HeadSetAggregate
+    | HeadTheoryAtom
+    | HeadDisjunction
+)
+Literal = LiteralBoolean | LiteralComparison | LiteralSymbolic
+Statement = (
+    StatementRule
+    | StatementTheory
+    | StatementOptimize
+    | StatementWeakConstraint
+    | StatementShow
+    | StatementShowNothing
+    | StatementShowSignature
+    | StatementProject
+    | StatementProjectSignature
+    | StatementDefined
+    | StatementExternal
+    | StatementEdge
+    | StatementHeuristic
+    | StatementScript
+    | StatementInclude
+    | StatementProgram
+    | StatementParts
+    | StatementConst
+    | StatementComment
+)
+Term = (
+    TermVariable
+    | TermSymbolic
+    | TermAbsolute
+    | TermUnaryOperation
+    | TermBinaryOperation
+    | TermTuple
+    | TermFunction
+    | TermFormatString
+)
+TermOrArgumentTuple = (
+    TermVariable
+    | TermSymbolic
+    | TermAbsolute
+    | TermUnaryOperation
+    | TermBinaryOperation
+    | TermTuple
+    | TermFunction
+    | TermFormatString
+    | ArgumentTuple
+)
+TermOrProjection = (
+    TermVariable
+    | TermSymbolic
+    | TermAbsolute
+    | TermUnaryOperation
+    | TermBinaryOperation
+    | TermTuple
+    | TermFunction
+    | TermFormatString
+    | Projection
+)
+TheoryTerm = (
+    TheoryTermVariable
+    | TheoryTermSymbolic
+    | TheoryTermTuple
+    | TheoryTermFunction
+    | TheoryTermUnparsed
+)

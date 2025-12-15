@@ -10,6 +10,7 @@
 #include <pybind11/operators.h>
 
 #include <algorithm>
+#include <numeric>
 
 // NOLINTBEGIN(readability-convert-member-functions-to-static,performance-enum-size)
 
@@ -323,6 +324,11 @@ struct CString {
         return std::string_view{str_};
     }
     std::string str_;
+};
+
+void add_union(py::module_ &mod, char const *name, std::initializer_list<char const *> names) {
+    mod.add_object(name, std::accumulate(std::next(names.begin()), names.end(), mod.attr(*names.begin()),
+                                         [&](py::object const &a, const char *t) { return a | mod.attr(t); }));
 };
 
 }
@@ -797,6 +803,15 @@ Args:
 
 Args:
     statement: The statement to add.)doc");
+{%  for type_name, type in types.items() -%}
+{%    if type.type == 'union' %}
+        add_union(ast, "{{ type_name | camel }}", {
+{%-     for name in type["types"] -%}
+          {%- if not loop.first %}, {% endif %}"{{ name | camel }}"
+{%-     endfor -%}
+});
+{%-    endif -%}
+{%- endfor %}
 }
 
 }

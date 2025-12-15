@@ -10,6 +10,7 @@
 #include <pybind11/operators.h>
 
 #include <algorithm>
+#include <numeric>
 
 // NOLINTBEGIN(readability-convert-member-functions-to-static,performance-enum-size)
 
@@ -6554,6 +6555,11 @@ struct CString {
     std::string str_;
 };
 
+void add_union(py::module_ &mod, char const *name, std::initializer_list<char const *> names) {
+    mod.add_object(name, std::accumulate(std::next(names.begin()), names.end(), mod.attr(*names.begin()),
+                                         [&](py::object const &a, const char *t) { return a | mod.attr(t); }));
+};
+
 } // namespace
 
 template <class T, class F, class M>
@@ -9857,6 +9863,27 @@ Args:
 
 Args:
     statement: The statement to add.)doc");
+
+    add_union(ast, "Term",
+              {"TermVariable", "TermSymbolic", "TermAbsolute", "TermUnaryOperation", "TermBinaryOperation", "TermTuple",
+               "TermFunction", "TermFormatString"});
+    add_union(ast, "FormatField", {"FormatFieldLiteral", "FormatFieldExpression"});
+    add_union(ast, "TermOrProjection", {"Term", "Projection"});
+    add_union(ast, "TermOrArgumentTuple", {"Term", "ArgumentTuple"});
+    add_union(ast, "Literal", {"LiteralBoolean", "LiteralComparison", "LiteralSymbolic"});
+    add_union(
+        ast, "TheoryTerm",
+        {"TheoryTermVariable", "TheoryTermSymbolic", "TheoryTermTuple", "TheoryTermFunction", "TheoryTermUnparsed"});
+    add_union(ast, "BodyLiteral",
+              {"BodySimpleLiteral", "BodyAggregate", "BodySetAggregate", "BodyTheoryAtom", "BodyConditionalLiteral"});
+    add_union(ast, "DisjunctionElement", {"Literal", "HeadConditionalLiteral"});
+    add_union(ast, "HeadLiteral",
+              {"HeadSimpleLiteral", "HeadAggregate", "HeadSetAggregate", "HeadTheoryAtom", "HeadDisjunction"});
+    add_union(ast, "Statement",
+              {"StatementRule", "StatementTheory", "StatementOptimize", "StatementWeakConstraint", "StatementShow",
+               "StatementShowNothing", "StatementShowSignature", "StatementProject", "StatementProjectSignature",
+               "StatementDefined", "StatementExternal", "StatementEdge", "StatementHeuristic", "StatementScript",
+               "StatementInclude", "StatementProgram", "StatementParts", "StatementConst", "StatementComment"});
 }
 
 } // namespace PyClingo::AST

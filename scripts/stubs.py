@@ -1,5 +1,8 @@
 """
 Install the package and stubs into the virtual environment `.venv`.
+
+This generates stubs using pybind11-stubgen and then fine-tunes them. The file
+is full of hacks to work around limitations of pybind11-stubgen.
 """
 
 import argparse
@@ -235,8 +238,32 @@ class Rewriter:
                     path = os.path.join(root, file)
                     with open(path, "r", encoding="utf8") as hnd:
                         content = hnd.read()
+                    if file != f"__init__{extension}":
+                        content = content.replace(
+                            f"clingo.{file.replace(extension, '')}.", ""
+                        )
+                    # if content contains collections.abc, we have to add collections.abc to the imports
+                    if (
+                        "collections.abc." in content
+                        and "import collections.abc" not in content
+                    ):
+                        imp = content.find("\nimport")
+                        assert imp >= 0
+                        content = (
+                            content[:imp] + "\nimport collections.abc" + content[imp:]
+                        )
                     content = content.replace("typing.SupportsInt", "int")
+                    pattern = r"^(\w+):\s*[(]?\s*types\.UnionType\s*[)]?\s*#\s*value\s*=\s*(.+)$"
+                    unions = []
+
+                    def append(match):
+                        unions.append(f"{match[1]} = {match[2]}")
+                        return ""
+
+                    content = re.sub(pattern, append, content, flags=re.MULTILINE)
                     content = self.enums_to_top(content)
+                    if unions:
+                        content += "\n" + "\n".join(unions) + "\n"
                     if self.python:
                         content = self.doc_enums(content)
                     else:
