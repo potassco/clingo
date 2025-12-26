@@ -150,11 +150,10 @@ auto ParserState::lex_() -> TokenType {
             <blockcomment> "%*"            { ++bc_; continue; }
             <blockcomment> COMMENT         { continue; }
             <blockcomment> NULL            { return TokenType::error_bc; }
-            <blockcomment> *               { continue; }
+            <blockcomment> ANY             { continue; }
             <program,normal,theory,include,script,fstring,fstring_spec> NULL
                                            { return state_.end(YYMAXFILL) ? TokenType::end : TokenType::error; }
-            <program,normal,theory,include,script,fstring,fstring_spec> *
-                                           { return TokenType::error; }
+            <*> *                          { return TokenType::error; }
         */
     }
 }
