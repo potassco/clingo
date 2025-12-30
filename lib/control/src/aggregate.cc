@@ -118,6 +118,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit, Ground::P
         ctx.with_simple_lit(
             elem.lit(),
             [&](auto sig, auto term, auto &base, auto provides) {
+                term->vars(elem_vars);
                 bases.emplace_back(sig, &base, std::move(provides));
                 head.emplace(std::make_pair(std::move(term), &base));
             },
