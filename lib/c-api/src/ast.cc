@@ -2840,8 +2840,9 @@ extern "C" auto clingo_ast_parse_files(clingo_lib_t *lib, clingo_string_t const 
                                                       &lib->scripts,
                                                       bck,
                                                       thy};
-            std::ignore = ph.process_files(CppClingo::Util::to_vec(
+            auto includes = ph.process_files(CppClingo::Util::to_vec(
                 std::span{files, size}, [](auto const &str) { return std::string_view{str.data, str.size}; }));
+            control->slv->join_includes(includes);
         };
         if (control != nullptr) {
             control->slv->parse_with(parse);

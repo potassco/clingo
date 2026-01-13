@@ -370,6 +370,10 @@ typedef bool (*clingo_ast_callback_t)(clingo_ast_t *ast, void *data);
 
 //! Parse a program from a string.
 //!
+//! When a control object is given, programs in aspif files are added directly
+//! to the control object. Furthermore, builtin include directives are
+//! enabled within the control.
+//!
 //! @param[in] lib the library object to store symbols
 //! @param[in] program the string to read from
 //! @param[in] size the size of the string
@@ -382,6 +386,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(clingo_lib_t *lib, char c
                                                        void *data);
 
 //! Parse a program from the given files.
+//!
+//! When a control object is given, programs in aspif files are added directly
+//! to the control object. Furthermore, builtin include directives are
+//! enabled within the control.
 //!
 //! @param[in] lib the library object to store symbols
 //! @param[in] files the file paths to read from

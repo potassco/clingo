@@ -1197,6 +1197,10 @@ void Solver::join(Input::UnprocessedProgram const &prg) {
     grd_.join(prg);
 }
 
+void Solver::join_includes(BuiltinIncludes includes) {
+    includes_ |= includes;
+}
+
 void Solver::parse_with(std::function<void(ProgramBackend *, TheoryBackend *)> cb) {
     if (opts_.mode == AppMode::solve) {
         auto bck = ProgramBackendAdapter{*this};

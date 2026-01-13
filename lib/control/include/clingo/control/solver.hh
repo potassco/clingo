@@ -675,6 +675,11 @@ class Solver : public BaseView {
     //! Ground and solve a program.
     void main();
 
+    // Enable the given includes.
+    //
+    // Unprocessed programs do not store info about inbuilt includes. This
+    // function allows for enabling them manually.
+    void join_includes(BuiltinIncludes includes);
     //! Join with the given program.
     void join(Input::UnprocessedProgram const &prg);
     //! Parse a program from the given string.
