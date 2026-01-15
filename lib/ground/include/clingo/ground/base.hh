@@ -383,6 +383,19 @@ class ProjectState {
     //! This populates the projected base.
     void init(InstantiationContext const &ctx, size_t gen);
 
+    //! Simplify the project domain adjusting the imported index.
+    template <class Pred> void simplify(Pred &&pred, size_t &rem, size_t &fact) {
+        // NOTE: we assume that either nothing has been imported at this point or
+        // previously everything has been imported. The grounder ensures this
+        // property by calling filling any projected domains after grounding.
+        // (This is necessary if a projected domain is not used in a grounding
+        // step; it ensures that the the counters in the projection state are
+        // not messed up due to simplification.)
+        assert(imported_ == 0 || imported_ >= base().size());
+        imported_ = imported_ > 0 ? base().size() : 0;
+        p_base_.simplify(std::forward<Pred>(pred), rem, fact);
+    }
+
   private:
     SharedString name_;
     AtomBase *base_;

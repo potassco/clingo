@@ -1384,7 +1384,7 @@ void Solver::simplify_() {
         base.second->simplify(value, rem, fact);
     }
     for (auto const &base : grd_.base().projected()) {
-        base.second->p_base().simplify(value, rem, fact);
+        base.second->simplify(value, rem, fact);
     }
     CLINGO_REPORT(grd_.log(), debug) << "  removed: " << rem;
     CLINGO_REPORT(grd_.log(), debug) << "  fact: " << fact;
