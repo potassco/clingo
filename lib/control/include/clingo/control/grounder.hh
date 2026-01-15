@@ -33,6 +33,8 @@ class Grounder {
     void add_const(String name, Symbol value);
     //! Get the const map.
     auto const_map() -> Input::ConstMap const &;
+    //! Mark the current program as unsatisfiable.
+    void mark_unsat();
     //! Ground the program.
     [[nodiscard]] auto ground(ProgramParamVec const &params, Ground::ScriptCallback *context = nullptr,
                               Util::StopFlag *stop = nullptr) -> GroundResult;

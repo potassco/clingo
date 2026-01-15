@@ -1393,7 +1393,9 @@ void Solver::simplify_() {
 
 void Solver::prepare_() {
     if (opts_.mode == AppMode::solve) {
-        clasp_->update();
+        if (!clasp_->update()) {
+            grd_.mark_unsat();
+        }
     }
     state_ = State::grounded;
 }

@@ -376,6 +376,12 @@ void Grounder::accept(Ground::ProfileNode::Visitor const &visit) const {
     impl_->profile.accept(visit);
 }
 
+void Grounder::mark_unsat() {
+    if (impl_->status == GroundResult::ok) {
+        impl_->status = GroundResult::unsatisfiable;
+    }
+}
+
 auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context, Util::StopFlag *stop)
     -> GroundResult {
     prepare_();
