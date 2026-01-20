@@ -155,10 +155,23 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit, Ground::P
     // initialize state
     std::ranges::sort(bases, [](auto const &x, auto const &y) { return std::get<0>(x) < std::get<0>(y); });
 
-    bases.erase(
-        std::ranges::unique(bases, [](auto const &x, auto const &y) { return std::get<0>(x) == std::get<0>(y); })
-            .begin(),
-        bases.end());
+    if (auto it = bases.begin(), jt = it, last = bases.end(); it != last) {
+        while (++it != last) {
+            auto &[it_sig, it_base, it_indices] = *it;
+            auto &[jt_sig, jt_base, jt_indices] = *jt;
+            if (jt_sig == it_sig) {
+                jt_indices.insert(jt_indices.end(), it_indices.begin(), it_indices.end());
+            } else if (++jt != it) {
+                *jt = std::move(*it);
+            }
+        }
+        bases.erase(++jt, last);
+    }
+    for (auto &[sig, base, indices] : bases) {
+        std::ranges::sort(indices);
+        indices.erase(std::ranges::unique(indices).begin(), indices.end());
+    }
+
     auto &state = ctx.state<Ground::StateHdAggr>(ctx.mbr(), std::move(bases), vars_global.release(), std::move(guards),
                                                  fun, index, sp_body);
 
