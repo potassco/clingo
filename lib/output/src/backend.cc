@@ -1611,7 +1611,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         bld_.backend().rule({}, std::array{uid_to_atom(atom_a), uid_to_atom(atom_b)}, false);
     }
 
-    void do_end_step() override {
+    void do_end_ground() override {
         bld_.compute_sccs();
         minimize_.tr(bld_);
         cond_lit_.tr(bld_);

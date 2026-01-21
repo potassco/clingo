@@ -66,8 +66,25 @@ class ProgramBackend {
         do_preamble(major, minor, revision, incremental);
     }
 
+    //! Start a new step.
+    //!
+    //! Indicate that new program module is goingo to be added. This must be
+    //! called directly after `preamble()` and after `end_step()` before
+    //! calling any other methods of this interface.
+    void begin_step() { do_begin_step(); }
+
     //! Finalize the current grounding step.
-    void end() { do_end(); }
+    //!
+    //! A step can consist of multiple grounding steps.
+    void end_ground() { do_end_ground(); }
+
+    //! Finilaze the current step.
+    //!
+    //! This function must be called right before solving. A step can consist
+    //! of multiple grounding steps. Even with no solver attached, this
+    //! function must be called to indicate that the current program module is
+    //! complete.
+    void end_step() { do_end_step(); }
 
     //! Return a fresh (positive) literal.
     //!
@@ -188,7 +205,9 @@ class ProgramBackend {
 
   private:
     virtual void do_preamble(unsigned major, unsigned minor, unsigned revision, bool incremental) = 0;
-    virtual void do_end() = 0;
+    virtual void do_begin_step() {}
+    virtual void do_end_ground() {}
+    virtual void do_end_step() {}
     virtual auto do_next_lit() -> prg_lit_t = 0;
     virtual auto do_fact_lit() -> std::optional<prg_lit_t> = 0;
 

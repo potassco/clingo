@@ -30,7 +30,7 @@ class ProgramBackendImpl : public ProgramBackend, public TheoryBackend {
                      [[maybe_unused]] unsigned revision, [[maybe_unused]] bool incremental) override {
         assert(incremental == prg_->isIncremental());
     }
-    void do_end() override {}
+    void do_end_ground() override {}
 
     auto do_next_lit() -> prg_lit_t override {
         if (auto lit = prg_->newAtom(); std::cmp_less_equal(lit, prg_lit_max)) {
@@ -767,7 +767,7 @@ class SolveHandleImpl : public SolveHandle {
 };
 
 //! Integrate facts and inform the grounder about updated domains.
-void end_step(std::vector<std::pair<prg_lit_t, SharedSymbol>> &added, Clasp::Asp::LogicProgram &prg, Grounder &grd) {
+void end_ground_(std::vector<std::pair<prg_lit_t, SharedSymbol>> &added, Clasp::Asp::LogicProgram &prg, Grounder &grd) {
     for (auto const &[lit, sym] : added) {
         assert(lit > 0);
         auto sig = sym->signature();
@@ -815,7 +815,7 @@ class BackendHandleImpl : public BackendHandle {
 
     void do_close() override {
         if (auto *grd = std::exchange(grd_, nullptr); grd != nullptr) {
-            end_step(added_, *prg_, *grd);
+            end_ground_(added_, *prg_, *grd);
         }
     }
 
@@ -852,10 +852,10 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
     }
 
     //! Integrate facts and inform the grounder about updated domains.
-    void do_end() override {
+    void do_end_ground() override {
         solver_->clasp_facade().asp()->removeAssumption();
         solver_->clasp_facade().asp()->addAssumption(assumptions_);
-        end_step(added_, *solver_->clasp_->asp(), solver_->grd_);
+        end_ground_(added_, *solver_->clasp_->asp(), solver_->grd_);
         added_.clear();
         assumptions_.clear();
     }
@@ -1168,6 +1168,7 @@ auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode
         }
         state_ = State::solved;
         clasp_->asp()->addAssumption(assumptions);
+        backend_->end_step();
         if (clasp_->prepare()) {
             theory_->reset();
             if (mdl_ == nullptr) {
@@ -1182,6 +1183,8 @@ auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode
         }
         theory_->reset();
     }
+    backend_->end_step();
+    state_ = State::solved;
     return std::make_unique<SolveHandleFixed>();
 }
 
@@ -1385,6 +1388,14 @@ void Solver::simplify_() {
 
 void Solver::prepare_() {
     if (opts_.mode == AppMode::solve) {
+        // we only have a backend in solve mode
+        if (state_ == State::initial) {
+            backend_->preamble(2, 0, 0, clasp_->incremental());
+            backend_->begin_step();
+        }
+        if (state_ == State::solved) {
+            backend_->begin_step();
+        }
         if (!clasp_->update()) {
             grd_.mark_unsat();
         }

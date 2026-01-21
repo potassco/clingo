@@ -434,7 +434,7 @@ class OutputText : public OutputStm, OutputTheory {
         // nothing to do here
     }
 
-    void do_end_step() override {
+    void do_end_ground() override {
         if (std::exchange(explicit_show_, false)) {
             *out_ << "#show.\n";
         }

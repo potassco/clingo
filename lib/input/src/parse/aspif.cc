@@ -64,7 +64,7 @@ class AspifParser {
                 auto type = expect_unsigned_();
                 while (type == 0) {
                     state_->thy_backend()->end();
-                    state_->prg_backend()->end();
+                    state_->prg_backend()->end_ground();
                     expect_(AspifToken::newline);
                     if (expect_(AspifToken::end, AspifToken::num_pos) == AspifToken::end) {
                         return res;

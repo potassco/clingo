@@ -201,7 +201,7 @@ class OutputStm {
     //! Handle classical negation of two atoms.
     void classical_negation(size_t atom_a, size_t atom_b) { do_classical_negation(atom_a, atom_b); }
     //! End the current (incremental) grounding step.
-    void end_step() { do_end_step(); }
+    void end_ground() { do_end_ground(); }
 
     //! Mark owned symbols.
     void mark(SymbolCollector &gc) { do_mark(gc); }
@@ -243,7 +243,7 @@ class OutputStm {
 
     virtual void do_flush() = 0;
     virtual void do_classical_negation(size_t atom_a, size_t atom_b) = 0;
-    virtual void do_end_step() = 0;
+    virtual void do_end_ground() = 0;
 
     virtual void do_mark(SymbolCollector &gc) = 0;
     virtual void do_simplify(std::function<TruthValue(prg_lit_t)> const &pred) = 0;
