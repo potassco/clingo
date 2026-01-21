@@ -21,7 +21,7 @@ namespace CppClingo::Control {
 namespace {
 
 //! Implementation of the backend interface.
-class ProgramBackendImpl : public ProgramBackend {
+class ProgramBackendImpl : public ProgramBackend, public TheoryBackend {
   public:
     ProgramBackendImpl(Clasp::Asp::LogicProgram &prg, TermBaseMap &terms) : prg_{&prg}, terms_{&terms} {}
 
@@ -170,19 +170,6 @@ class ProgramBackendImpl : public ProgramBackend {
 #endif
     }
 
-    Util::OutputBuffer buf_;
-    Potassco::RuleBuilder bld_;
-    Clasp::Asp::LogicProgram *prg_;
-    TermBaseMap *terms_;
-    prg_lit_t fact_lit_ = 0;
-};
-
-//! Implementation of the theory backend interface.
-class TheoryBackendImpl : public TheoryBackend {
-  public:
-    TheoryBackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
-
-  private:
     void do_num(prg_id_t id, int32_t num) override { prg_->theoryData().addTerm(id, num); }
 
     void do_str(prg_id_t id, std::string_view str) override { prg_->theoryData().addTerm(id, str); }
@@ -276,9 +263,13 @@ class TheoryBackendImpl : public TheoryBackend {
 #endif
     }
 
-    void do_end() override {}
+    void do_end_theory() override {}
 
+    Util::OutputBuffer buf_;
+    Potassco::RuleBuilder bld_;
     Clasp::Asp::LogicProgram *prg_;
+    TermBaseMap *terms_;
+    prg_lit_t fact_lit_ = 0;
 };
 
 //! Implementation of the theory backend for aspif parser.
@@ -352,7 +343,7 @@ class TheoryBackendAdapter : public TheoryBackend {
         }
     }
 
-    void do_end() override {
+    void do_end_theory() override {
         // clear the mappings but not the theory data
         term_map_.clear();
         elem_map_.clear();
@@ -1046,8 +1037,9 @@ Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_conf
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
     switch (mode) {
         case AppMode::solve: {
-            backend_ = std::make_unique<ProgramBackendImpl>(*clasp_->asp(), terms_);
-            theory_ = std::make_unique<Output::TheoryData>(store, std::make_unique<TheoryBackendImpl>(*clasp_->asp()));
+            auto backend = std::make_unique<ProgramBackendImpl>(*clasp_->asp(), terms_);
+            theory_ = std::make_unique<Output::TheoryData>(store, *backend);
+            backend_ = std::move(backend);
             return Output::make_backend_output(store, *backend_, *theory_);
         }
         default: {

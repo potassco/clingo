@@ -270,7 +270,7 @@ class TheoryBackend {
     }
 
     //! Finalize the theory.
-    void end() { do_end(); }
+    void end() { do_end_theory(); }
 
   private:
     virtual void do_num(prg_id_t id, prg_weight_t num) = 0;
@@ -280,7 +280,7 @@ class TheoryBackend {
     virtual void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) = 0;
     virtual void do_atom(prg_lit_t atom_or_zero, prg_id_t name, PrgIdSpan elems,
                          std::optional<std::pair<prg_id_t, prg_id_t>> guard) = 0;
-    virtual void do_end() = 0;
+    virtual void do_end_theory() = 0;
 };
 //! A unique pointer for a theory backend.
 using UTheoryBackend = std::unique_ptr<TheoryBackend>;
