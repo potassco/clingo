@@ -53,8 +53,11 @@ class AspifParser {
     //! on the "asp" token.
     auto parse() -> bool {
         bool res = true;
+        bool begin_step = false;
         try {
             preamble_();
+            begin_step = true;
+            state_->prg_backend()->begin_step();
         } catch ([[maybe_unused]] aspif_error const &e) {
             res = false;
             recover_();
@@ -62,9 +65,17 @@ class AspifParser {
         while (true) {
             try {
                 auto type = expect_unsigned_();
-                while (type == 0) {
-                    state_->thy_backend()->end();
+                for (;;) {
+                    if (!begin_step) {
+                        state_->prg_backend()->begin_step();
+                        begin_step = true;
+                    }
+                    if (type != 0) {
+                        break;
+                    }
                     state_->prg_backend()->end_ground();
+                    state_->prg_backend()->end_step();
+                    begin_step = false;
                     expect_(AspifToken::newline);
                     if (expect_(AspifToken::end, AspifToken::num_pos) == AspifToken::end) {
                         return res;
