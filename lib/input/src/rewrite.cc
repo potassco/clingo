@@ -93,6 +93,9 @@ void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
     } else {
         rewrite_unpooled(std::move(res), "  ");
     }
+    if (ctx.clear_error()) {
+        throw rewrite_error();
+    }
 }
 
 } // namespace CppClingo::Input

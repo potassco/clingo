@@ -173,6 +173,9 @@ class RewriteContext {
     //! more than one error indicator to the user.
     void set_error() { has_error_ = true; }
 
+    //! Clear the error flag and return its previous value.
+    [[nodiscard]] auto clear_error() -> bool { return std::exchange(has_error_, false); }
+
     //! Check if there has been an error during rewriting.
     [[nodiscard]] auto has_error() const -> bool { return has_error_; }
 
