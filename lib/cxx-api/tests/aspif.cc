@@ -419,7 +419,10 @@ TEST_CASE_METHOD(Fixture, "aspif incremental theory", "[cxx][aspif][incremental]
         theory_atoms.push_back(atom.to_string());
     }
     std::ranges::sort(theory_atoms);
-    REQUIRE(theory_atoms == std::vector<std::string>{"&p { b }"});
+    REQUIRE(theory_atoms == std::vector<std::string>{
+                                "&p { a }",
+                                "&p { b }",
+                            });
 }
 
 TEST_CASE_METHOD(Fixture, "aspif incremental assume", "[cxx][aspif][incremental][assume]") {

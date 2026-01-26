@@ -555,7 +555,10 @@ class TestAspif:
             0
             """
         )
-        assert sorted(str(atom) for atom in self.ctl.base.theory) == ["&p { b }"]
+        assert sorted(str(atom) for atom in self.ctl.base.theory) == [
+            "&p { a }",
+            "&p { b }",
+        ]
 
     def test_incremental_assume(self):
         """

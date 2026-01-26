@@ -796,8 +796,13 @@ class Solver::ProgramBackendAdapter : public ProgramBackend, public TheoryBacken
         // normally. This means that the step counter won't be incremented for
         // incremental aspif programs.
         solver_->clasp_facade().asp()->removeAssumption();
-        solver_->clasp_facade().asp()->theoryData().reset();
-        solver_->theory_->reset();
+        // We clear the theory and element term mappings here to incrementally
+        // update the underlying theory data. During normal processing, the
+        // theory data will be empty at this point. However, when reading
+        // multi-shot aspif programs, theory data from multiple steps will be
+        // merged. Clearing the mapping tables ensures that there are no
+        // redefinition errors when the same term or element ids are reused in
+        // different steps.
         term_map_.clear();
         elem_map_.clear();
         solver_->backend_->begin_step();
@@ -1217,8 +1222,9 @@ auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode
     if (opts_.mode == AppMode::solve) {
         backend_->assume(assumptions);
         backend_->end_step();
-        if (clasp_->prepare()) {
-            theory_->reset();
+        bool prepared = clasp_->prepare();
+        theory_->reset();
+        if (prepared) {
             if (mdl_ == nullptr) {
                 mdl_ = std::make_unique<ModelImpl>(grd_.base(), terms_, *clasp_);
             } else {
@@ -1229,7 +1235,6 @@ auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode
             return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), static_cast<ModelImpl &>(*mdl_), mode,
                                                      std::move(handler), [this]() { simplify_(); });
         }
-        theory_->reset();
     }
     return std::make_unique<SolveHandleFixed>();
 }
