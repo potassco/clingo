@@ -264,7 +264,7 @@ class ProgramBackendImpl : public AbstractProgramBackendImpl {
         if (auto lit = prg_->newAtom(); std::cmp_less_equal(lit, prg_lit_max)) {
             return static_cast<prg_lit_t>(lit);
         }
-        throw std::range_error("literals number of literals exhausted");
+        throw std::range_error("number of literals exhausted");
     }
 
     auto do_fact_lit() -> std::optional<prg_lit_t> override {

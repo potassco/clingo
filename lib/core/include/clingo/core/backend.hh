@@ -68,7 +68,7 @@ class ProgramBackend {
 
     //! Start a new step.
     //!
-    //! Indicate that new program module is goingo to be added. This must be
+    //! Indicate that new program module is going to be added. This must be
     //! called directly after `preamble()` and after `end_step()` before
     //! calling any other methods of this interface.
     void begin_step() { do_begin_step(); }
@@ -78,7 +78,7 @@ class ProgramBackend {
     //! A step can consist of multiple grounding steps.
     void end_ground() { do_end_ground(); }
 
-    //! Finilaze the current step.
+    //! Finalize the current step.
     //!
     //! This function must be called right before solving. A step can consist
     //! of multiple grounding steps. Even with no solver attached, this
