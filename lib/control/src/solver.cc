@@ -23,7 +23,7 @@ namespace {
 //! Implementation of the backend interface.
 //!
 //! This implementation forwards grounded statements to a
-//! Potassco::AbstractProgram. As such it can create neither atom ids or term
+//! Potassco::AbstractProgram. As such it can create neither atom ids nor term
 //! ids, which is the responsibility of derived classes.
 class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
   public:
@@ -269,13 +269,9 @@ class ProgramBackendImpl : public AbstractProgramBackendImpl {
 
     auto do_fact_lit() -> std::optional<prg_lit_t> override {
         // return the cached fact literal
-        if (fact_lit_ != 0) {
-            return fact_lit_;
-        }
         // try to find a fact literal
-        if (auto atom = prg_->factAtom(); atom) {
-            fact_lit_ = Potassco::lit(atom);
-            return fact_lit_;
+        if (auto atom = prg_->factAtom(); atom != 0) {
+            return Potassco::lit(atom);
         }
         // report that there is no fact literal (very unlikely)
         return std::nullopt;
@@ -290,7 +286,6 @@ class ProgramBackendImpl : public AbstractProgramBackendImpl {
     Clasp::Asp::LogicProgram *prg_;
     Clasp::Asp::LogicProgramAdapter adapter_{*prg_};
     TermBaseMap *terms_;
-    prg_lit_t fact_lit_ = 0;
 };
 
 class ModelExtend : public Clasp::OutputTable::Theory {
@@ -867,8 +862,7 @@ class Solver::ProgramBackendAdapter : public ProgramBackend, public TheoryBacken
 
     //! Get a remapped term.
     auto term_(prg_id_t id) -> prg_id_t {
-        auto it = term_map_.find(id);
-        if (it != term_map_.end()) {
+        if (auto it = term_map_.find(id); it != term_map_.end()) {
             return it->second;
         }
         throw std::runtime_error{"unknown term id"};
@@ -887,8 +881,7 @@ class Solver::ProgramBackendAdapter : public ProgramBackend, public TheoryBacken
 
     //! Get the remapped element.
     auto elem_(prg_id_t id) -> prg_id_t {
-        auto it = elem_map_.find(id);
-        if (it != elem_map_.end()) {
+        if (auto it = elem_map_.find(id); it != elem_map_.end()) {
             return it->second;
         }
         throw std::runtime_error{"unknown element id"};
