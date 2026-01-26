@@ -5,9 +5,18 @@ Unit tests for clingo.ast module.
 from functools import singledispatch
 from textwrap import dedent
 
+import pytest
 from clingo import ast
 from clingo.core import Library, Location, Position
 from clingo.symbol import parse_term
+
+
+def noop_logger(code, msg):
+    """
+    Noop logger that ignores all messages.
+    """
+    assert code is not None
+    assert msg is not None
 
 
 class TestAST:
@@ -21,7 +30,7 @@ class TestAST:
         Create lib.
         """
         assert method is not None
-        self._lib = Library()
+        self._lib = Library(logger=noop_logger)
         self._loc = Location(
             Position(self._lib, "<a>", 1, 2), Position(self._lib, "<b>", 3, 4)
         )
@@ -1062,3 +1071,12 @@ class TestAST:
 
         assert hash(x) == hash(x)
         assert hash(x) != hash(a)
+
+    def test_rewrite_error(self):
+        """
+        Test rewriting with error.
+        """
+        ctx = ast.RewriteContext(self.lib)
+        stm = ast.parse_statement(self.lib, "p(X).")
+        with pytest.raises(RuntimeError, match="rewriting failed"):
+            ast.rewrite_statement(ctx, stm)
