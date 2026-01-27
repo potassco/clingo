@@ -269,6 +269,10 @@ TEST_CASE("aspif single step", "[input][aspif][single-step]") {
     auto parser = Parser{log, *store, &backend, &theory_backend};
 
     // Simple aspif with single step
+    // asp 1 0 0: aspif version 1.0.0
+    // 1 0 1 1 0 0: normal rule, head=[1], body=[]
+    // 4 1 a 1 1: show atom "a" when literal 1 is true
+    // 0: step terminator
     std::string input = R"(asp 1 0 0
 1 0 1 1 0 0
 4 1 a 1 1
@@ -322,6 +326,11 @@ TEST_CASE("aspif multi step", "[input][aspif][multi-step]") {
     auto parser = Parser{log, *store, &backend, &theory_backend};
 
     // Aspif with multiple steps (multiple 0 separators)
+    // asp 1 0 0 incremental: aspif version 1.0.0 in incremental mode
+    // First step: rule with head=[1] and output a
+    // 0: first step terminator
+    // Second step: rule with head=[2] and output b
+    // 0: second step terminator
     std::string input = R"(asp 1 0 0 incremental
 1 0 1 1 0 0
 4 1 a 1 1
@@ -376,6 +385,9 @@ TEST_CASE("aspif rule", "[input][aspif][rule]") {
     auto theory_backend = TestTheoryBackend{};
     auto parser = Parser{log, *store, &backend, &theory_backend};
 
+    // Test rules with and without body
+    // 1 0 1 1 0 0: fact (rule with head=[1], empty body)
+    // 1 0 1 2 0 1 -1: rule with head=[2], body=[-1]
     std::string input = R"(asp 1 0 0
 1 0 1 1 0 0
 1 0 1 2 0 1 -1
@@ -442,6 +454,9 @@ TEST_CASE("aspif theory", "[input][aspif][theory]") {
     auto theory_backend = TestTheoryBackend{};
     auto parser = Parser{log, *store, &backend, &theory_backend};
 
+    // Test theory statements
+    // 9 1 1 1 p: theory string term with id=1, value="p"
+    // 9 0 2 5: theory number term with id=2, value=5
     std::string input = R"(asp 1 0 0
 9 1 1 1 p
 9 0 2 5
