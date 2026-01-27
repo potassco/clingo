@@ -1,0 +1,1 @@
+/home/runner/work/clingo/.codeql-scratch/dbs/cpp/working/autobuild/bin/cc -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/profile.dir/link.d CMakeFiles/profile.dir/profile.c.o -o ../../bin/examples/profile  -Wl,-rpath,/home/runner/work/clingo/clingo/_codeql_build_dir/bin ../../bin/libclingo.so

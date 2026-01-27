@@ -1,0 +1,1 @@
+/home/runner/work/clingo/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/clasp.dir/link.d CMakeFiles/clasp.dir/main.cpp.o -o ../../../bin/clasp  -Wl,-rpath,:::::::::::::: ../../../lib/libclasp.a ../../../lib/libpotassco.a

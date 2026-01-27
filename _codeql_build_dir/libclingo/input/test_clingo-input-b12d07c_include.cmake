@@ -1,0 +1,5 @@
+if(EXISTS "/home/runner/work/clingo/clingo/_codeql_build_dir/libclingo/input/test_clingo-input-b12d07c_tests.cmake")
+  include("/home/runner/work/clingo/clingo/_codeql_build_dir/libclingo/input/test_clingo-input-b12d07c_tests.cmake")
+else()
+  add_test(test_clingo-input_NOT_BUILT-b12d07c test_clingo-input_NOT_BUILT-b12d07c)
+endif()

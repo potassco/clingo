@@ -1,0 +1,43 @@
+file(REMOVE_RECURSE
+  "../../bin/tests/test_clingo-input"
+  "../../bin/tests/test_clingo-input.pdb"
+  "CMakeFiles/test_clingo-input.dir/link.d"
+  "CMakeFiles/test_clingo-input.dir/tests/aspif.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/aspif.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/compute_bounds.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/compute_bounds.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/dependency.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/dependency.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/evaluate.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/evaluate.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/iesolver.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/iesolver.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/parser.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/parser.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/program.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/program.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/project.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/project.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/project_anonymous.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/project_anonymous.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/rewrite_anonymous.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/rewrite_anonymous.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/safety.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/safety.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/simplify.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/simplify.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/theory.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/theory.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/unpool.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/unpool.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/unpool_relations.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/unpool_relations.cc.o.d"
+  "CMakeFiles/test_clingo-input.dir/tests/variables.cc.o"
+  "CMakeFiles/test_clingo-input.dir/tests/variables.cc.o.d"
+  "test_clingo-input-b12d07c_tests.cmake"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/test_clingo-input.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

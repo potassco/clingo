@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../lib/libclingo-output.a "CMakeFiles/clingo-output.dir/src/backend.cc.o" "CMakeFiles/clingo-output.dir/src/text.cc.o"
+/usr/bin/ranlib ../../lib/libclingo-output.a
