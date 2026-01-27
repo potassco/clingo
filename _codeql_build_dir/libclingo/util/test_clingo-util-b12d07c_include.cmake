@@ -1,0 +1,5 @@
+if(EXISTS "/home/runner/work/clingo/clingo/_codeql_build_dir/libclingo/util/test_clingo-util-b12d07c_tests.cmake")
+  include("/home/runner/work/clingo/clingo/_codeql_build_dir/libclingo/util/test_clingo-util-b12d07c_tests.cmake")
+else()
+  add_test(test_clingo-util_NOT_BUILT-b12d07c test_clingo-util_NOT_BUILT-b12d07c)
+endif()

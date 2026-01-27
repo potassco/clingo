@@ -1,0 +1,5 @@
+if(EXISTS "/home/runner/work/clingo/clingo/_codeql_build_dir/libclingo/python-api/test_pyclingo_tests.cmake")
+    include("/home/runner/work/clingo/clingo/_codeql_build_dir/libclingo/python-api/test_pyclingo_tests.cmake")
+else()
+    add_test(test_pyclingo_NOT_BUILT test_pyclingo_NOT_BUILT)
+endif()

@@ -1,0 +1,1 @@
+/home/runner/work/clingo/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/test_clingo-ground.dir/link.d "CMakeFiles/test_clingo-ground.dir/tests/matcher.cc.o" -o ../../bin/tests/test_clingo-ground  ../../lib/libclingo-ground.a ../../lib/libCatch2Main.a ../../lib/libclingo-core.a ../../lib/libCatch2.a
