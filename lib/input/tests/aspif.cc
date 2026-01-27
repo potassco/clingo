@@ -422,4 +422,48 @@ TEST_CASE("aspif theory atom", "[input][aspif][theory][atom]") {
     });
 }
 
+TEST_CASE("aspif weight constraint", "[input][aspif][weight-constraint]") {
+    REQUIRE(parse(R"(1 0 1 3 1 2 1 5 -2 3
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "bd_aggr(head:[3], body:[(5,-2)], bound:2, choice:false)",
+        "end_ground",
+        "end_step",
+    });
+}
+
+TEST_CASE("aspif heuristic", "[input][aspif][heuristic]") {
+    REQUIRE(parse(R"(7 1 3 10 0 1 2
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "heuristic(atom:3, weight:10, prio:0, type:1, body:[2])",
+        "end_ground",
+        "end_step",
+    });
+}
+
+TEST_CASE("aspif theory atom with guard", "[input][aspif][theory][atom-with-guard]") {
+    REQUIRE(parse(R"(9 1 1 2 op
+9 0 2 5
+9 1 3 1 p
+9 4 4 1 3 0
+9 6 0 1 1 4 1 2
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "str(1,op)",
+        "num(2,5)",
+        "str(3,p)",
+        "elem(id:4, terms:[3], cond:[])",
+        "atom(atom:0, name:1, elems:[4], guard:(1,2))",
+        "end_ground",
+        "end_step",
+    });
+}
+
 } // namespace CppClingo::Input::Test
