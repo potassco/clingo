@@ -1,1 +1,0 @@
-/home/runner/work/clingo/.codeql-scratch/dbs/cpp/working/autobuild/bin/cc -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/base-atoms.dir/link.d "CMakeFiles/base-atoms.dir/base-atoms.c.o" -o ../../bin/examples/base-atoms  -Wl,-rpath,/home/runner/work/clingo/clingo/_codeql_build_dir/bin ../../bin/libclingo.so

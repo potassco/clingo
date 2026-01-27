@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../../lib/libclingo-python-embed.a "CMakeFiles/clingo-python-embed.dir/src/embed.cc.o"
-/usr/bin/ranlib ../../lib/libclingo-python-embed.a

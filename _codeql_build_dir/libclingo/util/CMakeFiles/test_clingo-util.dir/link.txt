@@ -1,1 +1,0 @@
-/home/runner/work/clingo/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/test_clingo-util.dir/link.d "CMakeFiles/test_clingo-util.dir/tests/interval_set.cc.o" "CMakeFiles/test_clingo-util.dir/tests/record.cc.o" -o ../../bin/tests/test_clingo-util  ../../lib/libCatch2Main.a ../../lib/libCatch2.a

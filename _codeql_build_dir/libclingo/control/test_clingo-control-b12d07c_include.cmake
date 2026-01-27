@@ -1,5 +1,0 @@
-if(EXISTS "/home/runner/work/clingo/clingo/_codeql_build_dir/libclingo/control/test_clingo-control-b12d07c_tests.cmake")
-  include("/home/runner/work/clingo/clingo/_codeql_build_dir/libclingo/control/test_clingo-control-b12d07c_tests.cmake")
-else()
-  add_test(test_clingo-control_NOT_BUILT-b12d07c test_clingo-control_NOT_BUILT-b12d07c)
-endif()

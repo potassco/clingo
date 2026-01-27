@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../../lib/libclingo-core.a "CMakeFiles/clingo-core.dir/src/core.cc.o" "CMakeFiles/clingo-core.dir/src/fstring.cc.o" "CMakeFiles/clingo-core.dir/src/number.cc.o" "CMakeFiles/clingo-core.dir/src/symbol.cc.o" "CMakeFiles/clingo-core.dir/__/__/third_party/imath/imath.c.o" "CMakeFiles/clingo-core.dir/__/__/third_party/imath/imrat.c.o" "CMakeFiles/clingo-core.dir/__/__/third_party/imath/gmp_compat.c.o"
-/usr/bin/ranlib ../../lib/libclingo-core.a

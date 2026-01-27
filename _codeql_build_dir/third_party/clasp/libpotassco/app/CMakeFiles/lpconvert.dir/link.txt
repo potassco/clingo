@@ -1,1 +1,0 @@
-/home/runner/work/clingo/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/lpconvert.dir/link.d CMakeFiles/lpconvert.dir/lpconvert.cpp.o -o ../../../../bin/lpconvert  -Wl,-rpath,:::::::::::::: ../../../../lib/libpotassco.a
