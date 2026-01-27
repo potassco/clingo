@@ -242,96 +242,184 @@ TEST_CASE("aspif single step", "[input][aspif][single-step]") {
 }
 
 TEST_CASE("aspif multi step", "[input][aspif][multi-step]") {
-    auto calls = parse(R"(asp 1 0 0 incremental
+    REQUIRE(parse(R"(asp 1 0 0 incremental
 1 0 1 1 0 0
 4 1 a 1 1
 0
 1 0 1 2 0 0
 4 1 b 1 2
 0
-)");
-    
-    // Check for proper step transitions
-    int step_count = 0;
-    bool in_step = false;
-    bool grounded = false;
-    
-    for (const auto& call : calls) {
-        if (call == "begin_step") {
-            REQUIRE_FALSE(in_step);
-            in_step = true;
-            grounded = false;
-            step_count++;
-        } else if (call == "end_ground") {
-            REQUIRE(in_step);
-            REQUIRE_FALSE(grounded);
-            grounded = true;
-        } else if (call == "end_step") {
-            REQUIRE(in_step);
-            REQUIRE(grounded);
-            in_step = false;
-        }
-    }
-    
-    REQUIRE(step_count == 2);
-    REQUIRE_FALSE(in_step);
+)") == SV{
+        "preamble(1,0,0,incremental)",
+        "begin_step",
+        "rule(head:[1], body:[], choice:false)",
+        "show_atom(sym:a, lit:1)",
+        "end_ground",
+        "end_step",
+        "begin_step",
+        "rule(head:[2], body:[], choice:false)",
+        "show_atom(sym:b, lit:2)",
+        "end_ground",
+        "end_step",
+    });
 }
 
 TEST_CASE("aspif rule", "[input][aspif][rule]") {
-    auto calls = parse(R"(1 0 1 1 0 0
+    REQUIRE(parse(R"(1 0 1 1 0 0
 1 0 1 2 0 1 -1
 0
-)");
-    
-    // Find rule calls
-    bool found_rule1 = false;
-    bool found_rule2 = false;
-    for (const auto& call : calls) {
-        if (call.find("rule(head:[1]") != std::string::npos &&
-            call.find("body:[]") != std::string::npos) {
-            found_rule1 = true;
-        }
-        if (call.find("rule(head:[2]") != std::string::npos &&
-            call.find("body:[-1]") != std::string::npos) {
-            found_rule2 = true;
-        }
-    }
-    REQUIRE(found_rule1);
-    REQUIRE(found_rule2);
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "rule(head:[1], body:[], choice:false)",
+        "rule(head:[2], body:[-1], choice:false)",
+        "end_ground",
+        "end_step",
+    });
+}
+
+TEST_CASE("aspif choice rule", "[input][aspif][choice]") {
+    REQUIRE(parse(R"(1 1 2 1 2 0 0
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "rule(head:[1,2], body:[], choice:true)",
+        "end_ground",
+        "end_step",
+    });
+}
+
+TEST_CASE("aspif minimize", "[input][aspif][minimize]") {
+    REQUIRE(parse(R"(2 0 2 1 1 2 2
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "minimize(priority:0, body:[(1,1),(2,2)])",
+        "end_ground",
+        "end_step",
+    });
+}
+
+TEST_CASE("aspif project", "[input][aspif][project]") {
+    REQUIRE(parse(R"(3 2 1 2
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "project(atoms:[1,2])",
+        "end_ground",
+        "end_step",
+    });
 }
 
 TEST_CASE("aspif external", "[input][aspif][external]") {
-    auto calls = parse(R"(5 1 1
+    REQUIRE(parse(R"(5 1 1
 0
-)");
-    
-    bool found_external = false;
-    for (const auto& call : calls) {
-        if (call.find("external(atom:1") != std::string::npos) {
-            found_external = true;
-        }
-    }
-    REQUIRE(found_external);
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "external(atom:1, type:1)",
+        "end_ground",
+        "end_step",
+    });
 }
 
-TEST_CASE("aspif theory", "[input][aspif][theory]") {
-    auto calls = parse(R"(9 1 1 1 p
-9 0 2 5
+TEST_CASE("aspif assume", "[input][aspif][assume]") {
+    REQUIRE(parse(R"(6 0 0
 0
-)");
-    
-    bool found_str = false;
-    bool found_num = false;
-    for (const auto& call : calls) {
-        if (call == "str(1,p)") {
-            found_str = true;
-        }
-        if (call == "num(2,5)") {
-            found_num = true;
-        }
-    }
-    REQUIRE(found_str);
-    REQUIRE(found_num);
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "assume(literals:[])",
+        "end_ground",
+        "end_step",
+    });
+}
+
+TEST_CASE("aspif edge", "[input][aspif][edge]") {
+    REQUIRE(parse(R"(8 1 2 0
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "edge(u:1, v:2, body:[])",
+        "end_ground",
+        "end_step",
+    });
+}
+
+TEST_CASE("aspif theory num", "[input][aspif][theory][num]") {
+    REQUIRE(parse(R"(9 0 1 42
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "num(1,42)",
+        "end_ground",
+        "end_step",
+    });
+}
+
+TEST_CASE("aspif theory str", "[input][aspif][theory][str]") {
+    REQUIRE(parse(R"(9 1 1 1 p
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "str(1,p)",
+        "end_ground",
+        "end_step",
+    });
+}
+
+TEST_CASE("aspif theory fun", "[input][aspif][theory][fun]") {
+    REQUIRE(parse(R"(9 1 2 1 f
+9 0 3 10
+9 0 4 20
+9 2 5 2 2 3 4
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "str(2,f)",
+        "num(3,10)",
+        "num(4,20)",
+        "fun(id:5, name:2, args:[3,4])",
+        "end_ground",
+        "end_step",
+    });
+}
+
+TEST_CASE("aspif theory elem", "[input][aspif][theory][elem]") {
+    REQUIRE(parse(R"(9 0 1 5
+9 4 2 1 1 0
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "num(1,5)",
+        "elem(id:2, terms:[1], cond:[])",
+        "end_ground",
+        "end_step",
+    });
+}
+
+TEST_CASE("aspif theory atom", "[input][aspif][theory][atom]") {
+    REQUIRE(parse(R"(9 1 1 1 p
+9 4 2 1 1 0
+9 5 0 1 1 2
+0
+)") == SV{
+        "preamble(1,0,0,non-incremental)",
+        "begin_step",
+        "str(1,p)",
+        "elem(id:2, terms:[1], cond:[])",
+        "atom(atom:0, name:1, elems:[2], guard:none)",
+        "end_ground",
+        "end_step",
+    });
 }
 
 } // namespace CppClingo::Input::Test
