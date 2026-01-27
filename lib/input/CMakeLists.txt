@@ -92,6 +92,7 @@ set(source
 # [[[test: tests
 set(ide_test_group "Test Files")
 set(test-group
+    "tests/aspif.cc"
     "tests/compute_bounds.cc"
     "tests/dependency.cc"
     "tests/evaluate.cc"
