@@ -268,12 +268,9 @@ class ProgramBackendImpl : public AbstractProgramBackendImpl {
     }
 
     auto do_fact_lit() -> std::optional<prg_lit_t> override {
-        // return the cached fact literal
-        // try to find a fact literal
         if (auto atom = prg_->factAtom(); atom != 0) {
             return Potassco::lit(atom);
         }
-        // report that there is no fact literal (very unlikely)
         return std::nullopt;
     }
 
@@ -750,6 +747,7 @@ class BackendHandleImpl : public BackendHandle {
     void do_close() override {
         if (auto *grd = std::exchange(grd_, nullptr); grd != nullptr) {
             end_ground_(added_, *prg_, *grd);
+            backend_->end_ground();
         }
     }
 
@@ -764,7 +762,7 @@ class BackendHandleImpl : public BackendHandle {
 
 //! Implementation of the program backend for aspif parser.
 //!
-//! Some of the functions here directly disptach to the backend and some others
+//! Some of the functions here directly dispatch to the backend and some others
 //! into the data structures in the solver. In the latter case, data is passed
 //! to the underlying backend of the solver later.
 //!
@@ -781,16 +779,20 @@ class Solver::ProgramBackendAdapter : public ProgramBackend, public TheoryBacken
         if (incremental) {
             solver_->enable_updates_();
         }
-        // this is going to call preamble in the undelying backend
+        // this is going to call preamble in the underlying backend
         solver_->prepare_();
     }
 
     void do_begin_step() override {
-        // We manually clean assumptions and theory at the beginning of a step
-        // because there is no solve call where these things are handled
-        // normally. This means that the step counter won't be incremented for
-        // incremental aspif programs.
+        // NOTE: We do not call begin step on the underlying backend here. This
+        // is handled by prepare above.
+
+        // We manually clean assumptions at the beginning of a step because
+        // there is no solve call where these things are handled normally. This
+        // means that the step counter won't be incremented for incremental
+        // aspif programs.
         solver_->clasp_facade().asp()->removeAssumption();
+
         // We clear the theory and element term mappings here to incrementally
         // update the underlying theory data. During normal processing, the
         // theory data will be empty at this point. However, when reading
@@ -800,20 +802,14 @@ class Solver::ProgramBackendAdapter : public ProgramBackend, public TheoryBacken
         // different steps.
         term_map_.clear();
         elem_map_.clear();
-        solver_->backend_->begin_step();
     }
 
-    void do_end_ground() override {
-        end_ground_(added_, *solver_->clasp_->asp(), solver_->grd_);
-        added_.clear();
-        solver_->backend_->end_step();
-    }
-
-    //! Integrate facts and inform the grounder about updated domains.
     void do_end_step() override {
+        // NOTE: We integrate facts here but do not call end step. The program
+        // parts in aspif files are thus merged and later solve calls introduce
+        // the actual steps.
         end_ground_(added_, *solver_->clasp_->asp(), solver_->grd_);
         added_.clear();
-        solver_->backend_->end_step();
     }
 
     //! Show the atom with the given symbol and literal.
@@ -835,6 +831,8 @@ class Solver::ProgramBackendAdapter : public ProgramBackend, public TheoryBacken
         }
         added_.emplace_back(lit, sym);
     }
+
+    void do_end_ground() override { solver_->backend_->end_ground(); }
 
     auto do_next_lit() -> prg_lit_t override { return solver_->backend_->next_lit(); }
     auto do_fact_lit() -> std::optional<prg_lit_t> override { return solver_->backend_->fact_lit(); }
@@ -1208,7 +1206,7 @@ auto Solver::map_model(Clasp::Model const &mdl) -> Model & {
 auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode mode) -> USolveHandle {
     auto guard = unlock_guard{lock_};
     if (state_ == State::solved || state_ == State::initial) {
-        // we inject an emtpy ground to go to grounded state
+        // we inject an empty ground to go to grounded state
         ground(Input::ProgramParamVec{}, nullptr);
     }
     state_ = State::solved;
