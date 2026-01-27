@@ -11,6 +11,27 @@ namespace CppClingo::Input::Test {
 
 namespace {
 
+// Helper to format comma-separated values
+template<typename T>
+auto comma_separated(std::span<T const> values) -> std::string {
+    std::ostringstream oss;
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (i > 0) oss << ",";
+        oss << values[i];
+    }
+    return oss.str();
+}
+
+// Helper to format comma-separated weighted literals
+auto comma_separated_weighted(WeightedPrgLitSpan values) -> std::string {
+    std::ostringstream oss;
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (i > 0) oss << ",";
+        oss << "(" << values[i].first << "," << values[i].second << ")";
+    }
+    return oss.str();
+}
+
 // Test backend that records all calls
 class TestBackend : public ProgramBackend {
 public:
@@ -53,44 +74,23 @@ private:
 
     void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
         std::ostringstream oss;
-        oss << "rule(head:[";
-        for (size_t i = 0; i < head.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << head[i];
-        }
-        oss << "], body:[";
-        for (size_t i = 0; i < body.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << body[i];
-        }
-        oss << "], choice:" << (choice ? "true" : "false") << ")";
+        oss << "rule(head:[" << comma_separated(head)
+            << "], body:[" << comma_separated(body)
+            << "], choice:" << (choice ? "true" : "false") << ")";
         calls.push_back({"rule", {oss.str()}});
     }
 
     void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, int32_t bound, bool choice) override {
         std::ostringstream oss;
-        oss << "bd_aggr(head:[";
-        for (size_t i = 0; i < head.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << head[i];
-        }
-        oss << "], body:[";
-        for (size_t i = 0; i < body.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << "(" << body[i].first << "," << body[i].second << ")";
-        }
-        oss << "], bound:" << bound << ", choice:" << (choice ? "true" : "false") << ")";
+        oss << "bd_aggr(head:[" << comma_separated(head)
+            << "], body:[" << comma_separated_weighted(body)
+            << "], bound:" << bound << ", choice:" << (choice ? "true" : "false") << ")";
         calls.push_back({"bd_aggr", {oss.str()}});
     }
 
     void do_show_term(Symbol sym, PrgLitSpan body) override {
         std::ostringstream oss;
-        oss << "show_term(sym:" << sym << ", body:[";
-        for (size_t i = 0; i < body.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << body[i];
-        }
-        oss << "])";
+        oss << "show_term(sym:" << sym << ", body:[" << comma_separated(body) << "])";
         calls.push_back({"show_term", {oss.str()}});
     }
 
@@ -102,12 +102,7 @@ private:
 
     void do_show_term(prg_id_t id, PrgLitSpan body) override {
         std::ostringstream oss;
-        oss << "show_term(id:" << id << ", body:[";
-        for (size_t i = 0; i < body.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << body[i];
-        }
-        oss << "])";
+        oss << "show_term(id:" << id << ", body:[" << comma_separated(body) << "])";
         calls.push_back({"show_term", {oss.str()}});
     }
 
@@ -119,12 +114,7 @@ private:
 
     void do_edge(prg_id_t u, prg_id_t v, PrgLitSpan body) override {
         std::ostringstream oss;
-        oss << "edge(u:" << u << ", v:" << v << ", body:[";
-        for (size_t i = 0; i < body.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << body[i];
-        }
-        oss << "])";
+        oss << "edge(u:" << u << ", v:" << v << ", body:[" << comma_separated(body) << "])";
         calls.push_back({"edge", {oss.str()}});
     }
 
@@ -132,12 +122,7 @@ private:
                      PrgLitSpan body) override {
         std::ostringstream oss;
         oss << "heuristic(atom:" << atom << ", weight:" << weight << ", prio:" << prio
-            << ", type:" << static_cast<int>(type) << ", body:[";
-        for (size_t i = 0; i < body.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << body[i];
-        }
-        oss << "])";
+            << ", type:" << static_cast<int>(type) << ", body:[" << comma_separated(body) << "])";
         calls.push_back({"heuristic", {oss.str()}});
     }
 
@@ -149,34 +134,19 @@ private:
 
     void do_project(PrgLitSpan atoms) override {
         std::ostringstream oss;
-        oss << "project(atoms:[";
-        for (size_t i = 0; i < atoms.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << atoms[i];
-        }
-        oss << "])";
+        oss << "project(atoms:[" << comma_separated(atoms) << "])";
         calls.push_back({"project", {oss.str()}});
     }
 
     void do_assume(PrgLitSpan literals) override {
         std::ostringstream oss;
-        oss << "assume(literals:[";
-        for (size_t i = 0; i < literals.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << literals[i];
-        }
-        oss << "])";
+        oss << "assume(literals:[" << comma_separated(literals) << "])";
         calls.push_back({"assume", {oss.str()}});
     }
 
     void do_minimize(prg_weight_t priority, WeightedPrgLitSpan body) override {
         std::ostringstream oss;
-        oss << "minimize(priority:" << priority << ", body:[";
-        for (size_t i = 0; i < body.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << "(" << body[i].first << "," << body[i].second << ")";
-        }
-        oss << "])";
+        oss << "minimize(priority:" << priority << ", body:[" << comma_separated_weighted(body) << "])";
         calls.push_back({"minimize", {oss.str()}});
     }
 
@@ -204,51 +174,27 @@ private:
 
     void do_fun(prg_id_t id, prg_id_t name, PrgIdSpan args) override {
         std::ostringstream oss;
-        oss << "fun(id:" << id << ", name:" << name << ", args:[";
-        for (size_t i = 0; i < args.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << args[i];
-        }
-        oss << "])";
+        oss << "fun(id:" << id << ", name:" << name << ", args:[" << comma_separated(args) << "])";
         calls.push_back({"fun", {oss.str()}});
     }
 
     void do_tup(prg_id_t id, TheoryTermTupleType type, PrgIdSpan args) override {
         std::ostringstream oss;
-        oss << "tup(id:" << id << ", type:" << static_cast<int>(type) << ", args:[";
-        for (size_t i = 0; i < args.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << args[i];
-        }
-        oss << "])";
+        oss << "tup(id:" << id << ", type:" << static_cast<int>(type) << ", args:[" << comma_separated(args) << "])";
         calls.push_back({"tup", {oss.str()}});
     }
 
     void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) override {
         std::ostringstream oss;
-        oss << "elem(id:" << id << ", terms:[";
-        for (size_t i = 0; i < terms.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << terms[i];
-        }
-        oss << "], cond:[";
-        for (size_t i = 0; i < cond.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << cond[i];
-        }
-        oss << "])";
+        oss << "elem(id:" << id << ", terms:[" << comma_separated(terms)
+            << "], cond:[" << comma_separated(cond) << "])";
         calls.push_back({"elem", {oss.str()}});
     }
 
     void do_atom(prg_lit_t atom_or_zero, prg_id_t name, PrgIdSpan elems,
                  std::optional<std::pair<prg_id_t, prg_id_t>> guard) override {
         std::ostringstream oss;
-        oss << "atom(atom:" << atom_or_zero << ", name:" << name << ", elems:[";
-        for (size_t i = 0; i < elems.size(); ++i) {
-            if (i > 0) oss << ",";
-            oss << elems[i];
-        }
-        oss << "], guard:";
+        oss << "atom(atom:" << atom_or_zero << ", name:" << name << ", elems:[" << comma_separated(elems) << "], guard:";
         if (guard) {
             oss << "(" << guard->first << "," << guard->second << ")";
         } else {
