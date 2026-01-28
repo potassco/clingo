@@ -349,6 +349,22 @@ TEST_CASE("aspif theory fun", "[input][aspif][theory][fun]") {
        });
 }
 
+TEST_CASE("aspif theory tup", "[input][aspif][theory][tup]") {
+    REQUIRE(parse(R"(9 0 3 10
+9 0 4 20
+9 2 5 -1 2 3 4
+0
+)") == SV{
+           "preamble(2,0,0,non-incremental)",
+           "begin_step",
+           "num(3,10)",
+           "num(4,20)",
+           "tup(id:5, type:0, args:[3,4])",
+           "end_ground",
+           "end_step",
+       });
+}
+
 TEST_CASE("aspif theory elem", "[input][aspif][theory][elem]") {
     REQUIRE(parse(R"(9 0 1 5
 9 4 2 1 1 0
