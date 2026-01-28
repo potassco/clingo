@@ -68,7 +68,7 @@ class ProgramBackend {
 
     //! Start a new step.
     //!
-    //! Indicate that new program module is going to be added. This must be
+    //! Indicate that a new program module is going to be added. This must be
     //! called directly after `preamble()` and after `end_step()` before
     //! calling any other methods of this interface.
     void begin_step() { do_begin_step(); }
