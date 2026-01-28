@@ -758,17 +758,14 @@ class BackendHandleImpl : public BackendHandle {
 
 } // namespace
 
-//! Implementation of the program backend for aspif parser.
+//! Implementation of the program backend used during aspif parsing.
 //!
 //! Some of the functions here directly dispatch to the backend and some others
 //! into the data structures in the solver. In the latter case, data is passed
 //! to the underlying backend of the solver later.
-//!
-//! This is not the cleanest way to write this. It would be better to write an
-//! actual adapter that dispatches to the backend in the solver.
-class Solver::ProgramBackendAdapter : public ProgramBackend, public TheoryBackend {
+class Solver::AspifBackend : public ProgramBackend, public TheoryBackend {
   public:
-    ProgramBackendAdapter(Solver &solver) : solver_{&solver} {}
+    AspifBackend(Solver &solver) : solver_{&solver} {}
 
   private:
     //! Prepare the program to add aspif statements.
@@ -1238,7 +1235,7 @@ void Solver::join_includes(BuiltinIncludes includes) {
 
 void Solver::parse_with(std::function<void(ProgramBackend *, TheoryBackend *)> cb) {
     if (opts_.mode == AppMode::solve) {
-        auto bck = ProgramBackendAdapter{*this};
+        auto bck = AspifBackend{*this};
         std::invoke(std::move(cb), &bck, &bck);
     } else {
         std::invoke(std::move(cb), nullptr, nullptr);
