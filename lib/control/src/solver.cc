@@ -167,23 +167,21 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     }
 
     void do_tup(prg_id_t id, TheoryTermTupleType type, PrgIdSpan args) override {
-        prg_->theoryTerm(
-            id,
-            [type] {
-                switch (type) {
-                    case TheoryTermTupleType::tuple: {
-                        return static_cast<int>(Potassco::TupleType::paren);
-                    }
-                    case TheoryTermTupleType::list: {
-                        return static_cast<int>(Potassco::TupleType::bracket);
-                    }
-                    case TheoryTermTupleType::set: {
-                        return static_cast<int>(Potassco::TupleType::brace);
-                    }
-                }
-                Util::unreachable();
-            }(),
-            args);
+        prg_->theoryTerm(id, static_cast<int>([type] {
+                             switch (type) {
+                                 case TheoryTermTupleType::tuple: {
+                                     return Potassco::TupleType::paren;
+                                 }
+                                 case TheoryTermTupleType::list: {
+                                     return Potassco::TupleType::bracket;
+                                 }
+                                 case TheoryTermTupleType::set: {
+                                     return Potassco::TupleType::brace;
+                                 }
+                             }
+                             Util::unreachable();
+                         }()),
+                         args);
     }
 
     void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) override { prg_->theoryElement(id, terms, cond); }
