@@ -795,7 +795,7 @@ class Solver : public BaseView {
     void accept(Ground::ProfileNode::Visitor const &visit) const { grd_.accept(visit); }
 
   private:
-    class ProgramBackendAdapter;
+    class AspifBackend;
 
     //! States for step transitions.
     //!

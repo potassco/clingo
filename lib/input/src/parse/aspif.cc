@@ -59,12 +59,20 @@ class AspifParser {
             res = false;
             recover_();
         }
-        while (true) {
+        for (bool begin_step = false;;) {
             try {
                 auto type = expect_unsigned_();
-                while (type == 0) {
-                    state_->thy_backend()->end();
-                    state_->prg_backend()->end();
+                for (;;) {
+                    if (!begin_step) {
+                        state_->prg_backend()->begin_step();
+                        begin_step = true;
+                    }
+                    if (type != 0) {
+                        break;
+                    }
+                    state_->prg_backend()->end_ground();
+                    state_->prg_backend()->end_step();
+                    begin_step = false;
                     expect_(AspifToken::newline);
                     if (expect_(AspifToken::end, AspifToken::num_pos) == AspifToken::end) {
                         return res;

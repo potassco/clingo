@@ -21,70 +21,73 @@ namespace CppClingo::Control {
 namespace {
 
 //! Implementation of the backend interface.
-class ProgramBackendImpl : public ProgramBackend {
+//!
+//! This implementation forwards grounded statements to a
+//! Potassco::AbstractProgram. As such it can create neither atom ids nor term
+//! ids, which is the responsibility of derived classes.
+class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
   public:
-    ProgramBackendImpl(Clasp::Asp::LogicProgram &prg, TermBaseMap &terms) : prg_{&prg}, terms_{&terms} {}
+    AbstractProgramBackendImpl(Potassco::AbstractProgram &prg) : prg_{&prg} {}
+
+    //! Map a symbol to its output term id.
+    auto term_id(Symbol sym) -> prg_id_t { return do_term_id(sym); }
+
+    //! Associate a symbol with an output term id.
+    void term_id(Symbol sym, prg_id_t id) { do_term_id(sym, id); }
+
+    //! Convert a symbol to its string representation.
+    auto as_str(Symbol sym) -> std::string_view {
+        buf_.reset();
+        buf_ << sym;
+        return buf_.view();
+    }
 
   private:
+    virtual auto do_term_id(Symbol sym) -> prg_id_t = 0;
+
+    virtual void do_term_id(Symbol sym, prg_id_t id) = 0;
+
+    auto as_atoms_(PrgLitSpan lits) -> Potassco::AtomSpan {
+        atoms_.clear();
+        for (auto const &lit : lits) {
+            assert(lit > 0);
+            atoms_.push_back(lit);
+        }
+        return Potassco::AtomSpan{atoms_};
+    }
+
+    auto as_wlits_(WeightedPrgLitSpan wlits) -> Potassco::WeightLitSpan {
+        wlits_.clear();
+        for (auto const &[lit, weight] : wlits) {
+            assert(weight > 0);
+            assert(lit != 0);
+            wlits_.emplace_back(lit, weight);
+        }
+        return Potassco::WeightLitSpan{wlits_};
+    }
+
     void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
-                     [[maybe_unused]] unsigned revision, [[maybe_unused]] bool incremental) override {
-        assert(incremental == prg_->isIncremental());
-    }
-    void do_end() override {}
-
-    auto do_next_lit() -> prg_lit_t override {
-        if (auto lit = prg_->newAtom(); std::cmp_less_equal(lit, prg_lit_max)) {
-            return static_cast<prg_lit_t>(lit);
-        }
-        throw std::range_error("literals number of literals exhausted");
+                     [[maybe_unused]] unsigned revision, bool incremental) override {
+        prg_->initProgram(incremental);
     }
 
-    auto do_fact_lit() -> std::optional<prg_lit_t> override {
-        // return the cached fact literal
-        if (fact_lit_ != 0) {
-            return fact_lit_;
-        }
-        // try to find a fact literal
-        if (auto atom = prg_->factAtom(); atom) {
-            fact_lit_ = Potassco::lit(atom);
-            return fact_lit_;
-        }
-        // report that there is no fact literal (very unlikely)
-        return std::nullopt;
-    }
+    void do_begin_step() override { prg_->beginStep(); }
+    void do_end_ground() override {}
+    void do_end_step() override { prg_->endStep(); }
 
     void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
-        bld_.clear();
-        bld_.start(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive);
+
 #ifdef DEBUG_BACKEND
         std::cerr << (choice ? "{ " : "") << Util::p_range(head, ", ") << (choice ? " }" : "") << " :- "
                   << Util::p_range(body, ", ") << ".\n";
 #endif
-        for (auto const &lit : head) {
-            assert(lit > 0);
-            bld_.addHead(lit);
-        }
-        bld_.startBody();
-        for (auto const &lit : body) {
-            bld_.addGoal(lit);
-        }
-        prg_->addRule(bld_);
+        prg_->rule(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive, as_atoms_(head), body);
     }
 
     void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, prg_weight_t bound, bool choice) override {
         assert(bound > 0);
-        bld_.clear();
-        bld_.start(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive);
-        for (auto const &atom : head) {
-            assert(atom > 0);
-            bld_.addHead(atom);
-        }
-        bld_.startSum(bound);
-        for (auto const &[lit, weight] : body) {
-            assert(weight > 0);
-            bld_.addGoal(lit, weight);
-        }
-        prg_->addRule(bld_);
+        prg_->rule(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive, as_atoms_(head), bound,
+                   as_wlits_(body));
 #ifdef DEBUG_BACKEND
         std::cerr << head << " :- " << "{"
                   << Util::p_range(body, "",
@@ -93,7 +96,9 @@ class ProgramBackendImpl : public ProgramBackend {
 #endif
     }
 
-    void do_edge(prg_id_t u, prg_id_t v, PrgLitSpan body) override { prg_->addAcycEdge(u, v, body); }
+    void do_edge(prg_id_t u, prg_id_t v, PrgLitSpan body) override {
+        prg_->acycEdge(static_cast<int>(u), static_cast<int>(v), body);
+    }
 
     void do_heuristic(prg_lit_t atom, int32_t weight, int32_t prio, HeuristicType type, PrgLitSpan body) override {
         assert(atom > 0);
@@ -109,7 +114,7 @@ class ProgramBackendImpl : public ProgramBackend {
                       static_cast<unsigned>(Clasp::DomModType::sign));
         static_assert(static_cast<unsigned>(CppClingo::HeuristicType::true_) ==
                       static_cast<unsigned>(Clasp::DomModType::true_));
-        prg_->addDomHeuristic(atom, static_cast<Clasp::DomModType>(type), weight, prio, body);
+        prg_->heuristic(atom, static_cast<Clasp::DomModType>(type), weight, prio, body);
     }
 
     void do_external(prg_lit_t atom, ExternalType type) override {
@@ -119,102 +124,67 @@ class ProgramBackendImpl : public ProgramBackend {
                       static_cast<unsigned>(Potassco::TruthValue::false_));
         static_assert(static_cast<unsigned>(ExternalType::release) ==
                       static_cast<unsigned>(Potassco::TruthValue::release));
-        prg_->addExternal(atom, static_cast<Potassco::TruthValue>(type));
+        prg_->external(atom, static_cast<Potassco::TruthValue>(type));
     }
 
-    void do_project(PrgLitSpan atoms) override {
-        for (auto const &atom : atoms) {
-            prg_->addProject(std::array{static_cast<Potassco::Atom_t>(atom)});
-        }
-    }
+    void do_project(PrgLitSpan atoms) override { prg_->project(as_atoms_(atoms)); }
 
-    void do_assume(PrgLitSpan literals) override { prg_->addAssumption(literals); }
+    void do_assume(PrgLitSpan literals) override { prg_->assume(literals); }
 
     void do_minimize(prg_weight_t priority, WeightedPrgLitSpan body) override {
-        auto wlits = Util::small_vector<Potassco::WeightLit>{};
-        wlits.reserve(body.size());
-        for (auto const &[lit, weight] : body) {
-            wlits.emplace_back(lit, weight);
-        }
-        prg_->addMinimize(priority, wlits);
+        prg_->minimize(priority, as_wlits_(body));
+    }
+
+    void do_show_term(Symbol sym, prg_id_t id) override {
+        term_id(sym, id);
+        prg_->outputTerm(id, as_str(sym));
     }
 
     void do_show_term(Symbol sym, PrgLitSpan body) override {
-        auto id = terms_->add(sym, [&, this]() {
-            buf_.reset();
-            buf_ << sym;
-            return prg_->newShowTerm(buf_.view());
-        });
-        prg_->addShowTerm(id, body);
+        show_term(term_id(sym), body);
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << Util::p_range(body, ", ") << ".\n";
 #endif
     }
 
-    void do_show_term(Symbol sym, prg_id_t id) override {
-        buf_.reset();
-        buf_ << sym;
-        terms_->add(sym, id);
-        prg_->newShowTerm(buf_.view(), id);
-    }
-
-    void do_show_term(prg_id_t id, PrgLitSpan body) override { prg_->addShowTerm(id, body); }
+    void do_show_term(prg_id_t id, PrgLitSpan body) override { prg_->output(id, body); }
 
     void do_show_atom(Symbol sym, prg_lit_t lit) override {
         assert(lit > 0);
-        buf_.reset();
-        buf_ << sym;
-        prg_->addAtomOutput(lit, buf_.view());
+        prg_->outputAtom(lit, as_str(sym));
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << lit << ".\n";
 #endif
     }
 
-    Util::OutputBuffer buf_;
-    Potassco::RuleBuilder bld_;
-    Clasp::Asp::LogicProgram *prg_;
-    TermBaseMap *terms_;
-    prg_lit_t fact_lit_ = 0;
-};
+    void do_num(prg_id_t id, int32_t num) override { prg_->theoryTerm(id, num); }
 
-//! Implementation of the theory backend interface.
-class TheoryBackendImpl : public TheoryBackend {
-  public:
-    TheoryBackendImpl(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
-
-  private:
-    void do_num(prg_id_t id, int32_t num) override { prg_->theoryData().addTerm(id, num); }
-
-    void do_str(prg_id_t id, std::string_view str) override { prg_->theoryData().addTerm(id, str); }
+    void do_str(prg_id_t id, std::string_view str) override { prg_->theoryTerm(id, str); }
 
     void do_fun(prg_id_t id, prg_id_t name, PrgIdSpan args) override {
         assert(!args.empty());
-        prg_->theoryData().addTerm(id, name, args);
+        prg_->theoryTerm(id, static_cast<int>(name), args);
     }
 
     void do_tup(prg_id_t id, TheoryTermTupleType type, PrgIdSpan args) override {
-        prg_->theoryData().addTerm(
-            id,
-            [type] {
-                switch (type) {
-                    case TheoryTermTupleType::tuple: {
-                        return Potassco::TupleType::paren;
-                    }
-                    case TheoryTermTupleType::list: {
-                        return Potassco::TupleType::bracket;
-                    }
-                    case TheoryTermTupleType::set: {
-                        return Potassco::TupleType::brace;
-                    }
-                }
-                Util::unreachable();
-            }(),
-            args);
+        prg_->theoryTerm(id, static_cast<int>([type] {
+                             switch (type) {
+                                 case TheoryTermTupleType::tuple: {
+                                     return Potassco::TupleType::paren;
+                                 }
+                                 case TheoryTermTupleType::list: {
+                                     return Potassco::TupleType::bracket;
+                                 }
+                                 case TheoryTermTupleType::set: {
+                                     return Potassco::TupleType::brace;
+                                 }
+                             }
+                             Util::unreachable();
+                         }()),
+                         args);
     }
 
-    void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) override {
-        prg_->theoryData().addElement(id, terms, prg_->newCondition(cond));
-    }
+    void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) override { prg_->theoryElement(id, terms, cond); }
 
 #ifdef DEBUG_BACKEND
     void print(Potassco::TheoryTerm const &term) {
@@ -265,9 +235,9 @@ class TheoryBackendImpl : public TheoryBackend {
     void do_atom(prg_lit_t lit_or_zero, prg_id_t name, PrgIdSpan elems,
                  std::optional<std::pair<prg_id_t, prg_id_t>> guard) override {
         if (guard) {
-            prg_->theoryData().addAtom(lit_or_zero, name, elems, guard->first, guard->second);
+            prg_->theoryAtom(lit_or_zero, name, elems, guard->first, guard->second);
         } else {
-            prg_->theoryData().addAtom(lit_or_zero, name, elems);
+            prg_->theoryAtom(lit_or_zero, name, elems);
         }
 #ifdef DEBUG_BACKEND
         std::cerr << lit_or_zero << " <> ";
@@ -276,92 +246,41 @@ class TheoryBackendImpl : public TheoryBackend {
 #endif
     }
 
-    void do_end() override {}
-
-    Clasp::Asp::LogicProgram *prg_;
+    Potassco::AbstractProgram *prg_;
+    Util::OutputBuffer buf_;
+    std::vector<Potassco::Atom_t> atoms_;
+    std::vector<Potassco::WeightLit> wlits_;
 };
 
-//! Implementation of the theory backend for aspif parser.
-class TheoryBackendAdapter : public TheoryBackend {
+class ProgramBackendImpl : public AbstractProgramBackendImpl {
   public:
-    TheoryBackendAdapter(SymbolStore &store, Output::TheoryData &data) : store_{&store}, data_{&data} {}
+    ProgramBackendImpl(Clasp::Asp::LogicProgram &prg, TermBaseMap &terms)
+        : AbstractProgramBackendImpl{adapter_}, prg_{&prg}, terms_{&terms} {}
 
   private:
-    //! Get a remapped term.
-    auto term_(prg_id_t id) -> prg_id_t {
-        auto it = term_map_.find(id);
-        if (it != term_map_.end()) {
-            return it->second;
+    auto do_next_lit() -> prg_lit_t override {
+        if (auto lit = prg_->newAtom(); std::cmp_less_equal(lit, prg_lit_max)) {
+            return static_cast<prg_lit_t>(lit);
         }
-        throw std::runtime_error{"unknown term id"};
+        throw std::range_error("number of literals exhausted");
     }
 
-    //! Get the remapped terms.
-    auto term_(PrgIdSpan span) {
-        Output::TheoryData::IdVec vec;
-        vec.reserve(span.size());
-        std::ranges::transform(span, std::back_inserter(vec), [this](auto id) { return term_(id); });
-        return vec;
-    }
-
-    //! Remap the old term to the new one.
-    void term_(prg_id_t id_old, prg_id_t id_new) { term_map_[id_old] = id_new; }
-
-    //! Get the remapped element.
-    auto elem_(prg_id_t id) -> prg_id_t {
-        auto it = elem_map_.find(id);
-        if (it != elem_map_.end()) {
-            return it->second;
+    auto do_fact_lit() -> std::optional<prg_lit_t> override {
+        if (auto atom = prg_->factAtom(); atom != 0) {
+            return Potassco::lit(atom);
         }
-        throw std::runtime_error{"unknown element id"};
+        return std::nullopt;
     }
 
-    //! Get the remapped elements.
-    auto elem_(PrgIdSpan span) {
-        Output::TheoryData::IdVec vec;
-        vec.reserve(span.size());
-        std::ranges::transform(span, std::back_inserter(vec), [this](auto id) { return elem_(id); });
-        return vec;
+    auto do_term_id(Symbol sym) -> prg_id_t override {
+        return terms_->add(sym, [&, this]() { return prg_->newShowTerm(as_str(sym)); });
     }
 
-    //! Remap the old elem to the new one.
-    void elem_(prg_id_t id_old, prg_id_t id_new) { elem_map_[id_old] = id_new; }
+    void do_term_id(Symbol sym, prg_id_t id) override { terms_->add(sym, id); }
 
-    void do_num(prg_id_t id, int32_t num) override { term_(id, data_->num(num)); }
-
-    void do_str(prg_id_t id, std::string_view str) override { term_(id, data_->str(*store_->string(str))); }
-
-    void do_fun(prg_id_t id, prg_id_t name, PrgIdSpan args) override {
-        assert(!args.empty());
-        term_(id, data_->fun(term_(name), term_(args)));
-    }
-
-    void do_tup(prg_id_t id, TheoryTermTupleType type, PrgIdSpan args) override {
-        term_(id, data_->tup(type, term_(args)));
-    }
-
-    void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) override { elem_(id, data_->elem(term_(terms), cond)); }
-
-    void do_atom(prg_lit_t lit_or_zero, prg_id_t name, PrgIdSpan elems,
-                 std::optional<std::pair<prg_id_t, prg_id_t>> guard) override {
-        auto lit = [lit_or_zero]() { return lit_or_zero; };
-        if (guard) {
-            data_->atom(lit, term_(name), elem_(elems), std::pair{term_(guard->first), term_(guard->second)});
-        } else {
-            data_->atom(lit, term_(name), elem_(elems), std::nullopt);
-        }
-    }
-
-    void do_end() override {
-        // clear the mappings but not the theory data
-        term_map_.clear();
-        elem_map_.clear();
-    }
-
-    SymbolStore *store_;
-    Output::TheoryData *data_;
-    Util::unordered_map<prg_id_t, prg_id_t> term_map_;
-    Util::unordered_map<prg_id_t, prg_id_t> elem_map_;
+    Clasp::Asp::LogicProgram *prg_;
+    Clasp::Asp::LogicProgramAdapter adapter_{*prg_};
+    TermBaseMap *terms_;
 };
 
 class ModelExtend : public Clasp::OutputTable::Theory {
@@ -618,7 +537,8 @@ class SolveEventHandlerAdapter : public Clasp::EventHandler {
                     }
                     eh_->on_finish(convert(res->summary->result));
                 } catch (...) {
-                    // NOTE: ensure that exceptions don't escape finish events as this can interfere with solver cleanup
+                    // NOTE: ensure that exceptions don't escape finish events as this can interfere with solver
+                    // cleanup
                     ptr_ = std::current_exception();
                 }
             }
@@ -776,7 +696,7 @@ class SolveHandleImpl : public SolveHandle {
 };
 
 //! Integrate facts and inform the grounder about updated domains.
-void end_step(std::vector<std::pair<prg_lit_t, SharedSymbol>> &added, Clasp::Asp::LogicProgram &prg, Grounder &grd) {
+void end_ground_(std::vector<std::pair<prg_lit_t, SharedSymbol>> &added, Clasp::Asp::LogicProgram &prg, Grounder &grd) {
     for (auto const &[lit, sym] : added) {
         assert(lit > 0);
         auto sig = sym->signature();
@@ -824,7 +744,8 @@ class BackendHandleImpl : public BackendHandle {
 
     void do_close() override {
         if (auto *grd = std::exchange(grd_, nullptr); grd != nullptr) {
-            end_step(added_, *prg_, *grd);
+            end_ground_(added_, *prg_, *grd);
+            backend_->end_ground();
         }
     }
 
@@ -837,13 +758,14 @@ class BackendHandleImpl : public BackendHandle {
 
 } // namespace
 
-//! Implementation of the program backend for aspif parser.
+//! Implementation of the program backend used during aspif parsing.
 //!
-//! Note the similarity to the backend adapter.
-class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
+//! Some of the functions here directly dispatch to the backend and some others
+//! into the data structures in the solver. In the latter case, data is passed
+//! to the underlying backend of the solver later.
+class Solver::AspifBackend : public ProgramBackend, public TheoryBackend {
   public:
-    ProgramBackendAdapter(Solver &solver)
-        : ProgramBackendImpl{*solver.clasp_facade().asp(), solver.terms_}, solver_{&solver} {}
+    AspifBackend(Solver &solver) : solver_{&solver} {}
 
   private:
     //! Prepare the program to add aspif statements.
@@ -852,21 +774,37 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
         if (incremental) {
             solver_->enable_updates_();
         }
+        // this is going to call preamble in the underlying backend
         solver_->prepare_();
     }
 
-    //! Add delayed assumptions.
-    void do_assume(PrgLitSpan literals) override {
-        assumptions_.insert(assumptions_.end(), literals.begin(), literals.end());
+    void do_begin_step() override {
+        // NOTE: We do not call begin step on the underlying backend here. This
+        // is handled by prepare above.
+
+        // We manually clean assumptions at the beginning of a step because
+        // there is no solve call where these things are handled normally. This
+        // means that the step counter won't be incremented for incremental
+        // aspif programs.
+        solver_->clasp_facade().asp()->removeAssumption();
+
+        // We clear the theory and element term mappings here to incrementally
+        // update the underlying theory data. During normal processing, the
+        // theory data will be empty at this point. However, when reading
+        // multi-shot aspif programs, theory data from multiple steps will be
+        // merged. Clearing the mapping tables ensures that there are no
+        // redefinition errors when the same term or element ids are reused in
+        // different steps.
+        term_map_.clear();
+        elem_map_.clear();
     }
 
-    //! Integrate facts and inform the grounder about updated domains.
-    void do_end() override {
-        solver_->clasp_facade().asp()->removeAssumption();
-        solver_->clasp_facade().asp()->addAssumption(assumptions_);
-        end_step(added_, *solver_->clasp_->asp(), solver_->grd_);
+    void do_end_step() override {
+        // NOTE: We integrate facts here but do not call end step. The program
+        // parts in aspif files are thus merged and later solve calls introduce
+        // the actual steps.
+        end_ground_(added_, *solver_->clasp_->asp(), solver_->grd_);
         added_.clear();
-        assumptions_.clear();
     }
 
     //! Show the atom with the given symbol and literal.
@@ -889,9 +827,101 @@ class Solver::ProgramBackendAdapter : public ProgramBackendImpl {
         added_.emplace_back(lit, sym);
     }
 
-    std::vector<std::pair<prg_lit_t, SharedSymbol>> added_;
-    PrgLitVec assumptions_;
+    void do_end_ground() override { solver_->backend_->end_ground(); }
+
+    auto do_next_lit() -> prg_lit_t override { return solver_->backend_->next_lit(); }
+    auto do_fact_lit() -> std::optional<prg_lit_t> override { return solver_->backend_->fact_lit(); }
+
+    void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
+        solver_->backend_->rule(head, body, choice);
+    }
+    void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, int32_t bound, bool choice) override {
+        solver_->backend_->bd_aggr(head, body, bound, choice);
+    }
+    void do_show_term(Symbol sym, PrgLitSpan body) override { solver_->backend_->show_term(sym, body); }
+    void do_show_term(Symbol sym, prg_id_t id) override { solver_->backend_->show_term(sym, id); }
+    void do_show_term(prg_id_t id, PrgLitSpan body) override { solver_->backend_->show_term(id, body); }
+    void do_edge(prg_id_t u, prg_id_t v, PrgLitSpan body) override { solver_->backend_->edge(u, v, body); }
+    void do_heuristic(prg_lit_t atom, prg_weight_t weight, prg_weight_t prio, HeuristicType type,
+                      PrgLitSpan body) override {
+        solver_->backend_->heuristic(atom, weight, prio, type, body);
+    }
+    void do_external(prg_lit_t atom, ExternalType type) override { solver_->backend_->external(atom, type); }
+    void do_project(PrgLitSpan atoms) override { solver_->backend_->project(atoms); }
+    void do_assume(PrgLitSpan literals) override { solver_->backend_->assume(literals); }
+    void do_minimize(prg_weight_t priority, WeightedPrgLitSpan body) override {
+        solver_->backend_->minimize(priority, body);
+    }
+
+    //! Get a remapped term.
+    auto term_(prg_id_t id) -> prg_id_t {
+        if (auto it = term_map_.find(id); it != term_map_.end()) {
+            return it->second;
+        }
+        throw std::runtime_error{"unknown term id"};
+    }
+
+    //! Get the remapped terms.
+    auto term_(PrgIdSpan span) {
+        Output::TheoryData::IdVec vec;
+        vec.reserve(span.size());
+        std::ranges::transform(span, std::back_inserter(vec), [this](auto id) { return term_(id); });
+        return vec;
+    }
+
+    //! Remap the old term to the new one.
+    void term_(prg_id_t id_old, prg_id_t id_new) { term_map_[id_old] = id_new; }
+
+    //! Get the remapped element.
+    auto elem_(prg_id_t id) -> prg_id_t {
+        if (auto it = elem_map_.find(id); it != elem_map_.end()) {
+            return it->second;
+        }
+        throw std::runtime_error{"unknown element id"};
+    }
+
+    //! Get the remapped elements.
+    auto elem_(PrgIdSpan span) {
+        Output::TheoryData::IdVec vec;
+        vec.reserve(span.size());
+        std::ranges::transform(span, std::back_inserter(vec), [this](auto id) { return elem_(id); });
+        return vec;
+    }
+
+    //! Remap the old elem to the new one.
+    void elem_(prg_id_t id_old, prg_id_t id_new) { elem_map_[id_old] = id_new; }
+
+    void do_num(prg_id_t id, int32_t num) override { term_(id, data_->num(num)); }
+
+    void do_str(prg_id_t id, std::string_view str) override { term_(id, data_->str(*store_->string(str))); }
+
+    void do_fun(prg_id_t id, prg_id_t name, PrgIdSpan args) override {
+        assert(!args.empty());
+        term_(id, data_->fun(term_(name), term_(args)));
+    }
+
+    void do_tup(prg_id_t id, TheoryTermTupleType type, PrgIdSpan args) override {
+        term_(id, data_->tup(type, term_(args)));
+    }
+
+    void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) override { elem_(id, data_->elem(term_(terms), cond)); }
+
+    void do_atom(prg_lit_t lit_or_zero, prg_id_t name, PrgIdSpan elems,
+                 std::optional<std::pair<prg_id_t, prg_id_t>> guard) override {
+        auto lit = [lit_or_zero]() { return lit_or_zero; };
+        if (guard) {
+            data_->atom(lit, term_(name), elem_(elems), std::pair{term_(guard->first), term_(guard->second)});
+        } else {
+            data_->atom(lit, term_(name), elem_(elems), std::nullopt);
+        }
+    }
+
     Solver *solver_;
+    SymbolStore *store_{&solver_->grd_.store()};
+    Output::TheoryData *data_{solver_->theory_.get()};
+    std::vector<std::pair<prg_lit_t, SharedSymbol>> added_;
+    Util::unordered_map<prg_id_t, prg_id_t> term_map_;
+    Util::unordered_map<prg_id_t, prg_id_t> elem_map_;
 };
 
 void Scripts::register_script(std::string_view name, UScript script) {
@@ -1046,8 +1076,9 @@ Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_conf
 auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
     switch (mode) {
         case AppMode::solve: {
-            backend_ = std::make_unique<ProgramBackendImpl>(*clasp_->asp(), terms_);
-            theory_ = std::make_unique<Output::TheoryData>(store, std::make_unique<TheoryBackendImpl>(*clasp_->asp()));
+            auto backend = std::make_unique<ProgramBackendImpl>(*clasp_->asp(), terms_);
+            theory_ = std::make_unique<Output::TheoryData>(store, *backend);
+            backend_ = std::move(backend);
             return Output::make_backend_output(store, *backend_, *theory_);
         }
         default: {
@@ -1168,16 +1199,18 @@ auto Solver::map_model(Clasp::Model const &mdl) -> Model & {
 }
 
 auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode mode) -> USolveHandle {
+    auto guard = unlock_guard{lock_};
+    if (state_ == State::solved || state_ == State::initial) {
+        // we inject an empty ground to go to grounded state
+        ground(Input::ProgramParamVec{}, nullptr);
+    }
+    state_ = State::solved;
     if (opts_.mode == AppMode::solve) {
-        auto guard = unlock_guard{lock_};
-        if (state_ == State::solved || state_ == State::initial) {
-            // we inject an emtpy ground
-            ground(Input::ProgramParamVec{}, nullptr);
-        }
-        state_ = State::solved;
-        clasp_->asp()->addAssumption(assumptions);
-        if (clasp_->prepare()) {
-            theory_->reset();
+        backend_->assume(assumptions);
+        backend_->end_step();
+        bool prepared = clasp_->prepare();
+        theory_->reset();
+        if (prepared) {
             if (mdl_ == nullptr) {
                 mdl_ = std::make_unique<ModelImpl>(grd_.base(), terms_, *clasp_);
             } else {
@@ -1188,7 +1221,6 @@ auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode
             return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), static_cast<ModelImpl &>(*mdl_), mode,
                                                      std::move(handler), [this]() { simplify_(); });
         }
-        theory_->reset();
     }
     return std::make_unique<SolveHandleFixed>();
 }
@@ -1203,9 +1235,8 @@ void Solver::join_includes(BuiltinIncludes includes) {
 
 void Solver::parse_with(std::function<void(ProgramBackend *, TheoryBackend *)> cb) {
     if (opts_.mode == AppMode::solve) {
-        auto bck = ProgramBackendAdapter{*this};
-        auto thy = TheoryBackendAdapter{grd_.store(), *theory_};
-        std::invoke(std::move(cb), &bck, &thy);
+        auto bck = AspifBackend{*this};
+        std::invoke(std::move(cb), &bck, &bck);
     } else {
         std::invoke(std::move(cb), nullptr, nullptr);
     }
@@ -1393,6 +1424,14 @@ void Solver::simplify_() {
 
 void Solver::prepare_() {
     if (opts_.mode == AppMode::solve) {
+        // we only have a backend in solve mode
+        if (state_ == State::initial) {
+            backend_->preamble(2, 0, 0, clasp_->incremental());
+            backend_->begin_step();
+        }
+        if (state_ == State::solved) {
+            backend_->begin_step();
+        }
         if (!clasp_->update()) {
             grd_.mark_unsat();
         }

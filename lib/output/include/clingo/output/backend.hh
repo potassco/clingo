@@ -25,7 +25,7 @@ class TheoryData {
     //!
     //! @param store the underlying symbol store
     //! @param backend the underlying backend
-    TheoryData(SymbolStore &store, UTheoryBackend backend) : store_{&store}, backend_{std::move(backend)} {}
+    TheoryData(SymbolStore &store, TheoryBackend &backend) : store_{&store}, backend_{&backend} {}
 
     //! Add a number term.
     //!
@@ -131,7 +131,7 @@ class TheoryData {
     template <class M, class V> auto insert_(M &map, V &&val) -> std::pair<typename M::iterator, bool>;
 
     SymbolStore *store_;
-    UTheoryBackend backend_;
+    TheoryBackend *backend_;
     Util::OutputBuffer buf_;
     StringMap strings_;
     NumMap nums_;

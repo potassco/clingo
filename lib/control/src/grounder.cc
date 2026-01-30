@@ -405,7 +405,7 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
         impl_->project();
         impl_->clear();
     }
-    impl_->out->end_step();
+    impl_->out->end_ground();
     if (p != Input::ProfileFlags::off && !params.empty()) {
         impl_->profile.end_step();
     }
