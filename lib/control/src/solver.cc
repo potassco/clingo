@@ -4,7 +4,10 @@
 
 #include <clasp/solver.h>
 
+#include <potassco/aspif.h>
 #include <potassco/aspif_text.h>
+#include <potassco/reify.h>
+#include <potassco/smodels.h>
 #include <potassco/theory_data.h>
 
 #include <future>
@@ -41,6 +44,9 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
         buf_ << sym;
         return buf_.view();
     }
+
+  protected:
+    auto program() -> Potassco::AbstractProgram & { return *prg_; }
 
   private:
     virtual auto do_term_id(Symbol sym) -> prg_id_t = 0;
@@ -252,10 +258,46 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     std::vector<Potassco::WeightLit> wlits_;
 };
 
+class PotasscoBackend : public AbstractProgramBackendImpl {
+  public:
+    PotasscoBackend(Potassco::AbstractProgram &prg, TermBaseMap &terms)
+        : AbstractProgramBackendImpl{prg}, terms_{&terms} {}
+
+  private:
+    auto do_next_lit() -> prg_lit_t override {
+        if (auto lit = new_atom(); std::cmp_less_equal(lit, prg_lit_max)) {
+            return static_cast<prg_lit_t>(lit);
+        }
+        throw std::range_error("number of literals exhausted");
+    }
+
+    auto do_fact_lit() -> std::optional<prg_lit_t> override {
+        return std::nullopt;
+    } // NOTE: only called in the aspif parser
+
+    auto do_term_id(Symbol sym) -> prg_id_t override {
+        auto nId = terms_->add(sym, [&, this]() {
+            auto nId = new_show_term();
+            program().outputTerm(nId, as_str(sym));
+            return nId;
+        });
+        return nId;
+    }
+
+    void do_term_id(Symbol sym, prg_id_t id) override { terms_->add(sym, id); }
+
+    auto new_atom() -> Potassco::Atom_t { return nextAtom_++; }
+    auto new_show_term() -> prg_id_t { return nextShowTerm_++; }
+
+    Potassco::Atom_t nextAtom_{1};
+    prg_id_t nextShowTerm_{0};
+    TermBaseMap *terms_;
+};
+
 class ProgramBackendImpl : public AbstractProgramBackendImpl {
   public:
-    ProgramBackendImpl(Clasp::Asp::LogicProgram &prg, TermBaseMap &terms)
-        : AbstractProgramBackendImpl{adapter_}, prg_{&prg}, terms_{&terms} {}
+    ProgramBackendImpl(Potassco::AbstractProgram &program, Clasp::Asp::LogicProgram &prg, TermBaseMap &terms)
+        : AbstractProgramBackendImpl{program}, prg_{&prg}, terms_{&terms} {}
 
   private:
     auto do_next_lit() -> prg_lit_t override {
@@ -279,7 +321,6 @@ class ProgramBackendImpl : public AbstractProgramBackendImpl {
     void do_term_id(Symbol sym, prg_id_t id) override { terms_->add(sym, id); }
 
     Clasp::Asp::LogicProgram *prg_;
-    Clasp::Asp::LogicProgramAdapter adapter_{*prg_};
     TermBaseMap *terms_;
 };
 
@@ -1069,23 +1110,52 @@ auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
 
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
                Scripts &scripts, Input::RewriteOptions ropts, SolverOptions sopts, FILE *out)
-    : clasp_{&clasp}, config_{clasp_config}, buf_{out}, out_{make_output_(store, sopts.mode)},
-      grd_{log, store, ropts, *out_}, scripts_{&scripts}, opts_{std::move(sopts)} {
+    : clasp_{&clasp}, config_{clasp_config}, buf_{out},
+      out_{make_output_(store, sopts.mode, sopts.format, sopts.reify)}, grd_{log, store, ropts, *out_},
+      scripts_{&scripts}, opts_{std::move(sopts)} {
 }
 
-auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
-    switch (mode) {
-        case AppMode::solve: {
-            auto backend = std::make_unique<ProgramBackendImpl>(*clasp_->asp(), terms_);
-            theory_ = std::make_unique<Output::TheoryData>(store, *backend);
-            backend_ = std::move(backend);
-            return Output::make_backend_output(store, *backend_, *theory_);
+auto Solver::make_output_(SymbolStore &store, AppMode mode, ModeFormat format, ReifyFlag reify) -> UOutputStm {
+    if (mode != AppMode::solve) {
+        return Output::make_text_output(buf_);
+    }
+
+    switch (format) {
+        case ModeFormat::solve_default: {
+            program_ = std::make_unique<Clasp::Asp::LogicProgramAdapter>(*clasp_->asp());
+            break;
+        }
+        case ModeFormat::aspif: {
+            program_ = std::make_unique<Potassco::AspifOutput>(std::cout);
+            break;
+        }
+        case ModeFormat::smodels: {
+            program_ = std::make_unique<Potassco::SmodelsOutput>(std::cout, true, clasp_->asp()->falseAtom());
+            break;
+        }
+        case ModeFormat::reify: {
+            Potassco::Reifier::Options reify_opts{};
+            reify_opts.reifyStep = Potassco::test(reify, ReifyFlag::reify_step);
+            reify_opts.calculateSccs = Potassco::test(reify, ReifyFlag::reify_scc);
+            program_ = std::make_unique<Potassco::Reifier>(std::cout, reify_opts);
+            break;
         }
         default: {
-            return Output::make_text_output(buf_);
+            POTASSCO_ASSERT_NOT_REACHED("invalid output format for solving mode");
         }
     }
-    Util::unreachable();
+
+    std::unique_ptr<AbstractProgramBackendImpl> backend;
+    if (format != ModeFormat::solve_default) {
+        backend = std::make_unique<PotasscoBackend>(*program_, terms_);
+    } else {
+        backend = std::make_unique<ProgramBackendImpl>(*program_, *clasp_->asp(), terms_);
+    }
+
+    theory_ = std::make_unique<Output::TheoryData>(store, *backend);
+    backend_ = std::move(backend);
+
+    return Output::make_backend_output(store, *backend_, *theory_);
 }
 
 void Solver::interrupt() noexcept {

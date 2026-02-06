@@ -237,7 +237,34 @@ class ClingoOptions {
         }
     }
 
+    template <class ModeT> auto parse_format(std::string_view str, ModeT &mode) -> bool {
+        namespace Parse = Potassco::Parse;
+        using namespace std::literals;
+
+        if (!Parse::ok(Potassco::extract(str, solver_opts_.format))) {
+            return false;
+        }
+
+        mode = ModeT::solve;
+        if (solver_opts_.format == Control::ModeFormat::reify) {
+            while (Parse::matchOpt(str, ',')) {
+                if (auto key = "sccs"sv; Parse::eqIgnoreCase(str, key, key.size())) {
+                    solver_opts_.reify |= Control::ReifyFlag::reify_scc;
+                    str.remove_prefix(key.size());
+                } else if (key = "steps"sv; Parse::eqIgnoreCase(str, key, key.size())) {
+                    solver_opts_.reify |= Control::ReifyFlag::reify_step;
+                    str.remove_prefix(key.size());
+                } else {
+                    break;
+                }
+            }
+        }
+        return str.empty();
+    }
+
     auto mode() -> Control::AppMode & { return solver_opts_.mode; }
+    auto format() -> Control::ModeFormat & { return solver_opts_.format; }
+    auto reify() -> Control::ReifyFlag & { return solver_opts_.reify; }
 
     auto rewrite_options() -> Input::RewriteOptions const & { return rewrite_opts_; }
     auto solver_options() -> Control::SolverOptions const & { return solver_opts_; }

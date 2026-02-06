@@ -174,16 +174,31 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         BaseType::initOptions(root);
         opts_.init(root);
         auto group_basic = OptionGroup{"Basic Options"};
+
+        auto parse_mode = [this](std::string_view str) {
+            return opts_.parse_format(str, mode_) || values<Mode>({
+                                                         {"parse", Mode::parse},
+                                                         {"rewrite", Mode::rewrite},
+                                                         {"ground", Mode::ground},
+                                                         {"solve", Mode::solve},
+                                                         {"clasp", Mode::clasp},
+                                                     })(str, mode_);
+        };
+
         group_basic.addOptions() //
-            ("mode",
-             storeTo(mode_ = Mode::solve, values<Mode>({
-                                              {"parse", Mode::parse},
-                                              {"rewrite", Mode::rewrite},
-                                              {"ground", Mode::ground},
-                                              {"solve", Mode::solve},
-                                              {"clasp", Mode::clasp},
-                                          })),
-             "Run in {parse|rewrite|ground|solve|clasp} mode");
+            ("mode", parse(parse_mode),
+             "Run in the specified mode\n"
+             "      %A: <mode {parse|rewrite|ground|solve|clasp|aspif|smodels|reify}>[,<opts>]\n"
+             "        parse   : Stop processing after parsing\n"
+             "        rewrite : Stop processing after rewriting\n"
+             "        ground  : Stop processing after grounding\n"
+             "        solve   : Stop processing after solving\n"
+             "        clasp   : Invoke clasp on the input\n"
+             "        aspif   : Print program in ASP intermediate format\n"
+             "        smodels : Print program in smodels format\n"
+             "        reify   : Print program as reified facts with <opts>\n"
+             "          steps : Add step numbers\n"
+             "          sccs  : Compute and print SCCs");
         root.add(group_basic);
         app_.register_options(root);
     }
@@ -198,7 +213,8 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 
     auto createOutput(Clasp::Cli::OutputSink sink, ProblemType f, Clasp::Cli::ClaspAppOptions::OutputFormat outf)
         -> std::unique_ptr<Clasp::Cli::Output> override {
-        if (mode_ != Mode::solve && mode_ != Mode::clasp) {
+        if ((mode_ != Mode::solve && mode_ != Mode::clasp) ||
+            opts_.format() != CppClingo::Control::ModeFormat::solve_default) {
             return nullptr;
         }
         auto om = mode_ == Mode::clasp ? Clasp::Cli::Output::mode_default : Clasp::Cli::Output::mode_clingo;

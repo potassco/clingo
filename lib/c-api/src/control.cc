@@ -44,16 +44,30 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         auto ctx = OptionContext{"<libclingo>"};
         opts.init(ctx);
         auto group_basic = OptionGroup{"Basic Options"};
+
+        auto parse_mode = [&opts](std::string_view str) {
+            return opts.parse_format(str, opts.mode()) ||
+                   Potassco::ProgramOptions::values<CppClingo::Control::AppMode>({
+                       {"parse", CppClingo::Control::AppMode::parse},
+                       {"rewrite", CppClingo::Control::AppMode::rewrite},
+                       {"ground", CppClingo::Control::AppMode::ground},
+                       {"solve", CppClingo::Control::AppMode::solve},
+                   })(str, opts.mode());
+        };
+
         group_basic.addOptions() //
-            ("mode",
-             storeTo(opts.mode() = CppClingo::Control::AppMode::solve,
-                     values<CppClingo::Control::AppMode>({
-                         {"parse", CppClingo::Control::AppMode::parse},
-                         {"rewrite", CppClingo::Control::AppMode::rewrite},
-                         {"ground", CppClingo::Control::AppMode::ground},
-                         {"solve", CppClingo::Control::AppMode::solve},
-                     })),
-             "Run in {parse|rewrite|ground|solve} mode");
+            ("mode", parse(parse_mode),
+             "Run in the specified mode\n"
+             "      %A: <mode {parse|rewrite|ground|solve|aspif|smodels|reify}>[,<opts>]\n"
+             "        parse   : Stop processing after parsing\n"
+             "        rewrite : Stop processing after rewriting\n"
+             "        ground  : Stop processing after grounding\n"
+             "        solve   : Stop processing after solving\n"
+             "        aspif   : Print program in ASP intermediate format\n"
+             "        smodels : Print program in smodels format\n"
+             "        reify   : Print program as reified facts with <opts>\n"
+             "          steps : Add step numbers\n"
+             "          sccs  : Compute and print SCCs");
         ctx.add(group_basic);
         slv_cfg->addOptions(ctx);
         auto pos_parser = [](std::string_view str, std::string &out) {

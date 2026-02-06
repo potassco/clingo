@@ -67,10 +67,30 @@ enum class AppMode : uint8_t {
     solve    //!< Stop processing after solving.
 };
 
+//! Enumeration of available output formats when in solving mode.
+enum class ModeFormat : uint8_t {
+    solve_default, //!< Standard solving mode: use the normal backend (Clasp)
+    aspif,         //!< Print program in ASP intermediate format
+    smodels,       //!< Print program in smodels format
+    reify          //!< Print program as reified facts
+};
+POTASSCO_SET_ENUM_ENTRIES(ModeFormat, {aspif, "aspif"sv}, {smodels, "smodels"sv}, {reify, "reify"sv});
+
+//! Options for reification.
+enum class ReifyFlag : uint8_t {
+    reify_scc = 1U, //!< Compute and print SCCs
+    reify_step = 2U //!< Add step numbers
+};
+POTASSCO_ENABLE_BIT_OPS(ReifyFlag);
+
 //! Options for the solver.
 struct SolverOptions {
     //! Operation mode of the solver.
     AppMode mode = AppMode::solve;
+    //! Output format to use when in solving mode.
+    ModeFormat format = ModeFormat::solve_default;
+    //! Reification flags.
+    ReifyFlag reify = {};
     //! The minimum number of incremental steps.
     size_t imin = 0;
     //! The maximum number of incremental steps.
@@ -817,8 +837,10 @@ class Solver : public BaseView {
     //! the backend for the clasp output.
     //!
     //! @param mode the configured output mode
+    //! @param format the configured output format
+    //! @param reify the flag defining options for the reify format
     //! @return the resulting output
-    auto make_output_(SymbolStore &store, AppMode mode) -> UOutputStm;
+    auto make_output_(SymbolStore &store, AppMode mode, ModeFormat format, ReifyFlag reify) -> UOutputStm;
 
     //! Prepare the solver for grounding.
     void prepare_();
@@ -847,6 +869,7 @@ class Solver : public BaseView {
     Util::OutputBuffer buf_;
     UProgramBackend backend_;
     std::unique_ptr<Output::TheoryData> theory_;
+    std::unique_ptr<Potassco::AbstractProgram> program_;
     UOutputStm out_;
     UModel mdl_;
     USymbolTable sym_tab_;
