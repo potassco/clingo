@@ -108,7 +108,7 @@ if(MSVC)
     add_compile_options(/bigobj)
 endif()
 
-find_package(RE2C "2.0" REQUIRED)
+find_package(RE2C "3.0" REQUIRED)
 
 add_subdirectory(third_party)
 add_subdirectory(lib libclingo)
