@@ -43,8 +43,8 @@ class AIFFBPropagator : public Propagator {
     }
     void do_attach([[maybe_unused]] Assignment assignment, [[maybe_unused]] PropagateControl ctl) override {
         auto thread_id = assignment.thread_id();
-        REQUIRE(thread_id < n_threads);
         auto lock = std::scoped_lock{mut};
+        REQUIRE(thread_id < n_threads);
         REQUIRE(attached.insert(thread_id).second);
     }
 
