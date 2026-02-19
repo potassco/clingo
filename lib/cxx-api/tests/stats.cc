@@ -72,15 +72,17 @@ TEST_CASE_METHOD(Fixture, "stats user", "[cxx][stats][user]") {
     REQUIRE(models == MV{{"a"}, {"b"}, {"c"}, {"d"}});
 
     auto stats = ctl.stats();
+    auto user_step = std::string_view{clingo_user_stats_step.data, clingo_user_stats_step.size};
+    auto user_accu = std::string_view{clingo_user_stats_accu.data, clingo_user_stats_accu.size};
 
-    REQUIRE(*stats["user_step"]["a"] == 10.0);
-    REQUIRE(*stats["user_step"]["b"][0] == 10.0);
-    REQUIRE(*stats["user_step"]["c"]["x"] == 1.0);
+    REQUIRE(*stats[user_step]["a"] == 10.0);
+    REQUIRE(*stats[user_step]["b"][0] == 10.0);
+    REQUIRE(*stats[user_step]["c"]["x"] == 1.0);
 
-    REQUIRE(*stats["user_accu"]["Test"]["x"] == 12.0);
-    REQUIRE(*stats["user_accu"]["Test"]["y"][0] == 2.0);
-    REQUIRE(*stats["user_accu"]["Test"]["y"][1] == 3.0);
-    REQUIRE(*stats["user_accu"]["Test"]["y"][2] == 4.0);
+    REQUIRE(*stats[user_accu]["Test"]["x"] == 12.0);
+    REQUIRE(*stats[user_accu]["Test"]["y"][0] == 2.0);
+    REQUIRE(*stats[user_accu]["Test"]["y"][1] == 3.0);
+    REQUIRE(*stats[user_accu]["Test"]["y"][2] == 4.0);
 }
 
 } // namespace Clingo::Test

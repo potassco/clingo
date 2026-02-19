@@ -58,6 +58,11 @@ typedef int clingo_stats_type_t;
 //! Handle for the solver stats.
 typedef struct clingo_statistic clingo_stats_t;
 
+//! Well-known key name intended to be used for user-specific step statistics.
+CLINGO_VISIBILITY_DEFAULT extern clingo_string_t const clingo_user_stats_step;
+//! Well-known key name intended to be used for user-specific accu statistics.
+CLINGO_VISIBILITY_DEFAULT extern clingo_string_t const clingo_user_stats_accu;
+
 //! Get the root key of the stats.
 //!
 //! @param[in] stats the target stats

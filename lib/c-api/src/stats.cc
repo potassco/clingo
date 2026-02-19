@@ -59,6 +59,11 @@ inline auto c_cast(Potassco::StatisticsType type) -> clingo_stats_type_e {
 } // namespace
 } // namespace CppClingo::CAPI
 
+clingo_string_t const clingo_user_stats_step = {.data = Clasp::ClaspFacade::user_step_stats.data(),
+                                                .size = Clasp::ClaspFacade::user_step_stats.size()};
+clingo_string_t const clingo_user_stats_accu = {.data = Clasp::ClaspFacade::user_accu_stats.data(),
+                                                .size = Clasp::ClaspFacade::user_accu_stats.size()};
+
 extern "C" auto clingo_stats_root(clingo_stats_t const *stats, uint64_t *key) -> bool {
     CLINGO_TRY {
         if (stats == nullptr || key == nullptr) {

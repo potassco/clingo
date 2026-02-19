@@ -80,5 +80,6 @@ class TestStats:
         assert mcb.symbols == res
 
         stats = ctl.stats
+        # TBD: Should we make these strings available in the Python-API?
         assert stats["user_step"] == {"a": 10.0, "b": [10.0], "c": {"x": 1.0}}
         assert stats["user_accu"] == {"Test": {"x": 12.0, "y": [2.0, 3.0, 4.0]}}
