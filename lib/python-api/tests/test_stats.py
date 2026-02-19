@@ -5,7 +5,14 @@ Unit tests for the clingo.stats module.
 import pytest
 from clingo.control import Control
 from clingo.core import Library
-from clingo.stats import Stats
+from clingo.stats import (
+    Stats,
+    StatsType,
+    StatsMap,
+    StatsMapView,
+    StatsArray,
+    StatsArrayView,
+)
 from util import MCB
 
 
@@ -54,8 +61,8 @@ class TestStats:
             assert hnd.get().satisfiable
         assert mcb.symbols == res
         stats = ctl.stats
-        assert isinstance(stats, dict)
-        cpu = stats["summary"]["times"]["cpu"]
+        cpu = stats["summary"]["times"]["cpu"].value
+        print(f"Choices: {stats["solving"]["solvers"]["choices"].value}")
         assert isinstance(cpu, float) and cpu >= 0.0
 
     def test_user(self):
@@ -69,17 +76,35 @@ class TestStats:
         mcb = MCB()
 
         def on_stats(step: Stats, accu: Stats):
+            assert step.type == StatsType.Map
+            assert isinstance(step.map, StatsMap)
             step.update({"a": 10.0})
             step.update({"b": [10.0]})
             step.update({"c": {"x": 1.0}})
             accu.update({"Test": {"x": 10.0, "y": [1.0, 2.0, 3.0]}})
             accu.update({"Test": {"x": lambda x: x + 2}})
             accu.update({"Test": {"y": lambda x: [y + 1 for y in x]}})
+            assert isinstance(accu["Test"]["y"].array, StatsArray)
 
         assert ctl.solve(on_model=mcb, on_stats=on_stats).satisfiable
         assert mcb.symbols == res
 
         stats = ctl.stats
+        assert stats.type == StatsType.Map
+        assert isinstance(stats.map, StatsMapView)
+        print(f"Times: {ctl.stats['summary']['times']}")
+        if (
+            "cpu" in ctl.stats["summary"]["times"]
+            and "cpu" in ctl.stats["summary"]["times"].map
+        ):
+            print("FOUND cpu")
+        for k in ctl.stats["summary"]["times"].map:
+            print(f"key: {k}")
+
+        print(f"str: {ctl.stats["user_accu"]["Test"]["y"]}")
+
+        for i in ctl.stats["user_accu"]["Test"]["y"].array:
+            print(f"item: {i}/{i.type}")
         # TBD: Should we make these strings available in the Python-API?
         assert stats["user_step"] == {"a": 10.0, "b": [10.0], "c": {"x": 1.0}}
         assert stats["user_accu"] == {"Test": {"x": 12.0, "y": [2.0, 3.0, 4.0]}}

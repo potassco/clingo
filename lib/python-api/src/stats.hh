@@ -15,51 +15,112 @@ enum class StatsType : uint8_t {
 };
 
 class Stats;
+class ConstStats;
 
-class StatsArray {
+class StatsArray;
+class ConstStatsArray {
   public:
-    StatsArray(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
+    ConstStatsArray(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
+    [[nodiscard]] auto get(size_t index) const -> ConstStats;
+    [[nodiscard]] auto len() const -> size_t;
+    explicit operator StatsArray() const;
+
+  private:
+    friend class StatsArray;
+    clingo_stats_t *stats_;
+    uint64_t key_;
+};
+
+class StatsArray : public ConstStatsArray {
+  public:
+    using ConstStatsArray::ConstStatsArray;
     void set(size_t index, py::handle value);
     auto get(size_t index) -> Stats;
     void append(py::handle value);
-    auto len() -> size_t;
+};
+
+class StatsMap;
+class ConstStatsMap {
+  public:
+    class KeyIter {
+      public:
+        KeyIter(clingo_stats_t *stats, uint64_t key, std::size_t len);
+        bool operator==(const KeyIter &) const = default;
+        friend bool operator==(const KeyIter &iter, std::default_sentinel_t) { return iter.pos_ == iter.end_; }
+        auto operator*() const -> std::string_view;
+        auto operator++() -> KeyIter & {
+            ++pos_;
+            return *this;
+        }
+        auto operator++(int) -> KeyIter {
+            KeyIter t(*this);
+            ++*this;
+            return t;
+        }
+
+      private:
+        clingo_stats_t *stats_;
+        uint64_t key_;
+        std::size_t pos_;
+        std::size_t end_;
+    };
+    ConstStatsMap(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
+    [[nodiscard]] auto get(std::string_view name) const -> ConstStats;
+    [[nodiscard]] auto len() const -> size_t;
+    [[nodiscard]] auto contains(std::string_view name) const -> bool;
+    [[nodiscard]] auto keys() const -> KeyIter;
+
+    explicit operator StatsMap() const;
 
   private:
+    friend class StatsMap;
     clingo_stats_t *stats_;
     uint64_t key_;
 };
 
-class StatsMap {
+class StatsMap : public ConstStatsMap {
   public:
-    StatsMap(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
+    using ConstStatsMap::ConstStatsMap;
     auto get(std::string_view name) -> Stats;
     void set(std::string_view name, py::handle value);
-    auto len() -> size_t;
-    auto contains(std::string_view name) -> bool;
+};
+
+class ConstStats {
+  public:
+    ConstStats(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
+
+    [[nodiscard]] auto type() const -> StatsType;
+    [[nodiscard]] auto array() const -> ConstStatsArray;
+    [[nodiscard]] auto map() const -> ConstStatsMap;
+    [[nodiscard]] auto get_value() const -> double;
+    [[nodiscard]] auto str() const -> std::string_view;
+    [[nodiscard]] auto c_ptr() const -> clingo_stats_t * { return stats_; }
+    [[nodiscard]] auto key() const -> uint64_t { return key_; }
+    [[nodiscard]] auto nestify() const -> py::object;
+
+    [[nodiscard]] auto get(std::size_t key) const -> ConstStats;
+    [[nodiscard]] auto at(std::string_view key) const -> ConstStats;
+    [[nodiscard]] auto len() const -> size_t;
+    [[nodiscard]] auto contains(std::string_view key) const -> bool;
+
+    explicit operator Stats() const;
+    [[nodiscard]] bool operator==(const ConstStats &) const = default;
+    [[nodiscard]] bool operator!=(const ConstStats &) const = default;
 
   private:
     clingo_stats_t *stats_;
     uint64_t key_;
 };
-
-class Stats {
+class Stats : public ConstStats {
   public:
-    Stats(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
-
-    auto type() -> StatsType;
-    auto array() -> StatsArray;
-    auto map() -> StatsMap;
-    auto get_value() -> double;
+    using ConstStats::ConstStats;
+    auto array() const -> StatsArray;
+    auto map() const -> StatsMap;
+    auto get(std::size_t key) -> Stats;
+    auto at(std::string_view key) -> Stats;
     void set_value(double value);
-    auto nestify() -> py::object;
     void update(py::handle value) { update_(value, false); }
     void update_(py::handle value, bool init);
-    auto str() -> std::string_view;
-    auto c_ptr() -> clingo_stats_t * { return stats_; }
-
-  private:
-    clingo_stats_t *stats_;
-    uint64_t key_;
 };
 
 void register_stats(pybind11::module &m);

@@ -213,13 +213,13 @@ auto Control::config() -> Config {
     return Config{*this, config, key};
 }
 
-auto Control::stats() -> py::dict {
+auto Control::stats() -> ConstStats {
     clingo_stats_t const *stats = nullptr;
     handle_error(clingo_control_stats(get(), &stats));
     uint64_t key = 0;
     handle_error(clingo_stats_root(stats, &key));
     // NOLINTNEXTLINE
-    return Stats{const_cast<clingo_stats_t *>(stats), key}.nestify();
+    return ConstStats{const_cast<clingo_stats_t *>(stats), key};
 }
 
 auto Control::profile() -> py::list {

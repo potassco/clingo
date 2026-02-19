@@ -86,7 +86,7 @@ class ConstStats {
 
     //! Get a string representation of the statistics entry.
     //!
-    //! The represention is YAML-like and can be used for debugging purposes.
+    //! The representation is YAML-like and can be used for debugging purposes.
     //!
     //! @return a string representation of the statistics entry
     [[nodiscard]] auto to_string() const -> std::string {
