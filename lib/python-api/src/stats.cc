@@ -7,7 +7,7 @@ namespace PyClingo {
 
 namespace {
 
-auto get_type(py::handle value, std::optional<Stats> old_value) -> std::pair<StatsType, py::object> {
+auto get_type(py::handle value, std::optional<ConstStats> old_value) -> std::pair<StatsType, py::object> {
     py::object new_value = py::none{};
     if (PyCallable_Check(value.ptr()) == 1) {
         new_value = value(old_value ? old_value->nestify() : py::none{});
@@ -83,12 +83,19 @@ auto ConstStatsMap::contains(std::string_view name) const -> bool {
     return res;
 }
 auto ConstStatsMap::get(std::string_view name) const -> ConstStats {
-    if (contains(name)) {
-        uint64_t subkey = 0;
-        handle_error(clingo_stats_map_at(stats_, key_, name.data(), name.size(), &subkey));
-        return {stats_, subkey};
+    if (auto stats = try_get(name); stats) {
+        return *stats;
     }
     throw py::index_error{"invalid key"};
+}
+auto ConstStatsMap::try_get(std::string_view name) const -> std::optional<ConstStats> {
+    uint64_t subkey = 0;
+    handle_error(clingo_stats_map_try_at(stats_, key_, name.data(), name.size(), key_, &subkey));
+    std::optional<ConstStats> res;
+    if (subkey != key_) {
+        res.emplace(stats_, subkey);
+    }
+    return res;
 }
 auto ConstStatsMap::keys() const -> KeyIter {
     return {stats_, key_, len()};
@@ -102,7 +109,7 @@ auto StatsMap::get(std::string_view name) -> Stats {
 }
 
 void StatsMap::set(std::string_view name, py::handle value) {
-    auto old = contains(name) ? std::optional{get(name)} : std::nullopt;
+    auto old = try_get(name);
     auto [subtype, subval] = get_type(value, old);
     uint64_t subkey = 0;
     handle_error(clingo_stats_map_add_subkey(stats_, key_, name.data(), name.size(),

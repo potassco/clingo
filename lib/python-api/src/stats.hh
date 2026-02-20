@@ -73,6 +73,7 @@ class ConstStatsMap {
     explicit operator StatsMap() const;
 
   private:
+    auto try_get(std::string_view name) const -> std::optional<ConstStats>;
     friend class StatsMap;
     clingo_stats_t *stats_;
     uint64_t key_;

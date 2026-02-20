@@ -166,6 +166,20 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_subkey_name(clingo_stats_t const
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_at(clingo_stats_t const *stats, uint64_t key, char const *name,
                                                    size_t size, uint64_t *subkey);
+
+//! Try to get the subkey under the given name or return the given default key if it does not exist.
+//!
+//! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_map.
+//! @param[in] stats the target stats
+//! @param[in] key the key
+//! @param[in] name the name to look up the subkey
+//! @param[in] size the size of the name
+//! @param[in] defkey the key to return if name is not found
+//! @param[out] subkey the resulting subkey
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_try_at(clingo_stats_t const *stats, uint64_t key, char const *name,
+                                                       size_t size, uint64_t defkey, uint64_t *subkey);
+
 //! Add a subkey with the given name.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_map.

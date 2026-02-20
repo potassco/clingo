@@ -161,6 +161,19 @@ extern "C" auto clingo_stats_map_at(clingo_stats_t const *stats, uint64_t key, c
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_stats_map_try_at(clingo_stats_t const *stats, uint64_t key, char const *name, size_t size,
+                                        uint64_t defkey, uint64_t *subkey) -> bool {
+    CLINGO_TRY {
+        if (stats == nullptr || (name == nullptr && size > 0) || subkey == nullptr) {
+            return fail_arguments();
+        }
+        if (!cpp_cast(stats)->find(key, std::string_view{name, size}, subkey)) {
+            *subkey = defkey;
+        }
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" auto clingo_stats_map_add_subkey(clingo_stats_t *stats, uint64_t key, char const *name, size_t size,
                                             clingo_stats_type_t type, uint64_t *subkey) -> bool {
     CLINGO_TRY {
