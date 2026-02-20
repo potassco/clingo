@@ -16,13 +16,14 @@ enum class StatsType : uint8_t {
 
 class Stats;
 class ConstStats;
-
 class StatsArray;
+
 class ConstStatsArray {
   public:
     ConstStatsArray(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
     [[nodiscard]] auto get(size_t index) const -> ConstStats;
     [[nodiscard]] auto len() const -> size_t;
+    [[nodiscard]] auto items() const -> py::iterator;
     explicit operator StatsArray() const;
 
   private:
@@ -42,38 +43,18 @@ class StatsArray : public ConstStatsArray {
 class StatsMap;
 class ConstStatsMap {
   public:
-    class KeyIter {
-      public:
-        KeyIter(clingo_stats_t *stats, uint64_t key, std::size_t len);
-        bool operator==(const KeyIter &) const = default;
-        friend bool operator==(const KeyIter &iter, std::default_sentinel_t) { return iter.pos_ == iter.end_; }
-        auto operator*() const -> std::string_view;
-        auto operator++() -> KeyIter & {
-            ++pos_;
-            return *this;
-        }
-        auto operator++(int) -> KeyIter {
-            KeyIter t(*this);
-            ++*this;
-            return t;
-        }
-
-      private:
-        clingo_stats_t *stats_;
-        uint64_t key_;
-        std::size_t pos_;
-        std::size_t end_;
-    };
     ConstStatsMap(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
     [[nodiscard]] auto get(std::string_view name) const -> ConstStats;
     [[nodiscard]] auto len() const -> size_t;
     [[nodiscard]] auto contains(std::string_view name) const -> bool;
-    [[nodiscard]] auto keys() const -> KeyIter;
+    [[nodiscard]] auto keys() const -> py::iterator;
+    [[nodiscard]] auto values() const -> py::iterator;
+    [[nodiscard]] auto items() const -> py::iterator;
 
     explicit operator StatsMap() const;
 
   private:
-    auto try_get(std::string_view name) const -> std::optional<ConstStats>;
+    [[nodiscard]] auto try_get(std::string_view name) const -> std::optional<ConstStats>;
     friend class StatsMap;
     clingo_stats_t *stats_;
     uint64_t key_;
@@ -98,6 +79,7 @@ class ConstStats {
     [[nodiscard]] auto c_ptr() const -> clingo_stats_t * { return stats_; }
     [[nodiscard]] auto key() const -> uint64_t { return key_; }
     [[nodiscard]] auto nestify() const -> py::object;
+    [[nodiscard]] auto iter() const -> py::iterator;
 
     [[nodiscard]] auto get(std::size_t key) const -> ConstStats;
     [[nodiscard]] auto at(std::string_view key) const -> ConstStats;
@@ -105,8 +87,8 @@ class ConstStats {
     [[nodiscard]] auto contains(std::string_view key) const -> bool;
 
     explicit operator Stats() const;
-    [[nodiscard]] bool operator==(const ConstStats &) const = default;
-    [[nodiscard]] bool operator!=(const ConstStats &) const = default;
+    [[nodiscard]] auto operator==(const ConstStats &) const -> bool = default;
+    [[nodiscard]] auto operator!=(const ConstStats &) const -> bool = default;
 
   private:
     clingo_stats_t *stats_;
@@ -115,8 +97,8 @@ class ConstStats {
 class Stats : public ConstStats {
   public:
     using ConstStats::ConstStats;
-    auto array() const -> StatsArray;
-    auto map() const -> StatsMap;
+    auto array() -> StatsArray;
+    auto map() -> StatsMap;
     auto get(std::size_t key) -> Stats;
     auto at(std::string_view key) -> Stats;
     void set_value(double value);

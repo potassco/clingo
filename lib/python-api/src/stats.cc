@@ -6,7 +6,58 @@
 namespace PyClingo {
 
 namespace {
+class StatsIterBase {
+  public:
+    StatsIterBase(clingo_stats_t *stats, uint64_t key, std::size_t len) : stats_(stats), key_(key), end_(len) {}
+    auto operator==(const StatsIterBase &) const -> bool = default;
+    friend auto operator==(const StatsIterBase &iter, [[maybe_unused]] std::default_sentinel_t s) -> bool {
+        return iter.pos_ == iter.end_;
+    }
+    void next() { ++pos_; }
+    [[nodiscard]] auto map_key() const -> std::string_view {
+        clingo_string_t name;
+        handle_error(clingo_stats_map_subkey_name(stats_, key_, pos_, &name));
+        return {name.data, name.size};
+    }
+    [[nodiscard]] auto map_value() const -> ConstStats { return map_item().second; }
+    [[nodiscard]] auto map_item() const -> std::pair<std::string_view, ConstStats> {
+        auto name = this->map_key();
+        auto value = ConstStatsMap{stats_, key_}.get(name);
+        return {name, value};
+    }
+    [[nodiscard]] auto array_item() const -> ConstStats { return ConstStatsArray{stats_, key_}.get(pos_); }
 
+  private:
+    clingo_stats_t *stats_;
+    uint64_t key_;
+    std::size_t pos_{0};
+    std::size_t end_;
+};
+template <auto Pmf>
+    requires(std::is_invocable_v<decltype(Pmf), StatsIterBase const &>)
+class StatsIter : public StatsIterBase {
+  public:
+    using StatsIterBase::operator==;
+    using StatsIterBase::StatsIterBase;
+    auto operator*() const -> std::invoke_result_t<decltype(Pmf), StatsIterBase const &> {
+        return (static_cast<StatsIterBase const &>(*this).*Pmf)();
+    }
+    auto operator->() const -> std::invoke_result_t<decltype(Pmf), StatsIterBase const &> {
+        return (static_cast<StatsIterBase const &>(*this).*Pmf)();
+    }
+    auto operator++() -> StatsIter & {
+        this->next();
+        return *this;
+    }
+    auto operator++(int) -> StatsIter {
+        StatsIter t(*this);
+        this->next();
+        return t;
+    }
+};
+template <auto Fun> auto make_py_iter(clingo_stats_t *stats, uint64_t key, std::size_t len) {
+    return py::make_iterator(StatsIter<Fun>(stats, key, len), std::default_sentinel);
+}
 auto get_type(py::handle value, std::optional<ConstStats> old_value) -> std::pair<StatsType, py::object> {
     py::object new_value = py::none{};
     if (PyCallable_Check(value.ptr()) == 1) {
@@ -30,7 +81,6 @@ auto get_type(py::handle value, std::optional<ConstStats> old_value) -> std::pai
 }
 
 } // namespace
-
 auto ConstStatsArray::len() const -> size_t {
     size_t size = 0;
     handle_error(clingo_stats_array_size(stats_, key_, &size));
@@ -43,6 +93,9 @@ auto ConstStatsArray::get(size_t index) const -> ConstStats {
         return {stats_, subkey};
     }
     throw py::index_error{"array index out of bounds"};
+}
+auto ConstStatsArray::items() const -> py::iterator {
+    return make_py_iter<&StatsIterBase::array_item>(stats_, key_, len());
 }
 ConstStatsArray::operator StatsArray() const {
     return StatsArray{stats_, key_};
@@ -61,15 +114,6 @@ void StatsArray::append(py::handle value) {
     auto [subtype, subval] = get_type(value, std::nullopt);
     handle_error(clingo_stats_array_push(stats_, key_, static_cast<clingo_stats_type_t>(subtype), &subkey));
     Stats{stats_, subkey}.update_(std::move(subval), true);
-}
-
-ConstStatsMap::KeyIter::KeyIter(clingo_stats_t *stats, uint64_t key, std::size_t len)
-    : stats_(stats), key_(key), pos_(0), end_(len) {
-}
-auto ConstStatsMap::KeyIter::operator*() const -> std::string_view {
-    clingo_string_t name;
-    handle_error(clingo_stats_map_subkey_name(stats_, key_, pos_, &name));
-    return {name.data, name.size};
 }
 
 auto ConstStatsMap::len() const -> size_t {
@@ -97,8 +141,14 @@ auto ConstStatsMap::try_get(std::string_view name) const -> std::optional<ConstS
     }
     return res;
 }
-auto ConstStatsMap::keys() const -> KeyIter {
-    return {stats_, key_, len()};
+auto ConstStatsMap::keys() const -> py::iterator {
+    return make_py_iter<&StatsIterBase::map_key>(stats_, key_, len());
+}
+auto ConstStatsMap::values() const -> py::iterator {
+    return make_py_iter<&StatsIterBase::map_value>(stats_, key_, len());
+}
+auto ConstStatsMap::items() const -> py::iterator {
+    return make_py_iter<&StatsIterBase::map_item>(stats_, key_, len());
 }
 ConstStatsMap::operator StatsMap() const {
     return StatsMap{stats_, key_};
@@ -186,14 +236,26 @@ auto ConstStats::nestify() const -> py::object {
             return res;
         }
         case StatsType::map: {
-            auto x = ConstStatsMap{stats_, key_};
+            auto map = ConstStatsMap{stats_, key_};
             auto res = py::dict{};
-            for (auto k = x.keys(); k != std::default_sentinel; ++k) {
-                auto name = *k;
-                res[py::str{name}] = x.get(name).nestify();
+            for (auto it = StatsIter<&StatsIterBase::map_item>{stats_, key_, map.len()}; it != std::default_sentinel;
+                 ++it) {
+                auto [name, object] = *it;
+                res[py::str{name}] = object.nestify();
             }
             return res;
         }
+    }
+    unreachable();
+}
+auto ConstStats::iter() const -> py::iterator {
+    switch (type()) {
+        case StatsType::map:
+            return map().keys();
+        case StatsType::array:
+            return array().items();
+        case StatsType::value:
+            throw py::type_error{"'StatsType::value' is not iterable"};
     }
     unreachable();
 }
@@ -241,10 +303,10 @@ void Stats::update_(py::handle value, bool init) {
         }
     }
 }
-auto Stats::array() const -> StatsArray {
+auto Stats::array() -> StatsArray {
     return static_cast<StatsArray>(ConstStats::array());
 }
-auto Stats::map() const -> StatsMap {
+auto Stats::map() -> StatsMap {
     return static_cast<StatsMap>(ConstStats::map());
 }
 auto Stats::get(std::size_t key) -> Stats {
@@ -308,6 +370,7 @@ option only basic stats are reported.
             .def("__len__", &ConstStats::len, "Get the length of this element.")
             .def("__contains__", &ConstStats::contains,
                  "Checks whether the given key is in the element, which must be a map.")
+            .def("__iter__", &ConstStats::iter, "Get an iterator over the keys of the map.")
             .def("__float__", &ConstStats::get_value, "Get the value of the element.")
             .def("__eq__",
                  [](const ConstStats &lhs, const py::object &rhs) {
@@ -332,6 +395,7 @@ Class representing a read-only array of stats.
 This class partially implements the mutable sequence protocol.
 )"_d)
         .def("__len__", &ConstStatsArray::len, "Get the length of the array.")
+        .def("__iter__", &ConstStatsArray::items, "Get an iterator over the elements of the array.")
         .def("__getitem__", &ConstStatsArray::get, "Get the element at the given index.");
 
     py::class_<StatsArray, ConstStatsArray>(module, "StatsArray", R"(
@@ -359,9 +423,10 @@ Class representing a read-only map of stats.
 This class partially implements the mutable mapping protocol.
 )"_d)
         .def("__len__", &ConstStatsMap::len, "Get the length of the map.")
-        .def(
-            "__iter__", [](const ConstStatsMap &map) { return py::make_iterator(map.keys(), std::default_sentinel); },
-            "Get an iterator over the keys of the map.")
+        .def("__iter__", &ConstStatsMap::keys, "Get an iterator over the keys of the map.")
+        .def("keys", &ConstStatsMap::keys, "Get an iterator over the keys of the map.")
+        .def("values", &ConstStatsMap::values, "Get an iterator over the values of the map.")
+        .def("items", &ConstStatsMap::items, "Get an iterator over the items of the map.")
         .def("__getitem__", &ConstStatsMap::get, py::arg("key"), "Lookup the value with the given key.");
 
     py::class_<StatsMap, ConstStatsMap>(module, "StatsMap", R"(

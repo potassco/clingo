@@ -101,10 +101,16 @@ class TestStats:
         for k in ctl.stats["summary"]["times"].map:
             print(f"key: {k}")
 
+        for v in ctl.stats["summary"]["times"].map.values():
+            print(f"val: {v}")
+        for k, v in ctl.stats["summary"]["times"].map.items():
+            print(f"{k}:{v}")
+
         print(f"str: {ctl.stats["user_accu"]["Test"]["y"]}")
 
-        for i in ctl.stats["user_accu"]["Test"]["y"].array:
+        for i in ctl.stats["user_accu"]["Test"]["y"]:
             print(f"item: {i}/{i.type}")
+
         # TBD: Should we make these strings available in the Python-API?
         assert stats["user_step"] == {"a": 10.0, "b": [10.0], "c": {"x": 1.0}}
         assert stats["user_accu"] == {"Test": {"x": 12.0, "y": [2.0, 3.0, 4.0]}}
