@@ -1,6 +1,7 @@
 import argparse
 import configparser
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -11,8 +12,8 @@ EXAMPLE_CONFIG = """
 file_path = bug.lp
 
 [patterns]
-pat1 = UNSATISFIABLE
-pat2 = 1+
+pat1 = Models       : 1\b
+pat2 = Models       : [0,2-9][0-9]*|1[0-9]+\b
 
 [commands]
 cmd1 = clingo-5.8 --quiet
@@ -60,7 +61,7 @@ def process_file(filename, cmd1, cmd2, pat1, pat2, block_size=1):
             out1 = run_command(cmd1, tmp_name)
             out2 = run_command(cmd2, tmp_name)
 
-            if pat1 in out1 and pat2 in out2:
+            if re.search(pat1, out1) and re.search(pat2, out2):
                 print(f"Removing block starting at line {i + 1}")
                 current_lines = test_lines
                 total_lines -= block_size
