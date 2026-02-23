@@ -81,11 +81,13 @@ auto get_type(py::handle value, std::optional<ConstStats> old_value) -> std::pai
 }
 
 } // namespace
+
 auto ConstStatsArray::len() const -> size_t {
     size_t size = 0;
     handle_error(clingo_stats_array_size(stats_, key_, &size));
     return size;
 }
+
 auto ConstStatsArray::get(size_t index) const -> ConstStats {
     if (index < len()) {
         uint64_t subkey = 0;
@@ -94,9 +96,11 @@ auto ConstStatsArray::get(size_t index) const -> ConstStats {
     }
     throw py::index_error{"array index out of bounds"};
 }
+
 auto ConstStatsArray::items() const -> py::iterator {
     return make_py_iter<&StatsIterBase::array_item>(stats_, key_, len());
 }
+
 ConstStatsArray::operator StatsArray() const {
     return StatsArray{stats_, key_};
 }
@@ -121,17 +125,20 @@ auto ConstStatsMap::len() const -> size_t {
     handle_error(clingo_stats_map_size(stats_, key_, &size));
     return size;
 }
+
 auto ConstStatsMap::contains(std::string_view name) const -> bool {
     auto res = false;
     handle_error(clingo_stats_map_has_subkey(stats_, key_, name.data(), name.size(), &res));
     return res;
 }
+
 auto ConstStatsMap::get(std::string_view name) const -> ConstStats {
     if (auto stats = try_get(name); stats) {
         return *stats;
     }
     throw py::index_error{"invalid key"};
 }
+
 auto ConstStatsMap::try_get(std::string_view name) const -> std::optional<ConstStats> {
     uint64_t subkey = 0;
     handle_error(clingo_stats_map_try_at(stats_, key_, name.data(), name.size(), key_, &subkey));
@@ -141,15 +148,19 @@ auto ConstStatsMap::try_get(std::string_view name) const -> std::optional<ConstS
     }
     return res;
 }
+
 auto ConstStatsMap::keys() const -> py::iterator {
     return make_py_iter<&StatsIterBase::map_key>(stats_, key_, len());
 }
+
 auto ConstStatsMap::values() const -> py::iterator {
     return make_py_iter<&StatsIterBase::map_value>(stats_, key_, len());
 }
+
 auto ConstStatsMap::items() const -> py::iterator {
     return make_py_iter<&StatsIterBase::map_item>(stats_, key_, len());
 }
+
 ConstStatsMap::operator StatsMap() const {
     return StatsMap{stats_, key_};
 }
@@ -172,18 +183,21 @@ auto ConstStats::type() const -> StatsType {
     handle_error(clingo_stats_type(stats_, key_, &type));
     return static_cast<StatsType>(type);
 }
+
 auto ConstStats::array() const -> ConstStatsArray {
     if (type() == StatsType::array) {
         return {stats_, key_};
     }
     throw py::type_error{"not an array"};
 }
+
 auto ConstStats::map() const -> ConstStatsMap {
     if (type() == StatsType::map) {
         return {stats_, key_};
     }
     throw py::type_error{"not a map"};
 }
+
 auto ConstStats::get_value() const -> double {
     if (type() == StatsType::value) {
         double value = 0;
@@ -192,6 +206,7 @@ auto ConstStats::get_value() const -> double {
     }
     throw py::type_error{"not a value"};
 }
+
 auto ConstStats::str() const -> std::string_view {
     auto *bld = string_builder();
     handle_error(clingo_stats_to_string(stats_, key_, bld));
@@ -199,12 +214,15 @@ auto ConstStats::str() const -> std::string_view {
     handle_error(clingo_string_builder_string(bld, &res));
     return {res.data, res.size};
 }
+
 auto ConstStats::get(std::size_t key) const -> ConstStats {
     return array().get(key);
 }
+
 auto ConstStats::at(std::string_view key) const -> ConstStats {
     return map().get(key);
 }
+
 auto ConstStats::len() const -> size_t {
     switch (type()) {
         case StatsType::array:
@@ -215,12 +233,15 @@ auto ConstStats::len() const -> size_t {
             return 0;
     }
 }
+
 auto ConstStats::contains(std::string_view key) const -> bool {
     return map().contains(key);
 }
+
 ConstStats::operator Stats() const {
     return Stats{stats_, key_};
 }
+
 auto ConstStats::nestify() const -> py::object {
     switch (type()) {
         case StatsType::value: {
@@ -248,6 +269,7 @@ auto ConstStats::nestify() const -> py::object {
     }
     unreachable();
 }
+
 auto ConstStats::iter() const -> py::iterator {
     switch (type()) {
         case StatsType::map:
@@ -303,15 +325,19 @@ void Stats::update_(py::handle value, bool init) {
         }
     }
 }
+
 auto Stats::array() -> StatsArray {
     return static_cast<StatsArray>(ConstStats::array());
 }
+
 auto Stats::map() -> StatsMap {
     return static_cast<StatsMap>(ConstStats::map());
 }
+
 auto Stats::get(std::size_t key) -> Stats {
     return static_cast<Stats>(ConstStats::get(key));
 }
+
 auto Stats::at(std::string_view key) -> Stats {
     return static_cast<Stats>(ConstStats::at(key));
 }
@@ -356,49 +382,20 @@ Note that the control object is created passing options `--stats`; without this
 option only basic stats are reported.
 )"_d);
 
-    py::native_enum<StatsType>(module, "StatsType", "enum.IntEnum", "The type of a stats object.")
+    py::native_enum<StatsType>{module, "StatsType", "enum.IntEnum", "The type of a stats object."}
         .value("Map", StatsType::map, R"(Indicate a map of stats.)")
         .value("Array", StatsType::array, R"(Indicate an array of stats.)")
         .value("Value", StatsType::value, R"(Indicate a value of stats.)")
         .finalize();
 
-    auto stats_view =
-        py::class_<ConstStats>(module, "StatsView", R"(Class representing read-only solver stats.)")
-            .def("__str__", &ConstStats::str, R"(A readable representation to inspect the statistics.)")
-            .def("__getitem__", &ConstStats::get, "Get the element at the given index.")
-            .def("__getitem__", &ConstStats::at, py::arg("key"), "Lookup the value with the given key.")
-            .def("__len__", &ConstStats::len, "Get the length of this element.")
-            .def("__contains__", &ConstStats::contains,
-                 "Checks whether the given key is in the element, which must be a map.")
-            .def("__iter__", &ConstStats::iter, "Get an iterator over the keys of the map.")
-            .def("__float__", &ConstStats::get_value, "Get the value of the element.")
-            .def("__eq__",
-                 [](const ConstStats &lhs, const py::object &rhs) {
-                     if (!py::isinstance<ConstStats>(rhs)) {
-                         return lhs.nestify().equal(rhs);
-                     }
-                     return lhs == rhs.cast<ConstStats>();
-                 })
-            .def("nestify", &ConstStats::nestify, R"(
-Convert the statistics object into a nested structure consisting of sequencens,
-mappings with string keys, and floats.
-)"_d)
-            .def_property_readonly("type", &ConstStats::type, R"(Get the type of the stats object.)")
-            .def_property_readonly("array", &ConstStats::array, R"(Get an array of stats objects.)")
-            .def_property_readonly("map", &ConstStats::map, R"(Get a map of stats objects.)")
-            .def_property_readonly("value", &ConstStats::get_value, R"(Get the value of the stats object.)");
-    auto stats = py::class_<Stats, ConstStats>(module, "Stats", R"(Class representing solver stats.)");
-
-    py::class_<ConstStatsArray>(module, "StatsArrayView", R"(
+    auto stats_view = py::class_<ConstStats>{module, "StatsView", R"(Class representing read-only solver stats.)"};
+    auto stats = py::class_<Stats, ConstStats>{module, "Stats", R"(Class representing solver stats.)"};
+    auto stats_array_view = py::class_<ConstStatsArray>{module, "StatsArrayView", R"(
 Class representing a read-only array of stats.
 
 This class partially implements the mutable sequence protocol.
-)"_d)
-        .def("__len__", &ConstStatsArray::len, "Get the length of the array.")
-        .def("__iter__", &ConstStatsArray::items, "Get an iterator over the elements of the array.")
-        .def("__getitem__", &ConstStatsArray::get, "Get the element at the given index.");
-
-    py::class_<StatsArray, ConstStatsArray>(module, "StatsArray", R"(
+)"_d};
+    auto stats_array = py::class_<StatsArray, ConstStatsArray>{module, "StatsArray", R"(
 Class representing an array of stats.
 
 This class partially implements the mutable sequence protocol - elements of
@@ -407,7 +404,54 @@ implemented via `Stats.update`.
 
 Most use cases should be implementable just using the update function of the
 top-level statistics object.
+)"_d};
+    auto stats_map_view = py::class_<ConstStatsMap>{module, "StatsMapView", R"(
+Class representing a read-only map of stats.
+
+This class partially implements the mutable mapping protocol.
+)"_d};
+    auto stats_map = py::class_<StatsMap, ConstStatsMap>{module, "StatsMap", R"(
+Class representing a map of stats.
+
+This class partially implements the mutable mapping protocol - value of keys
+can be modified but they cannot be deleted. Modifications are implemented via
+`Stats.update`.
+
+Most use cases should be implementable just using the update function of the
+top-level statistics object.
+)"_d};
+
+    stats_view //
+        .def("__str__", &ConstStats::str, R"(A readable representation to inspect the statistics.)")
+        .def("__getitem__", &ConstStats::get, "Get the element at the given index.")
+        .def("__getitem__", &ConstStats::at, py::arg("key"), "Lookup the value with the given key.")
+        .def("__len__", &ConstStats::len, "Get the length of this element.")
+        .def("__contains__", &ConstStats::contains,
+             "Checks whether the given key is in the element, which must be a map.")
+        .def("__iter__", &ConstStats::iter, "Get an iterator over the keys of the map.")
+        .def("__float__", &ConstStats::get_value, "Get the value of the element.")
+        .def("__eq__",
+             [](const ConstStats &lhs, const py::object &rhs) {
+                 if (!py::isinstance<ConstStats>(rhs)) {
+                     return lhs.nestify().equal(rhs);
+                 }
+                 return lhs == rhs.cast<ConstStats>();
+             })
+        .def("nestify", &ConstStats::nestify, R"(
+Convert the statistics object into a nested structure consisting of sequencens,
+mappings with string keys, and floats.
 )"_d)
+        .def_property_readonly("type", &ConstStats::type, R"(Get the type of the stats object.)")
+        .def_property_readonly("array", &ConstStats::array, R"(Get an array of stats objects.)")
+        .def_property_readonly("map", &ConstStats::map, R"(Get a map of stats objects.)")
+        .def_property_readonly("value", &ConstStats::get_value, R"(Get the value of the stats object.)");
+
+    stats_array_view //
+        .def("__len__", &ConstStatsArray::len, "Get the length of the array.")
+        .def("__iter__", &ConstStatsArray::items, "Get an iterator over the elements of the array.")
+        .def("__getitem__", &ConstStatsArray::get, "Get the element at the given index.");
+
+    stats_array //
         .def("__setitem__", &StatsArray::set, "Set the element at the given index to the given value.")
         .def("__getitem__", &StatsArray::get, "Get the element at the given index.")
         .def("append", &StatsArray::append, py::arg("value"), R"(
@@ -417,11 +461,7 @@ Args:
 	value: The value to append.
 )"_d);
 
-    py::class_<ConstStatsMap>(module, "StatsMapView", R"(
-Class representing a read-only map of stats.
-
-This class partially implements the mutable mapping protocol.
-)"_d)
+    stats_map_view //
         .def("__len__", &ConstStatsMap::len, "Get the length of the map.")
         .def("__iter__", &ConstStatsMap::keys, "Get an iterator over the keys of the map.")
         .def("keys", &ConstStatsMap::keys, "Get an iterator over the keys of the map.")
@@ -429,20 +469,11 @@ This class partially implements the mutable mapping protocol.
         .def("items", &ConstStatsMap::items, "Get an iterator over the items of the map.")
         .def("__getitem__", &ConstStatsMap::get, py::arg("key"), "Lookup the value with the given key.");
 
-    py::class_<StatsMap, ConstStatsMap>(module, "StatsMap", R"(
-Class representing a map of stats.
-
-This class partially implements the mutable mapping protocol - value of keys
-can be modified but they cannot be deleted. Modifications are implemented via
-`Stats.update`.
-
-Most use cases should be implementable just using the update function of the
-top-level statistics object.
-)"_d)
+    stats_map //
         .def("__setitem__", &StatsMap::set, py::arg("key"), py::arg("value"), "Set the value at the given key.")
         .def("__getitem__", &StatsMap::get, py::arg("key"), "Lookup the value with the given key.");
 
-    stats
+    stats //
         .def("update", &Stats::update, py::arg("values"), R"(
 Update the statistics with the given values.
 
