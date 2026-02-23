@@ -65,7 +65,7 @@ struct TestTheory {
             uint64_t root = 0;
             Detail::handle_error(clingo_stats_root(stats, &root));
             auto st = Stats{stats, root};
-            auto step = st.map().insert(theory_stats_root(), StatsType::map).map();
+            auto step = st.map().insert(Clingo::stats_step_root(), StatsType::map).map();
             step.insert("test_key", StatsType::value).value(3.14);
         }
         CLINGO_CATCH;
@@ -143,9 +143,6 @@ struct TestTheory {
         }
         CLINGO_CATCH;
     }
-    static auto theory_stats_root() -> std::string_view {
-        return std::string_view{clingo_user_stats_step.data, clingo_user_stats_step.size};
-    }
 };
 
 struct Fixture : SolveEventHandler {
@@ -201,7 +198,7 @@ TEST_CASE_METHOD(Fixture, "theory", "[cxx][theory]") {
     REQUIRE(dta->prepared);
     REQUIRE(ctl.solve({}, std::ref(*this)).satisfiable());
     REQUIRE(dta->models == 1);
-    REQUIRE(ctl.stats()[TestTheory::theory_stats_root()]["test_key"].value() == 3.14);
+    REQUIRE(ctl.stats()[Clingo::stats_step_root()]["test_key"].value() == 3.14);
 }
 
 } // namespace Clingo::Test

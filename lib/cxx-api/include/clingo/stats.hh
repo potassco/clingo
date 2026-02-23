@@ -470,6 +470,16 @@ inline auto Stats::get(std::string_view name) const -> Stats {
     return map().get(name);
 }
 
+//! Get the root statistics entry for user step stats.
+inline auto stats_step_root() -> std::string_view {
+    return {clingo_user_stats_step.data, clingo_user_stats_step.size};
+}
+
+//! Get the root statistics entry for user accumulated stats.
+inline auto stats_accu_root() -> std::string_view {
+    return {clingo_user_stats_accu.data, clingo_user_stats_accu.size};
+}
+
 //! @}
 
 } // namespace Clingo
