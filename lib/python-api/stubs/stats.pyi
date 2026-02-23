@@ -73,7 +73,6 @@ class StatsView:
     Class representing read-only solver stats.
     """
 
-    __hash__: typing.ClassVar[None] = None
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, arg0: str) -> bool:

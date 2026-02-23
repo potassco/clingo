@@ -97,7 +97,7 @@ auto ConstStatsArray::get(size_t index) const -> ConstStats {
     throw py::index_error{"array index out of bounds"};
 }
 
-auto ConstStatsArray::items() const -> py::iterator {
+auto ConstStatsArray::items() const -> TypeHint<"Iterator[StatsView]"> {
     return make_py_iter<&StatsIterBase::array_item>(stats_, key_, len());
 }
 
@@ -149,15 +149,15 @@ auto ConstStatsMap::try_get(std::string_view name) const -> std::optional<ConstS
     return res;
 }
 
-auto ConstStatsMap::keys() const -> py::iterator {
+auto ConstStatsMap::keys() const -> TypeHint<"Iterator[str]"> {
     return make_py_iter<&StatsIterBase::map_key>(stats_, key_, len());
 }
 
-auto ConstStatsMap::values() const -> py::iterator {
+auto ConstStatsMap::values() const -> TypeHint<"Iterator[StatsView]"> {
     return make_py_iter<&StatsIterBase::map_value>(stats_, key_, len());
 }
 
-auto ConstStatsMap::items() const -> py::iterator {
+auto ConstStatsMap::items() const -> TypeHint<"Iterator[tuple[str,StatsView]]"> {
     return make_py_iter<&StatsIterBase::map_item>(stats_, key_, len());
 }
 
@@ -270,7 +270,7 @@ auto ConstStats::nestify() const -> py::object {
     unreachable();
 }
 
-auto ConstStats::iter() const -> py::iterator {
+auto ConstStats::iter() const -> TypeHint<"Iterator[str|StatsView]"> {
     switch (type()) {
         case StatsType::map:
             return map().keys();

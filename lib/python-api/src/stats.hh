@@ -2,6 +2,8 @@
 
 #include "clingo/stats.h"
 
+#include "iterable.hh"
+
 #include <pybind11/pybind11.h>
 
 namespace PyClingo {
@@ -23,7 +25,7 @@ class ConstStatsArray {
     ConstStatsArray(clingo_stats_t *stats, uint64_t key) : stats_{stats}, key_{key} {}
     [[nodiscard]] auto get(size_t index) const -> ConstStats;
     [[nodiscard]] auto len() const -> size_t;
-    [[nodiscard]] auto items() const -> py::iterator;
+    [[nodiscard]] auto items() const -> TypeHint<"Iterator[StatsView]">;
     explicit operator StatsArray() const;
 
   private:
@@ -47,9 +49,9 @@ class ConstStatsMap {
     [[nodiscard]] auto get(std::string_view name) const -> ConstStats;
     [[nodiscard]] auto len() const -> size_t;
     [[nodiscard]] auto contains(std::string_view name) const -> bool;
-    [[nodiscard]] auto keys() const -> py::iterator;
-    [[nodiscard]] auto values() const -> py::iterator;
-    [[nodiscard]] auto items() const -> py::iterator;
+    [[nodiscard]] auto keys() const -> TypeHint<"Iterator[str]">;
+    [[nodiscard]] auto values() const -> TypeHint<"Iterator[StatsView]">;
+    [[nodiscard]] auto items() const -> TypeHint<"Iterator[tuple[str,StatsView]]">;
 
     explicit operator StatsMap() const;
 
@@ -79,7 +81,7 @@ class ConstStats {
     [[nodiscard]] auto c_ptr() const -> clingo_stats_t * { return stats_; }
     [[nodiscard]] auto key() const -> uint64_t { return key_; }
     [[nodiscard]] auto nestify() const -> py::object;
-    [[nodiscard]] auto iter() const -> py::iterator;
+    [[nodiscard]] auto iter() const -> TypeHint<"Iterator[str|StatsView]">;
 
     [[nodiscard]] auto get(std::size_t key) const -> ConstStats;
     [[nodiscard]] auto at(std::string_view key) const -> ConstStats;
