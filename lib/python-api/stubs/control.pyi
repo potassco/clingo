@@ -403,7 +403,7 @@ class Control:
         """
 
     @property
-    def stats(self) -> dict:
+    def stats(self) -> clingo.stats.StatsView:
         """
         Get the solver stats.
         """

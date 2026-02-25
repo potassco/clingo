@@ -17,6 +17,44 @@ import black
 import isort
 
 
+def reorder_classes(content: str, order: list[str]) -> str:
+    class_regex = re.compile(
+        r"^class\s+(\w+).*?:\n"  # class preamble
+        r"(?:^[ ]{4}.*\n|^\n)*"  # class body
+        r"^[ ]{4}[^ ].*$",  # end of class body
+        re.MULTILINE,
+    )
+
+    pieces = []
+    classes = {}
+    last_end = 0
+
+    for match in class_regex.finditer(content):
+        start, end = match.span()
+        if start > last_end:
+            pieces.append(content[last_end:start])
+        class_block = match.group(0)
+        class_name = match.group(1)
+        pieces.append(class_name)
+        classes[class_name] = class_block
+        last_end = end
+    if last_end < len(content):
+        pieces.append(content[last_end:])
+
+    order_stack = order[:]
+
+    result = []
+    for piece in pieces:
+        if piece in classes:
+            if piece in order:
+                result.append(classes[order_stack.pop(0)])
+            else:
+                result.append(classes[piece])
+        else:
+            result.append(piece)
+    return "".join(result)
+
+
 class Rewriter:
     """
     Rewriter to fine-tune generated stubs.
@@ -266,6 +304,17 @@ class Rewriter:
                         content += "\n" + "\n".join(unions) + "\n"
                     if self.python:
                         content = self.doc_enums(content)
+                        content = reorder_classes(
+                            content,
+                            [
+                                "StatsView",
+                                "StatsArrayView",
+                                "StatsMapView",
+                                "Stats",
+                                "StatsArray",
+                                "StatsMap",
+                            ],
+                        )
                     else:
                         content = self.format(path, content)
                         gen_content = None

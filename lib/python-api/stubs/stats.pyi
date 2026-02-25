@@ -42,7 +42,15 @@ from __future__ import annotations
 import enum
 import typing
 
-__all__ = ["Stats", "StatsArray", "StatsMap", "StatsType"]
+__all__ = [
+    "Stats",
+    "StatsArray",
+    "StatsArrayView",
+    "StatsMap",
+    "StatsMapView",
+    "StatsType",
+    "StatsView",
+]
 
 class StatsType(enum.IntEnum):
     """
@@ -59,22 +67,28 @@ class StatsType(enum.IntEnum):
         Convert to a string according to format_spec.
         """
 
-class Stats:
+class Stats(StatsView):
     """
     Class representing solver stats.
     """
 
     @staticmethod
     def _pybind11_conduit_v1_(*args, **kwargs): ...
-    def __str__(self) -> str:
+    @typing.overload
+    def __getitem__(self, arg0: int) -> Stats:
         """
-        A readable representation to inspect the statistics.
+        Get the element at the given index.
         """
 
-    def nestify(self) -> typing.Any:
+    @typing.overload
+    def __getitem__(self, key: str) -> Stats:
         """
-        Convert the statistics object into a nested structure consisting of sequencens,
-        mappings with string keys, and floats.
+        Lookup the value with the given key.
+        """
+
+    def __iter__(self) -> typing.Iterator[str | Stats]:
+        """
+        Get an iterator over this statistics object, which must be a map or an array.
         """
 
     def update(self, values: typing.Any) -> None:
@@ -105,12 +119,6 @@ class Stats:
         """
 
     @property
-    def type(self) -> StatsType:
-        """
-        Get the type of the stats object.
-        """
-
-    @property
     def value(self) -> float:
         """
         Get/set the value of the stats object.
@@ -119,7 +127,7 @@ class Stats:
     @value.setter
     def value(self, arg1: typing.SupportsFloat) -> None: ...
 
-class StatsArray:
+class StatsArray(StatsArrayView):
     """
     Class representing an array of stats.
 
@@ -138,9 +146,9 @@ class StatsArray:
         Get the element at the given index.
         """
 
-    def __len__(self) -> int:
+    def __iter__(self) -> typing.Iterator[Stats]:
         """
-        Get the length of the array.
+        Get an iterator over the elements of the array.
         """
 
     def __setitem__(self, arg0: int, arg1: typing.Any) -> None:
@@ -156,7 +164,36 @@ class StatsArray:
                 value: The value to append.
         """
 
-class StatsMap:
+class StatsArrayView:
+    """
+    Class representing a read-only array of stats.
+
+    This class partially implements the mutable sequence protocol.
+    """
+
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
+    def __getitem__(self, arg0: int) -> StatsView:
+        """
+        Get the element at the given index.
+        """
+
+    def __iter__(self) -> typing.Iterator[StatsView]:
+        """
+        Get an iterator over the elements of the array.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the length of the array.
+        """
+
+    def __str__(self) -> str:
+        """
+        A readable representation to inspect the array.
+        """
+
+class StatsMap(StatsMapView):
     """
     Class representing a map of stats.
 
@@ -175,12 +212,130 @@ class StatsMap:
         Lookup the value with the given key.
         """
 
+    def __setitem__(self, key: str, value: typing.Any) -> None:
+        """
+        Set the value at the given key.
+        """
+
+    def items(self) -> typing.Iterator[tuple[str, Stats]]:
+        """
+        Get an iterator over the items of the map.
+        """
+
+    def values(self) -> typing.Iterator[Stats]:
+        """
+        Get an iterator over the values of the map.
+        """
+
+class StatsMapView:
+    """
+    Class representing a read-only map of stats.
+
+    This class partially implements the mutable mapping protocol.
+    """
+
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
+    def __getitem__(self, key: str) -> StatsView:
+        """
+        Lookup the value with the given key.
+        """
+
+    def __iter__(self) -> typing.Iterator[str]:
+        """
+        Get an iterator over the keys of the map.
+        """
+
     def __len__(self) -> int:
         """
         Get the length of the map.
         """
 
-    def __setitem__(self, key: str, value: typing.Any) -> None:
+    def __str__(self) -> str:
         """
-        Set the value at the given key.
+        A readable representation to inspect the map.
+        """
+
+    def items(self) -> typing.Iterator[tuple[str, StatsView]]:
+        """
+        Get an iterator over the items of the map.
+        """
+
+    def keys(self) -> typing.Iterator[str]:
+        """
+        Get an iterator over the keys of the map.
+        """
+
+    def values(self) -> typing.Iterator[StatsView]:
+        """
+        Get an iterator over the values of the map.
+        """
+
+class StatsView:
+    """
+    Class representing read-only solver stats.
+    """
+
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs): ...
+    def __contains__(self, arg0: str) -> bool:
+        """
+        Checks whether the given key is in the element, which must be a map.
+        """
+
+    @typing.overload
+    def __getitem__(self, arg0: int) -> StatsView:
+        """
+        Get the element at the given index.
+        """
+
+    @typing.overload
+    def __getitem__(self, key: str) -> StatsView:
+        """
+        Lookup the value with the given key.
+        """
+
+    def __iter__(self) -> typing.Iterator[str | StatsView]:
+        """
+        Get an iterator over this statistics object, which must be a map or an array.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the length of this element.
+        """
+
+    def __str__(self) -> str:
+        """
+        A readable representation to inspect the statistics.
+        """
+
+    def nestify(self) -> typing.Any:
+        """
+        Convert the statistics object into a nested structure consisting of sequencens,
+        mappings with string keys, and floats.
+        """
+
+    @property
+    def array(self) -> StatsArrayView:
+        """
+        Get an array of stats objects.
+        """
+
+    @property
+    def map(self) -> StatsMapView:
+        """
+        Get a map of stats objects.
+        """
+
+    @property
+    def type(self) -> StatsType:
+        """
+        Get the type of the stats object.
+        """
+
+    @property
+    def value(self) -> float:
+        """
+        Get the value of the stats object.
         """
