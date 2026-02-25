@@ -58,6 +58,11 @@ typedef int clingo_stats_type_t;
 //! Handle for the solver stats.
 typedef struct clingo_statistic clingo_stats_t;
 
+//! Well-known key name intended to be used for user-specific step statistics.
+CLINGO_VISIBILITY_DEFAULT extern clingo_string_t const clingo_user_stats_step;
+//! Well-known key name intended to be used for user-specific accu statistics.
+CLINGO_VISIBILITY_DEFAULT extern clingo_string_t const clingo_user_stats_accu;
+
 //! Get the root key of the stats.
 //!
 //! @param[in] stats the target stats
@@ -135,10 +140,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_size(clingo_stats_t const *stats
 //! @param[in] key the key
 //! @param[in] name name of the subkey
 //! @param[in] size the size of the name
+//! @param[out] subkey resulting subkey if @p result is true
 //! @param[out] result true if the map has a subkey with the given name
 //! @return whether the call was successful
+//! @note @p subkey is optional and can be set to NULL to only check for existence
 CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_has_subkey(clingo_stats_t const *stats, uint64_t key, char const *name,
-                                                           size_t size, bool *result);
+                                                           size_t size, uint64_t *subkey, bool *result);
 //! Get the name associated with the offset-th subkey.
 //!
 //! @pre The @link clingo_stats_type() type@endlink of the entry must be @ref ::clingo_stats_type_map.

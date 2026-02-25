@@ -331,12 +331,10 @@ auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optio
                 uint64_t root = 0;
                 handle_error(clingo_stats_root(stats, &root));
                 uint64_t step = 0;
-                std::string_view user_step = "user_step";
-                std::string_view user_accu = "user_accu";
-                handle_error(clingo_stats_map_add_subkey(stats, root, user_step.data(), user_step.size(),
+                handle_error(clingo_stats_map_add_subkey(stats, root, clingo_user_stats_step.data, clingo_user_stats_step.size,
                                                          clingo_stats_type_map, &step));
                 uint64_t accu = 0;
-                handle_error(clingo_stats_map_add_subkey(stats, root, user_accu.data(), user_accu.size(),
+                handle_error(clingo_stats_map_add_subkey(stats, root, clingo_user_stats_accu.data, clingo_user_stats_accu.size,
                                                          clingo_stats_type_map, &accu));
                 (*hnd->stats_)(Stats{stats, step}, Stats{stats, accu});
             }

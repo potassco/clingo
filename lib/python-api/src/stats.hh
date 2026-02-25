@@ -4,6 +4,8 @@
 
 #include <pybind11/pybind11.h>
 
+#include <optional>
+
 namespace PyClingo {
 
 namespace py = pybind11;
@@ -38,6 +40,7 @@ class StatsMap {
     auto contains(std::string_view name) -> bool;
 
   private:
+    auto try_get(std::string_view name) -> std::optional<Stats>;
     clingo_stats_t *stats_;
     uint64_t key_;
 };
