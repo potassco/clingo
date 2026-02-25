@@ -65,7 +65,7 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     void observe(Observer &obs, bool preprocess);
     auto backend() -> BackendManager;
     auto config() -> Config;
-    auto stats() -> py::dict;
+    auto stats() -> ConstStats;
     auto profile() -> py::list;
     void main();
     auto buffer() -> std::string_view;

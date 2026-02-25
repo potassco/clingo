@@ -85,17 +85,17 @@ class TestIncremental:
         ctl.ground()
         mcb = MCB()
         ctl.solve(on_model=mcb)
-        assert ctl.stats["summary"]["costs"] == [0.0]
+        assert ctl.stats["summary"]["costs"].nestify() == [0.0]
         assert mcb.symbols == [["b"]]
         ctl.parse_string("#program x. :- not a. :- not b.")
         ctl.ground([("x", [])])
         mcb = MCB()
         ctl.solve(on_model=mcb)
-        assert ctl.stats["summary"]["costs"] == [1.0]
+        assert ctl.stats["summary"]["costs"].nestify() == [1.0]
         assert mcb.symbols == [["a", "b"]]
         ctl.parse_string("#program y. {c}. #minimize{ 1: b; 2 : not c }.")
         ctl.ground([("y", [])])
         mcb = MCB()
         ctl.solve(on_model=mcb)
-        assert ctl.stats["summary"]["costs"] == [1.0]
+        assert ctl.stats["summary"]["costs"].nestify() == [1.0]
         assert mcb.symbols == [["a", "b", "c"]]
