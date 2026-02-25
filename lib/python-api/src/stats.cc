@@ -65,22 +65,27 @@ auto StatsMap::len() -> size_t {
 }
 
 auto StatsMap::get(std::string_view name) -> Stats {
-    if (contains(name)) {
-        uint64_t subkey = 0;
-        handle_error(clingo_stats_map_at(stats_, key_, name.data(), name.size(), &subkey));
-        return {stats_, subkey};
+    if (auto stats = try_get(name); stats.has_value()) {
+        return *stats;
     }
     throw py::index_error{"invalid key"};
 }
 
 auto StatsMap::contains(std::string_view name) -> bool {
     auto res = false;
-    handle_error(clingo_stats_map_has_subkey(stats_, key_, name.data(), name.size(), &res));
+    handle_error(clingo_stats_map_has_subkey(stats_, key_, name.data(), name.size(), nullptr, &res));
     return res;
 }
 
+auto StatsMap::try_get(std::string_view name) -> std::optional<Stats> {
+    uint64_t subkey = 0;
+    auto found = false;
+    handle_error(clingo_stats_map_has_subkey(stats_, key_, name.data(), name.size(), &subkey, &found));
+    return found ? std::make_optional<Stats>(stats_, subkey) : std::nullopt;
+}
+
 void StatsMap::set(std::string_view name, py::handle value) {
-    auto old = contains(name) ? std::optional{get(name)} : std::nullopt;
+    auto old = try_get(name);
     auto [subtype, subval] = get_type(value, old);
     uint64_t subkey = 0;
     handle_error(clingo_stats_map_add_subkey(stats_, key_, name.data(), name.size(),

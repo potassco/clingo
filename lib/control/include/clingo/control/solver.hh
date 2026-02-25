@@ -417,8 +417,8 @@ class SolveEventHandler {
     //! Callback to update statistics.
     //!
     //! Applications can add user defined statistics here. Statistics should be
-    //! added under keys "user_step" and "user_accu" to appear in the text
-    //! output.
+    //! added under keys \ref clingo_user_stats_step and \ref
+    //! clingo_user_stats_accu to appear in the text output.
     //!
     //! @param stats a handle to the statistics
     void on_stats(Potassco::AbstractStatistics &stats) { do_on_stats(stats); }

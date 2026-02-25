@@ -86,7 +86,7 @@ class ConstStats {
 
     //! Get a string representation of the statistics entry.
     //!
-    //! The represention is YAML-like and can be used for debugging purposes.
+    //! The representation is YAML-like and can be used for debugging purposes.
     //!
     //! @return a string representation of the statistics entry
     [[nodiscard]] auto to_string() const -> std::string {
@@ -347,7 +347,7 @@ class ConstStatsMap {
     //! @param name the name of the subkey to check
     //! @return whether the map contains a subkey with the given name
     [[nodiscard]] auto contains(std::string_view name) const -> bool {
-        return Detail::call<clingo_stats_map_has_subkey>(stats_, key_, name.data(), name.size());
+        return Detail::call<clingo_stats_map_has_subkey>(stats_, key_, name.data(), name.size(), nullptr);
     }
 
     //! Get an iterator to the beginning of the map.
@@ -468,6 +468,16 @@ inline auto Stats::map() const -> StatsMap {
 
 inline auto Stats::get(std::string_view name) const -> Stats {
     return map().get(name);
+}
+
+//! Get the root statistics entry for user step stats.
+inline auto stats_step_root() -> std::string_view {
+    return {clingo_user_stats_step.data, clingo_user_stats_step.size};
+}
+
+//! Get the root statistics entry for user accumulated stats.
+inline auto stats_accu_root() -> std::string_view {
+    return {clingo_user_stats_accu.data, clingo_user_stats_accu.size};
 }
 
 //! @}
