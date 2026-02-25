@@ -273,24 +273,23 @@ class PotasscoBackend : public AbstractProgramBackendImpl {
 
     auto do_fact_lit() -> std::optional<prg_lit_t> override {
         return std::nullopt;
-    } // NOTE: only called in the aspif parser
+    } // TODO: only called in the aspif parser
 
     auto do_term_id(Symbol sym) -> prg_id_t override {
-        auto nId = terms_->add(sym, [&, this]() {
+        return terms_->add(sym, [&]() {
             auto nId = new_show_term();
             program().outputTerm(nId, as_str(sym));
             return nId;
         });
-        return nId;
     }
 
     void do_term_id(Symbol sym, prg_id_t id) override { terms_->add(sym, id); }
 
-    auto new_atom() -> Potassco::Atom_t { return nextAtom_++; }
-    auto new_show_term() -> prg_id_t { return nextShowTerm_++; }
+    auto new_atom() -> Potassco::Atom_t { return next_atom_++; }
+    auto new_show_term() -> prg_id_t { return next_show_term_++; }
 
-    Potassco::Atom_t nextAtom_{1};
-    prg_id_t nextShowTerm_{0};
+    Potassco::Atom_t next_atom_{1};
+    prg_id_t next_show_term_{0};
     TermBaseMap *terms_;
 };
 
@@ -315,7 +314,7 @@ class ProgramBackendImpl : public AbstractProgramBackendImpl {
     }
 
     auto do_term_id(Symbol sym) -> prg_id_t override {
-        return terms_->add(sym, [&, this]() { return prg_->newShowTerm(as_str(sym)); });
+        return terms_->add(sym, [&]() { return prg_->newShowTerm(as_str(sym)); });
     }
 
     void do_term_id(Symbol sym, prg_id_t id) override { terms_->add(sym, id); }
@@ -1111,45 +1110,44 @@ auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
                Scripts &scripts, Input::RewriteOptions ropts, SolverOptions sopts, FILE *out)
     : clasp_{&clasp}, config_{clasp_config}, buf_{out},
-      out_{make_output_(store, sopts.mode, sopts.format, sopts.reify)}, grd_{log, store, ropts, *out_},
+      out_{make_output_(store, sopts.mode, sopts.backend_type, sopts.reify_flags)}, grd_{log, store, ropts, *out_},
       scripts_{&scripts}, opts_{std::move(sopts)} {
 }
 
-auto Solver::make_output_(SymbolStore &store, AppMode mode, ModeFormat format, ReifyFlag reify) -> UOutputStm {
+auto Solver::make_output_(SymbolStore &store, AppMode mode, BackendType backend_type, ReifyFlags reify_flags)
+    -> UOutputStm {
     if (mode != AppMode::solve) {
         return Output::make_text_output(buf_);
     }
 
-    switch (format) {
-        case ModeFormat::solve_default: {
+    switch (backend_type) {
+        case BackendType::clasp: {
             program_ = std::make_unique<Clasp::Asp::LogicProgramAdapter>(*clasp_->asp());
             break;
         }
-        case ModeFormat::aspif: {
+        case BackendType::aspif: {
             program_ = std::make_unique<Potassco::AspifOutput>(std::cout);
             break;
         }
-        case ModeFormat::smodels: {
+        case BackendType::smodels: {
             program_ = std::make_unique<Potassco::SmodelsOutput>(std::cout, true, clasp_->asp()->falseAtom());
             break;
         }
-        case ModeFormat::reify: {
+        case BackendType::reify: {
             Potassco::Reifier::Options reify_opts{};
-            reify_opts.reifyStep = Potassco::test(reify, ReifyFlag::reify_step);
-            reify_opts.calculateSccs = Potassco::test(reify, ReifyFlag::reify_scc);
+            reify_opts.reifyStep = Potassco::test(reify_flags, ReifyFlags::reify_step);
+            reify_opts.calculateSccs = Potassco::test(reify_flags, ReifyFlags::reify_scc);
             program_ = std::make_unique<Potassco::Reifier>(std::cout, reify_opts);
             break;
         }
-        default: {
-            POTASSCO_ASSERT_NOT_REACHED("invalid output format for solving mode");
-        }
     }
+    POTASSCO_ASSERT(program_, "invalid backend type");
 
     std::unique_ptr<AbstractProgramBackendImpl> backend;
-    if (format != ModeFormat::solve_default) {
-        backend = std::make_unique<PotasscoBackend>(*program_, terms_);
-    } else {
+    if (backend_type == BackendType::clasp) {
         backend = std::make_unique<ProgramBackendImpl>(*program_, *clasp_->asp(), terms_);
+    } else {
+        backend = std::make_unique<PotasscoBackend>(*program_, terms_);
     }
 
     theory_ = std::make_unique<Output::TheoryData>(store, *backend);

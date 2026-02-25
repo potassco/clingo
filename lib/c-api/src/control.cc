@@ -45,29 +45,15 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         opts.init(ctx);
         auto group_basic = OptionGroup{"Basic Options"};
 
-        auto parse_mode = [&opts](std::string_view str) {
-            return opts.parse_format(str, opts.mode()) ||
-                   Potassco::ProgramOptions::values<CppClingo::Control::AppMode>({
-                       {"parse", CppClingo::Control::AppMode::parse},
-                       {"rewrite", CppClingo::Control::AppMode::rewrite},
-                       {"ground", CppClingo::Control::AppMode::ground},
-                       {"solve", CppClingo::Control::AppMode::solve},
-                   })(str, opts.mode());
-        };
+        auto parse_mode = [&opts](std::string_view str) { return opts.init_app_mode(str); };
 
         group_basic.addOptions() //
             ("mode", parse(parse_mode),
              "Run in the specified mode\n"
-             "      %A: <mode {parse|rewrite|ground|solve|aspif|smodels|reify}>[,<opts>]\n"
+             "      %A: <mode {parse|rewrite|solve}>\n"
              "        parse   : Stop processing after parsing\n"
              "        rewrite : Stop processing after rewriting\n"
-             "        ground  : Stop processing after grounding\n"
-             "        solve   : Stop processing after solving\n"
-             "        aspif   : Print program in ASP intermediate format\n"
-             "        smodels : Print program in smodels format\n"
-             "        reify   : Print program as reified facts with <opts>\n"
-             "          steps : Add step numbers\n"
-             "          sccs  : Compute and print SCCs");
+             "        solve   : Stop processing after solving");
         ctx.add(group_basic);
         slv_cfg->addOptions(ctx);
         auto pos_parser = [](std::string_view str, std::string &out) {
@@ -89,6 +75,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         DefaultParseContext pc{ctx};
         parseCommandArray(pc, {cargs.data(), size}, pos_parser);
         ctx.assignDefaults(pc.parsed());
+        opts.validate_options(pc.parsed());
         slv_cfg->finalize(pc.parsed(), Clasp::ProblemType::asp, true);
 
         // setup control

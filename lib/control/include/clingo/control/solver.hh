@@ -66,31 +66,33 @@ enum class AppMode : uint8_t {
     ground,  //!< Stop processing after grounding.
     solve    //!< Stop processing after solving.
 };
+POTASSCO_SET_ENUM_ENTRIES(AppMode, {parse, "parse"sv}, {rewrite, "rewrite"sv}, {ground, "ground"sv},
+                          {solve, "solve"sv});
 
 //! Enumeration of available output formats when in solving mode.
-enum class ModeFormat : uint8_t {
-    solve_default, //!< Standard solving mode: use the normal backend (Clasp)
-    aspif,         //!< Print program in ASP intermediate format
-    smodels,       //!< Print program in smodels format
-    reify          //!< Print program as reified facts
+enum class BackendType : uint8_t {
+    clasp,   //!< Standard solving mode: use the normal backend (Clasp)
+    aspif,   //!< Print program in ASP intermediate format
+    smodels, //!< Print program in smodels format
+    reify    //!< Print program as reified facts
 };
-POTASSCO_SET_ENUM_ENTRIES(ModeFormat, {aspif, "aspif"sv}, {smodels, "smodels"sv}, {reify, "reify"sv});
+POTASSCO_SET_ENUM_ENTRIES(BackendType, {aspif, "aspif"sv}, {smodels, "smodels"sv}, {reify, "reify"sv});
 
 //! Options for reification.
-enum class ReifyFlag : uint8_t {
+enum class ReifyFlags : uint8_t {
     reify_scc = 1U, //!< Compute and print SCCs
     reify_step = 2U //!< Add step numbers
 };
-POTASSCO_ENABLE_BIT_OPS(ReifyFlag);
+POTASSCO_ENABLE_BIT_OPS(ReifyFlags);
 
 //! Options for the solver.
 struct SolverOptions {
     //! Operation mode of the solver.
     AppMode mode = AppMode::solve;
     //! Output format to use when in solving mode.
-    ModeFormat format = ModeFormat::solve_default;
+    BackendType backend_type = BackendType::clasp;
     //! Reification flags.
-    ReifyFlag reify = {};
+    ReifyFlags reify_flags = {};
     //! The minimum number of incremental steps.
     size_t imin = 0;
     //! The maximum number of incremental steps.
@@ -837,10 +839,10 @@ class Solver : public BaseView {
     //! the backend for the clasp output.
     //!
     //! @param mode the configured output mode
-    //! @param format the configured output format
-    //! @param reify the flag defining options for the reify format
+    //! @param backend_type the configured backend type to use when in solving mode
+    //! @param reify_flags the flag defining options for the reification backend
     //! @return the resulting output
-    auto make_output_(SymbolStore &store, AppMode mode, ModeFormat format, ReifyFlag reify) -> UOutputStm;
+    auto make_output_(SymbolStore &store, AppMode mode, BackendType backend_type, ReifyFlags reify_flags) -> UOutputStm;
 
     //! Prepare the solver for grounding.
     void prepare_();

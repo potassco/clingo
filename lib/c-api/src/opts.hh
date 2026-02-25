@@ -171,6 +171,42 @@ class ClingoOptions {
             }
             return true;
         };
+        auto parse_convert = [this](std::string_view str) {
+            namespace Parse = Potassco::Parse;
+            using namespace std::literals;
+
+            if (auto key = "text"sv; Parse::eqIgnoreCase(str, key, key.size())) {
+                solver_opts_.mode = Control::AppMode::ground;
+                return str.size() == key.size();
+            }
+
+            Control::BackendType backend_type{};
+            Control::ReifyFlags reify_flags{};
+
+            if (!Parse::ok(Potassco::extract(str, backend_type))) {
+                return false;
+            }
+            if (backend_type == Control::BackendType::reify) {
+                while (Parse::matchOpt(str, ',')) {
+                    if (auto key = "sccs"sv; Parse::eqIgnoreCase(str, key, key.size())) {
+                        reify_flags |= Control::ReifyFlags::reify_scc;
+                        str.remove_prefix(key.size());
+                    } else if (key = "steps"sv; Parse::eqIgnoreCase(str, key, key.size())) {
+                        reify_flags |= Control::ReifyFlags::reify_step;
+                        str.remove_prefix(key.size());
+                    } else {
+                        break;
+                    }
+                }
+            }
+            if (str.empty()) {
+                solver_opts_.mode = Control::AppMode::solve;
+                solver_opts_.backend_type = backend_type;
+                solver_opts_.reify_flags = reify_flags;
+                return true;
+            }
+            return false;
+        };
 
         auto group_grounder = OptionGroup{"Grounder Options"};
         group_grounder.addOptions() //
@@ -219,7 +255,16 @@ class ClingoOptions {
       [no-]atom-undefined     : a :- b.
       [no-]file-included      : #include "a.lp". #include "a.lp".
       [no-]operation-undefined: p(1/0).
-      [no-]global-variable    : :- #count { X } = 1, X = 1.)");
+      [no-]global-variable    : :- #count { X } = 1, X = 1.)")                                     //
+            ("convert", parse(parse_convert),
+             "Convert to specified format\n"
+             "      %A: <format {text|aspif|smodels|reify}[,<opts>]>\n"
+             "        text   : Print program in text format (ground)\n"
+             "        aspif  : Print program in ASP intermediate format\n"
+             "        smodels: Print program in smodels format\n"
+             "        reify  : Print program as reified facts with <opts>\n"
+             "          sccs  : Compute and print SCCs\n"
+             "          steps : Add step numbers");
         root.add(group_basic);
     }
 
@@ -237,34 +282,28 @@ class ClingoOptions {
         }
     }
 
-    template <class ModeT> auto parse_format(std::string_view str, ModeT &mode) -> bool {
+    auto init_app_mode(std::string_view str) -> bool {
         namespace Parse = Potassco::Parse;
-        using namespace std::literals;
 
-        if (!Parse::ok(Potassco::extract(str, solver_opts_.format))) {
+        Control::AppMode mode;
+        if (not Parse::ok(Potassco::extract(str, mode))) {
             return false;
         }
-
-        mode = ModeT::solve;
-        if (solver_opts_.format == Control::ModeFormat::reify) {
-            while (Parse::matchOpt(str, ',')) {
-                if (auto key = "sccs"sv; Parse::eqIgnoreCase(str, key, key.size())) {
-                    solver_opts_.reify |= Control::ReifyFlag::reify_scc;
-                    str.remove_prefix(key.size());
-                } else if (key = "steps"sv; Parse::eqIgnoreCase(str, key, key.size())) {
-                    solver_opts_.reify |= Control::ReifyFlag::reify_step;
-                    str.remove_prefix(key.size());
-                } else {
-                    break;
-                }
-            }
+        if (str.empty()) {
+            solver_opts_.mode = mode;
+            return true;
         }
-        return str.empty();
+        return false;
+    }
+
+    void validate_options(const Potassco::ProgramOptions::ParsedOptions &parsed) {
+        if (parsed.contains("mode") && parsed.contains("convert")) {
+            throw std::invalid_argument("option '--mode' and '--convert' cannot be used together");
+        }
     }
 
     auto mode() -> Control::AppMode & { return solver_opts_.mode; }
-    auto format() -> Control::ModeFormat & { return solver_opts_.format; }
-    auto reify() -> Control::ReifyFlag & { return solver_opts_.reify; }
+    auto backend_type() -> Control::BackendType & { return solver_opts_.backend_type; }
 
     auto rewrite_options() -> Input::RewriteOptions const & { return rewrite_opts_; }
     auto solver_options() -> Control::SolverOptions const & { return solver_opts_; }
