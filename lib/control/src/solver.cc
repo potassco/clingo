@@ -59,7 +59,6 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     auto as_wlits_(WeightedPrgLitSpan wlits) -> Potassco::WeightLitSpan {
         wlits_.clear();
         for (auto const &[lit, weight] : wlits) {
-            assert(weight > 0);
             assert(lit != 0);
             wlits_.emplace_back(lit, weight);
         }
