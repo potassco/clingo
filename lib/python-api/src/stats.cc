@@ -374,7 +374,7 @@ The following example shows how to add custom stats and access the stats:
 >>> from clingo.control import Control
 >>>
 >>> def on_stats(step, accu):
-...     accu.update({"example": [21]})
+...     step.update({"example": [21]})
 ...     accu.update({"example": [lambda x: (x or 0) + 21]})
 ...
 >>> lib = Library()
@@ -385,11 +385,11 @@ The following example shows how to add custom stats and access the stats:
 SAT
 >>> print(ctl.solve(on_stats=on_stats))
 SAT
->>> ctl.stats['user_step']
+>>> ctl.stats['user_step'].nestify()
 { "example": [21.0] }
->>> ctl.stats['user_accu']
+>>> ctl.stats['user_accu'].nestify()
 { "example": [42.0] }
->>> ctl.stats['summary']['times']
+>>> ctl.stats['summary']['times'].nestify()
 { "cpu": 0.000785999999999995,
   "sat": 7.867813110351562e-06,
   "solve": 2.288818359375e-05,
