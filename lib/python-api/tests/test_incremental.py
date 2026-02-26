@@ -41,13 +41,11 @@ class TestIncremental:
         Test simplification of incremental programs.
         """
         ctl = Control(self.lib)
-        ctl.parse_string(
-            """\
+        ctl.parse_string("""\
             d(1..3).
             p(X) :- not q(X), d(X), X!=1.
             q(X) :- not p(X), d(X), X!=3.
-            """
-        )
+            """)
         ctl.ground()
         sp2 = parse_term(self.lib, "p(2)")
         lq1 = ctl.base[parse_term(self.lib, "q(1)")].literal
@@ -76,12 +74,10 @@ class TestIncremental:
         """
 
         ctl = Control(self.lib, ["--opt-mode=optN", "0"])
-        ctl.parse_string(
-            """\
+        ctl.parse_string("""\
             {a; b}.
             #minimize { 1: a; 2 : not b }.
-            """
-        )
+            """)
         ctl.ground()
         mcb = MCB()
         ctl.solve(on_model=mcb)

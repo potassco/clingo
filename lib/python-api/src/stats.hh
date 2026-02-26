@@ -33,67 +33,67 @@ class StatsBase {
     uint64_t key_;
 };
 class Stats;
-class ConstStats;
+class StatsView;
 
-class ConstStatsArray : public StatsBase {
+class StatsArrayView : public StatsBase {
   public:
     using StatsBase::StatsBase;
-    [[nodiscard]] auto get(size_t index) const -> ConstStats;
+    [[nodiscard]] auto get(size_t index) const -> StatsView;
     [[nodiscard]] auto len() const -> size_t;
     [[nodiscard]] auto items() const -> TypeHint<"Iterator[StatsView]">;
 };
 
-class StatsArray : public ConstStatsArray {
+class StatsArray : public StatsArrayView {
   public:
-    using ConstStatsArray::ConstStatsArray;
+    using StatsArrayView::StatsArrayView;
     void set(size_t index, py::handle value);
     auto get(size_t index) -> Stats;
     auto items() -> TypeHint<"Iterator[Stats]">;
     void append(py::handle value);
 };
 
-class ConstStatsMap : public StatsBase {
+class StatsMapView : public StatsBase {
   public:
     using StatsBase::StatsBase;
-    [[nodiscard]] auto get(std::string_view name) const -> ConstStats;
+    [[nodiscard]] auto get(std::string_view name) const -> StatsView;
     [[nodiscard]] auto len() const -> size_t;
     [[nodiscard]] auto contains(std::string_view name) const -> bool;
     [[nodiscard]] auto keys() const -> TypeHint<"Iterator[str]">;
     [[nodiscard]] auto values() const -> TypeHint<"Iterator[StatsView]">;
     [[nodiscard]] auto items() const -> TypeHint<"Iterator[tuple[str,StatsView]]">;
-    [[nodiscard]] auto try_get(std::string_view name) const -> std::optional<ConstStats>;
+    [[nodiscard]] auto try_get(std::string_view name) const -> std::optional<StatsView>;
     [[nodiscard]] auto get_key(size_t index) const -> std::string_view;
 };
 
-class StatsMap : public ConstStatsMap {
+class StatsMap : public StatsMapView {
   public:
-    using ConstStatsMap::ConstStatsMap;
+    using StatsMapView::StatsMapView;
     auto get(std::string_view name) -> Stats;
     void set(std::string_view name, py::handle value);
     auto values() -> TypeHint<"Iterator[Stats]">;
     auto items() -> TypeHint<"Iterator[tuple[str,Stats]]">;
 };
 
-class ConstStats : public StatsBase {
+class StatsView : public StatsBase {
   public:
     using StatsBase::StatsBase;
 
     [[nodiscard]] auto type() const -> StatsType;
-    [[nodiscard]] auto array() const -> ConstStatsArray;
-    [[nodiscard]] auto map() const -> ConstStatsMap;
+    [[nodiscard]] auto array() const -> StatsArrayView;
+    [[nodiscard]] auto map() const -> StatsMapView;
     [[nodiscard]] auto get_value() const -> double;
     [[nodiscard]] auto len() const -> size_t;
-    [[nodiscard]] auto get(std::size_t key) const -> ConstStats;
-    [[nodiscard]] auto at(std::string_view key) const -> ConstStats;
+    [[nodiscard]] auto get(std::size_t key) const -> StatsView;
+    [[nodiscard]] auto at(std::string_view key) const -> StatsView;
     [[nodiscard]] auto contains(std::string_view key) const -> bool;
     [[nodiscard]] auto iter() const -> TypeHint<"Iterator[str|StatsView]">;
 
     [[nodiscard]] auto nestify() const -> py::object;
 };
 
-class Stats : public ConstStats {
+class Stats : public StatsView {
   public:
-    using ConstStats::ConstStats;
+    using StatsView::StatsView;
     auto array() -> StatsArray;
     auto map() -> StatsMap;
     auto get(std::size_t key) -> Stats;

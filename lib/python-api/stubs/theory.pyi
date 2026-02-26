@@ -14,15 +14,13 @@ import clingo.solve
 import clingo.stats
 import clingo.symbol
 
-__all__ = ["Theory", "TheoryAssignment"]
+__all__: list[str] = ["Theory", "TheoryAssignment"]
 
 class Theory:
     """
     Object to call functions from a C-library implementing a custom theory.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(self, library: clingo.core.Library, create: typing.Any) -> None:
         """
         Construct a theory object.
@@ -230,8 +228,6 @@ class TheoryAssignment:
     Assignment of theory values.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __iter__(self) -> TheoryAssignment:
         """
         Return self.

@@ -20,22 +20,22 @@ enum class StatsType : clingo_stats_type_t {
     map = clingo_stats_type_map,
 };
 
-class ConstStatsArray;
+class StatsArrayView;
 class StatsArray;
-class ConstStatsMap;
+class StatsMapView;
 class StatsMap;
 
 //! Class modeling an immutable view on a statistics entry.
-class ConstStats {
+class StatsView {
   public:
     //! Construct a statistics entry from a pointer to the C API and a key.
-    explicit ConstStats(clingo_stats_t const *stats, uint64_t key) : stats_{stats}, key_{key} {}
+    explicit StatsView(clingo_stats_t const *stats, uint64_t key) : stats_{stats}, key_{key} {}
 
     //! Cast to the underlying C API type.
     //!
     //! @param stats the statistics entry to cast
     //! @return the underlying C API type
-    friend auto c_cast(ConstStats const &stats) -> clingo_stats_t const * { return stats.stats_; }
+    friend auto c_cast(StatsView const &stats) -> clingo_stats_t const * { return stats.stats_; }
 
     //! Get the type of the statistics entry.
     //!
@@ -47,29 +47,29 @@ class ConstStats {
     //! Get a view on the array of statistics entries if the entry is an array.
     //!
     //! @return a view on the array of statistics entries
-    [[nodiscard]] auto array() const -> ConstStatsArray;
+    [[nodiscard]] auto array() const -> StatsArrayView;
 
     //! Get a statistics entry at the given index if the entry is an array.
     //!
     //! @param index the index of the statistics entry to get
     //! @return a statistics entry at the given index
-    [[nodiscard]] auto at(size_t index) const -> ConstStats;
+    [[nodiscard]] auto at(size_t index) const -> StatsView;
 
-    //! @copydoc Clingo::ConstStats::at()
-    [[nodiscard]] auto operator[](size_t index) const -> ConstStats { return at(index); }
+    //! @copydoc Clingo::StatsView::at()
+    [[nodiscard]] auto operator[](size_t index) const -> StatsView { return at(index); }
 
     //! Get a view on the map of statistics entries if the entry is a map.
     //!
     //! @return a view on the map of statistics entries
-    [[nodiscard]] auto map() const -> ConstStatsMap;
+    [[nodiscard]] auto map() const -> StatsMapView;
 
     //! Get a statistics entry with the given name if the entry is a map.
     //! @param name the name of the statistics entry to get
     //! @return a statistics entry with the given name
-    [[nodiscard]] auto get(std::string_view name) const -> ConstStats;
+    [[nodiscard]] auto get(std::string_view name) const -> StatsView;
 
-    //! @copydoc Clingo::ConstStats::get()
-    [[nodiscard]] auto operator[](std::string_view name) const -> ConstStats { return get(name); }
+    //! @copydoc Clingo::StatsView::get()
+    [[nodiscard]] auto operator[](std::string_view name) const -> StatsView { return get(name); }
 
     //! Get the value of the statistics entry if it is a value.
     //!
@@ -81,7 +81,7 @@ class ConstStats {
         throw std::logic_error{"not a value"};
     }
 
-    //! @copydoc Clingo::ConstStats::value()
+    //! @copydoc Clingo::StatsView::value()
     [[nodiscard]] auto operator*() const -> double { return value(); }
 
     //! Get a string representation of the statistics entry.
@@ -103,33 +103,33 @@ class ConstStats {
 };
 
 //! Class modeling a mutable view on a statistics entry.
-class Stats : public ConstStats {
+class Stats : public StatsView {
   public:
-    //! @copydoc Clingo::ConstStats::ConstStats()
-    explicit Stats(clingo_stats_t *stats, uint64_t key) : ConstStats{stats, key} {}
+    //! @copydoc Clingo::StatsView::StatsView()
+    explicit Stats(clingo_stats_t *stats, uint64_t key) : StatsView{stats, key} {}
 
-    //! @copydoc Clingo::ConstStats::c_cast()
+    //! @copydoc Clingo::StatsView::c_cast()
     friend auto c_cast(Stats const &stats) -> clingo_stats_t * { return stats.stats_(); }
 
-    //! @copydoc Clingo::ConstStats::array()
+    //! @copydoc Clingo::StatsView::array()
     [[nodiscard]] auto array() const -> StatsArray;
 
-    //! @copydoc Clingo::ConstStats::at()
+    //! @copydoc Clingo::StatsView::at()
     [[nodiscard]] auto at(size_t index) const -> Stats;
 
-    //! @copydoc Clingo::ConstStats::at()
+    //! @copydoc Clingo::StatsView::at()
     [[nodiscard]] auto operator[](size_t index) const -> Stats { return at(index); }
 
-    //! @copydoc Clingo::ConstStats::map()
+    //! @copydoc Clingo::StatsView::map()
     [[nodiscard]] auto map() const -> StatsMap;
 
-    //! @copydoc Clingo::ConstStats::get()
+    //! @copydoc Clingo::StatsView::get()
     [[nodiscard]] auto get(std::string_view name) const -> Stats;
 
-    //! @copydoc Clingo::ConstStats::get()
+    //! @copydoc Clingo::StatsView::get()
     [[nodiscard]] auto operator[](std::string_view name) const -> Stats { return get(name); }
 
-    using ConstStats::value;
+    using StatsView::value;
 
     //! Set the value of the statistics entry if it is a value.
     //!
@@ -152,15 +152,15 @@ class Stats : public ConstStats {
   private:
     [[nodiscard]] auto stats_() const -> clingo_stats_t * {
         // NOLINTNEXTLINE
-        return const_cast<clingo_stats_t *>(ConstStats::stats_);
+        return const_cast<clingo_stats_t *>(StatsView::stats_);
     }
 };
 
 //! Class modeling an immutable view on an array of statistics entries.
-class ConstStatsArray {
+class StatsArrayView {
   public:
     //! The value type of the array, which are stats entries.
-    using value_type = ConstStats;
+    using value_type = StatsView;
     //! The size type of the array.
     using size_type = std::size_t;
     //! The difference type of the array.
@@ -170,19 +170,19 @@ class ConstStatsArray {
     //! The pointer type of the array, which is a proxy to stats entries.
     using pointer = Detail::ArrowProxy<value_type>;
     //! The iterator type, which is a random access iterator over stats entries.
-    using iterator = Detail::RandomAccessIterator<ConstStatsArray>;
+    using iterator = Detail::RandomAccessIterator<StatsArrayView>;
 
     //! Construct a statistics array from a pointer to the C API and a key.
     //!
     //! @param stats the statistics entry to construct the array from
     //! @param key the key of the statistics entry
-    explicit ConstStatsArray(clingo_stats_t const *stats, uint64_t key) : stats_{stats}, key_{key} {}
+    explicit StatsArrayView(clingo_stats_t const *stats, uint64_t key) : stats_{stats}, key_{key} {}
 
-    //! @copydoc Clingo::ConstStats::at()
-    [[nodiscard]] auto at(size_t index) const -> ConstStats { return ConstStats{stats_, at_(index)}; }
+    //! @copydoc Clingo::StatsView::at()
+    [[nodiscard]] auto at(size_t index) const -> StatsView { return StatsView{stats_, at_(index)}; }
 
-    //! @copydoc Clingo::ConstStats::at()
-    [[nodiscard]] auto operator[](size_t index) const -> ConstStats { return at(index); }
+    //! @copydoc Clingo::StatsView::at()
+    [[nodiscard]] auto operator[](size_t index) const -> StatsView { return at(index); }
 
     //! Get the size of the array.
     //!
@@ -209,19 +209,19 @@ class ConstStatsArray {
     uint64_t key_;
 };
 
-inline auto ConstStats::array() const -> ConstStatsArray {
+inline auto StatsView::array() const -> StatsArrayView {
     if (type() == StatsType::array) {
-        return ConstStatsArray{stats_, key_};
+        return StatsArrayView{stats_, key_};
     }
     throw std::logic_error{"not an array"};
 }
 
-inline auto ConstStats::at(size_t index) const -> ConstStats {
+inline auto StatsView::at(size_t index) const -> StatsView {
     return array().at(index);
 }
 
 //! Class modeling a mutable view on an array of statistics entries.
-class StatsArray : public ConstStatsArray {
+class StatsArray : public StatsArrayView {
   public:
     //! The value type of the array, which are stats entries.
     using value_type = Stats;
@@ -236,13 +236,13 @@ class StatsArray : public ConstStatsArray {
     //! The iterator type, which is a random access iterator over stats entries.
     using iterator = Detail::RandomAccessIterator<StatsArray>;
 
-    //! @copydoc Clingo::ConstStatsArray::ConstStatsArray()
-    explicit StatsArray(clingo_stats_t *stats, uint64_t key) : ConstStatsArray{stats, key} {}
+    //! @copydoc Clingo::StatsArrayView::StatsArrayView()
+    explicit StatsArray(clingo_stats_t *stats, uint64_t key) : StatsArrayView{stats, key} {}
 
-    //! @copydoc Clingo::ConstStatsArray::at()
+    //! @copydoc Clingo::StatsArrayView::at()
     [[nodiscard]] auto at(size_t index) const -> Stats { return Stats{stats_(), at_(index)}; }
 
-    //! @copydoc Clingo::ConstStatsArray::at()
+    //! @copydoc Clingo::StatsArrayView::at()
     [[nodiscard]] auto operator[](size_t index) const -> Stats { return at(index); }
 
     //! Append a new statistics entry of the given type to the array.
@@ -273,16 +273,16 @@ class StatsArray : public ConstStatsArray {
         return push(type);
     }
 
-    //! @copydoc Clingo::ConstStatsArray::begin()
+    //! @copydoc Clingo::StatsArrayView::begin()
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
 
-    //! @copydoc Clingo::ConstStatsArray::end()
+    //! @copydoc Clingo::StatsArrayView::end()
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 
   private:
     [[nodiscard]] auto stats_() const -> clingo_stats_t * {
         // NOLINTNEXTLINE
-        return const_cast<clingo_stats_t *>(ConstStatsArray::stats_);
+        return const_cast<clingo_stats_t *>(StatsArrayView::stats_);
     }
 };
 
@@ -297,12 +297,12 @@ inline auto Stats::at(size_t index) const -> Stats {
 }
 
 //! Class modeling an immutable view on a map of statistics entries.
-class ConstStatsMap {
+class StatsMapView {
   public:
     //! The key type of the map, which is a string view.
     using key_type = std::string_view;
     //! The mapped type of the map, which is an immutable stats entry.
-    using mapped_type = ConstStats;
+    using mapped_type = StatsView;
     //! The value type of the map, which is a pair of key and mapped type.
     using value_type = std::pair<key_type, mapped_type>;
     //! The size type of the map.
@@ -314,13 +314,13 @@ class ConstStatsMap {
     //! The pointer type of the map, which is a proxy to the value type.
     using pointer = Detail::ArrowProxy<value_type>;
     //! The iterator type, which is a random access iterator over value types.
-    using iterator = Detail::RandomAccessIterator<ConstStatsMap>;
+    using iterator = Detail::RandomAccessIterator<StatsMapView>;
 
     //! Construct a statistics map from a pointer to the C API and a key.
     //!
     //! @param stats the statistics entry to construct the map from
     //! @param key the key of the statistics entry
-    explicit ConstStatsMap(clingo_stats_t const *stats, uint64_t key) : stats_{stats}, key_{key} {}
+    explicit StatsMapView(clingo_stats_t const *stats, uint64_t key) : stats_{stats}, key_{key} {}
 
     //! Get the size of the map.
     //!
@@ -333,14 +333,14 @@ class ConstStatsMap {
     //! @return the name entry pair at the given index
     [[nodiscard]] auto at(size_t index) const -> value_type {
         auto [name, subkey] = at_(index);
-        return {name, ConstStats{stats_, subkey}};
+        return {name, StatsView{stats_, subkey}};
     }
 
-    //! @copydoc Clingo::ConstStats::get()
-    [[nodiscard]] auto operator[](std::string_view name) const -> ConstStats { return get(name); }
+    //! @copydoc Clingo::StatsView::get()
+    [[nodiscard]] auto operator[](std::string_view name) const -> StatsView { return get(name); }
 
-    //! @copydoc Clingo::ConstStats::get()
-    [[nodiscard]] auto get(std::string_view name) const -> ConstStats { return ConstStats{stats_, at_(name)}; }
+    //! @copydoc Clingo::StatsView::get()
+    [[nodiscard]] auto get(std::string_view name) const -> StatsView { return StatsView{stats_, at_(name)}; }
 
     //! Check if the map contains a subkey with the given name.
     //!
@@ -377,19 +377,19 @@ class ConstStatsMap {
     uint64_t key_;
 };
 
-inline auto ConstStats::map() const -> ConstStatsMap {
+inline auto StatsView::map() const -> StatsMapView {
     if (type() == StatsType::map) {
-        return ConstStatsMap{stats_, key_};
+        return StatsMapView{stats_, key_};
     }
     throw std::logic_error{"not a map"};
 }
 
-inline auto ConstStats::get(std::string_view name) const -> ConstStats {
+inline auto StatsView::get(std::string_view name) const -> StatsView {
     return map().get(name);
 }
 
 //! Class modeling a mutable view on a map of statistics entries.
-class StatsMap : public ConstStatsMap {
+class StatsMap : public StatsMapView {
   public:
     //! The key type of the map, which is a string view.
     using key_type = std::string_view;
@@ -412,18 +412,18 @@ class StatsMap : public ConstStatsMap {
     //!
     //! @param stats the statistics entry to construct the map from
     //! @param key the key of the statistics entry
-    explicit StatsMap(clingo_stats_t *stats, uint64_t key) : ConstStatsMap{stats, key} {}
+    explicit StatsMap(clingo_stats_t *stats, uint64_t key) : StatsMapView{stats, key} {}
 
-    //! @copydoc Clingo::ConstStatsMap::at()
+    //! @copydoc Clingo::StatsMapView::at()
     [[nodiscard]] auto at(size_t index) const -> value_type {
         auto [name, subkey] = at_(index);
         return {name, Stats{stats_(), subkey}};
     }
 
-    //! @copydoc Clingo::ConstStatsMap::get()
+    //! @copydoc Clingo::StatsMapView::get()
     [[nodiscard]] auto operator[](std::string_view name) const -> Stats { return get(name); }
 
-    //! @copydoc Clingo::ConstStatsMap::get()
+    //! @copydoc Clingo::StatsMapView::get()
     [[nodiscard]] auto get(std::string_view name) const -> Stats { return Stats{stats_(), at_(name)}; }
 
     //! Insert a statistics entry with the given name and type into the map.
@@ -455,7 +455,7 @@ class StatsMap : public ConstStatsMap {
   private:
     [[nodiscard]] auto stats_() const -> clingo_stats_t * {
         // NOLINTNEXTLINE
-        return const_cast<clingo_stats_t *>(ConstStatsMap::stats_);
+        return const_cast<clingo_stats_t *>(StatsMapView::stats_);
     }
 };
 

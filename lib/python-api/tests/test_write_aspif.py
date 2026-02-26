@@ -172,13 +172,11 @@ class TestWriteAspif:
         Test heuristic statements.
         """
         self._ctl = Control(self.lib, ["--heuristic", "domain"])
-        with self.parse(
-            """\
+        with self.parse("""\
             {a; b}.
             #heuristic a. [1,true]
             #heuristic b. [0,false]
-            """
-        ) as path:
+            """) as path:
             self.ctl.parse_files([path])
             mcb = MCB()
             self.ctl.solve(on_model=mcb)
@@ -188,13 +186,11 @@ class TestWriteAspif:
         """
         Test edge statements.
         """
-        with self.parse(
-            """\
+        with self.parse("""\
             {a; b}.
             #edge (a,b) : a.
             #edge (b,a) : b.
-            """
-        ) as path:
+            """) as path:
             self.ctl.parse_files([path])
             mcb = MCB()
             self.ctl.solve(on_model=mcb)
@@ -204,16 +200,14 @@ class TestWriteAspif:
         """
         Test theory statements.
         """
-        with self.parse(
-            """\
+        with self.parse("""\
             #theory p {
             p { + : 0, binary, left };
             &p/0: p, {<}, p, any
             }.
             &p{ 1,f(1+2),[1],{2},(3,),(4) }.
             &p{} < 2.
-            """
-        ) as path:
+            """) as path:
             self.ctl.parse_files([path])
             assert sorted(str(atom) for atom in self.ctl.base.theory) == [
                 "&p { 1,f((1+2)),[1],{2},(3),4 }",

@@ -67,7 +67,7 @@ import clingo.control
 import clingo.core
 import clingo.solve
 
-__all__ = ["App", "AppOptions", "Flag", "clingo_main"]
+__all__: list[str] = ["App", "AppOptions", "Flag", "clingo_main"]
 
 def _pyclingo() -> int: ...
 def clingo_main(
@@ -101,8 +101,6 @@ class App:
     application options, and validating the configuration.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(
         self, program_name: str | None = None, version: str | None = None
     ) -> None:
@@ -181,8 +179,6 @@ class AppOptions:
     - multi-value options.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def add(
         self,
         group: str,
@@ -254,8 +250,6 @@ class Flag:
     Represents command-line toggle options.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(self, value: bool = False) -> None:
         """
         Initializes the flag with the provided value.

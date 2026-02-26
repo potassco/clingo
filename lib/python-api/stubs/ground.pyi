@@ -57,7 +57,7 @@ from __future__ import annotations
 import enum
 import typing
 
-__all__ = ["GroundHandle", "GroundResult"]
+__all__: list[str] = ["GroundHandle", "GroundResult"]
 
 class GroundResult(enum.IntEnum):
     """
@@ -92,8 +92,6 @@ class GroundHandle:
     See also: `clingo.control.Control.ground`
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __enter__(self) -> GroundHandle:
         """
         Start the search.

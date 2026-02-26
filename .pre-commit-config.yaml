@@ -1,27 +1,27 @@
 fail_fast: true
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
         exclude: ^.github/
 
   - repo: https://github.com/pycqa/isort
-    rev: 6.0.0
+    rev: 8.0.0
     hooks:
       - id: isort
         args: ["--profile", "black"]
         exclude: ^.github/
 
   - repo: https://github.com/psf/black
-    rev: 25.1.0
+    rev: 26.1.0
     hooks:
       - id: black
         exclude: ^.github/
 
   - repo: https://github.com/cpp-linter/cpp-linter-hooks
-    rev: v1.1.8
+    rev: v1.1.13
     hooks:
       - id: clang-format
         types_or: [c++, c]

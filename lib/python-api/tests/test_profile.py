@@ -48,14 +48,12 @@ class TestProfile:
         """
         Test profiling.
         """
-        self.ctl.parse_string(
-            """
+        self.ctl.parse_string("""
             #const n = 10.
             { q(1..n,Y) } = 1 :- Y=1..n.
             { q(X,1..n) } = 1 :- X=1..n.
             :- q(X,Y), q(X',Y'), (X,Y)<(X',Y'), X'-X == |Y-Y'|.
-            """
-        )
+            """)
         self.ctl.ground()
 
         profile = self.ctl.profile

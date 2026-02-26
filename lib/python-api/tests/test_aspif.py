@@ -86,8 +86,7 @@ class TestAspif:
         """
         Test adding normal rules.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             1 0 1 1 0 0
             1 0 1 2 0 0
@@ -105,8 +104,7 @@ class TestAspif:
             4 4 q(3) 1 8
             4 4 p(3) 1 9
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [
@@ -139,8 +137,7 @@ class TestAspif:
         """
         Test adding choice rules.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             1 1 3 1 2 3 0 0
             1 0 0 1 2 3 1 1 2 1 3 1
@@ -148,8 +145,7 @@ class TestAspif:
             4 1 b 1 2
             4 1 c 1 3
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [[], ["a"], ["b"], ["c"]]
@@ -158,8 +154,7 @@ class TestAspif:
         """
         Test adding disjunctive rules.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             1 0 1 4 0 1 3
             1 0 1 3 0 1 4
@@ -172,8 +167,7 @@ class TestAspif:
             4 1 c 1 3
             4 1 d 1 4
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["a", "b"], ["c", "d"]]
@@ -182,8 +176,7 @@ class TestAspif:
         """
         Test adding minimize constraints.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             1 0 1 4 0 0
             1 0 0 0 1 -5
@@ -197,8 +190,7 @@ class TestAspif:
             4 1 b 1 2
             4 1 c 1 3
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["a", "c"]]
@@ -208,8 +200,7 @@ class TestAspif:
         Test adding project directives.
         """
         self._ctl = Control(self.lib, ["--project", "0"])
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             1 0 1 1 0 0
             1 0 0 0 1 -4
@@ -221,8 +212,7 @@ class TestAspif:
             4 1 a 1 3
             3 2 2 3
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [[], ["a"]]
@@ -231,14 +221,12 @@ class TestAspif:
         """
         Test output fact.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             1 0 1 1 0 0
             4 1 a 0
             0
-            """
-        )
+            """)
         sym = Function(self.lib, "a", [])
         assert sym not in self.ctl.base.terms
         assert sym in self.ctl.base
@@ -250,8 +238,7 @@ class TestAspif:
         """
         Test output statements.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             1 1 2 1 2 0 0
             4 1 a 1 1
@@ -259,8 +246,7 @@ class TestAspif:
             4 1 c 2 1 2
             4 1 d 0
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["a", "b", "c", "d"], ["a", "d"], ["b", "d"], ["d"]]
@@ -272,15 +258,13 @@ class TestAspif:
         """
         Test output fact.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 2 0 0
             1 0 1 1 0 0
             4 0 1 1 a
             4 0 1 1 b
             0
-            """
-        )
+            """)
         sym = Function(self.lib, "a", [])
         assert sym not in self.ctl.base.terms
         assert sym in self.ctl.base
@@ -292,8 +276,7 @@ class TestAspif:
         """
         Test output fact.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 2 0 0
             1 1 2 1 2 0 0
             4 1 0 1 a
@@ -303,8 +286,7 @@ class TestAspif:
             4 1 2 1 c
             4 2 2 2 1 2
             0
-            """
-        )
+            """)
         a = Function(self.lib, "a", [])
         b = Function(self.lib, "b", [])
         c = Function(self.lib, "c", [])
@@ -319,8 +301,7 @@ class TestAspif:
         """
         Test output statements.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 2 0 0 symbols
             1 0 1 1 0 0
             1 0 1 2 0 0
@@ -336,15 +317,13 @@ class TestAspif:
             4 7 6 0 0 1 5
             4 0 6 3
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["p(1)", "p(2)", "p(3)"]]
 
         self._ctl = Control(self.lib, ["0", "--opt-mode=optN"])
-        self.parse(
-            """\
+        self.parse("""\
             asp 2 0 0 symbols
             1 0 1 1 0 0
             4 5 0 1 p
@@ -360,8 +339,7 @@ class TestAspif:
             4 7 9 0 0 6 1 2 3 6 7 8
             4 0 9 1
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [['p(#inf,#sup,"a\\"b\\nc",f(1),(1,),())']]
@@ -370,8 +348,7 @@ class TestAspif:
         """
         Test external statements.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             5 1 1
             5 2 2
@@ -380,8 +357,7 @@ class TestAspif:
             4 1 b 1 2
             4 1 c 1 3
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["a"], ["a", "c"]]
@@ -390,8 +366,7 @@ class TestAspif:
         """
         Test assumption statements.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             1 1 3 1 2 3 0 0
             6 2 1 -2
@@ -399,8 +374,7 @@ class TestAspif:
             4 1 b 1 2
             4 1 c 1 3
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["a"], ["a", "c"]]
@@ -410,8 +384,7 @@ class TestAspif:
         Test heuristic statements.
         """
         self._ctl = Control(self.lib, ["--heuristic", "domain"])
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             1 1 2 1 2 0 0
             4 1 a 1 1
@@ -419,8 +392,7 @@ class TestAspif:
             7 4 1 1 0 0
             7 5 2 0 0 0
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["a"]]
@@ -429,8 +401,7 @@ class TestAspif:
         """
         Test edge statements.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             1 1 2 1 2 0 0
             4 1 a 1 1
@@ -438,8 +409,7 @@ class TestAspif:
             8 0 1 1 2
             8 1 0 1 1
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [[], ["a"], ["b"]]
@@ -450,8 +420,7 @@ class TestAspif:
         """
         # NOTE: the parser currently expects theory atoms to be read in in
         # depth-first order.
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             1 0 1 2 0 0
             1 0 1 3 0 0
@@ -485,8 +454,7 @@ class TestAspif:
             9 4 18 1 2 0
             9 5 7 9 1 18
             0
-            """
-        )
+            """)
         assert sorted(str(atom) for atom in self.ctl.base.theory) == [
             "&p { (1,2,3) }",
             "&p { 1 }",
@@ -499,16 +467,14 @@ class TestAspif:
         """
         Test aspif comments.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0
             10 123
             1 1 1 1 0 0
             10 abc
             4 1 a 1 1
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [[], ["a"]]
@@ -517,8 +483,7 @@ class TestAspif:
         """
         Test incremental parsing.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0 incremental
             1 1 1 1 0 0
             4 1 a 1 1
@@ -526,8 +491,7 @@ class TestAspif:
             1 1 1 2 0 0
             4 1 b 1 2
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [[], ["a"], ["a", "b"], ["b"]]
@@ -538,8 +502,7 @@ class TestAspif:
         """
         # NOTE: Since the parser does not support interleaved parsing and
         # solving, it simply merges theories.
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0 incremental
             1 0 1 1 0 0
             9 1 2 1 p
@@ -553,8 +516,7 @@ class TestAspif:
             9 4 1 1 0 0
             9 5 3 2 1 1
             0
-            """
-        )
+            """)
         assert sorted(str(atom) for atom in self.ctl.base.theory) == [
             "&p { a }",
             "&p { b }",
@@ -564,8 +526,7 @@ class TestAspif:
         """
         Test incremental assumptions.
         """
-        self.parse(
-            """\
+        self.parse("""\
             asp 1 0 0 incremental
             1 1 1 1 0 0
             6 1 1
@@ -575,8 +536,7 @@ class TestAspif:
             6 1 2
             4 1 b 1 2
             0
-            """
-        )
+            """)
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["a", "b"], ["b"]]

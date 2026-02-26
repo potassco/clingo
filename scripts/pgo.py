@@ -12,8 +12,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 def command(cmd, alt):
     return cmd if shutil.which(cmd) is not None else alt
+
 
 CMAKE = "cmake"
 CLANG = command("clang-20", "clang")
@@ -43,7 +45,9 @@ CLANG_CMAKE_OPTIONS = [
     f"-DCMAKE_CXX_COMPILER={shlex.quote(CLANGXX)}",
     *CMAKE_OPTIONS,
 ]
-CLANG_C_FLAGS = f"-flto -fuse-ld={shlex.quote(LLD)} -Wno-unused-command-line-argument{EXTRA_FLAGS}"
+CLANG_C_FLAGS = (
+    f"-flto -fuse-ld={shlex.quote(LLD)} -Wno-unused-command-line-argument{EXTRA_FLAGS}"
+)
 CLANG_CXX_FLAGS = f"-stdlib=libc++ {CLANG_C_FLAGS}"
 
 GCC_INSTR_PATH = "build/release_instrument"

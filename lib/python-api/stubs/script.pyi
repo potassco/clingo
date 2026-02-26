@@ -63,7 +63,7 @@ import clingo.control
 import clingo.core
 import clingo.symbol
 
-__all__ = ["Script", "enable_python", "register"]
+__all__: list[str] = ["Script", "enable_python", "register"]
 
 def enable_python(lib: clingo.core.Library) -> None:
     """
@@ -90,8 +90,6 @@ class Script:
     ABC for custom scripts.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(self) -> None:
         """
         Construct a script object.
@@ -163,5 +161,4 @@ class Script:
         """
 
 class _MainScript:
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
+    pass

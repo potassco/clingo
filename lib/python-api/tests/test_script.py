@@ -90,9 +90,7 @@ class TestScript:
         return self._lib
 
     def _add_script(self, ctl):
-        ctl.parse_string(
-            dedent(
-                """\
+        ctl.parse_string(dedent("""\
                 #script (myScript)
                 from clingo.core import Library
                 from clingo.symbol import Symbol, Number
@@ -110,9 +108,7 @@ class TestScript:
                     ctl.parse_string("#program ext(k). p(@fun(k)).")
                     ctl.ground([("ext", [Number(lib, i)]) for i in range(1, 1000, 257)])
                 #end.
-                """
-            )
-        )
+                """))
 
     def test_script_ground(self):
         """
@@ -122,8 +118,7 @@ class TestScript:
         self._add_script(ctl)
         ctl.main()
 
-        assert ctl.buffer == dedent(
-            """\
+        assert ctl.buffer == dedent("""\
             p(1).
             #show p/1.
             #show.
@@ -131,8 +126,7 @@ class TestScript:
             p(62528338911828056789536898849199882566028738825948825712138911885878291182908210).
             p(124814319920897090103145360105961005897305428276603276130819921012508992089913675).
             p(187100300929966123416753821362722129228582117727257726549500930139139692996919140).
-            """
-        )
+            """)
 
     def test_script_solve(self):
         """

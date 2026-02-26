@@ -705,14 +705,12 @@ class TestAST:
         assert d1.name == "t"
         assert d1.terms == [td1]
         assert d1.atoms, [ad1 == ad2]
-        assert str(d1) == dedent(
-            """\
+        assert str(d1) == dedent("""\
             #theory t {
               t { + : 3, binary, left };
               &p/1: t, directive;
               &p/1: t, {+,-}, t, directive
-            }."""
-        )
+            }.""")
 
     def test_statement_optimize(self):
         """

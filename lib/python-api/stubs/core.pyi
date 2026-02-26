@@ -19,7 +19,14 @@ import typing
 
 import typing_extensions
 
-__all__ = ["Library", "Location", "LogLevel", "MessageType", "Position", "version"]
+__all__: list[str] = [
+    "Library",
+    "Location",
+    "LogLevel",
+    "MessageType",
+    "Position",
+    "version",
+]
 
 def version() -> tuple[int, int, int]:
     """
@@ -83,8 +90,6 @@ class Library:
     This class implements the `ContextManager` interface.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __enter__(self) -> Library:
         """
         Return self.
@@ -131,8 +136,6 @@ class Location:
     the source of the program elements.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __ge__(self, arg0: typing.Any) -> bool: ...
     def __gt__(self, arg0: typing.Any) -> bool: ...
@@ -175,8 +178,6 @@ class Position:
     within a source file, including its file name, line number, and column.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __ge__(self, arg0: typing.Any) -> bool: ...
     def __gt__(self, arg0: typing.Any) -> bool: ...

@@ -41,7 +41,7 @@ import typing
 
 import clingo.symbol
 
-__all__ = [
+__all__: list[str] = [
     "Atom",
     "AtomBase",
     "Base",
@@ -77,8 +77,6 @@ class Atom:
     A class providing information about symbolic atoms.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """
@@ -105,8 +103,6 @@ class AtomBase:
     Implements `Mapping[Symbol, Atom]`.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, key: clingo.symbol.Symbol) -> bool:
         """
         Check if the map contains the given key.
@@ -163,8 +159,6 @@ class Base:
     - `__contains__: Callable[[tuple[str, int]], bool]`
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     @typing.overload
     def __contains__(self, key: tuple[str, int, bool]) -> bool:
         """
@@ -305,8 +299,6 @@ class Term:
     A class providing information about terms.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """
@@ -335,8 +327,6 @@ class TermBase:
     Implements `Mapping[Symbol, Term]`.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, key: clingo.symbol.Symbol) -> bool:
         """
         Check if the map contains the given key.
@@ -384,8 +374,6 @@ class TheoryAtom:
     A view to inspect a theory atom.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """
@@ -429,8 +417,6 @@ class TheoryBase:
     Implements `Sequence[TheoryAtom]`.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, value: TheoryAtom) -> bool:
         """
         Check whether the sequence contains the given value.
@@ -471,8 +457,6 @@ class TheoryElement:
     A view to inspect a theory element.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """
@@ -508,8 +492,6 @@ class TheoryTerm:
     A view to inspect a theory term.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __hash__(self) -> int:
         """

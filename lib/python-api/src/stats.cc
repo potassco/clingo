@@ -10,18 +10,18 @@ class StatsIterBase {
   public:
     template <typename ContainerT>
     explicit StatsIterBase(ContainerT const &container)
-        : stats_(container.c_ptr(), container.key()), pos_(0), end_(container.len()) {}
+        : stats_(container.c_ptr(), container.key()), end_(container.len()) {}
     auto operator==(const StatsIterBase &) const -> bool = default;
     friend auto operator==(const StatsIterBase &iter, [[maybe_unused]] std::default_sentinel_t s) -> bool {
         return iter.pos_ == iter.end_;
     }
     void next() { ++pos_; }
-    [[nodiscard]] auto map_key() const -> std::string_view { return stats_.as<ConstStatsMap>().get_key(pos_); }
-    [[nodiscard]] auto const_map_value() const -> ConstStats { return const_map_item().second; }
+    [[nodiscard]] auto map_key() const -> std::string_view { return stats_.as<StatsMapView>().get_key(pos_); }
+    [[nodiscard]] auto const_map_value() const -> StatsView { return const_map_item().second; }
     [[nodiscard]] auto map_value() const -> Stats { return map_item().second; }
-    [[nodiscard]] auto const_map_item() const -> std::pair<std::string_view, ConstStats> {
+    [[nodiscard]] auto const_map_item() const -> std::pair<std::string_view, StatsView> {
         auto name = this->map_key();
-        auto value = stats_.as<ConstStatsMap>().get(name);
+        auto value = stats_.as<StatsMapView>().get(name);
         return {name, value};
     }
     [[nodiscard]] auto map_item() const -> std::pair<std::string_view, Stats> {
@@ -29,12 +29,12 @@ class StatsIterBase {
         auto value = stats_.as<StatsMap>().get(name);
         return {name, value};
     }
-    [[nodiscard]] auto const_array_item() const -> ConstStats { return stats_.as<ConstStatsArray>().get(pos_); }
+    [[nodiscard]] auto const_array_item() const -> StatsView { return stats_.as<StatsArrayView>().get(pos_); }
     [[nodiscard]] auto array_item() const -> Stats { return stats_.as<StatsArray>().get(pos_); }
 
   private:
     StatsBase stats_;
-    std::size_t pos_;
+    std::size_t pos_ = 0;
     std::size_t end_;
 };
 // Minimal interface required for py::iterator
@@ -60,7 +60,7 @@ class StatsIter : public StatsIterBase {
 template <auto Fun, typename Container> auto make_py_iter(Container const &container) {
     return py::make_iterator(StatsIter<Fun>(container), std::default_sentinel);
 }
-auto get_type(py::handle value, std::optional<ConstStats> old_value) -> std::pair<StatsType, py::object> {
+auto get_type(py::handle value, std::optional<StatsView> old_value) -> std::pair<StatsType, py::object> {
     py::object new_value = py::none{};
     if (PyCallable_Check(value.ptr()) == 1) {
         new_value = value(old_value ? old_value->nestify() : py::none{});
@@ -96,13 +96,13 @@ auto StatsBase::str() const -> std::string_view {
     return {res.data, res.size};
 }
 
-auto ConstStatsArray::len() const -> size_t {
+auto StatsArrayView::len() const -> size_t {
     size_t size = 0;
     stats_call<clingo_stats_array_size>(*this, &size);
     return size;
 }
 
-auto ConstStatsArray::get(size_t index) const -> ConstStats {
+auto StatsArrayView::get(size_t index) const -> StatsView {
     if (index < len()) {
         uint64_t subkey = 0;
         stats_call<clingo_stats_array_at>(*this, index, &subkey);
@@ -111,12 +111,12 @@ auto ConstStatsArray::get(size_t index) const -> ConstStats {
     throw py::index_error{"array index out of bounds"};
 }
 
-auto ConstStatsArray::items() const -> TypeHint<"Iterator[StatsView]"> {
+auto StatsArrayView::items() const -> TypeHint<"Iterator[StatsView]"> {
     return make_py_iter<&StatsIterBase::const_array_item>(*this);
 }
 
 auto StatsArray::get(size_t index) -> Stats {
-    return ConstStatsArray::get(index).as<Stats>();
+    return StatsArrayView::get(index).as<Stats>();
 }
 
 void StatsArray::set(size_t index, py::handle value) {
@@ -134,52 +134,52 @@ void StatsArray::append(py::handle value) {
     Stats{c_ptr(), subkey}.update_(std::move(subval), true);
 }
 
-auto ConstStatsMap::len() const -> size_t {
+auto StatsMapView::len() const -> size_t {
     size_t size = 0;
     stats_call<clingo_stats_map_size>(*this, &size);
     return size;
 }
 
-auto ConstStatsMap::contains(std::string_view name) const -> bool {
+auto StatsMapView::contains(std::string_view name) const -> bool {
     auto res = false;
     stats_call<clingo_stats_map_has_subkey>(*this, name.data(), name.size(), nullptr, &res);
     return res;
 }
 
-auto ConstStatsMap::get(std::string_view name) const -> ConstStats {
+auto StatsMapView::get(std::string_view name) const -> StatsView {
     if (auto stats = try_get(name); stats.has_value()) {
         return *stats;
     }
     throw py::index_error{"invalid key"};
 }
 
-auto ConstStatsMap::get_key(size_t index) const -> std::string_view {
+auto StatsMapView::get_key(size_t index) const -> std::string_view {
     clingo_string_t name;
     stats_call<clingo_stats_map_subkey_name>(*this, index, &name);
     return {name.data, name.size};
 }
 
-auto ConstStatsMap::try_get(std::string_view name) const -> std::optional<ConstStats> {
+auto StatsMapView::try_get(std::string_view name) const -> std::optional<StatsView> {
     uint64_t subkey = 0;
     auto found = false;
     stats_call<clingo_stats_map_has_subkey>(*this, name.data(), name.size(), &subkey, &found);
     return found ? std::make_optional<Stats>(c_ptr(), subkey) : std::nullopt;
 }
 
-auto ConstStatsMap::keys() const -> TypeHint<"Iterator[str]"> {
+auto StatsMapView::keys() const -> TypeHint<"Iterator[str]"> {
     return make_py_iter<&StatsIterBase::map_key>(*this);
 }
 
-auto ConstStatsMap::values() const -> TypeHint<"Iterator[StatsView]"> {
+auto StatsMapView::values() const -> TypeHint<"Iterator[StatsView]"> {
     return make_py_iter<&StatsIterBase::const_map_value>(*this);
 }
 
-auto ConstStatsMap::items() const -> TypeHint<"Iterator[tuple[str,StatsView]]"> {
+auto StatsMapView::items() const -> TypeHint<"Iterator[tuple[str,StatsView]]"> {
     return make_py_iter<&StatsIterBase::const_map_item>(*this);
 }
 
 auto StatsMap::get(std::string_view name) -> Stats {
-    return ConstStatsMap::get(name).as<Stats>();
+    return StatsMapView::get(name).as<Stats>();
 }
 
 void StatsMap::set(std::string_view name, py::handle value) {
@@ -199,27 +199,27 @@ auto StatsMap::items() -> TypeHint<"Iterator[tuple[str,Stats]]"> { // NOLINT(*-m
     return make_py_iter<&StatsIterBase::map_item>(*this);
 }
 
-auto ConstStats::type() const -> StatsType {
+auto StatsView::type() const -> StatsType {
     clingo_stats_type_t type = 0;
     stats_call<clingo_stats_type>(*this, &type);
     return static_cast<StatsType>(type);
 }
 
-auto ConstStats::array() const -> ConstStatsArray {
+auto StatsView::array() const -> StatsArrayView {
     if (type() == StatsType::array) {
-        return as<ConstStatsArray>();
+        return as<StatsArrayView>();
     }
     throw py::type_error{"not an array"};
 }
 
-auto ConstStats::map() const -> ConstStatsMap {
+auto StatsView::map() const -> StatsMapView {
     if (type() == StatsType::map) {
-        return as<ConstStatsMap>();
+        return as<StatsMapView>();
     }
     throw py::type_error{"not a map"};
 }
 
-auto ConstStats::get_value() const -> double {
+auto StatsView::get_value() const -> double {
     if (type() == StatsType::value) {
         double value = 0;
         stats_call<clingo_stats_value_get>(*this, &value);
@@ -228,36 +228,36 @@ auto ConstStats::get_value() const -> double {
     throw py::type_error{"not a value"};
 }
 
-auto ConstStats::get(std::size_t key) const -> ConstStats {
+auto StatsView::get(std::size_t key) const -> StatsView {
     return array().get(key);
 }
 
-auto ConstStats::at(std::string_view key) const -> ConstStats {
+auto StatsView::at(std::string_view key) const -> StatsView {
     return map().get(key);
 }
 
-auto ConstStats::len() const -> size_t {
+auto StatsView::len() const -> size_t {
     switch (type()) {
         case StatsType::array:
-            return as<ConstStatsArray>().len();
+            return as<StatsArrayView>().len();
         case StatsType::map:
-            return as<ConstStatsMap>().len();
+            return as<StatsMapView>().len();
         default:
             return 0;
     }
 }
 
-auto ConstStats::contains(std::string_view key) const -> bool {
+auto StatsView::contains(std::string_view key) const -> bool {
     return map().contains(key);
 }
 
-auto ConstStats::nestify() const -> py::object {
+auto StatsView::nestify() const -> py::object {
     switch (type()) {
         case StatsType::value: {
             return py::float_{get_value()};
         }
         case StatsType::array: {
-            auto x = as<ConstStatsArray>();
+            auto x = as<StatsArrayView>();
             auto n = x.len();
             auto res = py::list{n};
             for (size_t i = 0; i < n; ++i) {
@@ -267,7 +267,7 @@ auto ConstStats::nestify() const -> py::object {
         }
         case StatsType::map: {
             auto res = py::dict{};
-            for (auto it = StatsIterBase{as<ConstStatsMap>()}; it != std::default_sentinel; it.next()) {
+            for (auto it = StatsIterBase{as<StatsMapView>()}; it != std::default_sentinel; it.next()) {
                 auto [name, object] = it.const_map_item();
                 res[py::str{name}] = object.nestify();
             }
@@ -277,7 +277,7 @@ auto ConstStats::nestify() const -> py::object {
     unreachable();
 }
 
-auto ConstStats::iter() const -> TypeHint<"Iterator[str|StatsView]"> {
+auto StatsView::iter() const -> TypeHint<"Iterator[str|StatsView]"> {
     switch (type()) {
         case StatsType::map:
             return map().keys();
@@ -334,19 +334,19 @@ void Stats::update_(py::handle value, bool init) {
 }
 
 auto Stats::array() -> StatsArray {
-    return ConstStats::array().as<StatsArray>();
+    return StatsView::array().as<StatsArray>();
 }
 
 auto Stats::map() -> StatsMap {
-    return ConstStats::map().as<StatsMap>();
+    return StatsView::map().as<StatsMap>();
 }
 
 auto Stats::get(std::size_t key) -> Stats {
-    return ConstStats::get(key).as<Stats>();
+    return StatsView::get(key).as<Stats>();
 }
 
 auto Stats::at(std::string_view key) -> Stats {
-    return ConstStats::at(key).as<Stats>();
+    return StatsView::at(key).as<Stats>();
 }
 
 auto Stats::iter() -> TypeHint<"Iterator[str|Stats]"> {
@@ -407,14 +407,14 @@ option only basic stats are reported.
         .value("Value", StatsType::value, R"(Indicate a value of stats.)")
         .finalize();
 
-    auto stats_view = py::class_<ConstStats>{module, "StatsView", R"(Class representing read-only solver stats.)"};
-    auto stats = py::class_<Stats, ConstStats>{module, "Stats", R"(Class representing solver stats.)"};
-    auto stats_array_view = py::class_<ConstStatsArray>{module, "StatsArrayView", R"(
+    auto stats_view = py::class_<StatsView>{module, "StatsView", R"(Class representing read-only solver stats.)"};
+    auto stats = py::class_<Stats, StatsView>{module, "Stats", R"(Class representing solver stats.)"};
+    auto stats_array_view = py::class_<StatsArrayView>{module, "StatsArrayView", R"(
 Class representing a read-only array of stats.
 
 This class partially implements the mutable sequence protocol.
 )"_d};
-    auto stats_array = py::class_<StatsArray, ConstStatsArray>{module, "StatsArray", R"(
+    auto stats_array = py::class_<StatsArray, StatsArrayView>{module, "StatsArray", R"(
 Class representing an array of stats.
 
 This class partially implements the mutable sequence protocol - elements of
@@ -424,12 +424,12 @@ implemented via `Stats.update`.
 Most use cases should be implementable just using the update function of the
 top-level statistics object.
 )"_d};
-    auto stats_map_view = py::class_<ConstStatsMap>{module, "StatsMapView", R"(
+    auto stats_map_view = py::class_<StatsMapView>{module, "StatsMapView", R"(
 Class representing a read-only map of stats.
 
 This class partially implements the mutable mapping protocol.
 )"_d};
-    auto stats_map = py::class_<StatsMap, ConstStatsMap>{module, "StatsMap", R"(
+    auto stats_map = py::class_<StatsMap, StatsMapView>{module, "StatsMap", R"(
 Class representing a map of stats.
 
 This class partially implements the mutable mapping protocol - value of keys
@@ -441,28 +441,28 @@ top-level statistics object.
 )"_d};
 
     stats_view //
-        .def("__str__", &ConstStats::str, R"(A readable representation to inspect the statistics.)")
-        .def("__getitem__", &ConstStats::get, "Get the element at the given index.")
-        .def("__getitem__", &ConstStats::at, py::arg("key"), "Lookup the value with the given key.")
-        .def("__len__", &ConstStats::len, "Get the length of this element.")
-        .def("__contains__", &ConstStats::contains,
+        .def("__str__", &StatsView::str, R"(A readable representation to inspect the statistics.)")
+        .def("__getitem__", &StatsView::get, "Get the element at the given index.")
+        .def("__getitem__", &StatsView::at, py::arg("key"), "Lookup the value with the given key.")
+        .def("__len__", &StatsView::len, "Get the length of this element.")
+        .def("__contains__", &StatsView::contains,
              "Checks whether the given key is in the element, which must be a map.")
-        .def("__iter__", &ConstStats::iter,
+        .def("__iter__", &StatsView::iter,
              "Get an iterator over this statistics object, which must be a map or an array.")
-        .def("nestify", &ConstStats::nestify, R"(
+        .def("nestify", &StatsView::nestify, R"(
 Convert the statistics object into a nested structure consisting of sequencens,
 mappings with string keys, and floats.
 )"_d)
-        .def_property_readonly("type", &ConstStats::type, R"(Get the type of the stats object.)")
-        .def_property_readonly("array", &ConstStats::array, R"(Get an array of stats objects.)")
-        .def_property_readonly("map", &ConstStats::map, R"(Get a map of stats objects.)")
-        .def_property_readonly("value", &ConstStats::get_value, R"(Get the value of the stats object.)");
+        .def_property_readonly("type", &StatsView::type, R"(Get the type of the stats object.)")
+        .def_property_readonly("array", &StatsView::array, R"(Get an array of stats objects.)")
+        .def_property_readonly("map", &StatsView::map, R"(Get a map of stats objects.)")
+        .def_property_readonly("value", &StatsView::get_value, R"(Get the value of the stats object.)");
 
     stats_array_view //
-        .def("__str__", &ConstStatsArray::str, R"(A readable representation to inspect the array.)")
-        .def("__len__", &ConstStatsArray::len, "Get the length of the array.")
-        .def("__iter__", &ConstStatsArray::items, "Get an iterator over the elements of the array.")
-        .def("__getitem__", &ConstStatsArray::get, "Get the element at the given index.");
+        .def("__str__", &StatsArrayView::str, R"(A readable representation to inspect the array.)")
+        .def("__len__", &StatsArrayView::len, "Get the length of the array.")
+        .def("__iter__", &StatsArrayView::items, "Get an iterator over the elements of the array.")
+        .def("__getitem__", &StatsArrayView::get, "Get the element at the given index.");
 
     stats_array //
         .def("__setitem__", &StatsArray::set, "Set the element at the given index to the given value.")
@@ -476,13 +476,13 @@ Args:
 )"_d);
 
     stats_map_view //
-        .def("__str__", &ConstStatsMap::str, R"(A readable representation to inspect the map.)")
-        .def("__len__", &ConstStatsMap::len, "Get the length of the map.")
-        .def("__iter__", &ConstStatsMap::keys, "Get an iterator over the keys of the map.")
-        .def("keys", &ConstStatsMap::keys, "Get an iterator over the keys of the map.")
-        .def("values", &ConstStatsMap::values, "Get an iterator over the values of the map.")
-        .def("items", &ConstStatsMap::items, "Get an iterator over the items of the map.")
-        .def("__getitem__", &ConstStatsMap::get, py::arg("key"), "Lookup the value with the given key.");
+        .def("__str__", &StatsMapView::str, R"(A readable representation to inspect the map.)")
+        .def("__len__", &StatsMapView::len, "Get the length of the map.")
+        .def("__iter__", &StatsMapView::keys, "Get an iterator over the keys of the map.")
+        .def("keys", &StatsMapView::keys, "Get an iterator over the keys of the map.")
+        .def("values", &StatsMapView::values, "Get an iterator over the values of the map.")
+        .def("items", &StatsMapView::items, "Get an iterator over the items of the map.")
+        .def("__getitem__", &StatsMapView::get, py::arg("key"), "Lookup the value with the given key.");
 
     stats_map //
         .def("values", &StatsMap::values, "Get an iterator over the values of the map.")
