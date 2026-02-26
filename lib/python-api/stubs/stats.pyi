@@ -10,7 +10,7 @@ The following example shows how to add custom stats and access the stats:
 >>> from clingo.control import Control
 >>>
 >>> def on_stats(step, accu):
-...     accu.update({"example": [21]})
+...     step.update({"example": [21]})
 ...     accu.update({"example": [lambda x: (x or 0) + 21]})
 ...
 >>> lib = Library()
@@ -21,11 +21,11 @@ The following example shows how to add custom stats and access the stats:
 SAT
 >>> print(ctl.solve(on_stats=on_stats))
 SAT
->>> ctl.stats['user_step']
+>>> ctl.stats['user_step'].nestify()
 { "example": [21.0] }
->>> ctl.stats['user_accu']
+>>> ctl.stats['user_accu'].nestify()
 { "example": [42.0] }
->>> ctl.stats['summary']['times']
+>>> ctl.stats['summary']['times'].nestify()
 { "cpu": 0.000785999999999995,
   "sat": 7.867813110351562e-06,
   "solve": 2.288818359375e-05,
@@ -42,7 +42,7 @@ from __future__ import annotations
 import enum
 import typing
 
-__all__ = [
+__all__: list[str] = [
     "Stats",
     "StatsArray",
     "StatsArrayView",
@@ -72,8 +72,6 @@ class Stats(StatsView):
     Class representing solver stats.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     @typing.overload
     def __getitem__(self, arg0: int) -> Stats:
         """
@@ -139,8 +137,6 @@ class StatsArray(StatsArrayView):
     top-level statistics object.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __getitem__(self, arg0: int) -> Stats:
         """
         Get the element at the given index.
@@ -171,8 +167,6 @@ class StatsArrayView:
     This class partially implements the mutable sequence protocol.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __getitem__(self, arg0: int) -> StatsView:
         """
         Get the element at the given index.
@@ -205,8 +199,6 @@ class StatsMap(StatsMapView):
     top-level statistics object.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __getitem__(self, key: str) -> Stats:
         """
         Lookup the value with the given key.
@@ -234,8 +226,6 @@ class StatsMapView:
     This class partially implements the mutable mapping protocol.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __getitem__(self, key: str) -> StatsView:
         """
         Lookup the value with the given key.
@@ -276,8 +266,6 @@ class StatsView:
     Class representing read-only solver stats.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, arg0: str) -> bool:
         """
         Checks whether the given key is in the element, which must be a map.

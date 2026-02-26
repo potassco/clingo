@@ -231,17 +231,13 @@ class TModeApp(App):
             files: List of input file paths.
         """
         control.join(Transformer(self._lib)(files))
-        control.parse_string(
-            dedent(
-                """\
+        control.parse_string(dedent("""\
                 #include <incmode>.
                 #program base.
                 initially(0).
                 #show initially/1. [false]
                 #show finally/1. [false]
-                """
-            )
-        )
+                """))
         control.main()
 
 

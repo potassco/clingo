@@ -63,7 +63,7 @@ import typing
 import clingo.base
 import clingo.core
 
-__all__ = [
+__all__: list[str] = [
     "Assignment",
     "CheckMode",
     "PropagateControl",
@@ -144,8 +144,6 @@ class Assignment:
     Implements `Sequence[int]` to access the solver literals in the assignment.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, value: int) -> bool:
         """
         Check whether the sequence contains the given value.
@@ -307,8 +305,6 @@ class PropagateControl:
     as managing watches and performing propagation.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def add_clause(
         self, literals: typing.Sequence[int], tag: bool = False, lock: bool = False
     ) -> bool:
@@ -440,8 +436,6 @@ class PropagateInit(PropagateControl):
     constraints, and configuring the propagator's behavior.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def add_minimize(self, literal: int, weight: int, priority: int = 0) -> None:
         """
         Add a weighted literal to minimize to the solver.
@@ -524,8 +518,6 @@ class Propagator:
     implementation.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(self) -> None: ...
     def attach(self, assignment: Assignment, control: PropagateControl) -> None:
         """
@@ -644,8 +636,6 @@ class Trail:
     Implements `Sequence[int]` to access the solver literals in the trail.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, value: int) -> bool:
         """
         Check whether the sequence contains the given value.
@@ -730,8 +720,6 @@ class _TrailView:
     Implements `Sequence[int]` to access the solver literals in the view.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, value: int) -> bool:
         """
         Check whether the sequence contains the given value.

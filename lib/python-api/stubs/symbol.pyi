@@ -32,7 +32,7 @@ import typing
 
 import clingo.core
 
-__all__ = [
+__all__: list[str] = [
     "Function",
     "Infimum",
     "Number",
@@ -141,8 +141,6 @@ class Symbol:
     `String`, `Tuple_`, and `Function` to construct symbol objects.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __eq__(self, arg0: typing.Any) -> bool: ...
     def __ge__(self, arg0: typing.Any) -> bool: ...
     def __gt__(self, arg0: typing.Any) -> bool: ...

@@ -124,7 +124,7 @@ from . import (
     theory,
 )
 
-__all__ = [
+__all__: list[str] = [
     "app",
     "ast",
     "backend",

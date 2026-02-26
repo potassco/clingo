@@ -186,12 +186,10 @@ class TestConfig:
         assert cfg.plugin.array.val.value == "undefined"
         cfg.plugin.array[1].val = "5"
 
-        assert str(cfg.plugin) == dedent(
-            """\
+        assert str(cfg.plugin) == dedent("""\
             array:
               - val: "default value"
               - val: "5"
             group: "test"
                    val: "new value"
-            """.rstrip()
-        )
+            """.rstrip())

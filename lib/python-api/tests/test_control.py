@@ -81,13 +81,11 @@ class TestControl:
             res = hnd.get()
         assert res == fres
         assert res == GroundResult.Ok
-        assert ctl.buffer == dedent(
-            """\
+        assert ctl.buffer == dedent("""\
             p(1).
             p(2).
             #show.
-            """
-        )
+            """)
 
     def test_start_ground_interrupt(self):
         """
@@ -120,8 +118,7 @@ class TestControl:
         ctl.join(prg)
         ctl.ground([("parse", [])])
 
-        assert ctl.buffer == dedent(
-            """\
+        assert ctl.buffer == dedent("""\
             a.
             #show a/0.
             #show.
@@ -133,8 +130,7 @@ class TestControl:
             #show b/1.
             c.
             #show c/0.
-            """
-        )
+            """)
 
     def test_ground_context(self):
         """
@@ -148,14 +144,12 @@ class TestControl:
         ctl.parse_string("#show.")
         ctl.ground([("base", [])], context=Context(self.lib))
 
-        assert ctl.buffer == dedent(
-            """\
+        assert ctl.buffer == dedent("""\
             p(1).
             p(2).
             q(3).
             #show.
-            """
-        )
+            """)
 
     def test_join(self):
         """
@@ -179,9 +173,7 @@ class TestControl:
         Test running the incremental mode from python.
         """
         ctl = Control(self.lib, ["0"])
-        ctl.parse_string(
-            dedent(
-                """\
+        ctl.parse_string(dedent("""\
                 #include <incmode>.
 
                 #program base.
@@ -196,9 +188,7 @@ class TestControl:
                 #program check(k).
 
                 :- not c(3), query(k).
-                """
-            )
-        )
+                """))
         # NOTE: we cannot intercept models here; the incmode is more
         # interesting for clingo-based apps.
         ctl.main()

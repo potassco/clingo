@@ -42,23 +42,19 @@ def find(path, target):
             elif re.match(r"^.*\.(yy)$", filename):
                 name, ext = os.path.splitext(filename)
                 path = "".join([d + "/" for d in components[:-1]])
-                header[os.path.join(root, name)] = dedent(
-                    f"""\
+                header[os.path.join(root, name)] = dedent(f"""\
                     "{path}{name}{ext}"
                     ${{BISON_{name}_OUTPUTS}}
-                """
-                )
+                """)
                 output += f'bison_target_or_gen("{path}{name}{ext}")\n'
             elif re.match(r"^.*\.(xh|xch)$", filename):
                 header.setdefault(root, "")
                 name, ext = os.path.splitext(filename)
                 path = "/".join(components[:-1])
-                header[root] += dedent(
-                    f"""\
+                header[root] += dedent(f"""\
                     "{path}/{name}{ext}"
                     ${{RE2C_{name}_OUTPUT}}
-                """
-                )
+                """)
                 output += f're2c_target_or_gen("{path}/{name}{ext}")\n'
 
     output += f'set(ide_{target}_group "{target.title()} Files")\n'
