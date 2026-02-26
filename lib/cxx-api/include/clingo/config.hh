@@ -27,25 +27,25 @@ enum class ConfigType : clingo_config_type_bitset_t {
 //! Enable bitset operations for the configuration type.
 CLINGO_ENABLE_BITSET_ENUM(ConfigType);
 
-class ConstConfigArray;
+class ConfigArrayView;
 class ConfigArray;
-class ConstConfigMap;
+class ConfigMapView;
 class ConfigMap;
 
 //! Class modeling an immutable configuration entry.
-class ConstConfig {
+class ConfigView {
   public:
     //! Construct from the underlying C API type and a key.
     //!
     //! @param stats the underlying C API type
     //! @param key the key of the configuration entry
-    explicit ConstConfig(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
+    explicit ConfigView(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
 
     //! Cast the configuration to the underlying C API type.
     //!
     //! @param stats the configuration to cast
     //! @return the underlying C API type
-    friend auto c_cast(ConstConfig const &stats) -> clingo_config_t const * { return stats.cfg_; }
+    friend auto c_cast(ConfigView const &stats) -> clingo_config_t const * { return stats.cfg_; }
 
     //! Get the type of the configuration entry.
     //!
@@ -57,30 +57,30 @@ class ConstConfig {
     //! Access the configuration entry as an array.
     //!
     //! @return the configuration entry as an array
-    [[nodiscard]] auto array() const -> ConstConfigArray;
+    [[nodiscard]] auto array() const -> ConfigArrayView;
 
     //! Get the configuration entry at the given index in the array.
     //!
     //! @param index the index of the configuration entry
     //! @return the configuration entry at the given index
-    [[nodiscard]] auto at(size_t index) const -> ConstConfig;
+    [[nodiscard]] auto at(size_t index) const -> ConfigView;
 
-    //! @copydoc ConstConfig::at()
-    [[nodiscard]] auto operator[](size_t index) const -> ConstConfig { return at(index); }
+    //! @copydoc ConfigView::at()
+    [[nodiscard]] auto operator[](size_t index) const -> ConfigView { return at(index); }
 
     //! Access the configuration entry as a map.
     //!
     //! @return The configuration entry as a map.
-    [[nodiscard]] auto map() const -> ConstConfigMap;
+    [[nodiscard]] auto map() const -> ConfigMapView;
 
     //! Get the configuration entry with the given name in the map.
     //!
     //! @param name the name of the configuration entry in the map
     //! @return the configuration entry with the given name
-    [[nodiscard]] auto get(std::string_view name) const -> ConstConfig;
+    [[nodiscard]] auto get(std::string_view name) const -> ConfigView;
 
-    //! @copydoc ConstConfig::get()
-    [[nodiscard]] auto operator[](std::string_view name) const -> ConstConfig { return get(name); }
+    //! @copydoc ConfigView::get()
+    [[nodiscard]] auto operator[](std::string_view name) const -> ConfigView { return get(name); }
 
     //! Get the value of the configuration entry.
     //!
@@ -101,7 +101,7 @@ class ConstConfig {
         throw std::logic_error{"not a value"};
     }
 
-    //! @copydoc ConstConfig::value()
+    //! @copydoc ConfigView::value()
     [[nodiscard]] auto operator*() const -> std::optional<std::string_view> { return value(); }
 
     //! Get the description of the configuration entry.
@@ -135,13 +135,13 @@ class ConstConfig {
 };
 
 //! Class modeling a mutable configuration entry.
-class Config : public ConstConfig {
+class Config : public ConfigView {
   public:
     //! Construct from the underlying C API type and a key.
     //!
     //! @param stats the underlying C API type
     //! @param key the key of the configuration entry
-    explicit Config(clingo_config_t *stats, ProgramId key) : ConstConfig{stats, key} {}
+    explicit Config(clingo_config_t *stats, ProgramId key) : ConfigView{stats, key} {}
 
     //! Cast the configuration to the underlying C API type.
     //!
@@ -149,19 +149,19 @@ class Config : public ConstConfig {
     //! @return the underlying C API type
     friend auto c_cast(Config const &stats) -> clingo_config_t * { return stats.cfg_(); }
 
-    //! @copydoc ConstConfig::array()
+    //! @copydoc ConfigView::array()
     [[nodiscard]] auto array() const -> ConfigArray;
-    //! @copydoc ConstConfig::at()
+    //! @copydoc ConfigView::at()
     [[nodiscard]] auto at(size_t index) const -> Config;
-    //! @copydoc ConstConfig::at()
+    //! @copydoc ConfigView::at()
     [[nodiscard]] auto operator[](size_t index) const -> Config { return at(index); }
-    //! @copydoc ConstConfig::map()
+    //! @copydoc ConfigView::map()
     [[nodiscard]] auto map() const -> ConfigMap;
-    //! @copydoc ConstConfig::get()
+    //! @copydoc ConfigView::get()
     [[nodiscard]] auto get(std::string_view name) const -> Config;
-    //! @copydoc ConstConfig::get()
+    //! @copydoc ConfigView::get()
     [[nodiscard]] auto operator[](std::string_view name) const -> Config { return get(name); }
-    using ConstConfig::value;
+    using ConfigView::value;
     //! Set the value of the configuration entry.
     //!
     //! @param value the new value of the configuration entry
@@ -294,15 +294,15 @@ class Config : public ConstConfig {
   private:
     [[nodiscard]] auto cfg_() const -> clingo_config_t * {
         // NOLINTNEXTLINE
-        return const_cast<clingo_config_t *>(ConstConfig::cfg_);
+        return const_cast<clingo_config_t *>(ConfigView::cfg_);
     }
 };
 
 //! Class modeling an immutable array of configuration entries.
-class ConstConfigArray {
+class ConfigArrayView {
   public:
     //! The value type.
-    using value_type = ConstConfig;
+    using value_type = ConfigView;
     //! The size type.
     using size_type = std::size_t;
     //! The difference type.
@@ -312,18 +312,18 @@ class ConstConfigArray {
     //! The pointer type.
     using pointer = Detail::ArrowProxy<value_type>;
     //! The iterator type.
-    using iterator = Detail::RandomAccessIterator<ConstConfigArray>;
+    using iterator = Detail::RandomAccessIterator<ConfigArrayView>;
 
     //! Construct from the underlying C API type and a key.
     //!
     //! @param stats the underlying C API type
     //! @param key the key of the configuration entry
-    explicit ConstConfigArray(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
+    explicit ConfigArrayView(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
 
-    //! @copydoc ConstConfig::at()
-    [[nodiscard]] auto at(size_t index) const -> ConstConfig { return ConstConfig{cfg_, at_(index)}; }
-    //! @copydoc ConstConfig::at()
-    [[nodiscard]] auto operator[](size_t index) const -> ConstConfig { return at(index); }
+    //! @copydoc ConfigView::at()
+    [[nodiscard]] auto at(size_t index) const -> ConfigView { return ConfigView{cfg_, at_(index)}; }
+    //! @copydoc ConfigView::at()
+    [[nodiscard]] auto operator[](size_t index) const -> ConfigView { return at(index); }
     //! Get the size of the array.
     //!
     //! @return the size of the array
@@ -347,19 +347,19 @@ class ConstConfigArray {
     clingo_id_t key_;
 };
 
-inline auto ConstConfig::array() const -> ConstConfigArray {
+inline auto ConfigView::array() const -> ConfigArrayView {
     if (intersects(type(), ConfigType::array)) {
-        return ConstConfigArray{cfg_, key_};
+        return ConfigArrayView{cfg_, key_};
     }
     throw std::logic_error{"not an array"};
 }
 
-inline auto ConstConfig::at(size_t index) const -> ConstConfig {
+inline auto ConfigView::at(size_t index) const -> ConfigView {
     return array().at(index);
 }
 
 //! Class modeling a mutable array of configuration entries.
-class ConfigArray : public ConstConfigArray {
+class ConfigArray : public ConfigArrayView {
   public:
     //! The value type.
     using value_type = Config;
@@ -374,22 +374,22 @@ class ConfigArray : public ConstConfigArray {
     //! The iterator type.
     using iterator = Detail::RandomAccessIterator<ConfigArray>;
 
-    //! @copydoc ConstConfigArray::ConstConfigArray()
-    explicit ConfigArray(clingo_config_t *stats, ProgramId key) : ConstConfigArray{stats, key} {}
+    //! @copydoc ConfigArrayView::ConfigArrayView()
+    explicit ConfigArray(clingo_config_t *stats, ProgramId key) : ConfigArrayView{stats, key} {}
 
-    //! @copydoc ConstConfigArray::at()
+    //! @copydoc ConfigArrayView::at()
     [[nodiscard]] auto at(size_t index) const -> Config { return Config{cfg_(), at_(index)}; }
-    //! @copydoc ConstConfigArray::at()
+    //! @copydoc ConfigArrayView::at()
     [[nodiscard]] auto operator[](size_t index) const -> Config { return at(index); }
-    //! @copydoc ConstConfigArray::begin()
+    //! @copydoc ConfigArrayView::begin()
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
-    //! @copydoc ConstConfigArray::begin()
+    //! @copydoc ConfigArrayView::begin()
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 
   private:
     [[nodiscard]] auto cfg_() const -> clingo_config_t * {
         // NOLINTNEXTLINE
-        return const_cast<clingo_config_t *>(ConstConfigArray::cfg_);
+        return const_cast<clingo_config_t *>(ConfigArrayView::cfg_);
     }
 };
 
@@ -405,12 +405,12 @@ inline auto Config::at(size_t index) const -> Config {
 }
 
 //! Class modeling an immutable map of configuration entries.
-class ConstConfigMap {
+class ConfigMapView {
   public:
     //! The key type.
     using key_type = std::string_view;
     //! The mapped type.
-    using mapped_type = ConstConfig;
+    using mapped_type = ConfigView;
     //! The value type.
     using value_type = std::pair<key_type, mapped_type>;
     //! The size type.
@@ -422,13 +422,13 @@ class ConstConfigMap {
     //! The pointer type.
     using pointer = Detail::ArrowProxy<value_type>;
     //! The iterator type.
-    using iterator = Detail::RandomAccessIterator<ConstConfigMap>;
+    using iterator = Detail::RandomAccessIterator<ConfigMapView>;
 
     //! Construct from the underlying C API type and a key.
     //!
     //! @param stats the underlying C API type
     //! @param key the key of the configuration entry
-    explicit ConstConfigMap(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
+    explicit ConfigMapView(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
 
     //! Get the size of the map.
     //!
@@ -441,17 +441,17 @@ class ConstConfigMap {
     //! @return the name configuration entry pair at the given index
     [[nodiscard]] auto at(size_t index) const -> value_type {
         auto [name, subkey] = at_(index);
-        return {name, ConstConfig{cfg_, subkey}};
+        return {name, ConfigView{cfg_, subkey}};
     }
 
     //! Get the configuration entry with the given name in the map.
     //!
     //! @param name the name of the configuration entry
     //! @return the configuration entry with the given name
-    [[nodiscard]] auto get(std::string_view name) const -> ConstConfig { return ConstConfig{cfg_, at_(name)}; }
+    [[nodiscard]] auto get(std::string_view name) const -> ConfigView { return ConfigView{cfg_, at_(name)}; }
 
-    //! @copydoc ConstConfigMap::get()
-    [[nodiscard]] auto operator[](std::string_view name) const -> ConstConfig { return get(name); }
+    //! @copydoc ConfigMapView::get()
+    [[nodiscard]] auto operator[](std::string_view name) const -> ConfigView { return get(name); }
 
     //! Check if the map contains a configuration entry with the given name.
     //!
@@ -494,19 +494,19 @@ class ConstConfigMap {
     clingo_id_t key_;
 };
 
-inline auto ConstConfig::map() const -> ConstConfigMap {
+inline auto ConfigView::map() const -> ConfigMapView {
     if (intersects(type(), ConfigType::map)) {
-        return ConstConfigMap{cfg_, key_};
+        return ConfigMapView{cfg_, key_};
     }
     throw std::logic_error{"not a map"};
 }
 
-inline auto ConstConfig::get(std::string_view name) const -> ConstConfig {
+inline auto ConfigView::get(std::string_view name) const -> ConfigView {
     return map().get(name);
 }
 
 //! Class modeling a mutable map of configuration entries.
-class ConfigMap : public ConstConfigMap {
+class ConfigMap : public ConfigMapView {
   public:
     //! The key type.
     using key_type = std::string_view;
@@ -525,27 +525,27 @@ class ConfigMap : public ConstConfigMap {
     //! The iterator type.
     using iterator = Detail::RandomAccessIterator<ConfigMap>;
 
-    //! @copydoc ConstConfigMap::ConstConfigMap()
-    explicit ConfigMap(clingo_config_t *stats, ProgramId key) : ConstConfigMap{stats, key} {}
+    //! @copydoc ConfigMapView::ConfigMapView()
+    explicit ConfigMap(clingo_config_t *stats, ProgramId key) : ConfigMapView{stats, key} {}
 
-    //! @copydoc ConstConfigMap::at()
+    //! @copydoc ConfigMapView::at()
     [[nodiscard]] auto at(size_t index) const -> value_type {
         auto [name, subkey] = at_(index);
         return {name, Config{cfg_(), subkey}};
     }
-    //! @copydoc ConstConfigMap::get()
+    //! @copydoc ConfigMapView::get()
     [[nodiscard]] auto get(std::string_view name) const -> Config { return Config{cfg_(), at_(name)}; }
-    //! @copydoc ConstConfigMap::get()
+    //! @copydoc ConfigMapView::get()
     [[nodiscard]] auto operator[](std::string_view name) const -> Config { return get(name); }
-    //! @copydoc ConstConfigMap::begin()
+    //! @copydoc ConfigMapView::begin()
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
-    //! @copydoc ConstConfigMap::end()
+    //! @copydoc ConfigMapView::end()
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 
   private:
     [[nodiscard]] auto cfg_() const -> clingo_config_t * {
         // NOLINTNEXTLINE
-        return const_cast<clingo_config_t *>(ConstConfigMap::cfg_);
+        return const_cast<clingo_config_t *>(ConfigMapView::cfg_);
     }
 };
 
