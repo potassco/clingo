@@ -59,6 +59,11 @@ inline auto c_cast(Potassco::StatisticsType type) -> clingo_stats_type_e {
 } // namespace
 } // namespace CppClingo::CAPI
 
+clingo_string_t const clingo_user_stats_step = {.data = Clasp::ClaspFacade::user_step_stats.data(),
+                                                .size = Clasp::ClaspFacade::user_step_stats.size()};
+clingo_string_t const clingo_user_stats_accu = {.data = Clasp::ClaspFacade::user_accu_stats.data(),
+                                                .size = Clasp::ClaspFacade::user_accu_stats.size()};
+
 extern "C" auto clingo_stats_root(clingo_stats_t const *stats, uint64_t *key) -> bool {
     CLINGO_TRY {
         if (stats == nullptr || key == nullptr) {
@@ -122,12 +127,12 @@ extern "C" auto clingo_stats_map_size(clingo_stats_t const *stats, uint64_t key,
 }
 
 extern "C" auto clingo_stats_map_has_subkey(clingo_stats_t const *stats, uint64_t key, char const *name, size_t size,
-                                            bool *result) -> bool {
+                                            uint64_t *subkey, bool *result) -> bool {
     CLINGO_TRY {
         if (stats == nullptr || (name == nullptr && size > 0) || result == nullptr) {
             return fail_arguments();
         }
-        *result = cpp_cast(stats)->find(key, std::string_view{name, size}, nullptr);
+        *result = cpp_cast(stats)->find(key, std::string_view{name, size}, subkey);
     }
     CLINGO_CATCH;
 }

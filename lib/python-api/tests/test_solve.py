@@ -166,7 +166,7 @@ class TestSolve:
         ctl.ground()
         lower = []
         assert ctl.solve(on_unsat=lower.append).satisfiable
-        assert ctl.stats["summary"]["lower"] == [3.0]
+        assert ctl.stats["summary"]["lower"].nestify() == [3.0]
         assert lower == [[1], [2], [3]]
 
     def test_consequence(self):

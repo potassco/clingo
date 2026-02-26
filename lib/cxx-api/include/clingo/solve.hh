@@ -542,13 +542,11 @@ static constexpr clingo_solve_event_handler_t c_solve_event_handler{
         CLINGO_TRY {
             auto *hnd = static_cast<SolveEventHandler *>(data);
             assert(hnd != nullptr);
-            std::string_view user_step = "user_step";
-            std::string_view user_accu = "user_accu";
             uint64_t root = Detail::call<clingo_stats_root>(stats);
-            uint64_t step = Detail::call<clingo_stats_map_add_subkey>(stats, root, user_step.data(), user_step.size(),
-                                                                      clingo_stats_type_map);
-            uint64_t accu = Detail::call<clingo_stats_map_add_subkey>(stats, root, user_accu.data(), user_accu.size(),
-                                                                      clingo_stats_type_map);
+            uint64_t step = Detail::call<clingo_stats_map_add_subkey>(
+                stats, root, clingo_user_stats_step.data, clingo_user_stats_step.size, clingo_stats_type_map);
+            uint64_t accu = Detail::call<clingo_stats_map_add_subkey>(
+                stats, root, clingo_user_stats_accu.data, clingo_user_stats_accu.size, clingo_stats_type_map);
             hnd->stats(Stats{stats, step}, Stats{stats, accu});
         }
         CLINGO_CATCH;

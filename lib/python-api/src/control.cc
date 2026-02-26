@@ -213,13 +213,13 @@ auto Control::config() -> Config {
     return Config{*this, config, key};
 }
 
-auto Control::stats() -> py::dict {
+auto Control::stats() -> ConstStats {
     clingo_stats_t const *stats = nullptr;
     handle_error(clingo_control_stats(get(), &stats));
     uint64_t key = 0;
     handle_error(clingo_stats_root(stats, &key));
     // NOLINTNEXTLINE
-    return Stats{const_cast<clingo_stats_t *>(stats), key}.nestify();
+    return ConstStats{const_cast<clingo_stats_t *>(stats), key};
 }
 
 auto Control::profile() -> py::list {
@@ -331,12 +331,10 @@ auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optio
                 uint64_t root = 0;
                 handle_error(clingo_stats_root(stats, &root));
                 uint64_t step = 0;
-                std::string_view user_step = "user_step";
-                std::string_view user_accu = "user_accu";
-                handle_error(clingo_stats_map_add_subkey(stats, root, user_step.data(), user_step.size(),
+                handle_error(clingo_stats_map_add_subkey(stats, root, clingo_user_stats_step.data, clingo_user_stats_step.size,
                                                          clingo_stats_type_map, &step));
                 uint64_t accu = 0;
-                handle_error(clingo_stats_map_add_subkey(stats, root, user_accu.data(), user_accu.size(),
+                handle_error(clingo_stats_map_add_subkey(stats, root, clingo_user_stats_accu.data, clingo_user_stats_accu.size,
                                                          clingo_stats_type_map, &accu));
                 (*hnd->stats_)(Stats{stats, step}, Stats{stats, accu});
             }
