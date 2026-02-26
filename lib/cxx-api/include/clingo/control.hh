@@ -360,10 +360,10 @@ class Control {
     //! Get the statistics of the control object.
     //!
     //! @return the statistics of the control object
-    [[nodiscard]] auto stats() const -> ConstStats {
+    [[nodiscard]] auto stats() const -> StatsView {
         auto const *stats = Detail::call<clingo_control_stats>(ctl_.get());
         auto key = Detail::call<clingo_stats_root>(stats);
-        return ConstStats{stats, key};
+        return StatsView{stats, key};
     }
 
     //! Obtain the profiling data of the control object.
