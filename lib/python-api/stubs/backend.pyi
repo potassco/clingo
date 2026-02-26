@@ -53,7 +53,7 @@ import typing
 import clingo.base
 import clingo.symbol
 
-__all__ = [
+__all__: list[str] = [
     "Backend",
     "BackendManager",
     "ExternalType",
@@ -123,8 +123,6 @@ class Backend:
         clingo.control.Control.backend
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def assume(self, literals: typing.Sequence[int]) -> None:
         """
         Add an assumption directive to the solver.
@@ -403,8 +401,6 @@ class BackendManager:
     A context manager to initialize and finalize a backend.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __enter__(self) -> Backend:
         """
         Initialize backend the backend.
@@ -429,8 +425,6 @@ class Observer:
         `clingo.control.Control.observe`
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(self) -> None: ...
     def assume(self, literals: typing.Sequence[int]) -> None:
         """

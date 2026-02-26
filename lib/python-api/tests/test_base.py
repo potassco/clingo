@@ -52,17 +52,13 @@ class TestBase:
         """
         Test atom bases.
         """
-        self.ctl.parse_string(
-            dedent(
-                """\
+        self.ctl.parse_string(dedent("""\
                 -r(1).
                 p(1).
                 { p(3) }.
                 #external p(1..3).
                 q(X) :- p(X).
-                """
-            )
-        )
+                """))
         self.ctl.ground()
 
         base = self.ctl.base
@@ -107,16 +103,12 @@ class TestBase:
         """
         Test term bases.
         """
-        self.ctl.parse_string(
-            dedent(
-                """\
+        self.ctl.parse_string(dedent("""\
                 p(1).
                 { x; p(3) }.
                 #show q(3) : x.
                 #show q(X) : p(X).
-                """
-            )
-        )
+                """))
         self.ctl.ground()
 
         base = self.ctl.base.terms
@@ -136,9 +128,7 @@ class TestBase:
         """
         Test term bases.
         """
-        self.ctl.parse_string(
-            dedent(
-                """\
+        self.ctl.parse_string(dedent("""\
                 #theory x {
                     a {
                         - : 1, unary;
@@ -154,9 +144,7 @@ class TestBase:
 
                 }.
                 &p { +f(1,"x",[1,2],(2,3),{4,5})-y }.
-                """
-            )
-        )
+                """))
         self.ctl.ground()
 
         base = self.ctl.base.theory

@@ -112,7 +112,7 @@ from __future__ import annotations
 
 import typing
 
-__all__ = ["Config"]
+__all__: list[str] = ["Config"]
 
 class Config:
     """
@@ -147,8 +147,6 @@ class Config:
       to strings.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __getattr__(self, name: str) -> Config:
         """
         Get the configuration entry with the given name.

@@ -37,7 +37,7 @@ import clingo.solve
 import clingo.stats
 import clingo.symbol
 
-__all__ = ["Control", "ControlMode"]
+__all__: list[str] = ["Control", "ControlMode"]
 
 class ControlMode(enum.IntEnum):
     """
@@ -60,8 +60,6 @@ class Control:
     A control object for grounding and solving.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __init__(
         self, lib: clingo.core.Library, options: typing.Sequence[str] = []
     ) -> None:
@@ -413,8 +411,6 @@ class _ConstMap:
     The map from constants defined by #const directives.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __contains__(self, key: str) -> bool:
         """
         Check if the map contains the given key.

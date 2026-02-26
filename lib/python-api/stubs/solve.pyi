@@ -83,7 +83,13 @@ import typing
 import clingo.base
 import clingo.symbol
 
-__all__ = ["Model", "ModelType", "SolveControl", "SolveHandle", "SolveResult"]
+__all__: list[str] = [
+    "Model",
+    "ModelType",
+    "SolveControl",
+    "SolveHandle",
+    "SolveResult",
+]
 
 class ModelType(enum.IntEnum):
     """
@@ -109,8 +115,6 @@ class Model:
     A view on the solver's current solution.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __str__(self) -> str:
         """
         Get a string representation of the model.
@@ -236,8 +240,6 @@ class SolveControl:
     A control object to add clauses while solving.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def add_clause(
         self, clause: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
     ) -> None:
@@ -280,8 +282,6 @@ class SolveHandle:
     See also: `clingo.control.Control.solve`
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __enter__(self) -> SolveHandle:
         """
         Start the search.
@@ -362,8 +362,6 @@ class SolveResult:
     A solve result captures information about a solve call.
     """
 
-    @staticmethod
-    def _pybind11_conduit_v1_(*args, **kwargs): ...
     def __str__(self) -> str:
         """
         Get a string representation of the solve result.
