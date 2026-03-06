@@ -239,7 +239,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_lib_acquire(clingo_lib_t *lib);
 //! @param[in] lib the target
 CLINGO_VISIBILITY_DEFAULT void clingo_lib_release(clingo_lib_t *lib);
 
-//! Report a message via the libraries logger.
+//! Report a message via the library’s logger.
 //!
 //! @param[in] lib the library
 //! @param[in] code associated code

@@ -4,7 +4,6 @@
 #include <clingo/base.h>
 #include <clingo/core.h>
 #include <clingo/shared.h>
-#include <clingo/symbol.h>
 
 #ifdef __cplusplus
 extern "C" {
