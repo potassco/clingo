@@ -104,7 +104,7 @@ typedef struct clingo_theory_base clingo_theory_base_t;
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_base_is_fact(clingo_base_t const *atoms, clingo_literal_t literal, bool *is_fact);
 
-//! Check whether an literal is external.
+//! Check whether a literal is external.
 //!
 //! A literal is external if it has been defined using an external directive and
 //! has not been released or defined by a rule.
@@ -116,7 +116,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_base_is_fact(clingo_base_t const *atoms, c
 CLINGO_VISIBILITY_DEFAULT bool clingo_base_is_external(clingo_base_t const *atoms, clingo_literal_t literal,
                                                        bool *is_external);
 
-//! Check whether an literal is shown.
+//! Check whether a literal is shown.
 //!
 //! A literal is shown if it has been shown by a show directive.
 //!
@@ -129,7 +129,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_base_is_shown(clingo_base_t const *atoms, 
 
 //! Check whether a literal is subject to projection.
 //!
-//! An literal is subject to projection if it occurred in a project directive.
+//! A literal is subject to projection if it occurred in a project directive.
 //!
 //! @param[in] atoms the target
 //! @param[in] literal the index of the literal
@@ -277,7 +277,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_term_base_symbol(clingo_term_base_t const 
 //! of conjunctions.
 //!
 //! @param[in] terms the term base
-//! @param[in] index the index of the show diriective
+//! @param[in] index the index of the show directive
 //! @param[out] sizes the sizes of the conjunctions
 //! @param[out] literals the target literals
 //! @param[out] size the size of the disjunction
@@ -405,7 +405,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_element_to_string(clingo_theor
 //! @name Theory Atom Inspection
 //! @{
 
-//! Get the total number of theory theory.
+//! Get the total number of theory atoms.
 //!
 //! @param[in] theory the target
 //! @param[out] size the resulting number

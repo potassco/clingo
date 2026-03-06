@@ -44,7 +44,7 @@ enum clingo_mode_e {
 //! The corresponding type to ::clingo_mode_e.
 typedef int clingo_mode_t;
 
-//! A map from constantns to their values.
+//! A map from constants to their values.
 typedef struct clingo_const_map clingo_const_map_t;
 
 //! Get the constant with the given name.
@@ -58,10 +58,10 @@ typedef struct clingo_const_map clingo_const_map_t;
 CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_find(clingo_const_map_t const *map, char const *name, size_t name_size,
                                                      clingo_symbol_t *symbol, bool *found);
 
-//! Get the name and value of the contstant at the given index.
+//! Get the name and value of the contestant at the given index.
 //!
 //! @param[in] map the target
-//! @param[in] index the index of the elemnt
+//! @param[in] index the index of the element
 //! @param[out] name the name of the constant
 //! @param[out] symbol the value of the constant
 //! @return whether the call was successful
