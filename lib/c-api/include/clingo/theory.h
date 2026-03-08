@@ -126,7 +126,7 @@ typedef struct clingo_theory {
     bool (*on_stats)(void *self, clingo_stats_t *stats);
     //! Get the integer index of a symbol assigned by the theory when a model is found.
     //!
-    //! Using indices allows for efficent retrieval of values.
+    //! Using indices allows for efficient retrieval of values.
     //!
     //! @param[in] self the self pointer
     //! @param[in] symbol the symbol to lookup
@@ -163,7 +163,7 @@ typedef struct clingo_theory {
     bool (*assignment_get_value)(void *self, uint32_t thread_id, size_t index, clingo_symbol_t *symbol,
                                  clingo_theory_value_t *value, bool *has_value);
 
-    //! The userdata for the first value to the callabcks in this struct.
+    //! The userdata for the first value to the callbacks in this struct.
     void *self;
 } clingo_theory_t;
 

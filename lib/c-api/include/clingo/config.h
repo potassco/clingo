@@ -222,7 +222,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_value_get(clingo_config_t const *co
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_value_set(clingo_config_t *config, clingo_id_t key, char const *value,
                                                        size_t size);
 
-//! Get the string representation of the given theory element.
+//! Get the string representation of the given configuration element.
 //!
 //! @param[in] config the target configuration
 //! @param[in] key the key

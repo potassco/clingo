@@ -153,7 +153,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         solve = static_cast<uint8_t>(AppMode::solve),
         clasp = static_cast<uint8_t>(AppMode::solve) + 1,
     };
-    using ClaspOutput = Clasp::Cli::Output;
     using ProblemType = Clasp::ProblemType;
     using BaseType = Clasp::Cli::ClaspAppBase;
     using BaseType::run;

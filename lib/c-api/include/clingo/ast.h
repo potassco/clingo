@@ -302,7 +302,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string(clingo_ast_t *ast
 
 //! Get the value of a string array attribute.
 //!
-//! @note The the required size of the array can be queried setting value to NULL.
+//! @note The required size of the array can be queried setting value to NULL.
 //!
 //! @param[in] ast the target AST
 //! @param[in] attribute the target attribute
@@ -315,7 +315,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string_array(clingo_ast_
 
 //! Get the value of a symbol array attribute.
 //!
-//! @note The the required size of the array can be queried setting value to NULL.
+//! @note The required size of the array can be queried setting value to NULL.
 //!
 //! @param[in] ast the target AST
 //! @param[in] attribute the target attribute
@@ -363,7 +363,7 @@ CLINGO_VISIBILITY_DEFAULT char const *clingo_ast_type_info_yaml(void);
 
 //! A callback to intercept ast's.
 //!
-//! @param[in] ast the paresd ast
+//! @param[in] ast the parsed ast
 //! @param[in] data the user data of the callback
 //! @return whether the call was successful
 typedef bool (*clingo_ast_callback_t)(clingo_ast_t *ast, void *data);
@@ -525,7 +525,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_add(clingo_program_t *program, cli
 
 //! @}
 
-//! Extend the control objects's program with the given one.
+//! Extend the control object's program with the given one.
 //!
 //! After extending the logic program, the corresponding program parts are typically grounded with
 //! ::clingo_control_ground.

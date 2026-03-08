@@ -606,10 +606,8 @@ extern "C" auto clingo_theory_base_atom_guard(clingo_theory_base_t const *theory
                 return fail_with(clingo_result_runtime, "guard expected");
             }
             auto str = std::string_view{get_theory(theory).getTerm(*guard).symbol()};
-            if (connective != nullptr) {
-                connective->data = str.data();
-                connective->size = str.size();
-            }
+            connective->data = str.data();
+            connective->size = str.size();
         }
         if (term != nullptr) {
             auto const *rhs = x.rhs();

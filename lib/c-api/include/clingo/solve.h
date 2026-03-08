@@ -62,7 +62,7 @@ typedef unsigned clingo_solve_result_bitset_t;
 
 //! Enumeration of solve modes.
 enum clingo_solve_mode_e {
-    clingo_solve_mode_default = 0, //!< The defalut solve mode.
+    clingo_solve_mode_default = 0, //!< The default solve mode.
     clingo_solve_mode_async = 1,   //!< Enable non-blocking search.
     clingo_solve_mode_yield = 2,   //!< Yield models in calls to clingo_solve_handle_model.
     clingo_solve_mode_lock = 4,    //!< Ensure callbacks are executed in lock-step.
@@ -79,7 +79,7 @@ typedef struct clingo_solve_event_handler {
     //! @param goon whether to stop or continue
     //! @return whether the call was successful
     bool (*model)(clingo_model_t *model, void *data, bool *goon);
-    //! Callback to interept lower bounds.
+    //! Callback to intercept lower bounds.
     //!
     //! @param values the values of the current lower bound
     //! @param size the number of values in the lower bound
