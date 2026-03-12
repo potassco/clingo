@@ -186,14 +186,13 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             }
             return false;
         };
-
         group_basic.addOptions() //
             ("mode", parse(parse_mode),
-             "Run in the specified mode\n"
+             "Run in mode\n"
              "      %A: <mode {parse|rewrite|solve|clasp}>\n"
-             "        parse   : Stop processing after parsing\n"
-             "        rewrite : Stop processing after rewriting\n"
-             "        solve   : Stop processing after solving\n"
+             "        parse   : Print parsed program and exit\n"
+             "        rewrite : Print rewritten program and exit\n"
+             "        solve   : Ground and solve the program (default)\n"
              "        clasp   : Invoke clasp on the input");
         root.add(group_basic);
         app_.register_options(root);

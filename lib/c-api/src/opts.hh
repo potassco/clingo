@@ -2,6 +2,7 @@
 
 #include <clingo/control/solver.hh>
 
+#include <potassco/program_opts/errors.h>
 #include <potassco/program_opts/program_options.h>
 #include <potassco/program_opts/typed_value.h>
 
@@ -175,9 +176,9 @@ class ClingoOptions {
             namespace Parse = Potassco::Parse;
             using namespace std::literals;
 
-            if (auto key = "text"sv; Parse::eqIgnoreCase(str, key, key.size())) {
+            if (Parse::eqIgnoreCase(str, "text"sv)) {
                 solver_opts_.mode = Control::AppMode::ground;
-                return str.size() == key.size();
+                return true;
             }
 
             Control::BackendType backend_type{};
@@ -257,7 +258,7 @@ class ClingoOptions {
       [no-]operation-undefined: p(1/0).
       [no-]global-variable    : :- #count { X } = 1, X = 1.)")                                     //
             ("convert", parse(parse_convert),
-             "Convert to specified format\n"
+             "Convert program, print and exit\n"
              "      %A: <format {text|aspif|smodels|reify}[,<opts>]>\n"
              "        text   : Print program in text format (ground)\n"
              "        aspif  : Print program in ASP intermediate format\n"
@@ -285,7 +286,7 @@ class ClingoOptions {
     auto init_app_mode(std::string_view str) -> bool {
         namespace Parse = Potassco::Parse;
 
-        Control::AppMode mode;
+        Control::AppMode mode{};
         if (not Parse::ok(Potassco::extract(str, mode))) {
             return false;
         }
@@ -298,7 +299,7 @@ class ClingoOptions {
 
     void validate_options(const Potassco::ProgramOptions::ParsedOptions &parsed) {
         if (parsed.contains("mode") && parsed.contains("convert")) {
-            throw std::invalid_argument("option '--mode' and '--convert' cannot be used together");
+            throw Potassco::ProgramOptions::Error("option '--mode' and '--convert' cannot be used together");
         }
     }
 

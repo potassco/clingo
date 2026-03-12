@@ -49,11 +49,11 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
 
         group_basic.addOptions() //
             ("mode", parse(parse_mode),
-             "Run in the specified mode\n"
+             "Run in mode\n"
              "      %A: <mode {parse|rewrite|solve}>\n"
-             "        parse   : Stop processing after parsing\n"
-             "        rewrite : Stop processing after rewriting\n"
-             "        solve   : Stop processing after solving");
+             "        parse   : Print parsed program and exit\n"
+             "        rewrite : Print rewritten program and exit\n"
+             "        solve   : Ground and solve the program (default)");
         ctx.add(group_basic);
         slv_cfg->addOptions(ctx);
         auto pos_parser = [](std::string_view str, std::string &out) {
@@ -74,8 +74,8 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         cargs.emplace_back(nullptr);
         DefaultParseContext pc{ctx};
         parseCommandArray(pc, {cargs.data(), size}, pos_parser);
-        ctx.assignDefaults(pc.parsed());
         opts.validate_options(pc.parsed());
+        ctx.assignDefaults(pc.parsed());
         slv_cfg->finalize(pc.parsed(), Clasp::ProblemType::asp, true);
 
         // setup control
