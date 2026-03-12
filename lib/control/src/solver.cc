@@ -48,6 +48,15 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
   protected:
     auto program() -> Potassco::AbstractProgram & { return *prg_; }
 
+    void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
+
+#ifdef DEBUG_BACKEND
+        std::cerr << (choice ? "{ " : "") << Util::p_range(head, ", ") << (choice ? " }" : "") << " :- "
+                  << Util::p_range(body, ", ") << ".\n";
+#endif
+        prg_->rule(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive, as_atoms_(head), body);
+    }
+
   private:
     virtual auto do_term_id(Symbol sym) -> prg_id_t = 0;
 
@@ -80,15 +89,6 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     void do_begin_step() override { prg_->beginStep(); }
     void do_end_ground() override {}
     void do_end_step() override { prg_->endStep(); }
-
-    void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
-
-#ifdef DEBUG_BACKEND
-        std::cerr << (choice ? "{ " : "") << Util::p_range(head, ", ") << (choice ? " }" : "") << " :- "
-                  << Util::p_range(body, ", ") << ".\n";
-#endif
-        prg_->rule(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive, as_atoms_(head), body);
-    }
 
     void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, prg_weight_t bound, bool choice) override {
         assert(bound > 0);
@@ -272,8 +272,18 @@ class PotasscoBackend : public AbstractProgramBackendImpl {
     }
 
     auto do_fact_lit() -> std::optional<prg_lit_t> override {
+        if (fact_ != 0) {
+            return fact_;
+        }
         return std::nullopt;
-    } // TODO: only called in the aspif parser
+    }
+
+    void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
+        if (fact_ == 0 && not choice && head.size() == 1 && body.empty()) {
+            fact_ = head[0];
+        }
+        AbstractProgramBackendImpl::do_rule(head, body, choice);
+    }
 
     auto do_term_id(Symbol sym) -> prg_id_t override {
         return terms_->add(sym, [&]() {
@@ -289,6 +299,7 @@ class PotasscoBackend : public AbstractProgramBackendImpl {
     auto new_show_term() -> prg_id_t { return next_show_term_++; }
 
     Potassco::Atom_t next_atom_{1};
+    prg_id_t fact_{0};
     prg_id_t next_show_term_{0};
     TermBaseMap *terms_;
 };
@@ -1274,7 +1285,9 @@ auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode
     }
     state_ = State::solved;
     if (opts_.mode == AppMode::solve) {
-        backend_->assume(assumptions);
+        if (!assumptions.empty()) {
+            backend_->assume(assumptions);
+        }
         backend_->end_step();
         bool prepared = clasp_->prepare();
         theory_->reset();
