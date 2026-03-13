@@ -1,3 +1,4 @@
+#include <iostream>
 #include <utility>
 
 #include "app.hh"
@@ -138,7 +139,11 @@ class App : public reference_keeper<App> {
                              void *data) -> bool {
         auto &app = *static_cast<App *>(data);
         CLINGO_TRY {
+            auto acquire = py::gil_scoped_acquire{};
+            // NOTE: Python seems to directly write large buffers
+            std::cout.flush();
             app.print_model(Model{model}, [printer, printer_data]() { handle_error(printer(printer_data)); });
+            py::module_::import("sys").attr("stdout").attr("flush")();
         }
         CLINGO_CATCH;
     }
