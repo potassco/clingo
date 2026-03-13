@@ -66,8 +66,7 @@ enum class AppMode : uint8_t {
     ground,  //!< Stop processing after grounding.
     solve    //!< Stop processing after solving.
 };
-POTASSCO_SET_ENUM_ENTRIES(AppMode, {parse, "parse"sv}, {rewrite, "rewrite"sv}, {ground, "ground"sv},
-                          {solve, "solve"sv});
+POTASSCO_SET_ENUM_ENTRIES(AppMode, {parse, "parse"sv}, {rewrite, "rewrite"sv}, {solve, "solve"sv});
 
 //! Enumeration of available output formats when in solving mode.
 enum class BackendType : uint8_t {

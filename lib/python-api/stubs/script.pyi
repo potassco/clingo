@@ -30,7 +30,7 @@ from the main context (just like the embedded one in the standalone clingo).
 ...
 >>> lib = Library()
 >>> register(lib, PyScript())
->>> ctl = Control(lib, ["--mode=ground"])
+>>> ctl = Control(lib, ["--convert=text"])
 >>> ctl.parse_string(\"\"\"\\
 ... #script (python)
 ...

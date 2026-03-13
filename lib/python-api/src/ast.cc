@@ -6743,7 +6743,7 @@ The following example shows how to parse individual statements and add them to a
 >>> from clingo import ast
 >>>
 >>> lib = Library()
->>> ctl = Control(lib, ["--mode=ground"])
+>>> ctl = Control(lib, ["--convert=text"])
 >>> ctl.parse_string("a(1).")
 >>> prg = ast.Program(lib)
 >>> prg.add(ast.parse_statement(lib, "b(X+1) :- a(X)."))
