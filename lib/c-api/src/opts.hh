@@ -287,7 +287,7 @@ class ClingoOptions {
         namespace Parse = Potassco::Parse;
 
         Control::AppMode mode{};
-        if (not Parse::ok(Potassco::extract(str, mode))) {
+        if (!Parse::ok(Potassco::extract(str, mode))) {
             return false;
         }
         if (str.empty()) {

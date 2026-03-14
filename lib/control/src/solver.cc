@@ -279,7 +279,7 @@ class PotasscoBackend : public AbstractProgramBackendImpl {
     }
 
     void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
-        if (fact_ == 0 && not choice && head.size() == 1 && body.empty()) {
+        if (fact_ == 0 && !choice && head.size() == 1 && body.empty()) {
             fact_ = head[0];
         }
         AbstractProgramBackendImpl::do_rule(head, body, choice);
