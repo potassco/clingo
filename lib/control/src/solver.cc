@@ -1472,12 +1472,13 @@ auto Solver::backend() -> UBackendHandle {
 }
 
 void Solver::simplify_() {
-    if (opts_.mode != AppMode::solve || !clasp_->incremental() || !clasp_->ctx.ok()) {
+    if (opts_.mode != AppMode::solve || opts_.backend_type != BackendType::clasp || !clasp_->incremental() ||
+        !clasp_->ctx.ok()) {
         return;
     }
     auto value = [clasp = clasp_](prg_lit_t lit) {
         auto const &prg = *clasp->asp();
-        // NOTE: externals are not simplified because they must be available in
+        // NOTE: Externals are not simplified because they must be available in
         // domains until released.
         if (prg.isExternal(std::abs(lit))) {
             return TruthValue::unknown;
