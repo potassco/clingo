@@ -182,12 +182,12 @@ class ClingoOptions {
             }
 
             auto backend_type = Control::BackendType{};
-            auto items = std::to_array({
+            auto items = std::array{
                 std::pair{Control::BackendType::aspif, "aspif"sv},
                 std::pair{Control::BackendType::smodels, "smodels"sv},
                 std::pair{Control::BackendType::reify, "reify"sv},
                 std::pair{Control::BackendType::clasp, "no"sv},
-            });
+            };
             // NOLINTNEXTLINE
             auto it = std::ranges::find_if(
                 items, [&](auto const &kv) { return Parse::eqIgnoreCase(str, kv.second, kv.second.size()); });
@@ -300,11 +300,11 @@ class ClingoOptions {
         namespace Parse = Potassco::Parse;
         using namespace std::string_view_literals;
 
-        auto items = std::to_array({
+        auto items = std::array{
             std::pair{Control::AppMode::parse, "parse"sv},
             std::pair{Control::AppMode::rewrite, "rewrite"sv},
             std::pair{Control::AppMode::solve, "default"sv},
-        });
+        };
         // NOLINTNEXTLINE
         auto it = std::ranges::find_if(items, [&](auto const &kv) { return Parse::eqIgnoreCase(str, kv.second); });
         if (it == items.end()) {
