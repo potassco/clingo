@@ -1122,6 +1122,84 @@ Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_conf
       scripts_{&scripts}, opts_{std::move(sopts)} {
 }
 
+namespace {
+
+class SmodelsAdapter : public Potassco::AbstractProgram {
+  public:
+    using Atom_t = Potassco::Atom_t;
+    using Id_t = Potassco::Id_t;
+    using Lit_t = Potassco::Lit_t;
+    using LitSpan = Potassco::LitSpan;
+    using AtomSpan = Potassco::AtomSpan;
+    using IdSpan = Potassco::IdSpan;
+    using DomModifier = Potassco::DomModifier;
+    using HeadType = Potassco::HeadType;
+    using Weight_t = Potassco::Weight_t;
+    using WeightLitSpan = Potassco::WeightLitSpan;
+    using TruthValue = Potassco::TruthValue;
+
+    SmodelsAdapter(std::ostream &os, bool enableClaspExt, Atom_t falseAtom) : out_{os, enableClaspExt, falseAtom} {}
+
+    void initProgram(bool incremental) override { out_.initProgram(incremental); }
+    void beginStep() override { out_.beginStep(); }
+
+    void rule(Potassco::HeadType ht, AtomSpan head, LitSpan body) override { out_.rule(ht, head, body); }
+    void rule(HeadType ht, AtomSpan head, Weight_t bound, WeightLitSpan body) override {
+        out_.rule(ht, head, bound, body);
+    }
+    void minimize(Weight_t prio, WeightLitSpan lits) override { out_.minimize(prio, lits); }
+
+    void outputAtom(Atom_t atom, std::string_view name) override { atoms_.emplace_back(atom, std::string(name)); }
+
+    void outputTerm(Id_t termId, std::string_view name) override { terms_.emplace_back(termId, name); }
+    void output(Id_t termId, LitSpan condition) override {
+        conds_.emplace_back(termId, std::vector<Lit_t>{condition.begin(), condition.end()});
+    }
+    void project(AtomSpan atoms) override { out_.project(atoms); }
+    void external(Atom_t a, TruthValue v) override { out_.external(a, v); }
+    void assume(LitSpan lits) override { out_.assume(lits); }
+    void heuristic(Atom_t a, DomModifier t, int bias, unsigned prio, LitSpan condition) override {
+        out_.heuristic(a, t, bias, prio, condition);
+    }
+    void acycEdge(int s, int t, LitSpan condition) override { out_.acycEdge(s, t, condition); }
+
+    void theoryTerm(Id_t termId, int number) override { out_.theoryTerm(termId, number); }
+    void theoryTerm(Id_t termId, std::string_view name) override { out_.theoryTerm(termId, name); }
+    void theoryTerm(Id_t termId, int cId, IdSpan args) override { out_.theoryTerm(termId, cId, args); }
+    void theoryElement(Id_t elementId, IdSpan terms, LitSpan cond) override {
+        out_.theoryElement(elementId, terms, cond);
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan elements) override {
+        out_.theoryAtom(atomOrZero, termId, elements);
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan elements, Id_t op, Id_t rhs) override {
+        out_.theoryAtom(atomOrZero, termId, elements, op, rhs);
+    }
+    void endStep() override {
+        for (auto const &[termId, cond] : conds_) {
+            out_.output(termId, cond);
+        }
+        conds_.clear();
+        for (auto const &[termId, name] : terms_) {
+            out_.outputTerm(termId, name);
+        }
+        terms_.clear();
+        for (auto const &[atom, name] : atoms_) {
+            out_.outputAtom(atom, name);
+        }
+        atoms_.clear();
+        out_.endStep();
+    }
+
+  private:
+    std::vector<std::pair<Atom_t, std::string>> atoms_;
+    std::vector<std::pair<Id_t, std::string>> terms_;
+    std::vector<std::pair<Id_t, std::vector<Lit_t>>> conds_;
+    Potassco::SmodelsOutput out_;
+};
+
+} // namespace
+
 auto Solver::make_output_(SymbolStore &store, AppMode mode, BackendType backend_type, ReifyFlags reify_flags)
     -> UOutputStm {
     if (mode != AppMode::solve) {
@@ -1138,7 +1216,7 @@ auto Solver::make_output_(SymbolStore &store, AppMode mode, BackendType backend_
             break;
         }
         case BackendType::smodels: {
-            program_ = std::make_unique<Potassco::SmodelsOutput>(buf_, true, clasp_->asp()->falseAtom());
+            program_ = std::make_unique<SmodelsAdapter>(buf_, true, clasp_->asp()->falseAtom());
             break;
         }
         case BackendType::reify: {
