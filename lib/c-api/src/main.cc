@@ -146,19 +146,13 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 
   private:
     using AppMode = CppClingo::Control::AppMode;
-    enum class Mode : uint8_t {
-        parse = static_cast<uint8_t>(AppMode::parse),
-        rewrite = static_cast<uint8_t>(AppMode::rewrite),
-        ground = static_cast<uint8_t>(AppMode::ground),
-        solve = static_cast<uint8_t>(AppMode::solve),
-        clasp = static_cast<uint8_t>(AppMode::solve) + 1,
-    };
+    using BackendType = CppClingo::Control::BackendType;
     using ProblemType = Clasp::ProblemType;
     using BaseType = Clasp::Cli::ClaspAppBase;
     using BaseType::run;
 
     auto getProblemType() -> ProblemType override {
-        return mode_ != Mode::clasp ? Clasp::ProblemType::asp : detectProblemType();
+        return clasp_mode_ ? detectProblemType() : Clasp::ProblemType::asp;
     }
 
     auto onEvent(const Clasp::Event &ev) -> void override {
@@ -176,11 +170,11 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 
         auto parse_mode = [this](std::string_view str) {
             if (opts_.init_app_mode(str)) {
-                mode_ = static_cast<Mode>(opts_.mode());
+                clasp_mode_ = false;
                 return true;
             }
-            if (str == "clasp") {
-                mode_ = Mode::clasp;
+            if (Potassco::Parse::eqIgnoreCase(str, "clasp")) {
+                clasp_mode_ = true;
                 return true;
             }
             return false;
@@ -188,10 +182,10 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         group_basic.addOptions() //
             ("mode", parse(parse_mode),
              "Run in mode\n"
-             "      %A: <mode {parse|rewrite|solve|clasp}>\n"
-             "        parse   : Print parsed program and exit\n"
-             "        rewrite : Print rewritten program and exit\n"
-             "        solve   : Ground and solve the program (default)\n"
+             "      %A: <mode {parse|rewrite|default|clasp}>\n"
+             "        parse   : Stop processing after parsing\n"
+             "        rewrite : Stop processing after rewriting\n"
+             "        default : Default ground and solve mode\n"
              "        clasp   : Invoke clasp on the input");
         root.add(group_basic);
         app_.register_options(root);
@@ -201,9 +195,8 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
                          const Potassco::ProgramOptions::ParsedOptions &parsed) override {
         BaseType::validateOptions(root, parsed);
         opts_.validate_options(parsed);
-        // --convert may redefine execution mode (e.g., text -> ground)
-        if (parsed.contains("convert")) {
-            mode_ = static_cast<Mode>(opts_.mode());
+        if (clasp_mode_ && (opts_.backend_type() != BackendType::clasp || opts_.mode() != AppMode::solve)) {
+            throw std::invalid_argument("incompatible values for '--convert' and '--mode'");
         }
         setExitCode(Clasp::Cli::exit_no_run);
         app_.validate_options();
@@ -212,15 +205,16 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 
     auto createOutput(Clasp::Cli::OutputSink sink, ProblemType f, Clasp::Cli::ClaspAppOptions::OutputFormat outf)
         -> std::unique_ptr<Clasp::Cli::Output> override {
-        if ((mode_ != Mode::solve && mode_ != Mode::clasp) ||
-            opts_.backend_type() != CppClingo::Control::BackendType::clasp) {
+        if (clasp_mode_) {
+            return ClaspAppBase::createOutput(sink, f, outf, Clasp::Cli::Output::mode_default);
+        }
+        if (opts_.mode() != AppMode::solve || opts_.backend_type() != BackendType::clasp) {
             return nullptr;
         }
-        auto om = mode_ == Mode::clasp ? Clasp::Cli::Output::mode_default : Clasp::Cli::Output::mode_clingo;
         if (!app_.has_print_model() || !Clasp::Cli::ClaspAppOptions::isTextOutput(outf)) {
-            return ClaspAppBase::createOutput(sink, f, outf, om);
+            return ClaspAppBase::createOutput(sink, f, outf, Clasp::Cli::Output::mode_clingo);
         }
-        auto output = createTextOutput(sink, f, om);
+        auto output = createTextOutput(sink, f, Clasp::Cli::Output::mode_clingo);
         output->setModelPrinter(
             [this](Clasp::Cli::TextOutput &out, const Clasp::SharedContext &ctx, const Clasp::Model &mdl) {
                 auto prt = [&]() { out.printModelValues(ctx, mdl); };
@@ -232,11 +226,10 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     }
 
     void run(Clasp::ClaspFacade &clasp) override {
-        if (mode_ != Mode::clasp) {
-            if (mode_ == Mode::solve) {
+        if (!clasp_mode_) {
+            if (opts_.mode() == AppMode::solve) {
                 clasp.startAsp(config(), false);
             }
-            opts_.mode() = static_cast<AppMode>(mode_);
             auto slv = CppClingo::Control::Solver{clasp,
                                                   config(),
                                                   ctl_->lib->log,
@@ -252,7 +245,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             POTASSCO_SCOPE_EXIT({ ctl_->slv->print_summary(true); });
 
             if (auto in = input(); app_.has_main()) {
-                if (mode_ == Mode::solve) {
+                if (opts_.mode() == AppMode::solve) {
                     ctl_->clasp->enableProgramUpdates();
                 }
                 app_.main(ctl_.get(), in);
@@ -268,10 +261,10 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         void operator()(clingo_control_t *ctl) const { clingo_control_release(ctl); }
     };
 
-    Mode mode_ = Mode::solve;
     std::unique_ptr<clingo_control_t, release_control> ctl_;
     AppAdapter app_;
     CppClingo::CAPI::ClingoOptions opts_;
+    bool clasp_mode_ = false;
 };
 
 } // namespace

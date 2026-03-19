@@ -174,19 +174,29 @@ class ClingoOptions {
         };
         auto parse_convert = [this](std::string_view str) {
             namespace Parse = Potassco::Parse;
-            using namespace std::literals;
+            using namespace std::string_view_literals;
 
-            if (Parse::eqIgnoreCase(str, "text"sv)) {
-                solver_opts_.mode = Control::AppMode::ground;
+            if (auto key = "text"sv; Parse::eqIgnoreCase(str, key)) {
+                ground_mode_ = true;
                 return true;
             }
 
-            Control::BackendType backend_type{};
-            Control::ReifyFlags reify_flags{};
-
-            if (!Parse::ok(Potassco::extract(str, backend_type))) {
+            auto backend_type = Control::BackendType{};
+            auto items = std::array{
+                std::pair{Control::BackendType::aspif, "aspif"sv},
+                std::pair{Control::BackendType::smodels, "smodels"sv},
+                std::pair{Control::BackendType::reify, "reify"sv},
+                std::pair{Control::BackendType::clasp, "default"sv},
+            };
+            auto *it = std::ranges::find_if(
+                items, [&](auto const &kv) { return Parse::eqIgnoreCase(str, kv.second, kv.second.size()); });
+            if (it == items.end()) {
                 return false;
             }
+            backend_type = it->first;
+            str.remove_prefix(it->second.size());
+
+            auto reify_flags = Control::ReifyFlags{};
             if (backend_type == Control::BackendType::reify) {
                 while (Parse::matchOpt(str, ',')) {
                     if (auto key = "sccs"sv; Parse::eqIgnoreCase(str, key, key.size())) {
@@ -196,10 +206,11 @@ class ClingoOptions {
                         reify_flags |= Control::ReifyFlags::reify_step;
                         str.remove_prefix(key.size());
                     } else {
-                        break;
+                        return false;
                     }
                 }
             }
+
             if (str.empty()) {
                 solver_opts_.mode = Control::AppMode::solve;
                 solver_opts_.backend_type = backend_type;
@@ -285,21 +296,32 @@ class ClingoOptions {
 
     auto init_app_mode(std::string_view str) -> bool {
         namespace Parse = Potassco::Parse;
+        using namespace std::string_view_literals;
 
-        Control::AppMode mode{};
-        if (!Parse::ok(Potassco::extract(str, mode))) {
+        auto items = std::array{
+            std::pair{Control::AppMode::parse, "parse"sv},
+            std::pair{Control::AppMode::rewrite, "rewrite"sv},
+            std::pair{Control::AppMode::solve, "default"sv},
+        };
+        auto *it = std::ranges::find_if(items, [&](auto const &kv) { return Parse::eqIgnoreCase(str, kv.second); });
+        if (it == items.end()) {
             return false;
         }
-        if (str.empty()) {
-            solver_opts_.mode = mode;
-            return true;
-        }
-        return false;
+        solver_opts_.mode = it->first;
+        return true;
     }
 
-    void validate_options(const Potassco::ProgramOptions::ParsedOptions &parsed) {
-        if (parsed.contains("mode") && parsed.contains("convert")) {
-            throw Potassco::ProgramOptions::Error("option '--mode' and '--convert' cannot be used together");
+    void validate_options([[maybe_unused]] Potassco::ProgramOptions::ParsedOptions const &parsed) {
+        if (ground_mode_) {
+            if (backend_type() != Control::BackendType::clasp) {
+                throw std::invalid_argument("incompatible values for '--convert' and '--mode'");
+            }
+            mode() = Control::AppMode::ground;
+        } else {
+            if (backend_type() != Control::BackendType::clasp &&
+                (mode() == Control::AppMode::rewrite || mode() == Control::AppMode::parse)) {
+                throw std::invalid_argument("incompatible values for options '--mode' and '--convert'");
+            }
         }
     }
 
@@ -318,6 +340,7 @@ class ClingoOptions {
     std::vector<CppClingo::Input::SharedSig> show_;
     std::optional<Control::ProgramParamVec> parts_;
     std::vector<std::pair<SharedString, SharedSymbol>> const_defs_;
+    bool ground_mode_ = false;
 };
 
 } // namespace CppClingo::CAPI

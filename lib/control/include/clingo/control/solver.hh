@@ -66,7 +66,6 @@ enum class AppMode : uint8_t {
     ground,  //!< Stop processing after grounding.
     solve    //!< Stop processing after solving.
 };
-POTASSCO_SET_ENUM_ENTRIES(AppMode, {parse, "parse"sv}, {rewrite, "rewrite"sv}, {solve, "solve"sv});
 
 //! Enumeration of available output formats when in solving mode.
 enum class BackendType : uint8_t {
@@ -75,14 +74,14 @@ enum class BackendType : uint8_t {
     smodels, //!< Print program in smodels format
     reify    //!< Print program as reified facts
 };
-POTASSCO_SET_ENUM_ENTRIES(BackendType, {aspif, "aspif"sv}, {smodels, "smodels"sv}, {reify, "reify"sv});
 
-//! Options for reification.
+//! Enumeration of available options for the reification backend.
 enum class ReifyFlags : uint8_t {
     reify_scc = 1U, //!< Compute and print SCCs
     reify_step = 2U //!< Add step numbers
 };
-POTASSCO_ENABLE_BIT_OPS(ReifyFlags);
+//! Enable bit set operations.
+CLINGO_ENABLE_BITSET_ENUM(ReifyFlags);
 
 //! Options for the solver.
 struct SolverOptions {
