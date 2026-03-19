@@ -186,7 +186,7 @@ class ClingoOptions {
                 std::pair{Control::BackendType::aspif, "aspif"sv},
                 std::pair{Control::BackendType::smodels, "smodels"sv},
                 std::pair{Control::BackendType::reify, "reify"sv},
-                std::pair{Control::BackendType::clasp, "default"sv},
+                std::pair{Control::BackendType::clasp, "no"sv},
             };
             auto *it = std::ranges::find_if(
                 items, [&](auto const &kv) { return Parse::eqIgnoreCase(str, kv.second, kv.second.size()); });
@@ -269,14 +269,15 @@ class ClingoOptions {
       [no-]operation-undefined: p(1/0).
       [no-]global-variable    : :- #count { X } = 1, X = 1.)")                                     //
             ("convert", parse(parse_convert),
-             "Convert program, print and exit\n"
-             "      %A: <format {text|aspif|smodels|reify}[,<opts>]>\n"
-             "        text   : Print program in text format (ground)\n"
-             "        aspif  : Print program in ASP intermediate format\n"
-             "        smodels: Print program in smodels format\n"
-             "        reify  : Print program as reified facts with <opts>\n"
-             "          sccs  : Compute and print SCCs\n"
-             "          steps : Add step numbers");
+             R"(Convert program, print and exit
+      %A: <format {text|aspif|smodels|reify}[,<opts>]|no>
+        text   : Print program in text format (ground)
+        aspif  : Print program in ASP intermediate format
+        smodels: Print program in smodels format
+        reify  : Print program as reified facts with <opts>
+          sccs  : Compute and print SCCs
+          steps : Add step numbers
+        no     : Disable conversion)");
         root.add(group_basic);
     }
 

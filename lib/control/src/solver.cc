@@ -48,38 +48,6 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
   protected:
     auto program() -> Potassco::AbstractProgram & { return *prg_; }
 
-    void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
-
-#ifdef DEBUG_BACKEND
-        std::cerr << (choice ? "{ " : "") << Util::p_range(head, ", ") << (choice ? " }" : "") << " :- "
-                  << Util::p_range(body, ", ") << ".\n";
-#endif
-        prg_->rule(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive, as_atoms_(head), body);
-    }
-
-  private:
-    virtual auto do_term_id(Symbol sym) -> prg_id_t = 0;
-
-    virtual void do_term_id(Symbol sym, prg_id_t id) = 0;
-
-    auto as_atoms_(PrgLitSpan lits) -> Potassco::AtomSpan {
-        atoms_.clear();
-        for (auto const &lit : lits) {
-            assert(lit > 0);
-            atoms_.push_back(lit);
-        }
-        return Potassco::AtomSpan{atoms_};
-    }
-
-    auto as_wlits_(WeightedPrgLitSpan wlits) -> Potassco::WeightLitSpan {
-        wlits_.clear();
-        for (auto const &[lit, weight] : wlits) {
-            assert(lit != 0);
-            wlits_.emplace_back(lit, weight);
-        }
-        return Potassco::WeightLitSpan{wlits_};
-    }
-
     void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
                      [[maybe_unused]] unsigned revision, bool incremental) override {
         prg_->initProgram(incremental);
@@ -88,6 +56,15 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     void do_begin_step() override { prg_->beginStep(); }
     void do_end_ground() override {}
     void do_end_step() override { prg_->endStep(); }
+
+    void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
+
+#ifdef DEBUG_BACKEND
+        std::cerr << (choice ? "{ " : "") << Util::p_range(head, ", ") << (choice ? " }" : "") << " :- "
+                  << Util::p_range(body, ", ") << ".\n";
+#endif
+        prg_->rule(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive, as_atoms_(head), body);
+    }
 
     void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, prg_weight_t bound, bool choice) override {
         assert(bound > 0);
@@ -251,6 +228,29 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
 #endif
     }
 
+  private:
+    virtual auto do_term_id(Symbol sym) -> prg_id_t = 0;
+
+    virtual void do_term_id(Symbol sym, prg_id_t id) = 0;
+
+    auto as_atoms_(PrgLitSpan lits) -> Potassco::AtomSpan {
+        atoms_.clear();
+        for (auto const &lit : lits) {
+            assert(lit > 0);
+            atoms_.push_back(lit);
+        }
+        return Potassco::AtomSpan{atoms_};
+    }
+
+    auto as_wlits_(WeightedPrgLitSpan wlits) -> Potassco::WeightLitSpan {
+        wlits_.clear();
+        for (auto const &[lit, weight] : wlits) {
+            assert(lit != 0);
+            wlits_.emplace_back(lit, weight);
+        }
+        return Potassco::WeightLitSpan{wlits_};
+    }
+
     Potassco::AbstractProgram *prg_;
     Util::OutputBuffer buf_;
     std::vector<Potassco::Atom_t> atoms_;
@@ -264,7 +264,7 @@ class PotasscoBackend : public AbstractProgramBackendImpl {
 
   private:
     auto do_next_lit() -> prg_lit_t override {
-        if (auto lit = new_atom(); std::cmp_less_equal(lit, prg_lit_max)) {
+        if (auto lit = next_atom_++; std::cmp_less_equal(lit, prg_lit_max)) {
             return static_cast<prg_lit_t>(lit);
         }
         throw std::range_error("number of literals exhausted");
@@ -286,16 +286,13 @@ class PotasscoBackend : public AbstractProgramBackendImpl {
 
     auto do_term_id(Symbol sym) -> prg_id_t override {
         return terms_->add(sym, [&]() {
-            auto nId = new_show_term();
+            auto nId = next_show_term_++;
             program().outputTerm(nId, as_str(sym));
             return nId;
         });
     }
 
     void do_term_id(Symbol sym, prg_id_t id) override { terms_->add(sym, id); }
-
-    auto new_atom() -> Potassco::Atom_t { return next_atom_++; }
-    auto new_show_term() -> prg_id_t { return next_show_term_++; }
 
     Potassco::Atom_t next_atom_{1};
     prg_id_t fact_{0};
