@@ -1124,7 +1124,7 @@ Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_conf
 auto Solver::make_output_(SymbolStore &store, AppMode mode, BackendType backend_type, ReifyFlags reify_flags)
     -> UOutputStm {
     if (mode != AppMode::solve) {
-        return Output::make_text_output(buf_);
+        return Output::make_text_output(buf());
     }
 
     switch (backend_type) {
@@ -1133,18 +1133,18 @@ auto Solver::make_output_(SymbolStore &store, AppMode mode, BackendType backend_
             break;
         }
         case BackendType::aspif: {
-            program_ = std::make_unique<Potassco::AspifOutput>(std::cout);
+            program_ = std::make_unique<Potassco::AspifOutput>(buf_);
             break;
         }
         case BackendType::smodels: {
-            program_ = std::make_unique<Potassco::SmodelsOutput>(std::cout, true, clasp_->asp()->falseAtom());
+            program_ = std::make_unique<Potassco::SmodelsOutput>(buf_, true, clasp_->asp()->falseAtom());
             break;
         }
         case BackendType::reify: {
             Potassco::Reifier::Options reify_opts{};
             reify_opts.reifyStep = Potassco::test(reify_flags, ReifyFlags::reify_step);
             reify_opts.calculateSccs = Potassco::test(reify_flags, ReifyFlags::reify_scc);
-            program_ = std::make_unique<Potassco::Reifier>(std::cout, reify_opts);
+            program_ = std::make_unique<Potassco::Reifier>(buf_, reify_opts);
             break;
         }
     }
@@ -1243,11 +1243,11 @@ void Solver::main() {
         scripts_->main(*this);
     } else {
         if (opts_.mode == AppMode::parse) {
-            output_unprocessed_program(std::cout);
+            output_unprocessed_program(buf_);
             return;
         }
         if (opts_.mode == AppMode::rewrite) {
-            output_program(std::cout);
+            output_program(buf_);
             return;
         }
         bool inc = intersects(includes_, BuiltinIncludes::incmode);
@@ -1287,6 +1287,7 @@ auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode
         backend_->end_step();
         bool prepared = clasp_->prepare();
         theory_->reset();
+        buf_.flush();
         if (prepared) {
             if (mdl_ == nullptr) {
                 mdl_ = std::make_unique<ModelImpl>(grd_.base(), terms_, *clasp_);
@@ -1299,6 +1300,7 @@ auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode
                                                      std::move(handler), [this]() { simplify_(); });
         }
     }
+    buf_.flush();
     return std::make_unique<SolveHandleFixed>();
 }
 
@@ -1437,6 +1439,7 @@ auto Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback
         prepare_();
         res = grd_.ground(params, ctx != nullptr ? ctx : scripts_, stop);
         clasp_->ctx.report(Grounded{params});
+        buf_.flush();
     }
     return res;
 }

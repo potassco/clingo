@@ -740,7 +740,7 @@ class Solver : public BaseView {
     //!
     //! If the control object has been constructed without a null output FILE,
     //! this buffer contains the output of the textoutput.
-    [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_; };
+    [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_.buffer(); };
 
     //! Get a handle that provides access to the backend to add atoms and rules.
     //!
@@ -866,7 +866,7 @@ class Solver : public BaseView {
     TermBaseMap terms_;
     Clasp::ClaspFacade *clasp_;
     ClingoConfig config_;
-    Util::OutputBuffer buf_;
+    Util::OutputStream buf_;
     UProgramBackend backend_;
     std::unique_ptr<Output::TheoryData> theory_;
     std::unique_ptr<Potassco::AbstractProgram> program_;

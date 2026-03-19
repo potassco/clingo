@@ -4,6 +4,7 @@
 #include <cassert>
 #include <charconv>
 #include <cstring>
+#include <ostream>
 #include <span>
 #include <string>
 #include <string_view>
@@ -194,6 +195,44 @@ class OutputBuffer {
     std::vector<char> buf_;
     std::ptrdiff_t size_ = 0;
     FILE *out_;
+};
+
+//! Helper to use OutputBuffer with iostreams.
+class OutputStream : public std::ostream {
+  public:
+    // Construct the stream with an optional file handle.
+    OutputStream(FILE *out = nullptr) : std::ostream{&buf_}, buf_{out} {}
+    //! Get the underlying output buffer.
+    auto buffer() -> OutputBuffer & { return buf_.buffer(); }
+
+  private:
+    class Buffer : public std::streambuf {
+      public:
+        Buffer(FILE *out) : out_{out} {}
+        auto buffer() -> OutputBuffer & { return out_; }
+
+      protected:
+        auto overflow(int ch) -> int override {
+            if (ch != traits_type::eof()) {
+                out_.push_back(static_cast<char>(ch));
+                return ch;
+            }
+            return traits_type::eof();
+        }
+
+        auto xsputn(char const *s, std::streamsize n) -> std::streamsize override {
+            out_.append(std::string_view{s, static_cast<size_t>(n)});
+            return n;
+        }
+
+        auto sync() -> int override {
+            out_.flush();
+            return 0;
+        }
+
+      private:
+        OutputBuffer out_;
+    } buf_;
 };
 
 namespace Detail {

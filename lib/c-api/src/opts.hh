@@ -188,7 +188,8 @@ class ClingoOptions {
                 std::pair{Control::BackendType::reify, "reify"sv},
                 std::pair{Control::BackendType::clasp, "no"sv},
             });
-            auto *it = std::ranges::find_if(
+            // NOLINTNEXTLINE
+            auto it = std::ranges::find_if(
                 items, [&](auto const &kv) { return Parse::eqIgnoreCase(str, kv.second, kv.second.size()); });
             if (it == items.end()) {
                 return false;
@@ -304,7 +305,8 @@ class ClingoOptions {
             std::pair{Control::AppMode::rewrite, "rewrite"sv},
             std::pair{Control::AppMode::solve, "default"sv},
         });
-        auto *it = std::ranges::find_if(items, [&](auto const &kv) { return Parse::eqIgnoreCase(str, kv.second); });
+        // NOLINTNEXTLINE
+        auto it = std::ranges::find_if(items, [&](auto const &kv) { return Parse::eqIgnoreCase(str, kv.second); });
         if (it == items.end()) {
             return false;
         }
