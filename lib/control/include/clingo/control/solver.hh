@@ -5,6 +5,8 @@
 
 #include <clingo/output/backend.hh>
 
+#include <potassco/basic_types.h>
+
 #include <clasp/clasp_facade.h>
 #include <clasp/cli/clasp_options.h>
 
@@ -740,7 +742,7 @@ class Solver : public BaseView {
     //!
     //! If the control object has been constructed without a null output FILE,
     //! this buffer contains the output of the textoutput.
-    [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_.buffer(); };
+    [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_; };
 
     //! Get a handle that provides access to the backend to add atoms and rules.
     //!
@@ -866,7 +868,8 @@ class Solver : public BaseView {
     TermBaseMap terms_;
     Clasp::ClaspFacade *clasp_;
     ClingoConfig config_;
-    Util::OutputStream buf_;
+    Util::OutputStreambuf buf_;
+    std::ostream stream_{&buf_};
     UProgramBackend backend_;
     std::unique_ptr<Output::TheoryData> theory_;
     std::unique_ptr<Potassco::AbstractProgram> output_program_;

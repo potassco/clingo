@@ -1135,11 +1135,11 @@ auto Solver::make_output_(SymbolStore &store, AppMode mode, BackendType backend_
             break;
         }
         case BackendType::aspif: {
-            program_ = std::make_unique<Potassco::AspifOutput>(buf_);
+            program_ = std::make_unique<Potassco::AspifOutput>(stream_);
             break;
         }
         case BackendType::smodels: {
-            output_program_ = std::make_unique<Potassco::SmodelsOutput>(buf_, true, clasp_->asp()->falseAtom());
+            output_program_ = std::make_unique<Potassco::SmodelsOutput>(stream_, true, clasp_->asp()->falseAtom());
             program_ = std::make_unique<Potassco::SmodelsConvert>(*output_program_, true);
             break;
         }
@@ -1147,7 +1147,7 @@ auto Solver::make_output_(SymbolStore &store, AppMode mode, BackendType backend_
             Potassco::Reifier::Options reify_opts{};
             reify_opts.reifyStep = Potassco::test(reify_flags, ReifyFlags::reify_step);
             reify_opts.calculateSccs = Potassco::test(reify_flags, ReifyFlags::reify_scc);
-            program_ = std::make_unique<Potassco::Reifier>(buf_, reify_opts);
+            program_ = std::make_unique<Potassco::Reifier>(stream_, reify_opts);
             break;
         }
     }
@@ -1246,11 +1246,11 @@ void Solver::main() {
         scripts_->main(*this);
     } else {
         if (opts_.mode == AppMode::parse) {
-            output_unprocessed_program(buf_);
+            output_unprocessed_program(stream_);
             return;
         }
         if (opts_.mode == AppMode::rewrite) {
-            output_program(buf_);
+            output_program(stream_);
             return;
         }
         bool inc = intersects(includes_, BuiltinIncludes::incmode);

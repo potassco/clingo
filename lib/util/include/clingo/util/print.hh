@@ -4,8 +4,8 @@
 #include <cassert>
 #include <charconv>
 #include <cstring>
-#include <ostream>
 #include <span>
+#include <streambuf>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -197,42 +197,30 @@ class OutputBuffer {
     FILE *out_;
 };
 
-//! Helper to use OutputBuffer with iostreams.
-class OutputStream : public std::ostream {
+//! Extension of OutputBuffer that also implements the stream buffer interface.
+class OutputStreambuf : public OutputBuffer, public std::streambuf {
   public:
-    // Construct the stream with an optional file handle.
-    OutputStream(FILE *out = nullptr) : std::ostream{&buf_}, buf_{out} {}
-    //! Get the underlying output buffer.
-    auto buffer() -> OutputBuffer & { return buf_.buffer(); }
+    //! Construct the buffer with an optional file handle.
+    OutputStreambuf(FILE *out) : OutputBuffer{out} {}
 
-  private:
-    class Buffer : public std::streambuf {
-      public:
-        Buffer(FILE *out) : out_{out} {}
-        auto buffer() -> OutputBuffer & { return out_; }
-
-      protected:
-        auto overflow(int ch) -> int override {
-            if (ch != traits_type::eof()) {
-                out_.push_back(static_cast<char>(ch));
-                return ch;
-            }
-            return traits_type::eof();
+  protected:
+    auto overflow(int ch) -> int override {
+        if (ch != traits_type::eof()) {
+            push_back(static_cast<char>(ch));
+            return traits_type::not_eof(ch);
         }
+        return traits_type::eof();
+    }
 
-        auto xsputn(char const *s, std::streamsize n) -> std::streamsize override {
-            out_.append(std::string_view{s, static_cast<size_t>(n)});
-            return n;
-        }
+    auto xsputn(char const *s, std::streamsize n) -> std::streamsize override {
+        append(std::string_view{s, static_cast<size_t>(n)});
+        return n;
+    }
 
-        auto sync() -> int override {
-            out_.flush();
-            return 0;
-        }
-
-      private:
-        OutputBuffer out_;
-    } buf_;
+    auto sync() -> int override {
+        flush();
+        return 0;
+    }
 };
 
 namespace Detail {
