@@ -274,7 +274,7 @@ class PotasscoBackend : public AbstractProgramBackendImpl {
     auto do_fact_lit() -> std::optional<prg_lit_t> override {
         if (fact_ == 0) {
             fact_ = do_next_lit();
-            program().rule(Potassco::HeadType::disjunctive, Potassco::AtomSpan{&fact_, 1}, {});
+            program().rule(Potassco::HeadType::disjunctive, Potassco::toSpan(fact_), {});
         }
         return fact_;
     }

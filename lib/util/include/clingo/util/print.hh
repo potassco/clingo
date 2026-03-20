@@ -27,7 +27,7 @@ class OutputBuffer {
     //! The value type of the buffer.
     using value_type = char;
 
-    //! Construt the buffer with an optional file handle.
+    //! Construct the buffer with an optional file handle.
     OutputBuffer(FILE *out = nullptr) : out_{out} {}
 
     //! Flush the buffer.

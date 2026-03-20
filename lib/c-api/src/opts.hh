@@ -181,8 +181,7 @@ class ClingoOptions {
                 return true;
             }
 
-            auto backend_type = Control::BackendType{};
-            auto items = std::array{
+            static constexpr auto items = std::array{
                 std::pair{Control::BackendType::aspif, "aspif"sv},
                 std::pair{Control::BackendType::smodels, "smodels"sv},
                 std::pair{Control::BackendType::reify, "reify"sv},
@@ -194,7 +193,7 @@ class ClingoOptions {
             if (it == items.end()) {
                 return false;
             }
-            backend_type = it->first;
+            auto backend_type = it->first;
             str.remove_prefix(it->second.size());
 
             auto reify_flags = Control::ReifyFlags{};
@@ -213,7 +212,6 @@ class ClingoOptions {
             }
 
             if (str.empty()) {
-                solver_opts_.mode = Control::AppMode::solve;
                 solver_opts_.backend_type = backend_type;
                 solver_opts_.reify_flags = reify_flags;
                 return true;
@@ -300,7 +298,7 @@ class ClingoOptions {
         namespace Parse = Potassco::Parse;
         using namespace std::string_view_literals;
 
-        auto items = std::array{
+        static constexpr auto items = std::array{
             std::pair{Control::AppMode::parse, "parse"sv},
             std::pair{Control::AppMode::rewrite, "rewrite"sv},
             std::pair{Control::AppMode::solve, "default"sv},
