@@ -186,7 +186,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_const_map(clingo_control_t *contro
 
 //! Get the output of the text output.
 //!
-//! The buffer is only available for standalone control objects. The buffer of
+//! The buffer is only available for standalone control objects. Buffers of
 //! control objects associated with application objects are regularly flushed
 //! to stdout.
 //!
