@@ -869,6 +869,7 @@ class Solver : public BaseView {
     Util::OutputStream buf_;
     UProgramBackend backend_;
     std::unique_ptr<Output::TheoryData> theory_;
+    std::unique_ptr<Potassco::AbstractProgram> output_program_;
     std::unique_ptr<Potassco::AbstractProgram> program_;
     UOutputStm out_;
     UModel mdl_;

@@ -51,9 +51,9 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
             ("mode", parse(parse_mode),
              "Run in mode\n"
              "      %A: <mode {parse|rewrite|default}>\n"
-             "        parse   : Stop processing after parsing\n"
-             "        rewrite : Stop processing after rewriting\n"
-             "        default : Default ground and solve mode");
+             "        parse   : Print parsed program and exit\n"
+             "        rewrite : Print rewritten program and exit\n"
+             "        default : Ground and solve the program");
         ctx.add(group_basic);
         slv_cfg->addOptions(ctx);
         auto pos_parser = [](std::string_view str, std::string &out) {

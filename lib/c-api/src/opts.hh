@@ -317,13 +317,13 @@ class ClingoOptions {
     void validate_options([[maybe_unused]] Potassco::ProgramOptions::ParsedOptions const &parsed) {
         if (ground_mode_) {
             if (backend_type() != Control::BackendType::clasp) {
-                throw std::invalid_argument("incompatible values for '--convert' and '--mode'");
+                throw Potassco::ProgramOptions::Error("incompatible values for options '--convert' and '--mode'");
             }
             mode() = Control::AppMode::ground;
         } else {
             if (backend_type() != Control::BackendType::clasp &&
                 (mode() == Control::AppMode::rewrite || mode() == Control::AppMode::parse)) {
-                throw std::invalid_argument("incompatible values for options '--mode' and '--convert'");
+                throw Potassco::ProgramOptions::Error("incompatible values for options '--convert' and '--mode'");
             }
         }
     }

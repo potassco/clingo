@@ -183,9 +183,9 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             ("mode", parse(parse_mode),
              "Run in mode\n"
              "      %A: <mode {parse|rewrite|default|clasp}>\n"
-             "        parse   : Stop processing after parsing\n"
-             "        rewrite : Stop processing after rewriting\n"
-             "        default : Default ground and solve mode\n"
+             "        parse   : Print parsed program and exit\n"
+             "        rewrite : Print rewritten program and exit\n"
+             "        default : Ground and solve the program\n"
              "        clasp   : Invoke clasp on the input");
         root.add(group_basic);
         app_.register_options(root);
@@ -196,7 +196,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         BaseType::validateOptions(root, parsed);
         opts_.validate_options(parsed);
         if (clasp_mode_ && (opts_.backend_type() != BackendType::clasp || opts_.mode() != AppMode::solve)) {
-            throw std::invalid_argument("incompatible values for '--convert' and '--mode'");
+            throw Potassco::ProgramOptions::Error("incompatible values for options '--convert' and '--mode'");
         }
         setExitCode(Clasp::Cli::exit_no_run);
         app_.validate_options();
