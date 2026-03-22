@@ -240,7 +240,7 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
             assert(lit > 0);
             atoms_.push_back(lit);
         }
-        return Potassco::AtomSpan{atoms_};
+        return atoms_;
     }
 
     auto as_wlits_(WeightedPrgLitSpan wlits) -> Potassco::WeightLitSpan {
@@ -249,7 +249,7 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
             assert(lit != 0);
             wlits_.emplace_back(lit, weight);
         }
-        return Potassco::WeightLitSpan{wlits_};
+        return wlits_;
     }
 
     Potassco::AbstractProgram *prg_;
