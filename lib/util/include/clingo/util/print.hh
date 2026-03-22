@@ -4,6 +4,7 @@
 #include <cassert>
 #include <charconv>
 #include <cstring>
+#include <ostream>
 #include <span>
 #include <streambuf>
 #include <string>
@@ -197,30 +198,45 @@ class OutputBuffer {
     FILE *out_;
 };
 
-//! Extension of OutputBuffer that also implements the stream buffer interface.
-class OutputStreambuf : public OutputBuffer, public std::streambuf {
+//! Output stream with an underlying OutputBuffer.
+class OutputStream : public std::ostream {
   public:
     //! Construct the buffer with an optional file handle.
-    OutputStreambuf(FILE *out) : OutputBuffer{out} {}
+    OutputStream(FILE *out) : std::ostream{nullptr}, buf_{out} { rdbuf(&buf_); }
 
-  protected:
-    auto overflow(int ch) -> int override {
-        if (ch != traits_type::eof()) {
-            push_back(static_cast<char>(ch));
-            return traits_type::not_eof(ch);
+    //! Get the underlying buffer.
+    auto buffer() -> OutputBuffer & { return buf_.buffer(); }
+
+  private:
+    class Streambuf : public std::streambuf {
+      public:
+        Streambuf(FILE *out) : buf_{out} {}
+        auto buffer() -> OutputBuffer & { return buf_; }
+
+      protected:
+        auto overflow(int ch) -> int override {
+            if (ch != traits_type::eof()) {
+                buf_.push_back(static_cast<char>(ch));
+                return traits_type::not_eof(ch);
+            }
+            return traits_type::eof();
         }
-        return traits_type::eof();
-    }
 
-    auto xsputn(char const *s, std::streamsize n) -> std::streamsize override {
-        append(std::string_view{s, static_cast<size_t>(n)});
-        return n;
-    }
+        auto xsputn(char const *s, std::streamsize n) -> std::streamsize override {
+            buf_.append(std::string_view{s, static_cast<size_t>(n)});
+            return n;
+        }
 
-    auto sync() -> int override {
-        flush();
-        return 0;
-    }
+        auto sync() -> int override {
+            buf_.flush();
+            return 0;
+        }
+
+      private:
+        OutputBuffer buf_;
+    };
+
+    Streambuf buf_;
 };
 
 namespace Detail {

@@ -1118,7 +1118,7 @@ auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
 
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
                Scripts &scripts, Input::RewriteOptions ropts, SolverOptions sopts, FILE *out)
-    : clasp_{&clasp}, config_{clasp_config}, buf_{out},
+    : clasp_{&clasp}, config_{clasp_config}, stream_{out},
       out_{make_output_(store, sopts.mode, sopts.backend_type, sopts.reify_flags)}, grd_{log, store, ropts, *out_},
       scripts_{&scripts}, opts_{std::move(sopts)} {
 }
@@ -1290,7 +1290,8 @@ auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode
         backend_->end_step();
         bool prepared = clasp_->prepare();
         theory_->reset();
-        buf_.flush();
+        buf().flush();
+
         if (prepared) {
             if (mdl_ == nullptr) {
                 mdl_ = std::make_unique<ModelImpl>(grd_.base(), terms_, *clasp_);
@@ -1303,7 +1304,7 @@ auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode
                                                      std::move(handler), [this]() { simplify_(); });
         }
     }
-    buf_.flush();
+    buf().flush();
     return std::make_unique<SolveHandleFixed>();
 }
 
@@ -1442,7 +1443,7 @@ auto Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback
         prepare_();
         res = grd_.ground(params, ctx != nullptr ? ctx : scripts_, stop);
         clasp_->ctx.report(Grounded{params});
-        buf_.flush();
+        buf().flush();
     }
     return res;
 }
