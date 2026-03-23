@@ -157,6 +157,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_observe(clingo_control_t *control,
 
 //! Write the current logic program in aspif format to a file.
 //!
+//! If the size of the path is zero, clingo's internal output buffer is used
+//! instead of writing to a file. The buffer content can be accessed via
+//! clingo_control_buffer(). Note that the buffer is flushed to stdout in
+//! application mode. Explicitly set the preamble flag to control when to write
+//! the preamble in this case (it will always be written in auto mode).
+//!
 //! @param control the target control
 //! @param path the path to the file to write to
 //! @param size the size of the path

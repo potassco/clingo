@@ -218,7 +218,7 @@ extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const
                                            clingo_write_aspif_mode_t mode) -> bool {
     CLINGO_TRY {
         auto path_view = std::string_view{path, size};
-        if (control == nullptr || path == nullptr) {
+        if (control == nullptr || (path == nullptr && size != 0)) {
             return fail_arguments();
         }
         // NOLINTNEXTLINE
@@ -226,27 +226,39 @@ extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const
         if ((mode & clingo_write_aspif_mode_preprocess) != 0) {
             prg.endProgram();
         }
-        auto app = (mode & clingo_write_aspif_mode_append) != 0 && std::filesystem::exists(path_view);
+        // NOTE: The buffer is always flushed after grounding. Hence, it will
+        // always be empty if it is attached to an output stream in app mode. In
+        // this sceneario, it is better to explicitely set the preamble flag to
+        // false to avoid writing the preamble multiple times.
+        auto app = (mode & clingo_write_aspif_mode_append) != 0 &&
+                   (size > 0 ? std::filesystem::exists(path_view) : !control->slv->buf().empty());
         auto pre = (mode & clingo_write_aspif_mode_preamble) != 0;
         if ((mode & clingo_write_aspif_mode_preamble_auto) != 0) {
             pre = !app;
         }
-        auto out = std::ofstream{std::string{path_view}, app ? std::ios::app : std::ios::out};
-        out.exceptions(std::ios::failbit | std::ios::badbit);
-        if ((mode & clingo_write_aspif_mode_symbols) != 0) {
-            auto obs = ExtendedAspifWriter{control->slv->sym_tab(), *control->slv, out};
-            prg.accept(obs, pre);
-            if (!pre) {
-                obs.endStep();
+        auto output = [&](auto &out) {
+            if ((mode & clingo_write_aspif_mode_symbols) != 0) {
+                auto obs = ExtendedAspifWriter{control->slv->sym_tab(), *control->slv, out};
+                prg.accept(obs, pre);
+                if (!pre) {
+                    obs.endStep();
+                }
+            } else {
+                auto obs = Potassco::AspifOutput{out};
+                prg.accept(obs, pre);
+                // Clingo's aspif reader requires all programs to be zero terminated.
+                // Thus, we call endStep here.
+                if (!pre) {
+                    obs.endStep();
+                }
             }
+        };
+        if (size > 0) {
+            auto out = std::ofstream{std::string{path_view}, app ? std::ios::app : std::ios::out};
+            out.exceptions(std::ios::failbit | std::ios::badbit);
+            output(out);
         } else {
-            auto obs = Potassco::AspifOutput{out};
-            prg.accept(obs, pre);
-            // Clingo's aspif reader requires all programs to be zero terminated.
-            // Thus, we call endStep here.
-            if (!pre) {
-                obs.endStep();
-            }
+            output(control->slv->stream());
         }
     }
     CLINGO_CATCH;

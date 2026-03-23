@@ -64,7 +64,7 @@ void Control::parse_string(std::string_view str) {
     handle_error(clingo_control_parse_string(get(), str.data(), str.size()));
 }
 
-void Control::write_aspif(std::string_view path, bool symbols, bool append, std::optional<bool> preamble,
+void Control::write_aspif(std::optional<std::string_view> path, bool symbols, bool append, std::optional<bool> preamble,
                           bool preprocess) {
     clingo_write_aspif_mode_t mode = 0;
     if (symbols) {
@@ -81,7 +81,11 @@ void Control::write_aspif(std::string_view path, bool symbols, bool append, std:
     if (preprocess) {
         mode |= clingo_write_aspif_mode_preprocess;
     }
-    handle_error(clingo_control_write_aspif(get(), path.data(), path.size(), mode));
+    if (path && path->empty()) {
+        throw std::invalid_argument{"path cannot be empty"};
+    }
+    auto path_view = path ? *path : std::string_view{};
+    handle_error(clingo_control_write_aspif(get(), path_view.data(), path_view.size(), mode));
 }
 
 void Control::parse_files(std::span<std::string const> files) {
@@ -517,7 +521,7 @@ Args:
     files:
         A list of file paths to parse.
 )"_d)
-        .def("write_aspif", &Control::write_aspif, py::arg("path"), py::arg("symbols") = false,
+        .def("write_aspif", &Control::write_aspif, py::arg("path") = std::nullopt, py::arg("symbols") = false,
              py::arg("append") = false, py::arg("preamble") = std::nullopt, py::arg("preprocess") = true, R"(
 Write the current logic programs to the given file.
 
@@ -525,9 +529,15 @@ If append is true, a file will be created if none exists yet. If preamble is
 None, then the aspif preamble is written for newly created files and omitted
 for existing files.
 
+If path is None, clingo's internal output buffer is used instead of writing to
+a file. The buffer content can be accessed via `Control.buffer`. Note that the
+buffer is flushed to stdout in application mode. Explicitly set the preamble
+flag to control when to write the preamble as it is always written if it is
+None in this mode.
+
 Args:
     path:
-        The path to write the program to.
+        The optional path to write the program to.
     append:
         Whether to append to an existing file.
     preamble:

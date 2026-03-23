@@ -1326,7 +1326,7 @@ void Solver::parse_with(std::function<void(ProgramBackend *, TheoryBackend *)> c
 }
 
 void Solver::parse(std::string_view str) {
-    includes_ |= grd_.parse(str, scripts_);
+    parse_with([&](ProgramBackend *bck, TheoryBackend *thy) { includes_ |= grd_.parse(str, scripts_, bck, thy); });
 }
 
 void Solver::parse(std::span<std::string_view const> const &files) {

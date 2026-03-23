@@ -204,10 +204,21 @@ class Control {
     //! after calls to solve(). Only the part of the program grounded after the
     //! last call to solve() or at the beginning are written to the file.
     //!
+    //! If no path is given, clingo's internal output buffer is used instead of
+    //! writing to a file. The buffer content can be accessed via
+    //! Control::buffer(). Note that the buffer is flushed to stdout in
+    //! application mode. Explicitly set the preamble flag to control when to
+    //! write the preamble in this case (it will always be written in
+    //! WriteAspifFlags::preamble_auto mode).
+    //!
     //! @param path the path to the ASPIF file
     //! @param flags the flags to use when writing the ASPIF file
-    void write_aspif(std::string_view path, WriteAspifFlags flags = WriteAspifFlags::none) const {
-        Detail::handle_error(clingo_control_write_aspif(ctl_.get(), path.data(), path.size(),
+    void write_aspif(std::optional<std::string_view> path, WriteAspifFlags flags = WriteAspifFlags::none) const {
+        if (path && path->empty()) {
+            throw std::invalid_argument{"path cannot be empty"};
+        }
+        auto path_view = path.value_or(std::string_view{});
+        Detail::handle_error(clingo_control_write_aspif(ctl_.get(), path_view.data(), path_view.size(),
                                                         static_cast<clingo_write_aspif_mode_t>(flags)));
     }
 
