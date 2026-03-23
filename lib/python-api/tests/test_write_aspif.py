@@ -86,6 +86,26 @@ class TestWriteAspif:
             ctl.write_aspif(path, symbols=symbols)
             yield path
 
+    def parse_string(self, content: str, symbols: bool = False):
+        """
+        Parse the given program and return a file with its aspif grounding.
+        """
+        ctl = Control(self.lib)
+        ctl.parse_string(content)
+        ctl.ground()
+        ctl.write_aspif(symbols=symbols)
+        return ctl.buffer
+
+    def test_buffer(self):
+        """
+        Test writing aspif to a buffer and parsing it again.
+        """
+        prg = self.parse_string("a. {b}. c :- b.")
+        self.ctl.parse_string(prg)
+        mcb = MCB()
+        self.ctl.solve(on_model=mcb)
+        assert mcb.symbols == [["a"], ["a", "b", "c"]]
+
     def test_rule(self):
         """
         Test rules.
