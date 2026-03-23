@@ -64,12 +64,6 @@ jobs:
             echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
           fi
 
-      - name: Windows re2c
-        if: ${{ runner.os == 'windows' }}
-        shell: powershell
-        run: |
-          choco install re2c
-
       - name: Conda
         if: ${{ runner.os != 'linux' }}
         uses: conda-incubator/setup-miniconda@v3

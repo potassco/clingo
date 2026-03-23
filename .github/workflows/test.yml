@@ -42,31 +42,8 @@ jobs:
 
       - name: Dependencies
         run: |
-          pkgs=(cmake ninja pytest python c-compiler cxx-compiler)
-          if [[ "$RUNNER_OS" != "Windows" ]]; then
-            pkgs+=(re2c)
-          fi
+          pkgs=(cmake ninja pytest python c-compiler cxx-compiler re2c)
           conda install "${pkgs[@]}"
-
-      - name: Install re2c
-        if: runner.os == 'Windows'
-        run: |
-          git clone https://github.com/skvadrik/re2c.git
-          cmake -S re2c -B re2c/build -G "${{ matrix.generator }}" \
-            -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
-            -DRE2C_BUILD_RE2D=OFF \
-            -DRE2C_BUILD_RE2GO=OFF \
-            -DRE2C_BUILD_RE2HS=OFF \
-            -DRE2C_BUILD_RE2JAVA=OFF \
-            -DRE2C_BUILD_RE2JS=OFF \
-            -DRE2C_BUILD_RE2OCAML=OFF \
-            -DRE2C_BUILD_RE2PY=OFF \
-            -DRE2C_BUILD_RE2RUST=OFF \
-            -DRE2C_BUILD_RE2SWIFT=OFF \
-            -DRE2C_BUILD_RE2V=OFF \
-            -DRE2C_BUILD_RE2ZIG=OFF
-          cmake --build re2c/build --config Release
-          cmake --install re2c/build --config Release
 
       - name: Configure
         run: |

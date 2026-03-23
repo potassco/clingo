@@ -482,10 +482,8 @@ class ParserState {
         stms_.clear();
         token_ = TokenType::begin;
         file_ = SharedString{file};
-        cond_ = yycnormal;
+        cond_ = prg_backend_ != nullptr && thy_backend_ != nullptr ? yycprogram : yycnormal;
         state_.init(in, YYMAXFILL);
-        prg_backend_ = nullptr;
-        thy_backend_ = nullptr;
     }
 
     //! Initialize the parser state with the given stream.

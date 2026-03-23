@@ -315,7 +315,7 @@ class Control:
 
     def write_aspif(
         self,
-        path: str,
+        path: str | None = None,
         symbols: bool = False,
         append: bool = False,
         preamble: bool | None = None,
@@ -328,9 +328,16 @@ class Control:
         None, then the aspif preamble is written for newly created files and omitted
         for existing files.
 
+        If `path` is None, clingo's internal output buffer is used instead of writing
+        to a file. The buffer content is available via `Control.buffer`. If `preamble`
+        is None, the preamble is written only if the buffer is currently empty. In
+        application mode, the buffer is printed to stdout and cleared after each major
+        operation like grounding, so the preamble flag should be set explicitly in this
+        case.
+
         Args:
             path:
-                The path to write the program to.
+                The optional path to write the program to.
             append:
                 Whether to append to an existing file.
             preamble:
