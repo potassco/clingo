@@ -27,8 +27,13 @@ namespace {
 //! Implementation of the backend interface.
 //!
 //! This implementation forwards grounded statements to a
-//! Potassco::AbstractProgram. As such it can create neither atom ids nor term
-//! ids, which is the responsibility of derived classes.
+//! Potassco::AbstractProgram. The implementation leaves the management of term
+//! ids for show statements to derived classes.
+//!
+//! @note Maximum literal tracking is not required by all derived classes. For
+//! example, base classes using Clasp's LogicProgram, can use the tracking
+//! provided by this classes. We still implement it here for simplicity. The
+//! performance overhead should be negligible.
 class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
   public:
     AbstractProgramBackendImpl(Potassco::AbstractProgram &prg) : prg_{&prg} {}
@@ -64,7 +69,8 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
         std::cerr << (choice ? "{ " : "") << Util::p_range(head, ", ") << (choice ? " }" : "") << " :- "
                   << Util::p_range(body, ", ") << ".\n";
 #endif
-        prg_->rule(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive, as_atoms_(head), body);
+        prg_->rule(choice ? Potassco::HeadType::choice : Potassco::HeadType::disjunctive, as_atoms_(head),
+                   as_lits_(body));
     }
 
     void do_bd_aggr(PrgLitSpan head, WeightedPrgLitSpan body, prg_weight_t bound, bool choice) override {
@@ -80,11 +86,10 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     }
 
     void do_edge(prg_id_t u, prg_id_t v, PrgLitSpan body) override {
-        prg_->acycEdge(static_cast<int>(u), static_cast<int>(v), body);
+        prg_->acycEdge(static_cast<int>(u), static_cast<int>(v), as_lits_(body));
     }
 
     void do_heuristic(prg_lit_t atom, int32_t weight, int32_t prio, HeuristicType type, PrgLitSpan body) override {
-        assert(atom > 0);
         static_assert(static_cast<unsigned>(CppClingo::HeuristicType::init) ==
                       static_cast<unsigned>(Clasp::DomModType::init));
         static_assert(static_cast<unsigned>(CppClingo::HeuristicType::factor) ==
@@ -97,7 +102,7 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
                       static_cast<unsigned>(Clasp::DomModType::sign));
         static_assert(static_cast<unsigned>(CppClingo::HeuristicType::true_) ==
                       static_cast<unsigned>(Clasp::DomModType::true_));
-        prg_->heuristic(atom, static_cast<Clasp::DomModType>(type), weight, prio, body);
+        prg_->heuristic(as_atom_(atom), static_cast<Clasp::DomModType>(type), weight, prio, as_lits_(body));
     }
 
     void do_external(prg_lit_t atom, ExternalType type) override {
@@ -107,12 +112,12 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
                       static_cast<unsigned>(Potassco::TruthValue::false_));
         static_assert(static_cast<unsigned>(ExternalType::release) ==
                       static_cast<unsigned>(Potassco::TruthValue::release));
-        prg_->external(atom, static_cast<Potassco::TruthValue>(type));
+        prg_->external(as_atom_(atom), static_cast<Potassco::TruthValue>(type));
     }
 
     void do_project(PrgLitSpan atoms) override { prg_->project(as_atoms_(atoms)); }
 
-    void do_assume(PrgLitSpan literals) override { prg_->assume(literals); }
+    void do_assume(PrgLitSpan literals) override { prg_->assume(as_lits_(literals)); }
 
     void do_minimize(prg_weight_t priority, WeightedPrgLitSpan body) override {
         prg_->minimize(priority, as_wlits_(body));
@@ -124,17 +129,16 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     }
 
     void do_show_term(Symbol sym, PrgLitSpan body) override {
-        show_term(term_id(sym), body);
+        show_term(term_id(sym), as_lits_(body));
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << Util::p_range(body, ", ") << ".\n";
 #endif
     }
 
-    void do_show_term(prg_id_t id, PrgLitSpan body) override { prg_->output(id, body); }
+    void do_show_term(prg_id_t id, PrgLitSpan body) override { prg_->output(id, as_lits_(body)); }
 
     void do_show_atom(Symbol sym, prg_lit_t lit) override {
-        assert(lit > 0);
-        prg_->outputAtom(lit, as_str(sym));
+        prg_->outputAtom(as_atom_(lit), as_str(sym));
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << lit << ".\n";
 #endif
@@ -167,7 +171,9 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
                          args);
     }
 
-    void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) override { prg_->theoryElement(id, terms, cond); }
+    void do_elem(prg_id_t id, PrgIdSpan terms, PrgLitSpan cond) override {
+        prg_->theoryElement(id, terms, as_lits_(cond));
+    }
 
 #ifdef DEBUG_BACKEND
     void print(Potassco::TheoryTerm const &term) {
@@ -217,10 +223,11 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
 
     void do_atom(prg_lit_t lit_or_zero, prg_id_t name, PrgIdSpan elems,
                  std::optional<std::pair<prg_id_t, prg_id_t>> guard) override {
+        auto atom_or_zero = lit_or_zero != 0 ? as_atom_(lit_or_zero) : 0;
         if (guard) {
-            prg_->theoryAtom(lit_or_zero, name, elems, guard->first, guard->second);
+            prg_->theoryAtom(atom_or_zero, name, elems, guard->first, guard->second);
         } else {
-            prg_->theoryAtom(lit_or_zero, name, elems);
+            prg_->theoryAtom(atom_or_zero, name, elems);
         }
 #ifdef DEBUG_BACKEND
         std::cerr << lit_or_zero << " <> ";
@@ -229,16 +236,40 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
 #endif
     }
 
+    auto do_next_lit() -> prg_lit_t override {
+        if (max_lit_ < prg_lit_max) {
+            return ++max_lit_;
+        }
+        throw std::range_error("number of literals exhausted");
+    }
+
   private:
     virtual auto do_term_id(Symbol sym) -> prg_id_t = 0;
 
     virtual void do_term_id(Symbol sym, prg_id_t id) = 0;
 
+    auto as_atom_(prg_lit_t lit) -> Potassco::Atom_t {
+        assert(lit > 0 && lit <= prg_lit_max);
+        max_lit_ = std::max(max_lit_, lit);
+        return lit;
+    }
+
+    auto as_lit_(prg_lit_t lit) -> Potassco::Lit_t {
+        assert(lit != 0 && lit >= prg_lit_min && lit <= prg_lit_max);
+        max_lit_ = std::max(max_lit_, std::abs(lit));
+        return lit;
+    }
+    auto as_lits_(PrgLitSpan body) -> Potassco::LitSpan {
+        for (auto lit : body) {
+            as_lit_(lit);
+        }
+        return body;
+    }
+
     auto as_atoms_(PrgLitSpan lits) -> Potassco::AtomSpan {
         atoms_.clear();
         for (auto const &lit : lits) {
-            assert(lit > 0);
-            atoms_.push_back(lit);
+            atoms_.push_back(as_atom_(lit));
         }
         return atoms_;
     }
@@ -246,8 +277,7 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     auto as_wlits_(WeightedPrgLitSpan wlits) -> Potassco::WeightLitSpan {
         wlits_.clear();
         for (auto const &[lit, weight] : wlits) {
-            assert(lit != 0);
-            wlits_.emplace_back(lit, weight);
+            wlits_.emplace_back(as_lit_(lit), weight);
         }
         return wlits_;
     }
@@ -256,6 +286,7 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     Util::OutputBuffer buf_;
     std::vector<Potassco::Atom_t> atoms_;
     std::vector<Potassco::WeightLit> wlits_;
+    prg_lit_t max_lit_{0};
 };
 
 class PotasscoBackend : public AbstractProgramBackendImpl {
@@ -264,19 +295,8 @@ class PotasscoBackend : public AbstractProgramBackendImpl {
         : AbstractProgramBackendImpl{prg}, terms_{&terms} {}
 
   private:
-    auto do_next_lit() -> prg_lit_t override {
-        if (auto lit = next_atom_++; std::cmp_less_equal(lit, prg_lit_max)) {
-            return static_cast<prg_lit_t>(lit);
-        }
-        throw std::range_error("number of literals exhausted");
-    }
-
     auto do_fact_lit() -> std::optional<prg_lit_t> override {
-        if (fact_ == 0) {
-            fact_ = do_next_lit();
-            program().rule(Potassco::HeadType::disjunctive, Potassco::toSpan(fact_), {});
-        }
-        return fact_;
+        return fact_ != 0 ? std::optional{static_cast<prg_lit_t>(fact_)} : std::nullopt;
     }
 
     void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
@@ -288,17 +308,22 @@ class PotasscoBackend : public AbstractProgramBackendImpl {
 
     auto do_term_id(Symbol sym) -> prg_id_t override {
         return terms_->add(sym, [&]() {
-            auto nId = next_show_term_++;
-            program().outputTerm(nId, as_str(sym));
-            return nId;
+            if (max_term_id_ < std::numeric_limits<prg_id_t>::max()) {
+                auto ret = max_term_id_++;
+                program().outputTerm(ret, as_str(sym));
+                return ret;
+            }
+            throw std::range_error("number of terms exhausted");
         });
     }
 
-    void do_term_id(Symbol sym, prg_id_t id) override { terms_->add(sym, id); }
+    void do_term_id(Symbol sym, prg_id_t id) override {
+        terms_->add(sym, id);
+        max_term_id_ = std::max(max_term_id_, id);
+    }
 
-    Potassco::Atom_t next_atom_{1};
     prg_id_t fact_{0};
-    prg_id_t next_show_term_{0};
+    prg_id_t max_term_id_{0};
     TermBaseMap *terms_;
 };
 

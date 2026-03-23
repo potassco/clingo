@@ -106,6 +106,37 @@ class TestWriteAspif:
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["a"], ["a", "b", "c"]]
 
+    def test_buffer_inc(self):
+        """
+        Test writing aspif to a buffer and parsing it again.
+        """
+        ctl = Control(self.lib, ["--convert", "aspif"])
+        ctl.parse_string("""\
+asp 1 0 0
+1 1 1 1 0 0
+4 1 a 1 1
+4 1 b 0
+0
+""")
+        ctl.parse_string("""{c}. #show d : a, c.""")
+        ctl.ground()
+        ctl.solve()
+        assert (
+            ctl.buffer
+            == """\
+asp 2 0 0 incremental
+1 1 1 1 0 0
+4 1 0 1 b
+4 2 0 0
+4 0 1 1 a
+1 1 1 2 0 0
+4 1 1 1 d
+4 2 1 2 1 2
+4 0 2 1 c
+0
+"""
+        )
+
     def test_rule(self):
         """
         Test rules.

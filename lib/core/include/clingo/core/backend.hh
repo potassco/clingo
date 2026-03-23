@@ -42,6 +42,8 @@ using WeightedPrgLitSpan = std::span<std::pair<prg_lit_t, prg_weight_t> const>;
 //! A vector of program literals.
 using WeightedPrgLitVec = std::vector<std::pair<prg_lit_t, prg_weight_t>>;
 
+//! The maximum id.
+static constexpr auto prg_id_max = std::numeric_limits<prg_id_t>::max() - 1;
 //! The maximum literal.
 static constexpr auto prg_lit_max = std::numeric_limits<prg_lit_t>::max();
 //! The minimum literal.
