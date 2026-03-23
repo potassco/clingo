@@ -159,9 +159,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_observe(clingo_control_t *control,
 //!
 //! If the size of the path is zero, clingo's internal output buffer is used
 //! instead of writing to a file. The buffer content can be accessed via
-//! clingo_control_buffer(). Note that the buffer is flushed to stdout in
-//! application mode. Explicitly set the preamble flag to control when to write
-//! the preamble in this case (it will always be written in auto mode).
+//! clingo_control_buffer(). The buffer is flushed to stdout in application
+//! mode; if stdout is associated, the buffer will be empty after flushing.
+//! Otherwise, flushing is a noop and the buffer retains its content. In auto
+//! mode, the preamble is written only if the buffer is currently empty.
 //!
 //! @param control the target control
 //! @param path the path to the file to write to
