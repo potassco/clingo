@@ -43,7 +43,7 @@ TEST_CASE("control solve", "[cxx][control][solve]") {
 
 TEST_CASE("control ground", "[cxx][control][ground]") {
     auto lib = Library{};
-    auto ctl = Control{lib, {"--mode=ground"}};
+    auto ctl = Control{lib, {"--convert=text"}};
 
     ctl.parse_string("a.");
     ctl.ground({{"base", {}}});
@@ -76,7 +76,7 @@ c.
 
 TEST_CASE("control ground", "[cxx][control][ground][context]") {
     auto lib = Library{};
-    auto ctl = Control{lib, {"--mode=ground"}};
+    auto ctl = Control{lib, {"--convert=text"}};
 
     auto ctx = [&](std::string_view name, SymbolSpan args) -> SymbolVector {
         auto res = SymbolVector{};
@@ -114,7 +114,7 @@ class TestGroundEventHandler : public GroundEventHandler {
 // NOTE: somehow this fails with emscripten
 TEST_CASE("control start_ground value", "[cxx][control][start_ground]") {
     auto lib = Library{};
-    auto ctl = Control{lib, {"--mode=ground"}};
+    auto ctl = Control{lib, {"--convert=text"}};
 
     ctl.parse_string("#show.");
     ctl.parse_string("p(@fun(1)).");
@@ -129,7 +129,7 @@ TEST_CASE("control start_ground value", "[cxx][control][start_ground]") {
 
 TEST_CASE("control start_ground ref", "[cxx][control][start_ground]") {
     auto lib = Library{};
-    auto ctl = Control{lib, {"--mode=ground"}};
+    auto ctl = Control{lib, {"--convert=text"}};
 
     ctl.parse_string("#show.");
     ctl.parse_string("p(@fun(1)).");
@@ -145,7 +145,7 @@ TEST_CASE("control start_ground ref", "[cxx][control][start_ground]") {
 
 TEST_CASE("control start_ground interrupt", "[cxx][control][start_ground]") {
     auto lib = Library{};
-    auto ctl = Control{lib, {"--mode=ground"}};
+    auto ctl = Control{lib, {"--convert=text"}};
 
     ctl.parse_string("#show.");
     ctl.parse_string("p(0).");

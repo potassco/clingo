@@ -57,7 +57,10 @@ class TestBackend : public ProgramBackend, private LogCall {
 
     auto do_next_lit() -> prg_lit_t override { return ++next_lit_; }
 
-    auto do_fact_lit() -> std::optional<prg_lit_t> override { return std::nullopt; }
+    auto do_fact_lit() -> std::optional<prg_lit_t> override {
+        log_call_("fact_lit");
+        return fact_;
+    }
 
     void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
         log_call_("rule", "head:[", Util::p_range(head), "], body:[", Util::p_range(body),
@@ -104,6 +107,7 @@ class TestBackend : public ProgramBackend, private LogCall {
     }
 
     prg_lit_t next_lit_ = 0;
+    prg_lit_t fact_ = 42;
 };
 
 // Test theory backend that records all calls
@@ -175,6 +179,20 @@ TEST_CASE("aspif v1 single step", "[input][aspif][single-step]") {
            "begin_step",
            "rule(head:[1], body:[], choice:false)",
            "show_atom(sym:a, lit:1)",
+           "end_ground",
+           "end_step",
+       });
+}
+
+TEST_CASE("aspif v1 output", "[input][aspif][output]") {
+    REQUIRE(parse(R"(asp 1 0 0
+4 1 a 0
+0
+)") == SV{
+           "preamble(1,0,0,non-incremental)",
+           "begin_step",
+           "fact_lit",
+           "show_atom(sym:a, lit:42)",
            "end_ground",
            "end_step",
        });

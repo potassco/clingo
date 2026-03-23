@@ -44,16 +44,16 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         auto ctx = OptionContext{"<libclingo>"};
         opts.init(ctx);
         auto group_basic = OptionGroup{"Basic Options"};
+
+        auto parse_mode = [&opts](std::string_view str) { return opts.init_app_mode(str); };
+
         group_basic.addOptions() //
-            ("mode",
-             storeTo(opts.mode() = CppClingo::Control::AppMode::solve,
-                     values<CppClingo::Control::AppMode>({
-                         {"parse", CppClingo::Control::AppMode::parse},
-                         {"rewrite", CppClingo::Control::AppMode::rewrite},
-                         {"ground", CppClingo::Control::AppMode::ground},
-                         {"solve", CppClingo::Control::AppMode::solve},
-                     })),
-             "Run in {parse|rewrite|ground|solve} mode");
+            ("mode", parse(parse_mode),
+             "Run in mode\n"
+             "      %A: <mode {parse|rewrite|default}>\n"
+             "        parse   : Print parsed program and exit\n"
+             "        rewrite : Print rewritten program and exit\n"
+             "        default : Ground and solve the program");
         ctx.add(group_basic);
         slv_cfg->addOptions(ctx);
         auto pos_parser = [](std::string_view str, std::string &out) {
@@ -74,6 +74,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         cargs.emplace_back(nullptr);
         DefaultParseContext pc{ctx};
         parseCommandArray(pc, {cargs.data(), size}, pos_parser);
+        opts.validate_options(pc.parsed());
         ctx.assignDefaults(pc.parsed());
         slv_cfg->finalize(pc.parsed(), Clasp::ProblemType::asp, true);
 

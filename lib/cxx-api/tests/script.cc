@@ -44,7 +44,7 @@ struct Fixture {
 } // namespace
 
 TEST_CASE_METHOD(Fixture, "script ground", "[cxx][script][ground]") {
-    auto ctl = Control(lib, {"--mode=ground"});
+    auto ctl = Control(lib, {"--convert=text"});
     ctl.parse_string(R"(#script(test)
 There is a needle in this sentence!
 #end.

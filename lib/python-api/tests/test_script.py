@@ -114,7 +114,7 @@ class TestScript:
         """
         The main function.
         """
-        ctl = Control(self.lib, ["--mode=ground"])
+        ctl = Control(self.lib, ["--convert=text"])
         self._add_script(ctl)
         ctl.main()
 

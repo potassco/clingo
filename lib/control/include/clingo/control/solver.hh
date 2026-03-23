@@ -5,6 +5,8 @@
 
 #include <clingo/output/backend.hh>
 
+#include <potassco/basic_types.h>
+
 #include <clasp/clasp_facade.h>
 #include <clasp/cli/clasp_options.h>
 
@@ -67,10 +69,30 @@ enum class AppMode : uint8_t {
     solve    //!< Stop processing after solving.
 };
 
+//! Enumeration of available output formats when in solving mode.
+enum class BackendType : uint8_t {
+    clasp,   //!< Standard solving mode: use the normal backend (Clasp)
+    aspif,   //!< Print program in ASP intermediate format
+    smodels, //!< Print program in smodels format
+    reify    //!< Print program as reified facts
+};
+
+//! Enumeration of available options for the reification backend.
+enum class ReifyFlags : uint8_t {
+    reify_scc = 1U, //!< Compute and print SCCs
+    reify_step = 2U //!< Add step numbers
+};
+//! Enable bit set operations.
+CLINGO_ENABLE_BITSET_ENUM(ReifyFlags);
+
 //! Options for the solver.
 struct SolverOptions {
     //! Operation mode of the solver.
     AppMode mode = AppMode::solve;
+    //! Output format to use when in solving mode.
+    BackendType backend_type = BackendType::clasp;
+    //! Reification flags.
+    ReifyFlags reify_flags = {};
     //! The minimum number of incremental steps.
     size_t imin = 0;
     //! The maximum number of incremental steps.
@@ -720,7 +742,7 @@ class Solver : public BaseView {
     //!
     //! If the control object has been constructed without a null output FILE,
     //! this buffer contains the output of the textoutput.
-    [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_; };
+    [[nodiscard]] auto buf() -> Util::OutputBuffer & { return stream_.buffer(); };
 
     //! Get a handle that provides access to the backend to add atoms and rules.
     //!
@@ -817,8 +839,10 @@ class Solver : public BaseView {
     //! the backend for the clasp output.
     //!
     //! @param mode the configured output mode
+    //! @param backend_type the configured backend type to use when in solving mode
+    //! @param reify_flags the flag defining options for the reification backend
     //! @return the resulting output
-    auto make_output_(SymbolStore &store, AppMode mode) -> UOutputStm;
+    auto make_output_(SymbolStore &store, AppMode mode, BackendType backend_type, ReifyFlags reify_flags) -> UOutputStm;
 
     //! Prepare the solver for grounding.
     void prepare_();
@@ -844,9 +868,11 @@ class Solver : public BaseView {
     TermBaseMap terms_;
     Clasp::ClaspFacade *clasp_;
     ClingoConfig config_;
-    Util::OutputBuffer buf_;
+    Util::OutputStream stream_;
     UProgramBackend backend_;
     std::unique_ptr<Output::TheoryData> theory_;
+    std::unique_ptr<Potassco::AbstractProgram> output_program_;
+    std::unique_ptr<Potassco::AbstractProgram> program_;
     UOutputStm out_;
     UModel mdl_;
     USymbolTable sym_tab_;

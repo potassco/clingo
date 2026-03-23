@@ -68,7 +68,7 @@ class TestControl:
         """
         Test start_ground method with event handler and interruption.
         """
-        ctl = Control(self.lib, ["--mode=ground"])
+        ctl = Control(self.lib, ["--convert=text"])
         ctl.parse_string("#show.")
         ctl.parse_string("p(@fun(1)).")
         fres = None
@@ -91,7 +91,7 @@ class TestControl:
         """
         Test start_ground method with interruption.
         """
-        ctl = Control(self.lib, ["--mode=ground"])
+        ctl = Control(self.lib, ["--convert=text"])
         ctl.parse_string("#show.")
         ctl.parse_string("p(0).")
         ctl.parse_string("p(X+1) :- p(X).")
@@ -105,7 +105,7 @@ class TestControl:
         """
         Test grounding.
         """
-        ctl = Control(self.lib, ["--mode=ground"])
+        ctl = Control(self.lib, ["--convert=text"])
 
         ctl.parse_string("a.")
         ctl.ground([("base", [])])
@@ -137,7 +137,7 @@ class TestControl:
         Test the grounding context.
         """
 
-        ctl = Control(self.lib, ["--mode=ground"])
+        ctl = Control(self.lib, ["--convert=text"])
 
         ctl.parse_string("p(@fun(1)).")
         ctl.parse_string("q(@gun(2)).")

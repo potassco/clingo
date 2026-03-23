@@ -2,6 +2,7 @@
 
 #include <clingo/control/solver.hh>
 
+#include <potassco/program_opts/errors.h>
 #include <potassco/program_opts/program_options.h>
 #include <potassco/program_opts/typed_value.h>
 
@@ -171,6 +172,52 @@ class ClingoOptions {
             }
             return true;
         };
+        auto parse_convert = [this](std::string_view str) {
+            namespace Parse = Potassco::Parse;
+            using namespace std::string_view_literals;
+
+            if (auto key = "text"sv; Parse::eqIgnoreCase(str, key)) {
+                ground_mode_ = true;
+                return true;
+            }
+
+            static constexpr auto items = std::array{
+                std::pair{Control::BackendType::aspif, "aspif"sv},
+                std::pair{Control::BackendType::smodels, "smodels"sv},
+                std::pair{Control::BackendType::reify, "reify"sv},
+                std::pair{Control::BackendType::clasp, "no"sv},
+            };
+            // NOLINTNEXTLINE
+            auto it = std::ranges::find_if(
+                items, [&](auto const &kv) { return Parse::eqIgnoreCase(str, kv.second, kv.second.size()); });
+            if (it == items.end()) {
+                return false;
+            }
+            auto backend_type = it->first;
+            str.remove_prefix(it->second.size());
+
+            auto reify_flags = Control::ReifyFlags{};
+            if (backend_type == Control::BackendType::reify) {
+                while (Parse::matchOpt(str, ',')) {
+                    if (auto key = "sccs"sv; Parse::eqIgnoreCase(str, key, key.size())) {
+                        reify_flags |= Control::ReifyFlags::reify_scc;
+                        str.remove_prefix(key.size());
+                    } else if (key = "steps"sv; Parse::eqIgnoreCase(str, key, key.size())) {
+                        reify_flags |= Control::ReifyFlags::reify_step;
+                        str.remove_prefix(key.size());
+                    } else {
+                        return false;
+                    }
+                }
+            }
+
+            if (str.empty()) {
+                solver_opts_.backend_type = backend_type;
+                solver_opts_.reify_flags = reify_flags;
+                return true;
+            }
+            return false;
+        };
 
         auto group_grounder = OptionGroup{"Grounder Options"};
         group_grounder.addOptions() //
@@ -219,7 +266,17 @@ class ClingoOptions {
       [no-]atom-undefined     : a :- b.
       [no-]file-included      : #include "a.lp". #include "a.lp".
       [no-]operation-undefined: p(1/0).
-      [no-]global-variable    : :- #count { X } = 1, X = 1.)");
+      [no-]global-variable    : :- #count { X } = 1, X = 1.)")                                     //
+            ("convert", parse(parse_convert),
+             R"(Convert program, print and exit
+      %A: <format {text|aspif|smodels|reify}[,<opts>]|no>
+        text   : Print program in text format (ground)
+        aspif  : Print program in ASP intermediate format
+        smodels: Print program in smodels format
+        reify  : Print program as reified facts with <opts>
+          sccs  : Compute and print SCCs
+          steps : Add step numbers
+        no     : Disable conversion)");
         root.add(group_basic);
     }
 
@@ -237,7 +294,36 @@ class ClingoOptions {
         }
     }
 
+    auto init_app_mode(std::string_view str) -> bool {
+        namespace Parse = Potassco::Parse;
+        using namespace std::string_view_literals;
+
+        static constexpr auto items = std::array{
+            std::pair{Control::AppMode::parse, "parse"sv},
+            std::pair{Control::AppMode::rewrite, "rewrite"sv},
+            std::pair{Control::AppMode::solve, "default"sv},
+        };
+        // NOLINTNEXTLINE
+        auto it = std::ranges::find_if(items, [&](auto const &kv) { return Parse::eqIgnoreCase(str, kv.second); });
+        if (it == items.end()) {
+            return false;
+        }
+        solver_opts_.mode = it->first;
+        return true;
+    }
+
+    void validate_options([[maybe_unused]] Potassco::ProgramOptions::ParsedOptions const &parsed) {
+        if (backend_type() != Control::BackendType::clasp &&
+            (ground_mode_ || mode() == Control::AppMode::rewrite || mode() == Control::AppMode::parse)) {
+            throw Potassco::ProgramOptions::Error("incompatible values for options '--convert' and '--mode'");
+        }
+        if (ground_mode_) {
+            mode() = Control::AppMode::ground;
+        }
+    }
+
     auto mode() -> Control::AppMode & { return solver_opts_.mode; }
+    auto backend_type() -> Control::BackendType & { return solver_opts_.backend_type; }
 
     auto rewrite_options() -> Input::RewriteOptions const & { return rewrite_opts_; }
     auto solver_options() -> Control::SolverOptions const & { return solver_opts_; }
@@ -251,6 +337,7 @@ class ClingoOptions {
     std::vector<CppClingo::Input::SharedSig> show_;
     std::optional<Control::ProgramParamVec> parts_;
     std::vector<std::pair<SharedString, SharedSymbol>> const_defs_;
+    bool ground_mode_ = false;
 };
 
 } // namespace CppClingo::CAPI

@@ -4,7 +4,9 @@
 #include <cassert>
 #include <charconv>
 #include <cstring>
+#include <ostream>
 #include <span>
+#include <streambuf>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -26,7 +28,7 @@ class OutputBuffer {
     //! The value type of the buffer.
     using value_type = char;
 
-    //! Construt the buffer with an optional file handle.
+    //! Construct the buffer with an optional file handle.
     OutputBuffer(FILE *out = nullptr) : out_{out} {}
 
     //! Flush the buffer.
@@ -194,6 +196,47 @@ class OutputBuffer {
     std::vector<char> buf_;
     std::ptrdiff_t size_ = 0;
     FILE *out_;
+};
+
+//! Output stream with an underlying OutputBuffer.
+class OutputStream : public std::ostream {
+  public:
+    //! Construct the buffer with an optional file handle.
+    OutputStream(FILE *out) : std::ostream{nullptr}, buf_{out} { rdbuf(&buf_); }
+
+    //! Get the underlying buffer.
+    auto buffer() -> OutputBuffer & { return buf_.buffer(); }
+
+  private:
+    class Streambuf : public std::streambuf {
+      public:
+        Streambuf(FILE *out) : buf_{out} {}
+        auto buffer() -> OutputBuffer & { return buf_; }
+
+      protected:
+        auto overflow(int ch) -> int override {
+            if (ch != traits_type::eof()) {
+                buf_.push_back(static_cast<char>(ch));
+                return traits_type::not_eof(ch);
+            }
+            return traits_type::eof();
+        }
+
+        auto xsputn(char const *s, std::streamsize n) -> std::streamsize override {
+            buf_.append(std::string_view{s, static_cast<size_t>(n)});
+            return n;
+        }
+
+        auto sync() -> int override {
+            buf_.flush();
+            return 0;
+        }
+
+      private:
+        OutputBuffer buf_;
+    };
+
+    Streambuf buf_;
 };
 
 namespace Detail {
