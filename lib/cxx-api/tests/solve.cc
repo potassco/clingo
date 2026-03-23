@@ -108,6 +108,12 @@ TEST_CASE("solve assume", "[cxx][solve][assume]") {
         REQUIRE((std::ranges::find(core, assumptions[0]) != core.end() &&
                  std::ranges::find(core, assumptions[1]) != core.end()));
     }
+    assumptions = std::vector{lit("a"), lit("c")};
+    {
+        auto models = std::vector<std::vector<std::string>>{};
+        REQUIRE(ctl.solve(assumptions, MCB{models}).satisfiable());
+        REQUIRE(models == std::vector<std::vector<std::string>>{{"a", "c"}});
+    }
 }
 
 TEST_CASE("solve extend base", "[cxx][solve][extend][base]") {

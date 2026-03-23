@@ -740,12 +740,14 @@ class Solver : public BaseView {
 
     //! Get the output buffer.
     //!
-    //! If the control object has been constructed without a null output FILE,
-    //! this buffer contains the output of the textoutput.
-    [[nodiscard]] auto buf() -> Util::OutputBuffer & { return stream_.buffer(); };
+    //! If the control object has been constructed without an output FILE, this
+    //! buffer contains the output of the textoutput.
+    [[nodiscard]] auto buf() -> Util::OutputBuffer & { return stream_.buffer(); }
 
-    //! Get the text buffer.
-    [[nodiscard]] auto stream() -> Util::OutputStream & { return stream_; };
+    //! Get the output stream.
+    //!
+    //! This stream simply forwards to the underlying output buffer.
+    [[nodiscard]] auto stream() -> Util::OutputStream & { return stream_; }
 
     //! Get a handle that provides access to the backend to add atoms and rules.
     //!
