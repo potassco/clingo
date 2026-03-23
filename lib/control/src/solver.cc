@@ -1278,16 +1278,24 @@ auto Solver::map_model(Clasp::Model const &mdl) -> Model & {
 
 auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode mode) -> USolveHandle {
     auto guard = unlock_guard{lock_};
-    if (state_ == State::solved || state_ == State::initial) {
+    if (state_ == State::initial || (state_ == State::solved && opts_.backend_type != BackendType::clasp)) {
         // we inject an empty ground to go to grounded state
         ground(Input::ProgramParamVec{}, nullptr);
     }
-    state_ = State::solved;
+    auto prev_state = std::exchange(state_, State::solved);
     if (opts_.mode == AppMode::solve) {
-        if (!assumptions.empty()) {
-            backend_->assume(assumptions);
+        if (prev_state != State::solved) {
+            if (!assumptions.empty()) {
+                backend_->assume(assumptions);
+            }
+            backend_->end_step();
+        } else {
+            // we keep the current program and only update solving-related state
+            clasp_->update(Clasp::ClaspFacade::update_solve);
+            if (!assumptions.empty()) {
+                backend_->assume(assumptions);
+            }
         }
-        backend_->end_step();
         bool prepared = clasp_->prepare();
         theory_->reset();
         buf().flush();
