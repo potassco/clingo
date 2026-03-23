@@ -744,6 +744,9 @@ class Solver : public BaseView {
     //! this buffer contains the output of the textoutput.
     [[nodiscard]] auto buf() -> Util::OutputBuffer & { return stream_.buffer(); };
 
+    //! Get the text buffer.
+    [[nodiscard]] auto stream() -> Util::OutputStream & { return stream_; };
+
     //! Get a handle that provides access to the backend to add atoms and rules.
     //!
     //! While the handle is alive, the solver object should not be accessed.

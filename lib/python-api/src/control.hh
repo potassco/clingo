@@ -48,7 +48,8 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     auto mode() -> clingo_mode_e;
     void parse_files(std::span<std::string const> files);
     void parse_string(std::string_view str);
-    void write_aspif(std::string_view path, bool symbols, bool append, std::optional<bool> preamble, bool preprocess);
+    void write_aspif(std::optional<std::string_view> path, bool symbols, bool append, std::optional<bool> preamble,
+                     bool preprocess);
     void join(AST::Program &prg);
     void ground(std::optional<PartSpan> parts, py::handle ctx);
     auto start_ground(std::optional<PartSpan> parts, py::handle ctx,

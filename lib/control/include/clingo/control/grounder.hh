@@ -25,7 +25,8 @@ class Grounder {
     //! Join with the given program.
     void join(Input::UnprocessedProgram const &prg);
     //! Parse a program from the given string.
-    auto parse(std::string_view str, Ground::ScriptExec *code = nullptr) -> BuiltinIncludes;
+    auto parse(std::string_view str, Ground::ScriptExec *code = nullptr, ProgramBackend *prg = nullptr,
+               TheoryBackend *thy = nullptr) -> BuiltinIncludes;
     //! Parse the given files.
     auto parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code = nullptr,
                ProgramBackend *prg = nullptr, TheoryBackend *thy = nullptr) -> BuiltinIncludes;

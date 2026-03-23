@@ -315,15 +315,17 @@ void Grounder::join(Input::UnprocessedProgram const &prg) {
     }
 }
 
-auto Grounder::parse(std::string_view str, Ground::ScriptExec *code) -> BuiltinIncludes {
+auto Grounder::parse(std::string_view str, Ground::ScriptExec *code, ProgramBackend *prg, TheoryBackend *thy)
+    -> BuiltinIncludes {
     CLINGO_REPORT(*impl_->log, debug) << "parsing...";
 #ifdef CLINGO_PROFILE
     auto prof = Profiler{"clingo-parse.prof"};
 #endif
     if (impl_->status == GroundResult::ok) {
         GCLock lock{*impl_->store};
-        auto prs = ParseHelper{*impl_->log, *impl_->store,
-                               [&](Input::Stm stm) { impl_->unprocessed_prg.add(store(), std::move(stm)); }, code};
+        auto prs = ParseHelper{
+            *impl_->log, *impl_->store, [&](Input::Stm stm) { impl_->unprocessed_prg.add(store(), std::move(stm)); },
+            code,        prg,           thy};
         return prs.process_string(str);
     }
     return BuiltinIncludes::empty;
