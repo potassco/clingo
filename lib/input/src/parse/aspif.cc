@@ -182,9 +182,18 @@ class AspifParser {
         return res;
     }
 
+    auto expect_id_() -> prg_id_t {
+        auto m = expect_unsigned_();
+        if (m > prg_id_max) {
+            CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "invalid program id";
+            throw aspif_error{};
+        }
+        return static_cast<prg_id_t>(m);
+    }
+
     auto expect_atom_() -> prg_lit_t {
         auto m = static_cast<prg_lit_t>(expect_unsigned_());
-        if (m <= 0) {
+        if (m <= 0 || m > prg_lit_max) {
             CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "invalid program atom";
             throw aspif_error{};
         }
@@ -203,19 +212,19 @@ class AspifParser {
     }
 
     auto expect_ids_() -> PrgIdVec {
-        auto m = expect_unsigned_();
+        auto m = expect_id_();
         auto ids = PrgIdVec{};
         ids.reserve(m);
         for (unsigned i = 0; i < m; ++i) {
             expect_(AspifToken::space);
-            ids.emplace_back(expect_unsigned_());
+            ids.emplace_back(expect_id_());
         }
         return ids;
     }
 
     auto expect_lit_() -> prg_lit_t {
         auto lit = expect_signed_();
-        if (lit == 0) {
+        if (lit == 0 || lit > prg_lit_max || lit < prg_lit_min) {
             CLINGO_REPORT_LOC(state_->log(), error, state_->loc()) << "invalid program literal";
             throw aspif_error{};
         }
@@ -385,14 +394,14 @@ class AspifParser {
                 break;
             }
             case OutputType::term: {
-                auto term = expect_unsigned_();
+                auto term = expect_id_();
                 expect_(AspifToken::space);
                 auto sym = output_symbol_();
                 state_->prg_backend()->show_term(*sym, term);
                 break;
             }
             case OutputType::term_cnd: {
-                auto term = expect_unsigned_();
+                auto term = expect_id_();
                 expect_(AspifToken::space);
                 auto body = expect_lits_();
                 state_->prg_backend()->show_term(term, body);
@@ -406,7 +415,7 @@ class AspifParser {
     void output_symbols_() {
         auto type = output_type_(OutputType::term_fun);
         expect_(AspifToken::space);
-        auto sym_id = expect_unsigned_();
+        auto sym_id = expect_id_();
         auto add = [this, sym_id]<class T>(T &&sym) {
             if (sym_id < symbols_.size()) {
                 symbols_[sym_id] = SharedSymbol{std::forward<T>(sym)};
@@ -436,7 +445,7 @@ class AspifParser {
             case OutputType::term: {
                 auto sym = get(sym_id);
                 expect_(AspifToken::space);
-                auto id = expect_unsigned_();
+                auto id = expect_id_();
                 state_->prg_backend()->show_term(*sym, id);
                 break;
             }
@@ -487,7 +496,7 @@ class AspifParser {
                     throw aspif_error{};
                 }
                 expect_(AspifToken::space);
-                auto name = get(expect_unsigned_());
+                auto name = get(expect_id_());
                 if (name->type() != SymbolType::string) {
                     CLINGO_REPORT_LOC(state_->log(), error, state_->loc())
                         << "expected string instead of `" << *name << "`";
@@ -544,9 +553,9 @@ class AspifParser {
     }
 
     void edge_() {
-        auto u = expect_unsigned_();
+        auto u = expect_id_();
         expect_(AspifToken::space);
-        auto v = expect_unsigned_();
+        auto v = expect_id_();
         expect_(AspifToken::space);
         state_->prg_backend()->edge(u, v, expect_lits_());
     }
@@ -561,13 +570,13 @@ class AspifParser {
     }
 
     void theory_number_() {
-        auto id = expect_unsigned_();
+        auto id = expect_id_();
         expect_(AspifToken::space);
         auto num = expect_signed_();
         state_->thy_backend()->num(id, num);
     }
     void theory_symbol_() {
-        auto id = expect_unsigned_();
+        auto id = expect_id_();
         expect_(AspifToken::space);
         auto num = expect_nstr_();
         state_->thy_backend()->str(id, num);
@@ -582,7 +591,7 @@ class AspifParser {
     }
 
     void theory_compound_() {
-        auto id = expect_unsigned_();
+        auto id = expect_id_();
         expect_(AspifToken::space);
         auto type = expect_signed_();
         expect_(AspifToken::space);
@@ -594,7 +603,7 @@ class AspifParser {
         }
     }
     void theory_element_() {
-        auto id = expect_unsigned_();
+        auto id = expect_id_();
         expect_(AspifToken::space);
         auto tuple = expect_ids_();
         expect_(AspifToken::space);
@@ -605,15 +614,15 @@ class AspifParser {
     void theory_atom_(bool parse_guard) {
         auto atom = expect_signed_();
         expect_(AspifToken::space);
-        auto name = expect_unsigned_();
+        auto name = expect_id_();
         expect_(AspifToken::space);
         auto elems = expect_ids_();
         auto guard = std::optional<std::pair<prg_id_t, prg_id_t>>{};
         if (parse_guard) {
             expect_(AspifToken::space);
-            auto op = expect_unsigned_();
+            auto op = expect_id_();
             expect_(AspifToken::space);
-            auto term = expect_unsigned_();
+            auto term = expect_id_();
             guard.emplace(op, term);
         }
         state_->thy_backend()->atom(atom, name, elems, guard);
