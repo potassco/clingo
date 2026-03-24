@@ -30,3 +30,7 @@ add_library(mpark::variant ALIAS variant)
 add_library(wide_integer INTERFACE)
 target_include_directories(wide_integer INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/wide-integer>)
 add_library(math::wide_integer ALIAS wide_integer)
+
+add_library(phmap INTERFACE)
+target_include_directories(phmap INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/parallel-hashmap>)
+add_library(grep::phmap ALIAS phmap)
