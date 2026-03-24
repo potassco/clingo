@@ -23,11 +23,18 @@
 // }}}
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <gringo/hash_set.hh>
+#include <gringo/shared_mutex.hh>
 #include <gringo/symbol.hh>
 #include <iterator>
 #include <mutex>
+#include <shared_mutex>
+
+#ifndef CLINGO_MAP_NUM_SHARDS
+#define CLINGO_MAP_NUM_SHARDS 1
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(disable : 4200) // nonstandard extension used: zero-sized array in struct/union
@@ -41,6 +48,9 @@ namespace {
 
 constexpr const uint16_t upperMax = std::numeric_limits<uint16_t>::max();
 constexpr const uint16_t lowerMax = 3;
+constexpr const size_t num_shards = CLINGO_MAP_NUM_SHARDS;
+
+static_assert(num_shards > 0, "num_shards must be greater than 0");
 
 uint16_t upper(uint64_t rep) { return rep >> 48; }
 
@@ -80,26 +90,32 @@ String toString(uint64_t rep) { return String::fromRep(ptr(rep)); }
 template <class T> struct UniqueConstruct {
   public:
     using Set = hash_set<T, typename T::Hash, typename T::EqualTo>;
+    using Arr = std::array<std::pair<Set, SharedMutex>, num_shards>;
 
     template <class U> static auto construct(U &&x) {
-        // TODO: in C++17 this can use a read/write lock to not block reading threads
         size_t hash = typename T::Hash{}(x);
-        std::lock_guard<std::mutex> g(mutex_);
-        auto it = set_.find(x, hash);
-        if (it != set_.end()) {
-            return it->get();
+        size_t shard = hash % num_shards;
+        auto &set = arr_[shard].first;
+        auto &mut = arr_[shard].second;
+        {
+            auto lock = std::shared_lock<SharedMutex>{mut};
+            auto it = set.find(x, hash);
+            if (it != set.end()) {
+                return it->get();
+            }
         }
-        return set_.insert(T{std::forward<U>(x), hash}).first->get();
+        auto val = T{std::forward<U>(x), hash};
+        {
+            auto lock = std::unique_lock<SharedMutex>{mut};
+            return set.insert(std::move(val)).first->get();
+        }
     }
 
   private:
-    static Set set_;          // NOLINT
-    static std::mutex mutex_; // NOLINT
+    static Arr arr_;
 };
 
-template <class T> typename UniqueConstruct<T>::Set UniqueConstruct<T>::set_; // NOLINT
-
-template <class T> typename std::mutex UniqueConstruct<T>::mutex_; // NOLINT
+template <class T> typename UniqueConstruct<T>::Arr UniqueConstruct<T>::arr_; // NOLINT
 
 template <class T, class U> auto construct_unique(U &&x) { return UniqueConstruct<T>::construct(std::forward<U>(x)); }
 
