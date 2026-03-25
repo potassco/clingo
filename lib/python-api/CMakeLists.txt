@@ -48,7 +48,7 @@ add_library(clingo-python STATIC)
 target_sources(clingo-python PRIVATE ${source})
 clingo_target_properties(TARGETS clingo-python FOLDER lib)
 target_compile_definitions(clingo-python PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}")
-target_link_libraries(clingo-python PRIVATE pybind11::pybind11 clingo)
+target_link_libraries(clingo-python PRIVATE clingo pybind11::pybind11)
 
 # the standalone module
 pybind11_add_module(pyclingo "src/module.cc")
@@ -109,7 +109,7 @@ if(CLINGO_BUILD_APP)
     clingo_target_properties(TARGETS clingo-python-embed FOLDER lib TYPE extra)
     target_include_directories(clingo-python-embed PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
     target_compile_definitions(clingo-python-embed PUBLIC CLINGO_PYTHON_ENABLED)
-    target_link_libraries(clingo-python-embed PRIVATE pybind11::embed clingo clingo-python)
+    target_link_libraries(clingo-python-embed PRIVATE clingo clingo-python pybind11::embed)
 
     target_compile_definitions(clingo-python PUBLIC CLINGO_PYTHON_EMBED)
 endif()
