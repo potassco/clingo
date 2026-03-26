@@ -1349,21 +1349,21 @@ void Solver::join_includes(BuiltinIncludes includes) {
     includes_ |= includes;
 }
 
-void Solver::parse_with(std::function<void(ProgramBackend *, TheoryBackend *)> cb) {
+void Solver::parse_with(std::function<BuiltinIncludes(ProgramBackend *, TheoryBackend *)> cb) {
     if (opts_.mode == AppMode::solve) {
         auto bck = AspifBackend{*this};
-        std::invoke(std::move(cb), &bck, &bck);
+        includes_ |= std::invoke(std::move(cb), &bck, &bck);
     } else {
-        std::invoke(std::move(cb), nullptr, nullptr);
+        includes_ |= std::invoke(std::move(cb), nullptr, nullptr);
     }
 }
 
 void Solver::parse(std::string_view str) {
-    parse_with([&](ProgramBackend *bck, TheoryBackend *thy) { includes_ |= grd_.parse(str, scripts_, bck, thy); });
+    parse_with([&](ProgramBackend *bck, TheoryBackend *thy) { return grd_.parse(str, scripts_, bck, thy); });
 }
 
 void Solver::parse(std::span<std::string_view const> const &files) {
-    parse_with([&](ProgramBackend *bck, TheoryBackend *thy) { includes_ |= grd_.parse(files, scripts_, bck, thy); });
+    parse_with([&](ProgramBackend *bck, TheoryBackend *thy) { return grd_.parse(files, scripts_, bck, thy); });
 }
 
 void Solver::add_const(String name, Symbol value) {

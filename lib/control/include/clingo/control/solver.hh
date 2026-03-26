@@ -709,7 +709,7 @@ class Solver : public BaseView {
     //! Parse the given files.
     void parse(std::span<std::string_view const> const &files);
     //! Parse with optional backends.
-    void parse_with(std::function<void(ProgramBackend *, TheoryBackend *)> cb);
+    void parse_with(std::function<BuiltinIncludes(ProgramBackend *, TheoryBackend *)> cb);
 
     //! Define a constant.
     void add_const(String name, Symbol value);
