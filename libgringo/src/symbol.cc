@@ -24,10 +24,15 @@
 
 #include <algorithm>
 #include <cstring>
+
+#ifndef PHMAP_DISABLE_MIX
+#define PHMAP_DISABLE_MIX 1
+#endif
+#include <parallel_hashmap/phmap.h>
+
 #include <gringo/hash_set.hh>
+#include <gringo/shared_mutex.hh>
 #include <gringo/symbol.hh>
-#include <iterator>
-#include <mutex>
 
 #ifdef _MSC_VER
 #pragma warning(disable : 4200) // nonstandard extension used: zero-sized array in struct/union
@@ -79,27 +84,23 @@ String toString(uint64_t rep) { return String::fromRep(ptr(rep)); }
 
 template <class T> struct UniqueConstruct {
   public:
-    using Set = hash_set<T, typename T::Hash, typename T::EqualTo>;
+    using Set = phmap::parallel_flat_hash_set<T, typename T::Hash, typename T::EqualTo, std::allocator<T>, 4,
+                                              Gringo::SharedMutex>;
 
     template <class U> static T const &construct(U &&x) {
-        // TODO: in C++17 this can use a read/write lock to not block reading threads
-        size_t hash = typename T::Hash{}(x);
-        std::lock_guard<std::mutex> g(mutex_);
+        auto hash = set_.hash(x);
         auto it = set_.find(x, hash);
-        if (it != set_.end()) {
+        if (it != end(set_)) {
             return *it;
         }
-        return *set_.insert(T{std::forward<U>(x), hash}).first;
+        return *set_.emplace_with_hash(hash, std::forward<U>(x), hash).first;
     }
 
   private:
-    static Set set_;          // NOLINT
-    static std::mutex mutex_; // NOLINT
+    static Set set_; // NOLINT
 };
 
 template <class T> typename UniqueConstruct<T>::Set UniqueConstruct<T>::set_; // NOLINT
-
-template <class T> typename std::mutex UniqueConstruct<T>::mutex_; // NOLINT
 
 template <class T, class U> T const &construct_unique(U &&x) {
     return UniqueConstruct<T>::construct(std::forward<U>(x));
@@ -112,6 +113,7 @@ class MSig {
     using Cons = std::pair<String, uint32_t>;
 
     struct Hash {
+        using is_transparent = void;
         size_t operator()(MSig const &sig) const { return sig.hash_; }
         size_t operator()(Cons const &sig) const { return hash_mix(get_value_hash(sig)); }
     };
@@ -190,6 +192,7 @@ class MFun {
     using Cons = std::pair<Sig, SymSpan>;
 
     struct Hash {
+        using is_transparent = void;
         size_t operator()(MFun const &a) const { return a.fun_->hash(); }
         size_t operator()(Cons const &a) const {
             return hash_mix(get_value_hash(a.first, hash_range(begin(a.second), end(a.second))));
@@ -285,6 +288,7 @@ class String::Impl {
 class String::Impl::MString {
   public:
     struct Hash {
+        using is_transparent = void;
         size_t operator()(MString const &str) const { return str.str_->hash(); }
         size_t operator()(char const *str) const { return hash_mix(strhash(str)); }
         size_t operator()(StringSpan const &str) const { return hash_mix(strhash(str)); }

@@ -23,3 +23,6 @@
 [submodule "third_party/wide-integer"]
 	path = third_party/wide-integer
 	url = ../../ckormanyos/wide-integer.git
+[submodule "third_party/parallel-hashmap"]
+	path = third_party/parallel-hashmap
+	url = ../../greg7mdp/parallel-hashmap.git
