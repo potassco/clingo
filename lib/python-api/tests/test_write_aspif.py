@@ -121,9 +121,7 @@ asp 1 0 0
         ctl.parse_string("""{c}. #show d : a, c.""")
         ctl.ground()
         ctl.solve()
-        assert (
-            ctl.buffer
-            == """\
+        assert ctl.buffer == """\
 asp 2 0 0 incremental
 1 1 1 1 0 0
 4 1 0 1 b
@@ -135,7 +133,6 @@ asp 2 0 0 incremental
 4 0 2 1 c
 0
 """
-        )
 
     def test_rule(self):
         """

@@ -205,7 +205,9 @@ auto cont_fstr(ParserState &state) -> bool {
         if (auto view = state.view().substr(0, state.view().size() - 1); !view.empty()) {
             auto loc =
                 Location{state.cursor_pos(), Position(state.file(), state.token_line(), state.token_column() - 1)};
-            str.fields.emplace_back(std::in_place_type<FormatFieldLiteral>, loc, state.store().string(view));
+            auto &buf = state.buf(view.size());
+            Util::unquote(view, std::back_inserter(buf), true);
+            str.fields.emplace_back(std::in_place_type<FormatFieldLiteral>, loc, state.store().string(buf));
         }
         state.consume();
         state.push(Prod::fstr_field);
@@ -214,7 +216,9 @@ auto cont_fstr(ParserState &state) -> bool {
         if (auto view = state.view().substr(0, state.view().size() - 1); !view.empty()) {
             auto loc =
                 Location{state.cursor_pos(), Position(state.file(), state.token_line(), state.token_column() - 1)};
-            str.fields.emplace_back(std::in_place_type<FormatFieldLiteral>, loc, state.store().string(view));
+            auto &buf = state.buf(view.size());
+            Util::unquote(view, std::back_inserter(buf), true);
+            str.fields.emplace_back(std::in_place_type<FormatFieldLiteral>, loc, state.store().string(buf));
         }
         auto fields = std::move(str.fields);
         auto start = Position{state.file(), str.line, str.column};

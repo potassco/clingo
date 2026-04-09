@@ -27,7 +27,8 @@ namespace CppClingo::Input::Parse {
     WS         = [\t\r\n ]*;
     IDENTIFIER = [_']*[a-z]['A-Za-z0-9_]*;
     VARIABLE   = [_']*[A-Z]['A-Za-z0-9_]*;
-    STRING     = "\"" ([^\\"\n\000]|"\\\""|"\\\\"|"\\n")* "\"";
+    UNICODE    = "\\u{" [0-9A-Fa-f]+ "}";
+    STRING     = "\"" ([^\\"\n\000]|"\\\""|"\\\\"|"\\n"|"\\t"|"\\r"|UNICODE)* "\"";
     INCSTRING  = "<" IDENTIFIER ">";
     THEORYOP   = [/!<=>+\-*\\?&@|:;~^.]+;
     KEYWORD    = "#" [a-zA-Z0-9_]*;
@@ -49,7 +50,7 @@ namespace CppClingo::Input::Parse {
     SIGN       = [-+ ];
     GROUPING   = [,_];
     TYPE       = [bcdoxXns];
-    FLIT       = ([^\\"\n{}\000] | "\\\"" | "\\\\" | "\\n" | "{{" | "}}")*;
+    FLIT       = ([^\\"\n{}\000] | "\\\"" | "\\\\" | "\\n" | "\\t" | "\\r" | UNICODE | "{{" | "}}")*;
     FSPEC      = ACCESSOR* CONVERSION? ([:] (DOT? ALIGN)? SIGN? [#]? POS? GROUPING? TYPE?)?;
 */
 

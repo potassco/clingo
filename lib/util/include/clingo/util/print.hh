@@ -313,6 +313,8 @@ class PrintQuoted {
                 out << "\\n";
             } else if (c == '\t') {
                 out << "\\t";
+            } else if (c == '\r') {
+                out << "\\r";
             } else if (c == '"') {
                 out << "\\\"";
             } else {
