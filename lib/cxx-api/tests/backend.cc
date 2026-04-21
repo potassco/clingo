@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <clingo/base.hh>
 #include <clingo/control.hh>
+#include <clingo/propagate.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -213,6 +214,56 @@ TEST_CASE_METHOD(Fixture, "backend theory", "[cxx][backend][theory]") {
     }
     REQUIRE(ctl.base().theory().at(0).to_string() == "&p { } <= 1");
     REQUIRE(ctl.solve().satisfiable());
+}
+
+namespace {
+
+class TestProgagator : public Clingo::Propagator {
+  public:
+    TestProgagator(ProgramLiteral lit) : lit_{lit} {}
+    auto do_init(Assignment assign, PropagateInit init) -> void override {
+        auto lit = init.solver_literal(lit_);
+        //  NOTE: this fails even though -2 is a valid aspif literal
+        REQUIRE(assign.value(lit) == false);
+        // NOTE: interestingly the opposite works
+        // auto lit = -init.solver_literal(-lit_);
+        // REQUIRE(assign.value(lit) == false);
+    }
+
+  private:
+    ProgramLiteral lit_;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(Fixture, "backend theory condition", "[cxx][backend][theory][condition]") {
+    ctl.parse_string(R"(
+#theory sum {
+    sum { };
+    &sum/0 : sum, {=}, sum, any
+}.
+{a(1..3)}.
+&sum { x : not a(2) } = 0.
+:- not a(2).
+)");
+    ctl.ground();
+    auto thy = ctl.base().theory();
+    REQUIRE(thy.size() == 1);
+    auto atom = thy.at(0);
+    REQUIRE(atom.elements().size() == 1);
+    auto elem = atom.elements().front();
+    auto cond = elem.condition();
+    REQUIRE(cond.size() == 1);
+    auto lit = cond.front();
+    auto atm = ctl.base().get(fun("a", {2}));
+    REQUIRE(atm.has_value());
+    REQUIRE(atm->literal() == -lit);
+    // NOTE: We get a negative literal here because the condition is a singleton.
+    REQUIRE(lit == elem.condition_id());
+    auto prp = TestProgagator{lit};
+    ctl.register_propagator(std::ref(prp));
+    auto res = ctl.solve();
+    REQUIRE(res.satisfiable());
 }
 
 } // namespace Clingo::Test
