@@ -194,8 +194,10 @@ auto IESolver::compute(Logger &log) -> bool {
     }
 
     // compute bounds
-    bool changed = true;
+    auto changed = true;
+    auto n = ies_.size() + 1;
     while (changed) {
+        auto tightened = false;
         changed = false;
         for (auto const &ie : ies_) {
             Number slack = ie.bound;
@@ -217,9 +219,20 @@ auto IESolver::compute(Logger &log) -> bool {
                             << "  set range of " << term.variable << " to " << domain_[term.variable] << " using";
                         CLINGO_REPORT(log, trace) << "    " << ie;
                         changed = true;
+                        if (domain_[term.variable].has_value(IEInterval::Type::Lower) &&
+                            domain_[term.variable].has_value(IEInterval::Type::Upper)) {
+                            tightened = true;
+                        }
                     }
                 }
             }
+        }
+        if (tightened) {
+            n = ies_.size() + 1;
+        } else if (n > 0) {
+            n -= 1;
+        } else {
+            changed = false;
         }
     }
     if (log.enabled(MessageCode::trace)) {
