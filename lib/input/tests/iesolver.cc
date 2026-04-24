@@ -41,6 +41,20 @@ TEST_CASE("iesolver") {
         REQUIRE(solver.domain().at(x) == IEInterval{Number{1}, Number{1}});
         REQUIRE(solver.domain().at(y) == IEInterval{Number{5}, Number{5}});
     }
+    SECTION("terminate") {
+        // X >= 0
+        // X - Y >= 0
+        // Y - X >= 1
+        auto solver = IESolver{};
+        solver.add(IE{{{{1}, x}}, {0}});
+        solver.add(IE{{{{1}, x}, {{-1}, y}}, {0}});
+        solver.add(IE{{{{-1}, x}, {{1}, y}}, {1}});
+        REQUIRE(solver.compute(log));
+        REQUIRE(solver.domain().at(x).value(IEInterval::Lower) > 0);
+        REQUIRE(solver.domain().at(y).value(IEInterval::Lower) > 0);
+        REQUIRE(!solver.domain().at(x).has_value(IEInterval::Upper));
+        REQUIRE(!solver.domain().at(y).has_value(IEInterval::Upper));
+    }
 };
 
 // NOLINTEND(readability-magic-numbers)
