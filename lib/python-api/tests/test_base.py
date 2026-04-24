@@ -160,7 +160,7 @@ class TestBase:
         assert str(elem) == '((+f(1,"x",[1,2],(2,3),{4,5}))-y)'
         assert len(elem.tuple) == 1
         assert len(elem.condition) == 0
-        assert elem.condition_id >= 0
+        assert elem.condition_id is None
         term = elem.tuple[0]
         assert str(term) == '((+f(1,"x",[1,2],(2,3),{4,5}))-y)'
         assert term.type == TheoryTermType.Function

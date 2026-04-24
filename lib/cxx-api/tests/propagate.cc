@@ -312,9 +312,29 @@ class ModePropagator : public Propagator {
     std::vector<ProgramId> level = {0};
 };
 
+class TheoryProgagator : public Clingo::Propagator {
+  public:
+    TheoryProgagator(ProgramLiteral lit) : lit_{lit} {}
+    auto do_init(Assignment assign, PropagateInit init) -> void override {
+        auto lit = init.solver_literal(lit_);
+        REQUIRE(assign.value(lit) == false);
+    }
+
+  private:
+    ProgramLiteral lit_;
+};
+
 struct Fixture {
     Library lib;
     Control ctl{lib, {"0"}};
+
+    [[nodiscard]] auto fun(std::string_view name, std::initializer_list<int> args = {}) const -> Symbol {
+        auto syms = std::vector<Symbol>{};
+        for (auto arg : args) {
+            syms.emplace_back(Number(arg));
+        }
+        return Function(lib, name, syms);
+    }
 
     static auto lit(ProgramAtom atom) -> ProgramLiteral { return static_cast<ProgramLiteral>(atom); }
 };
@@ -431,6 +451,35 @@ TEST_CASE_METHOD(Fixture, "propagate mode", "[cxx][propagate][mode]") {
     REQUIRE(ref.level == std::vector<ProgramId>{0});
     REQUIRE(ref.num_check >= 16);
     REQUIRE(ref.num_undo >= 8);
+}
+
+TEST_CASE_METHOD(Fixture, "backend theory condition", "[cxx][propagate][theory]") {
+    ctl.parse_string(R"(
+#theory sum {
+    sum { };
+    &sum/0 : sum, {=}, sum, any
+}.
+{a(1..3)}.
+&sum { x : not a(2) } = 0.
+:- not a(2).
+)");
+    ctl.ground();
+    auto thy = ctl.base().theory();
+    REQUIRE(thy.size() == 1);
+    auto atom = thy.at(0);
+    REQUIRE(atom.elements().size() == 1);
+    auto elem = atom.elements().front();
+    auto cond = elem.condition();
+    REQUIRE(cond.size() == 1);
+    auto lit = cond.front();
+    auto atm = ctl.base().get(fun("a", {2}));
+    REQUIRE(atm.has_value());
+    REQUIRE(atm->literal() == -lit);
+    REQUIRE(lit == elem.condition_id());
+    auto prp = TheoryProgagator{lit};
+    ctl.register_propagator(std::ref(prp));
+    auto res = ctl.solve();
+    REQUIRE(res.satisfiable());
 }
 
 } // namespace Clingo::Test
