@@ -433,7 +433,7 @@ Implements `Mapping[Symbol, Term]`.
 
 True conditions do not have a condition id. A condition id is only valid for
 the current solving step. However, they can be mapped to persistent solver
-literals.
+literals using `clingo.propagate.PropagateInit.solver_literal`.
 )");
 
     make_hashable(py::class_<TheoryAtom>(base, "TheoryAtom", R"(A view to inspect a theory atom.)"))

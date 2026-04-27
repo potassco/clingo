@@ -420,6 +420,9 @@ class TheoryElement {
     //! `std::nullopt` is returned. A condition id is only valid for the
     //! current solving step.
     //!
+    //! A condition id can be mapped to a solver literal using
+    //! `Clingo::PropagateInit::solver_literal()`.
+    //!
     //! @return the condition id as a program literal
     [[nodiscard]] auto condition_id() const -> std::optional<ProgramLiteral> {
         auto ret = Detail::call<clingo_theory_base_element_condition_id>(base_, index_);
