@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <clingo/base.hh>
 #include <clingo/control.hh>
-#include <clingo/propagate.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
