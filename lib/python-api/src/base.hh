@@ -103,7 +103,7 @@ class TheoryElement {
     TheoryElement(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
     auto tuple() -> TypeHint<"Sequence[TheoryTerm]">;
     auto condition() -> LitSpan;
-    auto condition_id() -> clingo_literal_t;
+    auto condition_id() -> std::optional<clingo_literal_t>;
     auto str() -> std::string_view;
 
     [[nodiscard]] auto hash() const { return hash_combine(index_, hash_value(base_)); }

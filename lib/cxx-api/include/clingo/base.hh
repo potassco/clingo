@@ -414,14 +414,19 @@ class TheoryElement {
         return std::span{cond, size};
     }
 
-    //! Get the condition id of the theory element.
+    //! Get a program literal for the condition of the theory element.
     //!
-    //! Condition ids are program literals that can be used in the solver. They
-    //! are equivalenet to the condition of the element.
+    //! True conditions do not have a condition id, in which case
+    //! `std::nullopt` is returned. A condition id is only valid for the
+    //! current solving step.
+    //!
+    //! A condition id can be mapped to a solver literal using
+    //! `Clingo::PropagateInit::solver_literal()`.
     //!
     //! @return the condition id as a program literal
-    [[nodiscard]] auto condition_id() const -> ProgramLiteral {
-        return Detail::call<clingo_theory_base_element_condition_id>(base_, index_);
+    [[nodiscard]] auto condition_id() const -> std::optional<ProgramLiteral> {
+        auto ret = Detail::call<clingo_theory_base_element_condition_id>(base_, index_);
+        return ret != 0 ? std::optional(ret) : std::nullopt;
     }
 
     //! Convert the theory element to a string representation.

@@ -375,12 +375,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_element_condition(clingo_theor
                                                                     clingo_id_t element,
                                                                     clingo_literal_t const **condition, size_t *size);
 
-//! Get the id of the condition of the given theory element.
+//! Get a program literal for the condition of the given theory element.
+//!
+//! This returns zero for empty conditions (which is technically not a program
+//! literal because it cannot be negated). This special program literal is only
+//! valid for the current step.
 //!
 //! @note
-//! This id can be mapped to a solver literal using clingo_propagate_init_solver_literal().
-//! This id is not (necessarily) an aspif literal;
-//! to get aspif literals use clingo_theory_base_element_condition().
+//! This id can be mapped to a solver literal using
+//! clingo_propagate_init_solver_literal(). To get the (persistent) aspif
+//! literals as grounded use clingo_theory_base_element_condition().
 //!
 //! @param[in] theory container where the element is stored
 //! @param[in] element id of the element

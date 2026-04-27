@@ -489,10 +489,13 @@ class PropagateInit : public PropagateControl {
 
     //! Map a program literal to a solver literal.
     //!
+    //! If std::nullpot is passed, the function returns the true solver
+    //! literal.
+    //!
     //! @param literal the program literal to map
     //! @return the corresponding solver literal
-    [[nodiscard]] auto solver_literal(ProgramLiteral literal) const -> SolverLiteral {
-        return Detail::call<clingo_propagate_init_solver_literal>(init_, literal);
+    [[nodiscard]] auto solver_literal(std::optional<ProgramLiteral> literal) const -> SolverLiteral {
+        return Detail::call<clingo_propagate_init_solver_literal>(init_, literal.value_or(0));
     }
 
     //! Add a weighted literal to minimize to the solver.

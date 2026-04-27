@@ -143,7 +143,7 @@ TEST_CASE_METHOD(Fixture, "theory base", "[cxx][base][theory]") {
     REQUIRE(elem.to_string() == "((+f(1,\"x\",[1,2],(2,3),{4,5}))-y)");
     REQUIRE(elem.tuple().size() == 1);
     REQUIRE(elem.condition().empty());
-    REQUIRE(elem.condition_id() >= 0);
+    REQUIRE(!elem.condition_id().has_value());
 
     auto term = elem.tuple().front();
     REQUIRE(term.to_string() == "((+f(1,\"x\",[1,2],(2,3),{4,5}))-y)");

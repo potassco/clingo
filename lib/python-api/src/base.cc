@@ -149,10 +149,10 @@ auto TheoryElement::condition() -> LitSpan {
     return std::span{cond, size};
 }
 
-auto TheoryElement::condition_id() -> clingo_literal_t {
+auto TheoryElement::condition_id() -> std::optional<clingo_literal_t> {
     clingo_literal_t id = 0;
     handle_error(clingo_theory_base_element_condition_id(base_, index_, &id));
-    return id;
+    return id != 0 ? std::optional(id) : std::nullopt;
 }
 
 auto TheoryElement::str() -> std::string_view {
@@ -429,7 +429,12 @@ Implements `Mapping[Symbol, Term]`.
         .def_property_readonly("tuple", &TheoryElement::tuple, R"(Get the term tuple of a theory element.)")
         .def_property_readonly("condition", &TheoryElement::condition, R"(Get the condition of a theory element.)")
         .def_property_readonly("condition_id", &TheoryElement::condition_id,
-                               R"(Get the condition id of a theory element.)");
+                               R"(Get the condition id of a theory element.
+
+True conditions do not have a condition id. A condition id is only valid for
+the current solving step. However, they can be mapped to persistent solver
+literals using `clingo.propagate.PropagateInit.solver_literal`.
+)");
 
     make_hashable(py::class_<TheoryAtom>(base, "TheoryAtom", R"(A view to inspect a theory atom.)"))
         .def("__str__", &TheoryAtom::str, R"(Get a string representation of the atom.)")

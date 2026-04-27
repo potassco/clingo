@@ -308,9 +308,9 @@ class PropagateInit : public PropagateControl {
 
     void freeze_literal(clingo_literal_t lit) { handle_error(clingo_propagate_init_freeze_literal(init_, lit)); }
 
-    auto solver_literal(clingo_literal_t lit) -> clingo_literal_t {
+    auto solver_literal(std::optional<clingo_literal_t> lit) -> clingo_literal_t {
         clingo_literal_t res = 0;
-        handle_error(clingo_propagate_init_solver_literal(init_, lit, &res));
+        handle_error(clingo_propagate_init_solver_literal(init_, lit.value_or(0), &res));
         return res;
     }
 
@@ -797,6 +797,8 @@ Args:
 )"_d)
         .def("solver_literal", &PropagateInit::solver_literal, py::arg("literal"), R"(
 Map the given program literal to a solver literal.
+
+If the literal is `None`, the true solver literal is returned.
 
 Args:
     literal:

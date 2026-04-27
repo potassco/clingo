@@ -170,12 +170,11 @@ extern "C" auto clingo_base_atoms_at(clingo_base_t const *bases, size_t index, c
         if (atoms != nullptr) {
             *atoms = reinterpret_cast<clingo_atom_base_t const *>(it->second.get()); // NOLINT
         }
-        if (signature != nullptr) {
-            signature->name = get<0>(it.key()).view().data();
-            signature->size = get<0>(it.key()).size();
-            signature->arity = get<1>(it.key());
-            signature->is_positive = !get<2>(it.key());
-        }
+
+        signature->name = get<0>(it.key()).view().data();
+        signature->size = get<0>(it.key()).size();
+        signature->arity = get<1>(it.key());
+        signature->is_positive = !get<2>(it.key());
     }
     CLINGO_CATCH;
 }
@@ -451,7 +450,7 @@ extern "C" auto clingo_theory_base_term_number(clingo_theory_base_t const *theor
 extern "C" auto clingo_theory_base_term_name(clingo_theory_base_t const *theory, clingo_id_t term,
                                              clingo_string_t *name) -> bool {
     CLINGO_TRY {
-        if (theory == nullptr || name == nullptr || name == nullptr) {
+        if (theory == nullptr || name == nullptr) {
             return fail_arguments();
         }
         auto const &t = get_theory(theory);
@@ -490,16 +489,12 @@ extern "C" auto clingo_theory_base_term_to_string(clingo_theory_base_t const *th
 extern "C" auto clingo_theory_base_element_tuple(clingo_theory_base_t const *theory, clingo_id_t element,
                                                  clingo_id_t const **tuple, size_t *size) -> bool {
     CLINGO_TRY {
-        if (theory == nullptr) {
+        if (theory == nullptr || tuple == nullptr || size == nullptr) {
             return fail_arguments();
         }
         auto cond = get_theory(theory).getElement(element).terms();
-        if (tuple != nullptr) {
-            *tuple = cond.data();
-        }
-        if (size != nullptr) {
-            *size = cond.size();
-        }
+        *tuple = cond.data();
+        *size = cond.size();
     }
     CLINGO_CATCH;
 }
@@ -507,16 +502,12 @@ extern "C" auto clingo_theory_base_element_tuple(clingo_theory_base_t const *the
 extern "C" auto clingo_theory_base_element_condition(clingo_theory_base_t const *theory, clingo_id_t element,
                                                      clingo_literal_t const **condition, size_t *size) -> bool {
     CLINGO_TRY {
-        if (theory == nullptr) {
+        if (theory == nullptr || condition == nullptr || size == nullptr) {
             return fail_arguments();
         }
         auto cond = element_condition(theory, element);
-        if (condition != nullptr) {
-            *condition = cond.data();
-        }
-        if (size != nullptr) {
-            *size = cond.size();
-        }
+        *condition = cond.data();
+        *size = cond.size();
     }
     CLINGO_CATCH;
 }
@@ -528,6 +519,7 @@ extern "C" auto clingo_theory_base_element_condition_id(clingo_theory_base_t con
             return fail_arguments();
         }
         *condition = static_cast<clingo_literal_t>(get_theory(theory).getElement(element).condition());
+        assert(*condition || element_condition(theory, element).empty());
     }
     CLINGO_CATCH;
 }
@@ -568,16 +560,12 @@ extern "C" auto clingo_theory_base_atom_term(clingo_theory_base_t const *theory,
 extern "C" auto clingo_theory_base_atom_elements(clingo_theory_base_t const *theory, clingo_id_t atom,
                                                  clingo_id_t const **elements, size_t *size) -> bool {
     CLINGO_TRY {
-        if (theory == nullptr) {
+        if (theory == nullptr || elements == nullptr || size == nullptr) {
             return fail_arguments();
         }
         auto elems = get_atom(theory, atom).elements();
-        if (elements != nullptr) {
-            *elements = elems.data();
-        }
-        if (size != nullptr) {
-            *size = elems.size();
-        }
+        *elements = elems.data();
+        *size = elems.size();
     }
     CLINGO_CATCH;
 }
