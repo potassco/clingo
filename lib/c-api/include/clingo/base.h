@@ -377,7 +377,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_theory_base_element_condition(clingo_theor
 
 //! Get a program literal for the condition of the given theory element.
 //!
-//! This returns zero for empty conditons (which is technically not a program
+//! This returns zero for empty conditions (which is technically not a program
 //! literal because it cannot be negated). This special program literal is only
 //! valid for the current step.
 //!
