@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <iterator>
 #include <tuple>
 #include <vector>
 
@@ -81,7 +83,7 @@ template <class T> class index_sequence {
         }
     }
 
-    //! Set the sequence to the interval `[l,r-1]`.
+    //! Set the sequence to the interval `[s,e-1]`.
     void assign(T s, T e) {
         last_ = 0;
         values_.clear();

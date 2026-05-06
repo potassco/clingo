@@ -24,8 +24,7 @@ TEST_CASE("index sequence random", "[base]") {
         x = i;
         ++i;
     }
-    auto rd = std::random_device{};
-    auto gen = std::mt19937_64{rd()};
+    auto gen = std::mt19937_64{};
     std::ranges::shuffle(vec, gen);
     auto seq = index_sequence<size_t>{};
     for (auto const &x : vec) {
@@ -43,7 +42,5 @@ TEST_CASE("index sequence random", "[base]") {
         ++it;
     }
 }
-
-// NOLINTEND(modernize-use-designated-initializers,readability-magic-numbers)
 
 } // namespace CppClingo::Util::Test
