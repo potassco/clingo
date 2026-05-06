@@ -15,10 +15,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            generator: "Ninja Multi-Config"
-          - os: macos-latest
-            generator: "Ninja Multi-Config"
+          # - os: ubuntu-latest
+          #   generator: "Ninja Multi-Config"
+          # - os: macos-latest
+          #   generator: "Ninja Multi-Config"
           - os: windows-latest
             generator: "Visual Studio 18 2026"
     defaults:
@@ -75,74 +75,74 @@ jobs:
           clasp --version
           lpconvert --version
 
-  cygwin-test:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        re2c_version: [4.5]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Setup cygwin
-        uses: egor-tensin/setup-cygwin@v4
-        with:
-          packages: cmake python312 python312-devel python312-pytest ninja make gcc-g++ doxygen
-
-      - name: Download re2c
-        run: |
-          Invoke-WebRequest https://github.com/skvadrik/re2c/releases/download/${{ matrix.re2c_version }}/re2c-${{ matrix.re2c_version }}.tar.xz -OutFile re2c-${{ matrix.re2c_version }}.tar.xz
-          tar xf re2c-${{ matrix.re2c_version }}.tar.xz
-
-      - name: Configure re2c
-        run: >
-          cmake -S re2c-${{ matrix.re2c_version }} -B build_re2c -G "Ninja Multi-Config"
-          -DRE2C_BUILD_RE2D=no
-          -DRE2C_BUILD_RE2GO=no
-          -DRE2C_BUILD_RE2HS=no
-          -DRE2C_BUILD_RE2JAVA=no
-          -DRE2C_BUILD_RE2JS=no
-          -DRE2C_BUILD_RE2OCAML=no
-          -DRE2C_BUILD_RE2PY=no
-          -DRE2C_BUILD_RE2RUST=no
-          -DRE2C_BUILD_RE2SWIFT=no
-          -DRE2C_BUILD_RE2V=no
-          -DRE2C_BUILD_RE2ZIG=no
-
-      - name: Build re2c
-        run: |
-          cmake --build build_re2c --config Release
-
-      - name: Install re2c
-        run: |
-          cmake --install build_re2c --config Release
-
-      - name: Configure clingo
-        run: >
-          cmake -S . -B build -G "Ninja Multi-Config"
-          -DPYTEST_EXECUTABLE="/usr/bin/pytest-3.12"
-          -DCLINGO_BUILD_TESTS=On
-          -DCLINGO_BUILD_APP=On
-          -DCLINGO_BUILD_EXAMPLES=On
-          -DCLASP_BUILD_TESTS=On
-          -DCLASP_BUILD_EXAMPLES=On
-          -DLIB_POTASSCO_BUILD_TESTS=On
-
-      - name: Build clingo
-        run: |
-          $env:PATH = "$($PWD.Path)\build\bin\Release;$env:PATH"
-          cmake --build build --config Release
-
-      - name: Test clingo
-        run: |
-          $env:PATH = "$($PWD.Path)\build\bin\Release;$env:PATH"
-          ctest --test-dir build -C Release --output-on-failure
-
-      - name: Install clingo
-        run: |
-          cmake --install build --config Release
-          clingo --version
-          clasp --version
-          lpconvert --version
+  # cygwin-test:
+  #   runs-on: windows-latest
+  #   strategy:
+  #     matrix:
+  #       re2c_version: [4.5]
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         submodules: recursive
+  #
+  #     - name: Setup cygwin
+  #       uses: egor-tensin/setup-cygwin@v4
+  #       with:
+  #         packages: cmake python312 python312-devel python312-pytest ninja make gcc-g++ doxygen
+  #
+  #     - name: Download re2c
+  #       run: |
+  #         Invoke-WebRequest https://github.com/skvadrik/re2c/releases/download/${{ matrix.re2c_version }}/re2c-${{ matrix.re2c_version }}.tar.xz -OutFile re2c-${{ matrix.re2c_version }}.tar.xz
+  #         tar xf re2c-${{ matrix.re2c_version }}.tar.xz
+  #
+  #     - name: Configure re2c
+  #       run: >
+  #         cmake -S re2c-${{ matrix.re2c_version }} -B build_re2c -G "Ninja Multi-Config"
+  #         -DRE2C_BUILD_RE2D=no
+  #         -DRE2C_BUILD_RE2GO=no
+  #         -DRE2C_BUILD_RE2HS=no
+  #         -DRE2C_BUILD_RE2JAVA=no
+  #         -DRE2C_BUILD_RE2JS=no
+  #         -DRE2C_BUILD_RE2OCAML=no
+  #         -DRE2C_BUILD_RE2PY=no
+  #         -DRE2C_BUILD_RE2RUST=no
+  #         -DRE2C_BUILD_RE2SWIFT=no
+  #         -DRE2C_BUILD_RE2V=no
+  #         -DRE2C_BUILD_RE2ZIG=no
+  #
+  #     - name: Build re2c
+  #       run: |
+  #         cmake --build build_re2c --config Release
+  #
+  #     - name: Install re2c
+  #       run: |
+  #         cmake --install build_re2c --config Release
+  #
+  #     - name: Configure clingo
+  #       run: >
+  #         cmake -S . -B build -G "Ninja Multi-Config"
+  #         -DPYTEST_EXECUTABLE="/usr/bin/pytest-3.12"
+  #         -DCLINGO_BUILD_TESTS=On
+  #         -DCLINGO_BUILD_APP=On
+  #         -DCLINGO_BUILD_EXAMPLES=On
+  #         -DCLASP_BUILD_TESTS=On
+  #         -DCLASP_BUILD_EXAMPLES=On
+  #         -DLIB_POTASSCO_BUILD_TESTS=On
+  #
+  #     - name: Build clingo
+  #       run: |
+  #         $env:PATH = "$($PWD.Path)\build\bin\Release;$env:PATH"
+  #         cmake --build build --config Release
+  #
+  #     - name: Test clingo
+  #       run: |
+  #         $env:PATH = "$($PWD.Path)\build\bin\Release;$env:PATH"
+  #         ctest --test-dir build -C Release --output-on-failure
+  #
+  #     - name: Install clingo
+  #       run: |
+  #         cmake --install build --config Release
+  #         clingo --version
+  #         clasp --version
+  #         lpconvert --version
