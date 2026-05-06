@@ -634,6 +634,26 @@ TEST_CASE("grounder_text") {
                                   "b.\n"
                                   "#show.\n");
         }
+        SECTION("bug-index-sequence") {
+            grd.parse(R"(
+                true(V) :- set(V).
+                set(1) :- not true(2).
+                set(2) :- not true(1).
+                set(3) :- true(1).
+                set(3) :- true(2).
+                )");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view() == "set(1) :- not true(2).\n"
+                                  "set(2) :- not true(1).\n"
+                                  "true(1) :- set(1).\n"
+                                  "true(2) :- set(2).\n"
+                                  "set(3) :- true(1).\n"
+                                  "set(3) :- true(2).\n"
+                                  "true(3) :- set(3).\n"
+                                  "#show true/1.\n"
+                                  "#show set/1.\n"
+                                  "#show.\n");
+        }
         SECTION("project") {
             grd.parse(R"(
                 #show.

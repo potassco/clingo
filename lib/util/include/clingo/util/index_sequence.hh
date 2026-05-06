@@ -18,6 +18,7 @@ template <class T> class index_sequence {
     //! Const iterator for index sequence.
     class iterator {
       public:
+        friend class index_sequence;
         //! The iterator category.
         using iterator_category = std::forward_iterator_tag;
         //! The value type.
@@ -33,7 +34,7 @@ template <class T> class index_sequence {
         iterator() = default;
 
         //! Get the current value.
-        auto operator*() const -> reference { return std::get<2>(*it_) + static_cast<T>(idx_); }
+        auto operator*() const -> reference { return std::get<2>(*it_) + static_cast<T>(idx_ - std::get<0>(*it_)); }
 
         //! Increment the iterator.
         auto operator++() -> iterator & {
@@ -71,43 +72,46 @@ template <class T> class index_sequence {
         if (values_.empty()) {
             values_.emplace_back(0, 1, value);
         } else {
-            auto &[l, r, y] = values_.back();
-            if (static_cast<T>(r) + y == value) {
+            auto &[l, r, s] = values_.back();
+            if (s + static_cast<T>(r - l) == value) {
                 ++r;
             } else {
-                values_.emplace_back(size(), size() + 1, value - static_cast<T>(size()));
+                values_.emplace_back(size(), size() + 1, value);
             }
         }
     }
 
     //! Set the sequence to the interval `[l,r-1]`.
-    void assign(T l, T r) {
+    void assign(T s, T e) {
+        last_ = 0;
         values_.clear();
-        if (l < r) {
-            values_.emplace_back(0, static_cast<size_t>(r - l), l);
+        if (s < e) {
+            values_.emplace_back(0, static_cast<size_t>(e - s), s);
         }
     }
 
     //! Get the i-th integer in the sequence.
     [[nodiscard]] auto operator[](size_t index) const -> T {
         assert(index < size() && last_ < values_.size());
-        auto const &[l, r, y] = values_[last_];
+        auto const &[l, r, s] = values_[last_];
         assert(l < r);
         auto ib = index < l ? values_.begin() : values_.begin() + last_;
         auto ie = index < r ? values_.begin() + last_ + 1 : values_.end();
         auto it = std::upper_bound(ib, ie, index, [](auto const &a, auto const &b) { return a < std::get<1>(b); });
         last_ = static_cast<size_t>(std::distance(values_.begin(), it));
-        return static_cast<T>(index) + std::get<2>(*it);
+        return std::get<2>(*it) + static_cast<T>(index - std::get<0>(*it));
     }
-    //! Check if the sequence contains an element.
+    //! Get the index of the value in the sequence.
+    //!
+    //! Returns size() if the value is not found.
     [[nodiscard]] auto find(T value) const -> size_t {
         // NOTE: has linear complexity in the worst case:
         // - locality could be improved
         // - reverse mapping could be stored
-        for (auto const &[l, r, y] : values_) {
-            auto i = static_cast<size_t>(value - y);
-            if (y <= value && l <= i && i < r) {
-                return i;
+        for (auto const &[l, r, s] : values_) {
+            auto e = s + static_cast<T>(r - l);
+            if (s <= value && value < e) {
+                return l + static_cast<size_t>(value - s);
             }
         }
         return size();
@@ -122,6 +126,7 @@ template <class T> class index_sequence {
     [[nodiscard]] auto end() const -> iterator { return {values_.cend(), size()}; }
 
   private:
+    // NOTE: the start index could be omitted
     std::vector<std::tuple<size_t, size_t, T>> values_;
     size_t mutable last_ = 0;
 };
