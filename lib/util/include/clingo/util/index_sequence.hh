@@ -111,15 +111,15 @@ template <class T> class index_sequence {
     //! Get the index of the value in the sequence.
     //!
     //! Returns size() if the value is not found.
-    [[nodiscard]] auto find(T value) const -> size_t {
+    [[nodiscard]] auto find(T x) const -> size_t {
         // NOTE: has linear complexity in the worst case:
         // - locality could be improved
         // - reverse mapping could be stored
         size_t l = 0;
         for (auto const &[r, s] : values_) {
             auto e = s + static_cast<T>(r - l);
-            if (s <= value && value < e) {
-                return l + static_cast<size_t>(value - s);
+            if (s <= x && x < e) {
+                return l + static_cast<size_t>(x - s);
             }
             l = r;
         }
