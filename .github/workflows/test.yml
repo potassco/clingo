@@ -42,7 +42,12 @@ jobs:
 
       - name: Dependencies
         run: |
-          pkgs=(cmake ninja pytest python c-compiler cxx-compiler re2c)
+          # Note: cmake is not installed from conda on Windows because conda's cmake
+          # does not properly detect Visual Studio. System cmake is used instead.
+          pkgs=(ninja pytest python c-compiler cxx-compiler re2c)
+          if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
+            pkgs+=(cmake)
+          fi
           conda install "${pkgs[@]}"
 
       - name: Configure
