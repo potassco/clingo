@@ -5,7 +5,8 @@
 #include <cstddef>
 #include <iterator>
 #include <utility>
-#include <vector>
+
+#include <clingo/util/small_vector.hh>
 
 namespace CppClingo::Util {
 
@@ -62,7 +63,7 @@ template <class T> class index_sequence {
         auto operator!=(const iterator &other) const -> bool { return !(*this == other); }
 
       private:
-        using interval_iterator = std::vector<std::pair<size_t, T>>::const_iterator;
+        using interval_iterator = small_vector<std::pair<size_t, T>, 1>::const_iterator;
 
         iterator(interval_iterator it, size_t idx, size_t start) : it_{it}, idx_{idx}, start_{start} {}
 
@@ -135,7 +136,7 @@ template <class T> class index_sequence {
     [[nodiscard]] auto end() const -> iterator { return {values_.cend(), size(), size()}; }
 
   private:
-    std::vector<std::pair<size_t, T>> values_;
+    small_vector<std::pair<size_t, T>, 1> values_;
     size_t mutable last_ = 0;
 };
 
