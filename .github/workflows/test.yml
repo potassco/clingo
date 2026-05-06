@@ -20,7 +20,7 @@ jobs:
           - os: macos-latest
             generator: "Ninja Multi-Config"
           - os: windows-latest
-            generator: "Visual Studio 17 2022"
+            generator: "Visual Studio 18 2026"
     defaults:
       run:
         shell: bash -l {0}

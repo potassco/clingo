@@ -32,6 +32,7 @@ set(header
 set(ide_test_group "Test Files")
 set(test-group
     "tests/interval_set.cc"
+    "tests/index_sequence.cc"
     "tests/record.cc")
 source_group("${ide_test_group}" FILES ${test-group})
 set(test
