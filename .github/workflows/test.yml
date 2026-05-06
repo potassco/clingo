@@ -45,10 +45,6 @@ jobs:
           pkgs=(cmake ninja pytest python c-compiler cxx-compiler re2c)
           conda install "${pkgs[@]}"
 
-      - name: Get platform info
-        run: |
-          cmake --help
-
       - name: Configure
         run: |
           cmake -S . -B build -G "${{ matrix.generator }}" \
