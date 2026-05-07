@@ -27,9 +27,9 @@ jobs:
           # - os: ubuntu-latest
           #   python-version: "3.14"
           #   arch: x86_64
-          - os: macos-latest
-            python-version: "3.12"
-            arch: arm64
+          # - os: macos-latest
+          #   python-version: "3.12"
+          #   arch: arm64
           # - os: macos-latest
           #   python-version: "3.13"
           #   arch: arm64
