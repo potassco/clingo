@@ -101,7 +101,7 @@ jobs:
               source ~/miniforge3/etc/profile.d/conda.sh && \
               conda activate base && \
               conda install -y tree conda-build && \
-              conda build /work/.github/conda --output-folder artifacts --python ${{ matrix.python-version }} && \
+              conda-build /work/.github/conda --output-folder artifacts --python ${{ matrix.python-version }} && \
               find artifacts -type f -name '*.conda' -exec cp {} /artifacts/ \;
             "
       - name: Build (macos_x86_64)
