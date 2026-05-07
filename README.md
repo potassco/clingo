@@ -36,7 +36,7 @@ distribution ships a conda version configured to use this channel by default
 (see Miniforge [installation instructions][conda]).
 
 - Supported platforms: `linux_x86_64`, `macosx_14_0_{arm64,x86_64}`, `win_amd64`.
-- Supported Python versions: `cp312`, `cp313`.
+- Supported Python versions: `cp312`, `cp313`, `cp314`.
 
 ### 🐍 PyPI
 
@@ -44,7 +44,7 @@ Python packages are available from [PyPI]:
 
 ```sh
 # stable
-pip install https://test.pypi.org/simple clingo
+pip install clingo
 # development
 pip install --extra-index-url https://test.pypi.org/simple clingo
 ```

@@ -24,6 +24,9 @@ jobs:
           - os: ubuntu-latest
             python-version: "3.13"
             arch: x86_64
+          - os: ubuntu-latest
+            python-version: "3.14"
+            arch: x86_64
           - os: macos-latest
             python-version: "3.12"
             arch: arm64
@@ -31,21 +34,30 @@ jobs:
             python-version: "3.13"
             arch: arm64
           - os: macos-latest
+            python-version: "3.14"
+            arch: arm64
+          - os: macos-latest
             python-version: "3.12"
             arch: x86_64
           - os: macos-latest
             python-version: "3.13"
             arch: x86_64
+          - os: macos-latest
+            python-version: "3.14"
+            arch: x86_64
           - os: windows-latest
             python-version: "3.12"
             arch: x86_64
           - os: windows-latest
             python-version: "3.13"
+            arch: x86_64
+          - os: windows-latest
+            python-version: "3.14"
             arch: x86_64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -66,7 +78,7 @@ jobs:
 
       - name: Conda
         if: ${{ runner.os != 'linux' }}
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
@@ -96,9 +108,9 @@ jobs:
         shell: bash -l {0}
         if: ${{ runner.os == 'macos' && matrix.arch == 'x86_64' }}
         run: |
+          set -x
           conda create --platform osx-64 -n build conda-build
-          conda activate build
-          arch -x86_64 conda build .github/conda \
+          conda run -n build --no-capture-output arch -x86_64 conda-build .github/conda \
             --output-folder ./artifacts \
             --python "${{ matrix.python-version }}"
           find artifacts -type f ! -name "*.conda" -delete
@@ -108,16 +120,16 @@ jobs:
         shell: bash -l {0}
         if: ${{ runner.os != 'linux' && (runner.os != 'macos' || matrix.arch != 'x86_64') }}
         run: |
+          set -x
           conda create -n build conda-build
-          conda activate build
-          conda build .github/conda \
+          conda run -n build --no-capture-output conda-build .github/conda \
             --output-folder ./artifacts \
             --python "${{ matrix.python-version }}"
           find artifacts -type f ! -name "*.conda" -delete
           find artifacts -type d -empty -delete
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conda-packages-${{ matrix.os }}-${{ matrix.arch }}-py${{ matrix.python-version }}
           path: artifacts
@@ -128,13 +140,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Dowload
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: false
 
       - name: Conda
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           channels: conda-forge
           channel-priority: strict

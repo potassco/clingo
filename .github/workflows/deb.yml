@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -44,7 +44,7 @@ jobs:
           rm -f *dbgsym*.deb
 
       - name: Upload built package artifact for ${{ matrix.codename }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.distro }}-${{ matrix.codename }}
           path: .github/ppa/*.deb
@@ -54,7 +54,7 @@ jobs:
     needs: build
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: ./deb-packages
           merge-multiple: false

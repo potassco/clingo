@@ -8,20 +8,20 @@ repos:
         exclude: ^.github/
 
   - repo: https://github.com/pycqa/isort
-    rev: 8.0.0
+    rev: 8.0.1
     hooks:
       - id: isort
         args: ["--profile", "black"]
         exclude: ^.github/
 
   - repo: https://github.com/psf/black
-    rev: 26.1.0
+    rev: 26.3.1
     hooks:
       - id: black
         exclude: ^.github/
 
   - repo: https://github.com/cpp-linter/cpp-linter-hooks
-    rev: v1.1.13
+    rev: v1.4.0
     hooks:
       - id: clang-format
         types_or: [c++, c]
