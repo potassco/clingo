@@ -64,9 +64,9 @@ jobs:
         with:
           api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
 
-      # - name: Publish all .deb packages to Cloudsmith
-      #   run: |
-      #     find ./deb-packages -type f -name '*.deb' -print0 | while IFS= read -r -d '' debfile; do
-      #       distro=$(basename "$(dirname "$debfile")")
-      #       cloudsmith push deb "potassco/${{ inputs.type }}/${distro/-//}" "$debfile"
-      #     done
+      - name: Publish all .deb packages to Cloudsmith
+        run: |
+          find ./deb-packages -type f -name '*.deb' -print0 | while IFS= read -r -d '' debfile; do
+            distro=$(basename "$(dirname "$debfile")")
+            cloudsmith push deb "potassco/${{ inputs.type }}/${distro/-//}" "$debfile"
+          done

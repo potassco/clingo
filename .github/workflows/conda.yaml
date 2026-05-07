@@ -18,42 +18,42 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - os: ubuntu-latest
-          #   python-version: "3.12"
-          #   arch: x86_64
-          # - os: ubuntu-latest
-          #   python-version: "3.13"
-          #   arch: x86_64
-          # - os: ubuntu-latest
-          #   python-version: "3.14"
-          #   arch: x86_64
-          # - os: macos-latest
-          #   python-version: "3.12"
-          #   arch: arm64
-          # - os: macos-latest
-          #   python-version: "3.13"
-          #   arch: arm64
-          # - os: macos-latest
-          #   python-version: "3.14"
-          #   arch: arm64
-          # - os: macos-latest
-          #   python-version: "3.12"
-          #   arch: x86_64
-          # - os: macos-latest
-          #   python-version: "3.13"
-          #   arch: x86_64
-          # - os: macos-latest
-          #   python-version: "3.14"
-          #   arch: x86_64
+          - os: ubuntu-latest
+            python-version: "3.12"
+            arch: x86_64
+          - os: ubuntu-latest
+            python-version: "3.13"
+            arch: x86_64
+          - os: ubuntu-latest
+            python-version: "3.14"
+            arch: x86_64
+          - os: macos-latest
+            python-version: "3.12"
+            arch: arm64
+          - os: macos-latest
+            python-version: "3.13"
+            arch: arm64
+          - os: macos-latest
+            python-version: "3.14"
+            arch: arm64
+          - os: macos-latest
+            python-version: "3.12"
+            arch: x86_64
+          - os: macos-latest
+            python-version: "3.13"
+            arch: x86_64
+          - os: macos-latest
+            python-version: "3.14"
+            arch: x86_64
           - os: windows-latest
             python-version: "3.12"
             arch: x86_64
-          # - os: windows-latest
-          #   python-version: "3.13"
-          #   arch: x86_64
-          # - os: windows-latest
-          #   python-version: "3.14"
-          #   arch: x86_64
+          - os: windows-latest
+            python-version: "3.13"
+            arch: x86_64
+          - os: windows-latest
+            python-version: "3.14"
+            arch: x86_64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -84,12 +84,6 @@ jobs:
           channels: conda-forge
           channel-priority: strict
           auto-update-conda: true
-
-      - name: Setup msbuild
-        uses: microsoft/setup-msbuild@v3
-        if: ${{ runner.os == 'windows' }}
-        with:
-          vs-version: "[17.0,18.0)"
 
       - name: Build (linux)
         if: ${{ runner.os == 'linux' }}
@@ -164,10 +158,10 @@ jobs:
         run: |
           conda install anaconda-client
 
-      # - name: Upload
-      #   shell: bash -l {0}
-      #   env:
-      #     ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
-      #   run: |
-      #     files=( $(find artifacts -type f -name "*.conda") )
-      #     anaconda upload -l "${{ inputs.label }}" -u potassco --force "${files[@]}"
+      - name: Upload
+        shell: bash -l {0}
+        env:
+          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+        run: |
+          files=( $(find artifacts -type f -name "*.conda") )
+          anaconda upload -l "${{ inputs.label }}" -u potassco --force "${files[@]}"
