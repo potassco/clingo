@@ -85,6 +85,12 @@ jobs:
           channel-priority: strict
           auto-update-conda: true
 
+      - name: Setup msbuild
+        uses: microsoft/setup-msbuild@v3
+        if: ${{ runner.os == 'windows' }}
+        with:
+          vs-version: "[17.0,18.0)"
+
       - name: Build (linux)
         if: ${{ runner.os == 'linux' }}
         run: |

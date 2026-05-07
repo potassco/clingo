@@ -1,4 +1,4 @@
-cmake -S . -B build -G "Visual Studio 18 2026" ^
+cmake -S . -B build -G "Visual Studio 17 2022" ^
     -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
     -DCMAKE_INSTALL_LIBDIR="lib" ^
     -DPython_ROOT_DIR="%PREFIX%" ^
