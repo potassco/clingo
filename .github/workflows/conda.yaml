@@ -45,7 +45,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -66,7 +66,7 @@ jobs:
 
       - name: Conda
         if: ${{ runner.os != 'linux' }}
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
@@ -117,7 +117,7 @@ jobs:
           find artifacts -type d -empty -delete
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conda-packages-${{ matrix.os }}-${{ matrix.arch }}-py${{ matrix.python-version }}
           path: artifacts
@@ -128,13 +128,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Dowload
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: false
 
       - name: Conda
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           channels: conda-forge
           channel-priority: strict
@@ -146,10 +146,10 @@ jobs:
         run: |
           conda install anaconda-client
 
-      - name: Upload
-        shell: bash -l {0}
-        env:
-          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
-        run: |
-          files=( $(find artifacts -type f -name "*.conda") )
-          anaconda upload -l "${{ inputs.label }}" -u potassco --force "${files[@]}"
+      # - name: Upload
+      #   shell: bash -l {0}
+      #   env:
+      #     ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+      #   run: |
+      #     files=( $(find artifacts -type f -name "*.conda") )
+      #     anaconda upload -l "${{ inputs.label }}" -u potassco --force "${files[@]}"

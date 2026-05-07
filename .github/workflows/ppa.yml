@@ -30,7 +30,7 @@ jobs:
           sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dh-make dput dh-python
 
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -40,12 +40,12 @@ jobs:
         env:
           POTASSCO_PPA_GPGKEY: ${{ secrets.POTASSCO_PPA_GPGKEY }}
 
-      - name: Deploy package
-        run: |
-          if [[ "${{ inputs.build_number }}" == "auto" ]]; then
-            BUILD_NUMBER="${{ github.run_number }}"
-          else
-            BUILD_NUMBER="${{ inputs.build_number }}"
-          fi
-          cd .github/ppa
-          ./build.sh --build-number "${BUILD_NUMBER}" "${{ inputs.type }}" "${{ matrix.distribution }}" create sync changes build put
+      # - name: Deploy package
+      #   run: |
+      #     if [[ "${{ inputs.build_number }}" == "auto" ]]; then
+      #       BUILD_NUMBER="${{ github.run_number }}"
+      #     else
+      #       BUILD_NUMBER="${{ inputs.build_number }}"
+      #     fi
+      #     cd .github/ppa
+      #     ./build.sh --build-number "${BUILD_NUMBER}" "${{ inputs.type }}" "${{ matrix.distribution }}" create sync changes build put
