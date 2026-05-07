@@ -18,30 +18,42 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            python-version: "3.12"
-            arch: x86_64
-          - os: ubuntu-latest
-            python-version: "3.13"
-            arch: x86_64
+          # - os: ubuntu-latest
+          #   python-version: "3.12"
+          #   arch: x86_64
+          # - os: ubuntu-latest
+          #   python-version: "3.13"
+          #   arch: x86_64
+          # - os: ubuntu-latest
+          #   python-version: "3.14"
+          #   arch: x86_64
           - os: macos-latest
             python-version: "3.12"
             arch: arm64
-          - os: macos-latest
-            python-version: "3.13"
-            arch: arm64
-          - os: macos-latest
-            python-version: "3.12"
-            arch: x86_64
-          - os: macos-latest
-            python-version: "3.13"
-            arch: x86_64
+          # - os: macos-latest
+          #   python-version: "3.13"
+          #   arch: arm64
+          # - os: macos-latest
+          #   python-version: "3.14"
+          #   arch: arm64
+          # - os: macos-latest
+          #   python-version: "3.12"
+          #   arch: x86_64
+          # - os: macos-latest
+          #   python-version: "3.13"
+          #   arch: x86_64
+          # - os: macos-latest
+          #   python-version: "3.14"
+          #   arch: x86_64
           - os: windows-latest
             python-version: "3.12"
             arch: x86_64
-          - os: windows-latest
-            python-version: "3.13"
-            arch: x86_64
+          # - os: windows-latest
+          #   python-version: "3.13"
+          #   arch: x86_64
+          # - os: windows-latest
+          #   python-version: "3.14"
+          #   arch: x86_64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -96,6 +108,7 @@ jobs:
         shell: bash -l {0}
         if: ${{ runner.os == 'macos' && matrix.arch == 'x86_64' }}
         run: |
+          set -x
           conda create --platform osx-64 -n build conda-build
           conda activate build
           arch -x86_64 conda build .github/conda \
@@ -108,6 +121,7 @@ jobs:
         shell: bash -l {0}
         if: ${{ runner.os != 'linux' && (runner.os != 'macos' || matrix.arch != 'x86_64') }}
         run: |
+          set -x
           conda create -n build conda-build
           conda activate build
           conda build .github/conda \
