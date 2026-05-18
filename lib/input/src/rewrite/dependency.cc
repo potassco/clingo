@@ -226,7 +226,7 @@ class Unifier {
             if (auto const *term = std::get_if<Term>(&arg); term != nullptr) {
                 return occurs_check_(name, *term);
             }
-            return false;
+            return true;
         });
     }
 

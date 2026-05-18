@@ -202,4 +202,15 @@ TEST_CASE("solve consequence", "[cxx][solve][consequence]") {
     }
 }
 
+TEST_CASE("solve bug project", "[cxx][solve][project]") {
+    auto lib = Library{};
+    auto ctl = Control{lib};
+    ctl.parse_string("c. { a(f(t)) }. d :- b. e(X) :- a(X). b :- c, e(f(X)). :- not b.");
+    ctl.ground();
+    auto models = std::vector<std::vector<std::string>>{};
+    auto mcb = MCB{models};
+    REQUIRE(ctl.solve({}, mcb).satisfiable());
+    REQUIRE(models == std::vector<std::vector<std::string>>{{"a(f(t))", "b", "c", "d", "e(f(t))"}});
+}
+
 } // namespace Clingo::Test
