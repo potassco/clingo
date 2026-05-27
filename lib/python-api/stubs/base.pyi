@@ -476,9 +476,13 @@ class TheoryElement:
         """
 
     @property
-    def condition_id(self) -> int:
+    def condition_id(self) -> int | None:
         """
         Get the condition id of a theory element.
+
+        True conditions do not have a condition id. A condition id is only valid for
+        the current solving step. However, they can be mapped to persistent solver
+        literals using `clingo.propagate.PropagateInit.solver_literal`.
         """
 
     @property

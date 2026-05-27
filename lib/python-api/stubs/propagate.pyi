@@ -461,9 +461,11 @@ class PropagateInit(PropagateControl):
                 The literal to freeze.
         """
 
-    def solver_literal(self, literal: int) -> int:
+    def solver_literal(self, literal: int | None) -> int:
         """
         Map the given program literal to a solver literal.
+
+        If the literal is `None`, the true solver literal is returned.
 
         Args:
             literal:
