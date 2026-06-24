@@ -14,9 +14,9 @@ To get started, check out our [Getting Started][quickstart] page or try the
 
 ## 📝 Resources
 
-- Online Demo: <https://potassco.org/clingo-preview/>
-- Python API Documentation: <https://potassco.org/clingo-preview/python-api/>
-- C/C++ API Documentation: <https://potassco.org/clingo-preview/c-api/>
+- Online Demo: <https://docs.potassco.org/clingo-preview/>
+- Python API Documentation: <https://docs.potassco.org/clingo-preview/python-api/>
+- C/C++ API Documentation: <https://docs.potassco.org/clingo-preview/c-api/>
 
 ## 📦 Binary Packages
 
@@ -173,12 +173,12 @@ After building, install the generated wheel file from the `dist` folder:
 pip install dist/clingo*.whl
 ```
 
-[demo]: https://potassco.org/clingo-preview/
+[demo]: https://docs.potassco.org/clingo-preview/
 [install]: https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html
 [Anaconda]: https://anaconda.org/potassco/clingo/
 [conda]: https://github.com/conda-forge/miniforge#install
 [potassco]: https://potassco.org/
-[quickstart]: https://potassco.org/doc/start/
+[quickstart]: https://potassco.org/guide/quickstart/
 [PyPI]: https://pypi.org/project/clingo/
 [Test PyPI]: https://test.pypi.org/project/clingo/
 [Cloudsmith]: https://cloudsmith.io/~potassco/
