@@ -249,8 +249,9 @@ class Control:
         self._error = _Error()
 
     def __del__(self):
-        if self._free:
+        if self._free and self._rep is not None:
             _lib.clingo_control_free(self._rep)
+            self._rep = None
 
     @overload
     def add(self, name: str, parameters: Sequence[str], program: str) -> None:

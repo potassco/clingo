@@ -714,7 +714,9 @@ class ASTSequence(abc.MutableSequence):
         return hash(tuple(self))
 
     def __del__(self):
-        _lib.clingo_ast_release(self._rep)
+        if self._rep is not None:
+            _lib.clingo_ast_release(self._rep)
+            self._rep = None
 
     def __len__(self) -> int:
         return _c_call(
@@ -807,7 +809,9 @@ class StrSequence(abc.MutableSequence):
         _lib.clingo_ast_acquire(self._rep)
 
     def __del__(self):
-        _lib.clingo_ast_release(self._rep)
+        if self._rep is not None:
+            _lib.clingo_ast_release(self._rep)
+            self._rep = None
 
     def __len__(self) -> int:
         return _c_call(
@@ -997,7 +1001,9 @@ class AST:
         return _lib.clingo_ast_hash(self._rep)
 
     def __del__(self):
-        _lib.clingo_ast_release(self._rep)
+        if self._rep is not None:
+            _lib.clingo_ast_release(self._rep)
+            self._rep = None
 
     def __getattr__(self, name):
         attr_id = _attribute_names.get(name)
