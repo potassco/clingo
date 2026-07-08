@@ -3,7 +3,10 @@
 ## clingo 5.8.1
 
 - flush files when using file-based backends
-- fix re2c detection
+- fix re2c detection (#591)
+- fix bound computation for integer variables (#626, #628)
+- fix segfaults during cleanup (#640)
+- update clasp fixing various issues (#622, #623)
 
 ## clingo 5.8.0
 
