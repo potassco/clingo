@@ -66,7 +66,9 @@ option(CLINGO_USE_LOCAL_CATCH
 ON)
 set(CLINGO_MAP_TYPE "hopscotch" CACHE STRING
 "Select hash table implementation. (sparse, hopscotch)")
-
+set(CLINGO_MAP_NUM_SHARDS "1" CACHE STRING
+"Set the number of shards for the global symbol table to improve concurrent \
+write performance.")
 
 # Python configuration
 set(CLINGO_BUILD_WITH_PYTHON "auto" CACHE STRING

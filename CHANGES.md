@@ -6,6 +6,8 @@
 - fix re2c detection (#591)
 - fix bound computation for integer variables (#626, #628)
 - fix segfaults during cleanup (#640)
+- fix concurrent creation of symbols and improve concurrent
+  reads/writes (#617)
 - update clasp fixing various issues (#622, #623)
 
 ## clingo 5.8.0
