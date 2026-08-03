@@ -8,7 +8,7 @@
 - fix segfaults during cleanup (#640)
 - fix concurrent creation of symbols and improve concurrent
   reads/writes (#617)
-- update clasp fixing various issues (#622, #623)
+- update clasp to version 3.4.1 fixing various issues (#622, #623)
 
 ## clingo 5.8.0
 
