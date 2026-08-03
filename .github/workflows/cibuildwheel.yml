@@ -78,6 +78,7 @@ jobs:
           - os: windows-2019
             name: "cp*-win*"
             env:
+              CIBW_ARCHS_WINDOWS: AMD64
               CIBW_BUILD: "cp*-win*"
           - os: macos-13
             name: "*-macos_x86_64"
