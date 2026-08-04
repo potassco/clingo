@@ -1,0 +1,46 @@
+# ------------------------------------------------------------------------------
+#  Copyright Christopher Kormanyos 2024.
+#  Distributed under the Boost Software License,
+#  Version 1.0. (See accompanying file LICENSE_1_0.txt
+#  or copy at http://www.boost.org/LICENSE_1_0.txt)
+# ------------------------------------------------------------------------------
+
+name: wide_integer_fuzzing
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+  schedule:
+    - cron: '0 2 * * *' # run at 2:00 AM UTC
+jobs:
+  clang-fuzzing:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [ clang++ ]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
+      - name: update-tools
+        run: sudo apt install llvm lld
+      - name: clone-submods-bootstrap-headers-boost-develop
+        run: |
+          git clone -b develop --depth 1 https://github.com/boostorg/boost.git ../boost-root
+          cd ../boost-root
+          git submodule update --init tools
+          git submodule update --init libs/config
+          git submodule update --init libs/multiprecision
+          ./bootstrap.sh
+          ./b2 headers
+      - name: clang-fuzzing
+        run: |
+          grep BOOST_VERSION ../boost-root/boost/version.hpp
+          ${{ matrix.compiler }} -v
+          echo "run fuzzing test"
+          ./run_fuzzing.sh
