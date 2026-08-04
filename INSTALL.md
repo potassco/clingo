@@ -19,14 +19,14 @@ precompiled packages for various package managers:
 <https://potassco.org/clingo/#packages>.
 
 - a C++14 conforming compiler
-  - *at least* [GCC](https://gcc.gnu.org/) version 4.9
+  - _at least_ [GCC](https://gcc.gnu.org/) version 4.9
   - [Clang](http://clang.llvm.org/) version 3.1 (using either libstdc++
     provided by gcc 4.9 or libc++)
-  - *at least* MSVC 15.0 ([Visual Studio](https://www.visualstudio.com/) 2017)
+  - _at least_ MSVC 15.0 ([Visual Studio](https://www.visualstudio.com/) 2017)
   - other compilers might work
 - the [cmake](https://www.cmake.org/) build system
   - at least version 3.18 is recommended
-  - at least version 3.10 is *required*
+  - at least version 3.10 is _required_
 
 ## Development Dependencies
 
@@ -34,20 +34,20 @@ The following dependencies are only required when compiling a development
 branch. Releases already include the necessary generated files.
 
 - the [bison](https://www.gnu.org/software/bison/) parser generator
-  - *at least* version 2.5
+  - _at least_ version 2.5
   - version 3.0 produces harmless warnings
     (to stay backwards-compatible)
 - the [re2c](https://re2c.org/) lexer generator
-  - *at least* version 1.1.1 is required
+  - _at least_ version 1.1.1 is required
 
 ## Optional Dependencies
 
 - the [Python](https://www.python.org/) script language and the
   [CFFI](https://cffi.readthedocs.io/) package
-  - *at least* Python version 3.6
+  - _at least_ Python version 3.6
   - at least CFFI 1.14 is required (earlier versions have not been tested)
 - the [Lua](https://www.lua.org/) script language
-  - *at least* Lua 5.1 is required
+  - _at least_ Lua 5.1 is required
 
 # Build, Install, and Test
 
@@ -94,7 +94,7 @@ The build scripts by default try to detect optional dependencies, like Python
 and Lua scripting support.
 
 Clingo uses [libpotassco](https://github.com/potassco/libpotassco) and
-[clasp](https://github.com/potassco/potassco).  Both components have their own
+[clasp](https://github.com/potassco/potassco). Both components have their own
 sets of configuration variables:
 
 - [building libpotassco](https://github.com/potassco/libpotassco#installation)
@@ -120,6 +120,10 @@ In the following, the most important options to control the build are listed.
 - Option `CLINGO_BUILD_TESTS` controls whether to build the clingo tests and
   enable the test target running unit as well as acceptance tests.
   (Default: `OFF`)
+- Variable `CLINGO_MAP_NUM_SHARDS` controls how many shards to use in clingo's
+  symbol maps. A higher number of shards can improve performance in
+  multi-threaded applications where a lot of symbols are written concurrently.
+  (Default: `1`)
 
 ### Python Support
 
