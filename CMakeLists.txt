@@ -66,7 +66,9 @@ option(CLINGO_USE_LOCAL_CATCH
 ON)
 set(CLINGO_MAP_TYPE "hopscotch" CACHE STRING
 "Select hash table implementation. (sparse, hopscotch)")
-
+set(CLINGO_MAP_NUM_SHARDS "1" CACHE STRING
+"Set the number of shards for the global symbol table to improve concurrent \
+write performance.")
 
 # Python configuration
 set(CLINGO_BUILD_WITH_PYTHON "auto" CACHE STRING
@@ -224,6 +226,16 @@ endif()
 if (Python_Development_FOUND AND Python_VERSION_MAJOR LESS 3)
     message(FATAL_ERROR "Clingo does not support Python 2.")
 endif()
+
+add_library(clingo_python_config INTERFACE)
+if(MSVC)
+    target_compile_definitions(clingo_python_config INTERFACE Py_NO_LINK_LIB)
+endif()
+get_filename_component(_py_lib_name "${Python_LIBRARY}" NAME_WE)
+if(_py_lib_name MATCHES "python[0-9]+[0-9]+t$")
+    target_compile_definitions(clingo_python_config INTERFACE Py_GIL_DISABLED)
+endif()
+
 if (CLINGO_BUILD_WITH_LUA)
     if (NOT CLINGO_BUILD_WITH_LUA STREQUAL "auto")
         find_package(Lua ${CLINGO_LUA_VERSION} REQUIRED)
@@ -237,7 +249,7 @@ if (CLINGO_BUILD_WITH_LUA)
     endif()
 endif()
 find_package(BISON "2.5")
-find_package(RE2C "0.101")
+find_package(RE2C "1.1")
 if (Python_Development_FOUND)
     # When using CFFI the clingo module has to be compiled with -pthread to
     # avoid linker errors

@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       wip:
-        description: 'Publish work in progress package.'
+        description: "Publish work in progress package."
         required: false
-        default: 'true'
+        default: "true"
 
 jobs:
   build_sdist:
@@ -38,48 +38,44 @@ jobs:
     name: Build ${{ matrix.cfg.name }} wheels
     runs-on: ${{ matrix.cfg.os }}
     strategy:
+      fail-fast: false
       matrix:
         cfg:
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "*-manylinux_x86_64"
             env:
               CIBW_ARCHS_LINUX: x86_64
               CIBW_BUILD: "*-manylinux*"
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "*-musllinux_x86_64"
             env:
               CIBW_ARCHS_LINUX: x86_64
               CIBW_BUILD: "*-musllinux*"
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "*-manylinux_i686"
             env:
               CIBW_ARCHS_LINUX: i686
               CIBW_BUILD: "*-manylinux*"
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "*-musllinux-i686"
             env:
               CIBW_ARCHS_LINUX: i686
               CIBW_BUILD: "*-musllinux*"
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "cp*-manylinux-aarch64"
             env:
               CIBW_ARCHS_LINUX: aarch64
               CIBW_BUILD: "cp*-manylinux*"
-          - os: ubuntu-20.04
-            name: "pp*-manylinux-aarch64"
-            env:
-              CIBW_ARCHS_LINUX: aarch64
-              CIBW_BUILD: "pp*-manylinux*"
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: "*-manylinux-ppc64le"
             env:
               CIBW_ARCHS_LINUX: ppc64le
               CIBW_BUILD: "*-manylinux*"
-          - os: windows-2019
+          - os: windows-latest
             name: "cp*-win*"
             env:
               CIBW_BUILD: "cp*-win*"
-          - os: macos-13
+          - os: macos-15-intel
             name: "*-macos_x86_64"
             env: {}
           - os: macos-14
@@ -106,7 +102,7 @@ jobs:
         run: python .github/adjust_version.py --release
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
+        uses: pypa/cibuildwheel@v4.1.1
         env: ${{ matrix.cfg.env }}
 
       - uses: actions/upload-artifact@v4
@@ -124,14 +120,14 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - uses: pypa/gh-action-pypi-publish@v1.5.0
+      - uses: pypa/gh-action-pypi-publish@v1.13.0
         if: ${{ github.event.inputs.wip == 'true' }}
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
           repository_url: https://test.pypi.org/legacy/
 
-      - uses: pypa/gh-action-pypi-publish@v1.5.0
+      - uses: pypa/gh-action-pypi-publish@v1.13.0
         if: ${{ github.event.inputs.wip == 'false' }}
         with:
           user: __token__

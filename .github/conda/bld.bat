@@ -1,9 +1,9 @@
 mkdir build
 
-cmake -G "Ninja" -H. -Bbuild ^
-    -DCMAKE_CXX_COMPILER="%CXX%" ^
-    -DCMAKE_C_COMPILER="%CC%" ^
-    -DCMAKE_BUILD_TYPE=Release ^
+if not defined CC set "CC=%BUILD_PREFIX%\Scripts\cl.exe"
+if not defined CXX set "CXX=%BUILD_PREFIX%\Scripts\cl.exe"
+
+cmake -G "Visual Studio 18 2026" -A x64 -H. -Bbuild ^
     -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
     -DPython_ROOT_DIR="%PREFIX%" ^
     -DPython_EXECUTABLE="%PYTHON%" ^
@@ -12,5 +12,5 @@ cmake -G "Ninja" -H. -Bbuild ^
     -DCLINGO_MANAGE_RPATH=OFF ^
     -DPYCLINGO_INSTALL="system"
 
-cmake --build build
-cmake --build build --target install
+cmake --build build --config Release
+cmake --build build --config Release --target install

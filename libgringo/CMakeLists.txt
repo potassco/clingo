@@ -138,6 +138,9 @@ if (CLINGO_MAP_TYPE STREQUAL "hopscotch")
 elseif (CLINGO_MAP_TYPE STREQUAL "sparse")
     target_compile_definitions(libgringo PUBLIC CLINGO_MAP_TYPE=1)
 endif()
+set_source_files_properties(
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/symbol.cc"
+  PROPERTIES COMPILE_DEFINITIONS "CLINGO_MAP_NUM_SHARDS=${CLINGO_MAP_NUM_SHARDS}")
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libgringo PUBLIC CLINGO_NO_VISIBILITY)
 endif()

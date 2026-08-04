@@ -379,7 +379,9 @@ void IESolver::compute() {
 
     // compute bounds
     bool changed = true;
+    auto n = ies_.size();
     while (changed) {
+        auto tightened = false;
         changed = false;
         for (auto const &ie : ies_) {
             slack_t slack = ie.bound;
@@ -408,9 +410,19 @@ void IESolver::compute() {
                                   << std::endl;
 #endif
                         changed = true;
+                        if (bounds_[term.variable].isBounded()) {
+                            tightened = true;
+                        }
                     }
                 }
             }
+        }
+        if (tightened) {
+            n = ies_.size() + 1;
+        } else if (n > 0) {
+            n -= 1;
+        } else {
+            changed = false;
         }
     }
 

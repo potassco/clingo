@@ -52,7 +52,7 @@
     WSNL       = [\t\r\n ]*;
     SIG        = WSNL ([-$])? WSNL IDENTIFIER WSNL "/" WSNL NUMBER WSNL ".";
     SCRIPT     = "#script";
-    THEORYOP   = [/!<=>+\-*\\?&@|:;~\^\.]+;
+    THEORYOP   = [/!<=>+\-*\\?&@|:;~^.]+;
     SUP        = "#sup"("remum")?;
     INF        = "#inf"("imum")?;
     KEYWORD    = "#" [a-zA-Z0-9_]*;
@@ -215,6 +215,7 @@ int NonGroundParser::lex_impl(void *pValue, Location &loc) {
             continue;
         }
         <comment> ANY { continue; }
+        <*> *         { lexerError(end(loc), Potassco::toSpan("<unexpected>", 12)); return 0; }
         */
     }
     assert(false);
@@ -230,6 +231,7 @@ StringSpan NonGroundParser::aspif_string_(Location &loc) {
         /*!re2c
         <aspif> NL  { aspif_error_(loc, format("expected non-newline character but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
         <aspif> ANY { continue; }
+        <*> *       { aspif_error_(loc, "unexpected lexer state"); }
         */
     }
     return string();
@@ -238,9 +240,12 @@ StringSpan NonGroundParser::aspif_string_(Location &loc) {
 StringSpan NonGroundParser::aspif_nonl_string_(Location &loc) {
     start(loc);
     char yych;
-    /*!re2c
-    <aspif> [^\n]* { return string(); }
-    */
+    for (;;) {
+        /*!re2c
+        <aspif> [^\n]* { break; }
+        <*> *          { aspif_error_(loc, "unexpected lexer state"); }
+        */
+    }
     return string();
 }
 
@@ -256,7 +261,8 @@ void NonGroundParser::aspif_preamble_(Location &loc) {
     for (;;) {
         /*!re2c
         <aspif> " incremental" / (NL | WS) { incremental = true; break; }
-        <aspif> "" / ANY                  { break; }
+        <aspif> "" / ANY                   { break; }
+        <*> *                              { aspif_error_(loc, "unexpected lexer state"); }
         */
     }
     aspif_nl_(loc);
@@ -266,9 +272,10 @@ void NonGroundParser::aspif_ws_(Location &loc) {
     start(loc);
     char yych;
     /*!re2c
-    <aspif> WS       { return; }
-    <aspif> NL       { aspif_error_(loc, format("expected <SPACE> but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
-    <aspif> NOWSNL+  { aspif_error_(loc, format("expected <SPACE> but got ", string()).c_str()); }
+    <aspif> WS      { return; }
+    <aspif> NL      { aspif_error_(loc, format("expected <SPACE> but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <aspif> NOWSNL+ { aspif_error_(loc, format("expected <SPACE> but got ", string()).c_str()); }
+    <*> *           { aspif_error_(loc, "unexpected lexer state"); }
     */
 }
 
@@ -282,8 +289,9 @@ void NonGroundParser::aspif_eof_(Location &loc) {
         }
         aspif_error_(loc, format("expected <EOF> but got <EOL>").c_str());
     }
-    <aspif> WS       { aspif_error_(loc, format("expected <EOF> but got <SPACE>").c_str()); }
-    <aspif> NOWSNL+  { aspif_error_(loc, format("expected <EOF> but got ", string()).c_str()); }
+    <aspif> WS      { aspif_error_(loc, format("expected <EOF> but got <SPACE>").c_str()); }
+    <aspif> NOWSNL+ { aspif_error_(loc, format("expected <EOF> but got ", string()).c_str()); }
+    <*> *           { aspif_error_(loc, "unexpected lexer state"); }
     */
 }
 
@@ -298,8 +306,9 @@ void NonGroundParser::aspif_nl_(Location &loc) {
         step();
         return;
     }
-    <aspif> WS       { aspif_error_(loc, format("expected <EOL> but got <SPACE>").c_str()); }
-    <aspif> NOWSNL+  { aspif_error_(loc, format("expected <EOL> but got ", string()).c_str()); }
+    <aspif> WS      { aspif_error_(loc, format("expected <EOL> but got <SPACE>").c_str()); }
+    <aspif> NOWSNL+ { aspif_error_(loc, format("expected <EOL> but got ", string()).c_str()); }
+    <*> *           { aspif_error_(loc, "unexpected lexer state"); }
     */
 }
 
@@ -311,6 +320,7 @@ int32_t NonGroundParser::aspif_signed_(Location &loc) {
     <aspif> NL       { aspif_error_(loc, format("expected unsigned integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
     <aspif> WS       { aspif_error_(loc, "expected unsigned integer but got <SPACE>"); }
     <aspif> NOWSNL+  { aspif_error_(loc, format("expected unsigned integer but got token ", string()).c_str()); }
+    <*> *            { aspif_error_(loc, "unexpected lexer state"); }
     */
     return 0;
 }
@@ -319,10 +329,11 @@ uint32_t NonGroundParser::aspif_unsigned_(Location &loc) {
     start(loc);
     char yych;
     /*!re2c
-    <aspif> DEC      { return unsigned_integer(); }
-    <aspif> NL       { aspif_error_(loc, format("expected integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
-    <aspif> WS       { aspif_error_(loc, "expected integer but got <SPACE>"); }
-    <aspif> NOWSNL+  { aspif_error_(loc, format("expected integer but got token ", string()).c_str()); }
+    <aspif> DEC     { return unsigned_integer(); }
+    <aspif> NL      { aspif_error_(loc, format("expected integer but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <aspif> WS      { aspif_error_(loc, "expected integer but got <SPACE>"); }
+    <aspif> NOWSNL+ { aspif_error_(loc, format("expected integer but got token ", string()).c_str()); }
+    <*> *           { aspif_error_(loc, "unexpected lexer state"); }
     */
     return 0;
 
@@ -332,10 +343,11 @@ void NonGroundParser::aspif_asp_(Location &loc) {
     start(loc);
     char yych;
     /*!re2c
-    <aspif> "asp"    { return; }
-    <aspif> NL       { aspif_error_(loc, format("expected 'asp' but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
-    <aspif> WS       { aspif_error_(loc, "expected 'asp' but got <SPACE>"); }
-    <aspif> NOWSNL+  { aspif_error_(loc, format("expected 'asp' but got token ", string()).c_str()); }
+    <aspif> "asp"   { return; }
+    <aspif> NL      { aspif_error_(loc, format("expected 'asp' but got ", eof() ? "<EOF>" : "<EOL>").c_str()); }
+    <aspif> WS      { aspif_error_(loc, "expected 'asp' but got <SPACE>"); }
+    <aspif> NOWSNL+ { aspif_error_(loc, format("expected 'asp' but got token ", string()).c_str()); }
+    <*> *           { aspif_error_(loc, "unexpected lexer state"); }
     */
 }
 

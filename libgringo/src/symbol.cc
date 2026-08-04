@@ -23,11 +23,18 @@
 // }}}
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <gringo/hash_set.hh>
+#include <gringo/shared_mutex.hh>
 #include <gringo/symbol.hh>
 #include <iterator>
 #include <mutex>
+#include <shared_mutex>
+
+#ifndef CLINGO_MAP_NUM_SHARDS
+#define CLINGO_MAP_NUM_SHARDS 1
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(disable : 4200) // nonstandard extension used: zero-sized array in struct/union
@@ -41,6 +48,9 @@ namespace {
 
 constexpr const uint16_t upperMax = std::numeric_limits<uint16_t>::max();
 constexpr const uint16_t lowerMax = 3;
+constexpr const size_t num_shards = CLINGO_MAP_NUM_SHARDS;
+
+static_assert(num_shards > 0, "num_shards must be greater than 0");
 
 uint16_t upper(uint64_t rep) { return rep >> 48; }
 
@@ -80,30 +90,34 @@ String toString(uint64_t rep) { return String::fromRep(ptr(rep)); }
 template <class T> struct UniqueConstruct {
   public:
     using Set = hash_set<T, typename T::Hash, typename T::EqualTo>;
+    using Arr = std::array<std::pair<Set, SharedMutex>, num_shards>;
 
-    template <class U> static T const &construct(U &&x) {
-        // TODO: in C++17 this can use a read/write lock to not block reading threads
+    template <class U> static auto construct(U &&x) {
         size_t hash = typename T::Hash{}(x);
-        std::lock_guard<std::mutex> g(mutex_);
-        auto it = set_.find(x, hash);
-        if (it != set_.end()) {
-            return *it;
+        size_t shard = hash % num_shards;
+        auto &set = arr_[shard].first;
+        auto &mut = arr_[shard].second;
+        {
+            auto lock = std::shared_lock<SharedMutex>{mut};
+            auto it = set.find(x, hash);
+            if (it != set.end()) {
+                return it->get();
+            }
         }
-        return *set_.insert(T{std::forward<U>(x), hash}).first;
+        auto val = T{std::forward<U>(x), hash};
+        {
+            auto lock = std::unique_lock<SharedMutex>{mut};
+            return set.insert(std::move(val)).first->get();
+        }
     }
 
   private:
-    static Set set_;          // NOLINT
-    static std::mutex mutex_; // NOLINT
+    static Arr arr_;
 };
 
-template <class T> typename UniqueConstruct<T>::Set UniqueConstruct<T>::set_; // NOLINT
+template <class T> typename UniqueConstruct<T>::Arr UniqueConstruct<T>::arr_; // NOLINT
 
-template <class T> typename std::mutex UniqueConstruct<T>::mutex_; // NOLINT
-
-template <class T, class U> T const &construct_unique(U &&x) {
-    return UniqueConstruct<T>::construct(std::forward<U>(x));
-}
+template <class T, class U> auto construct_unique(U &&x) { return UniqueConstruct<T>::construct(std::forward<U>(x)); }
 
 // {{{1 definition of USig
 
@@ -122,30 +136,36 @@ class MSig {
         }
     };
 
-    explicit MSig(Cons const &cons, size_t hash) : sig_{cons.first, cons.second}, hash_{hash} {}
+    explicit MSig(Cons const &cons, size_t hash) : sig_{std::make_unique<Cons>(cons)}, hash_{hash} {}
+    MSig() = delete;
+    MSig(MSig const &other) = delete;
+    MSig(MSig &&other) noexcept = default;
+    MSig &operator=(MSig const &other) = delete;
+    MSig &operator=(MSig &&other) noexcept = default;
+    ~MSig() noexcept = default;
 
-    Cons const &as_sig() const { return sig_; }
+    Cons const *get() const { return sig_.get(); }
 
   private:
-    static String name(MSig const &a) { return a.sig_.first; }
+    static String name(MSig const &a) { return a.sig_->first; }
 
     static String name(Cons const &a) { return a.first; }
 
-    static uint32_t arity(MSig const &a) { return a.sig_.second; }
+    static uint32_t arity(MSig const &a) { return a.sig_->second; }
 
     static uint32_t arity(Cons const &a) { return a.second; }
 
-    std::pair<String, uint32_t> sig_;
+    std::unique_ptr<std::pair<String, uint32_t>> sig_;
     size_t hash_;
 };
 
 uint64_t encodeSig(String name, uint32_t arity, bool sign) {
     uint8_t isign = sign ? 1 : 0;
-    return arity < upperMax ? combine(arity, String::toRep(name), isign)
-                            : combine(upperMax,
-                                      reinterpret_cast<uintptr_t>(
-                                          &construct_unique<MSig>(std::make_pair(name, arity)).as_sig()), // NOLINT
-                                      isign);
+    return arity < upperMax
+               ? combine(arity, String::toRep(name), isign)
+               : combine(upperMax,
+                         reinterpret_cast<uintptr_t>(construct_unique<MSig>(std::make_pair(name, arity))), // NOLINT
+                         isign);
 }
 
 // {{{1 definition of Fun
@@ -219,7 +239,7 @@ class MFun {
         }
     }
 
-    Fun const &as_fun() const { return *fun_; }
+    Fun const *get() const { return fun_; }
 
   private:
     static Sig sig(MFun const &a) { return a.fun_->sig(); }
@@ -291,13 +311,13 @@ class String::Impl::MString {
     };
     struct EqualTo {
         using is_transparent = void;
-        bool operator()(MString const &a, char const *b) const { return std::strcmp(a.as_impl()->str(), b) == 0; }
+        bool operator()(MString const &a, char const *b) const { return std::strcmp(a.get()->str(), b) == 0; }
         bool operator()(MString const &a, StringSpan const &span_b) const {
-            auto const *str_a = a.as_impl()->str();
+            auto const *str_a = a.get()->str();
             StringSpan span_a = {str_a, std::strlen(str_a)};
             return span_a.size == span_b.size && std::equal(begin(span_a), end(span_a), begin(span_b));
         }
-        bool operator()(MString const &a, MString const &b) const { return operator()(a, b.as_impl()->str()); }
+        bool operator()(MString const &a, MString const &b) const { return operator()(a, b.get()->str()); }
         bool operator()(char const *a, MString const &b) const { return operator()(b, a); }
         bool operator()(StringSpan const &a, MString const &b) const { return operator()(b, a); }
     };
@@ -318,15 +338,15 @@ class String::Impl::MString {
         }
     }
 
-    Impl *as_impl() const { return str_; }
+    Impl *get() const { return str_; }
 
   private:
     String::Impl *str_ = nullptr;
 };
 
-String::String(char const *str) : str_(construct_unique<Impl::MString>(str).as_impl()) {}
+String::String(char const *str) : str_(construct_unique<Impl::MString>(str)) {}
 
-String::String(StringSpan str) : str_(construct_unique<Impl::MString>(str).as_impl()) {}
+String::String(StringSpan str) : str_(construct_unique<Impl::MString>(str)) {}
 
 String::String(uintptr_t r) noexcept : str_(reinterpret_cast<Impl *>(r)) {} // NOLINT
 
@@ -419,14 +439,11 @@ Symbol Symbol::createStr(String val) {
 Symbol Symbol::createTuple(SymSpan args) { return createFun("", args, false); }
 
 Symbol Symbol::createFun(String name, SymSpan args, bool sign) {
-    return args.size != 0
-               ? Symbol(combine(static_cast<uint16_t>(SymbolType_::Fun),
-                                reinterpret_cast<uintptr_t>(
-                                    &construct_unique<MFun>(
-                                         std::make_pair(Sig(name, numeric_cast<uint32_t>(args.size), sign), args))
-                                         .as_fun()), // NOLINT
-                                0))
-               : createId(name, sign);
+    return args.size != 0 ? Symbol(combine(static_cast<uint16_t>(SymbolType_::Fun),
+                                           reinterpret_cast<uintptr_t>(construct_unique<MFun>(std::make_pair(
+                                               Sig(name, numeric_cast<uint32_t>(args.size), sign), args))), // NOLINT
+                                           0))
+                          : createId(name, sign);
 }
 
 // {{{2 inspection
