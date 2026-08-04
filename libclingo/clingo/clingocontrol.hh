@@ -392,7 +392,14 @@ class ClingoModel : public Model {
         return Potassco::toSpan(atms_);
     }
     Int64Vec optimization() const override {
-        return model_->costs ? Int64Vec(model_->costs->begin(), model_->costs->end()) : Int64Vec();
+        Int64Vec ret;
+        if (model_->costs) {
+            ret.reserve(model_->costs->size());
+            for (auto cost : *model_->costs) {
+                ret.emplace_back(cost);
+            }
+        }
+        return ret;
     }
     std::vector<Potassco::Weight_t> priorities() const override {
         std::vector<Potassco::Weight_t> ret;
