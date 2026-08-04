@@ -3,7 +3,7 @@ mkdir build
 if not defined CC set "CC=%BUILD_PREFIX%\Scripts\cl.exe"
 if not defined CXX set "CXX=%BUILD_PREFIX%\Scripts\cl.exe"
 
-cmake -G "Visual Studio 17 2022" -A x64 -H. -Bbuild ^
+cmake -G "Visual Studio 18 2026" -A x64 -H. -Bbuild ^
     -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
     -DPython_ROOT_DIR="%PREFIX%" ^
     -DPython_EXECUTABLE="%PYTHON%" ^

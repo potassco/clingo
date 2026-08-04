@@ -38,6 +38,7 @@ jobs:
     name: Build ${{ matrix.cfg.name }} wheels
     runs-on: ${{ matrix.cfg.os }}
     strategy:
+      fail-fast: false
       matrix:
         cfg:
           - os: ubuntu-latest
@@ -66,11 +67,6 @@ jobs:
               CIBW_ARCHS_LINUX: aarch64
               CIBW_BUILD: "cp*-manylinux*"
           - os: ubuntu-latest
-            name: "pp*-manylinux-aarch64"
-            env:
-              CIBW_ARCHS_LINUX: aarch64
-              CIBW_BUILD: "pp*-manylinux*"
-          - os: ubuntu-latest
             name: "*-manylinux-ppc64le"
             env:
               CIBW_ARCHS_LINUX: ppc64le
@@ -79,7 +75,7 @@ jobs:
             name: "cp*-win*"
             env:
               CIBW_BUILD: "cp*-win*"
-          - os: macos-13
+          - os: macos-15-intel
             name: "*-macos_x86_64"
             env: {}
           - os: macos-14
@@ -106,7 +102,7 @@ jobs:
         run: python .github/adjust_version.py --release
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
+        uses: pypa/cibuildwheel@v4.1.1
         env: ${{ matrix.cfg.env }}
 
       - uses: actions/upload-artifact@v4

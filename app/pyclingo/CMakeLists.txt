@@ -40,7 +40,7 @@ if (CLINGO_BUILD_WITH_PYTHON STREQUAL "pip")
 else()
     add_library(pyclingo MODULE ${source})
 endif()
-target_link_libraries(pyclingo PRIVATE libclingo Python::Module)
+target_link_libraries(pyclingo PRIVATE libclingo clingo_python_config Python::Module)
 # NOTE: It would be really nice to enable the limited API for the pip packages
 # to avoid having to build Python-specific wheels. Unfortunately, this fails to
 # build on conda on Windows then. Since supporting conda is important, it is

@@ -33,6 +33,8 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           activate-environment: build
+          channels: conda-forge
+          channel-priority: strict
 
       - name: Install prerequisites
         shell: pwsh
