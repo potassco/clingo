@@ -1932,7 +1932,7 @@ void UnOpTerm::collectIds(VarSet &vars) const { arg_->collectIds(vars); }
 
 UTerm UnOpTerm::replace(Defines &defs, bool replace) {
     static_cast<void>(replace);
-    Term::replace(arg_, arg_->replace(defs, true));
+    Term::replace(arg_, arg_->replace(defs, replace || op_ != UnOp::NEG));
     return nullptr;
 }
 
