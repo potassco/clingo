@@ -899,6 +899,12 @@ auto convert(clingo_ast_t const *ast) -> T {
         case clingo_ast_type_statement_show_signature: {
             return ast->cast<CppClingo::Input::StmShowSig>();
         }
+        case clingo_ast_type_statement_project: {
+            return ast->cast<CppClingo::Input::StmProject>();
+        }
+        case clingo_ast_type_statement_project_signature: {
+            return ast->cast<CppClingo::Input::StmProjectSig>();
+        }
         case clingo_ast_type_statement_defined: {
             return ast->cast<CppClingo::Input::StmDefined>();
         }
