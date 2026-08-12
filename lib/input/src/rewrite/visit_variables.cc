@@ -68,6 +68,13 @@ class VisitVariables : public Visitor<VisitVariables> {
         visit(lit.lhs(), lit.rhs());
     }
 
+    void accept(BdLitSort const &lit) const {
+        if (ctx == VariableContext::all) {
+            visit(lit.elems());
+        }
+        visit(lit.outputs());
+    }
+
     // statement
 
     void accept(StmOptimize const &stm) const {

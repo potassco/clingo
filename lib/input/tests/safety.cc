@@ -41,6 +41,11 @@ TEST_CASE("check_safety") {
     REQUIRE(cs_stm("h :- Z >= #count{ X: not q(X), X=Y}; p(Y); not q(Z).") == "<unsafe>");
     REQUIRE(cs_stm("h :- Z = #count{ X,Z: not q(X), X=Y}; p(Y); not q(Z).") == "<unsafe>");
     //
+    REQUIRE(cs_stm("h(X,Y) :- (X,Y) = #sort{ Z: p(Z)}.") == "h(X,Y) :- (X,Y) = #sort { Z: p(Z) }., U");
+    REQUIRE(cs_stm("h(K,X,Y) :- (X,Y) = #sort{ Z: p(K,Z)}; key(K).") ==
+            "h(K,X,Y) :- key(K); (X,Y) = #sort { Z: p(K,Z) }., C");
+    REQUIRE(cs_stm("h(K,X,Y) :- (X,Y) = #sort{ Z: p(K,Z)}.") == "<unsafe>");
+    //
     REQUIRE(cs_stm("h :- &count(Y) { X: not q(X), X=Y} >= Y; p(Y).") ==
             "h :- p(Y); &count(Y) { X: X=Y, not q(X) } >= Y., C");
     REQUIRE(cs_stm("h :- &count(Z) { X: not q(X), X=Y} >= Y; p(Y).") == "<unsafe>");

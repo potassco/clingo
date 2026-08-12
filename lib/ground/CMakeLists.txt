@@ -14,6 +14,7 @@ set(header-group-clingo-ground
     "include/clingo/ground/program.hh"
     "include/clingo/ground/script.hh"
     "include/clingo/ground/statement.hh"
+    "include/clingo/ground/sort.hh"
     "include/clingo/ground/term.hh"
     "include/clingo/ground/theory_atom.hh"
     "include/clingo/ground/theory_term.hh")
@@ -35,6 +36,7 @@ set(source-group
     "src/matcher.cc"
     "src/profile.cc"
     "src/statement.cc"
+    "src/sort.cc"
     "src/term.cc"
     "src/theory_atom.cc"
     "src/theory_term.cc")

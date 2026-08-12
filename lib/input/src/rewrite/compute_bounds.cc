@@ -583,6 +583,14 @@ class ComputeBounds {
         return {true, lit.rewrite(a_elems = std::move(res_elems))};
     }
 
+    auto operator()(BdLitSort const &lit) -> Util::ResultState<BdLit> {
+        auto res_elems = Util::ResultVec{lit.elems()};
+        for (auto const &elem : lit.elems()) {
+            compute_bounds_elem(elem, res_elems);
+        }
+        return {true, lit.rewrite(a_elems = std::move(res_elems))};
+    }
+
     // statements
 
     template <class T, class F> auto compute_bounds_body(T const &stm, F &&fun) -> Util::ResultState<Stm> {

@@ -27,7 +27,7 @@ struct AddSign {
     }
 
     template <class L>
-        requires Util::is_among_v<L, BdLitAggregate, BdLitSetAggregate, BdLitTheoryAtom>
+        requires Util::is_among_v<L, BdLitAggregate, BdLitSort, BdLitSetAggregate, BdLitTheoryAtom>
     auto operator()(L const &lit) const -> BdLit {
         return lit.update(a_loc = lit.loc() + pos, a_sign = lit.sign() + sign);
     }

@@ -173,6 +173,20 @@ template <class CB> class MakeNode {
         std::invoke(cb_, std::move(provide), std::move(depend), false);
     }
 
+    void operator()(BdLitSort const &lit, bool can_provide) {
+        VariableVec provide;
+        VariableVec depend;
+        GetDep{*provided_, provide, depend}(lit.outputs(), can_provide && lit.sign() == Sign::none);
+        for (auto const &elem : lit.elems()) {
+            visit_variables(elem, [this, &depend]([[maybe_unused]] Location const &loc, auto const &var) {
+                if (global_->contains(var)) {
+                    depend.emplace_back(var);
+                }
+            });
+        }
+        std::invoke(cb_, std::move(provide), std::move(depend), false);
+    }
+
     void operator()([[maybe_unused]] BdLitSetAggregate const &lit, [[maybe_unused]] bool can_provide) {
         throw std::runtime_error("unpool must be called before safety checking");
     }
@@ -390,6 +404,10 @@ class CheckLocal {
     }
 
     auto operator()(BdLitAggregate const &lit) const -> Util::ResultState<BdLit> {
+        return handle_elems<BdLit>(lit, a_tuple);
+    }
+
+    auto operator()(BdLitSort const &lit) const -> Util::ResultState<BdLit> {
         return handle_elems<BdLit>(lit, a_tuple);
     }
 

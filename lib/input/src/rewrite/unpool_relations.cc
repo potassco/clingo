@@ -205,6 +205,14 @@ class ShiftBody {
         }
     }
 
+    void operator()(BdLitSort const &lit) const {
+        auto res_elems = Util::ResultVec{lit.elems()};
+        for (auto const &elem : lit.elems()) {
+            res_elems.update(elem.rewrite(a_cond = unpool_conjunctive(elem.cond())));
+        }
+        body_->update(lit.rewrite(a_elems = std::move(res_elems)));
+    }
+
     void operator()(BdLitTheoryAtom const &atom) const { body_->update(atom.rewrite(a_elems = shift(atom.elems()))); }
 
   private:
@@ -303,6 +311,16 @@ struct UnpoolHeadBody {
     }
 
     auto operator()(BdLitAggregate const &lit) const -> std::optional<std::vector<BdLit>> {
+        auto unpool_elem = [](BdLitAggregateElement const &elem) {
+            return unpool_rewrite<BdLitAggregateElement>(elem, unpool_disjunctive, a_cond);
+        };
+        if (auto res_elems = unpool_union(lit.elems(), unpool_elem); res_elems) {
+            return Util::make_vec<BdLit>(lit.update(a_elems = *std::move(res_elems)));
+        }
+        return std::nullopt;
+    }
+
+    auto operator()(BdLitSort const &lit) const -> std::optional<std::vector<BdLit>> {
         auto unpool_elem = [](BdLitAggregateElement const &elem) {
             return unpool_rewrite<BdLitAggregateElement>(elem, unpool_disjunctive, a_cond);
         };
