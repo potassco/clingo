@@ -1,5 +1,10 @@
 # Changes
 
+## clingo 5.8.2
+
+- fix cleanup of AST nodes (#652)
+- fix constant replacement for classical negation (#649)
+
 ## clingo 5.8.1
 
 - flush files when using file-based backends
