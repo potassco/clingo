@@ -984,8 +984,10 @@ class AST:
     possible to construct ASTs that are not parsable, though.
     """
 
+    __slots__ = ("_rep",)
+
     def __init__(self, rep):
-        super().__setattr__("_rep", rep)
+        object.__setattr__(self, "_rep", rep)
 
     def __eq__(self, other):
         if not isinstance(other, AST):
@@ -1003,7 +1005,7 @@ class AST:
     def __del__(self):
         if self._rep is not None:
             _lib.clingo_ast_release(self._rep)
-            self._rep = None
+            object.__setattr__(self, "_rep", None)
 
     def __getattr__(self, name):
         attr_id = _attribute_names.get(name)
