@@ -36,30 +36,29 @@ jobs:
         with:
           submodules: recursive
 
-      - name: setup miniconda
-        uses: conda-incubator/setup-miniconda@v3
+      - uses: mamba-org/setup-micromamba@v3
         with:
-          auto-update-conda: true
-          activate-environment: clingo
-          python-version: ${{ matrix.python-version }}
           environment-file: ${{ matrix.env_file }}
+          init-shell: bash powershell
+          cache-environment: true
+          post-cleanup: "all"
 
       - name: print info
-        shell: bash -l {0}
+        shell: bash -el {0}
         run: |
           env
-          conda info
-          conda list
+          micromamba info
+          micromamba list
           python -m site
 
       - name: fix cffi
         if: runner.os == 'macOS'
-        shell: bash -l {0}
+        shell: bash -el {0}
         run: |
           pip install cffi --force
 
       - name: build and test
-        shell: bash -l {0}
+        shell: bash -el {0}
         run: >
           PYTHONHOME=$CONDA_PREFIX
           ctest
