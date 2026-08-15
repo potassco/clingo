@@ -19,7 +19,7 @@
 #if GRINGO_PLATFORM_WINDOWS
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
-#include <Windows.h>
+#include <windows.h>
 #elif GRINGO_PLATFORM_POSIX
 #include <pthread.h>
 #else
