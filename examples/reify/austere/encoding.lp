@@ -14,8 +14,8 @@ body(sum(B,G))  :- rule(_,sum(B,G)),
 #show T : output(T,B), conjunction(B).
 
 % atoms that occur negated
-atom(L) :-          literal_tuple(B,-L), L > 0.
-atom(L) :- weighted_literal_tuple(B,-L), L > 0.
+atom(L) :-          literal_tuple(B,-L),   L > 0.
+atom(L) :- weighted_literal_tuple(B,-L,_), L > 0.
 
 % open fresh atoms, and constrain their truth value
 { nhold(L) } :- atom(L).
