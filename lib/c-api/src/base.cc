@@ -1,5 +1,6 @@
 #include <clingo/base.h> // IWYU pragma: export
 
+#include <clingo/core/backend.hh>
 #include <clingo/ground/base.hh>
 
 #include <potassco/theory_data.h>
@@ -214,7 +215,7 @@ extern "C" auto clingo_base_is_fact(clingo_base_t const *atoms, clingo_literal_t
         if (atoms == nullptr || is_fact == nullptr) {
             return fail_arguments();
         }
-        *is_fact = get_program(atoms).isFact(std::abs(literal));
+        *is_fact = get_program(atoms).isFact(CppClingo::Literal::from_rep(literal).atom().index());
     }
     CLINGO_CATCH;
 }
@@ -224,7 +225,7 @@ extern "C" auto clingo_base_is_shown(clingo_base_t const *atoms, clingo_literal_
         if (atoms == nullptr || is_shown == nullptr) {
             return fail_arguments();
         }
-        *is_shown = get_program(atoms).isShown(std::abs(literal));
+        *is_shown = get_program(atoms).isShown(CppClingo::Literal::from_rep(literal).atom().index());
     }
     CLINGO_CATCH;
 }
@@ -235,7 +236,7 @@ extern "C" auto clingo_base_is_projected(clingo_base_t const *atoms, clingo_lite
         if (atoms == nullptr || is_projected == nullptr) {
             return fail_arguments();
         }
-        *is_projected = get_program(atoms).isProjected(std::abs(literal));
+        *is_projected = get_program(atoms).isProjected(CppClingo::Literal::from_rep(literal).atom().index());
     }
     CLINGO_CATCH;
 }
@@ -246,7 +247,7 @@ extern "C" auto clingo_base_is_external(clingo_base_t const *atoms, clingo_liter
         if (atoms == nullptr || is_external == nullptr) {
             return fail_arguments();
         }
-        *is_external = get_program(atoms).isExternal(std::abs(literal));
+        *is_external = get_program(atoms).isExternal(CppClingo::Literal::from_rep(literal).atom().index());
     }
     CLINGO_CATCH;
 }
@@ -256,7 +257,7 @@ extern "C" auto clingo_base_is_current(clingo_base_t const *atoms, clingo_litera
         if (atoms == nullptr || is_current == nullptr) {
             return fail_arguments();
         }
-        auto atom = static_cast<clingo_atom_t>(std::abs(literal));
+        auto atom = CppClingo::Literal::from_rep(literal).atom().index();
         *is_current = get_program(atoms).isNew(atom);
     }
     CLINGO_CATCH;
