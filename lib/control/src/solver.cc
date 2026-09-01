@@ -893,12 +893,17 @@ class Solver::AspifBackend : public ProgramBackend, public TheoryBackend {
     //! just been added and received the same literal as the one given in the
     //! aspif output.
     void do_show_atom(Symbol sym, prg_lit_t lit) override {
+        // The aspif parser guarantees that shown atoms are given as positive
+        // literals; this is the sole signed literal fed into AtomBase::add
+        // (which mints an Atom from it), so make the invariant explicit here.
+        assert(lit > 0);
         auto sig = sym.signature();
         if (!sig) {
             throw std::runtime_error{"unexpected symbol for atom in aspif file"};
         }
         auto &base = solver_->grd_.base().add_base(*sig);
         auto it = base.add(sym, Ground::StateAtom::derived, [lit]() { return lit; }).first;
+        // Sign-safe: lit is validated positive above, so this is a plain atom-id comparison.
         if (it->second.id != Atom::from_rep(static_cast<prg_atom_t>(lit))) {
             throw std::runtime_error{"redefinition of atom in aspif file"};
         }
