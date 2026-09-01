@@ -251,6 +251,7 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     virtual void do_term_id(Symbol sym, prg_id_t id) = 0;
 
     auto as_atom_(Literal lit) -> Potassco::Atom_t {
+        assert(!lit.sign());
         auto atom = lit.atom();
         max_lit_ = std::max(max_lit_, static_cast<prg_lit_t>(atom.index()));
         return static_cast<Potassco::Atom_t>(atom.index());
