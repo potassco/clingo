@@ -72,6 +72,7 @@ class small_vector {
         } else {
             std::ranges::copy(first, last, std::back_inserter(*this));
         }
+        check_invariant_();
     }
 
     //! Copy assign the vector.
@@ -97,6 +98,7 @@ class small_vector {
                 std::ranges::swap(cap_large_(), other.cap_large_());
             }
         }
+        check_invariant_();
         return *this;
     }
 
@@ -113,6 +115,10 @@ class small_vector {
     }
 
     //! Get the size of the vector.
+    //!
+    //! In the large state this is the distance from the buffer start to the
+    //! `end` boundary -- contrast capacity(), which measures to the `cap`
+    //! boundary.
     [[nodiscard]] auto size() const -> size_t {
         if (is_small_()) {
             return size_small_();
@@ -124,11 +130,15 @@ class small_vector {
     [[nodiscard]] auto empty() const -> bool { return size() == 0; }
 
     //! Get the capacity of the vector.
+    //!
+    //! In the large state this is the distance from the buffer start to the
+    //! `cap` boundary -- the allocated space -- not the `end` boundary that
+    //! size() reads.
     [[nodiscard]] auto capacity() const -> size_t {
         if (is_small_()) {
             return N;
         }
-        return std::ranges::distance(begin_large_(), end_large_());
+        return std::ranges::distance(begin_large_(), cap_large_());
     }
 
     //! Get an iterator to the beginning of the vector.
@@ -196,6 +206,7 @@ class small_vector {
             end_large_() = std::ranges::next(begin_large_(), l);
             cap_large_() = std::ranges::next(begin_large_(), n);
         }
+        check_invariant_();
     }
 
     //! Get the first element in the vector.
@@ -231,6 +242,7 @@ class small_vector {
         } else {
             std::ranges::advance(end_large_(), -1);
         }
+        check_invariant_();
         return it;
     }
 
@@ -246,6 +258,7 @@ class small_vector {
                 std::ranges::advance(last, -n);
             }
         }
+        check_invariant_();
         return last;
     }
 
@@ -265,6 +278,7 @@ class small_vector {
         } else {
             std::ranges::advance(end_large_(), 1);
         }
+        check_invariant_();
     }
 
     //! Emplace an element after the last element.
@@ -276,6 +290,7 @@ class small_vector {
         } else {
             std::advance(end_large_(), 1);
         }
+        check_invariant_();
     }
 
     //! Append an element after the last element.
@@ -290,6 +305,7 @@ class small_vector {
         } else {
             std::advance(end_large_(), -1);
         }
+        check_invariant_();
     }
 
     //! Clear the vector.
@@ -298,6 +314,7 @@ class small_vector {
     void clear() noexcept {
         destroy_();
         begin_ = 1;
+        check_invariant_();
     }
 
     //! Deconstruct the vector.
@@ -331,6 +348,20 @@ class small_vector {
     [[nodiscard]] auto is_small_() const -> bool { return (begin_ & 1) != 0; }
     [[nodiscard]] auto size_small_() const -> size_t { return begin_ >> 1; }
     [[nodiscard]] auto size_small_(size_t n) { begin_ = (n << 1) | 1; }
+
+    //! Assert the storage invariant that every mutator must preserve: in the
+    //! large state `begin <= end <= cap`, i.e. `size() <= capacity()`; in the
+    //! small state `size() <= N`. Checked directly on the raw boundary pointers
+    //! -- not through size()/capacity() -- so that an end/cap mix-up in a reader
+    //! cannot hide from it. Debug-only: expands to nothing under -DNDEBUG.
+    void check_invariant_() const {
+        if (is_small_()) {
+            assert(size_small_() <= N);
+        } else {
+            assert(begin_large_() <= end_large_());
+            assert(end_large_() <= cap_large_());
+        }
+    }
 
     void destroy_() noexcept {
         std::destroy(begin(), end());
