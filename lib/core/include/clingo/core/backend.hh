@@ -73,6 +73,33 @@ class Atom {
 static_assert(std::is_trivially_copyable_v<Atom>);
 static_assert(sizeof(Atom) == sizeof(prg_atom_t));
 
+//! A program literal (signed atom; sign = polarity).
+class Literal {
+  public:
+    constexpr Literal() = default;
+    [[nodiscard]] constexpr auto atom() const noexcept -> Atom {
+        return Atom::from_rep(static_cast<prg_atom_t>(rep_ < 0 ? -rep_ : rep_));
+    }
+    [[nodiscard]] constexpr auto sign() const noexcept -> bool { return rep_ < 0; }
+    [[nodiscard]] constexpr auto operator~() const noexcept -> Literal { return Literal{static_cast<prg_lit_t>(-rep_)}; }
+    [[nodiscard]] auto hash() const -> size_t { return Util::value_hash(rep_); }
+    friend constexpr auto operator==(Literal, Literal) noexcept -> bool = default;
+    friend constexpr auto operator<=>(Literal, Literal) noexcept = default;
+    static constexpr auto to_rep(Literal l) noexcept -> prg_lit_t { return l.rep_; }
+    static constexpr auto from_rep(prg_lit_t r) noexcept -> Literal { return Literal{r}; }
+    friend auto operator<<(std::ostream &out, Literal l) -> std::ostream & { return out << l.rep_; }
+  private:
+    constexpr explicit Literal(prg_lit_t r) noexcept : rep_{r} {}
+    prg_lit_t rep_ = 0;
+};
+static_assert(std::is_trivially_copyable_v<Literal>);
+static_assert(sizeof(Literal) == sizeof(prg_lit_t));
+
+constexpr auto Atom::to_lit(bool sign) const noexcept -> Literal {
+    auto v = static_cast<prg_lit_t>(rep_);
+    return Literal::from_rep(sign ? static_cast<prg_lit_t>(-v) : v);
+}
+
 //! Abstract class connecting grounder and solver.
 //!
 //! The backend is responsible for passing grounded statements to the solver (or
