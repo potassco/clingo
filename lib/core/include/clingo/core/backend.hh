@@ -3,7 +3,10 @@
 #include <clingo/core/core.hh>
 #include <clingo/core/symbol.hh>
 
+#include <clingo/util/hash.hh>
 #include <clingo/util/small_vector.hh>
+
+#include <ostream>
 
 namespace CppClingo {
 
@@ -48,6 +51,27 @@ static constexpr auto prg_id_max = std::numeric_limits<prg_id_t>::max() - 1;
 static constexpr auto prg_lit_max = std::numeric_limits<prg_lit_t>::max();
 //! The minimum literal.
 static constexpr auto prg_lit_min = -prg_lit_max;
+
+class Literal; // defined in the Literal task
+
+//! A program atom (positive by construction).
+class Atom {
+  public:
+    constexpr Atom() = default;
+    [[nodiscard]] constexpr auto index() const noexcept -> prg_atom_t { return rep_; }
+    [[nodiscard]] constexpr auto to_lit(bool sign = false) const noexcept -> Literal; // defined after Literal
+    [[nodiscard]] auto hash() const -> size_t { return Util::value_hash(rep_); }
+    friend constexpr auto operator==(Atom, Atom) noexcept -> bool = default;
+    friend constexpr auto operator<=>(Atom, Atom) noexcept = default;
+    static constexpr auto to_rep(Atom a) noexcept -> prg_atom_t { return a.rep_; }
+    static constexpr auto from_rep(prg_atom_t r) noexcept -> Atom { return Atom{r}; }
+    friend auto operator<<(std::ostream &out, Atom a) -> std::ostream & { return out << a.rep_; }
+  private:
+    constexpr explicit Atom(prg_atom_t r) noexcept : rep_{r} {}
+    prg_atom_t rep_ = 0;
+};
+static_assert(std::is_trivially_copyable_v<Atom>);
+static_assert(sizeof(Atom) == sizeof(prg_atom_t));
 
 //! Abstract class connecting grounder and solver.
 //!
