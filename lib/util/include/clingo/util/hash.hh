@@ -5,10 +5,13 @@
 #include <clingo/util/small_vector.hh>
 
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <numeric>
 #include <optional>
 #include <span>
+#include <string>
+#include <string_view>
 #include <typeinfo>
 #include <variant>
 #include <vector>
