@@ -214,8 +214,9 @@ class BuilderBase {
             assert(lit > 0);
             if (auto &li = info(lit); li.type != EQType::none) {
                 for (auto const &clit : clauses_.nth(li.clause).key().first) {
-                    if (this->mark(Literal::from_rep(clit), li.type)) {
-                        todo.emplace_back(static_cast<prg_lit_t>(Literal::from_rep(clit).atom().index()));
+                    auto clit_lit = Literal::from_rep(clit);
+                    if (this->mark(clit_lit, li.type)) {
+                        todo.emplace_back(static_cast<prg_lit_t>(clit_lit.atom().index()));
                     }
                 }
             }
