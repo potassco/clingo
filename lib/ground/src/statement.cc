@@ -327,7 +327,7 @@ auto StmRule::do_report(EvalContext const &ctx) -> bool {
                       ->add(atom_, fact ? StateAtom::fact : StateAtom::derived,
                             [&ctx, fact]() { return ctx.out().uid(fact); })
                       .first;
-        ctx.out().rule(std::tuple{atom_, static_cast<size_t>(it.value().id), type_ == RuleType::choice});
+        ctx.out().rule(std::tuple{atom_, it.value().id.index(), type_ == RuleType::choice});
     } else if (type_ == RuleType::normal) {
         ctx.out().rule(std::nullopt);
     }
@@ -437,7 +437,7 @@ void StmExternal::do_init(size_t gen) {
 
 auto StmExternal::do_report(EvalContext const &ctx) -> bool {
     auto it = base_->add(res_atom_, StateAtom::derived, [&ctx]() { return ctx.out().uid(); }).first;
-    ctx.out().external(res_atom_, it.value().id, res_type_);
+    ctx.out().external(res_atom_, it.value().id.index(), res_type_);
     return true;
 }
 
@@ -721,7 +721,8 @@ auto StmHeuristic::do_report(EvalContext const &ctx) -> bool {
         std::ignore = lit->output(ctx, out);
     }
     auto atom = base_->nth(offset_);
-    ctx.out().heuristic(atom.key(), atom.value().id, res_weight_.num(), prio_ ? &res_prio_.num() : nullptr, res_type_);
+    ctx.out().heuristic(atom.key(), atom.value().id.index(), res_weight_.num(), prio_ ? &res_prio_.num() : nullptr,
+                        res_type_);
     return true;
 }
 
@@ -943,7 +944,7 @@ void StmProject::do_init([[maybe_unused]] size_t gen) {
 
 auto StmProject::do_report(EvalContext const &ctx) -> bool {
     auto atom = base_->nth(offset_);
-    ctx.out().project(atom.key(), atom.value().id);
+    ctx.out().project(atom.key(), atom.value().id.index());
     return true;
 }
 

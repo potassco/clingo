@@ -428,7 +428,7 @@ class ModelImpl : public Model, private SolveControl {
             for (auto const &base : bases_->atoms()) {
                 for (size_t i = 0, e = show_a ? base.second->size() : base.second->num_shown(); i != e; ++i) {
                     auto [sym, state] = *base.second->nth(i);
-                    if (mdl_->isTrue(solver_literal(state.id))) {
+                    if (mdl_->isTrue(solver_literal(state.id.index()))) {
                         res.emplace_back(sym);
                     }
                 }
@@ -476,7 +476,7 @@ class ModelImpl : public Model, private SolveControl {
         if (!it) {
             return false;
         }
-        return mdl_->isTrue(solver_literal(it->value().id));
+        return mdl_->isTrue(solver_literal(it->value().id.index()));
     }
 
     void do_extend(SymbolSpan symbols) override { extend_.add(symbols); }
@@ -807,7 +807,7 @@ class BackendHandleImpl : public BackendHandle {
             auto ret = base.add(atom, Ground::StateAtom::derived,
                                 [this]() { return static_cast<size_t>(backend_->next_lit()); })
                            .first;
-            auto lit = static_cast<prg_lit_t>(ret.value().id);
+            auto lit = static_cast<prg_lit_t>(ret.value().id.index());
             if (ret.value().state != Ground::StateAtom::fact) {
                 added_.emplace_back(lit, ret.key());
             }
@@ -895,7 +895,7 @@ class Solver::AspifBackend : public ProgramBackend, public TheoryBackend {
         }
         auto &base = solver_->grd_.base().add_base(*sig);
         auto it = base.add(sym, Ground::StateAtom::derived, [lit]() { return lit; }).first;
-        if (std::cmp_not_equal(it->second.id, lit)) {
+        if (it->second.id != Atom::from_rep(static_cast<prg_atom_t>(lit))) {
             throw std::runtime_error{"redefinition of atom in aspif file"};
         }
         added_.emplace_back(lit, sym);

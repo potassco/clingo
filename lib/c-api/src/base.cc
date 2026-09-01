@@ -284,7 +284,7 @@ extern "C" auto clingo_atom_base_literal(clingo_atom_base_t const *atoms, size_t
             return fail_arguments();
         }
         if (index < cpp_cast(atoms)->size()) {
-            *literal = static_cast<clingo_literal_t>(cpp_cast(atoms)->nth(index)->second.id);
+            *literal = static_cast<clingo_literal_t>(cpp_cast(atoms)->nth(index)->second.id.index());
         } else {
             return fail_with(clingo_result_range, "index out of range");
         }

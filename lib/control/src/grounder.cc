@@ -65,7 +65,7 @@ class Builder : public Input::DependencyBuilder {
         for (auto const &fact : facts) {
             auto &base = bases_->add_base(std::make_tuple(fact.name(), fact.args().size(), fact.has_sign()));
             auto [it, state] = base.add(fact, Ground::StateAtom::fact, [this]() { return out_->uid(true); });
-            out_->fact(fact, it->second.id);
+            out_->fact(fact, it->second.id.index());
         }
     }
 
@@ -180,7 +180,7 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
             for (auto i = base.mark_shown(), n = base.size(); i != n; ++i) {
                 auto it = base.nth(i);
                 auto const &atom = it.key();
-                out->show_atom(atom, it.value().id);
+                out->show_atom(atom, it.value().id.index());
             }
         };
         auto hide = Util::unordered_set<Input::Sig>{};
@@ -191,7 +191,7 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
                         if (auto *base = bases.get_base({stm.name(), stm.arity(), stm.sign()}); base != nullptr) {
                             for (auto i = base->mark_projected(), n = base->size(); i != n; ++i) {
                                 auto atom = base->nth(i);
-                                out->project(atom.key(), atom.value().id);
+                                out->project(atom.key(), atom.value().id.index());
                             }
                         }
                     } else if constexpr (Util::matches<T, Input::StmShowNothing>) {
@@ -230,7 +230,7 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
                         auto jt = neg_base->nth(i);
                         // NOLINTNEXTLINE
                         if (auto kt = pos_base->find(*jt->first.flip_classical_sign()); kt) {
-                            out->classical_negation(jt->second.id, kt->value().id);
+                            out->classical_negation(jt->second.id.index(), kt->value().id.index());
                         }
                     }
                     // add constraints `:- -p, p.` for each fresh atom `p` and old atom `-p`
@@ -239,7 +239,7 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
                             auto jt = pos_base->nth(i);
                             // NOLINTNEXTLINE
                             if (auto j = neg_base->index(*jt->first.flip_classical_sign()); j < old_neg) {
-                                out->classical_negation(jt->second.id, neg_base->nth(j).value().id);
+                                out->classical_negation(jt->second.id.index(), neg_base->nth(j).value().id.index());
                             }
                         }
                     }

@@ -362,7 +362,8 @@ void StateHdAggr::propagate(OutputStm &out, Queue &queue) {
                                                      [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
                         assert(it != bases_.end());
                         auto *base = std::get<1>(*it);
-                        head = base->add(sym, StateAtom::derived, [&out]() { return out.uid(); }).first.value().id;
+                        head =
+                            base->add(sym, StateAtom::derived, [&out]() { return out.uid(); }).first.value().id.index();
                     }
                 }
             }

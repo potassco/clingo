@@ -156,8 +156,10 @@ void StateDisjunction::propagate(OutputStm &out, Queue &queue) {
                 auto jt = std::ranges::lower_bound(bases_, sig, std::less<>{},
                                                    [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
                 assert(jt != bases_.end());
-                elem.value().first =
-                    std::get<1>(*jt)->add(sym, StateAtom::derived, [&out]() { return out.uid(); }).first.value().id;
+                elem.value().first = std::get<1>(*jt)
+                                         ->add(sym, StateAtom::derived, [&out]() { return out.uid(); })
+                                         .first.value()
+                                         .id.index();
             }
 #ifdef DEBUG_AGGR
             std::cerr << "propagate: a: " << atom_idx << "\n";
