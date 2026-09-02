@@ -83,7 +83,7 @@ template <typename T> class immutable_array {
     template <class It, class Pred> immutable_array(It first, It last, Pred conv) {
         if (first != last) {
             auto vec = vector_type{};
-            vec.reserve(std::distance(first, last));
+            vec.reserve(static_cast<size_t>(std::distance(first, last)));
             for (auto it = first; it != last; ++it) {
                 vec.emplace_back(conv(*it));
             }

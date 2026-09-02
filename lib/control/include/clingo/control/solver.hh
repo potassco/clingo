@@ -194,7 +194,7 @@ class TermBaseMap {
     //!
     //! @param sym the symbol
     //! @return the index
-    [[nodiscard]] auto index(Symbol sym) const -> size_t { return map_.find(sym) - map_.begin(); }
+    [[nodiscard]] auto index(Symbol sym) const -> size_t { return static_cast<size_t>(map_.find(sym) - map_.begin()); }
 
     //! Get the number of mapped symbols.
     //!

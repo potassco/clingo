@@ -347,7 +347,7 @@ TEST_CASE_METHOD(Fixture, "propagate a iff b", "[cxx][propagate]") {
     ctl.parse_string("1 { a; b }.");
     ctl.ground();
 
-    for (ProgramId n : {1, 3}) {
+    for (ProgramId n : {1U, 3U}) {
 #ifdef __EMSCRIPTEN__
         if (n > 1) {
             continue;
@@ -371,7 +371,7 @@ TEST_CASE_METHOD(Fixture, "propagate exception", "[cxx][propagate][exception]") 
     ctl.parse_string("1 { a; b }.");
     ctl.ground();
 
-    for (ProgramId n : {8, 1}) {
+    for (ProgramId n : {8U, 1U}) {
 #ifdef __EMSCRIPTEN__
         if (n > 1) {
             continue;

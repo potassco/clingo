@@ -238,7 +238,7 @@ template <class T, auto F> using unique_handle = std::unique_ptr<T, Free<F>>;
 //! Use std::transform to build a vector.
 template <std::input_iterator It, std::sentinel_for<It> S, class Pred> auto transform(It begin, S end, Pred pred) {
     auto p = std::vector<std::invoke_result_t<Pred, std::iter_reference_t<It>>>{};
-    p.reserve(std::distance(begin, end));
+    p.reserve(static_cast<size_t>(std::distance(begin, end)));
     std::transform(begin, end, std::back_inserter(p), pred);
     return p;
 }

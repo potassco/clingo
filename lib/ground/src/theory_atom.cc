@@ -32,7 +32,7 @@ auto BaseTheory::size() const -> size_t {
 }
 
 auto BaseTheory::index(Symbol const *sym) const -> size_t {
-    return atoms_.find(sym) - atoms_.begin();
+    return static_cast<size_t>(atoms_.find(sym) - atoms_.begin());
 }
 
 auto BaseTheory::nth(size_t i) const -> AtomMap::const_iterator {
@@ -162,11 +162,12 @@ auto StateTheory::insert_atom(Symbol name, std::optional<size_t> rhs, Assignment
 
 void StateTheory::insert_elem(EvalContext const &ctx, AtomMap::iterator it, UTheoryTermVec const &tuple,
                               ElementKey *&elem_key, auto const &get_cond) {
-    ElementKey::construct(*mbr_, ctx, ctx.out().theory(), it - base().atoms().begin(), tuple, elem_key);
+    ElementKey::construct(*mbr_, ctx, ctx.out().theory(), static_cast<size_t>(it - base().atoms().begin()), tuple,
+                          elem_key);
     auto [jt, jns] = tuples_.try_emplace(elem_key);
     if (jns) {
         elem_key = nullptr;
-        it.value().add_elem(jt - tuples_.begin());
+        it.value().add_elem(static_cast<size_t>(jt - tuples_.begin()));
     }
     jt.value().emplace_back(get_cond());
 }

@@ -36,7 +36,7 @@ class OutputBuffer {
     //! This function is a noop if there is no associated file.
     void flush() {
         if (out_ != nullptr) {
-            fwrite(buf_.data(), sizeof(char), size_, out_);
+            fwrite(buf_.data(), sizeof(char), static_cast<size_t>(size_), out_);
             fflush(out_);
             size_ = 0;
         }
@@ -48,7 +48,7 @@ class OutputBuffer {
     void endl() {
         constexpr auto n = 8192;
         if (out_ != nullptr && size_ > n) {
-            fwrite(buf_.data(), sizeof(char), size_, out_);
+            fwrite(buf_.data(), sizeof(char), static_cast<size_t>(size_), out_);
             size_ = 0;
         }
     }
@@ -84,7 +84,7 @@ class OutputBuffer {
 
     //! Empty the buffer and return a vector with the previous content.
     auto release() -> std::vector<char> {
-        buf_.resize(size_);
+        buf_.resize(static_cast<size_t>(size_));
         buf_.emplace_back('\0');
         auto ret = std::move(buf_);
         buf_.clear();

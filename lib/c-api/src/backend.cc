@@ -193,7 +193,8 @@ extern "C" auto clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, 
         if (backend == nullptr || (condition == nullptr && size > 0)) {
             return fail_arguments();
         }
-        get_program(backend).addAcycEdge(node_u, node_v, std::span{condition, size});
+        get_program(backend).addAcycEdge(static_cast<uint32_t>(node_u), static_cast<uint32_t>(node_v),
+                                         std::span{condition, size});
     }
     CLINGO_CATCH;
 }
@@ -204,7 +205,9 @@ extern "C" auto clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol
         if (backend == nullptr || atom == nullptr) {
             return fail_arguments();
         }
-        *atom = symbol != nullptr ? cpp_cast(backend)->add_atom(*cpp_cast(symbol)) : get_program(backend).newAtom();
+        // add_atom / newAtom yield fresh positive atom ids
+        *atom = symbol != nullptr ? static_cast<clingo_atom_t>(cpp_cast(backend)->add_atom(*cpp_cast(symbol)))
+                                  : get_program(backend).newAtom();
     }
     CLINGO_CATCH;
 }
@@ -293,9 +296,10 @@ extern "C" auto clingo_backend_theory_atom(clingo_backend_t *backend, clingo_sym
             op = get_store(backend).string(std::string_view{operator_name->data, operator_name->size});
             guard.emplace(*op, right_hand_side_id);
         }
-        *atom_out =
+        // theory atom() returns a fresh positive atom id
+        *atom_out = static_cast<clingo_atom_t>(
             get_theory(backend).atom([&]() { return atom_in != nullptr ? *atom_in : get_program(backend).newAtom(); },
-                                     *cpp_cast(&name), std::span{elements, size}, std::move(guard));
+                                     *cpp_cast(&name), std::span{elements, size}, std::move(guard)));
     }
     CLINGO_CATCH;
 }

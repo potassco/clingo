@@ -102,7 +102,9 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
                       static_cast<unsigned>(Clasp::DomModType::sign));
         static_assert(static_cast<unsigned>(CppClingo::HeuristicType::true_) ==
                       static_cast<unsigned>(Clasp::DomModType::true_));
-        prg_->heuristic(as_atom_(atom), static_cast<Clasp::DomModType>(type), weight, prio, as_lits_(body));
+        // heuristic priority is non-negative
+        prg_->heuristic(as_atom_(atom), static_cast<Clasp::DomModType>(type), weight, static_cast<unsigned>(prio),
+                        as_lits_(body));
     }
 
     void do_external(prg_lit_t atom, ExternalType type) override {
@@ -251,7 +253,8 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     auto as_atom_(prg_lit_t lit) -> Potassco::Atom_t {
         assert(lit > 0 && lit <= prg_lit_max);
         max_lit_ = std::max(max_lit_, lit);
-        return lit;
+        // lit > 0 (asserted above)
+        return static_cast<Potassco::Atom_t>(lit);
     }
 
     auto as_lit_(prg_lit_t lit) -> Potassco::Lit_t {
@@ -301,7 +304,8 @@ class PotasscoBackend : public AbstractProgramBackendImpl {
 
     void do_rule(PrgLitSpan head, PrgLitSpan body, bool choice) override {
         if (fact_ == 0 && !choice && head.size() == 1 && body.empty()) {
-            fact_ = head[0];
+            // single positive head literal of a fact
+            fact_ = static_cast<prg_id_t>(head[0]);
         }
         AbstractProgramBackendImpl::do_rule(head, body, choice);
     }
@@ -776,7 +780,8 @@ void end_ground_(std::vector<std::pair<prg_lit_t, SharedSymbol>> &added, Clasp::
         auto sig = sym->signature();
         assert(sig.has_value());
         grd.mark_sig(*sig);
-        if (prg.isFact(lit)) {
+        // lit > 0 (asserted above)
+        if (prg.isFact(static_cast<Potassco::Atom_t>(lit))) {
             auto *base = grd.base().get_base(*sig);
             assert(base != nullptr);
             auto it = base->find(*sym);
@@ -1113,7 +1118,7 @@ auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
                 for (auto const &arg : std::span{buf_.begin() + size, buf_.end()}) {
                     *out_ << " " << arg;
                 }
-                buf_.resize(size);
+                buf_.resize(static_cast<size_t>(size));
                 *out_ << "\n";
                 break;
             }
@@ -1132,7 +1137,7 @@ auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
                 for (auto const &arg : std::span{buf_.begin() + size, buf_.end()}) {
                     *out_ << " " << arg;
                 }
-                buf_.resize(size);
+                buf_.resize(static_cast<size_t>(size));
                 *out_ << "\n";
                 break;
             }
@@ -1516,7 +1521,8 @@ void Solver::simplify_() {
         auto const &prg = *clasp->asp();
         // NOTE: Externals are not simplified because they must be available in
         // domains until released.
-        if (prg.isExternal(std::abs(lit))) {
+        // non-negative via std::abs
+        if (prg.isExternal(static_cast<Potassco::Atom_t>(std::abs(lit)))) {
             return TruthValue::unknown;
         }
         auto slit = Clasp::Asp::solverLiteral(prg, lit);

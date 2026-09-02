@@ -186,14 +186,14 @@ template <class T, bool UseSpan = true> class ResultVec {
     //! Remove the current element.
     void remove() {
         if (!result_) {
-            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
+            result_ = Util::copy_n(source_, static_cast<size_t>(std::distance(source_.begin(), current_)));
         }
         ++current_;
     }
     //! Replace the current element.
     template <class... Args> void replace(Args &&...args) {
         if (!result_) {
-            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
+            result_ = Util::copy_n(source_, static_cast<size_t>(std::distance(source_.begin(), current_)));
         }
         result_->emplace_back(std::forward<Args>(args)...);
         ++current_;
@@ -209,14 +209,14 @@ template <class T, bool UseSpan = true> class ResultVec {
     //! Append fresh elements.
     template <class... Args> void append(Args &&...args) {
         if (!result_) {
-            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
+            result_ = Util::copy_n(source_, static_cast<size_t>(std::distance(source_.begin(), current_)));
         }
         result_->emplace_back(std::forward<Args>(args)...);
     }
     //! Append fresh elements.
     template <class It> void extend(It begin, It end) {
         if (!result_) {
-            result_ = Util::copy_n(source_, std::distance(source_.begin(), current_));
+            result_ = Util::copy_n(source_, static_cast<size_t>(std::distance(source_.begin(), current_)));
         }
         result_->insert(result_->end(), begin, end);
     }

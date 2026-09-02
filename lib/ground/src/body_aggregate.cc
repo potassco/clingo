@@ -421,7 +421,7 @@ void StateBdAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmB
         auto [jt, jns] = tuples_.try_emplace(elem.elem_key_);
         if (jns) {
             elem.elem_key_ = nullptr;
-            it.value().add_elem(jt - tuples_.begin());
+            it.value().add_elem(static_cast<size_t>(jt - tuples_.begin()));
             enqueue_(it);
         }
 
@@ -439,7 +439,7 @@ void StateBdAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmB
 }
 
 auto StateBdAggr::atom_index_(AtomMap::iterator it) -> size_t {
-    return it - base_.atoms().begin();
+    return static_cast<size_t>(it - base_.atoms().begin());
 }
 
 void StateBdAggr::print(std::ostream &out, bool print_index) {
@@ -740,7 +740,7 @@ class MatcherBdAggrStrat : public OnceMatcher {
     }
     auto do_once(EvalContext const &ctx) -> bool override {
         if (auto it = state_->insert_atom(ctx)) {
-            *offset_ = it->first - state_->base().atoms().begin();
+            *offset_ = static_cast<size_t>(it->first - state_->base().atoms().begin());
             if (it->second) {
                 // bind global variables
                 auto &ass = ctx.ass();

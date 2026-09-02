@@ -204,8 +204,8 @@ class Project : public Transformer<Project> {
         // do not project projection-like rules
         if (is_atom(stm.head())) {
             auto has_atom = std::ranges::any_of(stm.body(), [](auto const &lit) { return is_atom(lit); });
-            size_t n_test =
-                std::count_if(stm.body().begin(), stm.body().end(), [](auto const &lit) { return is_test(lit); });
+            auto n_test = static_cast<size_t>(
+                std::count_if(stm.body().begin(), stm.body().end(), [](auto const &lit) { return is_test(lit); }));
             if (has_atom && n_test == stm.body().size() - 1) {
                 return std::nullopt;
             }

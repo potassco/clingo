@@ -320,7 +320,7 @@ class ApplyBounds {
                 t->value().type() != SymbolType::number) {
                 return {true};
             }
-            auto &state = states_->operator[](std::distance(dom_->begin(), it));
+            auto &state = states_->operator[](static_cast<size_t>(std::distance(dom_->begin(), it)));
             if (state.both == 1) {
                 return {false};
             }
@@ -353,7 +353,7 @@ class ApplyBounds {
             if (it == dom_->end()) {
                 return {true};
             }
-            auto &state = states_->operator[](std::distance(dom_->begin(), it));
+            auto &state = states_->operator[](static_cast<size_t>(std::distance(dom_->begin(), it)));
             auto bound_type = IEInterval::Lower;
             switch (rel) {
                 case Relation::greater:

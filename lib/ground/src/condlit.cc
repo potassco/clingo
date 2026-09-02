@@ -102,7 +102,7 @@ auto StateCondLit::add_premise(EvalContext const &ctx, ULitVec const &premise) -
     auto &ass = ctx.ass();
     auto *syms_elem = static_cast<Symbol *>(mbr_->allocate((local_.size() + 1) * sizeof(Symbol), alignof(Symbol)));
     auto *kt = syms_elem;
-    *kt = Symbol::from_rep(std::distance(atoms_.begin(), it));
+    *kt = Symbol::from_rep(static_cast<uint64_t>(std::distance(atoms_.begin(), it)));
     for (auto var : local_) {
         kt = std::next(kt);
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
@@ -116,7 +116,7 @@ auto StateCondLit::add_premise(EvalContext const &ctx, ULitVec const &premise) -
     auto &atom = it.value();
     auto &elem = jt.value();
 
-    atom.add_elem(std::distance(elems_.begin(), jt));
+    atom.add_elem(static_cast<size_t>(std::distance(elems_.begin(), jt)));
     // Note: in principle, we only need to ground if the conclusion is a fact.
     // We still add to the base here to gather the conclusion for the output.
     if (has_conclusion_) {
@@ -187,11 +187,11 @@ auto StateCondLit::atom_nth(size_t index) -> MapAtomCondLit::iterator {
 }
 
 auto StateCondLit::atom_index(MapAtomCondLit::const_iterator it) const -> size_t {
-    return std::distance(atoms_.begin(), it);
+    return static_cast<size_t>(std::distance(atoms_.begin(), it));
 }
 
 auto StateCondLit::elem_index(MapElemCondLit::const_iterator it) const -> size_t {
-    return std::distance(elems_.begin(), it);
+    return static_cast<size_t>(std::distance(elems_.begin(), it));
 }
 
 auto StateCondLit::atom_find(Assignment const &ass) -> MapAtomCondLit::iterator {

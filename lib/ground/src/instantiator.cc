@@ -28,7 +28,7 @@ class ProfileTimer {
 
     static auto now() -> TimePoint { return std::chrono::high_resolution_clock::now(); }
     static auto diff(TimePoint start, TimePoint finish) -> uint64_t {
-        return std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
+        return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count());
     }
 
     uint64_t *target_;

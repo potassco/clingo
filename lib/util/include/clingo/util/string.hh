@@ -12,13 +12,13 @@ namespace Detail {
 
 inline auto hex_val(char c) -> uint32_t {
     if (c >= '0' && c <= '9') {
-        return c - '0';
+        return static_cast<uint32_t>(c - '0');
     }
     if (c >= 'A' && c <= 'F') {
-        return 10 + (c - 'A');
+        return static_cast<uint32_t>(10 + (c - 'A'));
     }
     if (c >= 'a' && c <= 'f') {
-        return 10 + (c - 'a');
+        return static_cast<uint32_t>(10 + (c - 'a'));
     }
     throw std::invalid_argument("invalid hex character");
 }

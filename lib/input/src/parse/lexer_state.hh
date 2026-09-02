@@ -164,7 +164,7 @@ inline auto LexerState::fill(size_t n, size_t padding) -> bool {
 
     auto *buffer = buffer_.data();
     auto shift = token_ - buffer;
-    auto used = limit_ - token_;
+    auto used = static_cast<size_t>(limit_ - token_);
 
     if (shift > 0) {
         // make room to read more characters

@@ -124,7 +124,7 @@ class Report {
 
 inline auto Logger::check(MessageCode code) -> bool {
     // ignore the message
-    if (static_cast<uint8_t>(code) < static_cast<uint8_t>(level_) || disabled_[static_cast<int>(code)]) {
+    if (static_cast<uint8_t>(code) < static_cast<uint8_t>(level_) || disabled_[static_cast<size_t>(code)]) {
         return false;
     }
     // report trace and debug messages without reducing the limit
@@ -146,14 +146,14 @@ inline auto Logger::enabled(MessageCode code) const -> bool {
     if (code >= MessageCode::error) {
         return true;
     }
-    if (code < static_cast<MessageCode>(level_) || disabled_[static_cast<int>(code)]) {
+    if (code < static_cast<MessageCode>(level_) || disabled_[static_cast<size_t>(code)]) {
         return false;
     }
     return code < MessageCode::info || cur_limit_ > 0;
 }
 
 inline void Logger::enable(MessageCode code, bool enabled) {
-    disabled_[static_cast<int>(code)] = !enabled;
+    disabled_[static_cast<size_t>(code)] = !enabled;
 }
 
 inline void Logger::set_level(LogLevel level) {

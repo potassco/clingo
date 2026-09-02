@@ -14,7 +14,7 @@ namespace CppClingo::Util {
 template <class Rng> auto copy_n(Rng const &rng, size_t n) -> std::vector<typename Rng::value_type> {
     std::vector<std::remove_const_t<typename Rng::value_type>> ret;
     ret.reserve(rng.size());
-    for (auto it = rng.begin(), ie = it + n; it != ie; ++it) {
+    for (auto it = rng.begin(), ie = it + static_cast<std::ptrdiff_t>(n); it != ie; ++it) {
         ret.emplace_back(*it);
     }
     return ret;
@@ -32,8 +32,8 @@ template <class T, class... Ts> auto make_vec(Ts &&...args) -> std::vector<T> {
 template <class Container, std::input_iterator It, std::sentinel_for<It> Sent, typename Pred>
 void into_vec(Container &vec, It first, Sent last, Pred &&pred) {
     vec.clear();
-    if constexpr (requires { vec.reserve(std::distance(first, last)); }) {
-        vec.reserve(std::distance(first, last));
+    if constexpr (requires { vec.reserve(static_cast<size_t>(std::distance(first, last))); }) {
+        vec.reserve(static_cast<size_t>(std::distance(first, last)));
     }
     std::ranges::transform(first, last, std::back_inserter(vec), std::forward<Pred>(pred));
 }
@@ -47,8 +47,8 @@ template <class Container, class Rng, class Pred> void into_vec(Container &vec, 
 template <class Container, std::input_iterator It, std::sentinel_for<It> Sent, typename Pred, typename... Args>
 auto to_vec(It begin, Sent end, Pred &&pred, Args &&...args) {
     Container p(std::forward<Args>(args)...);
-    if constexpr (requires { p.reserve(std::distance(begin, end)); }) {
-        p.reserve(std::distance(begin, end));
+    if constexpr (requires { p.reserve(static_cast<size_t>(std::distance(begin, end))); }) {
+        p.reserve(static_cast<size_t>(std::distance(begin, end)));
     }
     std::transform(begin, end, std::back_inserter(p), std::forward<Pred>(pred));
     return p;

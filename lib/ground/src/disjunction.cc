@@ -66,7 +66,7 @@ auto BaseDisjunction::size() const -> size_t {
 }
 
 auto BaseDisjunction::index(Symbol const *sym) const -> size_t {
-    return atoms_.find(sym) - atoms_.begin();
+    return static_cast<size_t>(atoms_.find(sym) - atoms_.begin());
 }
 
 auto BaseDisjunction::nth(size_t i) const -> AtomMap::const_iterator {
@@ -208,7 +208,7 @@ void StateDisjunction::insert_elem(EvalContext const &ctx, AtomMap::iterator it,
     if (auto opt = head->eval(ctx); opt) {
         auto [jt, jns] = elems_.try_emplace(ElementKey{*opt, atom_index_(it)});
         if (jns) {
-            it.value().add_elem(jt - elems_.begin());
+            it.value().add_elem(static_cast<size_t>(jt - elems_.begin()));
             enqueue_(it);
         }
         auto [cond_id, fact] = get_cond();
@@ -225,7 +225,7 @@ void StateDisjunction::insert_elem(EvalContext const &ctx, AtomMap::iterator it,
 }
 
 auto StateDisjunction::atom_index_(AtomMap::iterator it) -> size_t {
-    return it - base_.atoms().begin();
+    return static_cast<size_t>(it - base_.atoms().begin());
 }
 
 void StateDisjunction::print(std::ostream &out, bool print_index) {

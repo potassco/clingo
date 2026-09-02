@@ -77,7 +77,8 @@ class Trail {
     //!
     //! @return the literal at the index
     [[nodiscard]] auto at(size_type index) const -> value_type {
-        return Detail::call<clingo_assignment_trail_at>(assignment_, index);
+        // trail index fits in the C API's 32-bit id type
+        return Detail::call<clingo_assignment_trail_at>(assignment_, static_cast<uint32_t>(index));
     }
 
     //! @copydoc Trail::at()

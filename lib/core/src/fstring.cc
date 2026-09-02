@@ -20,7 +20,7 @@ auto is_ascii(char c) -> bool {
 auto match_pred(std::string_view &sv, auto pred) {
     auto ib = sv.begin(); // NOLINT
     auto it = std::ranges::find_if_not(sv, pred);
-    sv.remove_prefix(std::distance(ib, it));
+    sv.remove_prefix(static_cast<size_t>(std::distance(ib, it)));
     return std::string_view{ib, it};
 };
 
@@ -44,7 +44,7 @@ template <class T> auto match_num(std::string_view &sv) -> std::optional<T> {
         if (ec != std::errc{}) {
             return std::nullopt;
         }
-        sv.remove_prefix(std::distance(ib, it));
+        sv.remove_prefix(static_cast<size_t>(std::distance(ib, it)));
         return ret;
     }
     return std::nullopt;

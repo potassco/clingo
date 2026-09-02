@@ -213,7 +213,7 @@ struct BindVals {
         if (begin > 0) {
             auto n = static_cast<std::ptrdiff_t>(vars + 1);
             std::advance(it, offset_);
-            for (; it != symbols_.end() && Symbol::to_rep(*it) < begin; it += n, offset_ += n) {
+            for (; it != symbols_.end() && Symbol::to_rep(*it) < begin; it += n, offset_ += static_cast<size_t>(n)) {
             }
         }
     }
@@ -308,7 +308,8 @@ template <IsBase Base> class HashIndex {
     struct KeyEqual {
         auto operator()(Key const &a, Key const &b) const {
             if (a.marked() || b.marked()) {
-                return std::equal(a.symbols(), std::next(a.symbols(), size), b.symbols(), std::next(b.symbols(), size));
+                return std::equal(a.symbols(), std::next(a.symbols(), static_cast<std::ptrdiff_t>(size)), b.symbols(),
+                                  std::next(b.symbols(), static_cast<std::ptrdiff_t>(size)));
             }
             return a.symbols() == b.symbols();
         }

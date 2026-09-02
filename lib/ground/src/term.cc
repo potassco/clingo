@@ -223,7 +223,7 @@ auto insert_sep(Util::OutputBuffer &tmp, size_t start, char sep, FormatSpec::Typ
     if (std::cmp_less_equal(digits, width)) {
         return;
     }
-    auto seps = (digits - 1) / width;
+    auto seps = (digits - 1) / static_cast<size_t>(width);
     tmp.reserve(static_cast<ptrdiff_t>(seps));
 
     auto span = tmp.span();
@@ -417,7 +417,8 @@ auto TermFormatString::do_eval(EvalContext const &ctx) const -> std::optional<Sy
                             tmp_.reserve(padding);
                             auto span = tmp_.span();
                             std::ranges::copy_backward(span.subspan(start, digits), span.end());
-                            std::ranges::fill(span.subspan(start, padding), spec.fill.value_or(' '));
+                            std::ranges::fill(span.subspan(start, static_cast<size_t>(padding)),
+                                              spec.fill.value_or(' '));
                         }
 
                         align(buf_, tmp_.view(), spec, FormatSpec::Align::right);

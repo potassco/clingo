@@ -324,10 +324,10 @@ class BuilderBase {
         auto [it, ins] = clauses_.emplace(std::pair{lits_, type}, 0);
         if (ins) {
             it.value() = next_lit();
-            info(it.value()).clause = std::distance(clauses_.begin(), it);
+            info(it.value()).clause = static_cast<size_t>(std::distance(clauses_.begin(), it));
             for (auto const &lit : it->first.first) {
                 if (add_edges && lit > 0) {
-                    graph_.add_edge(it.value(), lit);
+                    graph_.add_edge(static_cast<size_t>(it.value()), static_cast<size_t>(lit));
                 }
             }
         }
@@ -363,7 +363,7 @@ class BuilderBase {
         while (std::cmp_less(infos_.size(), lit)) {
             infos_.emplace_back();
         }
-        return infos_[lit - 1];
+        return infos_[static_cast<size_t>(lit - 1)];
     }
 
     //! Check if the literals occur in the same positive cycle.
@@ -414,7 +414,7 @@ class BuilderRule {
                 hd_.emplace_back(hlit);
                 for (auto const &blit : body) {
                     if (blit > 0) {
-                        bld.add_edge(hlit, blit);
+                        bld.add_edge(static_cast<size_t>(hlit), static_cast<size_t>(blit));
                     }
                 }
             } else if (!choice) {
@@ -484,7 +484,8 @@ template <class Sym> class BuilderMinMax {
             bld.mark(clit, EQType::implication);
         }
         auto get_span = [this](auto it) {
-            return std::span{std::next(lits_.begin(), *it), std::next(lits_.begin(), *(it + 1))};
+            return std::span{std::next(lits_.begin(), static_cast<std::ptrdiff_t>(*it)),
+                             std::next(lits_.begin(), static_cast<std::ptrdiff_t>(*(it + 1)))};
         };
         if (ids_.size() <= 2 || (ids_.size() == 3 && !start)) {
             // translate constant, monotone, antimontone, and convex cases
@@ -496,7 +497,8 @@ template <class Sym> class BuilderMinMax {
                 if (state) {
                     for (auto const &clit : get_span(it)) {
                         if (clit > 0) {
-                            bld.add_edge(lit, clit);
+                            // lit asserted > 0; clit > 0 (guarded)
+                            bld.add_edge(static_cast<size_t>(lit), static_cast<size_t>(clit));
                         }
                     }
                 }
@@ -628,7 +630,8 @@ template <class Sym> class BuilderMinMax {
     void tr_(BuilderBase &bld, prg_lit_t lit, bool start, PrgLitVec const &lits, IndexVec const &ids, bool delayed) {
         assert(!ids.empty() && lits.size() == ids.back() && lit > 0);
         auto get_span = [&lits = lits](auto it) {
-            return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
+            return std::span{std::next(lits.begin(), static_cast<std::ptrdiff_t>(*it)),
+                             std::next(lits.begin(), static_cast<std::ptrdiff_t>(*(it + 1)))};
         };
         tr_lits_.clear();
         tr_lits_.reserve(lits.size());
@@ -645,7 +648,8 @@ template <class Sym> class BuilderMinMax {
                     }
                     tr_lits_.emplace_back(clit);
                     if (!delayed && clit > 0) {
-                        bld.add_edge(lit, clit);
+                        // lit asserted > 0; clit > 0 (guarded)
+                        bld.add_edge(static_cast<size_t>(lit), static_cast<size_t>(clit));
                     }
                     bld.backend().rule(std::array{lit}, tr_lits_, false);
                     tr_lits_.pop_back();
@@ -710,7 +714,8 @@ class BuilderSum {
             for (auto const &[num, clit] : elems_) {
                 if (clit > 0 && ((intersects(type, CycleType::positive) && num > 0) ||
                                  (intersects(type, CycleType::negative) && num < 0))) {
-                    bld.add_edge(lit, clit);
+                    // lit asserted > 0; clit > 0 (guarded)
+                    bld.add_edge(static_cast<size_t>(lit), static_cast<size_t>(clit));
                 }
             }
         }
@@ -1012,7 +1017,8 @@ class BuilderCondLit {
         bool simple = true;
         for (auto const &elem : elems) {
             if (auto const &[id_conc, id_prem] = elem; id_conc && lit > 0 && *id_conc > 0) {
-                bld.add_edge(lit, *id_conc);
+                // lit > 0 and *id_conc > 0 (both guarded above)
+                bld.add_edge(static_cast<size_t>(lit), static_cast<size_t>(*id_conc));
                 simple = false;
             }
             elems_.emplace_back(Util::transform(elem.first, uid_to_lit), uid_to_lit(elem.second));
@@ -1519,7 +1525,8 @@ class OutputBackend : public OutputStm, OutputTheory {
         return cond_;
     }
 
-    auto do_cond_id() -> size_t override { return bld_.cond(cond_.literals()); }
+    // cond() returns a fresh positive condition id
+    auto do_cond_id() -> size_t override { return static_cast<size_t>(bld_.cond(cond_.literals())); }
 
     auto do_uid(bool fact) -> size_t override {
         if (fact) {
@@ -1527,9 +1534,11 @@ class OutputBackend : public OutputStm, OutputTheory {
                 fact_ = bld_.next_lit();
                 bld_.backend().rule(std::array{fact_}, {}, false);
             }
-            return fact_;
+            // fresh positive literal (or the fact literal)
+            return static_cast<size_t>(fact_);
         }
-        return bld_.next_lit();
+        // fresh positive literal
+        return static_cast<size_t>(bld_.next_lit());
     }
 
     void do_cond_lit(size_t uid, CondLitSpan elems) override { cond_lit_.add(bld_, uid_to_lit(uid), elems); }
@@ -1586,7 +1595,8 @@ class OutputBackend : public OutputStm, OutputTheory {
                         auto hlit = uid_to_lit(huid);
                         auto elit = bld_.clause(std::array{hlit, clit}, ClauseType::conjunctive);
                         bd_conds.back().emplace_back(elit);
-                        bld_.mark(uid_to_lit(elit), EQType::implication);
+                        // elit is a fresh positive clause literal
+                        bld_.mark(uid_to_lit(static_cast<size_t>(elit)), EQType::implication);
                         bld_.mark(clit, EQType::implication);
                         rule_.add(bld_, std::array{hlit}, std::array{blit, clit}, true);
                     } else {
@@ -1597,7 +1607,8 @@ class OutputBackend : public OutputStm, OutputTheory {
             }
         }
         auto lit = bld_.next_lit();
-        bd_aggr(lit, fun, bd_elems, guards);
+        // fresh positive literal
+        bd_aggr(static_cast<size_t>(lit), fun, bd_elems, guards);
         rule_.add(bld_, {}, std::array{-lit, blit}, false);
     }
 

@@ -154,7 +154,7 @@ class BaseCondLitEmpty : public BaseImpl<Symbol const *, BaseCondLitEmpty> {
 
     //! Map a key to its index in the base.
     [[nodiscard]] auto index(Key const &key) const -> size_t {
-        return std::distance(atoms_->begin(), atoms_->find(key));
+        return static_cast<size_t>(std::distance(atoms_->begin(), atoms_->find(key)));
     }
     //! Get the number of atoms in the base.
     [[nodiscard]] auto size() const -> size_t { return atoms_->size(); }

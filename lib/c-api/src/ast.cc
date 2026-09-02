@@ -2946,7 +2946,7 @@ extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo
         auto stm = convert<Stm>(statement);
         rewrite(context->ctx, stm, stms);
         ASTVec res{stms.size()};
-        int i = 0;
+        size_t i = 0;
         for (auto &stm : stms) {
             if (auto res_stm = unmap_params(*lib->store, context->param_unmap, stm); res_stm) {
                 stm = *std::move(res_stm);

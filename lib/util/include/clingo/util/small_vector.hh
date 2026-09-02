@@ -59,10 +59,10 @@ class small_vector {
     template <std::input_iterator It, std::sentinel_for<It> Is> void assign(It first, Is last) {
         clear();
         if constexpr (std::sized_sentinel_for<Is, It>) {
-            size_t n = std::ranges::distance(first, last);
+            auto n = static_cast<size_t>(std::ranges::distance(first, last));
             reserve(n);
             auto ib = begin();
-            auto ie = std::next(ib, n);
+            auto ie = std::next(ib, static_cast<std::ptrdiff_t>(n));
             std::ranges::uninitialized_copy(first, last, ib, ie);
             if (is_small_()) {
                 size_small_(n);
@@ -90,7 +90,7 @@ class small_vector {
             clear();
             if (other.is_small_()) {
                 std::uninitialized_move_n(other.begin_small_(), other.size_small_(), begin_small_());
-                std::ranges::destroy_n(other.begin_small_(), other.size_small_());
+                std::ranges::destroy_n(other.begin_small_(), static_cast<std::ptrdiff_t>(other.size_small_()));
                 std::ranges::swap(other.begin_, begin_);
             } else {
                 std::ranges::swap(begin_, other.begin_);
@@ -123,7 +123,7 @@ class small_vector {
         if (is_small_()) {
             return size_small_();
         }
-        return std::ranges::distance(begin_large_(), end_large_());
+        return static_cast<size_t>(std::ranges::distance(begin_large_(), end_large_()));
     }
 
     //! Check if the vector is empty.
@@ -138,7 +138,7 @@ class small_vector {
         if (is_small_()) {
             return N;
         }
-        return std::ranges::distance(begin_large_(), cap_large_());
+        return static_cast<size_t>(std::ranges::distance(begin_large_(), cap_large_()));
     }
 
     //! Get an iterator to the beginning of the vector.
@@ -156,7 +156,7 @@ class small_vector {
     //! Get an iterator to the end of the vector.
     [[nodiscard]] auto end() -> iterator {
         if (is_small_()) {
-            return std::ranges::next(begin(), size_small_());
+            return std::ranges::next(begin(), static_cast<std::ptrdiff_t>(size_small_()));
         }
         return end_large_();
     }
@@ -182,13 +182,13 @@ class small_vector {
     //! Get the element at the given index.
     [[nodiscard]] auto operator[](size_t i) -> reference {
         assert(i < size());
-        return *std::ranges::next(begin(), i);
+        return *std::ranges::next(begin(), static_cast<std::ptrdiff_t>(i));
     }
 
     //! Get the element at the given index.
     [[nodiscard]] auto operator[](size_t i) const -> const_reference {
         assert(i < size());
-        return *std::ranges::next(begin(), i);
+        return *std::ranges::next(begin(), static_cast<std::ptrdiff_t>(i));
     }
 
     //! Reserve space for at least n elements.
@@ -203,8 +203,8 @@ class small_vector {
             destroy_();
             // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             begin_ = reinterpret_cast<uintptr_t>(data);
-            end_large_() = std::ranges::next(begin_large_(), l);
-            cap_large_() = std::ranges::next(begin_large_(), n);
+            end_large_() = std::ranges::next(begin_large_(), static_cast<std::ptrdiff_t>(l));
+            cap_large_() = std::ranges::next(begin_large_(), static_cast<std::ptrdiff_t>(n));
         }
         assert(check_());
     }
@@ -252,7 +252,7 @@ class small_vector {
         if (auto n = std::ranges::distance(first, last); n > 0) {
             std::ranges::destroy(std::move(last, end(), first), end());
             if (is_small_()) {
-                size_small_(size_small_() - n);
+                size_small_(size_small_() - static_cast<size_t>(n));
             } else {
                 std::ranges::advance(end_large_(), -n);
                 std::ranges::advance(last, -n);

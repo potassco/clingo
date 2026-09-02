@@ -223,7 +223,8 @@ extern "C" auto clingo_config_map_subkey_name(clingo_config_t const *config, cli
         if (config == nullptr || name == nullptr) {
             return fail_arguments();
         }
-        auto str = cpp_cast(config)->map_nth(key, offset);
+        // offset indexes config subkeys, well within KeyType's range
+        auto str = cpp_cast(config)->map_nth(key, static_cast<CppClingo::Control::ClingoConfig::KeyType>(offset));
         name->data = str.data();
         name->size = str.size();
     }

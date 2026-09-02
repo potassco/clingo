@@ -76,7 +76,7 @@ void AtomAssignAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact
                         m = std::ssize(vals);
                     }
                     // the value to insert
-                    auto iv = vals[i] + num;
+                    auto iv = vals[static_cast<size_t>(i)] + num;
                     // there are 4 sorted ranges:
                     // - [ib, ip) : values already propagated
                     // - [ip, in) : values previously inserted
@@ -156,7 +156,7 @@ auto BaseAssignAggr::size() const -> size_t {
 }
 
 auto BaseAssignAggr::index(Key sym) const -> size_t {
-    return derived_.find(sym) - derived_.begin();
+    return static_cast<size_t>(derived_.find(sym) - derived_.begin());
 }
 
 auto BaseAssignAggr::nth(size_t i) const -> AtomSet::const_iterator {
@@ -368,7 +368,7 @@ void StateAssignAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, 
         auto [jt, jns] = tuples_.try_emplace(elem.key_);
         if (jns) {
             elem.key_ = nullptr;
-            it.value().add_elem(jt - tuples_.begin());
+            it.value().add_elem(static_cast<size_t>(jt - tuples_.begin()));
             enqueue_(it);
         }
 
@@ -383,7 +383,7 @@ void StateAssignAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, 
 }
 
 auto StateAssignAggr::atom_index(AtomMap::iterator it) -> size_t {
-    return it - base_.atoms().begin();
+    return static_cast<size_t>(it - base_.atoms().begin());
 }
 
 void StateAssignAggr::print(std::ostream &out, bool print_index) {

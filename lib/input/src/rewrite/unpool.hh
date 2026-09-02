@@ -63,7 +63,7 @@ auto unpool_crossproduct(Span const &elems, auto unpool)
             has_value = true;
             pool.reserve(elems.size());
             offsets.reserve(elems.size());
-            for (auto it = elems.begin(), ie = it + n; it != ie; ++it) {
+            for (auto it = elems.begin(), ie = it + static_cast<std::ptrdiff_t>(n); it != ie; ++it) {
                 offsets.emplace_back(pool.size(), pool.size(), pool.size() + 1);
                 pool.emplace_back(*it);
             }

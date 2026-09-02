@@ -143,7 +143,7 @@ auto BaseHdAggr::size() const -> size_t {
 }
 
 auto BaseHdAggr::index(Symbol const *sym) const -> size_t {
-    return atoms_.find(sym) - atoms_.begin();
+    return static_cast<size_t>(atoms_.find(sym) - atoms_.begin());
 }
 
 auto BaseHdAggr::nth(size_t i) const -> AtomMap::const_iterator {
@@ -414,7 +414,7 @@ void StateHdAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmH
         auto [jt, jns] = tuples_.try_emplace(elem.elem_key_);
         if (jns) {
             elem.elem_key_ = nullptr;
-            it.value().add_elem(jt - tuples_.begin());
+            it.value().add_elem(static_cast<size_t>(jt - tuples_.begin()));
             enqueue_(it);
         }
 
@@ -441,7 +441,7 @@ void StateHdAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, StmH
 }
 
 auto StateHdAggr::atom_index_(AtomMap::iterator it) -> size_t {
-    return it - base_.atoms().begin();
+    return static_cast<size_t>(it - base_.atoms().begin());
 }
 
 void StateHdAggr::print(std::ostream &out, bool print_index) {

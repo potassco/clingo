@@ -214,7 +214,8 @@ extern "C" auto clingo_base_is_fact(clingo_base_t const *atoms, clingo_literal_t
         if (atoms == nullptr || is_fact == nullptr) {
             return fail_arguments();
         }
-        *is_fact = get_program(atoms).isFact(std::abs(literal));
+        // non-negative via std::abs
+        *is_fact = get_program(atoms).isFact(static_cast<clingo_atom_t>(std::abs(literal)));
     }
     CLINGO_CATCH;
 }
@@ -224,7 +225,8 @@ extern "C" auto clingo_base_is_shown(clingo_base_t const *atoms, clingo_literal_
         if (atoms == nullptr || is_shown == nullptr) {
             return fail_arguments();
         }
-        *is_shown = get_program(atoms).isShown(std::abs(literal));
+        // non-negative via std::abs
+        *is_shown = get_program(atoms).isShown(static_cast<clingo_atom_t>(std::abs(literal)));
     }
     CLINGO_CATCH;
 }
@@ -235,7 +237,8 @@ extern "C" auto clingo_base_is_projected(clingo_base_t const *atoms, clingo_lite
         if (atoms == nullptr || is_projected == nullptr) {
             return fail_arguments();
         }
-        *is_projected = get_program(atoms).isProjected(std::abs(literal));
+        // non-negative via std::abs
+        *is_projected = get_program(atoms).isProjected(static_cast<clingo_atom_t>(std::abs(literal)));
     }
     CLINGO_CATCH;
 }
@@ -246,7 +249,8 @@ extern "C" auto clingo_base_is_external(clingo_base_t const *atoms, clingo_liter
         if (atoms == nullptr || is_external == nullptr) {
             return fail_arguments();
         }
-        *is_external = get_program(atoms).isExternal(std::abs(literal));
+        // non-negative via std::abs
+        *is_external = get_program(atoms).isExternal(static_cast<clingo_atom_t>(std::abs(literal)));
     }
     CLINGO_CATCH;
 }

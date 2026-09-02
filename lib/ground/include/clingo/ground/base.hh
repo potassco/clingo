@@ -247,7 +247,8 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
     template <class Gen> auto add(Symbol atom, StateAtom state, Gen &&gen) -> std::pair<MapAtom::iterator, AtomUpdate> {
         auto [it, ins] = atoms_.try_emplace(atom, 0, state);
         if (ins) {
-            it.value().id = std::invoke(std::forward<Gen>(gen));
+            // FIXME(P3): AtomInfo::id conflates a fresh uid and a signed literal; strong types should replace this cast
+            it.value().id = static_cast<uint64_t>(std::invoke(std::forward<Gen>(gen)));
             if (state != StateAtom::unknown) {
                 derived_.add(atom_index_(it));
             }
@@ -326,7 +327,8 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
                 ++rem;
                 return true;
             }
-            auto tv = pred(item.second.id);
+            // FIXME(P3): AtomInfo::id conflates a fresh uid and a signed literal; strong types should replace this cast
+            auto tv = pred(static_cast<int32_t>(item.second.id));
             if (tv == TruthValue::bot) {
                 ++rem;
                 return true;

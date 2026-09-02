@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <memory>
+#include <utility>
 
 namespace CppClingo {
 
@@ -283,10 +284,10 @@ class mp_int_ptr {
 
 auto to_binary(mp_int z, int len, int limit) -> std::unique_ptr<unsigned char[]> {
     auto msb = limit - len;
-    auto buf = std::make_unique<unsigned char[]>(limit);
+    auto buf = std::make_unique<unsigned char[]>(static_cast<size_t>(limit));
     mp_int_to_binary(z, buf.get() + msb, len);
-    if (len < limit && (buf[msb] & 128) == 128) {
-        for (int i = 0; i < msb; ++i) {
+    if (len < limit && (buf[static_cast<size_t>(msb)] & 128) == 128) {
+        for (size_t i = 0; std::cmp_less(i, msb); ++i) {
             buf[i] = 255;
         }
     }
@@ -302,7 +303,7 @@ template <char op> auto mp_int_binop(mp_int a, mp_int b, mp_int c) -> mp_result 
         auto limit = std::max(len_a, len_b);
         auto buf_a = to_binary(a, len_a, limit);
         auto buf_b = to_binary(b, len_b, limit);
-        for (int i = 0; i < limit; ++i) {
+        for (size_t i = 0; std::cmp_less(i, limit); ++i) {
             if constexpr (op == '&') {
                 buf_a[i] = buf_a[i] & buf_b[i];
             }
@@ -326,10 +327,10 @@ template <char op> auto mp_int_binop_value(mp_int a, mp_small b, mp_int c) -> mp
         auto limit = std::max(len_a, len_b);
         auto buf_a = to_binary(a, len_a, limit);
         auto *buf_b = reinterpret_cast<unsigned char *>(&b);
-        for (int i = 0; i < limit; ++i) {
-            auto j = limit - i - 1;
+        for (size_t i = 0; std::cmp_less(i, limit); ++i) {
+            auto j = static_cast<size_t>(limit) - i - 1;
             unsigned char char_b = 0;
-            if (j < len_b) {
+            if (std::cmp_less(j, len_b)) {
                 char_b = buf_b[j];
             } else if (b < 0) {
                 char_b = 255; // NOLINT(readability-magic-numbers)
@@ -653,7 +654,7 @@ Number::~Number() noexcept {
     std::string ret;
     auto *z = repr_to_bigint(repr_);
     auto len = mp_int_string_len(&z->num, BASE);
-    ret.resize(len, '\0');
+    ret.resize(static_cast<size_t>(len), '\0');
     handle_error(mp_int_to_string(&z->num, BASE, ret.data(), len));
     // NOTE: The mp_int library sometimes reports too large length for numbers,
     // which requires the while loop below.
@@ -1085,9 +1086,9 @@ void append(Util::OutputBuffer &out, Number const &num, int base) {
         out.append(repr_to_int(num.repr_), base);
     } else {
         auto *z = repr_to_bigint(num.repr_);
-        auto len = mp_int_string_len(&z->num, base);
+        auto len = mp_int_string_len(&z->num, static_cast<mp_size>(base));
         auto target = out.reserve(len);
-        handle_error(mp_int_to_string(&z->num, base, target.data(), len));
+        handle_error(mp_int_to_string(&z->num, static_cast<mp_size>(base), target.data(), len));
         out.trim_zero(len);
     }
 }

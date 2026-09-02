@@ -78,7 +78,7 @@ auto ClingoConfig::description(KeyType key) const -> std::string_view {
         int clasp_keys = 0;
         config_->getKeyInfo(key_root(), &clasp_keys, nullptr, nullptr, nullptr);
         if (std::cmp_greater_equal(index, clasp_keys)) {
-            if (auto name = nodes_.front().map_nth(index - clasp_keys)) {
+            if (auto name = nodes_.front().map_nth(index - static_cast<KeyType>(clasp_keys))) {
                 return *name;
             }
         }
@@ -370,7 +370,7 @@ void ClingoConfig::str_(Util::OutputBuffer &out, KeyType key, size_t first_inden
     }
     if (map_keys > 0 && arr_len <= 0) {
         for (int i = 0; i < map_keys; ++i) {
-            auto name = std::string_view{map_nth(key, i)};
+            auto name = std::string_view{map_nth(key, static_cast<KeyType>(i))};
             assert(!name.empty());
             out << fi() << name << ":";
             auto sub_key = map_at(key, name);
@@ -390,7 +390,7 @@ void ClingoConfig::str_(Util::OutputBuffer &out, KeyType key, size_t first_inden
         if (int e = arr_len; e > 0) {
             for (int i = 0, e = arr_len; i != e; ++i) {
                 out << fi() << "- ";
-                auto sub_key = array_at(key, i);
+                auto sub_key = array_at(key, static_cast<KeyType>(i));
                 str_(out, sub_key, 0, indent + 2);
             }
 

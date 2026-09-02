@@ -332,9 +332,9 @@ class OutputText : public OutputStm, OutputTheory {
         return cond_;
     }
 
-    template <class T> auto str_id_(T &&str) {
+    template <class T> auto str_id_(T &&str) -> size_t {
         auto it = strs_.emplace(std::forward<T>(str)).first;
-        return it - strs_.begin();
+        return static_cast<size_t>(it - strs_.begin());
     }
 
     auto do_cond_id() -> size_t override { return str_id_(cond_.end()); }

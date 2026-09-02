@@ -597,7 +597,8 @@ class AspifParser {
         expect_(AspifToken::space);
         auto terms = expect_ids_();
         if (type >= 0) {
-            state_->thy_backend()->fun(id, type, terms);
+            // type >= 0 (guarded above)
+            state_->thy_backend()->fun(id, static_cast<prg_id_t>(type), terms);
         } else {
             state_->thy_backend()->tup(id, theory_compound_type_(type), terms);
         }

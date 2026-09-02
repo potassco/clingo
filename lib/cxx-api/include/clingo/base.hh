@@ -309,7 +309,8 @@ class TheoryTerm {
     //!
     //! @param base the C theory base
     //! @param index the index of the term
-    explicit TheoryTerm(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
+    explicit TheoryTerm(clingo_theory_base_t const &base, size_t index)
+        : base_{&base}, index_{static_cast<clingo_id_t>(index)} {}
 
     //! Get the type of the theory term.
     [[nodiscard]] auto type() const -> TheoryTermType {
@@ -378,7 +379,7 @@ class TheoryTerm {
 
   private:
     clingo_theory_base_t const *base_;
-    size_t index_;
+    clingo_id_t index_;
 };
 
 class TheoryElement;
@@ -392,7 +393,8 @@ class TheoryElement {
     //!
     //! @param base the C theory base
     //! @param index the index of the element
-    explicit TheoryElement(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
+    explicit TheoryElement(clingo_theory_base_t const &base, size_t index)
+        : base_{&base}, index_{static_cast<clingo_id_t>(index)} {}
 
     //! Get the tuple of the theory element.
     //!
@@ -468,7 +470,7 @@ class TheoryElement {
 
   private:
     clingo_theory_base_t const *base_;
-    size_t index_;
+    clingo_id_t index_;
 };
 
 //! Class to provide access to theory atoms.
@@ -478,7 +480,8 @@ class TheoryAtom {
     //!
     //! @param base the C theory base
     //! @param index the index of the atom
-    explicit TheoryAtom(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
+    explicit TheoryAtom(clingo_theory_base_t const &base, size_t index)
+        : base_{&base}, index_{static_cast<clingo_id_t>(index)} {}
 
     //! Get the name of the theory atom.
     //!
@@ -557,7 +560,7 @@ class TheoryAtom {
 
   private:
     clingo_theory_base_t const *base_;
-    size_t index_;
+    clingo_id_t index_;
 };
 
 //! A theory base that maps theory atoms.
