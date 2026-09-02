@@ -15,6 +15,7 @@
 #include <clingo/control.h>
 
 #include <cassert>
+#include <exception>
 #include <optional>
 #include <span>
 
