@@ -8,7 +8,7 @@
 % define atoms
 atom( A ) :- atom_tuple(_,A).
 atom(|L|) :-          literal_tuple(_,L).
-atom(|L|) :- weighted_literal_tuple(_,L).
+atom(|L|) :- weighted_literal_tuple(_,L,_).
 
 % h and t are classical models s.t. h \subseteq t
 
