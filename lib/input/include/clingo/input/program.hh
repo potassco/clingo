@@ -276,6 +276,8 @@ class Program {
     Util::ordered_map<SharedSig, Location> depend_;
     //! Already checked dependencies.
     size_t depend_offset_ = 0;
+    //! Next auxiliary predicate id used by deferred sort lowering.
+    size_t sort_aux_predicate_id_ = 0;
 };
 
 //! @}

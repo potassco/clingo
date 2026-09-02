@@ -74,14 +74,17 @@ void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
         }
         stm = std::move(res_stm).value_or(std::move(stm));
         if (state_stm != TruthValue::top) {
-            if (auto res_stms = unpool_relations(ctx, stm); res_stms) {
-                for (auto &stm : *res_stms) {
-                    CLINGO_REPORT(ctx.logger(), debug) << indent << "unpool relations: " << stm;
-                    rewrite_unpooled(std::move(stm), "  ");
+            auto unpool_rel = [&](Stm lowered) {
+                if (auto res_stms = unpool_relations(ctx, lowered); res_stms) {
+                    for (auto &res_stm : *res_stms) {
+                        CLINGO_REPORT(ctx.logger(), debug) << indent << "unpool relations: " << res_stm;
+                        rewrite_unpooled(std::move(res_stm), "  ");
+                    }
+                } else {
+                    rewrite_unpooled(std::move(lowered), "");
                 }
-            } else {
-                rewrite_unpooled(std::move(stm), "");
-            }
+            };
+            unpool_rel(std::move(stm));
         }
     };
 

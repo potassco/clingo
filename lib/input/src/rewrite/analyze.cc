@@ -187,8 +187,8 @@ struct IsTest {
         } else if constexpr (Util::is_among_v<T, LitBool, LitComparison>) {
             return true;
         } else {
-            static_assert(
-                Util::is_among_v<T, BdLitConjunction, BdLitSetAggregate, BdLitAggregate, BdLitTheoryAtom, LitSymbolic>);
+            static_assert(Util::is_among_v<T, BdLitConjunction, BdLitSetAggregate, BdLitAggregate, BdLitSort,
+                                           BdLitTheoryAtom, LitSymbolic>);
             return false;
         }
     }
@@ -197,7 +197,7 @@ struct IsTest {
 struct IsAtom {
     template <class T> auto operator()([[maybe_unused]] T const &lit) const -> bool {
         if constexpr (Util::is_among_v<T, LitBool, LitComparison, HdLitSetAggregate, BdLitSetAggregate, HdLitAggregate,
-                                       HdLitTheoryAtom, BdLitConjunction, BdLitAggregate, BdLitTheoryAtom>) {
+                                       HdLitTheoryAtom, BdLitConjunction, BdLitAggregate, BdLitSort, BdLitTheoryAtom>) {
             return false;
         } else if constexpr (Util::is_among_v<T, HdLitSimple, BdLitSimple>) {
             return operator()(lit.lit());

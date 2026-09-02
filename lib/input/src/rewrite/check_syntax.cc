@@ -236,6 +236,21 @@ struct CheckSyntax {
                operator()(lit.lhs()) && operator()(lit.rhs());
     }
 
+    auto operator()(BdLitSort const &lit) const -> bool {
+        auto const *tuple = std::get_if<TermTuple>(&lit.outputs());
+        auto const *outputs = tuple != nullptr && tuple->pool().size() == 1
+                                  ? std::get_if<ArgumentTuple>(&tuple->pool().front())
+                                  : nullptr;
+        if (lit.sign() != Sign::none || outputs == nullptr || outputs->elems().size() != 2) {
+            CLINGO_REPORT_LOC(*log_, error, lit.loc())
+                << "sort literal requires an unnegated pair on the left-hand side";
+            return false;
+        }
+        return operator()(lit.outputs()) && std::ranges::all_of(lit.elems(), [this](auto const &elem) {
+                   return elem.tuple().size() == 1 && operator()(elem.tuple()) && operator()(elem.cond());
+               });
+    }
+
     // statement
 
     auto operator()(std::optional<Term> const &term) const -> bool { return (!term || operator()(*term)); }

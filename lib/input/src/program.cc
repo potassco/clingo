@@ -5,6 +5,7 @@
 #include <clingo/input/rewrite/analyze.hh>
 #include <clingo/input/rewrite/dependency.hh>
 #include <clingo/input/rewrite/evaluate.hh>
+#include <clingo/input/rewrite/lower_sort.hh>
 #include <clingo/input/rewrite/rewrite_theory.hh>
 #include <clingo/input/rewrite/substitute.hh>
 
@@ -13,6 +14,67 @@
 #include <clingo/util/type_traits.hh>
 
 namespace CppClingo::Input {
+
+namespace {
+
+template <class T> [[nodiscard]] auto shared_sig(T const &sig) -> SharedSig {
+    return SharedSig{std::get<0>(sig), std::get<1>(sig), std::get<2>(sig)};
+}
+
+[[nodiscard]] auto is_domain_component(Component const &comp, SharedSigSet const &non_domain) -> bool {
+    return intersects(comp.type, ComponentType::positive) &&
+           std::ranges::none_of(comp.depend,
+                                [&non_domain](auto const &sig) { return non_domain.contains(shared_sig(sig)); });
+}
+
+[[nodiscard]] auto can_ground_sort_directly(BdLitSort const &sort, Component const &comp,
+                                            SharedSigSet const &non_domain, bool component_domain) -> bool {
+    for (auto const &elem : sort.elems()) {
+        for (auto const &condition : elem.cond()) {
+            auto const *symbolic = std::get_if<LitSymbolic>(&condition);
+            if (symbolic == nullptr) {
+                continue;
+            }
+            auto complete = comp.incomplete.find(&symbolic->term()) == comp.incomplete.end();
+            auto single_pass =
+                intersects(comp.type, ComponentType::single_pass) || symbolic->sign() != Sign::none || complete;
+            auto base_domain = !non_domain.contains(shared_sig(signature(symbolic->term()).value()));
+            if (!single_pass || (!component_domain && (!complete || !base_domain))) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+void collect_sorts_to_lower(Component const &comp, SharedSigSet const &non_domain, bool component_domain,
+                            Util::unordered_set<Stm const *> &lower) {
+    for (auto const *stm : comp.stms) {
+        std::visit(
+            [&]<class T>(T const &value) {
+                if constexpr (requires { value.body(); }) {
+                    for (auto const &body_lit : value.body()) {
+                        if (auto const *sort = std::get_if<BdLitSort>(&body_lit);
+                            sort != nullptr && !can_ground_sort_directly(*sort, comp, non_domain, component_domain)) {
+                            lower.emplace(stm);
+                        }
+                    }
+                }
+            },
+            *stm);
+    }
+}
+
+void collect_non_domain_signatures(Component const &comp, SharedSigSet &non_domain) {
+    for (auto const *stm : comp.stms) {
+        auto provide = SharedSigSet{};
+        auto depend = Util::ordered_map<SharedSig, Location>{};
+        CppClingo::Input::analyze(*stm, provide, depend);
+        non_domain.insert(provide.begin(), provide.end());
+    }
+}
+
+} // namespace
 
 void UnprocessedProgram::mark(SymbolCollector &gc) const {
     for (auto const &[part, stms, srcs, facts] : parts_) {
@@ -283,7 +345,46 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
         }
     }
 
-    return bld.components(CppClingo::Input::analyze(store, stms, opts_.profile != ProfileFlags::off ? &srcs : nullptr));
+    auto *src_ptr = opts_.profile != ProfileFlags::off ? &srcs : nullptr;
+    auto comps = CppClingo::Input::analyze(store, stms, src_ptr);
+
+    // Sort adjacency is nonmonotone while its input grows. Keep sorts native
+    // only in components whose dependencies can be completed in one pass.
+    auto non_domain = SharedSigSet{};
+    auto lower = Util::unordered_set<Stm const *>{};
+    for (auto const &group : comps) {
+        for (auto const &comp : group) {
+            auto component_domain = is_domain_component(comp, non_domain);
+            collect_sorts_to_lower(comp, non_domain, component_domain, lower);
+            if (!component_domain) {
+                collect_non_domain_signatures(comp, non_domain);
+            }
+        }
+    }
+    if (!lower.empty()) {
+        auto lowered = StmVec{};
+        auto lowered_srcs = std::vector<Stm const *>{};
+        for (size_t index = 0; index < stms.size(); ++index) {
+            auto const &stm = stms[index];
+            auto generated = lower.contains(&stm) ? lower_sort(store, sort_aux_predicate_id_, stm) : std::nullopt;
+            if (generated) {
+                for (auto &generated_stm : *generated) {
+                    lowered.emplace_back(std::move(generated_stm));
+                    if (src_ptr != nullptr) {
+                        lowered_srcs.emplace_back(srcs[index]);
+                    }
+                }
+            } else {
+                lowered.emplace_back(stm);
+                if (src_ptr != nullptr) {
+                    lowered_srcs.emplace_back(srcs[index]);
+                }
+            }
+        }
+        auto *lowered_src_ptr = src_ptr != nullptr ? &lowered_srcs : nullptr;
+        return bld.components(CppClingo::Input::analyze(store, lowered, lowered_src_ptr));
+    }
+    return bld.components(comps);
 }
 
 void Program::mark(SymbolCollector &gc) const {
