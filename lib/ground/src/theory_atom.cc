@@ -275,7 +275,8 @@ auto LitMatchTheory::do_matcher(std::pmr::monotonic_buffer_resource &mbr, Matche
     return {make_atom_matcher(mbr, bound, state().base(), match, type, offset_), index};
 }
 
-auto LitMatchTheory::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitMatchTheory::do_score([[maybe_unused]] std::vector<bool> const &bound,
+                              [[maybe_unused]] double recursive_estimate) const -> double {
     // Note: at the time of score computation the aggregate is still empty.
     // Scoring low should be fine here.
     return 0;
@@ -382,7 +383,8 @@ auto LitBdTheory::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resourc
     return {make_once_matcher(*state_->name(), name_), std::nullopt};
 }
 
-auto LitBdTheory::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitBdTheory::do_score([[maybe_unused]] std::vector<bool> const &bound,
+                           [[maybe_unused]] double recursive_estimate) const -> double {
     return 0;
 }
 

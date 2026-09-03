@@ -327,7 +327,8 @@ class LitBdAggr : public Lit, private MatchBdAggr {
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
 
-    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
+    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound,
+                                [[maybe_unused]] double recursive_estimate) const -> double override;
 
     void do_print(std::ostream &out) const override;
 
@@ -429,7 +430,8 @@ class LitBdAggrStrat : public Lit {
     [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
+    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound,
+                                [[maybe_unused]] double recursive_estimate) const -> double override;
     void do_print(std::ostream &out) const override;
     auto do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;

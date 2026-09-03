@@ -209,6 +209,12 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
             analyzer.add(prv, dep);
         }
     }
+    // Estimate not-yet-grounded recursive domains at the largest known domain size in the body, so a
+    // size-0 recursive literal is not mistaken for a trivially cheap one when ordering.
+    double body_max = 0;
+    for (auto const &lit : lits) {
+        body_max = std::max(body_max, lit->domain_size());
+    }
     for (size_t k = 0; !queue_.empty();) {
         // recompute score
         for (auto &[idx, gen, score] : queue_) {
@@ -216,7 +222,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
             // compute the assignments propagated by this choice of literal
             auto const &[cur, dep, prv] = lit_map_[idx];
             if (!std::ranges::all_of(prv, [&bound](auto idx) { return bound[idx]; })) {
-                score = lits[idx]->score(bound);
+                score = lits[idx]->score(bound, body_max);
                 if (score > 0) {
                     auto extra = analyzer.propagate(prv);
                     if (!extra.empty()) {
@@ -665,7 +671,8 @@ void StmHeuristic::init_() {
             return {make_atom_matcher(mbr, bound, *stm_->base_, *stm_->atom_, type, stm_->offset_), std::nullopt};
         }
 
-        [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override {
+        [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double recursive_estimate) const
+            -> double override {
             return stm_->atom_->score(static_cast<double>(stm_->base_->size()), bound);
         }
 
@@ -901,7 +908,8 @@ void StmProject::init_() {
             return {make_atom_matcher(mbr, bound, *stm_->base_, *stm_->atom_, type, stm_->offset_), std::nullopt};
         }
 
-        [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override {
+        [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double recursive_estimate) const
+            -> double override {
             return stm_->atom_->score(static_cast<double>(stm_->base_->size()), bound);
         }
 
