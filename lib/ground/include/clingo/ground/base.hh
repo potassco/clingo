@@ -245,7 +245,9 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
 
     //! Add an atom to the base.
     template <class Gen> auto add(Symbol atom, StateAtom state, Gen &&gen) -> std::pair<MapAtom::iterator, AtomUpdate> {
-        auto [it, ins] = atoms_.try_emplace(atom, Atom{}, state);
+        // The placeholder is overwritten with the minted id below on insert, and
+        // discarded by try_emplace otherwise, so it never reaches a read.
+        auto [it, ins] = atoms_.try_emplace(atom, Atom::invalid(), state);
         if (ins) {
             it.value().id = Atom::from_rep(static_cast<prg_atom_t>(std::invoke(std::forward<Gen>(gen))));
             if (state != StateAtom::unknown) {

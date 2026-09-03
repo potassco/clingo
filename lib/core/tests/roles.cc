@@ -11,7 +11,9 @@ TEST_CASE("atom_basic") {
     REQUIRE(a == Atom::from_rep(5));
     REQUIRE(a != Atom::from_rep(6));
     STATIC_REQUIRE(std::is_trivially_copyable_v<Atom>);
+    STATIC_REQUIRE(!std::is_default_constructible_v<Atom>);
     STATIC_REQUIRE(sizeof(Atom) == sizeof(prg_atom_t));
+    REQUIRE(Atom::invalid().index() == 0U);
 }
 
 TEST_CASE("literal_negation") {
@@ -22,6 +24,7 @@ TEST_CASE("literal_negation") {
     REQUIRE(l.atom() == Atom::from_rep(3));
     REQUIRE((~l).atom() == Atom::from_rep(3));
     STATIC_REQUIRE(sizeof(Literal) == sizeof(prg_lit_t));
+    STATIC_REQUIRE(!std::is_default_constructible_v<Literal>);
 }
 
 TEST_CASE("literal_double_negation") {
