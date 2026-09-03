@@ -1588,7 +1588,7 @@ class OutputBackend : public OutputStm, OutputTheory {
                         auto elit = bld_.clause(std::array{hlit, clit}, ClauseType::conjunctive);
                         bd_conds.back().emplace_back(elit);
                         // elit is a fresh positive clause literal
-                        bld_.mark(Literal::from_rep(uid_to_lit(static_cast<size_t>(elit))), EQType::implication);
+                        bld_.mark(Literal::from_rep(uid_to_lit(elit)), EQType::implication);
                         bld_.mark(Literal::from_rep(clit), EQType::implication);
                         rule_.add(bld_, std::array{hlit}, std::array{blit, clit}, true);
                     } else {

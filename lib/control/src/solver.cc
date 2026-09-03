@@ -102,9 +102,8 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
                       static_cast<unsigned>(Clasp::DomModType::sign));
         static_assert(static_cast<unsigned>(CppClingo::HeuristicType::true_) ==
                       static_cast<unsigned>(Clasp::DomModType::true_));
-        // heuristic priority is non-negative
-        prg_->heuristic(as_atom_(Literal::from_rep(atom)), static_cast<Clasp::DomModType>(type), weight,
-                        static_cast<unsigned>(prio), as_lits_(body));
+        prg_->heuristic(as_atom_(Literal::from_rep(atom)), static_cast<Clasp::DomModType>(type), weight, prio,
+                        as_lits_(body));
     }
 
     void do_external(prg_lit_t atom, ExternalType type) override {
@@ -1525,7 +1524,7 @@ void Solver::simplify_() {
         auto const &prg = *clasp->asp();
         // NOTE: Externals are not simplified because they must be available in
         // domains until released.
-        if (prg.isExternal(static_cast<Potassco::Atom_t>(Literal::from_rep(lit).atom().index()))) {
+        if (prg.isExternal(Literal::from_rep(lit).atom().index())) {
             return TruthValue::unknown;
         }
         auto slit = Clasp::Asp::solverLiteral(prg, lit);

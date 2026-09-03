@@ -64,7 +64,10 @@ class Atom {
     friend constexpr auto operator==(Atom, Atom) noexcept -> bool = default;
     friend constexpr auto operator<=>(Atom, Atom) noexcept = default;
     static constexpr auto to_rep(Atom a) noexcept -> prg_atom_t { return a.rep_; }
-    static constexpr auto from_rep(prg_atom_t r) noexcept -> Atom { return Atom{r}; }
+    static constexpr auto from_rep(prg_atom_t r) noexcept -> Atom {
+        assert(r <= static_cast<prg_atom_t>(prg_lit_max));
+        return Atom{r};
+    }
     friend auto operator<<(std::ostream &out, Atom a) -> std::ostream & { return out << a.rep_; }
   private:
     constexpr explicit Atom(prg_atom_t r) noexcept : rep_{r} {}
@@ -86,7 +89,10 @@ class Literal {
     friend constexpr auto operator==(Literal, Literal) noexcept -> bool = default;
     friend constexpr auto operator<=>(Literal, Literal) noexcept = default;
     static constexpr auto to_rep(Literal l) noexcept -> prg_lit_t { return l.rep_; }
-    static constexpr auto from_rep(prg_lit_t r) noexcept -> Literal { return Literal{r}; }
+    static constexpr auto from_rep(prg_lit_t r) noexcept -> Literal {
+        assert(r >= prg_lit_min);
+        return Literal{r};
+    }
     friend auto operator<<(std::ostream &out, Literal l) -> std::ostream & { return out << l.rep_; }
   private:
     constexpr explicit Literal(prg_lit_t r) noexcept : rep_{r} {}
