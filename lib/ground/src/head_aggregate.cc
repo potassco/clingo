@@ -682,7 +682,8 @@ auto LitHdAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType
     return {make_atom_matcher(mbr, bound, state().base(), match, type, offset_), index};
 }
 
-auto LitHdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitHdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound,
+                         [[maybe_unused]] double recursive_estimate) const -> double {
     // Note: at the time of score computation the aggregate is still empty.
     // Scoring low should be fine here.
     return 0;

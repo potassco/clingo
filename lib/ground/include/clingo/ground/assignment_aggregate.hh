@@ -279,7 +279,8 @@ class LitAssignAggr : public Lit, private MatchAssignAggr {
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
 
-    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
+    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound,
+                                [[maybe_unused]] double recursive_estimate) const -> double override;
 
     void do_print(std::ostream &out) const override;
 
@@ -375,7 +376,8 @@ class LitAssignAggrStrat : public Lit, private MatchAssignAggr {
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
 
-    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
+    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound,
+                                [[maybe_unused]] double recursive_estimate) const -> double override;
 
     void do_print(std::ostream &out) const override;
 
