@@ -102,7 +102,8 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
                       static_cast<unsigned>(Clasp::DomModType::sign));
         static_assert(static_cast<unsigned>(CppClingo::HeuristicType::true_) ==
                       static_cast<unsigned>(Clasp::DomModType::true_));
-        prg_->heuristic(as_atom_(atom), static_cast<Clasp::DomModType>(type), weight, prio, as_lits_(body));
+        prg_->heuristic(as_atom_(Literal::from_rep(atom)), static_cast<Clasp::DomModType>(type), weight, prio,
+                        as_lits_(body));
     }
 
     void do_external(prg_lit_t atom, ExternalType type) override {
@@ -112,7 +113,7 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
                       static_cast<unsigned>(Potassco::TruthValue::false_));
         static_assert(static_cast<unsigned>(ExternalType::release) ==
                       static_cast<unsigned>(Potassco::TruthValue::release));
-        prg_->external(as_atom_(atom), static_cast<Potassco::TruthValue>(type));
+        prg_->external(as_atom_(Literal::from_rep(atom)), static_cast<Potassco::TruthValue>(type));
     }
 
     void do_project(PrgLitSpan atoms) override { prg_->project(as_atoms_(atoms)); }
@@ -138,7 +139,7 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     void do_show_term(prg_id_t id, PrgLitSpan body) override { prg_->output(id, as_lits_(body)); }
 
     void do_show_atom(Symbol sym, prg_lit_t lit) override {
-        prg_->outputAtom(as_atom_(lit), as_str(sym));
+        prg_->outputAtom(as_atom_(Literal::from_rep(lit)), as_str(sym));
 #ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << lit << ".\n";
 #endif
@@ -223,7 +224,7 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
 
     void do_atom(prg_lit_t lit_or_zero, prg_id_t name, PrgIdSpan elems,
                  std::optional<std::pair<prg_id_t, prg_id_t>> guard) override {
-        auto atom_or_zero = lit_or_zero != 0 ? as_atom_(lit_or_zero) : 0;
+        auto atom_or_zero = lit_or_zero != 0 ? as_atom_(Literal::from_rep(lit_or_zero)) : 0;
         if (guard) {
             prg_->theoryAtom(atom_or_zero, name, elems, guard->first, guard->second);
         } else {
@@ -248,20 +249,22 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
 
     virtual void do_term_id(Symbol sym, prg_id_t id) = 0;
 
-    auto as_atom_(prg_lit_t lit) -> Potassco::Atom_t {
-        assert(lit > 0 && lit <= prg_lit_max);
-        max_lit_ = std::max(max_lit_, lit);
-        return lit;
+    auto as_atom_(Literal lit) -> Potassco::Atom_t {
+        assert(!lit.sign());
+        auto atom = lit.atom();
+        max_lit_ = std::max(max_lit_, static_cast<prg_lit_t>(atom.index()));
+        return static_cast<Potassco::Atom_t>(atom.index());
     }
 
-    auto as_lit_(prg_lit_t lit) -> Potassco::Lit_t {
-        assert(lit != 0 && lit >= prg_lit_min && lit <= prg_lit_max);
-        max_lit_ = std::max(max_lit_, std::abs(lit));
-        return lit;
+    auto as_lit_(Literal lit) -> Potassco::Lit_t {
+        auto raw = Literal::to_rep(lit);
+        assert(raw != 0 && raw >= prg_lit_min && raw <= prg_lit_max);
+        max_lit_ = std::max(max_lit_, static_cast<prg_lit_t>(lit.atom().index()));
+        return Potassco::Lit_t{raw};
     }
     auto as_lits_(PrgLitSpan body) -> Potassco::LitSpan {
         for (auto lit : body) {
-            as_lit_(lit);
+            as_lit_(Literal::from_rep(lit));
         }
         return body;
     }
@@ -269,7 +272,7 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     auto as_atoms_(PrgLitSpan lits) -> Potassco::AtomSpan {
         atoms_.clear();
         for (auto const &lit : lits) {
-            atoms_.push_back(as_atom_(lit));
+            atoms_.push_back(as_atom_(Literal::from_rep(lit)));
         }
         return atoms_;
     }
@@ -277,7 +280,7 @@ class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
     auto as_wlits_(WeightedPrgLitSpan wlits) -> Potassco::WeightLitSpan {
         wlits_.clear();
         for (auto const &[lit, weight] : wlits) {
-            wlits_.emplace_back(as_lit_(lit), weight);
+            wlits_.emplace_back(as_lit_(Literal::from_rep(lit)), weight);
         }
         return wlits_;
     }
@@ -428,7 +431,7 @@ class ModelImpl : public Model, private SolveControl {
             for (auto const &base : bases_->atoms()) {
                 for (size_t i = 0, e = show_a ? base.second->size() : base.second->num_shown(); i != e; ++i) {
                     auto [sym, state] = *base.second->nth(i);
-                    if (mdl_->isTrue(solver_literal(state.id))) {
+                    if (mdl_->isTrue(solver_literal(state.id.index()))) {
                         res.emplace_back(sym);
                     }
                 }
@@ -476,7 +479,7 @@ class ModelImpl : public Model, private SolveControl {
         if (!it) {
             return false;
         }
-        return mdl_->isTrue(solver_literal(it->value().id));
+        return mdl_->isTrue(solver_literal(it->value().id.index()));
     }
 
     void do_extend(SymbolSpan symbols) override { extend_.add(symbols); }
@@ -807,7 +810,7 @@ class BackendHandleImpl : public BackendHandle {
             auto ret = base.add(atom, Ground::StateAtom::derived,
                                 [this]() { return static_cast<size_t>(backend_->next_lit()); })
                            .first;
-            auto lit = static_cast<prg_lit_t>(ret.value().id);
+            auto lit = static_cast<prg_lit_t>(ret.value().id.index());
             if (ret.value().state != Ground::StateAtom::fact) {
                 added_.emplace_back(lit, ret.key());
             }
@@ -889,13 +892,18 @@ class Solver::AspifBackend : public ProgramBackend, public TheoryBackend {
     //! just been added and received the same literal as the one given in the
     //! aspif output.
     void do_show_atom(Symbol sym, prg_lit_t lit) override {
+        // The aspif parser guarantees that shown atoms are given as positive
+        // literals; this is the sole signed literal fed into AtomBase::add
+        // (which mints an Atom from it), so make the invariant explicit here.
+        assert(lit > 0);
         auto sig = sym.signature();
         if (!sig) {
             throw std::runtime_error{"unexpected symbol for atom in aspif file"};
         }
         auto &base = solver_->grd_.base().add_base(*sig);
         auto it = base.add(sym, Ground::StateAtom::derived, [lit]() { return lit; }).first;
-        if (std::cmp_not_equal(it->second.id, lit)) {
+        // Sign-safe: lit is validated positive above, so this is a plain atom-id comparison.
+        if (it->second.id != Atom::from_rep(static_cast<prg_atom_t>(lit))) {
             throw std::runtime_error{"redefinition of atom in aspif file"};
         }
         added_.emplace_back(lit, sym);
@@ -1516,7 +1524,7 @@ void Solver::simplify_() {
         auto const &prg = *clasp->asp();
         // NOTE: Externals are not simplified because they must be available in
         // domains until released.
-        if (prg.isExternal(std::abs(lit))) {
+        if (prg.isExternal(Literal::from_rep(lit).atom().index())) {
             return TruthValue::unknown;
         }
         auto slit = Clasp::Asp::solverLiteral(prg, lit);
