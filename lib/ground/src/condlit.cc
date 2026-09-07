@@ -352,8 +352,8 @@ auto LitCondLit::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
     return {make_atom_matcher(mbr, bound, state().base_lit(), match, type, offset_), index};
 }
 
-auto LitCondLit::do_score([[maybe_unused]] std::vector<bool> const &bound,
-                          [[maybe_unused]] double recursive_estimate) const -> double {
+auto LitCondLit::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     return 1;
 }
 
@@ -503,8 +503,8 @@ auto LitCondLitStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, [[may
     return {std::make_unique<MatcherCondLitStrat>(*state_, std::move(insts.front())), std::nullopt};
 }
 
-auto LitCondLitStrat::do_score([[maybe_unused]] std::vector<bool> const &bound,
-                               [[maybe_unused]] double recursive_estimate) const -> double {
+auto LitCondLitStrat::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     return 1;
 }
 

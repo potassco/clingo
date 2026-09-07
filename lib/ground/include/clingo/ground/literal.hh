@@ -55,15 +55,16 @@ class Lit {
     }
     //! Compute a score used to order rule bodies.
     //!
-    //! A not-yet-grounded recursive domain reads as size 0 at linearization; `recursive_estimate`
-    //! is the size to score such a literal at instead. Literals without such a domain ignore it.
-    [[nodiscard]] auto score(std::vector<bool> const &bound, double recursive_estimate) const -> double {
-        return do_score(bound, recursive_estimate);
+    //! A not-yet-grounded recursive domain reads as size 0 at linearization;
+    //! `estimate` is the size to score such a literal at instead. Literals
+    //! without such a domain ignore it.
+    [[nodiscard]] auto score(std::vector<bool> const &bound, double estimate) const -> double {
+        return do_score(bound, estimate);
     }
-    //! The size of the literal's own domain, or 0 for a literal without one.
+    //! The size of the literal's domain.
     //!
-    //! `order_` takes the largest of these over a body as the size to score a not-yet-grounded
-    //! recursive literal at (see `score`).
+    //! This value might be inaccurate for recursive domains, in which case the
+    //! current domain size at the point of calling this function is returned.
     [[nodiscard]] auto domain_size() const -> double { return do_domain_size(); }
 
     //! Output the literal.
@@ -95,7 +96,7 @@ class Lit {
     [[nodiscard]] virtual auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                           std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> = 0;
-    [[nodiscard]] virtual auto do_score(std::vector<bool> const &bound, double recursive_estimate) const -> double = 0;
+    [[nodiscard]] virtual auto do_score(std::vector<bool> const &bound, double estimate) const -> double = 0;
     [[nodiscard]] virtual auto do_domain_size() const -> double { return 0; }
     virtual void do_print(std::ostream &out) const = 0;
     virtual auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool = 0;
@@ -118,7 +119,7 @@ class LitComparison : public Lit {
     [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double recursive_estimate) const
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -149,7 +150,7 @@ class LitExternal : public Lit {
     [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double recursive_estimate) const
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -182,7 +183,7 @@ class LitInterval : public Lit {
     [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double recursive_estimate) const
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -216,7 +217,7 @@ class LitSymbolic : public Lit {
     [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound, double recursive_estimate) const -> double override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound, double estimate) const -> double override;
     [[nodiscard]] auto do_domain_size() const -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -262,7 +263,7 @@ class LitProject : public Lit {
     [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound, double recursive_estimate) const -> double override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound, double estimate) const -> double override;
     [[nodiscard]] auto do_domain_size() const -> double override;
     void do_print(std::ostream &out) const override;
     auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
@@ -298,8 +299,8 @@ class LitTuple : public Lit {
     [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound,
-                                [[maybe_unused]] double recursive_estimate) const -> double override;
+    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+        -> double override;
     void do_print(std::ostream &out) const override;
     auto do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
@@ -321,7 +322,7 @@ class LitCheck : public Lit {
     [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double recursive_estimate) const
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
 
     auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
@@ -403,7 +404,7 @@ class LitSimpleAggr : public Lit {
     [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double recursive_estimate) const
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
 
     void do_print(std::ostream &out) const override;

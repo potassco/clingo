@@ -504,8 +504,8 @@ auto LitAssignAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, Matcher
     return {make_atom_matcher(mbr, bound, state().base(), match, type, offset_), index};
 }
 
-auto LitAssignAggr::do_score([[maybe_unused]] std::vector<bool> const &bound,
-                             [[maybe_unused]] double recursive_estimate) const -> double {
+auto LitAssignAggr::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     // Note: at the time of score computation the aggregate is still empty.
     // Since we decided to split earlier, matching them should always be
     // better than using their body prefix.
@@ -705,7 +705,7 @@ auto LitAssignAggrStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, Ma
 }
 
 auto LitAssignAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound,
-                                  [[maybe_unused]] double recursive_estimate) const -> double {
+                                  [[maybe_unused]] double estimate) const -> double {
     // Note: at the time of score computation the aggregate is still empty.
     // Since we decided to split earlier, matching them should always be
     // better than using their body prefix.

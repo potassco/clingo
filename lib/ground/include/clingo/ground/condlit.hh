@@ -408,7 +408,7 @@ class LitCondLit : public Lit, private MatchCondLit {
     [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double recursive_estimate) const
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
     void do_print(std::ostream &out) const override;
     [[nodiscard]] auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
@@ -436,7 +436,7 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
     [[nodiscard]] auto do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double recursive_estimate) const
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
     void do_print(std::ostream &out) const override;
     [[nodiscard]] auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;

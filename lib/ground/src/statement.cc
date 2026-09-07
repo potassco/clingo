@@ -671,7 +671,7 @@ void StmHeuristic::init_() {
             return {make_atom_matcher(mbr, bound, *stm_->base_, *stm_->atom_, type, stm_->offset_), std::nullopt};
         }
 
-        [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double recursive_estimate) const
+        [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
             -> double override {
             return stm_->atom_->score(static_cast<double>(stm_->base_->size()), bound);
         }
@@ -908,7 +908,7 @@ void StmProject::init_() {
             return {make_atom_matcher(mbr, bound, *stm_->base_, *stm_->atom_, type, stm_->offset_), std::nullopt};
         }
 
-        [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double recursive_estimate) const
+        [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
             -> double override {
             return stm_->atom_->score(static_cast<double>(stm_->base_->size()), bound);
         }
