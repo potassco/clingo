@@ -57,7 +57,7 @@ auto LitInterval::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resourc
 }
 
 auto LitInterval::do_score(std::vector<bool> const &bound) const -> double {
-    if (auto *l = dynamic_cast<TermSymbol *>(lower_.get()), *r = dynamic_cast<TermSymbol *>(lower_.get());
+    if (auto *l = dynamic_cast<TermSymbol *>(lower_.get()), *r = dynamic_cast<TermSymbol *>(upper_.get());
         l != nullptr && r != nullptr) {
         VariableSet vars;
         lhs_->vars(vars);
