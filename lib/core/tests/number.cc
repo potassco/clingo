@@ -159,6 +159,8 @@ TEST_CASE("number_op") {
     REQUIRE(get_sign(Number(-3)) == -1);
     REQUIRE(get_sign(big) == 1);
     REQUIRE(get_sign(-big) == -1);
+    // bug
+    REQUIRE(Number(2147483647) <= Number("2147483648"));
 }
 
 } // namespace CppClingo::Test

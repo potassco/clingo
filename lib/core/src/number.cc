@@ -526,19 +526,19 @@ class Number::Impl {
     }
 
     static auto cmp(Number const &a, Number const &b) -> int {
-        // int == int
+        // int <=> int
         if (repr_is_int(a.repr_) && repr_is_int(b.repr_)) {
             return cmp(repr_to_int(a.repr_), repr_to_int(b.repr_));
         }
-        // int == big
+        // int <=> big
         if (repr_is_int(a.repr_)) {
-            return mp_int_compare_value(&repr_to_bigint(b.repr_)->num, repr_to_int(a.repr_));
+            return -mp_int_compare_value(&repr_to_bigint(b.repr_)->num, repr_to_int(a.repr_));
         }
-        // big == int
+        // big <=> int
         if (repr_is_int(b.repr_)) {
             return mp_int_compare_value(&repr_to_bigint(a.repr_)->num, repr_to_int(b.repr_));
         }
-        // big == big
+        // big <=> big
         return mp_int_compare(&repr_to_bigint(a.repr_)->num, &repr_to_bigint(b.repr_)->num);
     }
 };
