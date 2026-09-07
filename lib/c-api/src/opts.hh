@@ -245,7 +245,7 @@ class ClingoOptions {
             ("@1,project-anonymous", flag(solver_opts_.ropts.project_anonymous = false),
              "Project anonymous variables in negative literals") //
             ("@1,estimate-function",
-             storeTo(solver_opts_.gopts.fun = EstimateFunction::minimum, values<EstimateFunction>({
+             storeTo(solver_opts_.gopts.fun = EstimateFunction::average, values<EstimateFunction>({
                                                                              {"min", EstimateFunction::minimum},
                                                                              {"max", EstimateFunction::maximum},
                                                                              {"avg", EstimateFunction::average},
