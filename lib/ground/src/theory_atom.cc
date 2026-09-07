@@ -177,7 +177,7 @@ void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
         CLINGO_REPORT(log, debug) << "      " << *stm;
     }
     auto ass = Assignment{};
-    auto lin = Linearizer{*mbr_};
+    auto lin = Linearizer{*mbr_, EstimateFunction::average, EstimateSelector::pred};
     auto queue = Queue{};
     lin.start(queue);
     for (auto &elem : elems_) {
@@ -280,6 +280,10 @@ auto LitMatchTheory::do_score([[maybe_unused]] std::vector<bool> const &bound, [
     // Note: at the time of score computation the aggregate is still empty.
     // Scoring low should be fine here.
     return 0;
+}
+
+auto LitMatchTheory::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 void LitMatchTheory::do_print(std::ostream &out) const {
@@ -386,6 +390,10 @@ auto LitBdTheory::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resourc
 auto LitBdTheory::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
     -> double {
     return 0;
+}
+
+auto LitBdTheory::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 void LitBdTheory::do_print(std::ostream &out) const {

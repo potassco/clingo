@@ -190,6 +190,21 @@ enum class GroundResult : uint8_t {
     interrupted,   //!< The grounding was interrupted.
 };
 
+//! Estimate to use if no other values are at hand.
+static constexpr double default_estimate_size = 10000.0;
+
+//! Function to combine domain size estimates.
+enum class EstimateFunction : uint8_t {
+    maximum, //!< Use the maximum of the estimates.
+    minimum, //!< Use the minimum of the estimates.
+    average, //!< Use the average of the estimates.
+};
+
+enum class EstimateSelector : uint8_t {
+    pred, //!< Only consider predicates.
+    all,  //!< Consider all literals.
+};
+
 //! @}
 
 } // namespace CppClingo

@@ -211,9 +211,31 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
     }
     // Estimate not-yet-grounded recursive domains at the largest known domain size in the body, so a
     // size-0 recursive literal is not mistaken for a trivially cheap one when ordering.
-    double body_max = 0;
+    double estimate = 0;
+    size_t num_selected = 0;
+
     for (auto const &lit : lits) {
-        body_max = std::max(body_max, lit->domain_size());
+        // TODO: it is also possible to combine the score and domain_size functions
+        if (auto size = lit->domain_size(sel_)) {
+            if (*size <= 0) {
+                continue;
+            }
+            ++num_selected;
+            if (fun_ == EstimateFunction::maximum) {
+                estimate = std::max(estimate, *size);
+            } else if (fun_ == EstimateFunction::minimum) {
+                estimate = std::min(estimate, *size);
+            } else if (fun_ == EstimateFunction::average) {
+                estimate += *size;
+            }
+        }
+    }
+    if (num_selected == 0) {
+        // We set the estimate to a large fixed value to at least exploit some
+        // structural information among the literals.
+        estimate = default_estimate_size;
+    } else if (fun_ == EstimateFunction::average) {
+        estimate /= static_cast<double>(num_selected);
     }
     for (size_t k = 0; !queue_.empty();) {
         // recompute score
@@ -222,7 +244,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
             // compute the assignments propagated by this choice of literal
             auto const &[cur, dep, prv] = lit_map_[idx];
             if (!std::ranges::all_of(prv, [&bound](auto idx) { return bound[idx]; })) {
-                score = lits[idx]->score(bound, body_max);
+                score = lits[idx]->score(bound, estimate);
                 if (score > 0) {
                     auto extra = analyzer.propagate(prv);
                     if (!extra.empty()) {
@@ -676,6 +698,11 @@ void StmHeuristic::init_() {
             return stm_->atom_->score(static_cast<double>(stm_->base_->size()), bound);
         }
 
+        [[nodiscard]] auto do_domain_size([[maybe_unused]] EstimateSelector sel) const
+            -> std::optional<double> override {
+            return stm_->base_->size();
+        }
+
         [[nodiscard]] auto do_hash() const -> size_t override { return std::hash<LitAtom const *>{}(this); }
 
         [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override { return this == &other; }
@@ -911,6 +938,11 @@ void StmProject::init_() {
         [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
             -> double override {
             return stm_->atom_->score(static_cast<double>(stm_->base_->size()), bound);
+        }
+
+        [[nodiscard]] auto do_domain_size([[maybe_unused]] EstimateSelector sel) const
+            -> std::optional<double> override {
+            return stm_->base_->size();
         }
 
         [[nodiscard]] auto do_hash() const -> size_t override { return std::hash<LitProject const *>{}(this); }

@@ -87,6 +87,10 @@ CLINGO_ENABLE_BITSET_ENUM(ReifyFlags);
 
 //! Options for the solver.
 struct SolverOptions {
+    //! The rewrite options.
+    Input::RewriteOptions ropts;
+    //! Options to fine tune grounding.
+    GroundOptions gopts;
     //! Operation mode of the solver.
     AppMode mode = AppMode::solve;
     //! Output format to use when in solving mode.
@@ -688,9 +692,14 @@ class GroundHandle {
 //! Takes care of parsing, grounding, and solving.
 class Solver : public BaseView {
   public:
+    Solver(Solver const &) = delete;
+    Solver(Solver &&) = delete;
+    auto operator=(Solver const &) -> Solver & = delete;
+    auto operator=(Solver &&) -> Solver & = delete;
+
     //! Create a solver object.
     Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &config, Logger &log, SymbolStore &store,
-           Scripts &scripts, Input::RewriteOptions ropts, SolverOptions sopts, FILE *out = stdout);
+           Scripts &scripts, SolverOptions opts, FILE *out = stdout);
 
     //! Parse, ground, and solve a program.
     void main(std::span<std::string_view const> const &files);

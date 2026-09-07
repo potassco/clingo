@@ -63,9 +63,9 @@ class Lit {
     }
     //! The size of the literal's domain.
     //!
-    //! This value might be inaccurate for recursive domains, in which case the
-    //! current domain size at the point of calling this function is returned.
-    [[nodiscard]] auto domain_size() const -> double { return do_domain_size(); }
+    //! This function only returns a value that matche the given selector and
+    //! that have know sizes.
+    [[nodiscard]] auto domain_size(EstimateSelector sel) const -> std::optional<double> { return do_domain_size(sel); }
 
     //! Output the literal.
     //!
@@ -97,7 +97,7 @@ class Lit {
                                           std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> = 0;
     [[nodiscard]] virtual auto do_score(std::vector<bool> const &bound, double estimate) const -> double = 0;
-    [[nodiscard]] virtual auto do_domain_size() const -> double { return 0; }
+    [[nodiscard]] virtual auto do_domain_size(EstimateSelector sel) const -> std::optional<double> = 0;
     virtual void do_print(std::ostream &out) const = 0;
     virtual auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool = 0;
     [[nodiscard]] virtual auto do_copy() const -> ULit = 0;
@@ -121,6 +121,7 @@ class LitComparison : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
 
     void do_print(std::ostream &out) const override;
     auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
@@ -152,6 +153,7 @@ class LitExternal : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
 
     void do_print(std::ostream &out) const override;
     auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
@@ -185,6 +187,7 @@ class LitInterval : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
 
     void do_print(std::ostream &out) const override;
     auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
@@ -218,7 +221,7 @@ class LitSymbolic : public Lit {
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound, double estimate) const -> double override;
-    [[nodiscard]] auto do_domain_size() const -> double override;
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
 
     void do_print(std::ostream &out) const override;
     auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
@@ -264,7 +267,7 @@ class LitProject : public Lit {
                                   std::vector<bool> const &bound)
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound, double estimate) const -> double override;
-    [[nodiscard]] auto do_domain_size() const -> double override;
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
     void do_print(std::ostream &out) const override;
     auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
 
@@ -301,6 +304,7 @@ class LitTuple : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
     void do_print(std::ostream &out) const override;
     auto do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
@@ -324,6 +328,7 @@ class LitCheck : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
 
     auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
 
@@ -406,6 +411,7 @@ class LitSimpleAggr : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
 
     void do_print(std::ostream &out) const override;
     auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;

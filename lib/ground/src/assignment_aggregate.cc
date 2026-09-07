@@ -512,6 +512,10 @@ auto LitAssignAggr::do_score([[maybe_unused]] std::vector<bool> const &bound, [[
     return 0;
 }
 
+auto LitAssignAggr::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
+}
+
 void LitAssignAggr::do_print(std::ostream &out) const {
     state().print(out, true);
 }
@@ -692,7 +696,7 @@ auto LitAssignAggrStrat::do_single_pass() const -> bool {
 auto LitAssignAggrStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                     std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     offset_ = invalid_offset;
-    auto lin = Linearizer{mbr};
+    auto lin = Linearizer{mbr, EstimateFunction::average, EstimateSelector::pred};
     auto queue = Queue{};
     lin.start(queue);
     for (auto &elem : elems_) {
@@ -735,6 +739,10 @@ auto LitAssignAggrStrat::do_output([[maybe_unused]] EvalContext const &ctx, Outp
 
 auto LitAssignAggrStrat::do_copy() const -> ULit {
     return std::make_unique<LitAssignAggrStrat>(state(), elems_);
+}
+
+auto LitAssignAggrStrat::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 auto LitAssignAggrStrat::do_hash() const -> size_t {

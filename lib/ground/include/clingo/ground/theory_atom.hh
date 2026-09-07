@@ -246,6 +246,7 @@ class LitMatchTheory : public Lit, private MatchTheory {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
     void do_print(std::ostream &out) const override;
     auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
@@ -296,6 +297,7 @@ class LitBdTheory : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
     void do_print(std::ostream &out) const override;
     auto do_output(EvalContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;

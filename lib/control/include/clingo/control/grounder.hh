@@ -12,6 +12,11 @@ namespace CppClingo::Control {
 //! @addtogroup control
 //! @{
 
+struct GroundOptions {
+    EstimateFunction fun = EstimateFunction::average;
+    EstimateSelector sel = EstimateSelector::pred;
+};
+
 //! A grounder for logic programs.
 //!
 //! Takes care of parsing, grounding, and output.
@@ -19,7 +24,7 @@ class Grounder {
   public:
     struct Impl;
     //! Create a grounder object.
-    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out);
+    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, GroundOptions gopts, OutputStm &out);
     //! Destroy grounder.
     ~Grounder() noexcept;
     //! Join with the given program.

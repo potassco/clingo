@@ -451,6 +451,10 @@ auto LitDisjunction::do_score([[maybe_unused]] std::vector<bool> const &bound, [
     return 0;
 }
 
+auto LitDisjunction::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
+}
+
 void LitDisjunction::do_print(std::ostream &out) const {
     state().print(out, true);
 }

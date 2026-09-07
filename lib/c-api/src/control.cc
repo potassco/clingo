@@ -83,7 +83,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
             clasp->startAsp(*slv_cfg, !opts.solver_options().single_shot);
         }
         auto slv = std::make_unique<CppClingo::Control::Solver>(*clasp, *slv_cfg, lib->log, *lib->store, lib->scripts,
-                                                                opts.rewrite_options(), opts.solver_options(), nullptr);
+                                                                opts.solver_options(), nullptr);
         opts.apply(*slv);
         *control = new clingo_control{lib, std::move(slv), std::move(slv_cfg), std::move(clasp)};
     }

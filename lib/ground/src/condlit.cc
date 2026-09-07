@@ -357,6 +357,10 @@ auto LitCondLit::do_score([[maybe_unused]] std::vector<bool> const &bound, [[may
     return 1;
 }
 
+auto LitCondLit::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
+}
+
 void LitCondLit::do_print(std::ostream &out) const {
     out << "#cond_lit(" << type();
     for (auto var : state().vars_global()) {
@@ -494,7 +498,7 @@ auto LitCondLitStrat::do_single_pass() const -> bool {
 auto LitCondLitStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, [[maybe_unused]] MatcherType type,
                                  [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
-    auto lin = Linearizer{mbr};
+    auto lin = Linearizer{mbr, EstimateFunction::average, EstimateSelector::pred};
     auto queue = Queue{};
     lin.start(queue);
     lin.prepare(static_cast<InstanceCallback &>(*this), premise_, state_->vars(true));
@@ -506,6 +510,10 @@ auto LitCondLitStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, [[may
 auto LitCondLitStrat::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
     -> double {
     return 1;
+}
+
+auto LitCondLitStrat::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 void LitCondLitStrat::do_print(std::ostream &out) const {

@@ -592,6 +592,10 @@ auto LitBdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound, [[mayb
     return 0;
 }
 
+auto LitBdAggr::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
+}
+
 void LitBdAggr::do_print(std::ostream &out) const {
     state().print(out, true);
 }
@@ -795,7 +799,7 @@ auto LitBdAggrStrat::do_single_pass() const -> bool {
 auto LitBdAggrStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, [[maybe_unused]] MatcherType type,
                                 [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
-    auto lin = Linearizer{mbr};
+    auto lin = Linearizer{mbr, EstimateFunction::average, EstimateSelector::pred};
     auto queue = Queue{};
     lin.start(queue);
     for (auto &elem : elems_) {
@@ -811,6 +815,11 @@ auto LitBdAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound, [
     // stratified.
     // NOLINTNEXTLINE(readability-magic-numbers)
     return 100;
+}
+
+auto LitBdAggrStrat::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    // same note as above
+    return std::nullopt;
 }
 
 void LitBdAggrStrat::do_print(std::ostream &out) const {

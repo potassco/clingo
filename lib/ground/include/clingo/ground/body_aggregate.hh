@@ -329,6 +329,7 @@ class LitBdAggr : public Lit, private MatchBdAggr {
 
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+    [[nodiscard]] auto do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> override;
 
     void do_print(std::ostream &out) const override;
 
@@ -432,6 +433,7 @@ class LitBdAggrStrat : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+    [[nodiscard]] auto do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> override;
     void do_print(std::ostream &out) const override;
     auto do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;

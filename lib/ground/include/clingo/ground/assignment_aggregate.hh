@@ -281,6 +281,7 @@ class LitAssignAggr : public Lit, private MatchAssignAggr {
 
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
 
     void do_print(std::ostream &out) const override;
 
@@ -378,6 +379,8 @@ class LitAssignAggrStrat : public Lit, private MatchAssignAggr {
 
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
         -> double override;
+
+    [[nodiscard]] auto do_domain_size(EstimateSelector sel) const -> std::optional<double> override;
 
     void do_print(std::ostream &out) const override;
 

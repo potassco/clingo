@@ -689,6 +689,10 @@ auto LitHdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound, [[mayb
     return 0;
 }
 
+auto LitHdAggr::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
+}
+
 void LitHdAggr::do_print(std::ostream &out) const {
     state().print(out, true);
 }
