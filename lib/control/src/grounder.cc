@@ -145,8 +145,9 @@ class Builder : public Input::DependencyBuilder {
 //! Class storing/hiding relevant state for grounding.
 struct Grounder::Impl : CppClingo::SymbolOwner {
     //! Construct the grounder implementation.
-    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions ropts, GroundOptions gopts, OutputStm &out)
-        : log{&log}, store{&store}, prg{ropts}, opts{gopts}, out{&out} {
+    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions const &ropts, GroundOptions const &gopts,
+         OutputStm &out)
+        : log{&log}, store{&store}, prg{ropts}, opts{&gopts}, out{&out} {
         this->store->gc_add_owner(*this);
     }
     //! Destroy the grounder implementation.
@@ -283,7 +284,7 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
     //! The program stored in the grounder.
     Input::Program prg;
     //! Options to fine ture grounding.
-    GroundOptions opts;
+    GroundOptions const *opts;
     //! The atom and term bases.
     Ground::Bases bases;
     //! Profiling data.
@@ -294,7 +295,8 @@ struct Grounder::Impl : CppClingo::SymbolOwner {
     GroundResult status = GroundResult::ok;
 };
 
-Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, GroundOptions gopts, OutputStm &out)
+Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions const &opts, GroundOptions const &gopts,
+                   OutputStm &out)
     : impl_{std::make_unique<Impl>(log, store, opts, gopts, out)} {
 }
 
@@ -404,7 +406,7 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
         impl_->bases.clear_aux();
         auto bld = Builder{impl_->mbr,   *impl_->log, *impl_->store, impl_->prg.theory_directives(),
                            impl_->bases, context,     *impl_->out,   impl_->profile,
-                           impl_->opts,  stop};
+                           *impl_->opts, stop};
         impl_->status = impl_->prg.analyze(*impl_->store, params, bld);
         impl_->meta();
         impl_->project();

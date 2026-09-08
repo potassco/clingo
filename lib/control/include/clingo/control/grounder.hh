@@ -12,8 +12,11 @@ namespace CppClingo::Control {
 //! @addtogroup control
 //! @{
 
+//! Options to fine-tune the grounding process.
 struct GroundOptions {
+    //! Function to combine estimates for recursive domains.
     EstimateFunction fun = EstimateFunction::average;
+    //! Selector to choose what kind of literals to use for recursive domains.
     EstimateSelector sel = EstimateSelector::pred;
 };
 
@@ -22,9 +25,15 @@ struct GroundOptions {
 //! Takes care of parsing, grounding, and output.
 class Grounder {
   public:
+    Grounder(Grounder const &) = delete;
+    Grounder(Grounder &&) = delete;
+    auto operator=(Grounder const &) -> Grounder & = delete;
+    auto operator=(Grounder &&) -> Grounder & = delete;
+
     struct Impl;
     //! Create a grounder object.
-    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, GroundOptions gopts, OutputStm &out);
+    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions const &opts, GroundOptions const &gopts,
+             OutputStm &out);
     //! Destroy grounder.
     ~Grounder() noexcept;
     //! Join with the given program.

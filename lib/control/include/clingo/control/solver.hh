@@ -887,13 +887,13 @@ class Solver : public BaseView {
     std::unique_ptr<Output::TheoryData> theory_;
     std::unique_ptr<Potassco::AbstractProgram> output_program_;
     std::unique_ptr<Potassco::AbstractProgram> program_;
+    SolverOptions opts_;
     UOutputStm out_;
     UModel mdl_;
     USymbolTable sym_tab_;
     Grounder grd_;
     Scripts *scripts_;
     State state_ = State::initial;
-    SolverOptions opts_;
     BuiltinIncludes includes_ = BuiltinIncludes::empty;
     void *data_ = nullptr;
     bool block_main_ = false;
