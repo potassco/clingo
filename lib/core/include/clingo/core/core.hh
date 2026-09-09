@@ -200,6 +200,7 @@ enum class EstimateFunction : uint8_t {
     average, //!< Use the average of the estimates.
 };
 
+//! Selector for which estimates to consider.
 enum class EstimateSelector : uint8_t {
     pred, //!< Only consider predicates.
     all,  //!< Consider all literals.
