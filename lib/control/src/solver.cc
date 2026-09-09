@@ -1142,10 +1142,10 @@ auto SymbolTable::output(CppClingo::Symbol const &sym) -> State & {
 }
 
 Solver::Solver(Clasp::ClaspFacade &clasp, Clasp::Cli::ClaspCliConfig &clasp_config, Logger &log, SymbolStore &store,
-               Scripts &scripts, Input::RewriteOptions ropts, SolverOptions sopts, FILE *out)
-    : clasp_{&clasp}, config_{clasp_config}, stream_{out},
-      out_{make_output_(store, sopts.mode, sopts.backend_type, sopts.reify_flags)}, grd_{log, store, ropts, *out_},
-      scripts_{&scripts}, opts_{std::move(sopts)} {
+               Scripts &scripts, SolverOptions opts, FILE *out)
+    : clasp_{&clasp}, config_{clasp_config}, stream_{out}, opts_{std::move(opts)},
+      out_{make_output_(store, opts_.mode, opts_.backend_type, opts_.reify_flags)},
+      grd_{log, store, opts_.ropts, opts_.gopts, *out_}, scripts_{&scripts} {
 }
 
 auto Solver::make_output_(SymbolStore &store, AppMode mode, BackendType backend_type, ReifyFlags reify_flags)

@@ -157,7 +157,7 @@ class Program {
     //! Initialize a program with a rewrite level.
     //!
     //! (The highest rewrite level has to be used for grounding.)
-    Program(RewriteOptions opts) : opts_{opts} {}
+    Program(RewriteOptions const &opts) : opts_{&opts} {}
     //! Join with the given unprocessed program.
     //!
     //! If fresh const statements are added, they will be merged with the previous ones.
@@ -229,7 +229,7 @@ class Program {
     [[nodiscard]] auto default_parts() -> std::optional<StmParts> & { return default_parts_; }
 
     //! Check whether profiling is enabled.
-    [[nodiscard]] auto profile() const -> ProfileFlags { return opts_.profile; }
+    [[nodiscard]] auto profile() const -> ProfileFlags { return opts_->profile; }
 
   private:
     //! The signature of a program part.
@@ -251,7 +251,7 @@ class Program {
     void fill_source(ProgramPart &part);
 
     //! The rewrite level of the program.
-    RewriteOptions opts_;
+    RewriteOptions const *opts_;
     //! The meta statements in the program.
     StmVec meta_stms_;
     //! Script statements.

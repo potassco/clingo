@@ -141,7 +141,7 @@ class ClingoOptions {
                        });
             };
 
-            rewrite_opts_.profile = Input::ProfileFlags::off;
+            solver_opts_.ropts.profile = Input::ProfileFlags::off;
             auto x = split(str, ",");
             if (x.empty() || x.size() >= 3) {
                 return false;
@@ -150,25 +150,25 @@ class ClingoOptions {
                 return x.size() == 1;
             }
             if (ieq(x[0], "detailed")) {
-                rewrite_opts_.profile |= Input::ProfileFlags::detailed;
+                solver_opts_.ropts.profile |= Input::ProfileFlags::detailed;
             } else if (ieq(x[0], "compact")) {
-                rewrite_opts_.profile -= Input::ProfileFlags::detailed;
+                solver_opts_.ropts.profile -= Input::ProfileFlags::detailed;
             } else {
                 return false;
             }
             if (x.size() >= 2) {
                 if (ieq(x[1], "step")) {
-                    rewrite_opts_.profile |= Input::ProfileFlags::step;
+                    solver_opts_.ropts.profile |= Input::ProfileFlags::step;
                 } else if (ieq(x[1], "accu")) {
-                    rewrite_opts_.profile |= Input::ProfileFlags::accu;
+                    solver_opts_.ropts.profile |= Input::ProfileFlags::accu;
                 } else if (ieq(x[1], "both")) {
-                    rewrite_opts_.profile |= Input::ProfileFlags::step;
-                    rewrite_opts_.profile |= Input::ProfileFlags::accu;
+                    solver_opts_.ropts.profile |= Input::ProfileFlags::step;
+                    solver_opts_.ropts.profile |= Input::ProfileFlags::accu;
                 } else {
                     return false;
                 }
             } else {
-                rewrite_opts_.profile |= Input::ProfileFlags::accu;
+                solver_opts_.ropts.profile |= Input::ProfileFlags::accu;
             }
             return true;
         };
@@ -235,15 +235,28 @@ class ClingoOptions {
 
              "Stop when {none|sat|unsat|unknown} in incmode") //
             ("@1,projection-mode",
-             storeTo(rewrite_opts_.project_mode = Input::ProjectionMode::pure,
+             storeTo(solver_opts_.ropts.project_mode = Input::ProjectionMode::pure,
                      values<Input::ProjectionMode>({
                          {"none", Input::ProjectionMode::disabled},
                          {"anonymous", Input::ProjectionMode::anonymous},
                          {"pure", Input::ProjectionMode::pure},
                      })),
              "Project {none|anonymous|pure} variables") //
-            ("@1,project-anonymous", flag(rewrite_opts_.project_anonymous = false),
-             "Project anonymous variables in negative literals")                      //
+            ("@1,project-anonymous", flag(solver_opts_.ropts.project_anonymous = false),
+             "Project anonymous variables in negative literals") //
+            ("@1,estimate-function",
+             storeTo(solver_opts_.gopts.fun = EstimateFunction::average, values<EstimateFunction>({
+                                                                             {"min", EstimateFunction::minimum},
+                                                                             {"max", EstimateFunction::maximum},
+                                                                             {"avg", EstimateFunction::average},
+                                                                         })),
+             "Use {min|max|avg} to combine estimates for recursive domains.") //
+            ("@1,estimate-selector",
+             storeTo(solver_opts_.gopts.sel = EstimateSelector::pred, values<EstimateSelector>({
+                                                                          {"predicate", EstimateSelector::pred},
+                                                                          {"all", EstimateSelector::all},
+                                                                      })),
+             "Use {predicate|all} literals for recursive domain estimation.")         //
             ("show", parse(parse_sigs), "Comma-separated list of predicates to show") //
             ("profile", parse(parse_profile).implicit("detailed").arg("off|<detail>[,<type>]"),
              R"(Enable profiling of grounding
@@ -326,14 +339,12 @@ class ClingoOptions {
     auto mode() -> Control::AppMode & { return solver_opts_.mode; }
     auto backend_type() -> Control::BackendType & { return solver_opts_.backend_type; }
 
-    auto rewrite_options() -> Input::RewriteOptions const & { return rewrite_opts_; }
     auto solver_options() -> Control::SolverOptions const & { return solver_opts_; }
 
   private:
     Logger *log_;
     SymbolStore *store_;
     Input::Parser parser_;
-    Input::RewriteOptions rewrite_opts_;
     Control::SolverOptions solver_opts_;
     std::vector<CppClingo::Input::SharedSig> show_;
     std::optional<Control::ProgramParamVec> parts_;

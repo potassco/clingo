@@ -14,11 +14,12 @@ TEST_CASE("grounder_text") {
     auto store = make_symbol_store(true, false);
     SECTION("ground") {
         auto opts = Input::RewriteOptions{};
+        auto gopts = Control::GroundOptions{};
         auto log = Logger{};
         log.set_level(LogLevel::error);
         auto buf = Util::OutputBuffer{};
         auto out = Output::make_text_output(buf);
-        auto grd = Control::Grounder{log, *store, opts, *out};
+        auto grd = Control::Grounder{log, *store, opts, gopts, *out};
         auto params = Input::ProgramParamVec{{store->string("base"), {}}};
         SECTION("fact") {
             grd.parse("#show. a.");
@@ -686,11 +687,12 @@ TEST_CASE("grounder_text") {
             using SV = std::vector<std::string>;
             auto ground = [&store](std::string_view prg) {
                 auto opts = Input::RewriteOptions{};
+                auto gopts = Control::GroundOptions{};
                 auto log = Logger{};
                 log.set_level(LogLevel::error);
                 auto buf = Util::OutputBuffer{};
                 auto out = Output::make_text_output(buf);
-                auto grd = Control::Grounder{log, *store, opts, *out};
+                auto grd = Control::Grounder{log, *store, opts, gopts, *out};
                 auto params = Input::ProgramParamVec{{store->string("base"), {}}};
                 grd.parse(R"(
                     p(12345).

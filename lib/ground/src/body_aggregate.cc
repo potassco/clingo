@@ -584,11 +584,16 @@ auto LitBdAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType
     return {make_atom_matcher(mbr, bound, state().base(), match, type, offset_), index};
 }
 
-auto LitBdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitBdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     // Note: at the time of score computation the aggregate is still empty.
     // Since we decided to split earlier, matching them should always be
     // better than using their body prefix.
     return 0;
+}
+
+auto LitBdAggr::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 void LitBdAggr::do_print(std::ostream &out) const {
@@ -794,7 +799,7 @@ auto LitBdAggrStrat::do_single_pass() const -> bool {
 auto LitBdAggrStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, [[maybe_unused]] MatcherType type,
                                 [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
-    auto lin = Linearizer{mbr};
+    auto lin = Linearizer{mbr, EstimateFunction::average, EstimateSelector::pred};
     auto queue = Queue{};
     lin.start(queue);
     for (auto &elem : elems_) {
@@ -803,12 +808,18 @@ auto LitBdAggrStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, [[mayb
     return {std::make_unique<MatcherBdAggrStrat>(*state_, queue.release(), offset_, sign_ != Sign::once), std::nullopt};
 }
 
-auto LitBdAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitBdAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     // Note: grounding the aggregate might be expensive. Maybe implement a
     // better estimate. An estimate is possible because elements are
     // stratified.
     // NOLINTNEXTLINE(readability-magic-numbers)
     return 100;
+}
+
+auto LitBdAggrStrat::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    // same note as above
+    return std::nullopt;
 }
 
 void LitBdAggrStrat::do_print(std::ostream &out) const {

@@ -48,7 +48,8 @@ using UStmVec = std::vector<UStm>;
 class Linearizer {
   public:
     //! Construct the linearizer.
-    Linearizer(std::pmr::monotonic_buffer_resource &mbr) : mbr_{&mbr} {}
+    Linearizer(std::pmr::monotonic_buffer_resource &mbr, EstimateFunction fun, EstimateSelector sel)
+        : mbr_{&mbr}, fun_{fun}, sel_{sel} {}
     //! Indicate that a new domain is being prepared.
     void start(Queue &queue);
     //! Prepare a statement for grounding.
@@ -70,6 +71,8 @@ class Linearizer {
     std::vector<std::tuple<size_t, std::vector<size_t>, std::vector<size_t>>> lit_map_;
     //! A map from variables to provided literals.
     std::vector<std::vector<size_t>> var_map_;
+    EstimateFunction fun_;
+    EstimateSelector sel_;
 };
 
 //! Enumeration of available rule types.

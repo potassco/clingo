@@ -504,11 +504,16 @@ auto LitAssignAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, Matcher
     return {make_atom_matcher(mbr, bound, state().base(), match, type, offset_), index};
 }
 
-auto LitAssignAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitAssignAggr::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     // Note: at the time of score computation the aggregate is still empty.
     // Since we decided to split earlier, matching them should always be
     // better than using their body prefix.
     return 0;
+}
+
+auto LitAssignAggr::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 void LitAssignAggr::do_print(std::ostream &out) const {
@@ -691,7 +696,7 @@ auto LitAssignAggrStrat::do_single_pass() const -> bool {
 auto LitAssignAggrStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                     std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     offset_ = invalid_offset;
-    auto lin = Linearizer{mbr};
+    auto lin = Linearizer{mbr, EstimateFunction::average, EstimateSelector::pred};
     auto queue = Queue{};
     lin.start(queue);
     for (auto &elem : elems_) {
@@ -703,7 +708,8 @@ auto LitAssignAggrStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, Ma
             std::nullopt};
 }
 
-auto LitAssignAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitAssignAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound,
+                                  [[maybe_unused]] double estimate) const -> double {
     // Note: at the time of score computation the aggregate is still empty.
     // Since we decided to split earlier, matching them should always be
     // better than using their body prefix.
@@ -733,6 +739,10 @@ auto LitAssignAggrStrat::do_output([[maybe_unused]] EvalContext const &ctx, Outp
 
 auto LitAssignAggrStrat::do_copy() const -> ULit {
     return std::make_unique<LitAssignAggrStrat>(state(), elems_);
+}
+
+auto LitAssignAggrStrat::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 auto LitAssignAggrStrat::do_hash() const -> size_t {

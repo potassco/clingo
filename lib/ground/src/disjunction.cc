@@ -444,10 +444,15 @@ auto LitDisjunction::do_matcher(std::pmr::monotonic_buffer_resource &mbr, Matche
     return {make_atom_matcher(mbr, bound, state().base(), match, type, offset_), index};
 }
 
-auto LitDisjunction::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitDisjunction::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     // Note: at the time of score computation the aggregate is still empty.
     // Scoring low should be fine here.
     return 0;
+}
+
+auto LitDisjunction::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 void LitDisjunction::do_print(std::ostream &out) const {

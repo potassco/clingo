@@ -56,8 +56,8 @@ auto LitInterval::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resourc
     return {make_interval_matcher(bound, *lhs_, *lower_, *upper_), std::nullopt};
 }
 
-auto LitInterval::do_score(std::vector<bool> const &bound) const -> double {
-    if (auto *l = dynamic_cast<TermSymbol *>(lower_.get()), *r = dynamic_cast<TermSymbol *>(upper_.get());
+auto LitInterval::do_score(std::vector<bool> const &bound, [[maybe_unused]] double estimate) const -> double {
+    if (auto *l = dynamic_cast<TermSymbol *>(lower_.get()), *r = dynamic_cast<TermSymbol *>(lower_.get());
         l != nullptr && r != nullptr) {
         VariableSet vars;
         lhs_->vars(vars);
@@ -82,6 +82,32 @@ auto LitInterval::do_score(std::vector<bool> const &bound) const -> double {
     }
     // NOLINTNEXTLINE(readability-magic-numbers)
     return 100;
+}
+
+auto LitInterval::do_domain_size(EstimateSelector sel) const -> std::optional<double> {
+    if (sel != EstimateSelector::all) {
+        return std::nullopt;
+    }
+    if (auto *l = dynamic_cast<TermSymbol *>(lower_.get()), *r = dynamic_cast<TermSymbol *>(lower_.get());
+        l != nullptr && r != nullptr) {
+        auto sl = l->symbol();
+        auto sr = r->symbol();
+        if (sl.type() != SymbolType::number || sr.type() != SymbolType::number) {
+            return std::nullopt;
+        }
+        auto const &nl = sl.num();
+        auto const &nr = sr.num();
+        if (nl > nr) {
+            return std::nullopt;
+        }
+        auto d = nr - nl;
+        if (auto id = d.as_int(); id) {
+            return *id;
+        }
+        return std::numeric_limits<double>::max();
+    }
+    // NOLINTNEXTLINE(readability-magic-numbers)
+    return std::nullopt;
 }
 
 auto LitInterval::do_hash() const -> size_t {
@@ -160,8 +186,16 @@ auto LitComparison::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resou
     return {make_comp_matcher(bound, *lhs_, cmp_, *rhs_), std::nullopt};
 }
 
-auto LitComparison::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitComparison::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     return score_fast;
+}
+
+auto LitComparison::do_domain_size(EstimateSelector sel) const -> std::optional<double> {
+    if (sel != EstimateSelector::all) {
+        return std::nullopt;
+    }
+    return std::nullopt;
 }
 
 auto LitComparison::do_hash() const -> size_t {
@@ -297,8 +331,13 @@ auto LitExternal::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resourc
     return {std::make_unique<ExternalMatcher>(*this, vars.release()), std::nullopt};
 }
 
-auto LitExternal::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitExternal::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     return score_maybe_fast;
+}
+
+auto LitExternal::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 auto LitExternal::do_hash() const -> size_t {
@@ -406,15 +445,23 @@ auto LitSymbolic::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTy
     return {make_atom_matcher(mbr, bound, *base_, *atom_, type, offset_), index};
 }
 
-auto LitSymbolic::do_score(std::vector<bool> const &bound) const -> double {
+auto LitSymbolic::do_score(std::vector<bool> const &bound, double estimate) const -> double {
     if (sign_ != Sign::once) {
-        auto size = base_->size();
+        auto size = static_cast<double>(base_->size());
         if (single_pass() && size == 0) {
             return -1;
         }
-        return atom_->score(static_cast<double>(size), bound);
+        auto estimated = single_pass() ? size : std::max(size, estimate);
+        return atom_->score(estimated, bound);
     }
     return 0;
+}
+
+auto LitSymbolic::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    if (single_pass()) {
+        return static_cast<double>(base_->size());
+    }
+    return std::nullopt;
 }
 
 auto LitSymbolic::do_hash() const -> size_t {
@@ -516,15 +563,23 @@ auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
     return {m(make_atom_matcher(mbr, bound, state_->p_base(), *p_atom_, type, offset_)), index};
 }
 
-auto LitProject::do_score(std::vector<bool> const &bound) const -> double {
+auto LitProject::do_score(std::vector<bool> const &bound, double estimate) const -> double {
     if (sign_ != Sign::once) {
-        auto size = state_->base().size();
+        auto size = static_cast<double>(state_->base().size());
         if (single_pass() && size == 0) {
             return -1;
         }
-        return atom_->score(static_cast<double>(size), bound);
+        auto estimated = single_pass() ? size : std::max(size, estimate);
+        return atom_->score(estimated, bound);
     }
     return 0;
+}
+
+auto LitProject::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    if (single_pass()) {
+        return static_cast<double>(state_->base().size());
+    }
+    return std::nullopt;
 }
 
 auto LitProject::do_hash() const -> size_t {
@@ -603,8 +658,13 @@ auto LitTuple::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &
     return {std::make_unique<MatcherLitTuple>(std::move(bind), vars_, *syms_), std::nullopt};
 }
 
-auto LitTuple::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitTuple::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     return 0;
+}
+
+auto LitTuple::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 void LitTuple::do_print(std::ostream &out) const {
@@ -666,10 +726,15 @@ auto LitCheck::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &
     return {std::make_unique<CheckMatcher>(*this), std::nullopt};
 }
 
-auto LitCheck::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitCheck::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     // we give a high score here because most of these checks will match anyway
     // their purpose is mostly to set the member storing the evaluation result
     return std::numeric_limits<double>::max();
+}
+
+auto LitCheck::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 auto LitCheck::do_hash() const -> size_t {
@@ -909,8 +974,13 @@ auto LitSimpleAggr::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resou
     return {std::make_unique<AggrMatcher>(*this, std::move(free)), std::nullopt};
 }
 
-auto LitSimpleAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitSimpleAggr::do_score([[maybe_unused]] std::vector<bool> const &bound, [[maybe_unused]] double estimate) const
+    -> double {
     return score_fast;
+}
+
+auto LitSimpleAggr::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> std::optional<double> {
+    return std::nullopt;
 }
 
 auto LitSimpleAggr::do_hash() const -> size_t {

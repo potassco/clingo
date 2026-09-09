@@ -14,11 +14,12 @@ TEST_CASE("logger_test") {
     auto ground = [&](char const *str) {
         auto msgs = V{};
         auto opts = Input::RewriteOptions{};
+        auto gopts = Control::GroundOptions{};
         auto log = Logger{[&msgs]([[maybe_unused]] MessageCode code, std::string_view msg) { msgs.emplace_back(msg); }};
         log.set_level(LogLevel::info);
         auto buf = Util::OutputBuffer{};
         auto out = Output::make_text_output(buf);
-        Control::Grounder grd{log, *store, opts, *out};
+        Control::Grounder grd{log, *store, opts, gopts, *out};
         grd.parse(str);
         auto params = Input::ProgramParamVec{{store->string("base"), {}}};
         REQUIRE(grd.ground(params) == GroundResult::ok);
