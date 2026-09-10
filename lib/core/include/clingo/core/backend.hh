@@ -3,7 +3,10 @@
 #include <clingo/core/core.hh>
 #include <clingo/core/symbol.hh>
 
+#include <clingo/util/hash.hh>
 #include <clingo/util/small_vector.hh>
+
+#include <ostream>
 
 namespace CppClingo {
 
@@ -48,6 +51,65 @@ static constexpr auto prg_id_max = std::numeric_limits<prg_id_t>::max() - 1;
 static constexpr auto prg_lit_max = std::numeric_limits<prg_lit_t>::max();
 //! The minimum literal.
 static constexpr auto prg_lit_min = -prg_lit_max;
+
+class Literal; // defined below
+
+//! A program atom (positive by construction).
+class Atom {
+  public:
+    Atom() = delete;
+    //! Construct an explicit invalid atom, for use as a placeholder in a slot
+    //! that is assigned a valid atom before it is read.
+    static constexpr auto invalid() noexcept -> Atom { return Atom{0}; }
+    [[nodiscard]] constexpr auto index() const noexcept -> prg_atom_t { return rep_; }
+    [[nodiscard]] constexpr auto to_lit(bool sign = false) const noexcept -> Literal; // defined after Literal
+    [[nodiscard]] auto hash() const -> size_t { return Util::value_hash(rep_); }
+    friend constexpr auto operator==(Atom, Atom) noexcept -> bool = default;
+    friend constexpr auto operator<=>(Atom, Atom) noexcept = default;
+    static constexpr auto to_rep(Atom a) noexcept -> prg_atom_t { return a.rep_; }
+    static constexpr auto from_rep(prg_atom_t r) noexcept -> Atom {
+        assert(r != 0 && r <= static_cast<prg_atom_t>(prg_lit_max));
+        return Atom{r};
+    }
+    friend auto operator<<(std::ostream &out, Atom a) -> std::ostream & { return out << a.rep_; }
+  private:
+    constexpr explicit Atom(prg_atom_t r) noexcept : rep_{r} {}
+    prg_atom_t rep_ = 0;
+};
+static_assert(std::is_trivially_copyable_v<Atom>);
+static_assert(!std::is_default_constructible_v<Atom>);
+static_assert(sizeof(Atom) == sizeof(prg_atom_t));
+
+//! A program literal (signed atom; sign = polarity).
+class Literal {
+  public:
+    Literal() = delete;
+    [[nodiscard]] constexpr auto atom() const noexcept -> Atom {
+        return Atom::from_rep(static_cast<prg_atom_t>(rep_ < 0 ? -rep_ : rep_));
+    }
+    [[nodiscard]] constexpr auto sign() const noexcept -> bool { return rep_ < 0; }
+    [[nodiscard]] constexpr auto operator~() const noexcept -> Literal { return Literal{static_cast<prg_lit_t>(-rep_)}; }
+    [[nodiscard]] auto hash() const -> size_t { return Util::value_hash(rep_); }
+    friend constexpr auto operator==(Literal, Literal) noexcept -> bool = default;
+    friend constexpr auto operator<=>(Literal, Literal) noexcept = default;
+    static constexpr auto to_rep(Literal l) noexcept -> prg_lit_t { return l.rep_; }
+    static constexpr auto from_rep(prg_lit_t r) noexcept -> Literal {
+        assert(r != 0 && r >= prg_lit_min);
+        return Literal{r};
+    }
+    friend auto operator<<(std::ostream &out, Literal l) -> std::ostream & { return out << l.rep_; }
+  private:
+    constexpr explicit Literal(prg_lit_t r) noexcept : rep_{r} {}
+    prg_lit_t rep_ = 0;
+};
+static_assert(std::is_trivially_copyable_v<Literal>);
+static_assert(!std::is_default_constructible_v<Literal>);
+static_assert(sizeof(Literal) == sizeof(prg_lit_t));
+
+constexpr auto Atom::to_lit(bool sign) const noexcept -> Literal {
+    auto v = static_cast<prg_lit_t>(rep_);
+    return Literal::from_rep(sign ? static_cast<prg_lit_t>(-v) : v);
+}
 
 //! Abstract class connecting grounder and solver.
 //!
