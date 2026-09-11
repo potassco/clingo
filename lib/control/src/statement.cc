@@ -41,6 +41,8 @@ void build_sort(BuildContext &ctx, Input::BdLitSort const &lit, Ground::ProfileN
         }
         elems.emplace_back(std::move(value), std::move(cond));
     }
+    // FIXME: this will lead to runtime errors if the tuple is not a pair of terms
+    // we also do not need to check that the term is a tuple but can simply use the term
     auto const &tuple = std::get<Input::TermTuple>(lit.lhs());
     auto const &outputs = std::get<Input::ArgumentTuple>(tuple.pool().front()).elems();
     auto prev = build_term(ctx.var_map(), std::get<Input::Term>(outputs[0]));
