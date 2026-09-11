@@ -616,15 +616,15 @@ class TestAST:
 
     def test_body_sort(self):
         """Test body sort literals."""
-        outputs = ast.parse_term(self.lib, "(X,Y)")
+        left = ast.parse_term(self.lib, "(X,Y)")
         value = ast.parse_term(self.lib, "Z")
         condition = ast.parse_literal(self.lib, "p(Z)")
         element = ast.BodyAggregateElement(self.lib, self.loc, [value], [condition])
-        sort = ast.BodySort(self.lib, self.loc, ast.Sign.NoSign, outputs, [element])
+        sort = ast.BodySort(self.lib, self.loc, ast.Sign.NoSign, left, [element])
 
         assert sort.location == self.loc
         assert sort.sign == ast.Sign.NoSign
-        assert sort.outputs == outputs
+        assert sort.left == left
         assert sort.elements == [element]
         assert str(sort) == "(X,Y) = #sort { Z: p(Z) }"
 

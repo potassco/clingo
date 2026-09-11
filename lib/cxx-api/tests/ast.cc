@@ -398,21 +398,21 @@ TEST_CASE_METHOD(Fixture, "ast body aggregate", "[cxx][ast][body_aggregate]") {
 }
 
 TEST_CASE_METHOD(Fixture, "ast body sort", "[cxx][ast][body_sort]") {
-    auto outputs = parse_term("(X,Y)");
+    auto left = parse_term("(X,Y)");
     auto value = parse_term("Z");
     auto condition = parse_lit("p(Z)");
     auto elem = node<T::body_aggregate_element>(loc, std::array{value}, std::array{condition});
-    auto sort = node<T::body_sort>(loc, AST::Sign::no_sign, outputs, std::array{elem});
+    auto sort = node<T::body_sort>(loc, AST::Sign::no_sign, left, std::array{elem});
 
     REQUIRE((sort.location(A::location) == loc));
     REQUIRE(sort.number(A::sign) == AST::Sign::no_sign);
-    REQUIRE(sort.node(A::outputs) == outputs);
+    REQUIRE(sort.node(A::left) == left);
     REQUIRE(std::ranges::equal(sort.nodes(A::elements), std::array{elem}));
     REQUIRE(sort.to_string() == "(X,Y) = #sort { Z: p(Z) }");
 
     auto parsed = parse_blit("(X,Y) = #sort { Z: p(Z) }");
     REQUIRE(parsed.type() == T::body_sort);
-    REQUIRE(parsed.node(A::outputs).to_string() == "(X,Y)");
+    REQUIRE(parsed.node(A::left).to_string() == "(X,Y)");
 }
 
 TEST_CASE_METHOD(Fixture, "ast body theory atom", "[cxx][ast][body_theory_atom]") {

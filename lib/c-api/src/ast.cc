@@ -1481,7 +1481,7 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
             ATTR(left, lhs())
             ATTR(right, rhs()))
         TYPE(body_sort, BdLitSort,
-            ATTR(outputs, outputs()))
+            ATTR(left, outputs()))
         TYPE(statement_rule, StmRule,
             ATTR(head, head()))
         TYPE(theory_atom_definition, TheoryAtomDefinition,
@@ -2027,12 +2027,12 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 auto sign = va_arg(args, int);
-                auto const *outputs = va_arg(args, clingo_ast_t const *);
+                auto const *lhs = va_arg(args, clingo_ast_t const *);
                 auto const **elems = va_arg(args, clingo_ast_t const **);
                 auto elems_size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<CppClingo::Input::BdLitSort>(
-                    type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::Term>(outputs),
+                    type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::Term>(lhs),
                     convert<CppClingo::Input::BdLitAggregateElement>(elems, elems_size));
                 break;
             }

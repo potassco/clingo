@@ -139,8 +139,7 @@ enum class Attribute : clingo_ast_attribute_t {
     u = clingo_ast_attribute_u,
     v = clingo_ast_attribute_v,
     value = clingo_ast_attribute_value,
-    weight = clingo_ast_attribute_weight,
-    outputs = clingo_ast_attribute_outputs,
+    weight = clingo_ast_attribute_weight
 };
 
 //! Enumeration of available ast node types.

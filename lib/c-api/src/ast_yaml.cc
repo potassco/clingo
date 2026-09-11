@@ -660,7 +660,7 @@ body_sort:
     sign:
       type: sign
       doc: The sign of the literal.
-    outputs:
+    left:
       type: term
       doc: The pair of output terms.
     elements:

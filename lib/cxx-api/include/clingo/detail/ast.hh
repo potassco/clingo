@@ -117,7 +117,7 @@ constexpr auto cons_body_aggregate = std::array{
     Arg{clingo_ast_attribute_elements, Arg::node_array}, Arg{clingo_ast_attribute_right, Arg::optional_node}};
 constexpr auto cons_body_sort =
     std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_sign, Arg::integer},
-               Arg{clingo_ast_attribute_outputs, Arg::node}, Arg{clingo_ast_attribute_elements, Arg::node_array}};
+               Arg{clingo_ast_attribute_left, Arg::node}, Arg{clingo_ast_attribute_elements, Arg::node_array}};
 constexpr auto cons_body_set_aggregate =
     std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_sign, Arg::integer},
                Arg{clingo_ast_attribute_left, Arg::optional_node}, Arg{clingo_ast_attribute_elements, Arg::node_array},
@@ -259,6 +259,7 @@ constexpr auto cons = std::array{
     std::span{cons_body_set_aggregate.data(), cons_body_set_aggregate.size()},
     std::span{cons_body_theory_atom.data(), cons_body_theory_atom.size()},
     std::span{cons_body_conditional_literal.data(), cons_body_conditional_literal.size()},
+    std::span{cons_body_sort.data(), cons_body_sort.size()},
     std::span{cons_head_simple_literal.data(), cons_head_simple_literal.size()},
     std::span{cons_head_aggregate_element.data(), cons_head_aggregate_element.size()},
     std::span{cons_head_aggregate.data(), cons_head_aggregate.size()},
@@ -293,7 +294,6 @@ constexpr auto cons = std::array{
     std::span{cons_statement_const.data(), cons_statement_const.size()},
     std::span{cons_statement_parts.data(), cons_statement_parts.size()},
     std::span{cons_statement_comment.data(), cons_statement_comment.size()},
-    std::span{cons_body_sort.data(), cons_body_sort.size()},
 };
 
 } // namespace Clingo::Detail

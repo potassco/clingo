@@ -1230,7 +1230,7 @@ class BodySort : public ASTBase {
 
     auto location() -> Location;
     auto sign() -> Sign;
-    auto outputs() -> Term;
+    auto left() -> Term;
     auto elements() -> BodyAggregateElementArray;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -1238,7 +1238,7 @@ class BodySort : public ASTBase {
         -> std::optional<BodySort>;
     auto update(Library &lib, py::kwargs const &kwargs) -> BodySort;
 
-    static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &outputs,
+    static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
                           BodyAggregateElementIterable const &elements) -> BodySort;
     static auto acquire(clingo_ast_t *ast) -> BodySort { return {ast}; }
 
@@ -4241,9 +4241,9 @@ auto BodySort::sign() -> Sign {
     return static_cast<Sign>(ret);
 }
 
-auto BodySort::outputs() -> Term {
+auto BodySort::left() -> Term {
     clingo_ast_t *ast = nullptr;
-    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_outputs, &ast));
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast));
     return construct_term(ast);
 }
 
@@ -4254,28 +4254,28 @@ auto BodySort::elements() -> BodyAggregateElementArray {
     return construct_body_aggregate_element_array(ast, size);
 }
 
-auto BodySort::construct(Library &lib, Location const &location, Sign const &sign, Term const &outputs,
+auto BodySort::construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
                          BodyAggregateElementIterable const &elements) -> BodySort {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_body_sort, &res_,
                                       static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
-                                      c_cast(outputs), c_cast(elements).data(), elements.size()));
+                                      c_cast(left), c_cast(elements).data(), elements.size()));
     return BodySort::acquire(res_);
 }
 
 void BodySort::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
                      [[maybe_unused]] py::kwargs const &kwargs) {
-    visitor(outputs(), *args, **kwargs);
+    visitor(left(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_elements, visitor, args, kwargs, BodyAggregateElement::acquire);
 }
 
 auto BodySort::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
                          [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<BodySort> {
-    auto [outputs_value, outputs_changed] = transform_value(outputs(), transform, args, kwargs);
+    auto [left_value, left_changed] = transform_value(left(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
-    if (outputs_changed || elements_changed) {
-        return BodySort::construct(lib, location(), sign(), outputs_value, elements_value);
+    if (left_changed || elements_changed) {
+        return BodySort::construct(lib, location(), sign(), left_value, elements_value);
     }
     return std::nullopt;
 }
@@ -4283,7 +4283,7 @@ auto BodySort::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::han
 auto BodySort::update(Library &lib, py::kwargs const &kwargs) -> BodySort {
     return BodySort::construct(lib, update_value<Location>(this, &BodySort::location, kwargs, "location"),
                                update_value<Sign>(this, &BodySort::sign, kwargs, "sign"),
-                               update_value<Term>(this, &BodySort::outputs, kwargs, "outputs"),
+                               update_value<Term>(this, &BodySort::left, kwargs, "left"),
                                update_value<BodyAggregateElementArray>(this, &BodySort::elements, kwargs, "elements"));
 }
 
@@ -8349,19 +8349,19 @@ Returns:
 )doc");
 
     make_comparable_base<BodyLiteral>(py_body_sort)
-        .def(py::init(&BodySort::construct), py::arg("lib"), py::arg("location"), py::arg("sign"), py::arg("outputs"),
+        .def(py::init(&BodySort::construct), py::arg("lib"), py::arg("location"), py::arg("sign"), py::arg("left"),
              py::arg("elements"), R"doc(Construct a BodySort object.
 
 Args:
     lib: The library object for storing symbols.
     location: The location of the literal.
     sign: The sign of the literal.
-    outputs: The pair of output terms.
+    left: The pair of output terms.
     elements: The sort elements.)doc")
         .def("__str__", &BodySort::to_string)
         .def_property_readonly("location", &BodySort::location, R"doc(The location of the literal.)doc")
         .def_property_readonly("sign", &BodySort::sign, R"doc(The sign of the literal.)doc")
-        .def_property_readonly("outputs", &BodySort::outputs, R"doc(The pair of output terms.)doc")
+        .def_property_readonly("left", &BodySort::left, R"doc(The pair of output terms.)doc")
         .def_property_readonly("elements", &BodySort::elements, R"doc(The sort elements.)doc")
         .def("visit", &BodySort::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
