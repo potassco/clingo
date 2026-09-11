@@ -5,9 +5,130 @@
 #include <clingo/control/statement.hh>
 #include <clingo/control/theory.hh>
 
+#include <clingo/ground/condlit.hh>
+#include <clingo/ground/sort.hh>
+
 namespace CppClingo::Control {
 
 namespace {
+
+void build_sort(BuildContext &ctx, Input::BdLitSort const &lit, Ground::ProfileNodeInternal *node) {
+    auto vars_body = Ground::VariableSet{};
+    for (auto const &body_lit : ctx.body()) {
+        body_lit->vars(vars_body, Ground::VarSelectMode::all);
+    }
+    auto vars_global = Ground::VariableSet{};
+    auto elems = std::vector<std::pair<Ground::UTerm, Ground::ULitVec>>{};
+    auto domain = true;
+    auto single_pass = true;
+    for (auto const &elem : lit.elems()) {
+        auto elem_vars = Ground::VariableSet{};
+        auto value = build_term(ctx.var_map(), elem.tuple().front());
+        value->vars(elem_vars);
+        auto cond = Ground::ULitVec{};
+        for (auto const &condition : elem.cond()) {
+            single_pass = single_pass && ctx.single_pass(condition);
+            build_lit(ctx, condition, [&cond, &elem_vars, &domain]<class Lit>(Lit &&ground_lit) {
+                ground_lit->vars(elem_vars, Ground::VarSelectMode::all);
+                domain = domain && ground_lit->domain();
+                cond.emplace_back(std::forward<Lit>(ground_lit));
+            });
+        }
+        for (auto var : elem_vars) {
+            if (vars_body.contains(var)) {
+                vars_global.emplace(var);
+            }
+        }
+        elems.emplace_back(std::move(value), std::move(cond));
+    }
+    // FIXME: this will lead to runtime errors if the tuple is not a pair of terms
+    // we also do not need to check that the term is a tuple but can simply use the term
+    auto const &tuple = std::get<Input::TermTuple>(lit.lhs());
+    auto const &outputs = std::get<Input::ArgumentTuple>(tuple.pool().front()).elems();
+    auto prev = build_term(ctx.var_map(), std::get<Input::Term>(outputs[0]));
+    auto next = build_term(ctx.var_map(), std::get<Input::Term>(outputs[1]));
+    auto priority = ctx.inc_priority();
+    auto member_index = domain && single_pass ? Ground::stratified_index : ctx.next_index();
+    auto &state =
+        ctx.state<Ground::StateSort>(ctx.mbr(), vars_global.release(), prev->copy(), next->copy(), member_index);
+
+    if (!domain || !single_pass) {
+        Ground::ProfileNodeInternal *sub_node = nullptr;
+        auto get_node = [&]() {
+            if (node != nullptr && sub_node == nullptr) {
+                sub_node =
+                    &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::BdLitSort>>(lit, false));
+            }
+            return sub_node;
+        };
+
+        for (auto &[value, cond] : elems) {
+            auto body = Ground::ULitVec{};
+            for (auto const &condition : cond) {
+                body.emplace_back(condition->copy());
+            }
+            auto num_cond = body.size();
+            auto prefix = Ground::copy_uvec(ctx.body());
+            body.insert(body.end(), std::make_move_iterator(prefix.begin()), std::make_move_iterator(prefix.end()));
+            ctx.gcomp().add(std::make_unique<Ground::StmSortMember>(state, value->copy(), std::move(body), num_cond,
+                                                                    priority, get_node()));
+        }
+
+        ctx.body().emplace_back(std::make_unique<Ground::LitSortMember>(state, prev->copy()));
+        ctx.body().emplace_back(std::make_unique<Ground::LitSortMember>(state, next->copy()));
+        ctx.body().emplace_back(std::make_unique<Ground::LitComparison>(prev->copy(), Relation::less, next->copy()));
+
+        auto pair_vars = Ground::VariableSet{state.global().begin(), state.global().end()};
+        prev->vars(pair_vars);
+        next->vars(pair_vars);
+        for (auto &[value, cond] : elems) {
+            auto elem_vars = Ground::VariableSet{};
+            value->vars(elem_vars);
+            for (auto const &condition : cond) {
+                condition->vars(elem_vars, Ground::VarSelectMode::all);
+            }
+            for (auto var : pair_vars) {
+                elem_vars.erase(var);
+            }
+            auto empty_index = ctx.next_index();
+            auto premise_index = ctx.next_index();
+            auto &condition = ctx.state<Ground::StateCondLit>(ctx.mbr(), elem_vars.release(),
+                                                              Ground::VariableVec{pair_vars.begin(), pair_vars.end()},
+                                                              premise_index, false, false, false);
+
+            ctx.gcomp().add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, condition,
+                                                                 Ground::copy_uvec(ctx.body()), ctx.inc_priority(),
+                                                                 empty_index, get_node()));
+            auto premise = Ground::ULitVec{};
+            premise.emplace_back(
+                std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, condition, empty_index));
+            for (auto &elem_condition : cond) {
+                premise.emplace_back(std::move(elem_condition));
+            }
+            premise.emplace_back(std::make_unique<Ground::LitComparison>(prev->copy(), Relation::less, value->copy()));
+            premise.emplace_back(std::make_unique<Ground::LitComparison>(value->copy(), Relation::less, next->copy()));
+            ctx.gcomp().add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::premise, condition,
+                                                                 std::move(premise), ctx.inc_priority(), premise_index,
+                                                                 get_node()));
+            ctx.body().emplace_back(
+                std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::lit, condition, premise_index));
+        }
+        return;
+    }
+
+    auto statements = std::vector<Ground::StmSortElem>{};
+    statements.reserve(elems.size());
+    Ground::ProfileNodeInternal *sub_node = nullptr;
+    for (auto &[value, cond] : elems) {
+        if (node != nullptr && sub_node == nullptr) {
+            sub_node = &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::BdLitSort>>(lit, true));
+        }
+        auto num_cond = cond.size();
+        cond.emplace_back(std::make_unique<Ground::LitTuple>(state.global(), state.symbols()));
+        statements.emplace_back(state, std::move(value), std::move(cond), num_cond, priority, sub_node);
+    }
+    ctx.body().emplace_back(std::make_unique<Ground::LitSortStrat>(state, std::move(statements)));
+}
 
 //! Translator for head literals.
 class BuilderHdLit {
@@ -51,6 +172,9 @@ class BuilderBdLit {
     }
     void operator()(Input::BdLitAggregate const &lit, Ground::ProfileNodeInternal *node) const {
         build_bd_lit(*ctx_, lit, node);
+    }
+    void operator()(Input::BdLitSort const &lit, Ground::ProfileNodeInternal *node) const {
+        build_sort(*ctx_, lit, node);
     }
     void operator()(Input::BdLitSimple const &lit, Ground::ProfileNodeInternal *node) const {
         std::ignore = node;

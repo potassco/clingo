@@ -44,6 +44,14 @@ TEST_CASE("rewrite_program") {
     REQUIRE(
         rewrite_program({"#theory x { t { + : 0, binary, left }; &a/0: t, any }.", "&a{ x+y+z }."}) ==
         SV{"#theory x {\n  t { + : 0, binary, left };\n  &a/0: t, any\n}.", "#program base.", "&a { ((x + y) + z) }."});
+    // sort lowering is deferred until domain information is available
+    REQUIRE(rewrite_program({"chain(X,Y) :- (X,Y) = #sort { Z: d(Z) }."}) ==
+            SV{"#program base.", "chain(X,Y) :- (X,Y) = #sort { Z: d(Z) }."});
+    REQUIRE(rewrite_program({"chain(K,X,Y) :- key(K), (X,Y) = #sort { Z: d(K,Z) }."}) ==
+            SV{"#program base.", "chain(K,X,Y) :- key(K); (X,Y) = #sort { Z: d(K,Z) }."});
+    REQUIRE(rewrite_program({"pair(A,B,X,Y) :- (A,B) = #sort { U: p(U) }, "
+                             "(X,Y) = #sort { V: q(V) }."}) ==
+            SV{"#program base.", "pair(A,B,X,Y) :- (A,B) = #sort { U: p(U) }; (X,Y) = #sort { V: q(V) }."});
 }
 
 TEST_CASE("rewrite_substitute") {

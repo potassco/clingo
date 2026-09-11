@@ -308,7 +308,7 @@ template <class U>
 auto make_ast(std::shared_ptr<U> owner, CppClingo::Input::BdLit const &lit) -> std::unique_ptr<clingo_ast_t> {
     using namespace CppClingo::Input;
     return std::visit(
-        [&owner]<class T>(T const &x) {
+        [&owner]<class T>(T const &x) -> std::unique_ptr<clingo_ast_t> {
             if constexpr (std::is_same_v<T, BdLitSimple>) {
                 return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_body_simple_literal, &x);
             }
@@ -323,6 +323,9 @@ auto make_ast(std::shared_ptr<U> owner, CppClingo::Input::BdLit const &lit) -> s
             }
             if constexpr (std::is_same_v<T, BdLitAggregate>) {
                 return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_body_aggregate, &x);
+            }
+            if constexpr (std::is_same_v<T, BdLitSort>) {
+                return std::make_unique<clingo_ast_t>(std::move(owner), clingo_ast_type_body_sort, &x);
             }
         },
         lit);
@@ -787,6 +790,9 @@ auto convert(clingo_ast_t const *ast) -> T {
         case clingo_ast_type_body_aggregate: {
             return ast->cast<CppClingo::Input::BdLitAggregate>();
         }
+        case clingo_ast_type_body_sort: {
+            return ast->cast<CppClingo::Input::BdLitSort>();
+        }
         default: {
             throw std::invalid_argument("body literal expected");
         }
@@ -1093,6 +1099,9 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, CppClingo::In
         }
         case clingo_ast_type_body_conditional_literal: {
             return std::invoke(std::forward<V>(visit), cast<BdLitConjunction>());
+        }
+        case clingo_ast_type_body_sort: {
+            return std::invoke(std::forward<V>(visit), cast<BdLitSort>());
         }
         case clingo_ast_type_head_simple_literal: {
             return std::invoke(std::forward<V>(visit), cast<HdLitSimple>());
@@ -1469,6 +1478,8 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
         TYPE(body_aggregate, BdLitAggregate,
             ATTR(left, lhs())
             ATTR(right, rhs()))
+        TYPE(body_sort, BdLitSort,
+            ATTR(left, lhs()))
         TYPE(statement_rule, StmRule,
             ATTR(head, head()))
         TYPE(theory_atom_definition, TheoryAtomDefinition,
@@ -1555,6 +1566,8 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(body_set_aggregate, BdLitSetAggregate,
             ATTR(elements, elems()))
         TYPE(body_aggregate, BdLitAggregate,
+            ATTR(elements, elems()))
+        TYPE(body_sort, BdLitSort,
             ATTR(elements, elems()))
         TYPE(statement_rule, StmRule,
             ATTR(body, body()))
@@ -2005,6 +2018,19 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                     static_cast<CppClingo::AggregateFunction>(fun),
                     convert<CppClingo::Input::BdLitAggregateElement>(elems, elems_size),
                     convert<CppClingo::Input::RGuard>(rhs));
+                break;
+            }
+            case clingo_ast_type_body_sort: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *lhs = va_arg(args, clingo_ast_t const *);
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto elems_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<CppClingo::Input::BdLitSort>(
+                    type, convert(loc), convert<CppClingo::Input::Term>(lhs),
+                    convert<CppClingo::Input::BdLitAggregateElement>(elems, elems_size));
                 break;
             }
             case clingo_ast_type_body_set_aggregate: {

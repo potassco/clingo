@@ -139,7 +139,7 @@ enum class Attribute : clingo_ast_attribute_t {
     u = clingo_ast_attribute_u,
     v = clingo_ast_attribute_v,
     value = clingo_ast_attribute_value,
-    weight = clingo_ast_attribute_weight,
+    weight = clingo_ast_attribute_weight
 };
 
 //! Enumeration of available ast node types.
@@ -183,6 +183,7 @@ enum class NodeType : clingo_ast_type_t {
     body_set_aggregate = clingo_ast_type_body_set_aggregate,
     body_theory_atom = clingo_ast_type_body_theory_atom,
     body_conditional_literal = clingo_ast_type_body_conditional_literal,
+    body_sort = clingo_ast_type_body_sort,
     // head literals
     head_simple_literal = clingo_ast_type_head_simple_literal,
     head_aggregate_element = clingo_ast_type_head_aggregate_element,

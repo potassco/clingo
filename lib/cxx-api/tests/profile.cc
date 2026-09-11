@@ -66,4 +66,27 @@ TEST_CASE_METHOD(Fixture, "profile", "[cxx][profile]") {
     REQUIRE(leaf.time_propagate >= 0);
 }
 
+TEST_CASE_METHOD(Fixture, "profile sort literal", "[cxx][profile]") {
+    ctl.parse_string("d(1..3). chain(X,Y) :- (X,Y) = #sort { Z : d(Z) }.");
+    ctl.ground();
+
+    auto profile = ctl.profile();
+    REQUIRE(profile.size() == 2);
+    REQUIRE(std::holds_alternative<ProfileNodeInternal>(profile.back()));
+
+    auto const &rule = std::get<ProfileNodeInternal>(profile.back());
+    REQUIRE_FALSE(rule.children.empty());
+    REQUIRE(std::holds_alternative<ProfileNodeInternal>(rule.children.front()));
+
+    auto const &sort = std::get<ProfileNodeInternal>(rule.children.front());
+    REQUIRE(sort.key == "(X,Y) = #sort { Z: d(Z) }");
+    REQUIRE(sort.nested);
+    REQUIRE_FALSE(sort.children.empty());
+    REQUIRE(std::holds_alternative<ProfileNodeLeaf>(sort.children.front()));
+
+    auto const &leaf = std::get<ProfileNodeLeaf>(sort.children.front());
+    REQUIRE(leaf.instances == 3);
+    REQUIRE(leaf.matches >= 3);
+}
+
 } // namespace Clingo::Test

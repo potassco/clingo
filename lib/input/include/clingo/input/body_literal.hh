@@ -112,8 +112,36 @@ class BdLitAggregate : public Expression<BdLitAggregate> {
     RGuard rhs_;
 };
 
+//! A body sort literal.
+//!
+//! For example: <tt>(X,Y) = #sort { Z: q(Z) }</tt>
+class BdLitSort : public Expression<BdLitSort> {
+  public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &BdLitSort::loc_, a_lhs = &BdLitSort::lhs_, a_elems = &BdLitSort::elems_};
+    }
+
+    //! Construct a body sort literal.
+    explicit BdLitSort(Location loc, Term lhs, BdLitAggregateElementArray elems)
+        : loc_{std::move(loc)}, lhs_{std::move(lhs)}, elems_{std::move(elems)} {}
+
+    //! The location of the literal.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The pair of output terms.
+    [[nodiscard]] auto lhs() const -> Term const & { return lhs_; }
+    //! The vector of elements.
+    [[nodiscard]] auto elems() const -> BdLitAggregateElementArray const & { return elems_; }
+
+  private:
+    Location loc_;
+    Term lhs_;
+    BdLitAggregateElementArray elems_;
+};
+
 //! A body literal.
-using BdLit = std::variant<BdLitSimple, BdLitConjunction, BdLitAggregate, BdLitSetAggregate, BdLitTheoryAtom>;
+using BdLit =
+    std::variant<BdLitSimple, BdLitConjunction, BdLitAggregate, BdLitSort, BdLitSetAggregate, BdLitTheoryAtom>;
 //! A vector of body literals.
 using BdLitArray = Util::immutable_array<BdLit>;
 
