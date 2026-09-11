@@ -1229,7 +1229,6 @@ class BodySort : public ASTBase {
     ~BodySort() noexcept = default;
 
     auto location() -> Location;
-    auto sign() -> Sign;
     auto left() -> Term;
     auto elements() -> BodyAggregateElementArray;
 
@@ -1238,7 +1237,7 @@ class BodySort : public ASTBase {
         -> std::optional<BodySort>;
     auto update(Library &lib, py::kwargs const &kwargs) -> BodySort;
 
-    static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
+    static auto construct(Library &lib, Location const &location, Term const &left,
                           BodyAggregateElementIterable const &elements) -> BodySort;
     static auto acquire(clingo_ast_t *ast) -> BodySort { return {ast}; }
 
@@ -4235,12 +4234,6 @@ auto BodySort::location() -> Location {
     return Location{ret};
 }
 
-auto BodySort::sign() -> Sign {
-    int ret = 0;
-    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret));
-    return static_cast<Sign>(ret);
-}
-
 auto BodySort::left() -> Term {
     clingo_ast_t *ast = nullptr;
     handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast));
@@ -4254,12 +4247,12 @@ auto BodySort::elements() -> BodyAggregateElementArray {
     return construct_body_aggregate_element_array(ast, size);
 }
 
-auto BodySort::construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
+auto BodySort::construct(Library &lib, Location const &location, Term const &left,
                          BodyAggregateElementIterable const &elements) -> BodySort {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_body_sort, &res_,
-                                      static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
-                                      c_cast(left), c_cast(elements).data(), elements.size()));
+                                      static_cast<clingo_location_t const *>(location), c_cast(left),
+                                      c_cast(elements).data(), elements.size()));
     return BodySort::acquire(res_);
 }
 
@@ -4275,14 +4268,13 @@ auto BodySort::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::han
     auto [left_value, left_changed] = transform_value(left(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     if (left_changed || elements_changed) {
-        return BodySort::construct(lib, location(), sign(), left_value, elements_value);
+        return BodySort::construct(lib, location(), left_value, elements_value);
     }
     return std::nullopt;
 }
 
 auto BodySort::update(Library &lib, py::kwargs const &kwargs) -> BodySort {
     return BodySort::construct(lib, update_value<Location>(this, &BodySort::location, kwargs, "location"),
-                               update_value<Sign>(this, &BodySort::sign, kwargs, "sign"),
                                update_value<Term>(this, &BodySort::left, kwargs, "left"),
                                update_value<BodyAggregateElementArray>(this, &BodySort::elements, kwargs, "elements"));
 }
@@ -8349,18 +8341,16 @@ Returns:
 )doc");
 
     make_comparable_base<BodyLiteral>(py_body_sort)
-        .def(py::init(&BodySort::construct), py::arg("lib"), py::arg("location"), py::arg("sign"), py::arg("left"),
-             py::arg("elements"), R"doc(Construct a BodySort object.
+        .def(py::init(&BodySort::construct), py::arg("lib"), py::arg("location"), py::arg("left"), py::arg("elements"),
+             R"doc(Construct a BodySort object.
 
 Args:
     lib: The library object for storing symbols.
     location: The location of the literal.
-    sign: The sign of the literal.
     left: The pair of output terms.
     elements: The sort elements.)doc")
         .def("__str__", &BodySort::to_string)
         .def_property_readonly("location", &BodySort::location, R"doc(The location of the literal.)doc")
-        .def_property_readonly("sign", &BodySort::sign, R"doc(The sign of the literal.)doc")
         .def_property_readonly("left", &BodySort::left, R"doc(The pair of output terms.)doc")
         .def_property_readonly("elements", &BodySort::elements, R"doc(The sort elements.)doc")
         .def("visit", &BodySort::visit, py::arg("visitor"), R"doc(Visit the children of the expression.

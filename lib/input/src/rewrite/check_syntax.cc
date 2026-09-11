@@ -241,10 +241,9 @@ struct CheckSyntax {
         auto const *lhs = tuple != nullptr && tuple->pool().size() == 1
                               ? std::get_if<ArgumentTuple>(&tuple->pool().front())
                               : nullptr;
-        if (lit.sign() != Sign::none || lhs == nullptr || lhs->elems().size() != 2) {
+        if (lhs == nullptr || lhs->elems().size() != 2) {
             // FIXME: we do not need this requirement and there are also no negated pairs
-            CLINGO_REPORT_LOC(*log_, error, lit.loc())
-                << "sort literal requires an unnegated pair on the left-hand side";
+            CLINGO_REPORT_LOC(*log_, error, lit.loc()) << "sort literal requires a pair on the left-hand side";
             return false;
         }
         return operator()(lit.lhs()) && std::ranges::all_of(lit.elems(), [this](auto const &elem) {

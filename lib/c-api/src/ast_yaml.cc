@@ -657,9 +657,6 @@ body_sort:
     location:
       type: location
       doc: The location of the literal.
-    sign:
-      type: sign
-      doc: The sign of the literal.
     left:
       type: term
       doc: The pair of output terms.

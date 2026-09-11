@@ -482,7 +482,6 @@ template <class O> class Print {
     }
 
     void operator()(BdLitSort const &lit) const {
-        *out_ << lit.sign();
         operator()(lit.lhs());
         *out_ << " = #sort { ";
         apply_to_range_with(lit.elems(), "; ", *this);

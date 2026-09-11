@@ -1284,8 +1284,6 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(body_aggregate, BdLitAggregate,
             ATTR(sign, sign())
             ATTR(function, fun()))
-        TYPE(body_sort, BdLitSort,
-            ATTR(sign, sign()))
         TYPE(theory_operator_definition, TheoryOpDefinition,
             ATTR(priority, prio())
             ATTR(operator_type, type()))
@@ -2026,13 +2024,12 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 std::va_list args;
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
-                auto sign = va_arg(args, int);
                 auto const *lhs = va_arg(args, clingo_ast_t const *);
                 auto const **elems = va_arg(args, clingo_ast_t const **);
                 auto elems_size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<CppClingo::Input::BdLitSort>(
-                    type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::Term>(lhs),
+                    type, convert(loc), convert<CppClingo::Input::Term>(lhs),
                     convert<CppClingo::Input::BdLitAggregateElement>(elems, elems_size));
                 break;
             }

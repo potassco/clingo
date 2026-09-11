@@ -49,7 +49,10 @@ The following example shows how to solve asynchronously:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> print(ctl.solve(on_model=print, async_=True))
+    >>> with ctl.start_solve(on_model=print, async_=True)) as hnd:
+    ...     # other work: poll with wait or use on_finish
+    ...     print(hnd.get())
+    ...
     a
     b
     SAT
@@ -64,9 +67,11 @@ This example shows how to solve both iteratively and asynchronously:
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
     >>> with ctl.start_solve(yield_=True, async_=True) as hnd:
+    ...     # other work: poll with wait or use on_finish
     ...     while mdl := hnd.model():
     ...         print(mdl)
     ...         hnd.resume()
+    ...         # other work: poll with wait or use on_finish
     ...     print(hnd.get())
     ...
     b

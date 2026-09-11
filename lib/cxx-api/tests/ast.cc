@@ -402,10 +402,9 @@ TEST_CASE_METHOD(Fixture, "ast body sort", "[cxx][ast][body_sort]") {
     auto value = parse_term("Z");
     auto condition = parse_lit("p(Z)");
     auto elem = node<T::body_aggregate_element>(loc, std::array{value}, std::array{condition});
-    auto sort = node<T::body_sort>(loc, AST::Sign::no_sign, left, std::array{elem});
+    auto sort = node<T::body_sort>(loc, left, std::array{elem});
 
     REQUIRE((sort.location(A::location) == loc));
-    REQUIRE(sort.number(A::sign) == AST::Sign::no_sign);
     REQUIRE(sort.node(A::left) == left);
     REQUIRE(std::ranges::equal(sort.nodes(A::elements), std::array{elem}));
     REQUIRE(sort.to_string() == "(X,Y) = #sort { Z: p(Z) }");

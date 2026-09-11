@@ -61,8 +61,6 @@ set(source-group-parse
     "src/parse/theory.cc")
 source_group("${ide_source_group}\\parse" FILES ${source-group-parse})
 set(source-group-rewrite
-    "src/rewrite/add_sign.cc"
-    "src/rewrite/add_sign.hh"
     "src/rewrite/analyze.cc"
     "src/rewrite/check_syntax.cc"
     "src/rewrite/compute_bounds.cc"

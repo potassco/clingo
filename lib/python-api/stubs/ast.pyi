@@ -904,42 +904,6 @@ class BodyAggregate:
         The sign of the literal.
         """
 
-class BodySort:
-    """
-    A sort literal in a rule body.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int: ...
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        sign: Sign,
-        outputs: Term,
-        elements: typing.Iterable[BodyAggregateElement],
-    ) -> None: ...
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> BodySort | None: ...
-    def update(self, lib: clingo.core.Library, **kwargs) -> BodySort: ...
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None: ...
-
-    @property
-    def elements(self) -> typing.Sequence[BodyAggregateElement]: ...
-    @property
-    def location(self) -> clingo.core.Location: ...
-    @property
-    def outputs(self) -> Term: ...
-    @property
-    def sign(self) -> Sign: ...
-
 class BodyAggregateElement:
     """
     An element of a body aggregate.
@@ -1314,6 +1278,113 @@ class BodySimpleLiteral:
     def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
         """
         The literal.
+        """
+
+class BodySort:
+    """
+    A sort literal in a rule body.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        left: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+        elements: typing.Iterable[BodyAggregateElement],
+    ) -> None:
+        """
+        Construct a BodySort object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the literal.
+            left: The pair of output terms.
+            elements: The sort elements.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> BodySort | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> BodySort:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[BodyAggregateElement]:
+        """
+        The sort elements.
+        """
+
+    @property
+    def left(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
+        """
+        The pair of output terms.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the literal.
         """
 
 class BodyTheoryAtom:
@@ -3821,6 +3892,7 @@ class StatementEdge:
         body: typing.Iterable[
             BodySimpleLiteral
             | BodyAggregate
+            | BodySort
             | BodySetAggregate
             | BodyTheoryAtom
             | BodyConditionalLiteral
@@ -3881,6 +3953,7 @@ class StatementEdge:
     ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
+        | BodySort
         | BodySetAggregate
         | BodyTheoryAtom
         | BodyConditionalLiteral
@@ -3931,6 +4004,7 @@ class StatementExternal:
         body: typing.Iterable[
             BodySimpleLiteral
             | BodyAggregate
+            | BodySort
             | BodySetAggregate
             | BodyTheoryAtom
             | BodyConditionalLiteral
@@ -4020,6 +4094,7 @@ class StatementExternal:
     ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
+        | BodySort
         | BodySetAggregate
         | BodyTheoryAtom
         | BodyConditionalLiteral
@@ -4082,6 +4157,7 @@ class StatementHeuristic:
         body: typing.Iterable[
             BodySimpleLiteral
             | BodyAggregate
+            | BodySort
             | BodySetAggregate
             | BodyTheoryAtom
             | BodyConditionalLiteral
@@ -4193,6 +4269,7 @@ class StatementHeuristic:
     ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
+        | BodySort
         | BodySetAggregate
         | BodyTheoryAtom
         | BodyConditionalLiteral
@@ -4637,6 +4714,7 @@ class StatementProject:
         body: typing.Iterable[
             BodySimpleLiteral
             | BodyAggregate
+            | BodySort
             | BodySetAggregate
             | BodyTheoryAtom
             | BodyConditionalLiteral
@@ -4714,6 +4792,7 @@ class StatementProject:
     ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
+        | BodySort
         | BodySetAggregate
         | BodyTheoryAtom
         | BodyConditionalLiteral
@@ -4850,6 +4929,7 @@ class StatementRule:
         body: typing.Iterable[
             BodySimpleLiteral
             | BodyAggregate
+            | BodySort
             | BodySetAggregate
             | BodyTheoryAtom
             | BodyConditionalLiteral
@@ -4910,6 +4990,7 @@ class StatementRule:
     ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
+        | BodySort
         | BodySetAggregate
         | BodyTheoryAtom
         | BodyConditionalLiteral
@@ -5055,6 +5136,7 @@ class StatementShow:
         body: typing.Iterable[
             BodySimpleLiteral
             | BodyAggregate
+            | BodySort
             | BodySetAggregate
             | BodyTheoryAtom
             | BodyConditionalLiteral
@@ -5115,6 +5197,7 @@ class StatementShow:
     ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
+        | BodySort
         | BodySetAggregate
         | BodyTheoryAtom
         | BodyConditionalLiteral
@@ -5433,6 +5516,7 @@ class StatementWeakConstraint:
         body: typing.Iterable[
             BodySimpleLiteral
             | BodyAggregate
+            | BodySort
             | BodySetAggregate
             | BodyTheoryAtom
             | BodyConditionalLiteral
@@ -5494,6 +5578,7 @@ class StatementWeakConstraint:
     ) -> typing.Sequence[
         BodySimpleLiteral
         | BodyAggregate
+        | BodySort
         | BodySetAggregate
         | BodyTheoryAtom
         | BodyConditionalLiteral
