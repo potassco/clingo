@@ -80,11 +80,11 @@ auto parse_bd_sort_elem(ParserState &state) -> std::optional<BdLitAggregateEleme
 }
 
 //! Continue parsing a sort literal.
-auto cont_bd_sort(ParserState &state, Position pos, Term outputs) -> std::optional<BdLit> {
+auto cont_bd_sort(ParserState &state, Position pos, Term lhs) -> std::optional<BdLit> {
     if (auto elems = state.delimited(TokenType::lbrace, parse_bd_sort_elem, TokenType::sem, TokenType::rbrace)) {
         auto loc = std::move(pos) + state.cursor_pos();
         state.consume();
-        return BdLitSort{std::move(loc), Sign::none, std::move(outputs), *std::move(elems)};
+        return BdLitSort{std::move(loc), Sign::none, std::move(lhs), *std::move(elems)};
     }
     return std::nullopt;
 }

@@ -238,10 +238,11 @@ struct CheckSyntax {
 
     auto operator()(BdLitSort const &lit) const -> bool {
         auto const *tuple = std::get_if<TermTuple>(&lit.lhs());
-        auto const *outputs = tuple != nullptr && tuple->pool().size() == 1
-                                  ? std::get_if<ArgumentTuple>(&tuple->pool().front())
-                                  : nullptr;
-        if (lit.sign() != Sign::none || outputs == nullptr || outputs->elems().size() != 2) {
+        auto const *lhs = tuple != nullptr && tuple->pool().size() == 1
+                              ? std::get_if<ArgumentTuple>(&tuple->pool().front())
+                              : nullptr;
+        if (lit.sign() != Sign::none || lhs == nullptr || lhs->elems().size() != 2) {
+            // FIXME: we do not need this requirement and there are also no negated pairs
             CLINGO_REPORT_LOC(*log_, error, lit.loc())
                 << "sort literal requires an unnegated pair on the left-hand side";
             return false;

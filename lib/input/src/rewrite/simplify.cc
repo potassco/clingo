@@ -1755,8 +1755,8 @@ class SimplifyBodyLiteral {
     }
 
     auto operator()(BdLitSort const &lit) const -> SimplifyResult<BdLit> {
-        auto [state_outputs, res_outputs] = simplify(SimplifyTermFlags::none, *ctx_, lit.lhs());
-        if (!state_outputs) {
+        auto [state_lhs, res_lhs] = simplify(SimplifyTermFlags::none, *ctx_, lit.lhs());
+        if (!state_lhs) {
             return {TruthValue::bot, BdLitSimple{make_constant(lit.loc(), false)}};
         }
         auto res_elems = Util::ResultVec{lit.elems()};
@@ -1772,7 +1772,7 @@ class SimplifyBodyLiteral {
         if (elems && elems->empty()) {
             return {TruthValue::bot, BdLitSimple{make_constant(lit.loc(), false)}};
         }
-        return {TruthValue::unknown, lit.rewrite(a_lhs = std::move(res_outputs), a_elems = std::move(elems))};
+        return {TruthValue::unknown, lit.rewrite(a_lhs = std::move(res_lhs), a_elems = std::move(elems))};
     }
 
     auto operator()(BdLitTheoryAtom const &lit) const -> SimplifyResult<BdLit> {
