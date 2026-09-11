@@ -614,6 +614,7 @@ body_literal:
   types:
   - body_simple_literal
   - body_aggregate
+  - body_sort
   - body_set_aggregate
   - body_theory_atom
   - body_conditional_literal
@@ -649,6 +650,22 @@ body_aggregate:
     right:
       type: optional_right_guard
       doc: The right guard of the aggregate.
+body_sort:
+  type: record
+  doc: A sort literal in a rule body.
+  arguments:
+    location:
+      type: location
+      doc: The location of the literal.
+    sign:
+      type: sign
+      doc: The sign of the literal.
+    outputs:
+      type: term
+      doc: The pair of output terms.
+    elements:
+      type: body_aggregate_element_array
+      doc: The sort elements.
 body_set_aggregate:
   type: record
   doc: A set aggregate.

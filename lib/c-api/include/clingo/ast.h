@@ -103,7 +103,9 @@ enum clingo_ast_type_e {
     clingo_ast_type_statement_include,
     clingo_ast_type_statement_const,
     clingo_ast_type_statement_parts,
-    clingo_ast_type_statement_comment
+    clingo_ast_type_statement_comment,
+    // body sort literals
+    clingo_ast_type_body_sort
 };
 //! Corresponding type to ::clingo_ast_type_e.
 typedef int clingo_ast_type_t;
@@ -151,6 +153,7 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_v,
     clingo_ast_attribute_value,
     clingo_ast_attribute_weight,
+    clingo_ast_attribute_outputs,
 };
 
 //! Corresponding type to ::clingo_ast_attribute_e.

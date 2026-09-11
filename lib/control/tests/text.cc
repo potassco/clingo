@@ -32,6 +32,54 @@ TEST_CASE("grounder_text") {
             REQUIRE(buf.view() == "a.\n"
                                   "b.\n#show.\n");
         }
+        SECTION("sort_domain") {
+            grd.parse("#show. d(1..3). chain(X,Y) :- (X,Y) = #sort { Z : d(Z) }.");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view() == "d(1).\n"
+                                  "d(2).\n"
+                                  "d(3).\n"
+                                  "chain(1,2).\n"
+                                  "chain(2,3).\n"
+                                  "#show.\n");
+        }
+        SECTION("sort_domain_keyed") {
+            grd.parse("#show. key(a;b). d(a,3). d(a,1). d(a,2). d(b,5). d(b,4). "
+                      "chain(K,X,Y) :- key(K), (X,Y) = #sort { Z : d(K,Z) }.");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view().find("chain(a,1,2).\n") != std::string_view::npos);
+            REQUIRE(buf.view().find("chain(a,2,3).\n") != std::string_view::npos);
+            REQUIRE(buf.view().find("chain(b,4,5).\n") != std::string_view::npos);
+            REQUIRE(buf.view().find("#sort_") == std::string_view::npos);
+        }
+        SECTION("sort_recursive") {
+            grd.parse("#show. d(1). d(2) :- d(1). d(3) :- chain(1,2). "
+                      "chain(X,Y) :- (X,Y) = #sort { Z : d(Z) }.");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view().find("chain(1,2)") != std::string_view::npos);
+            REQUIRE(buf.view().find("chain(2,3)") != std::string_view::npos);
+            REQUIRE(buf.view().find("#sort_") == std::string_view::npos);
+        }
+        SECTION("sort_recursive_keyed") {
+            grd.parse("#show. key(a;b). { d(1..2) }. "
+                      "chain(K,X,Y) :- key(K), (X,Y) = #sort { (K,Z) : d(Z) }.");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view().find("chain(a,(a,1),(a,2))") != std::string_view::npos);
+            REQUIRE(buf.view().find("chain(b,(b,1),(b,2))") != std::string_view::npos);
+            REQUIRE(buf.view().find("#sort_") == std::string_view::npos);
+        }
+        SECTION("sort_weak_constraint") {
+            grd.parse("#show. { d(1..3) }. :~ (X,Y) = #sort { Z : d(Z) }. [1@0,X,Y]");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view().find(":~") != std::string_view::npos);
+            REQUIRE(buf.view().find("#sort_") == std::string_view::npos);
+        }
+        SECTION("sort_multiple_non_domain") {
+            grd.parse("#show. { d(1..2) }. { e(3..4) }. "
+                      "pair(A,B,C,D) :- (A,B) = #sort { X : d(X) }, (C,D) = #sort { Y : e(Y) }.");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view().find("pair(1,2,3,4)") != std::string_view::npos);
+            REQUIRE(buf.view().find("#sort_") == std::string_view::npos);
+        }
         SECTION("bug-min") {
             grd.parse(R"(
                 edge(1,2).

@@ -614,6 +614,24 @@ class TestAST:
         assert str(a1) == "not #count { 5,X: not p(X), r(X) }"
         assert str(a2) == "5 < #sum { 5,X: not p(X), r(X) } <= 5"
 
+    def test_body_sort(self):
+        """Test body sort literals."""
+        outputs = ast.parse_term(self.lib, "(X,Y)")
+        value = ast.parse_term(self.lib, "Z")
+        condition = ast.parse_literal(self.lib, "p(Z)")
+        element = ast.BodyAggregateElement(self.lib, self.loc, [value], [condition])
+        sort = ast.BodySort(self.lib, self.loc, ast.Sign.NoSign, outputs, [element])
+
+        assert sort.location == self.loc
+        assert sort.sign == ast.Sign.NoSign
+        assert sort.outputs == outputs
+        assert sort.elements == [element]
+        assert str(sort) == "(X,Y) = #sort { Z: p(Z) }"
+
+        parsed = ast.parse_body_literal(self.lib, "(X,Y) = #sort { Z: p(Z) }")
+        assert isinstance(parsed, ast.BodySort)
+        assert parsed == sort
+
     def test_body_theory_atom(self):
         """
         Test body theory atom.

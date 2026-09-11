@@ -3,6 +3,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include "cbs.hh"
+
 namespace Clingo::Test {
 
 auto ctx(std::string_view name, SymbolSpan params) -> SymbolVector {
@@ -39,6 +41,35 @@ TEST_CASE("control solve", "[cxx][control][solve]") {
     std::ranges::sort(mdls);
     REQUIRE(mdls == std::vector<std::string>{"", "a(2)", "a(2) b(0)", "b(0)"});
     REQUIRE(hnd.get().satisfiable());
+}
+
+TEST_CASE("control solve non-domain sort", "[cxx][control][solve][sort]") {
+    auto solve = [](std::string_view program) {
+        auto lib = Library{};
+        auto ctl = Control{lib, {"0"}};
+        ctl.parse_string(program);
+        ctl.ground();
+        auto models = MV{};
+        REQUIRE(ctl.solve({}, MCB{models}).satisfiable());
+        return models;
+    };
+
+    REQUIRE(solve("{ d(1..2) }. chain(X,Y) :- (X,Y) = #sort { Z : d(Z) }.") ==
+            MV{{}, {"chain(1,2)", "d(1)", "d(2)"}, {"d(1)"}, {"d(2)"}});
+
+    REQUIRE(solve("{ d(1..3) }. chain(X,Y) :- (X,Y) = #sort { Z : d(Z) }.") ==
+            MV{{},
+               {"chain(1,2)", "chain(2,3)", "d(1)", "d(2)", "d(3)"},
+               {"chain(1,2)", "d(1)", "d(2)"},
+               {"chain(1,3)", "d(1)", "d(3)"},
+               {"chain(2,3)", "d(2)", "d(3)"},
+               {"d(1)"},
+               {"d(2)"},
+               {"d(3)"}});
+
+    REQUIRE(solve("key(a;b). d(a,1). d(a,2). d(b,1). d(b,3). "
+                  "chain(K,X,Y) :- key(K), (X,Y) = #sort { Z : d(K,Z) }.") ==
+            MV{{"chain(a,1,2)", "chain(b,1,3)", "d(a,1)", "d(a,2)", "d(b,1)", "d(b,3)", "key(a)", "key(b)"}});
 }
 
 TEST_CASE("control ground", "[cxx][control][ground]") {

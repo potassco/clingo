@@ -160,6 +160,8 @@ template <class T> class Visitor {
 
     void accept_(BdLitAggregate const &lit) const { visit(lit.lhs(), lit.elems(), lit.rhs()); }
 
+    void accept_(BdLitSort const &lit) const { visit(lit.outputs(), lit.elems()); }
+
     // statement
 
     void accept_(StmRule const &stm) const { visit(stm.head(), stm.body()); }

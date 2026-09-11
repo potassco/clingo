@@ -122,6 +122,7 @@ __all__: list[str] = [
     "BodyLiteral",
     "BodySetAggregate",
     "BodySimpleLiteral",
+    "BodySort",
     "BodyTheoryAtom",
     "CommentType",
     "DisjunctionElement",
@@ -227,6 +228,7 @@ def parse_body_literal(
 ) -> (
     BodySimpleLiteral
     | BodyAggregate
+    | BodySort
     | BodySetAggregate
     | BodyTheoryAtom
     | BodyConditionalLiteral
@@ -901,6 +903,42 @@ class BodyAggregate:
         """
         The sign of the literal.
         """
+
+class BodySort:
+    """
+    A sort literal in a rule body.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int: ...
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        sign: Sign,
+        outputs: Term,
+        elements: typing.Iterable[BodyAggregateElement],
+    ) -> None: ...
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> BodySort | None: ...
+    def update(self, lib: clingo.core.Library, **kwargs) -> BodySort: ...
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None: ...
+
+    @property
+    def elements(self) -> typing.Sequence[BodyAggregateElement]: ...
+    @property
+    def location(self) -> clingo.core.Location: ...
+    @property
+    def outputs(self) -> Term: ...
+    @property
+    def sign(self) -> Sign: ...
 
 class BodyAggregateElement:
     """
@@ -7389,6 +7427,7 @@ class UnparsedElement:
 BodyLiteral = (
     BodySimpleLiteral
     | BodyAggregate
+    | BodySort
     | BodySetAggregate
     | BodyTheoryAtom
     | BodyConditionalLiteral

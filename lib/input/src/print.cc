@@ -481,6 +481,14 @@ template <class O> class Print {
         }
     }
 
+    void operator()(BdLitSort const &lit) const {
+        *out_ << lit.sign();
+        operator()(lit.outputs());
+        *out_ << " = #sort { ";
+        apply_to_range_with(lit.elems(), "; ", *this);
+        *out_ << (lit.elems().empty() ? "}" : " }");
+    }
+
     // visit statements
 
     void operator()(Stm const &stm) const { std::visit(*this, stm); }
@@ -1183,6 +1191,16 @@ auto operator<<(std::ostream &out, BdLitAggregate const &lit) -> std::ostream & 
 }
 
 auto operator<<(Util::OutputBuffer &out, BdLitAggregate const &lit) -> Util::OutputBuffer & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, BdLitSort const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, BdLitSort const &lit) -> Util::OutputBuffer & {
     Print{out}(lit);
     return out;
 }

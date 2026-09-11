@@ -282,7 +282,6 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
             }
         }
     }
-
     return bld.components(
         CppClingo::Input::analyze(store, stms, opts_->profile != ProfileFlags::off ? &srcs : nullptr));
 }

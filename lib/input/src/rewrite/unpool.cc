@@ -485,6 +485,10 @@ class Unpool {
         return unpool_rewrite<BdLit>(aggr, *this, a_lhs, a_elems, a_rhs);
     }
 
+    auto operator()(BdLitSort const &sort) const -> std::optional<std::vector<BdLit>> {
+        return unpool_rewrite<BdLit>(sort, *this, a_lhs, a_elems);
+    }
+
     // statement
 
     auto operator()(Stm const &stm) const -> std::optional<StmVec> { return std::visit(*this, stm); }

@@ -73,6 +73,7 @@ enum class TokenType : uint8_t {
     sem,
     show,
     slash,
+    sort,
     star,
     str,
     str_include,
@@ -257,6 +258,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::show: {
             return out << "#show";
+        }
+        case TokenType::sort: {
+            return out << "#sort";
         }
         case TokenType::slash: {
             return out << "'/'";

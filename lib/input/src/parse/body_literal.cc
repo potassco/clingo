@@ -57,6 +57,38 @@ auto parse_bd_aggr_elem(ParserState &state) -> std::optional<BdLitAggregateEleme
     return std::nullopt;
 }
 
+//! Parse a sort element with exactly one projected term.
+auto parse_bd_sort_elem(ParserState &state) -> std::optional<BdLitAggregateElement> {
+    auto term = parse_term(state);
+    if (!term) {
+        return std::nullopt;
+    }
+    auto loc = location(*term);
+    auto tuple = std::vector<Term>{*std::move(term)};
+    if (state.token() != TokenType::colon) {
+        return BdLitAggregateElement{std::move(loc), std::move(tuple), {}};
+    }
+    loc += state.cursor_pos();
+    state.consume();
+    if (auto cond = state.separated_until(parse_literal, TokenType::comma, TokenType::sem, TokenType::rbrace)) {
+        if (!cond->empty()) {
+            loc += location(cond->back()).end();
+        }
+        return BdLitAggregateElement{std::move(loc), std::move(tuple), *std::move(cond)};
+    }
+    return std::nullopt;
+}
+
+//! Continue parsing a sort literal.
+auto cont_bd_sort(ParserState &state, Position pos, Term outputs) -> std::optional<BdLit> {
+    if (auto elems = state.delimited(TokenType::lbrace, parse_bd_sort_elem, TokenType::sem, TokenType::rbrace)) {
+        auto loc = std::move(pos) + state.cursor_pos();
+        state.consume();
+        return BdLitSort{std::move(loc), Sign::none, std::move(outputs), *std::move(elems)};
+    }
+    return std::nullopt;
+}
+
 //! Continue parsing a body aggregate.
 auto cont_bd_aggregate(ParserState &state, Position pos, Sign sign, LGuard lguard, AggregateFunction fun)
     -> std::optional<BdLit> {
@@ -186,6 +218,13 @@ auto parse_body_literal(ParserState &state) -> std::optional<BdLit> {
         }
         if (auto rel = check_relation(state.token())) {
             state.consume();
+            if (state.token() == TokenType::sort) {
+                if (sign != Sign::none || *rel != Relation::equal) {
+                    return state.expected<std::nullopt>("an unnegated equality before #sort");
+                }
+                state.consume();
+                return cont_bd_sort(state, pos, *std::move(term));
+            }
             // handle aggregates
             if (auto fun = check_aggregate(state.token())) {
                 state.consume();
