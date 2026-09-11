@@ -1481,7 +1481,7 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
             ATTR(left, lhs())
             ATTR(right, rhs()))
         TYPE(body_sort, BdLitSort,
-            ATTR(left, outputs()))
+            ATTR(left, lhs()))
         TYPE(statement_rule, StmRule,
             ATTR(head, head()))
         TYPE(theory_atom_definition, TheoryAtomDefinition,

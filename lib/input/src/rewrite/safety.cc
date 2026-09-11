@@ -176,7 +176,7 @@ template <class CB> class MakeNode {
     void operator()(BdLitSort const &lit, bool can_provide) {
         VariableVec provide;
         VariableVec depend;
-        GetDep{*provided_, provide, depend}(lit.outputs(), can_provide && lit.sign() == Sign::none);
+        GetDep{*provided_, provide, depend}(lit.lhs(), can_provide && lit.sign() == Sign::none);
         for (auto const &elem : lit.elems()) {
             visit_variables(elem, [this, &depend]([[maybe_unused]] Location const &loc, auto const &var) {
                 if (global_->contains(var)) {

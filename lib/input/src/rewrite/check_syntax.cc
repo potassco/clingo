@@ -237,7 +237,7 @@ struct CheckSyntax {
     }
 
     auto operator()(BdLitSort const &lit) const -> bool {
-        auto const *tuple = std::get_if<TermTuple>(&lit.outputs());
+        auto const *tuple = std::get_if<TermTuple>(&lit.lhs());
         auto const *outputs = tuple != nullptr && tuple->pool().size() == 1
                                   ? std::get_if<ArgumentTuple>(&tuple->pool().front())
                                   : nullptr;
@@ -246,7 +246,7 @@ struct CheckSyntax {
                 << "sort literal requires an unnegated pair on the left-hand side";
             return false;
         }
-        return operator()(lit.outputs()) && std::ranges::all_of(lit.elems(), [this](auto const &elem) {
+        return operator()(lit.lhs()) && std::ranges::all_of(lit.elems(), [this](auto const &elem) {
                    return elem.tuple().size() == 1 && operator()(elem.tuple()) && operator()(elem.cond());
                });
     }

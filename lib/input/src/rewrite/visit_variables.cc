@@ -72,7 +72,7 @@ class VisitVariables : public Visitor<VisitVariables> {
         if (ctx == VariableContext::all) {
             visit(lit.elems());
         }
-        visit(lit.outputs());
+        visit(lit.lhs());
     }
 
     // statement

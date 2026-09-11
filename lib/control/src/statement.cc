@@ -41,7 +41,7 @@ void build_sort(BuildContext &ctx, Input::BdLitSort const &lit, Ground::ProfileN
         }
         elems.emplace_back(std::move(value), std::move(cond));
     }
-    auto const &tuple = std::get<Input::TermTuple>(lit.outputs());
+    auto const &tuple = std::get<Input::TermTuple>(lit.lhs());
     auto const &outputs = std::get<Input::ArgumentTuple>(tuple.pool().front()).elems();
     auto prev = build_term(ctx.var_map(), std::get<Input::Term>(outputs[0]));
     auto next = build_term(ctx.var_map(), std::get<Input::Term>(outputs[1]));

@@ -1755,7 +1755,7 @@ class SimplifyBodyLiteral {
     }
 
     auto operator()(BdLitSort const &lit) const -> SimplifyResult<BdLit> {
-        auto [state_outputs, res_outputs] = simplify(SimplifyTermFlags::none, *ctx_, lit.outputs());
+        auto [state_outputs, res_outputs] = simplify(SimplifyTermFlags::none, *ctx_, lit.lhs());
         if (!state_outputs) {
             return {TruthValue::bot, BdLitSimple{make_constant(lit.loc(), false)}};
         }

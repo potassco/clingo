@@ -119,27 +119,27 @@ class BdLitSort : public Expression<BdLitSort> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &BdLitSort::loc_, a_sign = &BdLitSort::sign_, a_lhs = &BdLitSort::outputs_,
+        return std::tuple{a_loc = &BdLitSort::loc_, a_sign = &BdLitSort::sign_, a_lhs = &BdLitSort::lhs_,
                           a_elems = &BdLitSort::elems_};
     }
 
     //! Construct a body sort literal.
-    explicit BdLitSort(Location loc, Sign sign, Term outputs, BdLitAggregateElementArray elems)
-        : loc_{std::move(loc)}, sign_{sign}, outputs_{std::move(outputs)}, elems_{std::move(elems)} {}
+    explicit BdLitSort(Location loc, Sign sign, Term lhs, BdLitAggregateElementArray elems)
+        : loc_{std::move(loc)}, sign_{sign}, lhs_{std::move(lhs)}, elems_{std::move(elems)} {}
 
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The sign of the literal.
     [[nodiscard]] auto sign() const -> Sign { return sign_; }
     //! The pair of output terms.
-    [[nodiscard]] auto outputs() const -> Term const & { return outputs_; }
+    [[nodiscard]] auto lhs() const -> Term const & { return lhs_; }
     //! The vector of elements.
     [[nodiscard]] auto elems() const -> BdLitAggregateElementArray const & { return elems_; }
 
   private:
     Location loc_;
     Sign sign_;
-    Term outputs_;
+    Term lhs_;
     BdLitAggregateElementArray elems_;
 };
 
