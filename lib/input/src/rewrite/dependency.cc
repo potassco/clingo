@@ -120,6 +120,12 @@ class AddDepend {
         }
     }
 
+    void operator()(BdLitSort const &lit) const {
+        for (auto const &elem : lit.elems()) {
+            operator()(elem.cond(), DependencyType::positive | DependencyType::negative);
+        }
+    }
+
     void operator()(BdLitTheoryAtom const &lit) const {
         *normal_ = false;
         for (auto const &elem : lit.elems()) {
@@ -825,6 +831,7 @@ class AnalyzeVisitor {
     void visit(BdLitSimple const &bd_lit) { visit(bd_lit.lit(), false); }
     void visit(BdLitConjunction const &bd_lit) { visit(bd_lit.lit(), false); }
     void visit(BdLitAggregate const &bd_lit) { visit(bd_lit.elems()); }
+    void visit(BdLitSort const &bd_lit) { visit(bd_lit.elems()); }
     void visit(BdLitSetAggregate const &bd_lit) { visit(bd_lit.elems(), false); }
     void visit(BdLitTheoryAtom const &bd_lit) { visit(bd_lit.elems()); }
 

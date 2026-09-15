@@ -5,9 +5,105 @@
 #include <clingo/control/statement.hh>
 #include <clingo/control/theory.hh>
 
+#include <clingo/ground/condlit.hh>
+#include <clingo/ground/sort.hh>
+
 namespace CppClingo::Control {
 
 namespace {
+
+void build_sort(BuildContext &ctx, Input::BdLitSort const &lit, Ground::ProfileNodeInternal *node) {
+    auto vars_global = Ground::VariableSet{};
+    auto vars_body = Ground::VariableSet{};
+    for (auto const &lit : ctx.body()) {
+        lit->vars(vars_body, Ground::VarSelectMode::all);
+    }
+    auto lhs = build_term(ctx.var_map(), lit.lhs());
+
+    auto dom = true;      // all literals in conditions are domain
+    auto sp_elems = true; // all conditions are single-pass
+    auto elems = std::vector<std::tuple<Location, Ground::UTermVec, Ground::ULitVec>>{};
+    elems.reserve(lit.elems().size());
+    for (auto const &elem : lit.elems()) {
+        auto elem_vars = Ground::VariableSet{};
+        // tuple
+        auto loc = elem.tuple().empty() ? elem.loc() : location(elem.tuple().front());
+        auto tuple = Ground::UTermVec{};
+        tuple.reserve(elem.tuple().size());
+        for (auto const &term : elem.tuple()) {
+            tuple.emplace_back(build_term(ctx.var_map(), term));
+            tuple.back()->vars(elem_vars);
+        }
+        // condition
+        auto cond = Ground::ULitVec{};
+        cond.reserve(elem.cond().size());
+        for (auto const &lit : elem.cond()) {
+            sp_elems = sp_elems && ctx.single_pass(lit);
+            build_lit(ctx, lit, [&cond, &elem_vars]<class Lit>(Lit &&glit) {
+                glit->vars(elem_vars, Ground::VarSelectMode::all);
+                cond.emplace_back(std::forward<Lit>(glit));
+            });
+        }
+        dom = dom && std::ranges::all_of(cond, [](auto const &glit) { return glit->domain(); });
+        for (auto const &var : elem_vars) {
+            if (vars_body.contains(var)) {
+                vars_global.emplace(var);
+            }
+        };
+        elems.emplace_back(std::move(loc), std::move(tuple), std::move(cond));
+    }
+
+    auto elem_priority = ctx.inc_priority();
+    auto index = sp_elems ? Ground::stratified_index : ctx.next_index();
+
+    Ground::ProfileNodeInternal *sub_node = nullptr;
+    auto get_node = [&](bool nested) -> Ground::ProfileNodeInternal * {
+        if (node != nullptr && sub_node == nullptr) {
+            sub_node = &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::BdLitSort>>(lit, nested));
+        }
+        return sub_node;
+    };
+
+    // add accumulation rules for tuples
+    auto add_elem = [&]<class T>(auto &state) {
+        for (auto &[loc, tuple, cond] : elems) {
+            auto num = cond.size();
+            cond.reserve(ctx.body().size() + cond.size());
+            for (auto const &lit : ctx.body()) {
+                cond.emplace_back(lit->copy());
+            }
+            ctx.gcomp().add(std::make_unique<T>(state, loc, std::move(tuple), std::move(cond), num, elem_priority,
+                                                get_node(false)));
+        }
+    };
+
+    // create accumulation rules for stratified aggregates
+    auto add_sp_elems = [&]<class T>(auto &state) {
+        std::vector<T> stms;
+        stms.reserve(elems.size());
+        for (auto &[loc, tuple, cond] : elems) {
+            if (sub_node == nullptr && node != nullptr) {
+                sub_node =
+                    &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::BdLitSort>>(lit, true));
+            }
+            auto num = cond.size();
+            cond.emplace_back(std::make_unique<Ground::LitTuple>(state.global(), state.symbols()));
+            stms.emplace_back(state, loc, std::move(tuple), std::move(cond), num, elem_priority, get_node(true));
+        }
+        return stms;
+    };
+
+    auto &state =
+        ctx.state<Ground::StateSortAggr>(ctx.mbr(), vars_global.release(), std::move(lhs), index, dom, sp_elems);
+
+    if (sp_elems) {
+        ctx.body().emplace_back(
+            std::make_unique<Ground::LitSortAggrStrat>(state, add_sp_elems.operator()<Ground::StmSortAggrElem>(state)));
+    } else {
+        add_elem.operator()<Ground::StmSortAggrElem>(state);
+        ctx.body().emplace_back(std::make_unique<Ground::LitSortAggr>(state));
+    }
+}
 
 //! Translator for head literals.
 class BuilderHdLit {
@@ -51,6 +147,9 @@ class BuilderBdLit {
     }
     void operator()(Input::BdLitAggregate const &lit, Ground::ProfileNodeInternal *node) const {
         build_bd_lit(*ctx_, lit, node);
+    }
+    void operator()(Input::BdLitSort const &lit, Ground::ProfileNodeInternal *node) const {
+        build_sort(*ctx_, lit, node);
     }
     void operator()(Input::BdLitSimple const &lit, Ground::ProfileNodeInternal *node) const {
         std::ignore = node;

@@ -66,24 +66,16 @@ class OutputLit {
     void lit(Sign sign, Symbol sym, size_t uid) { do_lit(sign, sym, uid); }
     //! Output the given boolean constant.
     void boolean(bool value) { do_boolean(value); }
-    //! Output the given conditional literal.
+    //! Delay or output a previously added aggregate/conditional literal/theory.
     //!
-    //! Note that its elements have to be accumulated before using the statement output.
-    auto cond_lit(std::optional<size_t> uid) -> size_t { return do_cond_lit(uid); }
-    //! Delayed output of a body aggregate.
-    //!
-    //! Outputs a previously added aggregate if uid is given or starts
-    //! outputting a fresh aggregate atom.
-    auto bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t { return do_bd_aggr(sign, uid); }
-    //! Delayed output of a theory atom.
-    auto bd_theory(Sign sign, std::optional<size_t> uid) -> size_t { return do_bd_theory(sign, uid); }
+    //! If uid is given the literal is output, otherwise it is delayed and the
+    //! returned value can be used as uid for a later output.
+    auto delayed(Sign sign, std::optional<size_t> uid) -> size_t { return do_delayed(sign, uid); }
 
   private:
     virtual void do_lit(Sign sign, Symbol sym, size_t uid) = 0;
     virtual void do_boolean(bool value) = 0;
-    virtual auto do_cond_lit(std::optional<size_t> uid) -> size_t = 0;
-    virtual auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t = 0;
-    virtual auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t = 0;
+    virtual auto do_delayed(Sign sign, std::optional<size_t> uid) -> size_t = 0;
 };
 
 //! Interface to output statements.
@@ -95,6 +87,8 @@ class OutputStm {
     using BdElem = std::pair<SymbolSpan, IndexSpan>;
     //! A span of body aggregate elements.
     using BdElemSpan = std::span<BdElem const>;
+    //! A span of sort aggregate elements.
+    using BdSortElemSpan = std::span<std::pair<Symbol, IndexSpan> const>;
     //! A head aggregate element.
     //!
     //! The span captures the heads (`#sup` is used to represent `#true`) and
@@ -181,6 +175,8 @@ class OutputStm {
     void bd_aggr(size_t uid, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) {
         do_bd_aggr(uid, fun, elems, guards);
     }
+    //! Complete a delayed sort aggregate.
+    void bd_sort(size_t uid, BdSortElemSpan elems, Symbol guard) { do_bd_sort(uid, elems, guard); }
     //! Complete a delayed head aggregate.
     void hd_aggr(size_t uid, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) {
         do_hd_aggr(uid, fun, elems, guards);
@@ -235,6 +231,7 @@ class OutputStm {
     virtual auto do_cond_id() -> size_t = 0;
 
     virtual void do_cond_lit(size_t uid, CondLitSpan elems) = 0;
+    virtual void do_bd_sort(size_t uid, BdSortElemSpan elems, Symbol guard) = 0;
     virtual void do_bd_aggr(size_t uid, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) = 0;
     virtual void do_hd_aggr(size_t uid, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) = 0;
     virtual void do_disjunction(size_t uid, DisjElemSpan elems) = 0;

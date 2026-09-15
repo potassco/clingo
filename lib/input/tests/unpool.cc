@@ -145,6 +145,10 @@ TEST_CASE("unpool_body_literal") {
             "[S = #count { 3,X,Y,Z: q(X,Y,Z), __A_0=1..Y, X=1*__A_0+0=Z }]");
     REQUIRE(unpool_body_literal("S = { not X=1..Y=Z: q(X,Y,Z) }") ==
             "[S = #count { 3,X,Y,Z: q(X,Y,Z), __A_0=1..Y, not X=__A_0=Z }]");
+    REQUIRE(unpool_body_literal("(X,Y;U,V;Z) = #sort{ (A;B): p(C;D) }") ==
+            "[(X,Y) = #sort { A: p(C); A: p(D); B: p(C); B: p(D) }. "
+            "(U,V) = #sort { A: p(C); A: p(D); B: p(C); B: p(D) }. "
+            "Z = #sort { A: p(C); A: p(D); B: p(C); B: p(D) }]");
 }
 
 TEST_CASE("unpool_statement") {

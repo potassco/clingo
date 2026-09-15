@@ -634,7 +634,7 @@ auto LitBdAggr::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &ou
         }
     }
     auto &state = it.value();
-    state.uid(out.bd_aggr(sign_, state.uid()));
+    state.uid(out.delayed(sign_, state.uid()));
     return true;
 }
 
@@ -837,7 +837,7 @@ auto LitBdAggrStrat::do_output([[maybe_unused]] EvalContext const &ctx, OutputLi
         return false;
     }
     auto &state = it.value();
-    state.uid(out.bd_aggr(sign_, state.uid()));
+    state.uid(out.delayed(sign_, state.uid()));
     return true;
 }
 

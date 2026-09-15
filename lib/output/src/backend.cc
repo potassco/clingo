@@ -1376,13 +1376,7 @@ class OutputCond : public OutputLit {
         }
     }
 
-    auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override {
-        throw std::runtime_error("unsupported literal");
-    }
-    auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
-        throw std::runtime_error("unsupported literal");
-    }
-    auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+    auto do_delayed([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
 
@@ -1409,17 +1403,13 @@ class OutputBody : public OutputCond {
     //! @param sign the sign of the body literal
     //! @param uid the current literal (stored as an id)
     //! @return the literal in form of an id
-    auto delay_(Sign sign, std::optional<size_t> uid) -> size_t {
+    auto do_delayed(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
             uid = builder().next_lit();
         }
         append(sign, *uid);
         return *uid;
     }
-
-    auto do_cond_lit(std::optional<size_t> uid) -> size_t override { return delay_(Sign::none, uid); }
-    auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override { return delay_(sign, uid); }
-    auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override { return delay_(sign, uid); }
 };
 
 //! Output for statements and theory.
@@ -1556,6 +1546,31 @@ class OutputBackend : public OutputStm, OutputTheory {
                 assert(false);
             }
         }
+    }
+
+    void do_bd_sort(size_t uid, BdSortElemSpan elems, Symbol guard) override {
+        auto args = guard.args();
+        auto a = args[0];
+        auto b = args[1];
+        auto hd = uid_to_lit(uid);
+        auto clause = PrgLitVec{};
+        auto lits = PrgLitVec{};
+        for (auto const &[sym, conds] : elems) {
+            clause.clear();
+            Util::into_vec(clause, conds, uid_to_lit);
+            // NOTE: empty conditions are treated as facts
+            auto lit = bld_.clause(clause, conds.empty() ? ClauseType::conjunctive : ClauseType::disjunctive);
+            if (sym == a || sym == b) {
+                lits.emplace_back(lit);
+                if (lit > 0) {
+                    bld_.add_edge(hd, lit);
+                }
+            }
+            if (a < sym && sym < b) {
+                lits.emplace_back(bld_.negate(lit));
+            }
+        }
+        bld_.backend().rule(std::array{hd}, lits, false);
     }
 
     void do_hd_aggr(size_t uid, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) override {

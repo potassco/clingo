@@ -64,6 +64,8 @@ TEST_CASE("project_anonymous_body") {
             " :- #count { f(X,_): not q(X,*,*) } != f(X,_).");
     REQUIRE(project_statement(":- not #count { f(X,_) : not q(X,_,*) } != f(X,_).") ==
             " :- not #count { f(X,_): not q(X,*,*) } != f(X,_).");
+    REQUIRE(project_statement(":- (X,_) = #sort { f(X,_) : not q(X,_,*) }.") ==
+            " :- (X,_) = #sort { f(X,_): not q(X,*,*) }.");
     // theory
     REQUIRE(project_statement(" :- &p(X,_) { f(X,_): p(X,_,*), not q(X,_,*) } != f(X,_).") ==
             " :- &p(X,_) { f(X,_): p(X,_,*), not q(X,*,*) } != f(X,_).");

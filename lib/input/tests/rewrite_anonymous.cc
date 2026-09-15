@@ -63,6 +63,8 @@ TEST_CASE("rewrite_anonymous_body") {
             " :- #count { f(X,__A_0): not q(X,__A_1) } != f(X,__A_2).");
     REQUIRE(rewrite_statement(":- not #count { f(X,_) : not q(X,_) } != f(X,_).") ==
             " :- not #count { f(X,__A_0): not q(X,__A_1) } != f(X,__A_2).");
+    REQUIRE(rewrite_statement(":- f(X,_) = #sort { f(X,_): not p(X,_), not q(X,_) }.") ==
+            " :- f(X,__A_0) = #sort { f(X,__A_1): not p(X,__A_2), not q(X,__A_3) }.");
     // theory
     REQUIRE(rewrite_statement(" :- &p(X,_) { f(X,_): p(X,_,*), not q(X,_) } != f(X,_).") ==
             " :- &p(X,__A_0) { f(X,__A_1): p(X,__A_2,*), not q(X,__A_3) } != "

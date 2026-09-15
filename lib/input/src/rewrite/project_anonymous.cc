@@ -96,7 +96,7 @@ class ProjectAnonymous : public Transformer<ProjectAnonymous> {
     // body literal
 
     template <class T>
-        requires Util::is_among_v<T, BdLitAggregate, BdLitSetAggregate, BdLitTheoryAtom>
+        requires Util::is_among_v<T, BdLitAggregate, BdLitSetAggregate, BdLitTheoryAtom, BdLitSort>
     [[nodiscard]] auto accept(T const &lit) const -> std::optional<BdLit> {
         return rewrite(lit, a_elems);
     }

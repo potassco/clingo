@@ -235,9 +235,13 @@ TEST_CASE("parsev2") {
         // aggregates with guards
         REQUIRE(parse("a<{}<b") == "a < { } < b");
         REQUIRE(parse("a{}b") == "a <= { } <= b");
+        REQUIRE(parse("X = #sort { }") == "X = #sort { }");
         // aggregate elements
         REQUIRE(parse("#sum{:a;1:a;1,2:a,b,c}") == "#sum { : a; 1: a; 1,2: a, b, c }");
         REQUIRE(parse("{1<2;1<2:a;a:b;a:b,c}") == "{ 1<2; 1<2: a; a: b; a: b, c }");
+        // sort literals
+        REQUIRE(parse("(X,Y)=#sort{Z:p(Z)}") == "(X,Y) = #sort { Z: p(Z) }");
+        REQUIRE(parse("(X,Y)=#sort{(A,B):p(A,B)}") == "(X,Y) = #sort { (A,B): p(A,B) }");
     }
 
     SECTION("head_literal") {
