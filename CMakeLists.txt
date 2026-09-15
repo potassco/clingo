@@ -53,9 +53,9 @@ if(CLINGO_BUILD_WEB)
     set(DCMAKE_EXE_LINKER_FLAGS_RELEASE "")
 endif()
 
-check_cxx_compiler_flag("-Wcounter-extension" HAS_WCOUNTER_EXTENSION)
+check_cxx_compiler_flag("-Wno-counter-extension" HAS_WCOUNTER_EXTENSION)
 if(HAS_WCOUNTER_EXTENSION)
-    add_compile_options(-Wcounter-extension)
+    add_compile_options(-Wno-counter-extension)
 endif()
 
 set(PYBIND11_NEWPYTHON ON)
