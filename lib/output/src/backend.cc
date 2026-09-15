@@ -6,6 +6,7 @@
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/print.hh>
 #include <clingo/util/type_traits.hh>
+
 #include <utility>
 
 // #define CLINGO_DEBUG_AGGREGATES
@@ -1559,7 +1560,8 @@ class OutputBackend : public OutputStm, OutputTheory {
             clause.clear();
             Util::into_vec(clause, conds, uid_to_lit);
             // NOTE: empty conditions are treated as facts
-            auto lit = bld_.clause(clause, conds.empty() ? ClauseType::conjunctive : ClauseType::disjunctive);
+            auto lit = bld_.clause(clause, clause.empty() ? ClauseType::conjunctive : ClauseType::disjunctive);
+            bld_.mark(lit, EQType::implication);
             if (sym == a || sym == b) {
                 lits.emplace_back(lit);
                 if (lit > 0) {
