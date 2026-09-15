@@ -288,7 +288,7 @@ The following example shows how to solve asynchronously:
     >>> ctl = Control(lib, ["0"])
     >>> ctl.parse_string("1 { a; b } 1.")
     >>> ctl.ground()
-    >>> with ctl.start_solve(on_model=print, async_=True)) as hnd:
+    >>> with ctl.start_solve(on_model=print, async_=True) as hnd:
     ...     # other work: poll with wait or use on_finish
     ...     print(hnd.get())
     ...

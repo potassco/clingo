@@ -385,7 +385,7 @@ auto LitCondLit::do_output(EvalContext const &ctx, OutputLit &out) const -> bool
         if (state().atom_is_fact(it)) {
             return false;
         }
-        it.value().uid(out.cond_lit(it.value().uid()));
+        it.value().uid(out.delayed(Sign::none, it.value().uid()));
         return true;
     }
     return false;
@@ -527,7 +527,7 @@ void LitCondLitStrat::do_print(std::ostream &out) const {
 
 auto LitCondLitStrat::do_output(EvalContext const &ctx, OutputLit &out) const -> bool {
     if (auto it = state_->atom_find(ctx.ass()); !state_->atom_is_fact(it)) {
-        it.value().uid(out.cond_lit(it.value().uid()));
+        it.value().uid(out.delayed(Sign::none, it.value().uid()));
         return true;
     }
     return false;

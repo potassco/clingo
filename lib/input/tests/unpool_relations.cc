@@ -87,6 +87,7 @@ TEST_CASE("unpool_relations_body") {
     REQUIRE(unpool_statement("h :- X = #sum { Y: not 1 <= Y <= 3 } >= 2.") ==
             "[h :- X = #sum { Y: 1>Y; Y: Y>3 }; 2 <= #sum { Y: 1>Y; Y: Y>3 }.]");
     REQUIRE(unpool_statement("h :- not X != #sum { } >= 2.") == "[h :- not X != #sum { } >= 2.]");
+    REQUIRE(unpool_statement("h :- Z = #sort { Y: not 1 <= Y <= 3 }.") == "[h :- Z = #sort { Y: 1>Y; Y: Y>3 }.]");
 }
 
 TEST_CASE("unpool_relations_stms") {

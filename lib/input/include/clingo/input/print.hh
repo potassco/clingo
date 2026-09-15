@@ -231,6 +231,11 @@ auto operator<<(std::ostream &out, BdLitAggregate const &lit) -> std::ostream &;
 auto operator<<(Util::OutputBuffer &out, BdLitAggregate const &lit) -> Util::OutputBuffer &;
 
 //! Output the body literal to the given stream.
+auto operator<<(std::ostream &out, BdLitSort const &lit) -> std::ostream &;
+//! Output the body literal to the given stream.
+auto operator<<(Util::OutputBuffer &out, BdLitSort const &lit) -> Util::OutputBuffer &;
+
+//! Output the body literal to the given stream.
 auto operator<<(std::ostream &out, BdLitSetAggregate const &lit) -> std::ostream &;
 //! Output the body literal to the given stream.
 auto operator<<(Util::OutputBuffer &out, BdLitSetAggregate const &lit) -> Util::OutputBuffer &;

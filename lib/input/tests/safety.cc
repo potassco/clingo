@@ -40,6 +40,14 @@ TEST_CASE("check_safety") {
             "h :- p(Y); Z = #count { X: X=Y, not q(X) }; not q(Z)., C");
     REQUIRE(cs_stm("h :- Z >= #count{ X: not q(X), X=Y}; p(Y); not q(Z).") == "<unsafe>");
     REQUIRE(cs_stm("h :- Z = #count{ X,Z: not q(X), X=Y}; p(Y); not q(Z).") == "<unsafe>");
+    REQUIRE(cs_stm("h :- Z = #sort{ X: not q(X), X=Y}; p(Y); not q(Z).") ==
+            "h :- p(Y); Z = #sort { X: X=Y, not q(X) }; not q(Z)., C");
+    REQUIRE(cs_stm("h :- Z = #sort{ X,Z: not q(X), X=Y}; p(Y); not q(Z).") == "<unsafe>");
+    //
+    REQUIRE(cs_stm("h(X,Y) :- (X,Y) = #sort{ Z: p(Z)}.") == "h(X,Y) :- (X,Y) = #sort { Z: p(Z) }., U");
+    REQUIRE(cs_stm("h(K,X,Y) :- (X,Y) = #sort{ Z: p(K,Z)}; key(K).") ==
+            "h(K,X,Y) :- key(K); (X,Y) = #sort { Z: p(K,Z) }., C");
+    REQUIRE(cs_stm("h(K,X,Y) :- (X,Y) = #sort{ Z: p(K,Z)}.") == "<unsafe>");
     //
     REQUIRE(cs_stm("h :- &count(Y) { X: not q(X), X=Y} >= Y; p(Y).") ==
             "h :- p(Y); &count(Y) { X: X=Y, not q(X) } >= Y., C");

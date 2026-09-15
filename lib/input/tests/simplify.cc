@@ -290,6 +290,9 @@ TEST_CASE("simplify_body_aggregate") {
     REQUIRE(simplify_statement("p(X) :- #sum { 1 : X < Y+1 < Z } >= 1.") == "p(X) :- #sum { 1: X<1*Y+1<Z } >= 1., U");
     REQUIRE(simplify_statement("p(X) :- #sum { 1 : not X < Y+1 < Z } >= 1.") ==
             "p(X) :- #sum { 1: not X<__A_0<Z, __A_0=1*Y+1 } >= 1., U");
+    REQUIRE(simplify_statement("p(X) :- X = #sort {  }.") == "#true., T");
+    REQUIRE(simplify_statement("p(Y) :- (Y,1+Y) = #sort {  2+X: p(X-1); 1: #true }.") ==
+            "p(Y) :- (Y,1*Y+1) = #sort { 1*X+2: p(1*X+(-1)); 1 }., U");
 }
 
 TEST_CASE("simplify_head_theory") {

@@ -32,6 +32,67 @@ TEST_CASE("grounder_text") {
             REQUIRE(buf.view() == "a.\n"
                                   "b.\n#show.\n");
         }
+        SECTION("sort_domain") {
+            grd.parse("#show. d(1..3). chain(X,Y) :- (X,Y) = #sort { Z : d(Z) }.");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view() == "d(1).\n"
+                                  "d(2).\n"
+                                  "d(3).\n"
+                                  "chain(1,2).\n"
+                                  "chain(2,3).\n"
+                                  "#show.\n");
+        }
+        SECTION("sort_domain_keyed") {
+            grd.parse("#show. key(a;b). d(a,3). d(a,1). d(a,2). d(b,5). d(b,4). "
+                      "chain(K,X,Y) :- key(K), (X,Y) = #sort { Z : d(K,Z) }.");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view() == "d(a,3).\n"
+                                  "d(a,1).\n"
+                                  "d(a,2).\n"
+                                  "d(b,5).\n"
+                                  "d(b,4).\n"
+                                  "key(a).\n"
+                                  "key(b).\n"
+                                  "chain(a,1,2).\n"
+                                  "chain(a,2,3).\n"
+                                  "chain(b,4,5).\n"
+                                  "#show.\n");
+        }
+        SECTION("sort_recursive") {
+            grd.parse("#show. d(1). d(2) :- d(1). d(3) :- chain(1,2). "
+                      "chain(X,Y) :- (X,Y) = #sort { Z : d(Z) }.");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view() == "d(1).\n"
+                                  "d(2).\n"
+                                  "d(3) :- chain(1,2).\n"
+                                  "chain(1,2) :- (1,2) = #sort { 1; 2 }.\n"
+                                  "chain(2,3) :- (2,3) = #sort { 2; 3: d(3) }.\n"
+                                  "#show.\n");
+        }
+        SECTION("sort_recursive_keyed") {
+            grd.parse("#show. key(a;b). { d(1..2) }. "
+                      "chain(K,X,Y) :- key(K), (X,Y) = #sort { (K,Z) : d(Z) }.");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view() == "key(a).\n"
+                                  "key(b).\n"
+                                  "{ d(1) }.\n"
+                                  "{ d(2) }.\n"
+                                  "chain(a,(a,1),(a,2)) :- ((a,1),(a,2)) = #sort { (a,1): d(1); (a,2): d(2) }.\n"
+                                  "chain(b,(b,1),(b,2)) :- ((b,1),(b,2)) = #sort { (b,1): d(1); (b,2): d(2) }.\n"
+                                  "#show.\n");
+        }
+        SECTION("sort_multiple_non_domain") {
+            grd.parse("#show. { d(1..2) }. { e(3..4) }. "
+                      "pair(A,B,C,D) :- (A,B) = #sort { X : d(X) }, (C,D) = #sort { Y : e(Y) }.");
+            REQUIRE(grd.ground(params) == GroundResult::ok);
+            REQUIRE(buf.view() ==
+                    "{ d(1) }.\n"
+                    "{ d(2) }.\n"
+                    "{ e(3) }.\n"
+                    "{ e(4) }.\n"
+                    "pair(1,2,3,4) :- (1,2) = #sort { 1: d(1); 2: d(2) }; (3,4) = #sort { 3: e(3); 4: e(4) }.\n"
+                    "#show.\n");
+        }
         SECTION("bug-min") {
             grd.parse(R"(
                 edge(1,2).

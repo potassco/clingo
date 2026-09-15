@@ -66,6 +66,7 @@ enum clingo_ast_type_e {
     clingo_ast_type_body_set_aggregate,
     clingo_ast_type_body_theory_atom,
     clingo_ast_type_body_conditional_literal,
+    clingo_ast_type_body_sort,
     // head literals
     clingo_ast_type_head_simple_literal,
     clingo_ast_type_head_aggregate_element,

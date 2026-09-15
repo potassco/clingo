@@ -86,6 +86,8 @@ TEST_CASE("project_statement_head") {
     REQUIRE(project_statement("#count { X: p(X,_) : q(X) } > 5.") == "#count { X: p(X,_): q(X) } > 5.");
     REQUIRE(project_statement("#count { X: not p(X,Y) : q(X) } > 5.") == "#count { X: not p(X,Y): q(X) } > 5.");
     REQUIRE(project_statement("#count { X: not p(X,_) : q(X) } > 5.") == "#count { X: not p(X,*): q(X) } > 5.");
+    REQUIRE(project_statement("x :- (X,_) = #sort { Y: not p(Y,_); U: q(U,V) }.") ==
+            "x :- (X,_) = #sort { Y: not p(Y,*); U: q(U,*) }.");
     // theory
     REQUIRE(project_statement("&p { X: p(X), q(X,Y) } != 5.") == "&p { X: p(X), q(X,Y) } != 5.");
     REQUIRE(project_statement("&p { X: p(X), not q(X,_) } != 5.") == "&p { X: p(X), not q(X,*) } != 5.");

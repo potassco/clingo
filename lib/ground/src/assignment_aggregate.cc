@@ -532,7 +532,7 @@ auto LitAssignAggr::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit
         return false;
     }
     auto &state_elem = it.value();
-    state_elem = out.bd_aggr(Sign::none, state_elem != invalid_offset ? std::make_optional(state_elem) : std::nullopt);
+    state_elem = out.delayed(Sign::none, state_elem != invalid_offset ? std::make_optional(state_elem) : std::nullopt);
     return true;
 }
 
@@ -733,7 +733,7 @@ auto LitAssignAggrStrat::do_output([[maybe_unused]] EvalContext const &ctx, Outp
         return false;
     }
     auto &state_elem = it.value();
-    state_elem = out.bd_aggr(Sign::none, state_elem != invalid_offset ? std::make_optional(state_elem) : std::nullopt);
+    state_elem = out.delayed(Sign::none, state_elem != invalid_offset ? std::make_optional(state_elem) : std::nullopt);
     return true;
 }
 

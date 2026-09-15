@@ -236,6 +236,12 @@ struct CheckSyntax {
                operator()(lit.lhs()) && operator()(lit.rhs());
     }
 
+    auto operator()(BdLitSort const &lit) const -> bool {
+        return operator()(lit.lhs()) && std::ranges::all_of(lit.elems(), [this](auto const &elem) {
+                   return operator()(elem.tuple()) && operator()(elem.cond());
+               });
+    }
+
     // statement
 
     auto operator()(std::optional<Term> const &term) const -> bool { return (!term || operator()(*term)); }

@@ -251,6 +251,10 @@ template <class T> class Transformer {
         return rewrite(lit, a_lhs, a_elems, a_rhs);
     }
 
+    [[nodiscard]] auto accept_(BdLitSort const &lit) const -> std::optional<BdLit> {
+        return rewrite(lit, a_lhs, a_elems);
+    }
+
     [[nodiscard]] auto accept_(BdLitTheoryAtom const &lit) const -> std::optional<BdLit> {
         return rewrite(lit, a_name, a_elems, a_rhs);
     }

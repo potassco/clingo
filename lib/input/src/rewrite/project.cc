@@ -198,6 +198,8 @@ class Project : public Transformer<Project> {
         return std::nullopt;
     }
 
+    [[nodiscard]] auto accept(BdLitSort const &lit) const -> std::optional<BdLit> { return rewrite(lit, a_elems); }
+
     // statement
 
     [[nodiscard]] auto accept(StmRule const &stm) const -> std::optional<Stm> {

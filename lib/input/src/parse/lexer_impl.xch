@@ -117,6 +117,7 @@ auto ParserState::lex_() -> TokenType {
             <normal> "#project"            { return TokenType::project; }
             <normal> "#script"             { return TokenType::script; }
             <normal> "#show"               { return TokenType::show; }
+            <normal> "#sort"               { return TokenType::sort; }
             <normal> "#sum"                { return TokenType::sum; }
             <normal> "#sum+"               { return TokenType::sump; }
             <normal> "#theory"             { return TokenType::theory; }

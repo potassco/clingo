@@ -408,7 +408,7 @@ auto LitBdTheory::do_output(EvalContext const &ctx, OutputLit &out) const -> boo
     }
     auto res = state_->insert_atom(name_, rhs, ctx.ass());
     auto &atm = res.first.value();
-    atm.uid(out.bd_theory(sign_, atm.uid()));
+    atm.uid(out.delayed(sign_, atm.uid()));
     return true;
 }
 

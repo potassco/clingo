@@ -14,11 +14,7 @@ class NullOutputLit : public OutputLit {
   private:
     void do_lit([[maybe_unused]] Sign sign, [[maybe_unused]] Symbol sym, [[maybe_unused]] size_t uid) override {}
     void do_boolean([[maybe_unused]] bool value) override {}
-    auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override { return 0; }
-    auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
-        return 0;
-    }
-    auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+    auto do_delayed([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         return 0;
     }
 };
@@ -45,6 +41,8 @@ class NullOutputStm : public OutputStm {
     void do_cond_lit([[maybe_unused]] size_t uid, [[maybe_unused]] CondLitSpan elems) override {}
     void do_bd_aggr([[maybe_unused]] size_t uid, [[maybe_unused]] AggregateFunction fun,
                     [[maybe_unused]] BdElemSpan elems, [[maybe_unused]] GuardSpan guards) override {}
+    void do_bd_sort([[maybe_unused]] size_t uid, [[maybe_unused]] BdSortElemSpan elems,
+                    [[maybe_unused]] Symbol guard) override {}
     void do_hd_aggr([[maybe_unused]] size_t uid, [[maybe_unused]] AggregateFunction fun,
                     [[maybe_unused]] HdElemSpan elems, [[maybe_unused]] GuardSpan guards) override {}
     void do_disjunction([[maybe_unused]] size_t uid, [[maybe_unused]] DisjElemSpan elems) override {}

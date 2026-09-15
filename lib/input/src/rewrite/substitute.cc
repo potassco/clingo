@@ -438,7 +438,7 @@ class AssignmentRemover : public Transformer<AssignmentRemover> {
     }
 
     template <class T>
-        requires Util::matches<T, BdLitTheoryAtom, BdLitSetAggregate, BdLitAggregate, BdLitConjunction>
+        requires Util::matches<T, BdLitTheoryAtom, BdLitSetAggregate, BdLitAggregate, BdLitConjunction, BdLitSort>
     [[nodiscard]] static auto accept([[maybe_unused]] T const &lit) -> std::optional<BdLit> {
         return std::nullopt;
     }

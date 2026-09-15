@@ -107,9 +107,7 @@ class OutputBody : public OutputLit {
         buf_ << (value ? "#true" : "#false");
     }
 
-    auto do_cond_lit(std::optional<size_t> uid) -> size_t override { return do_bd_aggr(Sign::none, uid); }
-
-    auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
+    auto do_delayed(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
             uid = ++*uids_;
         }
@@ -119,8 +117,6 @@ class OutputBody : public OutputLit {
         delayed_.back().emplace_back(*uid);
         return *uid;
     }
-
-    auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override { return do_bd_aggr(sign, uid); }
 
     bool has_body_ = false;
     size_t *uids_;
@@ -157,15 +153,7 @@ class OutputCond : public OutputLit {
         buf_ << (value ? "#true" : "#false");
     }
 
-    auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override {
-        throw std::runtime_error("unsupported literal");
-    }
-
-    auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
-        throw std::runtime_error("unsupported literal");
-    }
-
-    auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+    auto do_delayed([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
 
@@ -373,6 +361,22 @@ class OutputText : public OutputStm, OutputTheory {
         body_.define(uid, tmp_.str());
     }
 
+    void do_bd_sort(size_t uid, BdSortElemSpan elems, Symbol guard) override {
+        auto prt = [this](auto &buf, auto const &elem) {
+            if (elem.second.empty()) {
+                buf << elem.first;
+            } else {
+                buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
+                    buf << elem.first << ": " << *strs_.nth(cond);
+                });
+            }
+        };
+        tmp_.reset();
+        tmp_ << guard << " = #sort { "
+             << Util::p_range(elems, "; ", [prt](auto &buf, auto const &elem) { prt(buf, elem); })
+             << (elems.empty() ? "}" : " }");
+        body_.define(uid, tmp_.str());
+    }
     void do_bd_aggr(size_t uid, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) override {
         aggr(uid, fun, elems, guards, [this](auto &buf, auto const &elem) {
             if (elem.second.empty()) {
