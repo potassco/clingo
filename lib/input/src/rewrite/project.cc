@@ -91,19 +91,13 @@ class Project : public Transformer<Project> {
         // add counts of local variables
         auto counts = get_counts(project_, elem);
         auto sub_project = Project{ProjectionMap{project_.mode(), counts}};
-        // project conclusion
-        auto res_lit = std::optional<Lit>{};
-        if (project_lits_) {
-            res_lit = sub_project.transform(elem.lit());
-        }
         // project premise
         std::optional<LitArray> res_cond = std::nullopt;
         if (project_cond) {
             res_cond = sub_project.transform(elem.cond());
         }
-        if (res_lit || res_cond) {
-            return CondLit{elem.loc(), std::move(res_lit).value_or(elem.lit()),
-                           std::move(res_cond).value_or(elem.cond())};
+        if (res_cond) {
+            return CondLit{elem.loc(), elem.lit(), std::move(res_cond).value_or(elem.cond())};
         }
         return std::nullopt;
     }
