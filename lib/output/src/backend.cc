@@ -215,8 +215,9 @@ class BuilderBase {
             assert(lit > 0);
             if (auto &li = info(lit); li.type != EQType::none) {
                 for (auto const &clit : clauses_.nth(li.clause).key().first) {
-                    if (this->mark(clit, li.type)) {
-                        todo.emplace_back(std::abs(clit));
+                    auto clit_lit = Literal::from_rep(clit);
+                    if (this->mark(clit_lit, li.type)) {
+                        todo.emplace_back(static_cast<prg_lit_t>(clit_lit.atom().index()));
                     }
                 }
             }
@@ -294,12 +295,12 @@ class BuilderBase {
     //! @param lit the literal to mark
     //! @param type the type of the equivalence
     //! @return whether the literal has been marked with a stricter type
-    auto mark(prg_lit_t lit, EQType type) -> bool {
-        auto atm = std::abs(lit);
-        if (lit < 0) {
+    auto mark(Literal lit, EQType type) -> bool {
+        auto atm = lit.atom();
+        if (lit.sign()) {
             type = std::max(type, EQType::implication);
         }
-        if (auto &li = info(atm); li.clause != invalid_id && li.type < type) {
+        if (auto &li = info(static_cast<prg_lit_t>(atm.index())); li.clause != invalid_id && li.type < type) {
             li.type = type;
             return true;
         }
@@ -482,7 +483,7 @@ template <class Sym> class BuilderMinMax {
         }
         lits_.resize(ids_.back());
         for (auto const &clit : lits_) {
-            bld.mark(clit, EQType::implication);
+            bld.mark(Literal::from_rep(clit), EQType::implication);
         }
         auto get_span = [this](auto it) {
             return std::span{std::next(lits_.begin(), *it), std::next(lits_.begin(), *(it + 1))};
@@ -640,7 +641,7 @@ template <class Sym> class BuilderMinMax {
                     // lit :- clit, tr_lits_.
                     if (tr_lits_.size() > 1) {
                         auto nlit = bld.clause(tr_lits_, ClauseType::conjunctive, false);
-                        bld.mark(nlit, EQType::implication);
+                        bld.mark(Literal::from_rep(nlit), EQType::implication);
                         tr_lits_.clear();
                         tr_lits_.emplace_back(nlit);
                     }
@@ -655,7 +656,7 @@ template <class Sym> class BuilderMinMax {
                         // nlit :- not clit.
                         // nlit :- lit.
                         // nlit | clit :- not not l.
-                        bld.mark(clit, EQType::equivalence);
+                        bld.mark(Literal::from_rep(clit), EQType::equivalence);
                         auto nlit = bld.next_lit();
                         bld.backend().rule(std::array{nlit}, std::array{bld.negate(clit)}, false);
                         bld.backend().rule(std::array{nlit}, std::array{bld.negate(lit)}, false);
@@ -850,7 +851,7 @@ class BuilderSum {
             auto it = elems.begin();
             for (auto const &nlit : nlits) {
                 auto clit = it++->second;
-                bld.mark(clit, nlit > 0 ? EQType::equivalence : EQType::implication);
+                bld.mark(Literal::from_rep(clit), nlit > 0 ? EQType::equivalence : EQType::implication);
                 if (nlit > 0) {
                     // nlit :- lit.                % saturate
                     bld.backend().rule(std::array{nlit}, std::array{lit}, false);
@@ -1053,19 +1054,19 @@ class BuilderCondLit {
         // - G: captures the conclusion
         // - F: catures the premise
         for (auto const &[g, f] : elems) {
-            bld.mark(f, EQType::implication);
+            bld.mark(Literal::from_rep(f), EQType::implication);
             if (g) {
                 auto rec = bld.in_cycle(lit, f);
                 auto k = bld.next_lit();
                 // formula G : F is replaced by K
                 // K :- G.
                 // K :- not F.
-                bld.mark(*g, EQType::implication);
+                bld.mark(Literal::from_rep(*g), EQType::implication);
                 bld.backend().rule(std::array{k}, std::array{*g}, false);
                 bld.backend().rule(std::array{k}, std::array{bld.negate(f)}, false);
                 if (rec) {
                     // K | F :- not not G.
-                    bld.mark(f, EQType::equivalence);
+                    bld.mark(Literal::from_rep(f), EQType::equivalence);
                     bld.backend().rule(std::array{k, f}, std::array{bld.negate(bld.negate(*g))}, false);
                 } else {
                 }
@@ -1143,7 +1144,7 @@ class BuilderDisjunction {
                     auto y = bld.next_lit();
                     Util::into_vec(lits_, conds, uid_to_atom);
                     auto c = bld.clause(lits_, ClauseType::disjunctive);
-                    bld.mark(c, EQType::implication);
+                    bld.mark(Literal::from_rep(c), EQType::implication);
                     hd_.emplace_back(x);
                     bd_.emplace_back(y);
                     // a :- x.
@@ -1160,7 +1161,7 @@ class BuilderDisjunction {
             } else {
                 Util::into_vec(lits_, conds, uid_to_atom);
                 bd_.emplace_back(bld.negate(bld.clause(lits_, ClauseType::disjunctive)));
-                bld.mark(bd_.back(), EQType::implication);
+                bld.mark(Literal::from_rep(bd_.back()), EQType::implication);
             }
         }
         rule_.add(bld, hd_, bd_, false);
@@ -1250,7 +1251,7 @@ class BuilderMinimize {
                 bld.backend().minimize(prio, std::array{std::pair{lit, weight}});
             } else {
                 auto lit = bld.clause({}, ClauseType::conjunctive);
-                bld.mark(lit, EQType::implication);
+                bld.mark(Literal::from_rep(lit), EQType::implication);
                 bld.backend().minimize(prio, std::array{std::pair{lit, weight}});
             }
             // mark tuple as fact (ignored if enqueued)
@@ -1278,11 +1279,11 @@ class BuilderMinimize {
                 auto &[old, conds] = *it.value(); // NOLINT
                 assert(!conds.empty());
                 for (auto const &lit : conds) {
-                    bld.mark(lit, EQType::implication);
+                    bld.mark(Literal::from_rep(lit), EQType::implication);
                 }
                 old = bld.clause(conds, ClauseType::disjunctive);
                 conds.clear();
-                bld.mark(old, EQType::implication);
+                bld.mark(Literal::from_rep(old), EQType::implication);
                 bld.backend().minimize(prio, std::array{std::pair{old, weight}});
             }
         }
@@ -1603,8 +1604,9 @@ class OutputBackend : public OutputStm, OutputTheory {
                         auto hlit = uid_to_lit(huid);
                         auto elit = bld_.clause(std::array{hlit, clit}, ClauseType::conjunctive);
                         bd_conds.back().emplace_back(elit);
-                        bld_.mark(uid_to_lit(elit), EQType::implication);
-                        bld_.mark(clit, EQType::implication);
+                        // elit is a fresh positive clause literal
+                        bld_.mark(Literal::from_rep(uid_to_lit(elit)), EQType::implication);
+                        bld_.mark(Literal::from_rep(clit), EQType::implication);
                         rule_.add(bld_, std::array{hlit}, std::array{blit, clit}, true);
                     } else {
                         bd_conds.back().emplace_back(clit);
