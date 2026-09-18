@@ -3,6 +3,7 @@
 #include <clingo/ground/instantiator.hh>
 #include <clingo/ground/term.hh>
 
+#include <clingo/core/backend.hh>
 #include <clingo/core/symbol.hh>
 
 #include <clingo/util/index_sequence.hh>
@@ -21,8 +22,7 @@ using VariableSet = Util::ordered_set<size_t>;
 using VariableVec = VariableSet::values_container_type;
 
 //! Enumeration to capture the state of an atom.
-// NOLINTNEXTLINE(performance-enum-size)
-enum class StateAtom : uint64_t {
+enum class StateAtom : uint8_t {
     //! Indicates that the atom is derived by a fact.
     fact = 0,
     //! Indicates that the atom is derived by some rule but not a fact.
@@ -41,8 +41,8 @@ enum class StateAtom : uint64_t {
 
 //! Capture the state of an atom.
 struct AtomInfo {
-    uint64_t id : 62;    //!< A unique id among all atoms.
-    StateAtom state : 2; //!< The atom state.
+    Atom id;         //!< A unique id among all atoms.
+    StateAtom state; //!< The atom state.
 };
 
 static_assert(sizeof(AtomInfo) == sizeof(uint64_t));
@@ -245,9 +245,11 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
 
     //! Add an atom to the base.
     template <class Gen> auto add(Symbol atom, StateAtom state, Gen &&gen) -> std::pair<MapAtom::iterator, AtomUpdate> {
-        auto [it, ins] = atoms_.try_emplace(atom, 0, state);
+        // The placeholder is overwritten with the minted id below on insert, and
+        // discarded by try_emplace otherwise, so it never reaches a read.
+        auto [it, ins] = atoms_.try_emplace(atom, Atom::invalid(), state);
         if (ins) {
-            it.value().id = std::invoke(std::forward<Gen>(gen));
+            it.value().id = Atom::from_rep(static_cast<prg_atom_t>(std::invoke(std::forward<Gen>(gen))));
             if (state != StateAtom::unknown) {
                 derived_.add(atom_index_(it));
             }
@@ -326,7 +328,7 @@ class AtomBase : public BaseImpl<Symbol, AtomBase> {
                 ++rem;
                 return true;
             }
-            auto tv = pred(item.second.id);
+            auto tv = pred(static_cast<prg_lit_t>(item.second.id.index()));
             if (tv == TruthValue::bot) {
                 ++rem;
                 return true;
