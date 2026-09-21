@@ -329,22 +329,32 @@ auto Base::theory() const -> TheoryBase {
     return TheoryBase{*base};
 }
 
-auto convert(Base base, MixedLitSpan const &lits, bool flip) -> LitVec {
-    return transform_vec(lits, [&](auto const &x) {
-        return std::visit(
+auto convert(Base base, MixedLitSpan const &lits, bool flip, bool disjunctive) -> LitVec {
+    auto res = LitVec{};
+    res.reserve(lits.size());
+    for (auto &&x : lits) {
+        std::visit(
             [&]<typename T>(T const &x) {
                 if constexpr (std::is_same_v<T, Lit_t>) {
-                    return flip ? -x : x;
+                    res.emplace_back(flip ? -x : x);
                 } else {
                     auto const &[sym, positive] = x;
-                    if (auto atom = base.lookup(sym.signature().value()).get(sym, std::nullopt)) {
-                        return (positive != flip) ? atom->literal() : -atom->literal();
+                    auto pos = positive != flip;
+                    if (auto dom = base.get(sym.signature().value(), std::nullopt)) {
+                        if (auto atom = dom->get(sym, std::nullopt)) {
+                            res.emplace_back(pos ? atom->literal() : -atom->literal());
+                            return;
+                        }
                     }
-                    throw pybind11::key_error{"key not found"};
+                    if (pos != disjunctive) {
+                        res.emplace_back(1);
+                        res.emplace_back(-1);
+                    }
                 }
             },
             x);
-    });
+    }
+    return res;
 }
 
 void register_base(pybind11::module &m) {

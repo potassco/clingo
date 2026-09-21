@@ -75,12 +75,12 @@ auto SolveControl::base() -> Base {
 }
 
 auto SolveControl::add_clause(MixedLitSpan const &lits) {
-    auto x = convert(base(), lits, false);
+    auto x = convert(base(), lits, false, true);
     handle_error(clingo_solve_control_add_clause(ctl_, x.data(), x.size()));
 }
 
 auto SolveControl::add_nogood(MixedLitSpan const &lits) {
-    auto x = convert(base(), lits, true);
+    auto x = convert(base(), lits, true, true);
     handle_error(clingo_solve_control_add_clause(ctl_, x.data(), x.size()));
 }
 

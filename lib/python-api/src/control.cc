@@ -358,12 +358,12 @@ auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optio
         } : nullptr,
         nullptr,
     };
-    auto ass = convert(base(), assumptions, false);
+    auto ass = convert(base(), assumptions, false, false);
     {
         auto guard = py::gil_scoped_release{};
         auto has_handler = hnd->mdl_ || hnd->unsat_ || hnd->stats_ || hnd->finish_;
-        handle_error(clingo_control_solve(get(), mode, ass.data(), assumptions.size(),
-                                          has_handler ? &c_event_handler : nullptr, hnd, &hnd->handle()));
+        handle_error(clingo_control_solve(get(), mode, ass.data(), ass.size(), has_handler ? &c_event_handler : nullptr,
+                                          hnd, &hnd->handle()));
     }
     return res;
 }

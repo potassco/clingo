@@ -8,7 +8,7 @@ from clingo import ast
 from clingo.control import Control
 from clingo.core import Library
 from clingo.ground import GroundResult
-from clingo.symbol import Number
+from clingo.symbol import Function, Number
 from util import MCB
 
 
@@ -173,7 +173,8 @@ class TestControl:
         Test running the incremental mode from python.
         """
         ctl = Control(self.lib, ["0"])
-        ctl.parse_string(dedent("""\
+        ctl.parse_string(
+            dedent("""\
                 #include <incmode>.
 
                 #program base.
@@ -188,7 +189,8 @@ class TestControl:
                 #program check(k).
 
                 :- not c(3), query(k).
-                """))
+                """)
+        )
         # NOTE: we cannot intercept models here; the incmode is more
         # interesting for clingo-based apps.
         ctl.main()
@@ -196,3 +198,19 @@ class TestControl:
         ctl.solve(on_model=mcb)
         assert all("c(3)" in mdl for mdl in mcb.symbols)
         assert len(mcb.symbols) == 32
+
+    def test_assume(self):
+        """
+        Test passing assumptions to the solver.
+        """
+        ctl = Control(self.lib)
+        ctl.parse_string("a.")
+        ctl.main()
+        res = ctl.solve(assumptions=[(Function(self.lib, "a"), True)])
+        assert res.satisfiable
+        res = ctl.solve(assumptions=[(Function(self.lib, "a"), False)])
+        assert res.unsatisfiable
+        res = ctl.solve(assumptions=[(Function(self.lib, "b"), True)])
+        assert res.unsatisfiable
+        res = ctl.solve(assumptions=[(Function(self.lib, "b"), False)])
+        assert res.satisfiable

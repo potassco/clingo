@@ -177,7 +177,7 @@ class Base {
 
 using MixedLitSpan = std::span<std::variant<std::pair<Symbol, bool>, Lit_t>>;
 
-auto convert(Base base, MixedLitSpan const &lits, bool flip) -> LitVec;
+auto convert(Base base, MixedLitSpan const &lits, bool flip, bool disjunctive) -> LitVec;
 
 void register_base(pybind11::module &m);
 
