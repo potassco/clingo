@@ -28,6 +28,7 @@ set(source
 set(ide_test_group "Test Files")
 set(test-group
     "tests/number.cc"
+    "tests/roles.cc"
     "tests/symbol.cc")
 source_group("${ide_test_group}" FILES ${test-group})
 set(test
