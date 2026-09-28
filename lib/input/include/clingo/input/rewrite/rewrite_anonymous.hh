@@ -23,7 +23,7 @@ namespace CppClingo::Input {
 [[nodiscard]] auto rewrite_anonymous(BdLit const &lit, NameGen &gen) -> std::optional<BdLit>;
 
 //! Give anonymous variables a unique name.
-[[nodiscard]] auto rewrite_anonymous(SymbolStore &store, Stm const &stm) -> std::optional<Stm>;
+[[nodiscard]] auto rewrite_anonymous(Stm const &stm, NameGen &gen) -> std::optional<Stm>;
 
 //! @}
 

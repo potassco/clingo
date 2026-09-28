@@ -1,6 +1,7 @@
 #include "test.hh"
 
 #include <clingo/input/rewrite/rewrite_anonymous.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -10,7 +11,9 @@ namespace {
 
 template <class T> auto rewrite_anonymous_str(std::optional<T> value) -> std::string {
     if (value) {
-        return to_str(rewrite_anonymous(*make_symbol_store(true, true), value.value()).value_or(value.value()));
+        auto store = make_symbol_store(true, true);
+        auto gen = NameGen{*store, select_variables(*value, VariableContext::all), "__A_"};
+        return to_str(rewrite_anonymous(value.value(), gen).value_or(value.value()));
     }
     return "<failed>";
 }
