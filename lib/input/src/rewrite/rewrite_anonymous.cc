@@ -59,8 +59,7 @@ class RewriteAnonymous : public Transformer<RewriteAnonymous> {
     return RewriteAnonymous{gen}.transform(lit);
 }
 
-[[nodiscard]] auto rewrite_anonymous(SymbolStore &store, Stm const &stm) -> std::optional<Stm> {
-    auto gen = NameGen{store, select_variables(stm, VariableContext::all), "__A_"};
+[[nodiscard]] auto rewrite_anonymous(Stm const &stm, NameGen &gen) -> std::optional<Stm> {
     return RewriteAnonymous{gen}.transform(stm);
 }
 

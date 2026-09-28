@@ -20,7 +20,7 @@ namespace CppClingo::Input {
 void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
     ctx.init(select_variables(stm, VariableContext::all), "__A_");
     CLINGO_REPORT(ctx.logger(), debug) << "rewrite: " << stm;
-    auto opt = rewrite_anonymous(ctx.store(), stm);
+    auto opt = rewrite_anonymous(stm, ctx.gen());
     if (opt) {
         CLINGO_REPORT(ctx.logger(), debug) << "  anonymous: " << *opt;
     }
