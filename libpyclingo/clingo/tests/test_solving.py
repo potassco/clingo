@@ -169,6 +169,37 @@ class TestSolving(TestCase):
         self.assertTrue(ret.unsatisfiable)
         self.assertTrue(len(self.mcb.core) > 7)
 
+    def test_solve_assume1(self):
+        """
+        Test core retrieval.
+        """
+        self.ctl.add("base", [], "{a}.")
+        self.ctl.ground([("base", [])])
+        ret = cast(SolveResult, self.ctl.solve(assumptions=[(Function("q"), True)]))
+        self.assertTrue(ret.unsatisfiable)
+        ret = cast(SolveResult, self.ctl.solve(assumptions=[(Function("q"), False)]))
+        self.assertTrue(ret.satisfiable)
+
+    def test_solve_assume2(self):
+        """
+        Test core retrieval.
+        """
+        self.ctl.add("base", [], "a.")
+        self.ctl.ground([("base", [])])
+        ret = cast(SolveResult, self.ctl.solve(assumptions=[(Function("q"), True)]))
+        self.assertTrue(ret.unsatisfiable)
+        ret = cast(SolveResult, self.ctl.solve(assumptions=[(Function("q"), False)]))
+        self.assertTrue(ret.satisfiable)
+
+    def test_solve_assume3(self):
+        """
+        Test core retrieval.
+        """
+        ret = cast(SolveResult, self.ctl.solve(assumptions=[(Function("q"), True)]))
+        self.assertTrue(ret.unsatisfiable)
+        ret = cast(SolveResult, self.ctl.solve(assumptions=[(Function("q"), False)]))
+        self.assertTrue(ret.satisfiable)
+
     def test_enum(self):
         """
         Test core retrieval.
@@ -329,6 +360,26 @@ class TestSolving(TestCase):
 
             _check_sat(self, hnd.get())
             self.assertEqual(len(self.mcb.models), 2)
+
+        self.mcb = _MCB()
+        with cast(
+            SolveHandle,
+            self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=False),
+        ) as hnd:
+            for m in hnd:
+                m.context.add_clause([(Function("d"), False)])
+            _check_sat(self, hnd.get())
+            self.assertEqual(len(self.mcb.models), 3)
+
+        self.mcb = _MCB()
+        with cast(
+            SolveHandle,
+            self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=False),
+        ) as hnd:
+            for m in hnd:
+                m.context.add_clause([(Function("d"), True)])
+            _check_sat(self, hnd.get())
+            self.assertEqual(len(self.mcb.models), 1)
 
     def test_control_nogood(self):
         """

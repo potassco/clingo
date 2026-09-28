@@ -171,22 +171,25 @@ class SolveControl:
         This function can only be called in a model callback or while iterating
         when using a `SolveHandle`.
         """
-        atoms = self.symbolic_atoms
+        atoms = None
+        n_lits = 0
         p_lits = _ffi.new("clingo_literal_t[]", len(literals))
-        for i, lit in enumerate(literals):
+        for lit in literals:
             if isinstance(lit, int):
-                p_lits[i] = lit
+                p_lits[n_lits] = lit
+                n_lits += 1
             else:
+                if atoms is None:
+                    atoms = self.symbolic_atoms
                 atom = atoms[lit[0]]
                 if atom is not None:
                     slit = atom.literal
-                else:
-                    slit = -1
-                p_lits[i] = slit if lit[1] else -slit
+                    p_lits[n_lits] = slit if lit[1] else -slit
+                    n_lits += 1
+                elif not lit[1]:
+                    return
 
-        _handle_error(
-            _lib.clingo_solve_control_add_clause(self._rep, p_lits, len(literals))
-        )
+        _handle_error(_lib.clingo_solve_control_add_clause(self._rep, p_lits, n_lits))
 
     def _invert(
         self, lit: Union[Tuple[Symbol, bool], int]
@@ -258,10 +261,10 @@ class _SymbolSequence(Sequence[Symbol]):
             yield Symbol(self._p_symbols[i])
 
     def __str__(self):
-        return f'[{", ".join(str(sym) for sym in self)}]'
+        return f"[{', '.join(str(sym) for sym in self)}]"
 
     def __repr__(self):
-        return f'[{", ".join(repr(sym) for sym in self)}]'
+        return f"[{', '.join(repr(sym) for sym in self)}]"
 
 
 class Model:
