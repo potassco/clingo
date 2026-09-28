@@ -1043,18 +1043,27 @@ class Control:
         self._handler = _ffi.new_handle(data)
 
         p_ass = _ffi.NULL
+        n_ass = 0
         if assumptions:
             atoms = None
-            p_ass = _ffi.new("clingo_literal_t[]", len(assumptions))
-            for i, lit in enumerate(assumptions):
+            p_ass = _ffi.new("clingo_literal_t[]", max(len(assumptions), 2))
+            for lit in assumptions:
                 if isinstance(lit, int):
-                    p_ass[i] = lit
+                    p_ass[n_ass] = lit
+                    n_ass += 1
                 else:
                     if atoms is None:
                         atoms = self.symbolic_atoms
-                    atom = self.symbolic_atoms[lit[0]]
-                    slit = -1 if atom is None else atom.literal
-                    p_ass[i] = slit if lit[1] else -slit
+                    atom = atoms[lit[0]]
+                    if atom is not None:
+                        slit = atom.literal
+                        p_ass[n_ass] = slit if lit[1] else -slit
+                        n_ass += 1
+                    elif lit[1]:
+                        p_ass[0] = 1
+                        p_ass[1] = -1
+                        n_ass = 2
+                        break
 
         mode = 0
         if yield_:
@@ -1069,7 +1078,7 @@ class Control:
                 self._rep,
                 mode,
                 p_ass,
-                len(assumptions),
+                n_ass,
                 _lib.pyclingo_solve_event_callback,
                 self._handler,
                 handler=data,
