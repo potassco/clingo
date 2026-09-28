@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-import subprocess as sp
-import sys
+import argparse
 import json
 import re
-import argparse
-from packaging import version
+import subprocess as sp
+import sys
 from collections import defaultdict
+
+from packaging import version
 
 ACCOUNT = "potassco"
 REPO = "wip-20"
@@ -98,7 +99,7 @@ def run(exec: bool):
             for old_pkg in to_delete:
                 total_to_delete += 1
                 if exec:
-                    if delete_package(old_pkg["slug_perm"]):
+                    if delete_package(old_pkg):
                         total_deleted += 1
                 else:
                     print(
