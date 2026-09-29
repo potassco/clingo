@@ -1,5 +1,12 @@
 # Changes
 
+## clingo 5.8.3
+
+- fix compilation issues on Windows (#654)
+- fix symbolic clause and assumption handling for undefined atoms (#672)
+- fix example meta encodings (#655)
+- update clasp fixing various issues (#669)
+
 ## clingo 5.8.2
 
 - fix cleanup of AST nodes (#652)
