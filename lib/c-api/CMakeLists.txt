@@ -113,6 +113,8 @@ elseif(CLINGO_INSTALL_WHEEL AND CLINGO_BUILD_SHARED)
         ARCHIVE DESTINATION ".")
 endif()
 
+clingo_git_hash(clingo)
+
 if(CLINGO_BUILD_TESTS AND WIN32 AND CLINGO_BUILD_SHARED)
     set(test_subdir "${CMAKE_BINARY_DIR}/bin/tests/")
     set(python_subdir "${CMAKE_BINARY_DIR}/bin/python/")

@@ -1,3 +1,5 @@
+find_package(Git QUIET)
+
 function(re2c_target_or_gen GRAMMAR)
     get_filename_component(directory "${GRAMMAR}" DIRECTORY)
     get_filename_component(filename "${GRAMMAR}" NAME_WE)
@@ -75,4 +77,36 @@ function(clingo_target_properties)
             INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         )
     endif()
+endfunction()
+
+function(clingo_git_hash target)
+    set(header_directory
+        "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    )
+    set(header_file
+        "${header_directory}/clingo_git_hash.h"
+    )
+
+    file(MAKE_DIRECTORY "${header_directory}")
+    if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+        add_custom_target("${target}_git_hash" ALL
+            COMMAND "${CMAKE_COMMAND}"
+                "-DGIT_EXECUTABLE=${GIT_EXECUTABLE}"
+                "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}"
+                "-DOUTPUT_FILE=${header_file}"
+                -P "${PROJECT_SOURCE_DIR}/cmake/write-git-hash.cmake"
+            BYPRODUCTS
+                "${header_file}"
+            VERBATIM)
+
+        add_dependencies("${target}" "${target}_git_hash")
+
+    else()
+        file(WRITE "${header_file}" "#pragma once\n")
+    endif()
+
+    target_sources("${target}" PRIVATE
+        "${header_file}"
+    )
+    target_include_directories("${target}" PRIVATE "${header_directory}")
 endfunction()
