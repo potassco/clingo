@@ -1,3 +1,4 @@
+#include "clingo_git_hash.h"
 #include "control.hh" // IWYU pragma: keep
 #include "lib.hh"     // IWYU pragma: keep
 #include "opts.hh"
@@ -13,6 +14,11 @@
 #include <clasp/cli/clasp_app.h>
 
 #include <utility>
+
+// NOLINTBEGIN
+#define CLINGO_STRINGIFY_IMPL(x) #x
+#define CLINGO_STRINGIFY(x) CLINGO_STRINGIFY_IMPL(x)
+// NOLINTEND
 
 using namespace CppClingo::CAPI;
 
@@ -90,7 +96,11 @@ class AppAdapter {
             app_->version(data_, &str);
             return {str.data, str.size};
         }
+#ifdef CLINGO_GIT_HASH
+        return CLINGO_VERSION " (" CLINGO_STRINGIFY(CLINGO_GIT_HASH) ")";
+#else
         return CLINGO_VERSION;
+#endif
     }
 
     void register_options(Potassco::ProgramOptions::OptionContext &root) {
