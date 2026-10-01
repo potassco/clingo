@@ -608,30 +608,95 @@ auto TermLinear::do_score(double size, std::vector<bool> const &bound) const -> 
     return bound[var_] ? 0.0 : size;
 }
 
-auto TermLinear::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
-    if (sym.type() != SymbolType::number) {
+namespace {
+
+auto eq_ma(Number const &m, Number const &x, Number const &n, Number const &y) {
+    if (m == 1) {
+        if (n == 0) {
+            return x == y;
+        }
+        return x + n == y;
+    }
+    if (m == -1) {
+        return n - x == y;
+    }
+    if (n == 0) {
+        return m * x == y;
+    }
+    return m * x + n == y;
+}
+
+auto eval_ma(SymbolStore &store, Number const &m, Symbol const &sx, Number const &n) -> Symbol {
+    auto const &x = sx.num();
+    if (m == 1) {
+        if (n == 0) {
+            return sx;
+        }
+        return store.num_ref(x + n);
+    }
+    if (m == -1) {
+        return store.num_ref(n - x);
+    }
+    if (n == 0) {
+        return store.num_ref(m * x);
+    }
+    return store.num_ref(m * x + n);
+}
+
+auto solve_ma(EvalContext const &ctx, Number const &m, Number const &n, Symbol const &sy, std::optional<Symbol> &x)
+    -> bool {
+    auto const &y = sy.num();
+    if (m == 1) {
+        if (n == 0) {
+            x = sy;
+            return true;
+        }
+        x = ctx.store().num_ref(y - n);
+        return true;
+    }
+
+    if (m == -1) {
+        x = ctx.store().num_ref(n - y);
+        return true;
+    }
+
+    if (n == 0) {
+        if (auto ym = y / m; ym * m == y) {
+            x = ctx.store().num_ref(std::move(ym));
+            return true;
+        }
         return false;
     }
-    if (auto var = ctx.ass()[var_]; var) {
-        // m * x + n == s
-        if (var->type() != SymbolType::number) {
-            return expect(ctx, loc_, logged_, "number expected (got ", *var, ")");
-        }
-        return m_ * var->num() + n_ == sym.num();
-    }
-    // x == (s - n) / m
-    auto sn = sym.num() - n_;
-    if (sn % m_ == 0) {
-        ctx.ass()[var_] = ctx.store().num_ref(std::move(sn) / m_);
+
+    auto yn = y - n;
+    if (auto ynm = yn / m; ynm * m == yn) {
+        x = ctx.store().num_ref(std::move(ynm));
         return true;
     }
     return false;
 }
 
+} // namespace
+
+auto TermLinear::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
+    if (sym.type() != SymbolType::number) {
+        return false;
+    }
+    auto const &y = sym.num();
+    auto &x = ctx.ass()[var_];
+    if (x) {
+        if (x->type() != SymbolType::number) {
+            return expect(ctx, loc_, logged_, "number expected (got ", *x, ")");
+        }
+        return eq_ma(m_, x->num(), n_, y);
+    }
+    return solve_ma(ctx, m_, n_, sym, x);
+}
+
 auto TermLinear::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
     if (auto var = ctx.ass()[var_];
         var && (var->type() == SymbolType::number || expect(ctx, loc_, logged_, "number expected (got ", *var, ")"))) {
-        return ctx.store().num_ref(m_ * var->num() + n_);
+        return eval_ma(ctx.store(), m_, *var, n_);
     }
     return std::nullopt;
 }
