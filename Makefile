@@ -57,8 +57,9 @@ release_lto:
 	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
 		-DCLINGO_BUILD_TESTS=On \
-		-DCMAKE_CXX_FLAGS="-flto=auto -fuse-linker-plugin -Wall -Wextra -pedantic" \
-		-DCMAKE_C_FLAGS="-flto=auto -fuse-linker-plugin -Wall -Wextra -pedantic"
+		-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=On \
+		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
+		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic"
 	$(MAKE) -C build/$@
 	$(MAKE) -C build/$@ test
 
@@ -82,13 +83,14 @@ release_clang_lto:
 	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
 		-DCLINGO_BUILD_TESTS=On \
+		-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=On \
 		-DCMAKE_CXX_COMPILER="$(CLANG_CXX)" \
 		-DCMAKE_C_COMPILER="$(CLANG_CC)" \
 		-DCMAKE_EXE_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
 		-DCMAKE_MODULE_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
 		-DCMAKE_SHARED_LINKER_FLAGS="$(CLANG_LDFLAGS)" \
-		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -flto -Wall -Wextra -pedantic" \
-		-DCMAKE_C_FLAGS="-flto -Wall -Wextra -pedantic"
+		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -Wall -Wextra -pedantic" \
+		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic"
 	$(MAKE) -C build/$@
 	$(MAKE) -C build/$@ test
 
