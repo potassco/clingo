@@ -54,7 +54,10 @@ if(CLINGO_BUILD_WEB)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    add_compile_options(-Wno-counter-extension)
+    check_cxx_compiler_flag("-Wno-counter-extension" HAS_WCOUNTER_EXTENSION)
+    if(HAS_WCOUNTER_EXTENSION)
+        add_compile_options(-Wno-counter-extension)
+    endif()
 endif()
 
 set(PYBIND11_NEWPYTHON ON)
