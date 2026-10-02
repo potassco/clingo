@@ -59,6 +59,7 @@ test: debug
 venv: .venv
 
 compdb: .venv build/debug/CMakeCache.txt
+	rm -f compile_commands.json
 	source .venv/bin/activate && compdb -p "build/debug" list -1 > compile_commands.json
 	source .venv/bin/activate && python "scripts/compdb-cpp-headers.py"
 
