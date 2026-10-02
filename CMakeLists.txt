@@ -53,8 +53,7 @@ if(CLINGO_BUILD_WEB)
     set(DCMAKE_EXE_LINKER_FLAGS_RELEASE "")
 endif()
 
-check_cxx_compiler_flag("-Wno-counter-extension" HAS_WCOUNTER_EXTENSION)
-if(HAS_WCOUNTER_EXTENSION)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-Wno-counter-extension)
 endif()
 
