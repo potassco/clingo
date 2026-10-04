@@ -55,7 +55,7 @@ test: debug
 
 .venv:
 	python3 -m venv .venv
-	source .venv/bin/activate && pip install isort black pynvim pyyaml jinja2 mypy pybind11-stubgen pdoc compdb
+	source .venv/bin/activate && pip install isort black pynvim pyyaml jinja2 mypy pybind11-stubgen mkdocs-material "mkdocstrings[python]" compdb
 
 venv: .venv
 
@@ -135,10 +135,9 @@ format_yaml:
 stubs: debug
 	source .venv/bin/activate && python scripts/stubs.py
 
-pdoc: debug venv
-	source .venv/bin/activate && python scripts/stubs.py --python
-	cd pdoc && python3 -m venv .venv
-	cd pdoc && source .venv/bin/activate && pip install pdoc typing_extensions
-	cd pdoc && source .venv/bin/activate && rm -rf html && pdoc -o html --no-show-source -d google ./clingo
+mkdoc: debug venv
+	source .venv/bin/activate && python scripts/stubs.py
+	cd mkdoc && python3 stubs.py ../lib/python-api/stubs stubs/clingo/
+	cd mkdoc && mkdocs build
 
 .PHONY: all doc test compdb stubs pdoc venv debug gen format_yaml debug release release_lto release_clang release_clang_lto web

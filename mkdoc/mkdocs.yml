@@ -1,0 +1,70 @@
+site_name: clingo API reference
+
+theme:
+  name: material
+  features:
+    - navigation.indexes
+    - navigation.expand
+    - content.code.copy
+    - search.highlight
+
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      pygments_lang_class: true
+      default_lang: python
+  - pymdownx.superfences
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - stubs
+          options:
+            show_source: false
+            show_root_heading: false
+            show_root_full_path: false
+            members_order: source
+            docstring_section_style: table
+            separate_signature: true
+            signature_crossrefs: true
+            annotations_path: brief
+            show_signature_annotations: true
+            inherited_members: true
+            merge_init_into_class: true
+            show_if_no_docstring: true
+            filters:
+              - "!^__all__$"
+
+nav:
+  - clingo:
+      - index.md
+      - app: clingo/app.md
+      - ast: clingo/ast.md
+      - backend: clingo/backend.md
+      - base: clingo/base.md
+      - config: clingo/config.md
+      - control: clingo/control.md
+      - core: clingo/core.md
+      - ground: clingo/ground.md
+      - propagate: clingo/propagate.md
+      - script: clingo/script.md
+      - solve: clingo/solve.md
+      - stats: clingo/stats.md
+      - symbol: clingo/symbol.md
+      - theory: clingo/theory.md

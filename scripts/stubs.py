@@ -61,16 +61,13 @@ class Rewriter:
     Rewriter to fine-tune generated stubs.
     """
 
-    def __init__(self):
-        self.python = False
-
     def format(self, path: str, content: str):
         """
         Format the given code.
         """
         try:
             content = isort.code(content, profile="black")
-            mode = black.FileMode(is_pyi=not self.python)
+            mode = black.FileMode(is_pyi=True)
             return black.format_file_contents(content, fast=False, mode=mode)
         except:
             sys.exit(f"failed to format: {path}")
@@ -197,11 +194,7 @@ class Rewriter:
         other_classes = []
         for class_def in classes:
             if "typing.ClassVar" in class_def:
-                enum_classes.append(
-                    self.generate_enum_members(class_def)
-                    if self.python
-                    else self.generate_enum_members_spec(class_def)
-                )
+                enum_classes.append(self.generate_enum_members_spec(class_def))
             else:
                 other_classes.append(class_def)
 
@@ -258,16 +251,10 @@ class Rewriter:
         # https://typing.readthedocs.io/en/latest/spec/distributing.html
 
         args = ["pybind11-stubgen"]
-        if self.python:
-            extension = ".py"
-            libpath = "./pdoc"
-            clingo_stubs = os.path.join(libpath, "clingo")
-            args.extend(["--stub-extension=py"])
-        else:
-            extension = ".pyi"
-            libpath = sysconfig.get_path("purelib")
-            clingo_stubs = os.path.join(libpath, "clingo-stubs")
-            args.extend(["--root-suffix=-stubs"])
+        extension = ".pyi"
+        libpath = sysconfig.get_path("purelib")
+        clingo_stubs = os.path.join(libpath, "clingo-stubs")
+        args.extend(["--root-suffix=-stubs"])
 
         args.extend(
             [
@@ -318,43 +305,28 @@ class Rewriter:
                     content = self.enums_to_top(content)
                     if unions:
                         content += "\n" + "\n".join(unions) + "\n"
-                    if self.python:
-                        content = self.doc_enums(content)
-                        content = reorder_classes(
-                            content,
-                            [
-                                "StatsView",
-                                "StatsArrayView",
-                                "StatsMapView",
-                                "Stats",
-                                "StatsArray",
-                                "StatsMap",
-                            ],
-                        )
-                    else:
-                        content = self.format(path, content)
-                        gen_content = None
-                        gen_path = os.path.join("lib", "python-api", "stubs", file)
-                        try:
-                            with open(gen_path, "r", encoding="utf8") as hnd:
-                                gen_content = hnd.read()
-                        except IOError:
-                            pass
-                        if content != gen_content:
-                            with open(gen_path, "w", encoding="utf8") as hnd:
-                                hnd.write(content)
+                    content = self.format(path, content)
+                    gen_content = None
+                    gen_path = os.path.join("lib", "python-api", "stubs", file)
+                    try:
+                        with open(gen_path, "r", encoding="utf8") as hnd:
+                            gen_content = hnd.read()
+                    except IOError:
+                        pass
+                    if content != gen_content:
+                        with open(gen_path, "w", encoding="utf8") as hnd:
+                            hnd.write(content)
                     with open(path, "w", encoding="utf8") as hnd:
                         hnd.write(content)
 
-        if not self.python:
-            try:
-                for lib in glob("./build/debug/bin/python/clingo*.so"):
-                    name = os.path.basename(lib)
-                    src = os.path.relpath(lib, libpath)
-                    dst = os.path.relpath(os.path.join(libpath, name), ".")
-                    os.symlink(src, dst)
-            except FileExistsError:
-                pass
+        try:
+            for lib in glob("./build/debug/bin/python/clingo*.so"):
+                name = os.path.basename(lib)
+                src = os.path.relpath(lib, libpath)
+                dst = os.path.relpath(os.path.join(libpath, name), ".")
+                os.symlink(src, dst)
+        except FileExistsError:
+            pass
 
     def main(self):
         """
@@ -362,10 +334,7 @@ class Rewriter:
         """
         parser = argparse.ArgumentParser(description="Generate clingo stubs.")
 
-        parser.add_argument("--python", action="store_true", help="Enable the flag")
-
-        args = parser.parse_args()
-        self.python = args.python
+        parser.parse_args()
         self.generate()
 
 

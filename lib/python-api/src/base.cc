@@ -466,6 +466,7 @@ A class providing information about symbolic and theory atoms and shown terms.
 Implements `Mapping[tuple[str, int, bool], AtomBase]` providing additional
 overloads to directly lookup symbols and short signatures (assuming a positive
 sign):
+
 - `__getitem__: Callable[[Symbol], Atom]`
 - `__contains__: Callable[[Symbol], bool]`
 - `__getitem__: Callable[[tuple[str, int]], AtomBase]`
