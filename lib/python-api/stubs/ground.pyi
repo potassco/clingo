@@ -64,9 +64,9 @@ class GroundResult(enum.IntEnum):
     Enumeration of ground result types.
     """
 
-    Interrupted = typing.cast(int, ...)
-    Ok = typing.cast(int, ...)
-    Unsatisfiable = typing.cast(int, ...)
+    Interrupted = 2
+    Ok = 0
+    Unsatisfiable = 1
 
 class GroundHandle:
     """

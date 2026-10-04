@@ -59,12 +59,12 @@ class TheoryTermType(enum.IntEnum):
     Enumeration of theory term types.
     """
 
-    Function = typing.cast(int, ...)
-    List = typing.cast(int, ...)
-    Number = typing.cast(int, ...)
-    Set = typing.cast(int, ...)
-    Symbol = typing.cast(int, ...)
-    Tuple = typing.cast(int, ...)
+    Function = 3
+    List = 1
+    Number = 4
+    Set = 2
+    Symbol = 5
+    Tuple = 0
 
 class Atom:
     """

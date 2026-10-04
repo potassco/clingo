@@ -492,140 +492,129 @@ def rewrite_statement(
         A list of rewritten statements.
     """
 
-BodyLiteral: typing.Union
-DisjunctionElement: typing.Union
-FormatField: typing.Union
-HeadLiteral: typing.Union
-Literal: typing.Union
-Statement: typing.Union
-Term: typing.Union
-TermOrArgumentTuple: typing.Union
-TermOrProjection: typing.Union
-TheoryTerm: typing.Union
-
 class ProjectionMode(enum.IntEnum):
     """
     Available projection modes.
     """
 
-    Anonymous = typing.cast(int, ...)
-    Disabled = typing.cast(int, ...)
-    Pure = typing.cast(int, ...)
+    Anonymous = 1
+    Disabled = 0
+    Pure = 2
 
 class UnaryOperator(enum.IntEnum):
     """
     Available unary operators.
     """
 
-    Minus = typing.cast(int, ...)
-    Negation = typing.cast(int, ...)
+    Minus = 0
+    Negation = 1
 
 class BinaryOperator(enum.IntEnum):
     """
     Available binary operators.
     """
 
-    And = typing.cast(int, ...)
-    Division = typing.cast(int, ...)
-    Minus = typing.cast(int, ...)
-    Modulo = typing.cast(int, ...)
-    Multiplication = typing.cast(int, ...)
-    Or = typing.cast(int, ...)
-    Plus = typing.cast(int, ...)
-    Power = typing.cast(int, ...)
-    Xor = typing.cast(int, ...)
+    And = 0
+    Division = 1
+    Minus = 2
+    Modulo = 3
+    Multiplication = 4
+    Or = 5
+    Plus = 6
+    Power = 7
+    Xor = 8
 
 class Sign(enum.IntEnum):
     """
     The available signs.
     """
 
-    Double = typing.cast(int, ...)
-    NoSign = typing.cast(int, ...)
-    Single = typing.cast(int, ...)
+    Double = 2
+    NoSign = 0
+    Single = 1
 
 class Relation(enum.IntEnum):
     """
     Available relation symbols.
     """
 
-    Equal = typing.cast(int, ...)
-    Greater = typing.cast(int, ...)
-    GreaterEqual = typing.cast(int, ...)
-    Less = typing.cast(int, ...)
-    LessEqual = typing.cast(int, ...)
-    NotEqual = typing.cast(int, ...)
+    Equal = 0
+    Greater = 4
+    GreaterEqual = 5
+    Less = 2
+    LessEqual = 3
+    NotEqual = 1
 
 class AggregateFunction(enum.IntEnum):
     """
     Enumeration of aggregate functions.
     """
 
-    Count = typing.cast(int, ...)
-    Max = typing.cast(int, ...)
-    Min = typing.cast(int, ...)
-    Sum = typing.cast(int, ...)
-    Sump = typing.cast(int, ...)
+    Count = 0
+    Max = 4
+    Min = 3
+    Sum = 1
+    Sump = 2
 
 class TheoryOperatorType(enum.IntEnum):
     """
     Enumeration of theory operators.
     """
 
-    BinaryLeft = typing.cast(int, ...)
-    BinaryRight = typing.cast(int, ...)
-    Unary = typing.cast(int, ...)
+    BinaryLeft = 1
+    BinaryRight = 2
+    Unary = 0
 
 class TheoryTupleType(enum.IntEnum):
     """
     Enumeration of theory tuple types.
     """
 
-    List = typing.cast(int, ...)
-    Set = typing.cast(int, ...)
-    Tuple = typing.cast(int, ...)
+    List = 2
+    Set = 1
+    Tuple = 0
 
 class TheoryAtomType(enum.IntEnum):
     """
     Enumeration of the theory atom types.
     """
 
-    Any = typing.cast(int, ...)
-    Body = typing.cast(int, ...)
-    Directive = typing.cast(int, ...)
-    Head = typing.cast(int, ...)
+    Any = 2
+    Body = 1
+    Directive = 3
+    Head = 0
 
 class OptimizeType(enum.IntEnum):
     """
     Enumeration of optimization types.
     """
 
-    Maximize = typing.cast(int, ...)
-    Minimize = typing.cast(int, ...)
+    Maximize = 1
+    Minimize = 0
 
 class IncludeType(enum.IntEnum):
     """
     Enumeration of include types.
     """
 
-    Inbuild = typing.cast(int, ...)
-    System = typing.cast(int, ...)
+    Inbuild = 1
+    System = 0
 
 class Precedence(enum.IntEnum):
     """
     Enumeration of precedences values.
     """
 
-    Default = typing.cast(int, ...)
-    Override = typing.cast(int, ...)
+    Default = 0
+    Override = 1
 
 class CommentType(enum.IntEnum):
     """
     Enumeration of comment types.
     """
 
-    Block = typing.cast(int, ...)
-    Line = typing.cast(int, ...)
+    Block = 1
+    Line = 0
 
 class FormatFieldLiteral:
     """
@@ -7435,3 +7424,93 @@ class Program:
         Args:
             statement: The statement to add.
         """
+
+BodyLiteral: typing.TypeAlias = (
+    clingo.ast.BodySimpleLiteral
+    | clingo.ast.BodyAggregate
+    | clingo.ast.BodySort
+    | clingo.ast.BodySetAggregate
+    | clingo.ast.BodyTheoryAtom
+    | clingo.ast.BodyConditionalLiteral
+)
+DisjunctionElement: typing.TypeAlias = (
+    clingo.ast.LiteralBoolean
+    | clingo.ast.LiteralComparison
+    | clingo.ast.LiteralSymbolic
+    | clingo.ast.HeadConditionalLiteral
+)
+FormatField: typing.TypeAlias = (
+    clingo.ast.FormatFieldLiteral | clingo.ast.FormatFieldExpression
+)
+HeadLiteral: typing.TypeAlias = (
+    clingo.ast.HeadSimpleLiteral
+    | clingo.ast.HeadAggregate
+    | clingo.ast.HeadSetAggregate
+    | clingo.ast.HeadTheoryAtom
+    | clingo.ast.HeadDisjunction
+)
+Literal: typing.TypeAlias = (
+    clingo.ast.LiteralBoolean
+    | clingo.ast.LiteralComparison
+    | clingo.ast.LiteralSymbolic
+)
+Statement: typing.TypeAlias = (
+    clingo.ast.StatementRule
+    | clingo.ast.StatementTheory
+    | clingo.ast.StatementOptimize
+    | clingo.ast.StatementWeakConstraint
+    | clingo.ast.StatementShow
+    | clingo.ast.StatementShowNothing
+    | clingo.ast.StatementShowSignature
+    | clingo.ast.StatementProject
+    | clingo.ast.StatementProjectSignature
+    | clingo.ast.StatementDefined
+    | clingo.ast.StatementExternal
+    | clingo.ast.StatementEdge
+    | clingo.ast.StatementHeuristic
+    | clingo.ast.StatementScript
+    | clingo.ast.StatementInclude
+    | clingo.ast.StatementProgram
+    | clingo.ast.StatementParts
+    | clingo.ast.StatementConst
+    | clingo.ast.StatementComment
+)
+Term: typing.TypeAlias = (
+    clingo.ast.TermVariable
+    | clingo.ast.TermSymbolic
+    | clingo.ast.TermAbsolute
+    | clingo.ast.TermUnaryOperation
+    | clingo.ast.TermBinaryOperation
+    | clingo.ast.TermTuple
+    | clingo.ast.TermFunction
+    | clingo.ast.TermFormatString
+)
+TermOrArgumentTuple: typing.TypeAlias = (
+    clingo.ast.TermVariable
+    | clingo.ast.TermSymbolic
+    | clingo.ast.TermAbsolute
+    | clingo.ast.TermUnaryOperation
+    | clingo.ast.TermBinaryOperation
+    | clingo.ast.TermTuple
+    | clingo.ast.TermFunction
+    | clingo.ast.TermFormatString
+    | clingo.ast.ArgumentTuple
+)
+TermOrProjection: typing.TypeAlias = (
+    clingo.ast.TermVariable
+    | clingo.ast.TermSymbolic
+    | clingo.ast.TermAbsolute
+    | clingo.ast.TermUnaryOperation
+    | clingo.ast.TermBinaryOperation
+    | clingo.ast.TermTuple
+    | clingo.ast.TermFunction
+    | clingo.ast.TermFormatString
+    | clingo.ast.Projection
+)
+TheoryTerm: typing.TypeAlias = (
+    clingo.ast.TheoryTermVariable
+    | clingo.ast.TheoryTermSymbolic
+    | clingo.ast.TheoryTermTuple
+    | clingo.ast.TheoryTermFunction
+    | clingo.ast.TheoryTermUnparsed
+)

@@ -102,9 +102,9 @@ class ModelType(enum.IntEnum):
     Enumeration of model types.
     """
 
-    BraveConsequences = typing.cast(int, ...)
-    CautiousConsequences = typing.cast(int, ...)
-    StableModel = typing.cast(int, ...)
+    BraveConsequences = 1
+    CautiousConsequences = 2
+    StableModel = 0
 
 class SolveControl:
     """

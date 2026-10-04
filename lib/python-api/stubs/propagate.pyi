@@ -79,27 +79,27 @@ class WeightConstraintType(enum.IntEnum):
     Enumeration of weight constraint types.
     """
 
-    Equivalence = typing.cast(int, ...)
-    LeftImplication = typing.cast(int, ...)
-    RightImplication = typing.cast(int, ...)
+    Equivalence = 0
+    LeftImplication = -1
+    RightImplication = 1
 
 class CheckMode(enum.IntEnum):
     """
     Enumeration of check modes.
     """
 
-    Both = typing.cast(int, ...)
-    Fixpoint = typing.cast(int, ...)
-    Off = typing.cast(int, ...)
-    Total = typing.cast(int, ...)
+    Both = 3
+    Fixpoint = 2
+    Off = 0
+    Total = 1
 
 class UndoMode(enum.IntEnum):
     """
     Enumeration of undo modes.
     """
 
-    Always = typing.cast(int, ...)
-    Default = typing.cast(int, ...)
+    Always = 1
+    Default = 0
 
 class _TrailView:
     """

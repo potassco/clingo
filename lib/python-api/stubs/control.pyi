@@ -44,10 +44,10 @@ class ControlMode(enum.IntEnum):
     Available control modes.
     """
 
-    Ground = typing.cast(int, ...)
-    Parse = typing.cast(int, ...)
-    Rewrite = typing.cast(int, ...)
-    Solve = typing.cast(int, ...)
+    Ground = 2
+    Parse = 0
+    Rewrite = 1
+    Solve = 3
 
 class _ConstMap:
     """

@@ -67,31 +67,31 @@ class HeuristicType(enum.IntEnum):
     Available heuristic types.
     """
 
-    Factor = typing.cast(int, ...)
-    False_ = typing.cast(int, ...)
-    Init = typing.cast(int, ...)
-    Level = typing.cast(int, ...)
-    Sign = typing.cast(int, ...)
-    True_ = typing.cast(int, ...)
+    Factor = 2
+    False_ = 5
+    Init = 3
+    Level = 0
+    Sign = 1
+    True_ = 4
 
 class ExternalType(enum.IntEnum):
     """
     Available external types.
     """
 
-    False_ = typing.cast(int, ...)
-    Free = typing.cast(int, ...)
-    Release = typing.cast(int, ...)
-    True_ = typing.cast(int, ...)
+    False_ = 2
+    Free = 0
+    Release = 3
+    True_ = 1
 
 class TheorySequenceType(enum.IntEnum):
     """
     Available theory sequence types.
     """
 
-    List = typing.cast(int, ...)
-    Set = typing.cast(int, ...)
-    Tuple = typing.cast(int, ...)
+    List = 2
+    Set = 1
+    Tuple = 0
 
 class Observer:
     """

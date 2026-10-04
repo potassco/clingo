@@ -145,11 +145,11 @@ class Rewriter:
         """
         Generate members of enums.
         """
-        pattern = r"(\w+):\s*typing\.ClassVar\[(.*?)\].*?"
+        pattern = r"(\w+):\s*typing\.ClassVar\[(.*?)\].*?#\s*value\s*=\s*<.*?\.\w+:\s*(-?\d+)>"
 
         def repl(match):
-            member, _ = match.groups()
-            return f"{member} = typing.cast(int, ...)"
+            member, _, value = match.groups()
+            return f"{member} = {value}"
 
         class_def = re.sub(pattern, repl, class_def)
         class_def = re.sub(r"@classmethod[\s\S]*", "", class_def)
@@ -258,6 +258,7 @@ class Rewriter:
 
         args.extend(
             [
+                "--print-value-comments",
                 "--enum-class-locations",
                 "WeightConstraintType:clingo.propagate",
                 "--enum-class-locations",
@@ -290,11 +291,11 @@ class Rewriter:
                             content[:imp] + "\nimport collections.abc" + content[imp:]
                         )
                     content = content.replace("typing.SupportsInt", "int")
-                    pattern = r"^(\w+):\s*[(]?\s*types\.UnionType\s*[)]?\s*#\s*value\s*=\s*(.+)$"
+                    pattern = r"^(\w+):\s*typing\.Union\s*#\s*value\s*=\s*(.+)$"
                     unions = []
 
                     def append(match):
-                        unions.append(f"{match[1]} = {match[2]}")
+                        unions.append(f"{match[1]}: typing.TypeAlias = {match[2]}")
                         return ""
 
                     content = re.sub(pattern, append, content, flags=re.MULTILINE)

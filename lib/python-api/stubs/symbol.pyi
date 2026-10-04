@@ -105,20 +105,20 @@ def parse_term(lib: clingo.core.Library, string: str) -> Symbol:
         string: The string to be parsed.
     """
 
-Infimum: Symbol
-Supremum: Symbol
+Infimum: Symbol  # value = Infimum
+Supremum: Symbol  # value = Supremum
 
 class SymbolType(enum.IntEnum):
     """
     Enumeration of symbols types.
     """
 
-    Function = typing.cast(int, ...)
-    Infimum = typing.cast(int, ...)
-    Number = typing.cast(int, ...)
-    String = typing.cast(int, ...)
-    Supremum = typing.cast(int, ...)
-    Tuple = typing.cast(int, ...)
+    Function = 5
+    Infimum = 2
+    Number = 0
+    String = 3
+    Supremum = 1
+    Tuple = 4
 
 class Symbol:
     """

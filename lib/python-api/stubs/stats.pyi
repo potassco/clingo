@@ -57,9 +57,9 @@ class StatsType(enum.IntEnum):
     The type of a stats object.
     """
 
-    Array = typing.cast(int, ...)
-    Map = typing.cast(int, ...)
-    Value = typing.cast(int, ...)
+    Array = 1
+    Map = 2
+    Value = 0
 
 class StatsView:
     """

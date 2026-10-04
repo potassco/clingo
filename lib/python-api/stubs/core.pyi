@@ -40,26 +40,26 @@ class LogLevel(enum.IntEnum):
     The available log levels.
     """
 
-    Debug = typing.cast(int, ...)
-    Error = typing.cast(int, ...)
-    Info = typing.cast(int, ...)
-    Trace = typing.cast(int, ...)
-    Warn = typing.cast(int, ...)
+    Debug = 1
+    Error = 8
+    Info = 2
+    Trace = 0
+    Warn = 7
 
 class MessageType(enum.IntEnum):
     """
     Message categories emitted by the logger.
     """
 
-    AtomUndefined = typing.cast(int, ...)
-    Debug = typing.cast(int, ...)
-    Error = typing.cast(int, ...)
-    FileIncluded = typing.cast(int, ...)
-    GlobalVariable = typing.cast(int, ...)
-    Info = typing.cast(int, ...)
-    OperationUndefined = typing.cast(int, ...)
-    Trace = typing.cast(int, ...)
-    Warn = typing.cast(int, ...)
+    AtomUndefined = 4
+    Debug = 1
+    Error = 8
+    FileIncluded = 5
+    GlobalVariable = 6
+    Info = 2
+    OperationUndefined = 3
+    Trace = 0
+    Warn = 7
 
 class Library:
     """
