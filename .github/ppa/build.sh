@@ -85,7 +85,7 @@ for act in "${@}"; do
     _ppa)
         if [[ "${DISTRIBUTION}" == ubuntu ]]; then
             apt-get install -y software-properties-common
-            add-apt-repository -y "ppa:potassco/${ref}"
+            #add-apt-repository -y "ppa:potassco/${ref}"
         else
             # could for example setup cloudforge repository here
             :
