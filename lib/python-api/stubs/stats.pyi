@@ -219,7 +219,7 @@ class StatsArray(StatsArrayView):
 
     This class partially implements the mutable sequence protocol - elements of
     arrays can be modified but they cannot be deleted. Modifications are
-    implemented via `Stats.update`.
+    implemented via `clingo.stats.Stats.update`.
 
     Most use cases should be implementable just using the update function of the
     top-level statistics object.
@@ -245,7 +245,7 @@ class StatsArray(StatsArrayView):
         Append the given value to the array.
 
         Args:
-                value: The value to append.
+            value: The value to append.
         """
 
 class StatsMapView:
@@ -296,7 +296,7 @@ class StatsMap(StatsMapView):
 
     This class partially implements the mutable mapping protocol - value of keys
     can be modified but they cannot be deleted. Modifications are implemented via
-    `Stats.update`.
+    `clingo.stats.Stats.update`.
 
     Most use cases should be implementable just using the update function of the
     top-level statistics object.

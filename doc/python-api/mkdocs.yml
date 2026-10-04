@@ -50,6 +50,7 @@ plugins:
             show_if_no_docstring: true
             filters:
               - "!^__all__$"
+              - "!^_MainScript$"
 
 nav:
   - clingo:

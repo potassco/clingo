@@ -185,14 +185,14 @@ FULL_PATH_NAMES        = YES
 # This tag requires that the tag FULL_PATH_NAMES is set to YES.
 
 STRIP_FROM_PATH        = \
-    ../lib/c-api/include \
-    ../lib/cxx-api/include \
-    ../lib/control/include \
-    ../lib/core/include \
-    ../lib/ground/include \
-    ../lib/input/include \
-    ../lib/output/include \
-    ../lib/util/include
+    ../../lib/c-api/include \
+    ../../lib/cxx-api/include \
+    ../../lib/control/include \
+    ../../lib/core/include \
+    ../../lib/ground/include \
+    ../../lib/input/include \
+    ../../lib/output/include \
+    ../../lib/util/include
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of the
 # path mentioned in the documentation of a class, which tells the reader which
@@ -952,16 +952,16 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = mainpage.hh \
-                         ../lib/util/include/clingo/util \
-                         ../lib/core/include/clingo/core \
-                         ../lib/input/include/clingo/input \
-                         ../lib/input/include/clingo/input/rewrite \
-                         ../lib/ground/include/clingo/ground \
-                         ../lib/output/include/clingo/output \
-                         ../lib/control/include/clingo/control \
-                         ../lib/c-api/include/clingo \
-                         ../lib/c-api/include \
-                         ../lib/cxx-api/include/clingo
+                         ../../lib/util/include/clingo/util \
+                         ../../lib/core/include/clingo/core \
+                         ../../lib/input/include/clingo/input \
+                         ../../lib/input/include/clingo/input/rewrite \
+                         ../../lib/ground/include/clingo/ground \
+                         ../../lib/output/include/clingo/output \
+                         ../../lib/control/include/clingo/control \
+                         ../../lib/c-api/include/clingo \
+                         ../../lib/c-api/include \
+                         ../../lib/cxx-api/include/clingo
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -1094,7 +1094,7 @@ EXCLUDE_SYMBOLS        = "Detail::*" \
 # that contain example code fragments that are included (see the \include
 # command).
 
-EXAMPLE_PATH           = ../examples/c-api
+EXAMPLE_PATH           = ../../examples/c-api
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the
 # EXAMPLE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp and
@@ -1310,7 +1310,7 @@ CLANG_OPTIONS          =
 # Note: The availability of this option depends on whether or not doxygen was
 # generated with the -Duse_libclang=ON option for CMake.
 
-CLANG_DATABASE_PATH    = ../compile_commands.json
+CLANG_DATABASE_PATH    = ../../compile_commands.json
 
 #---------------------------------------------------------------------------
 # Configuration options related to the alphabetical class index

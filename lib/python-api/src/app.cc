@@ -308,6 +308,7 @@ Args:
 Manager for application options and their definitions.
 
 Provides interface to add/configures various option types:
+
 - argument options,
 - flag options, and
 - multi-value options.

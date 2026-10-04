@@ -538,19 +538,20 @@ Returns:
 
     py::native_enum<clingo_propagator_check_mode_e>(propagate, "CheckMode", "enum.IntEnum",
                                                     "Enumeration of check modes.")
-        .value("Off", clingo_propagator_check_mode_none, R"(Do not call `Propagator.check()` at all.)")
+        .value("Off", clingo_propagator_check_mode_none, R"(Do not call `clingo.propagate.Propagator.check` at all.)")
         .value("Fixpoint", clingo_propagator_check_mode_fixpoint,
-               R"(Call `Propagator.check()` on propagation fixpoints.)")
-        .value("Total", clingo_propagator_check_mode_total, R"(Call `Propagator.check()` on total assignments.)")
+               R"(Call `clingo.propagate.Propagator.check` on propagation fixpoints.)")
+        .value("Total", clingo_propagator_check_mode_total,
+               R"(Call `clingo.propagate.Propagator.check` on total assignments.)")
         .value("Both", clingo_propagator_check_mode_both,
-               R"(Call `Propagator.check()` on propagation fixpoints and total assignments.)")
+               R"(Call `clingo.propagate.Propagator.check` on propagation fixpoints and total assignments.)")
         .finalize();
 
     py::native_enum<clingo_propagator_undo_mode_e>(propagate, "UndoMode", "enum.IntEnum", "Enumeration of undo modes.")
         .value("Default", clingo_propagator_undo_mode_default,
-               R"(Call `Propagator.undo()` for decision levels with non-emty changes.)")
+               R"(Call `clingo.propagate.Propagator.undo` for decision levels with non-emty changes.)")
         .value("Always", clingo_propagator_undo_mode_always,
-               R"(Additionally call `Propagator.undo()` when check has been called.)")
+               R"(Additionally call `clingo.propagate.Propagator.undo` when check has been called.)")
         .finalize();
 
     make_sequence(py::class_<Assignment>(propagate, "Assignment", R"(
@@ -560,6 +561,7 @@ It provides methods to inspect and query the assignment, which is essential for
 implementing custom propagators.
 
 Key concepts:
+
 - Each literal is either true, false, or unassigned.
 - Each assigned literal has a decision level.
 - There is exactly one decision literal per level.
@@ -670,7 +672,8 @@ Add a clause to the solver.
 Tagged clauses are deleted after the current solve call finishes while locked
 clauses are exempt from the solvers clause deletion strategy.
 
-See `propagate()` for how to handle the case that the function returns false.
+See `clingo.propagate.PropagateControl.propagate` for how to handle the case
+that the function returns false.
 
 Args:
     literals:
@@ -752,7 +755,8 @@ Perform propagation in the solver.
 
 If this function returns False, the propagator must add no further
 clauses/literals and immediately return from the corresponding
-`Propagator.init()`, `Propagator.propagate()` or `Propagator.check()` call.
+`clingo.propagate.Propagator.init`, `clingo.propagate.Propagator.propagate`
+or `clingo.propagate.Propagator.check` call.
 
 Returns:
     True if propagation was successful, False otherwise.
@@ -880,7 +884,7 @@ Undo previous assignments.
 
 This method is called to undo previous assignments.
 
-See also `PropagateInit.undo_mode`.
+See also `clingo.propagate.PropagateInit.undo_mode`.
 
 Args:
     assignment:
@@ -892,8 +896,8 @@ Args:
 Check if the current assignment is valid.
 
 This method is called on propagation fixpoints or total assignments (see
-`PropagateInit.check_mode`). A propagator should add clauses to implement its
-constraints here.
+`clingo.propagate.PropagateInit.check_mode`). A propagator should add clauses
+to implement its constraints here.
 
 Args:
     assignment:

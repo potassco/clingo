@@ -251,6 +251,7 @@ class Assignment:
     implementing custom propagators.
 
     Key concepts:
+
     - Each literal is either true, false, or unassigned.
     - Each assigned literal has a decision level.
     - There is exactly one decision literal per level.
@@ -432,7 +433,8 @@ class PropagateControl:
         Tagged clauses are deleted after the current solve call finishes while locked
         clauses are exempt from the solvers clause deletion strategy.
 
-        See `propagate()` for how to handle the case that the function returns false.
+        See `clingo.propagate.PropagateControl.propagate` for how to handle the case
+        that the function returns false.
 
         Args:
             literals:
@@ -530,7 +532,8 @@ class PropagateControl:
 
         If this function returns False, the propagator must add no further
         clauses/literals and immediately return from the corresponding
-        `Propagator.init()`, `Propagator.propagate()` or `Propagator.check()` call.
+        `clingo.propagate.Propagator.init`, `clingo.propagate.Propagator.propagate`
+        or `clingo.propagate.Propagator.check` call.
 
         Returns:
             True if propagation was successful, False otherwise.
@@ -659,8 +662,8 @@ class Propagator:
         Check if the current assignment is valid.
 
         This method is called on propagation fixpoints or total assignments (see
-        `PropagateInit.check_mode`). A propagator should add clauses to implement its
-        constraints here.
+        `clingo.propagate.PropagateInit.check_mode`). A propagator should add clauses
+        to implement its constraints here.
 
         Args:
             assignment:
@@ -730,7 +733,7 @@ class Propagator:
 
         This method is called to undo previous assignments.
 
-        See also `PropagateInit.undo_mode`.
+        See also `clingo.propagate.PropagateInit.undo_mode`.
 
         Args:
             assignment:

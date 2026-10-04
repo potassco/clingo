@@ -109,7 +109,7 @@ class Observer:
         """
         Called for assumptions in the solver.
 
-        See also `Backend.assume`.
+        See also `clingo.backend.Backend.assume`.
 
         Args:
             literals: Sequence of program literals to assume.
@@ -124,7 +124,7 @@ class Observer:
         """
         Called for edge directives in the program.
 
-        See also `Backend.edge`.
+        See also `clingo.backend.Backend.edge`.
 
         Args:
             node_u: The start node of the edge.
@@ -141,7 +141,7 @@ class Observer:
         """
         Called for external directives in the program.
 
-        See also `Backend.external`.
+        See also `clingo.backend.Backend.external`.
 
         Args:
             atom: The external atom (must be a positive literal).
@@ -159,14 +159,14 @@ class Observer:
         """
         Called for heuristic directives in the program.
 
-        See also `Backend.heuristic`.
+        See also `clingo.backend.Backend.heuristic`.
 
         Args:
-                atom: The atom to which the heuristic applies.
-                type: The type of the heuristic.
-                weight: The weight of the heuristic.
-                priority: The priority of the heuristic (default: 0).
-                condition: Sequence of literals representing the condition (default: []).
+            atom: The atom to which the heuristic applies.
+            type: The type of the heuristic.
+            weight: The weight of the heuristic.
+            priority: The priority of the heuristic (default: 0).
+            condition: Sequence of literals representing the condition (default: []).
         """
 
     def init_program(self, incremental: bool) -> None:
@@ -177,7 +177,7 @@ class Observer:
         than one step.
 
         Args:
-                incremental: Whether the program is incremental.
+            incremental: Whether the program is incremental.
         """
 
     def minimize(
@@ -186,21 +186,21 @@ class Observer:
         """
         Called for minimize constraints in the program.
 
-        See also `Backend.minimize`.
+        See also `clingo.backend.Backend.minimize`.
 
         Args:
-                literals: Sequence of (literal, weight) tuples to minimize.
-                priority: Priority of the constraint (default: 0).
+            literals: Sequence of (literal, weight) tuples to minimize.
+            priority: Priority of the constraint (default: 0).
         """
 
     def project(self, atoms: typing.Sequence[int]) -> None:
         """
         Called for projection directives in the program.
 
-        See also `Backend.project`.
+        See also `clingo.backend.Backend.project`.
 
         Args:
-                atoms: Sequence of atoms to project on.
+            atoms: Sequence of atoms to project on.
         """
 
     def rule(
@@ -209,12 +209,12 @@ class Observer:
         """
         Called for rules in the program.
 
-        See also `Backend.rule`.
+        See also `clingo.backend.Backend.rule`.
 
         Args:
-                head: Sequence of literals in the rule head.
-                body: Sequence of literals in the rule body (default: []).
-                choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
+            head: Sequence of literals in the rule head.
+            body: Sequence of literals in the rule body (default: []).
+            choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
         """
 
     def weight_rule(
@@ -227,13 +227,13 @@ class Observer:
         """
         Called for weight rules in the program.
 
-        See also `Backend.weight_rule`.
+        See also `clingo.backend.Backend.weight_rule`.
 
         Args:
-                head: Sequence of literals in the rule head.
-                lower_bound: The lower bound of the weight constraint.
-                body: Sequence of (literal, weight) tuples forming the weight constraint.
-                choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
+            head: Sequence of literals in the rule head.
+            lower_bound: The lower bound of the weight constraint.
+            body: Sequence of (literal, weight) tuples forming the weight constraint.
+            choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
         """
 
 class Backend:
@@ -268,10 +268,10 @@ class Backend:
         atoms will be used in subsequent calls to ground for instantiation.
 
         Args:
-                symbol: The symbol associated with the atom.
+            symbol: The symbol associated with the atom.
 
         Returns:
-                The program atom representing the atom.
+            The program atom representing the atom.
         """
 
     def edge(self, node_u: int, node_v: int, condition: typing.Sequence[int]) -> None:
@@ -293,8 +293,8 @@ class Backend:
 
         Declares an atom as external and sets its truth value according to the
         specified type. External atoms can be used as assumptions or for incremental
-        solving. The special value `ExternalType.Release` can be used to permanently
-        set an external atom to false.
+        solving. The special value `clingo.backend.ExternalType.Release` can be used to
+        permanently set an external atom to false.
 
         Args:
             atom: The external atom (must be a positive literal).
@@ -317,11 +317,11 @@ class Backend:
         condition, if provided, determines when the heuristic should be applied.
 
         Args:
-                atom: The atom to which the heuristic applies.
-                type: The type of the heuristic.
-                weight: The weight of the heuristic.
-                priority: The priority of the heuristic (default: 0).
-                condition: Sequence of literals representing the condition (default: []).
+            atom: The atom to which the heuristic applies.
+            type: The type of the heuristic.
+            weight: The weight of the heuristic.
+            priority: The priority of the heuristic (default: 0).
+            condition: Sequence of literals representing the condition (default: []).
         """
 
     def minimize(
@@ -336,8 +336,8 @@ class Backend:
         more important.
 
         Args:
-                literals: Sequence of (literal, weight) tuples to minimize.
-                priority: Priority of the constraint (default: 0).
+            literals: Sequence of (literal, weight) tuples to minimize.
+            priority: Priority of the constraint (default: 0).
         """
 
     def project(self, atoms: typing.Sequence[int]) -> None:
@@ -349,7 +349,7 @@ class Backend:
         values of projected atoms, regardless of other atoms in the model.
 
         Args:
-                atoms: Sequence of atoms to project on.
+            atoms: Sequence of atoms to project on.
         """
 
     def rule(
@@ -370,9 +370,9 @@ class Backend:
         - Multiple literals head: Disjunctive rule
 
         Args:
-                head: Sequence of literals in the rule head.
-                body: Sequence of literals in the rule body (default: []).
-                choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
+            head: Sequence of literals in the rule head.
+            body: Sequence of literals in the rule body (default: []).
+            choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
         """
 
     def theory_atom(
@@ -392,13 +392,13 @@ class Backend:
         - For program directives, value zero is used.
 
         Args:
-                atom: The program atom to assign, or None to assign a fresh one.
-                name: The name of the theory atom.
-                elements: A sequence of ids representing theory elements.
-                guard: A tuple containing the guard operator and the id of the guard term, or None if there is no guard.
+            atom: The program atom to assign, or None to assign a fresh one.
+            name: The name of the theory atom.
+            elements: A sequence of ids representing theory elements.
+            guard: A tuple containing the guard operator and the id of the guard term, or None if there is no guard.
 
         Returns:
-                The program atom associated with the created theory atom.
+            The program atom associated with the created theory atom.
         """
 
     def theory_element(
@@ -412,11 +412,11 @@ class Backend:
         methods to reference this element.
 
         Args:
-                tuple: A sequence of ids representing theory terms.
-                condition: A sequence of program literals.
+            tuple: A sequence of ids representing theory terms.
+            condition: A sequence of program literals.
 
         Returns:
-                The unique id of the created theory element.
+            The unique id of the created theory element.
         """
 
     def theory_function(self, name: str, arguments: typing.Sequence[int]) -> int:
@@ -428,11 +428,11 @@ class Backend:
         methods to reference this term.
 
         Args:
-                name: The name of the function.
-                arguments: A sequence of ids of theory terms.
+            name: The name of the function.
+            arguments: A sequence of ids of theory terms.
 
         Returns:
-                The unique id of the created function theory term.
+            The unique id of the created function theory term.
         """
 
     def theory_number(self, number: int) -> int:
@@ -447,7 +447,7 @@ class Backend:
             number: The numeric value of the theory term to create.
 
         Returns:
-                The unique id of the created theory term.
+            The unique id of the created theory term.
         """
 
     def theory_sequence(
@@ -461,11 +461,11 @@ class Backend:
         theory-related methods to reference this term.
 
         Args:
-                type: The type of the sequence (e.g., tuple, list, set).
-                elements: A sequence of ids representing theory terms.
+            type: The type of the sequence (e.g., tuple, list, set).
+            elements: A sequence of ids representing theory terms.
 
         Returns:
-                The unique id of the created sequence theory term.
+            The unique id of the created sequence theory term.
         """
 
     def theory_string(self, string: str) -> int:
@@ -477,10 +477,10 @@ class Backend:
         reference this term.
 
         Args:
-                string: The string value of the theory term to create.
+            string: The string value of the theory term to create.
 
         Returns:
-                The unique id of the created string theory term.
+            The unique id of the created string theory term.
         """
 
     def theory_symbol(self, symbol: clingo.symbol.Symbol) -> int:
@@ -492,10 +492,10 @@ class Backend:
         this term.
 
         Args:
-                symbol: The symbol to create the theory term from.
+            symbol: The symbol to create the theory term from.
 
         Returns:
-                The unique id of the created theory term.
+            The unique id of the created theory term.
         """
 
     def weight_rule(
@@ -515,10 +515,10 @@ class Backend:
         meets or exceeds the lower bound.
 
         Args:
-                head: Sequence of literals in the rule head.
-                lower_bound: The lower bound of the weight constraint.
-                body: Sequence of (literal, weight) tuples forming the weight constraint.
-                choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
+            head: Sequence of literals in the rule head.
+            lower_bound: The lower bound of the weight constraint.
+            body: Sequence of (literal, weight) tuples forming the weight constraint.
+            choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
         """
 
 class BackendManager:

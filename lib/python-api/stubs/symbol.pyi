@@ -55,7 +55,8 @@ def Function(
 
     This includes constants and tuples. Constants have an empty argument list and
     tuples have an empty name. Functions can represent classically negated atoms.
-    Argument `is_positive` has to be set to `False` to represent such atoms.
+    Argument `clingo.symbol.Symbol.is_positive` has to be set to `False` to
+    represent such atoms.
 
     Args:
         lib: A library object to store the function in.
@@ -131,8 +132,10 @@ class Symbol:
     representation corresponds to their clingo representation.
 
     Note that this class does not have a constructor. Instead there are the
-    preconstructed symbols `Infimum` and `Supremum` and the functions `Number`,
-    `String`, `Tuple_`, and `Function` to construct symbol objects.
+    preconstructed symbols `clingo.symbol.Infimum` and `clingo.symbol.Supremum` and
+    the functions `clingo.symbol.Number`, `clingo.symbol.String`,
+    `clingo.symbol.Tuple_`, and `clingo.symbol.Function` to construct symbol
+    objects.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...

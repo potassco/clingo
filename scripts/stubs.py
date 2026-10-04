@@ -279,10 +279,6 @@ class Rewriter:
                     path = os.path.join(root, file)
                     with open(path, "r", encoding="utf8") as hnd:
                         content = hnd.read()
-                    if file != f"__init__{extension}":
-                        content = content.replace(
-                            f"clingo.{file.replace(extension, '')}.", ""
-                        )
                     # if content contains collections.abc, we have to add collections.abc to the imports
                     if (
                         "collections.abc." in content

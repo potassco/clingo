@@ -244,8 +244,9 @@ Examples
 --------
 
 The examples below show various ways to intercept models. The asynchronous
-variants leave room for additional computation before calling blocking functions
-`like SolveHandle.get` or `SolveHandle.model`.
+variants leave room for additional computation before calling blocking
+functions like `clingo.solve.SolveHandle.get` or
+`clingo.solve.SolveHandle.model`.
 
 The following example shows how to intercept models with a callback:
 

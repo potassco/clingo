@@ -323,6 +323,7 @@ with key `configuration` set multiple related options when assigned. Use
 `description` for more information about an option or option group.
 
 Notes:
+
 - The first element of a sequence can be accessed directly without index 0.
 - Config objects have a YAML-like string representation for inspection.
 - In string representations of sequences, attributes (for index 0) are only

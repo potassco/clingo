@@ -5,8 +5,9 @@ Examples
 --------
 
 The examples below show various ways to intercept models. The asynchronous
-variants leave room for additional computation before calling blocking functions
-`like SolveHandle.get` or `SolveHandle.model`.
+variants leave room for additional computation before calling blocking
+functions like `clingo.solve.SolveHandle.get` or
+`clingo.solve.SolveHandle.model`.
 
 The following example shows how to intercept models with a callback:
 
@@ -164,7 +165,7 @@ class Model:
         will print the added symbols.
 
         Args:
-                symbols: The symbols to add to the model.
+            symbols: The symbols to add to the model.
         """
 
     def is_consequence(self, literal: int) -> bool | None:

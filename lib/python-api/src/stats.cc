@@ -419,7 +419,7 @@ Class representing an array of stats.
 
 This class partially implements the mutable sequence protocol - elements of
 arrays can be modified but they cannot be deleted. Modifications are
-implemented via `Stats.update`.
+implemented via `clingo.stats.Stats.update`.
 
 Most use cases should be implementable just using the update function of the
 top-level statistics object.
@@ -434,7 +434,7 @@ Class representing a map of stats.
 
 This class partially implements the mutable mapping protocol - value of keys
 can be modified but they cannot be deleted. Modifications are implemented via
-`Stats.update`.
+`clingo.stats.Stats.update`.
 
 Most use cases should be implementable just using the update function of the
 top-level statistics object.

@@ -138,13 +138,13 @@ class Control:
 
         Args:
             parts:
-                        A sequence of tuples, each containing a section name and a sequence of
-                        symbols. The name identifies the program section to ground, and the
-                        symbols bind its parameters.  If `None`, the implicit base section
-                        without arguments is grounded.
+                A sequence of tuples, each containing a section name and a sequence of
+                symbols. The name identifies the program section to ground, and the
+                symbols bind its parameters.  If `None`, the implicit base section
+                without arguments is grounded.
             context:
-                        An optional object providing functions that can be called during
-                        grounding.
+                An optional object providing functions that can be called during
+                grounding.
         """
 
     def interrupt(self) -> None:
@@ -189,8 +189,8 @@ class Control:
 
         Args:
             observer: The program observer to inspect the program.
-                preprocess:
-                        Whether the program should be preprocessed first (default: True).
+            preprocess:
+                Whether the program should be preprocessed first (default: True).
         """
 
     def parse_files(self, files: typing.Sequence[str]) -> None:
@@ -249,7 +249,7 @@ class Control:
 
         Args:
             assumptions:
-                        A list of assumptions.
+                A list of assumptions.
             on_model:
                 Optional callback to intercept models.
             on_unsat:
@@ -257,7 +257,7 @@ class Control:
             on_stats:
                 Optional callback extend statistics.
             on_finish:
-                        Optional callback called once search has finished.
+                Optional callback called once search has finished.
         Returns:
             A `clingo.solve.SolveResult` representing the result of the search.
         """
@@ -276,15 +276,15 @@ class Control:
         Ground the given program parts.
 
         Starts grounding in the background and returns a `clingo.ground.GroundHandle`
-        to the running grounding. See `Control.ground` for details on grounding program
-        parts.
+        to the running grounding. See `clingo.control.Control.ground` for details on
+        grounding program parts.
 
         Args:
             parts:
-                        A sequence of parts to ground.
+                A sequence of parts to ground.
             context:
-                        An optional object providing functions that can be called during
-                        grounding.
+                An optional object providing functions that can be called during
+                grounding.
             on_finish:
                 An optional callback called once grounding has finished.
         """
@@ -319,11 +319,11 @@ class Control:
 
         Args:
             assumptions:
-                        A list of assumptions that constrain this search. Each assumption is
-                        either a `tuple[clingo.symbol.Symbol, bool]` indicating an atom's truth
-                        value or a program literal (see `clingo.base.Atom.literal`). For
-                        example, using `[(clingo.symbol.Function(lib, "a"), True)]` only admits
-                        answer sets that contain atom `a`.
+                A list of assumptions that constrain this search. Each assumption is
+                either a `tuple[clingo.symbol.Symbol, bool]` indicating an atom's truth
+                value or a program literal (see `clingo.base.Atom.literal`). For
+                example, using `[(clingo.symbol.Function(lib, "a"), True)]` only admits
+                answer sets that contain atom `a`.
             on_model:
                 Optional callback that receives a `clingo.solve.Model` object when
                 a model is found. Returning `False` from the callback stops solving.
@@ -334,11 +334,11 @@ class Control:
                 Two `clingo.stats.Stats` objects are passed: step-specific and
                 accumulated stats.
             on_finish:
-                        Optional callback called once search has finished. A
-                        `clingo.solve.SolveResult` is passed to the callback.
+                Optional callback called once search has finished. A
+                `clingo.solve.SolveResult` is passed to the callback.
             yield_:
-                        If `True`, the returned `clingo.solve.SolveHandle` is iterable,
-                        yielding  `clingo.solve.Model` objects during solving.
+                If `True`, the returned `clingo.solve.SolveHandle` is iterable,
+                yielding  `clingo.solve.Model` objects during solving.
             async_:
                 If `True`, solving runs asynchronously in a separate thread.
                 Note: Callbacks (`on_model`, `on_stats`, etc.) will also be called
@@ -347,8 +347,8 @@ class Control:
             A `clingo.solve.SolveHandle` to control the search.
 
         Notes:
-                Asynchronous solving requires compiling clingo with thread support.
-                Blocking methods on `SolveHandle` release the GIL but are not thread-safe.
+            Asynchronous solving requires compiling clingo with thread support.
+            Blocking methods on `SolveHandle` release the GIL but are not thread-safe.
 
         See Also:
             clingo.solve: Contains examples on using this function.
@@ -370,10 +370,11 @@ class Control:
         for existing files.
 
         If `path` is None, clingo's internal output buffer is used instead of writing
-        to a file. The buffer content is available via `Control.buffer`. If `preamble`
-        is None, the preamble is written only if the buffer is currently empty. In
-        application mode, the buffer is printed to stdout and cleared after each major
-        operation like grounding, so the preamble flag should be set explicitly in this
+        to a file. The buffer content is available via `clingo.control.Control.buffer`.
+        If `preamble` is None, the preamble is written only if the buffer is currently
+        empty. In application mode, the buffer is printed to stdout and cleared after
+        each major operation like grounding, so the preamble flag should be set
+        explicitly in this
         case.
 
         Args:

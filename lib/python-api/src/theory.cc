@@ -396,7 +396,8 @@ Args:
 Get the value of the symbol in the assignment of the given thread.
 
 It depends on the theory when this function can be called. Generally, it can be
-called after `on_model` while the solver is still holding its current model.
+called after `clingo.theory.Theory.on_model` while the solver is still holding
+its current model.
 
 Args:
     thread_id: The id of the thread to query.
@@ -409,7 +410,8 @@ Returns:
 Get the symbols and values currently assigned by the theory
 
 It depends on the theory when this function can be called. Generally, it can be
-called after `on_model` while the solver is still holding its current model.
+called after `clingo.theory.Theory.on_model` while the solver is still holding
+its current model.
 
 Args:
     thread_id: The id of the thread to query.

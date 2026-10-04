@@ -68,7 +68,7 @@ from clingo.symbol import Number, Symbol
 Parts = Sequence[Sequence[tuple[str, Sequence[Symbol]]]]
 
 def f(lib: Library, x: Symbol):
-        return Number(lib, x.number)
+    return Number(lib, x.number)
 
 def main(lib: Library, ctl: Control, parts: Parts):
     for part in parts:

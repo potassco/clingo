@@ -11,7 +11,7 @@
 	path = third_party/pybind11
 	url = ../../pybind/pybind11.git
 [submodule "doc/doxygen-awesome-css"]
-	path = doc/doxygen-awesome-css
+	path = doc/c-api/doxygen-awesome-css
 	url = ../../jothepro/doxygen-awesome-css.git
 [submodule "third_party/clasp"]
 	path = third_party/clasp

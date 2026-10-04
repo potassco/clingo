@@ -47,15 +47,21 @@ EMSCRIPTEN_OPTIONS := -DCLINGO_BUILD_TESTS=On \
 
 all: debug
 
-doc:
-	cd doc && rm -rf html && doxygen
+doc-c:
+	cd doc/c-api && rm -rf html && doxygen
+
+doc-py: stubs venv
+	cd doc/python-api && python3 stubs.py ../../lib/python-api/stubs stubs/clingo/
+	cd doc/python-api && zensical build
+
+doc: doc-c doc-py
 
 test: debug
 	$(MAKE) $(CTEST_FLAGS) -C build/debug $@
 
 .venv:
 	python3 -m venv .venv
-	source .venv/bin/activate && pip install isort black pynvim pyyaml jinja2 mypy pybind11-stubgen mkdocs-material "mkdocstrings[python]" compdb
+	source .venv/bin/activate && pip install isort black pynvim pyyaml jinja2 mypy pybind11-stubgen zensical mkdocs-material "mkdocstrings[python]" compdb pytest
 
 venv: .venv
 
@@ -135,9 +141,4 @@ format_yaml:
 stubs: debug
 	source .venv/bin/activate && python scripts/stubs.py
 
-mkdoc: debug venv
-	source .venv/bin/activate && python scripts/stubs.py
-	cd mkdoc && python3 stubs.py ../lib/python-api/stubs stubs/clingo/
-	cd mkdoc && mkdocs build
-
-.PHONY: all doc test compdb stubs pdoc venv debug gen format_yaml debug release release_lto release_clang release_clang_lto web
+.PHONY: all doc doc-c doc-py test compdb stubs pdoc venv debug gen format_yaml debug release release_lto release_clang release_clang_lto web

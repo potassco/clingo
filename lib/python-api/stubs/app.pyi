@@ -82,11 +82,11 @@ def clingo_main(
 
     Args:
         lib:
-                The Clingo core library interface.
+            The Clingo core library interface.
         arguments:
-                A list of command-line arguments.
+            A list of command-line arguments.
         app:
-                An optional App instance containing application-specific logic.
+            An optional App instance containing application-specific logic.
 
     Returns:
         An integer exit code.
@@ -122,6 +122,7 @@ class AppOptions:
     Manager for application options and their definitions.
 
     Provides interface to add/configures various option types:
+
     - argument options,
     - flag options, and
     - multi-value options.
@@ -245,10 +246,10 @@ class App:
         below the model.
 
         Args:
-                model:
-                        The current model held by the solver.
-                default_printer:
-                        A callable that prints the model in default format.
+            model:
+                The current model held by the solver.
+            default_printer:
+                A callable that prints the model in default format.
         """
 
     def register_options(self, options: AppOptions) -> None:
@@ -256,8 +257,8 @@ class App:
         Register command-line options for the application.
 
         Args:
-                options:
-                        An instance of AppOptions to add new options.
+            options:
+                An instance of AppOptions to add new options.
         """
 
     def validate_options(self) -> None:

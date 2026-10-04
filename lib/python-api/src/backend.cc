@@ -341,7 +341,7 @@ Called at the end of a step.
         .def("rule", &Observer::rule, py::arg("head"), py::arg("body"), py::arg("choice"), R"(
 Called for rules in the program.
 
-See also `Backend.rule`.
+See also `clingo.backend.Backend.rule`.
 
 Args:
 	head: Sequence of literals in the rule head.
@@ -352,7 +352,7 @@ Args:
              py::arg("choice"), R"(
 Called for weight rules in the program.
 
-See also `Backend.weight_rule`.
+See also `clingo.backend.Backend.weight_rule`.
 
 Args:
 	head: Sequence of literals in the rule head.
@@ -363,7 +363,7 @@ Args:
         .def("assume", &Observer::assume, py::arg("literals"), R"(
 Called for assumptions in the solver.
 
-See also `Backend.assume`.
+See also `clingo.backend.Backend.assume`.
 
 Args:
     literals: Sequence of program literals to assume.
@@ -371,7 +371,7 @@ Args:
         .def("edge", &Observer::edge, py::arg("node_u"), py::arg("node_v"), py::arg("condition"), R"(
 Called for edge directives in the program.
 
-See also `Backend.edge`.
+See also `clingo.backend.Backend.edge`.
 
 Args:
     node_u: The start node of the edge.
@@ -381,7 +381,7 @@ Args:
         .def("external", &Observer::external, py::arg("atom"), py::arg("type"), R"(
 Called for external directives in the program.
 
-See also `Backend.external`.
+See also `clingo.backend.Backend.external`.
 
 Args:
     atom: The external atom (must be a positive literal).
@@ -391,7 +391,7 @@ Args:
              py::arg("priority"), py::arg("condition"), R"(
 Called for heuristic directives in the program.
 
-See also `Backend.heuristic`.
+See also `clingo.backend.Backend.heuristic`.
 
 Args:
 	atom: The atom to which the heuristic applies.
@@ -403,7 +403,7 @@ Args:
         .def("minimize", &Observer::minimize, py::arg("literals"), py::arg("priority"), R"(
 Called for minimize constraints in the program.
 
-See also `Backend.minimize`.
+See also `clingo.backend.Backend.minimize`.
 
 Args:
 	literals: Sequence of (literal, weight) tuples to minimize.
@@ -412,7 +412,7 @@ Args:
         .def("project", &Observer::project, py::arg("atoms"), R"(
 Called for projection directives in the program.
 
-See also `Backend.project`.
+See also `clingo.backend.Backend.project`.
 
 Args:
 	atoms: Sequence of atoms to project on.
@@ -498,8 +498,8 @@ Add an external directive.
 
 Declares an atom as external and sets its truth value according to the
 specified type. External atoms can be used as assumptions or for incremental
-solving. The special value `ExternalType.Release` can be used to permanently
-set an external atom to false.
+solving. The special value `clingo.backend.ExternalType.Release` can be used to
+permanently set an external atom to false.
 
 Args:
     atom: The external atom (must be a positive literal).
