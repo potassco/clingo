@@ -646,7 +646,7 @@ Returns:
     py::class_<BackendManager>(backend, "BackendManager", R"(
 A context manager to initialize and finalize a backend.
 )"_d)
-        .def("__enter__", &BackendManager::enter, "Initialize backend the backend.")
+        .def("__enter__", &BackendManager::enter, "Initialize the backend.")
         .def("__exit__", &BackendManager::exit, py::arg("type"), py::arg("value"), py::arg("traceback"),
              "Finalize the backend.");
 }
