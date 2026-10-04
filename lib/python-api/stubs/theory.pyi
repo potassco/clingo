@@ -8,6 +8,7 @@ import collections.abc
 import typing
 
 import clingo.app
+import clingo.ast
 import clingo.control
 import clingo.core
 import clingo.solve
@@ -15,6 +16,45 @@ import clingo.stats
 import clingo.symbol
 
 __all__: list[str] = ["Theory", "TheoryAssignment"]
+
+class TheoryAssignment:
+    """
+    Assignment of theory values.
+    """
+
+    def __iter__(self) -> TheoryAssignment:
+        """
+        Return self.
+        """
+
+    def __next__(
+        self,
+    ) -> tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]:
+        """
+        Get the next symbol value pair.
+        """
+
+    def at(
+        self, index: int
+    ) -> tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]:
+        """
+        Get the value at the given index in the assignment.
+
+        Args:
+            index: The index of the value
+        Returns:
+            The value.
+        """
+
+    def lookup(self, symbol: clingo.symbol.Symbol) -> int | None:
+        """
+        Get the value index of the symbol in the assignment.
+
+        Args:
+            symbol: The symbol to lookup.
+        Returns:
+            The value or None if unnassigned.
+        """
 
 class Theory:
     """
@@ -221,43 +261,4 @@ class Theory:
     def version(self) -> tuple[int, int, int]:
         """
         Get the version of the theory (major, minor, revision).
-        """
-
-class TheoryAssignment:
-    """
-    Assignment of theory values.
-    """
-
-    def __iter__(self) -> TheoryAssignment:
-        """
-        Return self.
-        """
-
-    def __next__(
-        self,
-    ) -> tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]:
-        """
-        Get the next symbol value pair.
-        """
-
-    def at(
-        self, index: int
-    ) -> tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]:
-        """
-        Get the value at the given index in the assignment.
-
-        Args:
-            index: The index of the value
-        Returns:
-            The value.
-        """
-
-    def lookup(self, symbol: clingo.symbol.Symbol) -> int | None:
-        """
-        Get the value index of the symbol in the assignment.
-
-        Args:
-            symbol: The symbol to lookup.
-        Returns:
-            The value or None if unnassigned.
         """

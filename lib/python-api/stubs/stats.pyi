@@ -57,209 +57,9 @@ class StatsType(enum.IntEnum):
     The type of a stats object.
     """
 
-    Array: typing.ClassVar[StatsType]  # value = <StatsType.Array: 1>
-    Map: typing.ClassVar[StatsType]  # value = <StatsType.Map: 2>
-    Value: typing.ClassVar[StatsType]  # value = <StatsType.Value: 0>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
-class Stats(StatsView):
-    """
-    Class representing solver stats.
-    """
-
-    @typing.overload
-    def __getitem__(self, arg0: int) -> Stats:
-        """
-        Get the element at the given index.
-        """
-
-    @typing.overload
-    def __getitem__(self, key: str) -> Stats:
-        """
-        Lookup the value with the given key.
-        """
-
-    def __iter__(self) -> typing.Iterator[str | Stats]:
-        """
-        Get an iterator over this statistics object, which must be a map or an array.
-        """
-
-    def update(self, values: typing.Any) -> None:
-        """
-        Update the statistics with the given values.
-
-        Note that values can be inserted and changed but they cannot be deleted nor can
-        their type be changed.
-
-        Args:
-            values: A nested structure consisting of sequencens, mappings with string
-                keys, floats, and functions. The latter can be used to update
-                existing values. They receive the previous values as argument and must
-                return an updated value. If there is no previous value, `None` is
-                passed as argument.
-        """
-
-    @property
-    def array(self) -> StatsArray:
-        """
-        Get an array of stats objects.
-        """
-
-    @property
-    def map(self) -> StatsMap:
-        """
-        Get a map of stats objects.
-        """
-
-    @property
-    def value(self) -> float:
-        """
-        Get/set the value of the stats object.
-        """
-
-    @value.setter
-    def value(self, arg1: typing.SupportsFloat) -> None: ...
-
-class StatsArray(StatsArrayView):
-    """
-    Class representing an array of stats.
-
-    This class partially implements the mutable sequence protocol - elements of
-    arrays can be modified but they cannot be deleted. Modifications are
-    implemented via `Stats.update`.
-
-    Most use cases should be implementable just using the update function of the
-    top-level statistics object.
-    """
-
-    def __getitem__(self, arg0: int) -> Stats:
-        """
-        Get the element at the given index.
-        """
-
-    def __iter__(self) -> typing.Iterator[Stats]:
-        """
-        Get an iterator over the elements of the array.
-        """
-
-    def __setitem__(self, arg0: int, arg1: typing.Any) -> None:
-        """
-        Set the element at the given index to the given value.
-        """
-
-    def append(self, value: typing.Any) -> None:
-        """
-        Append the given value to the array.
-
-        Args:
-                value: The value to append.
-        """
-
-class StatsArrayView:
-    """
-    Class representing a read-only array of stats.
-
-    This class partially implements the mutable sequence protocol.
-    """
-
-    def __getitem__(self, arg0: int) -> StatsView:
-        """
-        Get the element at the given index.
-        """
-
-    def __iter__(self) -> typing.Iterator[StatsView]:
-        """
-        Get an iterator over the elements of the array.
-        """
-
-    def __len__(self) -> int:
-        """
-        Get the length of the array.
-        """
-
-    def __str__(self) -> str:
-        """
-        A readable representation to inspect the array.
-        """
-
-class StatsMap(StatsMapView):
-    """
-    Class representing a map of stats.
-
-    This class partially implements the mutable mapping protocol - value of keys
-    can be modified but they cannot be deleted. Modifications are implemented via
-    `Stats.update`.
-
-    Most use cases should be implementable just using the update function of the
-    top-level statistics object.
-    """
-
-    def __getitem__(self, key: str) -> Stats:
-        """
-        Lookup the value with the given key.
-        """
-
-    def __setitem__(self, key: str, value: typing.Any) -> None:
-        """
-        Set the value at the given key.
-        """
-
-    def items(self) -> typing.Iterator[tuple[str, Stats]]:
-        """
-        Get an iterator over the items of the map.
-        """
-
-    def values(self) -> typing.Iterator[Stats]:
-        """
-        Get an iterator over the values of the map.
-        """
-
-class StatsMapView:
-    """
-    Class representing a read-only map of stats.
-
-    This class partially implements the mutable mapping protocol.
-    """
-
-    def __getitem__(self, key: str) -> StatsView:
-        """
-        Lookup the value with the given key.
-        """
-
-    def __iter__(self) -> typing.Iterator[str]:
-        """
-        Get an iterator over the keys of the map.
-        """
-
-    def __len__(self) -> int:
-        """
-        Get the length of the map.
-        """
-
-    def __str__(self) -> str:
-        """
-        A readable representation to inspect the map.
-        """
-
-    def items(self) -> typing.Iterator[tuple[str, StatsView]]:
-        """
-        Get an iterator over the items of the map.
-        """
-
-    def keys(self) -> typing.Iterator[str]:
-        """
-        Get an iterator over the keys of the map.
-        """
-
-    def values(self) -> typing.Iterator[StatsView]:
-        """
-        Get an iterator over the values of the map.
-        """
+    Array = typing.cast(int, ...)
+    Map = typing.cast(int, ...)
+    Value = typing.cast(int, ...)
 
 class StatsView:
     """
@@ -326,4 +126,198 @@ class StatsView:
     def value(self) -> float:
         """
         Get the value of the stats object.
+        """
+
+class Stats(StatsView):
+    """
+    Class representing solver stats.
+    """
+
+    @typing.overload
+    def __getitem__(self, arg0: int) -> Stats:
+        """
+        Get the element at the given index.
+        """
+
+    @typing.overload
+    def __getitem__(self, key: str) -> Stats:
+        """
+        Lookup the value with the given key.
+        """
+
+    def __iter__(self) -> typing.Iterator[str | Stats]:
+        """
+        Get an iterator over this statistics object, which must be a map or an array.
+        """
+
+    def update(self, values: typing.Any) -> None:
+        """
+        Update the statistics with the given values.
+
+        Note that values can be inserted and changed but they cannot be deleted nor can
+        their type be changed.
+
+        Args:
+            values: A nested structure consisting of sequencens, mappings with string
+                keys, floats, and functions. The latter can be used to update
+                existing values. They receive the previous values as argument and must
+                return an updated value. If there is no previous value, `None` is
+                passed as argument.
+        """
+
+    @property
+    def array(self) -> StatsArray:
+        """
+        Get an array of stats objects.
+        """
+
+    @property
+    def map(self) -> StatsMap:
+        """
+        Get a map of stats objects.
+        """
+
+    @property
+    def value(self) -> float:
+        """
+        Get/set the value of the stats object.
+        """
+
+    @value.setter
+    def value(self, arg1: typing.SupportsFloat) -> None: ...
+
+class StatsArrayView:
+    """
+    Class representing a read-only array of stats.
+
+    This class partially implements the mutable sequence protocol.
+    """
+
+    def __getitem__(self, arg0: int) -> StatsView:
+        """
+        Get the element at the given index.
+        """
+
+    def __iter__(self) -> typing.Iterator[StatsView]:
+        """
+        Get an iterator over the elements of the array.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the length of the array.
+        """
+
+    def __str__(self) -> str:
+        """
+        A readable representation to inspect the array.
+        """
+
+class StatsArray(StatsArrayView):
+    """
+    Class representing an array of stats.
+
+    This class partially implements the mutable sequence protocol - elements of
+    arrays can be modified but they cannot be deleted. Modifications are
+    implemented via `Stats.update`.
+
+    Most use cases should be implementable just using the update function of the
+    top-level statistics object.
+    """
+
+    def __getitem__(self, arg0: int) -> Stats:
+        """
+        Get the element at the given index.
+        """
+
+    def __iter__(self) -> typing.Iterator[Stats]:
+        """
+        Get an iterator over the elements of the array.
+        """
+
+    def __setitem__(self, arg0: int, arg1: typing.Any) -> None:
+        """
+        Set the element at the given index to the given value.
+        """
+
+    def append(self, value: typing.Any) -> None:
+        """
+        Append the given value to the array.
+
+        Args:
+                value: The value to append.
+        """
+
+class StatsMapView:
+    """
+    Class representing a read-only map of stats.
+
+    This class partially implements the mutable mapping protocol.
+    """
+
+    def __getitem__(self, key: str) -> StatsView:
+        """
+        Lookup the value with the given key.
+        """
+
+    def __iter__(self) -> typing.Iterator[str]:
+        """
+        Get an iterator over the keys of the map.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the length of the map.
+        """
+
+    def __str__(self) -> str:
+        """
+        A readable representation to inspect the map.
+        """
+
+    def items(self) -> typing.Iterator[tuple[str, StatsView]]:
+        """
+        Get an iterator over the items of the map.
+        """
+
+    def keys(self) -> typing.Iterator[str]:
+        """
+        Get an iterator over the keys of the map.
+        """
+
+    def values(self) -> typing.Iterator[StatsView]:
+        """
+        Get an iterator over the values of the map.
+        """
+
+class StatsMap(StatsMapView):
+    """
+    Class representing a map of stats.
+
+    This class partially implements the mutable mapping protocol - value of keys
+    can be modified but they cannot be deleted. Modifications are implemented via
+    `Stats.update`.
+
+    Most use cases should be implementable just using the update function of the
+    top-level statistics object.
+    """
+
+    def __getitem__(self, key: str) -> Stats:
+        """
+        Lookup the value with the given key.
+        """
+
+    def __setitem__(self, key: str, value: typing.Any) -> None:
+        """
+        Set the value at the given key.
+        """
+
+    def items(self) -> typing.Iterator[tuple[str, Stats]]:
+        """
+        Get an iterator over the items of the map.
+        """
+
+    def values(self) -> typing.Iterator[Stats]:
+        """
+        Get an iterator over the values of the map.
         """

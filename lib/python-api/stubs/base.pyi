@@ -59,18 +59,12 @@ class TheoryTermType(enum.IntEnum):
     Enumeration of theory term types.
     """
 
-    Function: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Function: 3>
-    List: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.List: 1>
-    Number: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Number: 4>
-    Set: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Set: 2>
-    Symbol: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Symbol: 5>
-    Tuple: typing.ClassVar[TheoryTermType]  # value = <TheoryTermType.Tuple: 0>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
+    Function = typing.cast(int, ...)
+    List = typing.cast(int, ...)
+    Number = typing.cast(int, ...)
+    Set = typing.cast(int, ...)
+    Symbol = typing.cast(int, ...)
+    Tuple = typing.cast(int, ...)
 
 class Atom:
     """
@@ -145,9 +139,246 @@ class AtomBase:
         Get an iterator over the values in the map.
         """
 
-class Base:
+class Term:
+    """
+    A class providing information about terms.
     """
 
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    @property
+    def condition(self) -> typing.Sequence[typing.Sequence[int]]:
+        """
+        Get the condition of the term.
+        """
+
+    @property
+    def symbol(self) -> clingo.symbol.Symbol:
+        """
+        Get the symbol of the term.
+        """
+
+class TermBase:
+    """
+    A class providing information about shown terms.
+
+    The base is established by the show directives occurring in a program.
+
+    Implements `Mapping[Symbol, Term]`.
+    """
+
+    def __contains__(self, key: clingo.symbol.Symbol) -> bool:
+        """
+        Check if the map contains the given key.
+        """
+
+    def __getitem__(self, key: clingo.symbol.Symbol) -> Term:
+        """
+        Get the value for the given key.
+        """
+
+    def __iter__(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
+        """
+        Get an iterator over the keys in the map.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the number elements in the map.
+        """
+
+    def get(
+        self, key: clingo.symbol.Symbol, default: Term | None = None
+    ) -> Term | None:
+        """
+        Get the value for the given key or the default if absent.
+        """
+
+    def items(self) -> collections.abc.Iterator[tuple[clingo.symbol.Symbol, Term]]:
+        """
+        Get an iterator over the items in the map.
+        """
+
+    def keys(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
+        """
+        Get an iterator over the keys in the map.
+        """
+
+    def values(self) -> collections.abc.Iterator[Term]:
+        """
+        Get an iterator over the values in the map.
+        """
+
+class TheoryTerm:
+    """
+    A view to inspect a theory term.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str:
+        """
+        Get a string representation of the term.
+        """
+
+    @property
+    def arguments(self) -> typing.Sequence[TheoryTerm]:
+        """
+        Get the arguments of a function, tuple, list, or set theory term.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        Get the name of a theory symbol or function.
+        """
+
+    @property
+    def number(self) -> int:
+        """
+        Get the value of a numeric theory term.
+        """
+
+    @property
+    def type(self) -> TheoryTermType:
+        """
+        Get the type of the theory term.
+        """
+
+class TheoryElement:
+    """
+    A view to inspect a theory element.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str:
+        """
+        Get a string representation of the element.
+        """
+
+    @property
+    def condition(self) -> typing.Sequence[int]:
+        """
+        Get the condition of a theory element.
+        """
+
+    @property
+    def condition_id(self) -> int | None:
+        """
+        Get the condition id of a theory element.
+
+        True conditions do not have a condition id. A condition id is only valid for
+        the current solving step. However, they can be mapped to persistent solver
+        literals using `clingo.propagate.PropagateInit.solver_literal`.
+        """
+
+    @property
+    def tuple(self) -> typing.Sequence[TheoryTerm]:
+        """
+        Get the term tuple of a theory element.
+        """
+
+class TheoryAtom:
+    """
+    A view to inspect a theory atom.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str:
+        """
+        Get a string representation of the atom.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[TheoryElement]:
+        """
+        Get the elements of a theory atom.
+        """
+
+    @property
+    def guard(self) -> tuple[str, TheoryTerm] | None:
+        """
+        Get optional guard of a theory atom.
+        """
+
+    @property
+    def literal(self) -> int:
+        """
+        Get the literal of the theory atom (zero for directives).
+        """
+
+    @property
+    def name(self) -> TheoryTerm:
+        """
+        Get the name of a theory atom.
+        """
+
+class TheoryBase:
+    """
+    A class  prooviding information about theory atoms.
+
+    Implements `Sequence[TheoryAtom]`.
+    """
+
+    def __contains__(self, value: TheoryAtom) -> bool:
+        """
+        Check whether the sequence contains the given value.
+        """
+
+    def __getitem__(self, index: int) -> TheoryAtom:
+        """
+        Get the value at the given index.
+        """
+
+    def __iter__(self) -> collections.abc.Iterator[TheoryAtom]:
+        """
+        Get an iterator for the sequence.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the size of the sequence.
+        """
+
+    def __reversed__(self) -> collections.abc.Iterator[TheoryAtom]:
+        """
+        Get a reverse iterator for the sequence.
+        """
+
+    def count(self, value: TheoryAtom) -> int:
+        """
+        Count how often the given value occurs in the sequence.
+        """
+
+    def index(self, value: TheoryAtom) -> int:
+        """
+        Get the index of the given value in the sequence.
+        """
+
+class Base:
+    """
     A class providing information about symbolic and theory atoms and shown terms.
 
     Implements `Mapping[tuple[str, int, bool], AtomBase]` providing additional
@@ -292,242 +523,4 @@ class Base:
     def theory(self) -> TheoryBase:
         """
         The theory base.
-        """
-
-class Term:
-    """
-    A class providing information about terms.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    @property
-    def condition(self) -> typing.Sequence[typing.Sequence[int]]:
-        """
-        Get the condition of the term.
-        """
-
-    @property
-    def symbol(self) -> clingo.symbol.Symbol:
-        """
-        Get the symbol of the term.
-        """
-
-class TermBase:
-    """
-    A class providing information about shown terms.
-
-    The base is established by the show directives occurring in a program.
-
-    Implements `Mapping[Symbol, Term]`.
-    """
-
-    def __contains__(self, key: clingo.symbol.Symbol) -> bool:
-        """
-        Check if the map contains the given key.
-        """
-
-    def __getitem__(self, key: clingo.symbol.Symbol) -> Term:
-        """
-        Get the value for the given key.
-        """
-
-    def __iter__(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
-        """
-        Get an iterator over the keys in the map.
-        """
-
-    def __len__(self) -> int:
-        """
-        Get the number elements in the map.
-        """
-
-    def get(
-        self, key: clingo.symbol.Symbol, default: Term | None = None
-    ) -> Term | None:
-        """
-        Get the value for the given key or the default if absent.
-        """
-
-    def items(self) -> collections.abc.Iterator[tuple[clingo.symbol.Symbol, Term]]:
-        """
-        Get an iterator over the items in the map.
-        """
-
-    def keys(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
-        """
-        Get an iterator over the keys in the map.
-        """
-
-    def values(self) -> collections.abc.Iterator[Term]:
-        """
-        Get an iterator over the values in the map.
-        """
-
-class TheoryAtom:
-    """
-    A view to inspect a theory atom.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str:
-        """
-        Get a string representation of the atom.
-        """
-
-    @property
-    def elements(self) -> typing.Sequence[TheoryElement]:
-        """
-        Get the elements of a theory atom.
-        """
-
-    @property
-    def guard(self) -> tuple[str, TheoryTerm] | None:
-        """
-        Get optional guard of a theory atom.
-        """
-
-    @property
-    def literal(self) -> int:
-        """
-        Get the literal of the theory atom (zero for directives).
-        """
-
-    @property
-    def name(self) -> TheoryTerm:
-        """
-        Get the name of a theory atom.
-        """
-
-class TheoryBase:
-    """
-    A class  prooviding information about theory atoms.
-
-    Implements `Sequence[TheoryAtom]`.
-    """
-
-    def __contains__(self, value: TheoryAtom) -> bool:
-        """
-        Check whether the sequence contains the given value.
-        """
-
-    def __getitem__(self, index: int) -> TheoryAtom:
-        """
-        Get the value at the given index.
-        """
-
-    def __iter__(self) -> collections.abc.Iterator[TheoryAtom]:
-        """
-        Get an iterator for the sequence.
-        """
-
-    def __len__(self) -> int:
-        """
-        Get the size of the sequence.
-        """
-
-    def __reversed__(self) -> collections.abc.Iterator[TheoryAtom]:
-        """
-        Get a reverse iterator for the sequence.
-        """
-
-    def count(self, value: TheoryAtom) -> int:
-        """
-        Count how often the given value occurs in the sequence.
-        """
-
-    def index(self, value: TheoryAtom) -> int:
-        """
-        Get the index of the given value in the sequence.
-        """
-
-class TheoryElement:
-    """
-    A view to inspect a theory element.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str:
-        """
-        Get a string representation of the element.
-        """
-
-    @property
-    def condition(self) -> typing.Sequence[int]:
-        """
-        Get the condition of a theory element.
-        """
-
-    @property
-    def condition_id(self) -> int | None:
-        """
-        Get the condition id of a theory element.
-
-        True conditions do not have a condition id. A condition id is only valid for
-        the current solving step. However, they can be mapped to persistent solver
-        literals using `clingo.propagate.PropagateInit.solver_literal`.
-        """
-
-    @property
-    def tuple(self) -> typing.Sequence[TheoryTerm]:
-        """
-        Get the term tuple of a theory element.
-        """
-
-class TheoryTerm:
-    """
-    A view to inspect a theory term.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str:
-        """
-        Get a string representation of the term.
-        """
-
-    @property
-    def arguments(self) -> typing.Sequence[TheoryTerm]:
-        """
-        Get the arguments of a function, tuple, list, or set theory term.
-        """
-
-    @property
-    def name(self) -> str:
-        """
-        Get the name of a theory symbol or function.
-        """
-
-    @property
-    def number(self) -> int:
-        """
-        Get the value of a numeric theory term.
-        """
-
-    @property
-    def type(self) -> TheoryTermType:
-        """
-        Get the type of the theory term.
         """

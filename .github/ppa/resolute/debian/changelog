@@ -1,0 +1,5 @@
+clingo (6.0.0-resolute3) resolute; urgency=medium
+
+  * initial version
+
+ -- Roland Kaminski <kaminski@cs.uni-potsdam.de>  Sun, 04 Oct 2026 11:23:03 +0200

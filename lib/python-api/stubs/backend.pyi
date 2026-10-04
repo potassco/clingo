@@ -62,53 +62,178 @@ __all__: list[str] = [
     "TheorySequenceType",
 ]
 
-class ExternalType(enum.IntEnum):
-    """
-    Available external types.
-    """
-
-    False_: typing.ClassVar[ExternalType]  # value = <ExternalType.False_: 2>
-    Free: typing.ClassVar[ExternalType]  # value = <ExternalType.Free: 0>
-    Release: typing.ClassVar[ExternalType]  # value = <ExternalType.Release: 3>
-    True_: typing.ClassVar[ExternalType]  # value = <ExternalType.True_: 1>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
 class HeuristicType(enum.IntEnum):
     """
     Available heuristic types.
     """
 
-    Factor: typing.ClassVar[HeuristicType]  # value = <HeuristicType.Factor: 2>
-    False_: typing.ClassVar[HeuristicType]  # value = <HeuristicType.False_: 5>
-    Init: typing.ClassVar[HeuristicType]  # value = <HeuristicType.Init: 3>
-    Level: typing.ClassVar[HeuristicType]  # value = <HeuristicType.Level: 0>
-    Sign: typing.ClassVar[HeuristicType]  # value = <HeuristicType.Sign: 1>
-    True_: typing.ClassVar[HeuristicType]  # value = <HeuristicType.True_: 4>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
+    Factor = typing.cast(int, ...)
+    False_ = typing.cast(int, ...)
+    Init = typing.cast(int, ...)
+    Level = typing.cast(int, ...)
+    Sign = typing.cast(int, ...)
+    True_ = typing.cast(int, ...)
+
+class ExternalType(enum.IntEnum):
+    """
+    Available external types.
+    """
+
+    False_ = typing.cast(int, ...)
+    Free = typing.cast(int, ...)
+    Release = typing.cast(int, ...)
+    True_ = typing.cast(int, ...)
 
 class TheorySequenceType(enum.IntEnum):
     """
     Available theory sequence types.
     """
 
-    List: typing.ClassVar[TheorySequenceType]  # value = <TheorySequenceType.List: 2>
-    Set: typing.ClassVar[TheorySequenceType]  # value = <TheorySequenceType.Set: 1>
-    Tuple: typing.ClassVar[TheorySequenceType]  # value = <TheorySequenceType.Tuple: 0>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
+    List = typing.cast(int, ...)
+    Set = typing.cast(int, ...)
+    Tuple = typing.cast(int, ...)
+
+class Observer:
+    """
+    ABC to inspect aspif directives.
+
+    Not all functions of the interface have to be implemented and can be omitted if
+    not needed.
+
+    See Also:
+        `clingo.control.Control.observe`
+    """
+
+    def __init__(self) -> None: ...
+    def assume(self, literals: typing.Sequence[int]) -> None:
         """
-        Convert to a string according to format_spec.
+        Called for assumptions in the solver.
+
+        See also `Backend.assume`.
+
+        Args:
+            literals: Sequence of program literals to assume.
+        """
+
+    def begin_step(self) -> None:
+        """
+        Called at the beginning of a step.
+        """
+
+    def edge(self, node_u: int, node_v: int, condition: typing.Sequence[int]) -> None:
+        """
+        Called for edge directives in the program.
+
+        See also `Backend.edge`.
+
+        Args:
+            node_u: The start node of the edge.
+            node_v: The end node of the edge.
+            condition: Sequence of literals representing the edge condition.
+        """
+
+    def end_step(self, base: clingo.base.Base) -> None:
+        """
+        Called at the end of a step.
+        """
+
+    def external(self, atom: int, type: ExternalType) -> None:
+        """
+        Called for external directives in the program.
+
+        See also `Backend.external`.
+
+        Args:
+            atom: The external atom (must be a positive literal).
+            type: The type determining the truth value of the atom.
+        """
+
+    def heuristic(
+        self,
+        atom: int,
+        type: HeuristicType,
+        weight: int,
+        priority: int,
+        condition: typing.Sequence[int],
+    ) -> None:
+        """
+        Called for heuristic directives in the program.
+
+        See also `Backend.heuristic`.
+
+        Args:
+                atom: The atom to which the heuristic applies.
+                type: The type of the heuristic.
+                weight: The weight of the heuristic.
+                priority: The priority of the heuristic (default: 0).
+                condition: Sequence of literals representing the condition (default: []).
+        """
+
+    def init_program(self, incremental: bool) -> None:
+        """
+        The first directive in a program.
+
+        The parameter `incremental` indicates whether the program can consist of more
+        than one step.
+
+        Args:
+                incremental: Whether the program is incremental.
+        """
+
+    def minimize(
+        self, literals: typing.Sequence[tuple[int, int]], priority: int
+    ) -> None:
+        """
+        Called for minimize constraints in the program.
+
+        See also `Backend.minimize`.
+
+        Args:
+                literals: Sequence of (literal, weight) tuples to minimize.
+                priority: Priority of the constraint (default: 0).
+        """
+
+    def project(self, atoms: typing.Sequence[int]) -> None:
+        """
+        Called for projection directives in the program.
+
+        See also `Backend.project`.
+
+        Args:
+                atoms: Sequence of atoms to project on.
+        """
+
+    def rule(
+        self, head: typing.Sequence[int], body: typing.Sequence[int], choice: bool
+    ) -> None:
+        """
+        Called for rules in the program.
+
+        See also `Backend.rule`.
+
+        Args:
+                head: Sequence of literals in the rule head.
+                body: Sequence of literals in the rule body (default: []).
+                choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
+        """
+
+    def weight_rule(
+        self,
+        head: typing.Sequence[int],
+        lower_bound: int,
+        body: typing.Sequence[tuple[int, int]],
+        choice: bool,
+    ) -> None:
+        """
+        Called for weight rules in the program.
+
+        See also `Backend.weight_rule`.
+
+        Args:
+                head: Sequence of literals in the rule head.
+                lower_bound: The lower bound of the weight constraint.
+                body: Sequence of (literal, weight) tuples forming the weight constraint.
+                choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
         """
 
 class Backend:
@@ -411,148 +536,4 @@ class BackendManager:
     ) -> None:
         """
         Finalize the backend.
-        """
-
-class Observer:
-    """
-
-    ABC to inspect aspif directives.
-
-    Not all functions of the interface have to be implemented and can be omitted if
-    not needed.
-
-    See Also:
-        `clingo.control.Control.observe`
-    """
-
-    def __init__(self) -> None: ...
-    def assume(self, literals: typing.Sequence[int]) -> None:
-        """
-        Called for assumptions in the solver.
-
-        See also `Backend.assume`.
-
-        Args:
-            literals: Sequence of program literals to assume.
-        """
-
-    def begin_step(self) -> None:
-        """
-        Called at the beginning of a step.
-        """
-
-    def edge(self, node_u: int, node_v: int, condition: typing.Sequence[int]) -> None:
-        """
-        Called for edge directives in the program.
-
-        See also `Backend.edge`.
-
-        Args:
-            node_u: The start node of the edge.
-            node_v: The end node of the edge.
-            condition: Sequence of literals representing the edge condition.
-        """
-
-    def end_step(self, base: clingo.base.Base) -> None:
-        """
-        Called at the end of a step.
-        """
-
-    def external(self, atom: int, type: ExternalType) -> None:
-        """
-        Called for external directives in the program.
-
-        See also `Backend.external`.
-
-        Args:
-            atom: The external atom (must be a positive literal).
-            type: The type determining the truth value of the atom.
-        """
-
-    def heuristic(
-        self,
-        atom: int,
-        type: HeuristicType,
-        weight: int,
-        priority: int,
-        condition: typing.Sequence[int],
-    ) -> None:
-        """
-        Called for heuristic directives in the program.
-
-        See also `Backend.heuristic`.
-
-        Args:
-                atom: The atom to which the heuristic applies.
-                type: The type of the heuristic.
-                weight: The weight of the heuristic.
-                priority: The priority of the heuristic (default: 0).
-                condition: Sequence of literals representing the condition (default: []).
-        """
-
-    def init_program(self, incremental: bool) -> None:
-        """
-        The first directive in a program.
-
-        The parameter `incremental` indicates whether the program can consist of more
-        than one step.
-
-        Args:
-                incremental: Whether the program is incremental.
-        """
-
-    def minimize(
-        self, literals: typing.Sequence[tuple[int, int]], priority: int
-    ) -> None:
-        """
-        Called for minimize constraints in the program.
-
-        See also `Backend.minimize`.
-
-        Args:
-                literals: Sequence of (literal, weight) tuples to minimize.
-                priority: Priority of the constraint (default: 0).
-        """
-
-    def project(self, atoms: typing.Sequence[int]) -> None:
-        """
-        Called for projection directives in the program.
-
-        See also `Backend.project`.
-
-        Args:
-                atoms: Sequence of atoms to project on.
-        """
-
-    def rule(
-        self, head: typing.Sequence[int], body: typing.Sequence[int], choice: bool
-    ) -> None:
-        """
-        Called for rules in the program.
-
-        See also `Backend.rule`.
-
-        Args:
-                head: Sequence of literals in the rule head.
-                body: Sequence of literals in the rule body (default: []).
-                choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
-        """
-
-    def weight_rule(
-        self,
-        head: typing.Sequence[int],
-        lower_bound: int,
-        body: typing.Sequence[tuple[int, int]],
-        choice: bool,
-    ) -> None:
-        """
-        Called for weight rules in the program.
-
-        See also `Backend.weight_rule`.
-
-        Args:
-                head: Sequence of literals in the rule head.
-                lower_bound: The lower bound of the weight constraint.
-                body: Sequence of (literal, weight) tuples forming the weight constraint.
-                choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
         """

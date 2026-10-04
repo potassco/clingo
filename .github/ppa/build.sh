@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage {
-    echo "./$(basename "$0") --type={ppa,cloudsmith} --build-number <n> {wip-20} {noble,trixie} {create,sync,changes,build,put,clean}*"
+    echo "./$(basename "$0") --type={ppa,cloudsmith} --build-number <n> {wip-20} {noble,resolute,trixie} {create,sync,changes,build,put,clean}*"
 }
 
 if [[ $# -lt 1 ]]; then
@@ -67,6 +67,7 @@ shift
 DISTRIBUTION=ubuntu
 PBUILDER_ARGS=()
 case "${rep}" in
+resolute) ;;
 noble) ;;
 trixie)
     PBUILDER_ARGS+=(--mirror http://deb.debian.org/debian)
@@ -118,7 +119,7 @@ for act in "${@}"; do
             ../../README.md \
             ../../third_party \
             "$rep/"
-        sed -i "s/export CLINGO_BUILD_REVISION =.*/export CLINGO_BUILD_REVISION = $(git rev-parse --short HEAD)/" "${rep}/debian/rules"
+        sed -i "s/export CLINGO_GIT_HASH =.*/export CLINGO_GIT_HASH = $(git rev-parse --short HEAD)/" "${rep}/debian/rules"
         ;;
     changes)
         VERSION="$(sed -n '/#define CLINGO_VERSION "/s/.*"\([0-9]\+\.[0-9\+]\.[0-9]\+\)".*/\1/p' ../../lib/c-api/include/clingo/core.h)"

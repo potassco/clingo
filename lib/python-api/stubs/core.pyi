@@ -15,9 +15,8 @@ from __future__ import annotations
 
 import collections.abc
 import enum
+import types
 import typing
-
-import typing_extensions
 
 __all__: list[str] = [
     "Library",
@@ -41,44 +40,26 @@ class LogLevel(enum.IntEnum):
     The available log levels.
     """
 
-    Debug: typing.ClassVar[LogLevel]  # value = <LogLevel.Debug: 1>
-    Error: typing.ClassVar[LogLevel]  # value = <LogLevel.Error: 8>
-    Info: typing.ClassVar[LogLevel]  # value = <LogLevel.Info: 2>
-    Trace: typing.ClassVar[LogLevel]  # value = <LogLevel.Trace: 0>
-    Warn: typing.ClassVar[LogLevel]  # value = <LogLevel.Warn: 7>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
+    Debug = typing.cast(int, ...)
+    Error = typing.cast(int, ...)
+    Info = typing.cast(int, ...)
+    Trace = typing.cast(int, ...)
+    Warn = typing.cast(int, ...)
 
 class MessageType(enum.IntEnum):
     """
     Message categories emitted by the logger.
     """
 
-    AtomUndefined: typing.ClassVar[
-        MessageType
-    ]  # value = <MessageType.AtomUndefined: 4>
-    Debug: typing.ClassVar[MessageType]  # value = <MessageType.Debug: 1>
-    Error: typing.ClassVar[MessageType]  # value = <MessageType.Error: 8>
-    FileIncluded: typing.ClassVar[MessageType]  # value = <MessageType.FileIncluded: 5>
-    GlobalVariable: typing.ClassVar[
-        MessageType
-    ]  # value = <MessageType.GlobalVariable: 6>
-    Info: typing.ClassVar[MessageType]  # value = <MessageType.Info: 2>
-    OperationUndefined: typing.ClassVar[
-        MessageType
-    ]  # value = <MessageType.OperationUndefined: 3>
-    Trace: typing.ClassVar[MessageType]  # value = <MessageType.Trace: 0>
-    Warn: typing.ClassVar[MessageType]  # value = <MessageType.Warn: 7>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
+    AtomUndefined = typing.cast(int, ...)
+    Debug = typing.cast(int, ...)
+    Error = typing.cast(int, ...)
+    FileIncluded = typing.cast(int, ...)
+    GlobalVariable = typing.cast(int, ...)
+    Info = typing.cast(int, ...)
+    OperationUndefined = typing.cast(int, ...)
+    Trace = typing.cast(int, ...)
+    Warn = typing.cast(int, ...)
 
 class Library:
     """
@@ -122,52 +103,9 @@ class Library:
             message_limit: The maximum number of messages to emit.
         """
 
-    def _capsule(self) -> typing_extensions.CapsuleType:
+    def _capsule(self) -> types.CapsuleType:
         """
         Get a capsule holding the underlying C library object.
-        """
-
-class Location:
-    """
-    Represents a range of positions in a source file.
-
-    The `Location` object tracks the start and end positions of a region in the
-    file. It is used for error reporting and debugging, providing information about
-    the source of the program elements.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(self, begin: Position, end: Position) -> None:
-        """
-        Create a location object.
-
-        Args:
-            begin: The beginning of the location.
-            end: The end of the location.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __str__(self) -> str: ...
-    @property
-    def begin(self) -> Position:
-        """
-        The beginning of the location.
-        """
-
-    @property
-    def end(self) -> Position:
-        """
-        The end of the location.
         """
 
 class Position:
@@ -218,4 +156,47 @@ class Position:
     def line(self) -> int:
         """
         The line number.
+        """
+
+class Location:
+    """
+    Represents a range of positions in a source file.
+
+    The `Location` object tracks the start and end positions of a region in the
+    file. It is used for error reporting and debugging, providing information about
+    the source of the program elements.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(self, begin: Position, end: Position) -> None:
+        """
+        Create a location object.
+
+        Args:
+            begin: The beginning of the location.
+            end: The end of the location.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __repr__(self) -> str: ...
+    def __str__(self) -> str: ...
+    @property
+    def begin(self) -> Position:
+        """
+        The beginning of the location.
+        """
+
+    @property
+    def end(self) -> Position:
+        """
+        The end of the location.
         """

@@ -92,6 +92,105 @@ def clingo_main(
         An integer exit code.
     """
 
+class Flag:
+    """
+    Boolean flag with value management.
+
+    Represents command-line toggle options.
+    """
+
+    def __init__(self, value: bool = False) -> None:
+        """
+        Initializes the flag with the provided value.
+
+        Args:
+            value:
+                The initial boolean value of the flag (default is False).
+        """
+
+    @property
+    def value(self) -> bool:
+        """
+        Get/set the value of the flag.
+        """
+
+    @value.setter
+    def value(self, arg0: bool) -> None: ...
+
+class AppOptions:
+    """
+    Manager for application options and their definitions.
+
+    Provides interface to add/configures various option types:
+    - argument options,
+    - flag options, and
+    - multi-value options.
+    """
+
+    def add(
+        self,
+        group: str,
+        option: str,
+        description: str,
+        parser: collections.abc.Callable[[str], None],
+        multi: bool = False,
+        argument: str | None = None,
+    ) -> None:
+        """
+        Adds an option with a custom parser.
+
+        An option's group name acts like a section header; all options with the same
+        group name are displayed under it in the help output. The option name is the
+        identifier following the two dashes on the command line and it's value is
+        parsed by the given parser.
+
+        Args:
+            group:
+                The option group or category.
+            option:
+                The option name (after --).
+            description:
+                A brief description of the option.
+            parser:
+                A callable to process the string input for this option.
+            multi:
+                Whether the option can accept multiple values (default is False).
+            argument:
+                An optional string indicating the argument type or format.
+        """
+
+    def add_flag(self, group: str, option: str, description: str, flag: Flag) -> None:
+        """
+        Add a Boolean flag option.
+
+        Similar to `add_option` but used for Boolean options that can be toggled on or
+        off.
+
+        Args:
+            group:
+                The option group or category.
+            option:
+                The option name or flag identifier.
+            description:
+                A brief description of the flag option.
+            flag:
+                A Flag object that holds the value of the flag.
+        """
+
+    def set_default_value(self, option: str, value: str) -> None:
+        """
+        Set the default value for an existing clingo option.
+
+        This function can be used to adjust the default value of a clingo option, which
+        will be used if no value is given on the command-line.
+
+        Args:
+            option:
+                The name of the option for which a default value should be set.
+            value:
+                The new default value to set.
+        """
+
 class App:
     """
     Interface to implement a custom Clingo-based application.
@@ -168,102 +267,3 @@ class App:
         Once the application options have been set, this method confirms that they are
         valid. If an error is detected, a ValueError should be raised.
         """
-
-class AppOptions:
-    """
-    Manager for application options and their definitions.
-
-    Provides interface to add/configures various option types:
-    - argument options,
-    - flag options, and
-    - multi-value options.
-    """
-
-    def add(
-        self,
-        group: str,
-        option: str,
-        description: str,
-        parser: collections.abc.Callable[[str], None],
-        multi: bool = False,
-        argument: str | None = None,
-    ) -> None:
-        """
-        Adds an option with a custom parser.
-
-        An option's group name acts like a section header; all options with the same
-        group name are displayed under it in the help output. The option name is the
-        identifier following the two dashes on the command line and it's value is
-        parsed by the given parser.
-
-        Args:
-            group:
-                The option group or category.
-            option:
-                The option name (after --).
-            description:
-                A brief description of the option.
-            parser:
-                A callable to process the string input for this option.
-            multi:
-                Whether the option can accept multiple values (default is False).
-            argument:
-                An optional string indicating the argument type or format.
-        """
-
-    def add_flag(self, group: str, option: str, description: str, flag: Flag) -> None:
-        """
-        Add a Boolean flag option.
-
-        Similar to `add_option` but used for Boolean options that can be toggled on or
-        off.
-
-        Args:
-            group:
-                The option group or category.
-            option:
-                The option name or flag identifier.
-            description:
-                A brief description of the flag option.
-            flag:
-                A Flag object that holds the value of the flag.
-        """
-
-    def set_default_value(self, option: str, value: str) -> None:
-        """
-        Set the default value for an existing clingo option.
-
-        This function can be used to adjust the default value of a clingo option, which
-        will be used if no value is given on the command-line.
-
-        Args:
-            option:
-                The name of the option for which a default value should be set.
-            value:
-                The new default value to set.
-        """
-
-class Flag:
-    """
-    Boolean flag with value management.
-
-    Represents command-line toggle options.
-    """
-
-    def __init__(self, value: bool = False) -> None:
-        """
-        Initializes the flag with the provided value.
-
-        Args:
-            value:
-                The initial boolean value of the flag (default is False).
-        """
-
-    @property
-    def value(self) -> bool:
-        """
-        Get/set the value of the flag.
-        """
-
-    @value.setter
-    def value(self, arg0: bool) -> None: ...

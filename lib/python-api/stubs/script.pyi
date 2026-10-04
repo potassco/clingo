@@ -85,6 +85,9 @@ def register(lib: clingo.core.Library, script: Script) -> None:
             The script to register.
     """
 
+class _MainScript:
+    pass
+
 class Script:
     """
     ABC for custom scripts.
@@ -159,6 +162,3 @@ class Script:
         """
         Get the version of the script.
         """
-
-class _MainScript:
-    pass

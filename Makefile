@@ -9,8 +9,9 @@ CTEST_FLAGS := CTEST_OUTPUT_ON_FAILURE=1 CTEST_PARALLEL_LEVEL=$(CPU_COUNT)
 CLANG_LDFLAGS := $(LDFLAGS) -fuse-ld=lld
 CLANG_CFLAGS := $(CFLAGS)
 CLANG_CXXFLAGS := -stdlib=libc++ $(CXXFLAGS)
-CLANG_CC := $(shell test -e /usr/bin/clang-20 && echo /usr/bin/clang-20 || echo clang)
-CLANG_CXX := $(shell test -e /usr/bin/clang++-20 && echo /usr/bin/clang++-20 || echo clang++)
+CLANG_CC := $(shell for c in clang-22 clang-21 clang-20 clang; do command -v $$c >/dev/null 2>&1 && { command -v $$c; break; }; done)
+CLANG_CXX := $(shell for c in clang++-22 clang++-21 clang++-20 clang++; do command -v $$c >/dev/null 2>&1 && { command -v $$c; break; }; done)
+
 ifdef CONDA_PREFIX
   CLANG_LDFLAGS := -Wl,-rpath=$(CONDA_PREFIX)/lib -L$(CONDA_PREFIX)/lib $(CLANG_LDFLAGS)
 endif

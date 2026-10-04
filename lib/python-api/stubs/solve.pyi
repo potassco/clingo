@@ -101,18 +101,39 @@ class ModelType(enum.IntEnum):
     Enumeration of model types.
     """
 
-    BraveConsequences: typing.ClassVar[
-        ModelType
-    ]  # value = <ModelType.BraveConsequences: 1>
-    CautiousConsequences: typing.ClassVar[
-        ModelType
-    ]  # value = <ModelType.CautiousConsequences: 2>
-    StableModel: typing.ClassVar[ModelType]  # value = <ModelType.StableModel: 0>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
+    BraveConsequences = typing.cast(int, ...)
+    CautiousConsequences = typing.cast(int, ...)
+    StableModel = typing.cast(int, ...)
+
+class SolveControl:
+    """
+    A control object to add clauses while solving.
+    """
+
+    def add_clause(
+        self, clause: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
+    ) -> None:
         """
-        Convert to a string according to format_spec.
+        Add a clause that applies to the current solving step during the search.
+
+        Args:
+          clause: The literals of the clause.
+        """
+
+    def add_nogood(
+        self, nogood: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
+    ) -> None:
+        """
+        Add a nogood that applies to the current solving step during the search.
+
+        Args:
+          nogood: The literals of the nogood.
+        """
+
+    @property
+    def base(self) -> clingo.base.Base:
+        """
+        Get the atom/term bases of the program.
         """
 
 class Model:
@@ -240,35 +261,44 @@ class Model:
         Get the type of a model.
         """
 
-class SolveControl:
+class SolveResult:
     """
-    A control object to add clauses while solving.
+    A solve result captures information about a solve call.
     """
 
-    def add_clause(
-        self, clause: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
-    ) -> None:
+    def __str__(self) -> str:
         """
-        Add a clause that applies to the current solving step during the search.
-
-        Args:
-          clause: The literals of the clause.
-        """
-
-    def add_nogood(
-        self, nogood: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
-    ) -> None:
-        """
-        Add a nogood that applies to the current solving step during the search.
-
-        Args:
-          nogood: The literals of the nogood.
+        Get a string representation of the solve result.
         """
 
     @property
-    def base(self) -> clingo.base.Base:
+    def exhausted(self) -> bool:
         """
-        Get the atom/term bases of the program.
+        Whether all models have been enumerated.
+        """
+
+    @property
+    def interrupted(self) -> bool:
+        """
+        Whether the search was interrupted.
+        """
+
+    @property
+    def satisfiable(self) -> bool:
+        """
+        Whether at least one model was found.
+        """
+
+    @property
+    def unknown(self) -> bool:
+        """
+        Whether the satisfiablity could be determined.
+        """
+
+    @property
+    def unsatisfiable(self) -> bool:
+        """
+        Whether there was no model.
         """
 
 class SolveHandle:
@@ -360,44 +390,4 @@ class SolveHandle:
 
         Returns:
             Whether the solve call has finished or the next result is ready.
-        """
-
-class SolveResult:
-    """
-    A solve result captures information about a solve call.
-    """
-
-    def __str__(self) -> str:
-        """
-        Get a string representation of the solve result.
-        """
-
-    @property
-    def exhausted(self) -> bool:
-        """
-        Whether all models have been enumerated.
-        """
-
-    @property
-    def interrupted(self) -> bool:
-        """
-        Whether the search was interrupted.
-        """
-
-    @property
-    def satisfiable(self) -> bool:
-        """
-        Whether at least one model was found.
-        """
-
-    @property
-    def unknown(self) -> bool:
-        """
-        Whether the satisfiablity could be determined.
-        """
-
-    @property
-    def unsatisfiable(self) -> bool:
-        """
-        Whether there was no model.
         """

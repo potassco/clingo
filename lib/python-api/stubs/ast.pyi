@@ -106,9 +106,9 @@ from __future__ import annotations
 
 import collections.abc
 import enum
-import types
 import typing
 
+import clingo.control
 import clingo.core
 import clingo.symbol
 
@@ -492,421 +492,144 @@ def rewrite_statement(
         A list of rewritten statements.
     """
 
-class AggregateFunction(enum.IntEnum):
-    """
-    Enumeration of aggregate functions.
-    """
-
-    Count: typing.ClassVar[AggregateFunction]  # value = <AggregateFunction.Count: 0>
-    Max: typing.ClassVar[AggregateFunction]  # value = <AggregateFunction.Max: 4>
-    Min: typing.ClassVar[AggregateFunction]  # value = <AggregateFunction.Min: 3>
-    Sum: typing.ClassVar[AggregateFunction]  # value = <AggregateFunction.Sum: 1>
-    Sump: typing.ClassVar[AggregateFunction]  # value = <AggregateFunction.Sump: 2>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
-class BinaryOperator(enum.IntEnum):
-    """
-    Available binary operators.
-    """
-
-    And: typing.ClassVar[BinaryOperator]  # value = <BinaryOperator.And: 0>
-    Division: typing.ClassVar[BinaryOperator]  # value = <BinaryOperator.Division: 1>
-    Minus: typing.ClassVar[BinaryOperator]  # value = <BinaryOperator.Minus: 2>
-    Modulo: typing.ClassVar[BinaryOperator]  # value = <BinaryOperator.Modulo: 3>
-    Multiplication: typing.ClassVar[
-        BinaryOperator
-    ]  # value = <BinaryOperator.Multiplication: 4>
-    Or: typing.ClassVar[BinaryOperator]  # value = <BinaryOperator.Or: 5>
-    Plus: typing.ClassVar[BinaryOperator]  # value = <BinaryOperator.Plus: 6>
-    Power: typing.ClassVar[BinaryOperator]  # value = <BinaryOperator.Power: 7>
-    Xor: typing.ClassVar[BinaryOperator]  # value = <BinaryOperator.Xor: 8>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
-class CommentType(enum.IntEnum):
-    """
-    Enumeration of comment types.
-    """
-
-    Block: typing.ClassVar[CommentType]  # value = <CommentType.Block: 1>
-    Line: typing.ClassVar[CommentType]  # value = <CommentType.Line: 0>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
-class IncludeType(enum.IntEnum):
-    """
-    Enumeration of include types.
-    """
-
-    Inbuild: typing.ClassVar[IncludeType]  # value = <IncludeType.Inbuild: 1>
-    System: typing.ClassVar[IncludeType]  # value = <IncludeType.System: 0>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
-class OptimizeType(enum.IntEnum):
-    """
-    Enumeration of optimization types.
-    """
-
-    Maximize: typing.ClassVar[OptimizeType]  # value = <OptimizeType.Maximize: 1>
-    Minimize: typing.ClassVar[OptimizeType]  # value = <OptimizeType.Minimize: 0>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
-class Precedence(enum.IntEnum):
-    """
-    Enumeration of precedences values.
-    """
-
-    Default: typing.ClassVar[Precedence]  # value = <Precedence.Default: 0>
-    Override: typing.ClassVar[Precedence]  # value = <Precedence.Override: 1>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
+BodyLiteral: typing.Union
+DisjunctionElement: typing.Union
+FormatField: typing.Union
+HeadLiteral: typing.Union
+Literal: typing.Union
+Statement: typing.Union
+Term: typing.Union
+TermOrArgumentTuple: typing.Union
+TermOrProjection: typing.Union
+TheoryTerm: typing.Union
 
 class ProjectionMode(enum.IntEnum):
     """
     Available projection modes.
     """
 
-    Anonymous: typing.ClassVar[ProjectionMode]  # value = <ProjectionMode.Anonymous: 1>
-    Disabled: typing.ClassVar[ProjectionMode]  # value = <ProjectionMode.Disabled: 0>
-    Pure: typing.ClassVar[ProjectionMode]  # value = <ProjectionMode.Pure: 2>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
-class Relation(enum.IntEnum):
-    """
-    Available relation symbols.
-    """
-
-    Equal: typing.ClassVar[Relation]  # value = <Relation.Equal: 0>
-    Greater: typing.ClassVar[Relation]  # value = <Relation.Greater: 4>
-    GreaterEqual: typing.ClassVar[Relation]  # value = <Relation.GreaterEqual: 5>
-    Less: typing.ClassVar[Relation]  # value = <Relation.Less: 2>
-    LessEqual: typing.ClassVar[Relation]  # value = <Relation.LessEqual: 3>
-    NotEqual: typing.ClassVar[Relation]  # value = <Relation.NotEqual: 1>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
-class Sign(enum.IntEnum):
-    """
-    The available signs.
-    """
-
-    Double: typing.ClassVar[Sign]  # value = <Sign.Double: 2>
-    NoSign: typing.ClassVar[Sign]  # value = <Sign.NoSign: 0>
-    Single: typing.ClassVar[Sign]  # value = <Sign.Single: 1>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
-class TheoryAtomType(enum.IntEnum):
-    """
-    Enumeration of the theory atom types.
-    """
-
-    Any: typing.ClassVar[TheoryAtomType]  # value = <TheoryAtomType.Any: 2>
-    Body: typing.ClassVar[TheoryAtomType]  # value = <TheoryAtomType.Body: 1>
-    Directive: typing.ClassVar[TheoryAtomType]  # value = <TheoryAtomType.Directive: 3>
-    Head: typing.ClassVar[TheoryAtomType]  # value = <TheoryAtomType.Head: 0>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
-class TheoryOperatorType(enum.IntEnum):
-    """
-    Enumeration of theory operators.
-    """
-
-    BinaryLeft: typing.ClassVar[
-        TheoryOperatorType
-    ]  # value = <TheoryOperatorType.BinaryLeft: 1>
-    BinaryRight: typing.ClassVar[
-        TheoryOperatorType
-    ]  # value = <TheoryOperatorType.BinaryRight: 2>
-    Unary: typing.ClassVar[TheoryOperatorType]  # value = <TheoryOperatorType.Unary: 0>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
-
-class TheoryTupleType(enum.IntEnum):
-    """
-    Enumeration of theory tuple types.
-    """
-
-    List: typing.ClassVar[TheoryTupleType]  # value = <TheoryTupleType.List: 2>
-    Set: typing.ClassVar[TheoryTupleType]  # value = <TheoryTupleType.Set: 1>
-    Tuple: typing.ClassVar[TheoryTupleType]  # value = <TheoryTupleType.Tuple: 0>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
+    Anonymous = typing.cast(int, ...)
+    Disabled = typing.cast(int, ...)
+    Pure = typing.cast(int, ...)
 
 class UnaryOperator(enum.IntEnum):
     """
     Available unary operators.
     """
 
-    Minus: typing.ClassVar[UnaryOperator]  # value = <UnaryOperator.Minus: 0>
-    Negation: typing.ClassVar[UnaryOperator]  # value = <UnaryOperator.Negation: 1>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
+    Minus = typing.cast(int, ...)
+    Negation = typing.cast(int, ...)
 
-class ArgumentTuple:
+class BinaryOperator(enum.IntEnum):
     """
-    A list of arguments for a function or tuple.
+    Available binary operators.
     """
 
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
+    And = typing.cast(int, ...)
+    Division = typing.cast(int, ...)
+    Minus = typing.cast(int, ...)
+    Modulo = typing.cast(int, ...)
+    Multiplication = typing.cast(int, ...)
+    Or = typing.cast(int, ...)
+    Plus = typing.cast(int, ...)
+    Power = typing.cast(int, ...)
+    Xor = typing.cast(int, ...)
 
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        arguments: typing.Iterable[
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-            | Projection
-        ] = [],
-    ) -> None:
-        """
-        Construct a ArgumentTuple object.
-
-        Args:
-            lib: The library object for storing symbols.
-            arguments: The arguments of the tuple.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> ArgumentTuple | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> ArgumentTuple:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def arguments(
-        self,
-    ) -> typing.Sequence[
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-        | Projection
-    ]:
-        """
-        The arguments of the tuple.
-        """
-
-class BodyAggregate:
+class Sign(enum.IntEnum):
     """
-    An aggregate in a rule body.
+    The available signs.
     """
 
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
+    Double = typing.cast(int, ...)
+    NoSign = typing.cast(int, ...)
+    Single = typing.cast(int, ...)
 
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        sign: Sign,
-        left: LeftGuard | None,
-        function: AggregateFunction,
-        elements: typing.Iterable[BodyAggregateElement],
-        right: RightGuard | None,
-    ) -> None:
-        """
-        Construct a BodyAggregate object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the element.
-            sign: The sign of the literal.
-            left: The left guard of the aggregate.
-            function: The aggregate function.
-            elements: The aggregate elements.
-            right: The right guard of the aggregate.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> BodyAggregate | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> BodyAggregate:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def elements(self) -> typing.Sequence[BodyAggregateElement]:
-        """
-        The aggregate elements.
-        """
-
-    @property
-    def function(self) -> AggregateFunction:
-        """
-        The aggregate function.
-        """
-
-    @property
-    def left(self) -> LeftGuard | None:
-        """
-        The left guard of the aggregate.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the element.
-        """
-
-    @property
-    def right(self) -> RightGuard | None:
-        """
-        The right guard of the aggregate.
-        """
-
-    @property
-    def sign(self) -> Sign:
-        """
-        The sign of the literal.
-        """
-
-class BodyAggregateElement:
+class Relation(enum.IntEnum):
     """
-    An element of a body aggregate.
+    Available relation symbols.
+    """
+
+    Equal = typing.cast(int, ...)
+    Greater = typing.cast(int, ...)
+    GreaterEqual = typing.cast(int, ...)
+    Less = typing.cast(int, ...)
+    LessEqual = typing.cast(int, ...)
+    NotEqual = typing.cast(int, ...)
+
+class AggregateFunction(enum.IntEnum):
+    """
+    Enumeration of aggregate functions.
+    """
+
+    Count = typing.cast(int, ...)
+    Max = typing.cast(int, ...)
+    Min = typing.cast(int, ...)
+    Sum = typing.cast(int, ...)
+    Sump = typing.cast(int, ...)
+
+class TheoryOperatorType(enum.IntEnum):
+    """
+    Enumeration of theory operators.
+    """
+
+    BinaryLeft = typing.cast(int, ...)
+    BinaryRight = typing.cast(int, ...)
+    Unary = typing.cast(int, ...)
+
+class TheoryTupleType(enum.IntEnum):
+    """
+    Enumeration of theory tuple types.
+    """
+
+    List = typing.cast(int, ...)
+    Set = typing.cast(int, ...)
+    Tuple = typing.cast(int, ...)
+
+class TheoryAtomType(enum.IntEnum):
+    """
+    Enumeration of the theory atom types.
+    """
+
+    Any = typing.cast(int, ...)
+    Body = typing.cast(int, ...)
+    Directive = typing.cast(int, ...)
+    Head = typing.cast(int, ...)
+
+class OptimizeType(enum.IntEnum):
+    """
+    Enumeration of optimization types.
+    """
+
+    Maximize = typing.cast(int, ...)
+    Minimize = typing.cast(int, ...)
+
+class IncludeType(enum.IntEnum):
+    """
+    Enumeration of include types.
+    """
+
+    Inbuild = typing.cast(int, ...)
+    System = typing.cast(int, ...)
+
+class Precedence(enum.IntEnum):
+    """
+    Enumeration of precedences values.
+    """
+
+    Default = typing.cast(int, ...)
+    Override = typing.cast(int, ...)
+
+class CommentType(enum.IntEnum):
+    """
+    Enumeration of comment types.
+    """
+
+    Block = typing.cast(int, ...)
+    Line = typing.cast(int, ...)
+
+class FormatFieldLiteral:
+    """
+    A literal part of a format string.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -918,405 +641,15 @@ class BodyAggregateElement:
         """
 
     def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        tuple: typing.Iterable[
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ],
-        condition: typing.Iterable[
-            LiteralBoolean | LiteralComparison | LiteralSymbolic
-        ],
+        self, lib: clingo.core.Library, location: clingo.core.Location, value: str
     ) -> None:
         """
-        Construct a BodyAggregateElement object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the element.
-            tuple: The term tuple of the element.
-            condition: The condition of the element.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> BodyAggregateElement | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> BodyAggregateElement:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def condition(
-        self,
-    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
-        """
-        The condition of the element.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the element.
-        """
-
-    @property
-    def tuple(
-        self,
-    ) -> typing.Sequence[
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ]:
-        """
-        The term tuple of the element.
-        """
-
-class BodyConditionalLiteral:
-    """
-    A conditional_literal.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
-        condition: typing.Iterable[
-            LiteralBoolean | LiteralComparison | LiteralSymbolic
-        ],
-    ) -> None:
-        """
-        Construct a BodyConditionalLiteral object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the element.
-            literal: The literal of the element.
-            condition: The condition of the element.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> BodyConditionalLiteral | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> BodyConditionalLiteral:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def condition(
-        self,
-    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
-        """
-        The condition of the element.
-        """
-
-    @property
-    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
-        """
-        The literal of the element.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the element.
-        """
-
-class BodySetAggregate:
-    """
-    A set aggregate.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        sign: Sign,
-        left: LeftGuard | None,
-        elements: typing.Iterable[SetAggregateElement],
-        right: RightGuard | None,
-    ) -> None:
-        """
-        Construct a BodySetAggregate object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the element.
-            sign: The sign of the literal.
-            left: The left guard of the aggregate.
-            elements: The aggregate elements.
-            right: The right guard of the aggregate.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> BodySetAggregate | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> BodySetAggregate:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def elements(self) -> typing.Sequence[SetAggregateElement]:
-        """
-        The aggregate elements.
-        """
-
-    @property
-    def left(self) -> LeftGuard | None:
-        """
-        The left guard of the aggregate.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the element.
-        """
-
-    @property
-    def right(self) -> RightGuard | None:
-        """
-        The right guard of the aggregate.
-        """
-
-    @property
-    def sign(self) -> Sign:
-        """
-        The sign of the literal.
-        """
-
-class BodySimpleLiteral:
-    """
-    A literal in a rule body.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
-    ) -> None:
-        """
-        Construct a BodySimpleLiteral object.
-
-        Args:
-            lib: The library object for storing symbols.
-            literal: The literal.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> BodySimpleLiteral | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> BodySimpleLiteral:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
-        """
-        The literal.
-        """
-
-class BodySort:
-    """
-    A sort literal in a rule body.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        left: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-        elements: typing.Iterable[BodyAggregateElement],
-    ) -> None:
-        """
-        Construct a BodySort object.
+        Construct a FormatFieldLiteral object.
 
         Args:
             lib: The library object for storing symbols.
             location: The location of the literal.
-            left: The pair of output terms.
-            elements: The sort elements.
+            value: The value of the literal.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1325,7 +658,7 @@ class BodySort:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> BodySort | None:
+    ) -> FormatFieldLiteral | None:
         """
         Transform the expression.
 
@@ -1338,7 +671,7 @@ class BodySort:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> BodySort:
+    def update(self, lib: clingo.core.Library, **kwargs) -> FormatFieldLiteral:
         """
         Update the expression.
 
@@ -1356,29 +689,6 @@ class BodySort:
 
         Args:
             visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def elements(self) -> typing.Sequence[BodyAggregateElement]:
-        """
-        The sort elements.
-        """
-
-    @property
-    def left(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ):
-        """
-        The pair of output terms.
         """
 
     @property
@@ -1387,246 +697,10 @@ class BodySort:
         The location of the literal.
         """
 
-class BodyTheoryAtom:
-    """
-    A theory atom.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        sign: Sign,
-        name: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-        elements: typing.Iterable[TheoryAtomElement],
-        right: TheoryRightGuard | None,
-    ) -> None:
-        """
-        Construct a BodyTheoryAtom object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the element.
-            sign: The sign of the literal.
-            name: The name of the theory atom.
-            elements: The aggregate elements.
-            right: The right guard of the theory atom.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> BodyTheoryAtom | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> BodyTheoryAtom:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
     @property
-    def elements(self) -> typing.Sequence[TheoryAtomElement]:
+    def value(self) -> str:
         """
-        The aggregate elements.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the element.
-        """
-
-    @property
-    def name(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ):
-        """
-        The name of the theory atom.
-        """
-
-    @property
-    def right(self) -> TheoryRightGuard | None:
-        """
-        The right guard of the theory atom.
-        """
-
-    @property
-    def sign(self) -> Sign:
-        """
-        The sign of the literal.
-        """
-
-class Edge:
-    """
-    An edge of an edge statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        u: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-        v: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-    ) -> None:
-        """
-        Construct a Edge object.
-
-        Args:
-            lib: The library object for storing symbols.
-            u: The start vertex.
-            v: The end vertex.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> Edge | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> Edge:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def u(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ):
-        """
-        The start vertex.
-        """
-
-    @property
-    def v(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ):
-        """
-        The end vertex.
+        The value of the literal.
         """
 
 class FormatFieldExpression:
@@ -1736,9 +810,9 @@ class FormatFieldExpression:
         The format specifier of the expression.
         """
 
-class FormatFieldLiteral:
+class Projection:
     """
-    A literal part of a format string.
+    A placeholder for an argument to project.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -1750,15 +824,14 @@ class FormatFieldLiteral:
         """
 
     def __init__(
-        self, lib: clingo.core.Library, location: clingo.core.Location, value: str
+        self, lib: clingo.core.Library, location: clingo.core.Location
     ) -> None:
         """
-        Construct a FormatFieldLiteral object.
+        Construct a Projection object.
 
         Args:
             lib: The library object for storing symbols.
-            location: The location of the literal.
-            value: The value of the literal.
+            location: The location of the placeholder.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1767,7 +840,7 @@ class FormatFieldLiteral:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> FormatFieldLiteral | None:
+    ) -> Projection | None:
         """
         Transform the expression.
 
@@ -1780,7 +853,7 @@ class FormatFieldLiteral:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> FormatFieldLiteral:
+    def update(self, lib: clingo.core.Library, **kwargs) -> Projection:
         """
         Update the expression.
 
@@ -1803,18 +876,12 @@ class FormatFieldLiteral:
     @property
     def location(self) -> clingo.core.Location:
         """
-        The location of the literal.
+        The location of the placeholder.
         """
 
-    @property
-    def value(self) -> str:
-        """
-        The value of the literal.
-        """
-
-class HeadAggregate:
+class TermFormatString:
     """
-    An aggregate in a rule head.
+    A term representing a format string.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -1829,21 +896,15 @@ class HeadAggregate:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        left: LeftGuard | None,
-        function: AggregateFunction,
-        elements: typing.Iterable[HeadAggregateElement],
-        right: RightGuard | None,
+        elements: typing.Iterable[FormatFieldLiteral | FormatFieldExpression],
     ) -> None:
         """
-        Construct a HeadAggregate object.
+        Construct a TermFormatString object.
 
         Args:
             lib: The library object for storing symbols.
-            location: The location of the element.
-            left: The left guard of the aggregate.
-            function: The aggregate function.
-            elements: The aggregate elements.
-            right: The right guard of the aggregate.
+            location: The location of the format string.
+            elements: The elements of the format string.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1852,7 +913,7 @@ class HeadAggregate:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> HeadAggregate | None:
+    ) -> TermFormatString | None:
         """
         Transform the expression.
 
@@ -1865,7 +926,7 @@ class HeadAggregate:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> HeadAggregate:
+    def update(self, lib: clingo.core.Library, **kwargs) -> TermFormatString:
         """
         Update the expression.
 
@@ -1886,38 +947,20 @@ class HeadAggregate:
         """
 
     @property
-    def elements(self) -> typing.Sequence[HeadAggregateElement]:
+    def elements(self) -> typing.Sequence[FormatFieldLiteral | FormatFieldExpression]:
         """
-        The aggregate elements.
-        """
-
-    @property
-    def function(self) -> AggregateFunction:
-        """
-        The aggregate function.
-        """
-
-    @property
-    def left(self) -> LeftGuard | None:
-        """
-        The left guard of the aggregate.
+        The elements of the format string.
         """
 
     @property
     def location(self) -> clingo.core.Location:
         """
-        The location of the element.
+        The location of the format string.
         """
 
-    @property
-    def right(self) -> RightGuard | None:
-        """
-        The right guard of the aggregate.
-        """
-
-class HeadAggregateElement:
+class TermVariable:
     """
-    An element of a head aggregate.
+    A term representing a variable.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -1932,7 +975,177 @@ class HeadAggregateElement:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        tuple: typing.Iterable[
+        name: str,
+        anonymous: bool = False,
+    ) -> None:
+        """
+        Construct a TermVariable object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the variable.
+            name: The name of the variable.
+            anonymous: Whether the variable is anonymous.
+
+                Anonymous variables receive a unique name during
+                preprocessing.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TermVariable | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TermVariable:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def anonymous(self) -> bool:
+        """
+        Whether the variable is anonymous.
+        Anonymous variables receive a unique name during preprocessing.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the variable.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the variable.
+        """
+
+class TermSymbolic:
+    """
+    A term representing a symbol.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        symbol: clingo.symbol.Symbol,
+    ) -> None:
+        """
+        Construct a TermSymbolic object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the symbol.
+            symbol: The symbol.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TermSymbolic | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TermSymbolic:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the symbol.
+        """
+
+    @property
+    def symbol(self) -> clingo.symbol.Symbol:
+        """
+        The symbol.
+        """
+
+class TermAbsolute:
+    """
+    A term representing the absolute operation.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        pool: typing.Iterable[
             TermVariable
             | TermSymbolic
             | TermAbsolute
@@ -1942,20 +1155,17 @@ class HeadAggregateElement:
             | TermFunction
             | TermFormatString
         ],
-        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
-        condition: typing.Iterable[
-            LiteralBoolean | LiteralComparison | LiteralSymbolic
-        ],
     ) -> None:
         """
-        Construct a HeadAggregateElement object.
+        Construct a TermAbsolute object.
 
         Args:
             lib: The library object for storing symbols.
-            location: The location of the element.
-            tuple: The term tuple of the element.
-            literal: The literal of the element.
-            condition: The condition of the element.
+            location: The location of the operation.
+            pool: The argument pool.
+
+                If there is more than one argument in the pool, the term is
+                unpooled during preprocessing.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -1964,7 +1174,7 @@ class HeadAggregateElement:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> HeadAggregateElement | None:
+    ) -> TermAbsolute | None:
         """
         Transform the expression.
 
@@ -1977,7 +1187,7 @@ class HeadAggregateElement:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> HeadAggregateElement:
+    def update(self, lib: clingo.core.Library, **kwargs) -> TermAbsolute:
         """
         Update the expression.
 
@@ -1998,27 +1208,13 @@ class HeadAggregateElement:
         """
 
     @property
-    def condition(
-        self,
-    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
-        """
-        The condition of the element.
-        """
-
-    @property
-    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
-        """
-        The literal of the element.
-        """
-
-    @property
     def location(self) -> clingo.core.Location:
         """
-        The location of the element.
+        The location of the operation.
         """
 
     @property
-    def tuple(
+    def pool(
         self,
     ) -> typing.Sequence[
         TermVariable
@@ -2031,103 +1227,13 @@ class HeadAggregateElement:
         | TermFormatString
     ]:
         """
-        The term tuple of the element.
+        The argument pool.
+        If there is more than one argument in the pool, the term is unpooled during preprocessing.
         """
 
-class HeadConditionalLiteral:
+class TermUnaryOperation:
     """
-    A conditional_literal.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
-        condition: typing.Iterable[
-            LiteralBoolean | LiteralComparison | LiteralSymbolic
-        ],
-    ) -> None:
-        """
-        Construct a HeadConditionalLiteral object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the element.
-            literal: The literal of the element.
-            condition: The condition of the element.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> HeadConditionalLiteral | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> HeadConditionalLiteral:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def condition(
-        self,
-    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
-        """
-        The condition of the element.
-        """
-
-    @property
-    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
-        """
-        The literal of the element.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the element.
-        """
-
-class HeadDisjunction:
-    """
-    A disjunction.
+    A term representing a unary operation.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -2142,261 +1248,8 @@ class HeadDisjunction:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        elements: typing.Iterable[
-            LiteralBoolean
-            | LiteralComparison
-            | LiteralSymbolic
-            | HeadConditionalLiteral
-        ],
-    ) -> None:
-        """
-        Construct a HeadDisjunction object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the element.
-            elements: The elements of the disjunction.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> HeadDisjunction | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> HeadDisjunction:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def elements(
-        self,
-    ) -> typing.Sequence[
-        LiteralBoolean | LiteralComparison | LiteralSymbolic | HeadConditionalLiteral
-    ]:
-        """
-        The elements of the disjunction.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the element.
-        """
-
-class HeadSetAggregate:
-    """
-    A set aggregate.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        left: LeftGuard | None,
-        elements: typing.Iterable[SetAggregateElement],
-        right: RightGuard | None,
-    ) -> None:
-        """
-        Construct a HeadSetAggregate object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the element.
-            left: The left guard of the aggregate.
-            elements: The aggregate elements.
-            right: The right guard of the aggregate.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> HeadSetAggregate | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> HeadSetAggregate:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def elements(self) -> typing.Sequence[SetAggregateElement]:
-        """
-        The aggregate elements.
-        """
-
-    @property
-    def left(self) -> LeftGuard | None:
-        """
-        The left guard of the aggregate.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the element.
-        """
-
-    @property
-    def right(self) -> RightGuard | None:
-        """
-        The right guard of the aggregate.
-        """
-
-class HeadSimpleLiteral:
-    """
-    A literal in a rule head.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
-    ) -> None:
-        """
-        Construct a HeadSimpleLiteral object.
-
-        Args:
-            lib: The library object for storing symbols.
-            literal: The literal.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> HeadSimpleLiteral | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> HeadSimpleLiteral:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
-        """
-        The literal.
-        """
-
-class HeadTheoryAtom:
-    """
-    A theory atom.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        name: (
+        operator_type: UnaryOperator,
+        right: (
             TermVariable
             | TermSymbolic
             | TermAbsolute
@@ -2406,18 +1259,15 @@ class HeadTheoryAtom:
             | TermFunction
             | TermFormatString
         ),
-        elements: typing.Iterable[TheoryAtomElement],
-        right: TheoryRightGuard | None,
     ) -> None:
         """
-        Construct a HeadTheoryAtom object.
+        Construct a TermUnaryOperation object.
 
         Args:
             lib: The library object for storing symbols.
-            location: The location of the element.
-            name: The name of the theory atom.
-            elements: The aggregate elements.
-            right: The right guard of the theory atom.
+            location: The location of the operation.
+            operator_type: The type of the operation.
+            right: The argument of the operation.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2426,7 +1276,7 @@ class HeadTheoryAtom:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> HeadTheoryAtom | None:
+    ) -> TermUnaryOperation | None:
         """
         Transform the expression.
 
@@ -2439,7 +1289,7 @@ class HeadTheoryAtom:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> HeadTheoryAtom:
+    def update(self, lib: clingo.core.Library, **kwargs) -> TermUnaryOperation:
         """
         Update the expression.
 
@@ -2460,19 +1310,19 @@ class HeadTheoryAtom:
         """
 
     @property
-    def elements(self) -> typing.Sequence[TheoryAtomElement]:
-        """
-        The aggregate elements.
-        """
-
-    @property
     def location(self) -> clingo.core.Location:
         """
-        The location of the element.
+        The location of the operation.
         """
 
     @property
-    def name(
+    def operator_type(self) -> UnaryOperator:
+        """
+        The type of the operation.
+        """
+
+    @property
+    def right(
         self,
     ) -> (
         TermVariable
@@ -2485,13 +1335,439 @@ class HeadTheoryAtom:
         | TermFormatString
     ):
         """
-        The name of the theory atom.
+        The argument of the operation.
+        """
+
+class TermBinaryOperation:
+    """
+    A term representing a binary operation.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        left: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+        operator_type: BinaryOperator,
+        right: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+    ) -> None:
+        """
+        Construct a TermBinaryOperation object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the operation.
+            left: The left argument of the operation.
+            operator_type: The type of the operation.
+            right: The right argument of the operation.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TermBinaryOperation | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TermBinaryOperation:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
         """
 
     @property
-    def right(self) -> TheoryRightGuard | None:
+    def left(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
         """
-        The right guard of the theory atom.
+        The left argument of the operation.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the operation.
+        """
+
+    @property
+    def operator_type(self) -> BinaryOperator:
+        """
+        The type of the operation.
+        """
+
+    @property
+    def right(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
+        """
+        The right argument of the operation.
+        """
+
+class TermTuple:
+    """
+    A term representing a tuple.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        pool: typing.Iterable[
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+            | ArgumentTuple
+        ],
+    ) -> None:
+        """
+        Construct a TermTuple object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the tuple.
+            pool: The argument pool of the tuple.
+
+                If there is more than one element in the pool, the term is
+                unpooled during preprocessing.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TermTuple | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TermTuple:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the tuple.
+        """
+
+    @property
+    def pool(
+        self,
+    ) -> typing.Sequence[
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+        | ArgumentTuple
+    ]:
+        """
+        The argument pool of the tuple.
+        If there is more than one element in the pool, the term is unpooled during preprocessing.
+        """
+
+class TermFunction:
+    """
+    A term representing a function.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        name: str,
+        pool: typing.Iterable[ArgumentTuple],
+        external: bool = False,
+    ) -> None:
+        """
+        Construct a TermFunction object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the function.
+            name: The name of the function.
+            pool: The argument pool of the function.
+
+                If there is more than one element in the pool, the term is
+                unpooled during preprocessing.
+            external: Whether the function is external.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TermFunction | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TermFunction:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def external(self) -> bool:
+        """
+        Whether the function is external.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the function.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the function.
+        """
+
+    @property
+    def pool(self) -> typing.Sequence[ArgumentTuple]:
+        """
+        The argument pool of the function.
+        If there is more than one element in the pool, the term is unpooled during preprocessing.
+        """
+
+class ArgumentTuple:
+    """
+    A list of arguments for a function or tuple.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        arguments: typing.Iterable[
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+            | Projection
+        ] = [],
+    ) -> None:
+        """
+        Construct a ArgumentTuple object.
+
+        Args:
+            lib: The library object for storing symbols.
+            arguments: The arguments of the tuple.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> ArgumentTuple | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> ArgumentTuple:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def arguments(
+        self,
+    ) -> typing.Sequence[
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+        | Projection
+    ]:
+        """
+        The arguments of the tuple.
         """
 
 class LeftGuard:
@@ -2551,6 +1827,105 @@ class LeftGuard:
         """
 
     def update(self, lib: clingo.core.Library, **kwargs) -> LeftGuard:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def relation(self) -> Relation:
+        """
+        The relation of the guard.
+        """
+
+    @property
+    def term(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
+        """
+        The term of the guard.
+        """
+
+class RightGuard:
+    """
+    A right hand side guard consisting of a relation and term.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        relation: Relation,
+        term: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+    ) -> None:
+        """
+        Construct a RightGuard object.
+
+        Args:
+            lib: The library object for storing symbols.
+            relation: The relation of the guard.
+            term: The term of the guard.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> RightGuard | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> RightGuard:
         """
         Update the expression.
 
@@ -2905,9 +2280,9 @@ class LiteralSymbolic:
         The sign of the literal.
         """
 
-class OptimizeElement:
+class UnparsedElement:
     """
-    An element of an optimization statement.
+    A list of unparsed theory terms and operators.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -2921,18 +2296,22 @@ class OptimizeElement:
     def __init__(
         self,
         lib: clingo.core.Library,
-        tuple: OptimizeTuple,
-        condition: typing.Iterable[
-            LiteralBoolean | LiteralComparison | LiteralSymbolic
-        ],
+        operators: typing.Iterable[str],
+        term: (
+            TheoryTermVariable
+            | TheoryTermSymbolic
+            | TheoryTermTuple
+            | TheoryTermFunction
+            | TheoryTermUnparsed
+        ),
     ) -> None:
         """
-        Construct a OptimizeElement object.
+        Construct a UnparsedElement object.
 
         Args:
             lib: The library object for storing symbols.
-            tuple: The tuple of the element.
-            condition: The condition of the element.
+            operators: The list of theory operators.
+            term: The theory term.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -2941,7 +2320,7 @@ class OptimizeElement:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> OptimizeElement | None:
+    ) -> UnparsedElement | None:
         """
         Transform the expression.
 
@@ -2954,7 +2333,643 @@ class OptimizeElement:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> OptimizeElement:
+    def update(self, lib: clingo.core.Library, **kwargs) -> UnparsedElement:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def operators(self) -> typing.Sequence[str]:
+        """
+        The list of theory operators.
+        """
+
+    @property
+    def term(
+        self,
+    ) -> (
+        TheoryTermVariable
+        | TheoryTermSymbolic
+        | TheoryTermTuple
+        | TheoryTermFunction
+        | TheoryTermUnparsed
+    ):
+        """
+        The theory term.
+        """
+
+class TheoryTermVariable:
+    """
+    A theory term representing a variable.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        name: str,
+        anonymous: bool = False,
+    ) -> None:
+        """
+        Construct a TheoryTermVariable object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the variable.
+            name: The name of the variable.
+            anonymous: Whether the variable is anonymous.
+
+                Anonymous variables receive a unique name during
+                preprocessing.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TheoryTermVariable | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermVariable:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def anonymous(self) -> bool:
+        """
+        Whether the variable is anonymous.
+        Anonymous variables receive a unique name during preprocessing.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the variable.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the variable.
+        """
+
+class TheoryTermSymbolic:
+    """
+    A theory term representing a symbol.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        symbol: clingo.symbol.Symbol,
+    ) -> None:
+        """
+        Construct a TheoryTermSymbolic object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the symbol.
+            symbol: The symbol.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TheoryTermSymbolic | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermSymbolic:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the symbol.
+        """
+
+    @property
+    def symbol(self) -> clingo.symbol.Symbol:
+        """
+        The symbol.
+        """
+
+class TheoryTermTuple:
+    """
+    A theory term representing a tuple.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        tuple_type: TheoryTupleType,
+        arguments: typing.Iterable[
+            TheoryTermVariable
+            | TheoryTermSymbolic
+            | TheoryTermTuple
+            | TheoryTermFunction
+            | TheoryTermUnparsed
+        ],
+    ) -> None:
+        """
+        Construct a TheoryTermTuple object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the tuple.
+            tuple_type: The type of the tuple.
+            arguments: The arguments of the tuple.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TheoryTermTuple | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermTuple:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def arguments(
+        self,
+    ) -> typing.Sequence[
+        TheoryTermVariable
+        | TheoryTermSymbolic
+        | TheoryTermTuple
+        | TheoryTermFunction
+        | TheoryTermUnparsed
+    ]:
+        """
+        The arguments of the tuple.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the tuple.
+        """
+
+    @property
+    def tuple_type(self) -> TheoryTupleType:
+        """
+        The type of the tuple.
+        """
+
+class TheoryTermFunction:
+    """
+    A theory term representing a function.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        name: str,
+        arguments: typing.Iterable[
+            TheoryTermVariable
+            | TheoryTermSymbolic
+            | TheoryTermTuple
+            | TheoryTermFunction
+            | TheoryTermUnparsed
+        ],
+    ) -> None:
+        """
+        Construct a TheoryTermFunction object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the function.
+            name: The name of the function.
+            arguments: The arguments of the function.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TheoryTermFunction | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermFunction:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def arguments(
+        self,
+    ) -> typing.Sequence[
+        TheoryTermVariable
+        | TheoryTermSymbolic
+        | TheoryTermTuple
+        | TheoryTermFunction
+        | TheoryTermUnparsed
+    ]:
+        """
+        The arguments of the function.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the function.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the function.
+        """
+
+class TheoryTermUnparsed:
+    """
+    A theory term representing an unparsed theory term.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        elements: typing.Iterable[UnparsedElement],
+    ) -> None:
+        """
+        Construct a TheoryTermUnparsed object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the theory term.
+            elements: The unparsed theory elements.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TheoryTermUnparsed | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermUnparsed:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[UnparsedElement]:
+        """
+        The unparsed theory elements.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the theory term.
+        """
+
+class TheoryRightGuard:
+    """
+    A right hand side guard consisting of a theory operator and theory
+    term.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        theory_operator: str,
+        term: (
+            TheoryTermVariable
+            | TheoryTermSymbolic
+            | TheoryTermTuple
+            | TheoryTermFunction
+            | TheoryTermUnparsed
+        ),
+    ) -> None:
+        """
+        Construct a TheoryRightGuard object.
+
+        Args:
+            lib: The library object for storing symbols.
+            theory_operator: The operator of the guard.
+            term: The theory term of the guard.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TheoryRightGuard | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryRightGuard:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def term(
+        self,
+    ) -> (
+        TheoryTermVariable
+        | TheoryTermSymbolic
+        | TheoryTermTuple
+        | TheoryTermFunction
+        | TheoryTermUnparsed
+    ):
+        """
+        The theory term of the guard.
+        """
+
+    @property
+    def theory_operator(self) -> str:
+        """
+        The operator of the guard.
+        """
+
+class SetAggregateElement:
+    """
+    An element of a set aggregate.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
+        condition: typing.Iterable[
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
+        ],
+    ) -> None:
+        """
+        Construct a SetAggregateElement object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            literal: The literal of the element.
+            condition: The condition of the element.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> SetAggregateElement | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> SetAggregateElement:
         """
         Update the expression.
 
@@ -2983,9 +2998,1888 @@ class OptimizeElement:
         """
 
     @property
-    def tuple(self) -> OptimizeTuple:
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
         """
-        The tuple of the element.
+        The literal of the element.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+class BodyAggregateElement:
+    """
+    An element of a body aggregate.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        tuple: typing.Iterable[
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ],
+        condition: typing.Iterable[
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
+        ],
+    ) -> None:
+        """
+        Construct a BodyAggregateElement object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            tuple: The term tuple of the element.
+            condition: The condition of the element.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> BodyAggregateElement | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> BodyAggregateElement:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+        """
+        The condition of the element.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+    @property
+    def tuple(
+        self,
+    ) -> typing.Sequence[
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ]:
+        """
+        The term tuple of the element.
+        """
+
+class TheoryAtomElement:
+    """
+    An element of a theory atom elements.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        tuple: typing.Iterable[
+            TheoryTermVariable
+            | TheoryTermSymbolic
+            | TheoryTermTuple
+            | TheoryTermFunction
+            | TheoryTermUnparsed
+        ],
+        condition: typing.Iterable[
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
+        ],
+    ) -> None:
+        """
+        Construct a TheoryAtomElement object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            tuple: The theory term tuple of the element.
+            condition: The condition of the element.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TheoryAtomElement | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryAtomElement:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+        """
+        The condition of the element.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+    @property
+    def tuple(
+        self,
+    ) -> typing.Sequence[
+        TheoryTermVariable
+        | TheoryTermSymbolic
+        | TheoryTermTuple
+        | TheoryTermFunction
+        | TheoryTermUnparsed
+    ]:
+        """
+        The theory term tuple of the element.
+        """
+
+class BodySimpleLiteral:
+    """
+    A literal in a rule body.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
+    ) -> None:
+        """
+        Construct a BodySimpleLiteral object.
+
+        Args:
+            lib: The library object for storing symbols.
+            literal: The literal.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> BodySimpleLiteral | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> BodySimpleLiteral:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
+        """
+        The literal.
+        """
+
+class BodyAggregate:
+    """
+    An aggregate in a rule body.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        sign: Sign,
+        left: LeftGuard | None,
+        function: AggregateFunction,
+        elements: typing.Iterable[BodyAggregateElement],
+        right: RightGuard | None,
+    ) -> None:
+        """
+        Construct a BodyAggregate object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            sign: The sign of the literal.
+            left: The left guard of the aggregate.
+            function: The aggregate function.
+            elements: The aggregate elements.
+            right: The right guard of the aggregate.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> BodyAggregate | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> BodyAggregate:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[BodyAggregateElement]:
+        """
+        The aggregate elements.
+        """
+
+    @property
+    def function(self) -> AggregateFunction:
+        """
+        The aggregate function.
+        """
+
+    @property
+    def left(self) -> LeftGuard | None:
+        """
+        The left guard of the aggregate.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+    @property
+    def right(self) -> RightGuard | None:
+        """
+        The right guard of the aggregate.
+        """
+
+    @property
+    def sign(self) -> Sign:
+        """
+        The sign of the literal.
+        """
+
+class BodySort:
+    """
+    A sort literal in a rule body.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        left: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+        elements: typing.Iterable[BodyAggregateElement],
+    ) -> None:
+        """
+        Construct a BodySort object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the literal.
+            left: The pair of output terms.
+            elements: The sort elements.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> BodySort | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> BodySort:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[BodyAggregateElement]:
+        """
+        The sort elements.
+        """
+
+    @property
+    def left(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
+        """
+        The pair of output terms.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the literal.
+        """
+
+class BodySetAggregate:
+    """
+    A set aggregate.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        sign: Sign,
+        left: LeftGuard | None,
+        elements: typing.Iterable[SetAggregateElement],
+        right: RightGuard | None,
+    ) -> None:
+        """
+        Construct a BodySetAggregate object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            sign: The sign of the literal.
+            left: The left guard of the aggregate.
+            elements: The aggregate elements.
+            right: The right guard of the aggregate.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> BodySetAggregate | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> BodySetAggregate:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[SetAggregateElement]:
+        """
+        The aggregate elements.
+        """
+
+    @property
+    def left(self) -> LeftGuard | None:
+        """
+        The left guard of the aggregate.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+    @property
+    def right(self) -> RightGuard | None:
+        """
+        The right guard of the aggregate.
+        """
+
+    @property
+    def sign(self) -> Sign:
+        """
+        The sign of the literal.
+        """
+
+class BodyTheoryAtom:
+    """
+    A theory atom.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        sign: Sign,
+        name: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+        elements: typing.Iterable[TheoryAtomElement],
+        right: TheoryRightGuard | None,
+    ) -> None:
+        """
+        Construct a BodyTheoryAtom object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            sign: The sign of the literal.
+            name: The name of the theory atom.
+            elements: The aggregate elements.
+            right: The right guard of the theory atom.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> BodyTheoryAtom | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> BodyTheoryAtom:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[TheoryAtomElement]:
+        """
+        The aggregate elements.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+    @property
+    def name(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
+        """
+        The name of the theory atom.
+        """
+
+    @property
+    def right(self) -> TheoryRightGuard | None:
+        """
+        The right guard of the theory atom.
+        """
+
+    @property
+    def sign(self) -> Sign:
+        """
+        The sign of the literal.
+        """
+
+class BodyConditionalLiteral:
+    """
+    A conditional_literal.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
+        condition: typing.Iterable[
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
+        ],
+    ) -> None:
+        """
+        Construct a BodyConditionalLiteral object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            literal: The literal of the element.
+            condition: The condition of the element.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> BodyConditionalLiteral | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> BodyConditionalLiteral:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+        """
+        The condition of the element.
+        """
+
+    @property
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
+        """
+        The literal of the element.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+class HeadConditionalLiteral:
+    """
+    A conditional_literal.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
+        condition: typing.Iterable[
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
+        ],
+    ) -> None:
+        """
+        Construct a HeadConditionalLiteral object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            literal: The literal of the element.
+            condition: The condition of the element.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> HeadConditionalLiteral | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> HeadConditionalLiteral:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+        """
+        The condition of the element.
+        """
+
+    @property
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
+        """
+        The literal of the element.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+class HeadAggregateElement:
+    """
+    An element of a head aggregate.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        tuple: typing.Iterable[
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ],
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
+        condition: typing.Iterable[
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
+        ],
+    ) -> None:
+        """
+        Construct a HeadAggregateElement object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            tuple: The term tuple of the element.
+            literal: The literal of the element.
+            condition: The condition of the element.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> HeadAggregateElement | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> HeadAggregateElement:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def condition(
+        self,
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+        """
+        The condition of the element.
+        """
+
+    @property
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
+        """
+        The literal of the element.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+    @property
+    def tuple(
+        self,
+    ) -> typing.Sequence[
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ]:
+        """
+        The term tuple of the element.
+        """
+
+class HeadSimpleLiteral:
+    """
+    A literal in a rule head.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
+    ) -> None:
+        """
+        Construct a HeadSimpleLiteral object.
+
+        Args:
+            lib: The library object for storing symbols.
+            literal: The literal.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> HeadSimpleLiteral | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> HeadSimpleLiteral:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
+        """
+        The literal.
+        """
+
+class HeadAggregate:
+    """
+    An aggregate in a rule head.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        left: LeftGuard | None,
+        function: AggregateFunction,
+        elements: typing.Iterable[HeadAggregateElement],
+        right: RightGuard | None,
+    ) -> None:
+        """
+        Construct a HeadAggregate object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            left: The left guard of the aggregate.
+            function: The aggregate function.
+            elements: The aggregate elements.
+            right: The right guard of the aggregate.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> HeadAggregate | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> HeadAggregate:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[HeadAggregateElement]:
+        """
+        The aggregate elements.
+        """
+
+    @property
+    def function(self) -> AggregateFunction:
+        """
+        The aggregate function.
+        """
+
+    @property
+    def left(self) -> LeftGuard | None:
+        """
+        The left guard of the aggregate.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+    @property
+    def right(self) -> RightGuard | None:
+        """
+        The right guard of the aggregate.
+        """
+
+class HeadSetAggregate:
+    """
+    A set aggregate.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        left: LeftGuard | None,
+        elements: typing.Iterable[SetAggregateElement],
+        right: RightGuard | None,
+    ) -> None:
+        """
+        Construct a HeadSetAggregate object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            left: The left guard of the aggregate.
+            elements: The aggregate elements.
+            right: The right guard of the aggregate.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> HeadSetAggregate | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> HeadSetAggregate:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[SetAggregateElement]:
+        """
+        The aggregate elements.
+        """
+
+    @property
+    def left(self) -> LeftGuard | None:
+        """
+        The left guard of the aggregate.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+    @property
+    def right(self) -> RightGuard | None:
+        """
+        The right guard of the aggregate.
+        """
+
+class HeadTheoryAtom:
+    """
+    A theory atom.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        name: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+        elements: typing.Iterable[TheoryAtomElement],
+        right: TheoryRightGuard | None,
+    ) -> None:
+        """
+        Construct a HeadTheoryAtom object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            name: The name of the theory atom.
+            elements: The aggregate elements.
+            right: The right guard of the theory atom.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> HeadTheoryAtom | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> HeadTheoryAtom:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[TheoryAtomElement]:
+        """
+        The aggregate elements.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+    @property
+    def name(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
+        """
+        The name of the theory atom.
+        """
+
+    @property
+    def right(self) -> TheoryRightGuard | None:
+        """
+        The right guard of the theory atom.
+        """
+
+class HeadDisjunction:
+    """
+    A disjunction.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        elements: typing.Iterable[
+            LiteralBoolean
+            | LiteralComparison
+            | LiteralSymbolic
+            | HeadConditionalLiteral
+        ],
+    ) -> None:
+        """
+        Construct a HeadDisjunction object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the element.
+            elements: The elements of the disjunction.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> HeadDisjunction | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> HeadDisjunction:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(
+        self,
+    ) -> typing.Sequence[
+        LiteralBoolean | LiteralComparison | LiteralSymbolic | HeadConditionalLiteral
+    ]:
+        """
+        The elements of the disjunction.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the element.
+        """
+
+class TheoryOperatorDefinition:
+    """
+    A theory operator definition.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        name: str,
+        priority: int,
+        operator_type: TheoryOperatorType,
+    ) -> None:
+        """
+        Construct a TheoryOperatorDefinition object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the definition.
+            name: The name of the definition.
+            priority: The priority of the operator.
+            operator_type: The type of the operator.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TheoryOperatorDefinition | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryOperatorDefinition:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the definition.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the definition.
+        """
+
+    @property
+    def operator_type(self) -> TheoryOperatorType:
+        """
+        The type of the operator.
+        """
+
+    @property
+    def priority(self) -> int:
+        """
+        The priority of the operator.
+        """
+
+class TheoryTermDefinition:
+    """
+    A theory term definition.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        name: str,
+        operators: typing.Iterable[TheoryOperatorDefinition],
+    ) -> None:
+        """
+        Construct a TheoryTermDefinition object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the definition.
+            name: The name of the definition.
+            operators: The operator definitions to construct terms.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TheoryTermDefinition | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermDefinition:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the definition.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the definition.
+        """
+
+    @property
+    def operators(self) -> typing.Sequence[TheoryOperatorDefinition]:
+        """
+        The operator definitions to construct terms.
+        """
+
+class TheoryGuardDefinition:
+    """
+    A definition of a theory guard.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self, lib: clingo.core.Library, operators: typing.Iterable[str], term: str
+    ) -> None:
+        """
+        Construct a TheoryGuardDefinition object.
+
+        Args:
+            lib: The library object for storing symbols.
+            operators: A list of operator definition names.
+            term: The name of a term definition.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TheoryGuardDefinition | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryGuardDefinition:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def operators(self) -> typing.Sequence[str]:
+        """
+        A list of operator definition names.
+        """
+
+    @property
+    def term(self) -> str:
+        """
+        The name of a term definition.
+        """
+
+class TheoryAtomDefinition:
+    """
+    A theory atom definition.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        name: str,
+        arity: int,
+        term: str,
+        guard: TheoryGuardDefinition | None,
+        atom_type: TheoryAtomType,
+    ) -> None:
+        """
+        Construct a TheoryAtomDefinition object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the definition.
+            name: The name of the atom.
+            arity: The arity of the atom.
+            term: The name of a term definition.
+            guard: An optional guard definition.
+            atom_type: The type of the atom definition.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> TheoryAtomDefinition | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryAtomDefinition:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def arity(self) -> int:
+        """
+        The arity of the atom.
+        """
+
+    @property
+    def atom_type(self) -> TheoryAtomType:
+        """
+        The type of the atom definition.
+        """
+
+    @property
+    def guard(self) -> TheoryGuardDefinition | None:
+        """
+        An optional guard definition.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the definition.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the atom.
+        """
+
+    @property
+    def term(self) -> str:
+        """
+        The name of a term definition.
         """
 
 class OptimizeTuple:
@@ -3137,48 +5031,206 @@ class OptimizeTuple:
         The weight of the tuple.
         """
 
-class Program:
+class OptimizeElement:
     """
-    A non-ground program.
+    An element of an optimization statement.
     """
 
-    def __init__(self, lib: clingo.core.Library) -> None:
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
         """
-        Create an empty non-ground program.
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        tuple: OptimizeTuple,
+        condition: typing.Iterable[
+            LiteralBoolean | LiteralComparison | LiteralSymbolic
+        ],
+    ) -> None:
+        """
+        Construct a OptimizeElement object.
 
         Args:
-            lib: A library object to store symbols.
+            lib: The library object for storing symbols.
+            tuple: The tuple of the element.
+            condition: The condition of the element.
         """
 
-    def add(
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> OptimizeElement | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> OptimizeElement:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def condition(
         self,
-        statement: (
-            StatementRule
-            | StatementTheory
-            | StatementOptimize
-            | StatementWeakConstraint
-            | StatementShow
-            | StatementShowNothing
-            | StatementShowSignature
-            | StatementProject
-            | StatementProjectSignature
-            | StatementDefined
-            | StatementExternal
-            | StatementEdge
-            | StatementHeuristic
-            | StatementScript
-            | StatementInclude
-            | StatementProgram
-            | StatementParts
-            | StatementConst
-            | StatementComment
+    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
+        """
+        The condition of the element.
+        """
+
+    @property
+    def tuple(self) -> OptimizeTuple:
+        """
+        The tuple of the element.
+        """
+
+class Edge:
+    """
+    An edge of an edge statement.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        u: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+        v: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
         ),
     ) -> None:
         """
-        Add a statement to a program.
+        Construct a Edge object.
 
         Args:
-            statement: The statement to add.
+            lib: The library object for storing symbols.
+            u: The start vertex.
+            v: The end vertex.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> Edge | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> Edge:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def u(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
+        """
+        The start vertex.
+        """
+
+    @property
+    def v(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
+        """
+        The end vertex.
         """
 
 class ProgramPart:
@@ -3258,1648 +5310,6 @@ class ProgramPart:
     def name(self) -> str:
         """
         The name of the program part.
-        """
-
-class Projection:
-    """
-    A placeholder for an argument to project.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self, lib: clingo.core.Library, location: clingo.core.Location
-    ) -> None:
-        """
-        Construct a Projection object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the placeholder.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> Projection | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> Projection:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the placeholder.
-        """
-
-class RewriteContext:
-    """
-    Context to rewrite statements.
-    """
-
-    def __init__(self, lib: clingo.core.Library) -> None:
-        """
-        Create a context to rewrite statements.
-
-        Args:
-            lib: A library object to store symbols.
-        """
-
-    def add_param(self, name: str) -> None:
-        """
-        Add a parameter.
-
-        Parameters are protected from simplification.
-
-        Args:
-            name: The name of the parameter.
-        """
-
-    def add_theory(self, theory: StatementTheory) -> None:
-        """
-        Add a theory definition statement.
-
-        The theory definition is used to rewrite theory atoms in statements.
-
-        Args:
-            theory: The theory statement to add.
-        """
-
-    def clear_params(self) -> None:
-        """
-        Remove previously added params
-        """
-
-    @property
-    def project_anonymous(self) -> bool:
-        """
-        Whether to project anonymous variables in negative literals.
-        """
-
-    @project_anonymous.setter
-    def project_anonymous(self, arg1: bool) -> None: ...
-    @property
-    def project_mode(self) -> ProjectionMode:
-        """
-        The active projection mode.
-        """
-
-    @project_mode.setter
-    def project_mode(self, arg1: ProjectionMode) -> None: ...
-
-class RightGuard:
-    """
-    A right hand side guard consisting of a relation and term.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        relation: Relation,
-        term: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-    ) -> None:
-        """
-        Construct a RightGuard object.
-
-        Args:
-            lib: The library object for storing symbols.
-            relation: The relation of the guard.
-            term: The term of the guard.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> RightGuard | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> RightGuard:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def relation(self) -> Relation:
-        """
-        The relation of the guard.
-        """
-
-    @property
-    def term(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ):
-        """
-        The term of the guard.
-        """
-
-class SetAggregateElement:
-    """
-    An element of a set aggregate.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        literal: LiteralBoolean | LiteralComparison | LiteralSymbolic,
-        condition: typing.Iterable[
-            LiteralBoolean | LiteralComparison | LiteralSymbolic
-        ],
-    ) -> None:
-        """
-        Construct a SetAggregateElement object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the element.
-            literal: The literal of the element.
-            condition: The condition of the element.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> SetAggregateElement | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> SetAggregateElement:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def condition(
-        self,
-    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
-        """
-        The condition of the element.
-        """
-
-    @property
-    def literal(self) -> LiteralBoolean | LiteralComparison | LiteralSymbolic:
-        """
-        The literal of the element.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the element.
-        """
-
-class StatementComment:
-    """
-    A comment.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        value: str,
-        comment_type: CommentType,
-    ) -> None:
-        """
-        Construct a StatementComment object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the comment.
-            value: The value of the comment.
-            comment_type: The type of the comment.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementComment | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementComment:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def comment_type(self) -> CommentType:
-        """
-        The type of the comment.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the comment.
-        """
-
-    @property
-    def value(self) -> str:
-        """
-        The value of the comment.
-        """
-
-class StatementConst:
-    """
-    A const statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        name: str,
-        value: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-        precedence: Precedence,
-    ) -> None:
-        """
-        Construct a StatementConst object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the statement.
-            name: The name of the statement.
-            value: The term of the statement.
-            precedence: The precedence of the statement.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementConst | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementConst:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the statement.
-        """
-
-    @property
-    def name(self) -> str:
-        """
-        The name of the statement.
-        """
-
-    @property
-    def precedence(self) -> Precedence:
-        """
-        The precedence of the statement.
-        """
-
-    @property
-    def value(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ):
-        """
-        The term of the statement.
-        """
-
-class StatementDefined:
-    """
-    A defined statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        name: str,
-        arity: int,
-        sign: bool = False,
-    ) -> None:
-        """
-        Construct a StatementDefined object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the statement.
-            name: The name of the atom to project.
-            arity: The arity of the atom to project.
-            sign: The classical sign of the atom.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementDefined | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementDefined:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def arity(self) -> int:
-        """
-        The arity of the atom to project.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the statement.
-        """
-
-    @property
-    def name(self) -> str:
-        """
-        The name of the atom to project.
-        """
-
-    @property
-    def sign(self) -> bool:
-        """
-        The classical sign of the atom.
-        """
-
-class StatementEdge:
-    """
-    An edge statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        pool: typing.Iterable[Edge],
-        body: typing.Iterable[
-            BodySimpleLiteral
-            | BodyAggregate
-            | BodySort
-            | BodySetAggregate
-            | BodyTheoryAtom
-            | BodyConditionalLiteral
-        ],
-    ) -> None:
-        """
-        Construct a StatementEdge object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the statement.
-            pool: The edge pool of the statement.
-            body: The body of the statement.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementEdge | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementEdge:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def body(
-        self,
-    ) -> typing.Sequence[
-        BodySimpleLiteral
-        | BodyAggregate
-        | BodySort
-        | BodySetAggregate
-        | BodyTheoryAtom
-        | BodyConditionalLiteral
-    ]:
-        """
-        The body of the statement.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the statement.
-        """
-
-    @property
-    def pool(self) -> typing.Sequence[Edge]:
-        """
-        The edge pool of the statement.
-        """
-
-class StatementExternal:
-    """
-    An external statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        atom: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-        body: typing.Iterable[
-            BodySimpleLiteral
-            | BodyAggregate
-            | BodySort
-            | BodySetAggregate
-            | BodyTheoryAtom
-            | BodyConditionalLiteral
-        ],
-        external_type: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-            | None
-        ) = None,
-    ) -> None:
-        """
-        Construct a StatementExternal object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the statement.
-            atom: The atom to project.
-            body: The body of the statement.
-            external_type: The type of the external.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementExternal | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementExternal:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def atom(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ):
-        """
-        The atom to project.
-        """
-
-    @property
-    def body(
-        self,
-    ) -> typing.Sequence[
-        BodySimpleLiteral
-        | BodyAggregate
-        | BodySort
-        | BodySetAggregate
-        | BodyTheoryAtom
-        | BodyConditionalLiteral
-    ]:
-        """
-        The body of the statement.
-        """
-
-    @property
-    def external_type(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-        | None
-    ):
-        """
-        The type of the external.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the statement.
-        """
-
-class StatementHeuristic:
-    """
-    A heuristic statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        atom: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-        body: typing.Iterable[
-            BodySimpleLiteral
-            | BodyAggregate
-            | BodySort
-            | BodySetAggregate
-            | BodyTheoryAtom
-            | BodyConditionalLiteral
-        ],
-        weight: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-        modifier: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-        priority: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-            | None
-        ) = None,
-    ) -> None:
-        """
-        Construct a StatementHeuristic object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the statement.
-            atom: The atom to heuristically modify.
-            body: The body of the statement.
-            weight: The weight of the heuristic modification.
-            modifier: The heuristic modifier.
-            priority: An optional priority.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementHeuristic | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementHeuristic:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def atom(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ):
-        """
-        The atom to heuristically modify.
-        """
-
-    @property
-    def body(
-        self,
-    ) -> typing.Sequence[
-        BodySimpleLiteral
-        | BodyAggregate
-        | BodySort
-        | BodySetAggregate
-        | BodyTheoryAtom
-        | BodyConditionalLiteral
-    ]:
-        """
-        The body of the statement.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the statement.
-        """
-
-    @property
-    def modifier(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ):
-        """
-        The heuristic modifier.
-        """
-
-    @property
-    def priority(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-        | None
-    ):
-        """
-        An optional priority.
-        """
-
-    @property
-    def weight(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ):
-        """
-        The weight of the heuristic modification.
-        """
-
-class StatementInclude:
-    """
-    An include statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        value: str,
-        include_type: IncludeType,
-    ) -> None:
-        """
-        Construct a StatementInclude object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the statement.
-            value: The path of the statement.
-            include_type: The type of the include.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementInclude | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementInclude:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def include_type(self) -> IncludeType:
-        """
-        The type of the include.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the statement.
-        """
-
-    @property
-    def value(self) -> str:
-        """
-        The path of the statement.
-        """
-
-class StatementOptimize:
-    """
-    An optimization statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        elements: typing.Iterable[OptimizeElement],
-        optimize_type: OptimizeType,
-    ) -> None:
-        """
-        Construct a StatementOptimize object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the statement.
-            elements: The elements of the statement.
-            optimize_type: The type of the statement.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementOptimize | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementOptimize:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def elements(self) -> typing.Sequence[OptimizeElement]:
-        """
-        The elements of the statement.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the statement.
-        """
-
-    @property
-    def optimize_type(self) -> OptimizeType:
-        """
-        The type of the statement.
-        """
-
-class StatementParts:
-    """
-    A program parts statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        elements: typing.Iterable[ProgramPart],
-        precedence: Precedence,
-    ) -> None:
-        """
-        Construct a StatementParts object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the statement.
-            elements: The program parts to ground.
-            precedence: The precedence of the statement.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementParts | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementParts:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def elements(self) -> typing.Sequence[ProgramPart]:
-        """
-        The program parts to ground.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the statement.
-        """
-
-    @property
-    def precedence(self) -> Precedence:
-        """
-        The precedence of the statement.
-        """
-
-class StatementProgram:
-    """
-    A program statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        name: str,
-        arguments: typing.Iterable[str],
-    ) -> None:
-        """
-        Construct a StatementProgram object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the statement.
-            name: The name of the program.
-            arguments: The arguments of the program.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementProgram | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementProgram:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def arguments(self) -> typing.Sequence[str]:
-        """
-        The arguments of the program.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the statement.
-        """
-
-    @property
-    def name(self) -> str:
-        """
-        The name of the program.
-        """
-
-class StatementProject:
-    """
-    A project statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        atom: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-        body: typing.Iterable[
-            BodySimpleLiteral
-            | BodyAggregate
-            | BodySort
-            | BodySetAggregate
-            | BodyTheoryAtom
-            | BodyConditionalLiteral
-        ],
-    ) -> None:
-        """
-        Construct a StatementProject object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the statement.
-            atom: The atom to project.
-            body: The body of the statement.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementProject | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementProject:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def atom(
-        self,
-    ) -> (
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ):
-        """
-        The atom to project.
-        """
-
-    @property
-    def body(
-        self,
-    ) -> typing.Sequence[
-        BodySimpleLiteral
-        | BodyAggregate
-        | BodySort
-        | BodySetAggregate
-        | BodyTheoryAtom
-        | BodyConditionalLiteral
-    ]:
-        """
-        The body of the statement.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the statement.
-        """
-
-class StatementProjectSignature:
-    """
-    A project signature statement.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        name: str,
-        arity: int,
-        sign: bool = False,
-    ) -> None:
-        """
-        Construct a StatementProjectSignature object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the statement.
-            name: The name of the atom to project.
-            arity: The arity of the atom to project.
-            sign: The classical sign of the atom.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementProjectSignature | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementProjectSignature:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def arity(self) -> int:
-        """
-        The arity of the atom to project.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the statement.
-        """
-
-    @property
-    def name(self) -> str:
-        """
-        The name of the atom to project.
-        """
-
-    @property
-    def sign(self) -> bool:
-        """
-        The classical sign of the atom.
         """
 
 class StatementRule:
@@ -5019,9 +5429,9 @@ class StatementRule:
         The location of the statement.
         """
 
-class StatementScript:
+class StatementTheory:
     """
-    A script statement.
+    A theory definition.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -5036,17 +5446,19 @@ class StatementScript:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        value: str,
-        script_type: str,
+        name: str,
+        terms: typing.Iterable[TheoryTermDefinition],
+        atoms: typing.Iterable[TheoryAtomDefinition],
     ) -> None:
         """
-        Construct a StatementScript object.
+        Construct a StatementTheory object.
 
         Args:
             lib: The library object for storing symbols.
             location: The location of the statement.
-            value: The content of the script.
-            script_type: The type of the script.
+            name: The name of the theory.
+            terms: A list of term definitions.
+            atoms: A list of atom definitions.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5055,7 +5467,7 @@ class StatementScript:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementScript | None:
+    ) -> StatementTheory | None:
         """
         Transform the expression.
 
@@ -5068,7 +5480,7 @@ class StatementScript:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementScript:
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementTheory:
         """
         Update the expression.
 
@@ -5089,21 +5501,217 @@ class StatementScript:
         """
 
     @property
+    def atoms(self) -> typing.Sequence[TheoryAtomDefinition]:
+        """
+        A list of atom definitions.
+        """
+
+    @property
     def location(self) -> clingo.core.Location:
         """
         The location of the statement.
         """
 
     @property
-    def script_type(self) -> str:
+    def name(self) -> str:
         """
-        The type of the script.
+        The name of the theory.
         """
 
     @property
-    def value(self) -> str:
+    def terms(self) -> typing.Sequence[TheoryTermDefinition]:
         """
-        The content of the script.
+        A list of term definitions.
+        """
+
+class StatementOptimize:
+    """
+    An optimization statement.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        elements: typing.Iterable[OptimizeElement],
+        optimize_type: OptimizeType,
+    ) -> None:
+        """
+        Construct a StatementOptimize object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the statement.
+            elements: The elements of the statement.
+            optimize_type: The type of the statement.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> StatementOptimize | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementOptimize:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def elements(self) -> typing.Sequence[OptimizeElement]:
+        """
+        The elements of the statement.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the statement.
+        """
+
+    @property
+    def optimize_type(self) -> OptimizeType:
+        """
+        The type of the statement.
+        """
+
+class StatementWeakConstraint:
+    """
+    A weak constraint.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        body: typing.Iterable[
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySort
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
+        ],
+        tuple: OptimizeTuple,
+    ) -> None:
+        """
+        Construct a StatementWeakConstraint object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the statement.
+            body: The body of the statement.
+            tuple: The tuple of the statement.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> StatementWeakConstraint | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementWeakConstraint:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def body(
+        self,
+    ) -> typing.Sequence[
+        BodySimpleLiteral
+        | BodyAggregate
+        | BodySort
+        | BodySetAggregate
+        | BodyTheoryAtom
+        | BodyConditionalLiteral
+    ]:
+        """
+        The body of the statement.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the statement.
+        """
+
+    @property
+    def tuple(self) -> OptimizeTuple:
+        """
+        The tuple of the statement.
         """
 
 class StatementShow:
@@ -5401,9 +6009,9 @@ class StatementShowSignature:
         Whether to show or hide the predicate.
         """
 
-class StatementTheory:
+class StatementProject:
     """
-    A theory definition.
+    A project statement.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -5418,19 +6026,33 @@ class StatementTheory:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        name: str,
-        terms: typing.Iterable[TheoryTermDefinition],
-        atoms: typing.Iterable[TheoryAtomDefinition],
+        atom: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+        body: typing.Iterable[
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySort
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
+        ],
     ) -> None:
         """
-        Construct a StatementTheory object.
+        Construct a StatementProject object.
 
         Args:
             lib: The library object for storing symbols.
             location: The location of the statement.
-            name: The name of the theory.
-            terms: A list of term definitions.
-            atoms: A list of atom definitions.
+            atom: The atom to project.
+            body: The body of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5439,7 +6061,7 @@ class StatementTheory:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementTheory | None:
+    ) -> StatementProject | None:
         """
         Transform the expression.
 
@@ -5452,7 +6074,7 @@ class StatementTheory:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementTheory:
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementProject:
         """
         Update the expression.
 
@@ -5473,9 +6095,35 @@ class StatementTheory:
         """
 
     @property
-    def atoms(self) -> typing.Sequence[TheoryAtomDefinition]:
+    def atom(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
         """
-        A list of atom definitions.
+        The atom to project.
+        """
+
+    @property
+    def body(
+        self,
+    ) -> typing.Sequence[
+        BodySimpleLiteral
+        | BodyAggregate
+        | BodySort
+        | BodySetAggregate
+        | BodyTheoryAtom
+        | BodyConditionalLiteral
+    ]:
+        """
+        The body of the statement.
         """
 
     @property
@@ -5484,21 +6132,9 @@ class StatementTheory:
         The location of the statement.
         """
 
-    @property
-    def name(self) -> str:
-        """
-        The name of the theory.
-        """
-
-    @property
-    def terms(self) -> typing.Sequence[TheoryTermDefinition]:
-        """
-        A list of term definitions.
-        """
-
-class StatementWeakConstraint:
+class StatementProjectSignature:
     """
-    A weak constraint.
+    A project signature statement.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -5513,24 +6149,19 @@ class StatementWeakConstraint:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        body: typing.Iterable[
-            BodySimpleLiteral
-            | BodyAggregate
-            | BodySort
-            | BodySetAggregate
-            | BodyTheoryAtom
-            | BodyConditionalLiteral
-        ],
-        tuple: OptimizeTuple,
+        name: str,
+        arity: int,
+        sign: bool = False,
     ) -> None:
         """
-        Construct a StatementWeakConstraint object.
+        Construct a StatementProjectSignature object.
 
         Args:
             lib: The library object for storing symbols.
             location: The location of the statement.
-            body: The body of the statement.
-            tuple: The tuple of the statement.
+            name: The name of the atom to project.
+            arity: The arity of the atom to project.
+            sign: The classical sign of the atom.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5539,7 +6170,7 @@ class StatementWeakConstraint:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> StatementWeakConstraint | None:
+    ) -> StatementProjectSignature | None:
         """
         Transform the expression.
 
@@ -5552,7 +6183,355 @@ class StatementWeakConstraint:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> StatementWeakConstraint:
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementProjectSignature:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def arity(self) -> int:
+        """
+        The arity of the atom to project.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the statement.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the atom to project.
+        """
+
+    @property
+    def sign(self) -> bool:
+        """
+        The classical sign of the atom.
+        """
+
+class StatementDefined:
+    """
+    A defined statement.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        name: str,
+        arity: int,
+        sign: bool = False,
+    ) -> None:
+        """
+        Construct a StatementDefined object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the statement.
+            name: The name of the atom to project.
+            arity: The arity of the atom to project.
+            sign: The classical sign of the atom.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> StatementDefined | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementDefined:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def arity(self) -> int:
+        """
+        The arity of the atom to project.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the statement.
+        """
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the atom to project.
+        """
+
+    @property
+    def sign(self) -> bool:
+        """
+        The classical sign of the atom.
+        """
+
+class StatementExternal:
+    """
+    An external statement.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        atom: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+        body: typing.Iterable[
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySort
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
+        ],
+        external_type: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+            | None
+        ) = None,
+    ) -> None:
+        """
+        Construct a StatementExternal object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the statement.
+            atom: The atom to project.
+            body: The body of the statement.
+            external_type: The type of the external.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> StatementExternal | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementExternal:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def atom(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
+        """
+        The atom to project.
+        """
+
+    @property
+    def body(
+        self,
+    ) -> typing.Sequence[
+        BodySimpleLiteral
+        | BodyAggregate
+        | BodySort
+        | BodySetAggregate
+        | BodyTheoryAtom
+        | BodyConditionalLiteral
+    ]:
+        """
+        The body of the statement.
+        """
+
+    @property
+    def external_type(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+        | None
+    ):
+        """
+        The type of the external.
+        """
+
+    @property
+    def location(self) -> clingo.core.Location:
+        """
+        The location of the statement.
+        """
+
+class StatementEdge:
+    """
+    An edge statement.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        pool: typing.Iterable[Edge],
+        body: typing.Iterable[
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySort
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
+        ],
+    ) -> None:
+        """
+        Construct a StatementEdge object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the statement.
+            pool: The edge pool of the statement.
+            body: The body of the statement.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> StatementEdge | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementEdge:
         """
         Update the expression.
 
@@ -5594,14 +6573,14 @@ class StatementWeakConstraint:
         """
 
     @property
-    def tuple(self) -> OptimizeTuple:
+    def pool(self) -> typing.Sequence[Edge]:
         """
-        The tuple of the statement.
+        The edge pool of the statement.
         """
 
-class TermAbsolute:
+class StatementHeuristic:
     """
-    A term representing the absolute operation.
+    A heuristic statement.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -5616,7 +6595,7 @@ class TermAbsolute:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        pool: typing.Iterable[
+        atom: (
             TermVariable
             | TermSymbolic
             | TermAbsolute
@@ -5625,18 +6604,58 @@ class TermAbsolute:
             | TermTuple
             | TermFunction
             | TermFormatString
+        ),
+        body: typing.Iterable[
+            BodySimpleLiteral
+            | BodyAggregate
+            | BodySort
+            | BodySetAggregate
+            | BodyTheoryAtom
+            | BodyConditionalLiteral
         ],
+        weight: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+        modifier: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+        ),
+        priority: (
+            TermVariable
+            | TermSymbolic
+            | TermAbsolute
+            | TermUnaryOperation
+            | TermBinaryOperation
+            | TermTuple
+            | TermFunction
+            | TermFormatString
+            | None
+        ) = None,
     ) -> None:
         """
-        Construct a TermAbsolute object.
+        Construct a StatementHeuristic object.
 
         Args:
             lib: The library object for storing symbols.
-            location: The location of the operation.
-            pool: The argument pool.
-
-                If there is more than one argument in the pool, the term is
-                unpooled during preprocessing.
+            location: The location of the statement.
+            atom: The atom to heuristically modify.
+            body: The body of the statement.
+            weight: The weight of the heuristic modification.
+            modifier: The heuristic modifier.
+            priority: An optional priority.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5645,7 +6664,7 @@ class TermAbsolute:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TermAbsolute | None:
+    ) -> StatementHeuristic | None:
         """
         Transform the expression.
 
@@ -5658,7 +6677,7 @@ class TermAbsolute:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> TermAbsolute:
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementHeuristic:
         """
         Update the expression.
 
@@ -5679,120 +6698,7 @@ class TermAbsolute:
         """
 
     @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the operation.
-        """
-
-    @property
-    def pool(
-        self,
-    ) -> typing.Sequence[
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-    ]:
-        """
-        The argument pool.
-        If there is more than one argument in the pool, the term is unpooled during preprocessing.
-        """
-
-class TermBinaryOperation:
-    """
-    A term representing a binary operation.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        left: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-        operator_type: BinaryOperator,
-        right: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
-        ),
-    ) -> None:
-        """
-        Construct a TermBinaryOperation object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the operation.
-            left: The left argument of the operation.
-            operator_type: The type of the operation.
-            right: The right argument of the operation.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TermBinaryOperation | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TermBinaryOperation:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def left(
+    def atom(
         self,
     ) -> (
         TermVariable
@@ -5805,23 +6711,32 @@ class TermBinaryOperation:
         | TermFormatString
     ):
         """
-        The left argument of the operation.
+        The atom to heuristically modify.
+        """
+
+    @property
+    def body(
+        self,
+    ) -> typing.Sequence[
+        BodySimpleLiteral
+        | BodyAggregate
+        | BodySort
+        | BodySetAggregate
+        | BodyTheoryAtom
+        | BodyConditionalLiteral
+    ]:
+        """
+        The body of the statement.
         """
 
     @property
     def location(self) -> clingo.core.Location:
         """
-        The location of the operation.
+        The location of the statement.
         """
 
     @property
-    def operator_type(self) -> BinaryOperator:
-        """
-        The type of the operation.
-        """
-
-    @property
-    def right(
+    def modifier(
         self,
     ) -> (
         TermVariable
@@ -5834,12 +6749,47 @@ class TermBinaryOperation:
         | TermFormatString
     ):
         """
-        The right argument of the operation.
+        The heuristic modifier.
         """
 
-class TermFormatString:
+    @property
+    def priority(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+        | None
+    ):
+        """
+        An optional priority.
+        """
+
+    @property
+    def weight(
+        self,
+    ) -> (
+        TermVariable
+        | TermSymbolic
+        | TermAbsolute
+        | TermUnaryOperation
+        | TermBinaryOperation
+        | TermTuple
+        | TermFunction
+        | TermFormatString
+    ):
+        """
+        The weight of the heuristic modification.
+        """
+
+class StatementScript:
     """
-    A term representing a format string.
+    A script statement.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -5854,15 +6804,17 @@ class TermFormatString:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        elements: typing.Iterable[FormatFieldLiteral | FormatFieldExpression],
+        value: str,
+        script_type: str,
     ) -> None:
         """
-        Construct a TermFormatString object.
+        Construct a StatementScript object.
 
         Args:
             lib: The library object for storing symbols.
-            location: The location of the format string.
-            elements: The elements of the format string.
+            location: The location of the statement.
+            value: The content of the script.
+            script_type: The type of the script.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5871,7 +6823,7 @@ class TermFormatString:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TermFormatString | None:
+    ) -> StatementScript | None:
         """
         Transform the expression.
 
@@ -5884,7 +6836,7 @@ class TermFormatString:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> TermFormatString:
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementScript:
         """
         Update the expression.
 
@@ -5905,20 +6857,113 @@ class TermFormatString:
         """
 
     @property
-    def elements(self) -> typing.Sequence[FormatFieldLiteral | FormatFieldExpression]:
+    def location(self) -> clingo.core.Location:
         """
-        The elements of the format string.
+        The location of the statement.
+        """
+
+    @property
+    def script_type(self) -> str:
+        """
+        The type of the script.
+        """
+
+    @property
+    def value(self) -> str:
+        """
+        The content of the script.
+        """
+
+class StatementInclude:
+    """
+    An include statement.
+    """
+
+    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __ge__(self, arg0: typing.Any) -> bool: ...
+    def __gt__(self, arg0: typing.Any) -> bool: ...
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the object.
+        """
+
+    def __init__(
+        self,
+        lib: clingo.core.Library,
+        location: clingo.core.Location,
+        value: str,
+        include_type: IncludeType,
+    ) -> None:
+        """
+        Construct a StatementInclude object.
+
+        Args:
+            lib: The library object for storing symbols.
+            location: The location of the statement.
+            value: The path of the statement.
+            include_type: The type of the include.
+        """
+
+    def __le__(self, arg0: typing.Any) -> bool: ...
+    def __lt__(self, arg0: typing.Any) -> bool: ...
+    def __ne__(self, arg0: typing.Any) -> bool: ...
+    def __str__(self) -> str: ...
+    def transform(
+        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
+    ) -> StatementInclude | None:
+        """
+        Transform the expression.
+
+        Additional arguments are passed to the transformer.
+
+        Args:
+            lib: The library object for storing symbols.
+            transformer: The transformer accepting the sub expressions.
+        Returns:
+            The transformed object or None.
+        """
+
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementInclude:
+        """
+        Update the expression.
+
+        Accepts keyword arguments with attributes to update.
+
+        Args:
+            lib: The library object for storing symbols.
+        Returns:
+            The updated object.
+        """
+
+    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
+        """
+        Visit the children of the expression.
+
+        Args:
+            visitor: The visitor accepting the sub expressions.
+        """
+
+    @property
+    def include_type(self) -> IncludeType:
+        """
+        The type of the include.
         """
 
     @property
     def location(self) -> clingo.core.Location:
         """
-        The location of the format string.
+        The location of the statement.
         """
 
-class TermFunction:
+    @property
+    def value(self) -> str:
+        """
+        The path of the statement.
+        """
+
+class StatementProgram:
     """
-    A term representing a function.
+    A program statement.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -5934,21 +6979,16 @@ class TermFunction:
         lib: clingo.core.Library,
         location: clingo.core.Location,
         name: str,
-        pool: typing.Iterable[ArgumentTuple],
-        external: bool = False,
+        arguments: typing.Iterable[str],
     ) -> None:
         """
-        Construct a TermFunction object.
+        Construct a StatementProgram object.
 
         Args:
             lib: The library object for storing symbols.
-            location: The location of the function.
-            name: The name of the function.
-            pool: The argument pool of the function.
-
-                If there is more than one element in the pool, the term is
-                unpooled during preprocessing.
-            external: Whether the function is external.
+            location: The location of the statement.
+            name: The name of the program.
+            arguments: The arguments of the program.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -5957,7 +6997,7 @@ class TermFunction:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TermFunction | None:
+    ) -> StatementProgram | None:
         """
         Transform the expression.
 
@@ -5970,7 +7010,7 @@ class TermFunction:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> TermFunction:
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementProgram:
         """
         Update the expression.
 
@@ -5991,33 +7031,26 @@ class TermFunction:
         """
 
     @property
-    def external(self) -> bool:
+    def arguments(self) -> typing.Sequence[str]:
         """
-        Whether the function is external.
+        The arguments of the program.
         """
 
     @property
     def location(self) -> clingo.core.Location:
         """
-        The location of the function.
+        The location of the statement.
         """
 
     @property
     def name(self) -> str:
         """
-        The name of the function.
+        The name of the program.
         """
 
-    @property
-    def pool(self) -> typing.Sequence[ArgumentTuple]:
-        """
-        The argument pool of the function.
-        If there is more than one element in the pool, the term is unpooled during preprocessing.
-        """
-
-class TermSymbolic:
+class StatementParts:
     """
-    A term representing a symbol.
+    A program parts statement.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -6032,15 +7065,17 @@ class TermSymbolic:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        symbol: clingo.symbol.Symbol,
+        elements: typing.Iterable[ProgramPart],
+        precedence: Precedence,
     ) -> None:
         """
-        Construct a TermSymbolic object.
+        Construct a StatementParts object.
 
         Args:
             lib: The library object for storing symbols.
-            location: The location of the symbol.
-            symbol: The symbol.
+            location: The location of the statement.
+            elements: The program parts to ground.
+            precedence: The precedence of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6049,7 +7084,7 @@ class TermSymbolic:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TermSymbolic | None:
+    ) -> StatementParts | None:
         """
         Transform the expression.
 
@@ -6062,7 +7097,7 @@ class TermSymbolic:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> TermSymbolic:
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementParts:
         """
         Update the expression.
 
@@ -6083,20 +7118,26 @@ class TermSymbolic:
         """
 
     @property
-    def location(self) -> clingo.core.Location:
+    def elements(self) -> typing.Sequence[ProgramPart]:
         """
-        The location of the symbol.
+        The program parts to ground.
         """
 
     @property
-    def symbol(self) -> clingo.symbol.Symbol:
+    def location(self) -> clingo.core.Location:
         """
-        The symbol.
+        The location of the statement.
         """
 
-class TermTuple:
+    @property
+    def precedence(self) -> Precedence:
+        """
+        The precedence of the statement.
+        """
+
+class StatementConst:
     """
-    A term representing a tuple.
+    A const statement.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -6111,7 +7152,8 @@ class TermTuple:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        pool: typing.Iterable[
+        name: str,
+        value: (
             TermVariable
             | TermSymbolic
             | TermAbsolute
@@ -6120,122 +7162,18 @@ class TermTuple:
             | TermTuple
             | TermFunction
             | TermFormatString
-            | ArgumentTuple
-        ],
-    ) -> None:
-        """
-        Construct a TermTuple object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the tuple.
-            pool: The argument pool of the tuple.
-
-                If there is more than one element in the pool, the term is
-                unpooled during preprocessing.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TermTuple | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TermTuple:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the tuple.
-        """
-
-    @property
-    def pool(
-        self,
-    ) -> typing.Sequence[
-        TermVariable
-        | TermSymbolic
-        | TermAbsolute
-        | TermUnaryOperation
-        | TermBinaryOperation
-        | TermTuple
-        | TermFunction
-        | TermFormatString
-        | ArgumentTuple
-    ]:
-        """
-        The argument pool of the tuple.
-        If there is more than one element in the pool, the term is unpooled during preprocessing.
-        """
-
-class TermUnaryOperation:
-    """
-    A term representing a unary operation.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        operator_type: UnaryOperator,
-        right: (
-            TermVariable
-            | TermSymbolic
-            | TermAbsolute
-            | TermUnaryOperation
-            | TermBinaryOperation
-            | TermTuple
-            | TermFunction
-            | TermFormatString
         ),
+        precedence: Precedence,
     ) -> None:
         """
-        Construct a TermUnaryOperation object.
+        Construct a StatementConst object.
 
         Args:
             lib: The library object for storing symbols.
-            location: The location of the operation.
-            operator_type: The type of the operation.
-            right: The argument of the operation.
+            location: The location of the statement.
+            name: The name of the statement.
+            value: The term of the statement.
+            precedence: The precedence of the statement.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6244,7 +7182,7 @@ class TermUnaryOperation:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TermUnaryOperation | None:
+    ) -> StatementConst | None:
         """
         Transform the expression.
 
@@ -6257,7 +7195,7 @@ class TermUnaryOperation:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> TermUnaryOperation:
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementConst:
         """
         Update the expression.
 
@@ -6280,17 +7218,23 @@ class TermUnaryOperation:
     @property
     def location(self) -> clingo.core.Location:
         """
-        The location of the operation.
+        The location of the statement.
         """
 
     @property
-    def operator_type(self) -> UnaryOperator:
+    def name(self) -> str:
         """
-        The type of the operation.
+        The name of the statement.
         """
 
     @property
-    def right(
+    def precedence(self) -> Precedence:
+        """
+        The precedence of the statement.
+        """
+
+    @property
+    def value(
         self,
     ) -> (
         TermVariable
@@ -6303,103 +7247,12 @@ class TermUnaryOperation:
         | TermFormatString
     ):
         """
-        The argument of the operation.
+        The term of the statement.
         """
 
-class TermVariable:
+class StatementComment:
     """
-    A term representing a variable.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        name: str,
-        anonymous: bool = False,
-    ) -> None:
-        """
-        Construct a TermVariable object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the variable.
-            name: The name of the variable.
-            anonymous: Whether the variable is anonymous.
-
-                Anonymous variables receive a unique name during
-                preprocessing.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TermVariable | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TermVariable:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def anonymous(self) -> bool:
-        """
-        Whether the variable is anonymous.
-        Anonymous variables receive a unique name during preprocessing.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the variable.
-        """
-
-    @property
-    def name(self) -> str:
-        """
-        The name of the variable.
-        """
-
-class TheoryAtomDefinition:
-    """
-    A theory atom definition.
+    A comment.
     """
 
     def __eq__(self, arg0: typing.Any) -> bool: ...
@@ -6414,23 +7267,17 @@ class TheoryAtomDefinition:
         self,
         lib: clingo.core.Library,
         location: clingo.core.Location,
-        name: str,
-        arity: int,
-        term: str,
-        guard: TheoryGuardDefinition | None,
-        atom_type: TheoryAtomType,
+        value: str,
+        comment_type: CommentType,
     ) -> None:
         """
-        Construct a TheoryAtomDefinition object.
+        Construct a StatementComment object.
 
         Args:
             lib: The library object for storing symbols.
-            location: The location of the definition.
-            name: The name of the atom.
-            arity: The arity of the atom.
-            term: The name of a term definition.
-            guard: An optional guard definition.
-            atom_type: The type of the atom definition.
+            location: The location of the comment.
+            value: The value of the comment.
+            comment_type: The type of the comment.
         """
 
     def __le__(self, arg0: typing.Any) -> bool: ...
@@ -6439,7 +7286,7 @@ class TheoryAtomDefinition:
     def __str__(self) -> str: ...
     def transform(
         self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TheoryAtomDefinition | None:
+    ) -> StatementComment | None:
         """
         Transform the expression.
 
@@ -6452,7 +7299,7 @@ class TheoryAtomDefinition:
             The transformed object or None.
         """
 
-    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryAtomDefinition:
+    def update(self, lib: clingo.core.Library, **kwargs) -> StatementComment:
         """
         Update the expression.
 
@@ -6473,1119 +7320,118 @@ class TheoryAtomDefinition:
         """
 
     @property
-    def arity(self) -> int:
+    def comment_type(self) -> CommentType:
         """
-        The arity of the atom.
-        """
-
-    @property
-    def atom_type(self) -> TheoryAtomType:
-        """
-        The type of the atom definition.
-        """
-
-    @property
-    def guard(self) -> TheoryGuardDefinition | None:
-        """
-        An optional guard definition.
+        The type of the comment.
         """
 
     @property
     def location(self) -> clingo.core.Location:
         """
-        The location of the definition.
+        The location of the comment.
         """
 
     @property
-    def name(self) -> str:
+    def value(self) -> str:
         """
-        The name of the atom.
+        The value of the comment.
+        """
+
+class RewriteContext:
+    """
+    Context to rewrite statements.
+    """
+
+    def __init__(self, lib: clingo.core.Library) -> None:
+        """
+        Create a context to rewrite statements.
+
+        Args:
+            lib: A library object to store symbols.
+        """
+
+    def add_param(self, name: str) -> None:
+        """
+        Add a parameter.
+
+        Parameters are protected from simplification.
+
+        Args:
+            name: The name of the parameter.
+        """
+
+    def add_theory(self, theory: StatementTheory) -> None:
+        """
+        Add a theory definition statement.
+
+        The theory definition is used to rewrite theory atoms in statements.
+
+        Args:
+            theory: The theory statement to add.
+        """
+
+    def clear_params(self) -> None:
+        """
+        Remove previously added params
         """
 
     @property
-    def term(self) -> str:
+    def project_anonymous(self) -> bool:
         """
-        The name of a term definition.
+        Whether to project anonymous variables in negative literals.
         """
 
-class TheoryAtomElement:
+    @project_anonymous.setter
+    def project_anonymous(self, arg1: bool) -> None: ...
+    @property
+    def project_mode(self) -> ProjectionMode:
+        """
+        The active projection mode.
+        """
+
+    @project_mode.setter
+    def project_mode(self, arg1: ProjectionMode) -> None: ...
+
+class Program:
     """
-    An element of a theory atom elements.
+    A non-ground program.
     """
 
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
+    def __init__(self, lib: clingo.core.Library) -> None:
         """
-        Compute a hash for the object.
+        Create an empty non-ground program.
+
+        Args:
+            lib: A library object to store symbols.
         """
 
-    def __init__(
+    def add(
         self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        tuple: typing.Iterable[
-            TheoryTermVariable
-            | TheoryTermSymbolic
-            | TheoryTermTuple
-            | TheoryTermFunction
-            | TheoryTermUnparsed
-        ],
-        condition: typing.Iterable[
-            LiteralBoolean | LiteralComparison | LiteralSymbolic
-        ],
-    ) -> None:
-        """
-        Construct a TheoryAtomElement object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the element.
-            tuple: The theory term tuple of the element.
-            condition: The condition of the element.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TheoryAtomElement | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryAtomElement:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def condition(
-        self,
-    ) -> typing.Sequence[LiteralBoolean | LiteralComparison | LiteralSymbolic]:
-        """
-        The condition of the element.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the element.
-        """
-
-    @property
-    def tuple(
-        self,
-    ) -> typing.Sequence[
-        TheoryTermVariable
-        | TheoryTermSymbolic
-        | TheoryTermTuple
-        | TheoryTermFunction
-        | TheoryTermUnparsed
-    ]:
-        """
-        The theory term tuple of the element.
-        """
-
-class TheoryGuardDefinition:
-    """
-    A definition of a theory guard.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self, lib: clingo.core.Library, operators: typing.Iterable[str], term: str
-    ) -> None:
-        """
-        Construct a TheoryGuardDefinition object.
-
-        Args:
-            lib: The library object for storing symbols.
-            operators: A list of operator definition names.
-            term: The name of a term definition.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TheoryGuardDefinition | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryGuardDefinition:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def operators(self) -> typing.Sequence[str]:
-        """
-        A list of operator definition names.
-        """
-
-    @property
-    def term(self) -> str:
-        """
-        The name of a term definition.
-        """
-
-class TheoryOperatorDefinition:
-    """
-    A theory operator definition.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        name: str,
-        priority: int,
-        operator_type: TheoryOperatorType,
-    ) -> None:
-        """
-        Construct a TheoryOperatorDefinition object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the definition.
-            name: The name of the definition.
-            priority: The priority of the operator.
-            operator_type: The type of the operator.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TheoryOperatorDefinition | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryOperatorDefinition:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the definition.
-        """
-
-    @property
-    def name(self) -> str:
-        """
-        The name of the definition.
-        """
-
-    @property
-    def operator_type(self) -> TheoryOperatorType:
-        """
-        The type of the operator.
-        """
-
-    @property
-    def priority(self) -> int:
-        """
-        The priority of the operator.
-        """
-
-class TheoryRightGuard:
-    """
-    A right hand side guard consisting of a theory operator and theory
-    term.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        theory_operator: str,
-        term: (
-            TheoryTermVariable
-            | TheoryTermSymbolic
-            | TheoryTermTuple
-            | TheoryTermFunction
-            | TheoryTermUnparsed
+        statement: (
+            StatementRule
+            | StatementTheory
+            | StatementOptimize
+            | StatementWeakConstraint
+            | StatementShow
+            | StatementShowNothing
+            | StatementShowSignature
+            | StatementProject
+            | StatementProjectSignature
+            | StatementDefined
+            | StatementExternal
+            | StatementEdge
+            | StatementHeuristic
+            | StatementScript
+            | StatementInclude
+            | StatementProgram
+            | StatementParts
+            | StatementConst
+            | StatementComment
         ),
     ) -> None:
         """
-        Construct a TheoryRightGuard object.
+        Add a statement to a program.
 
         Args:
-            lib: The library object for storing symbols.
-            theory_operator: The operator of the guard.
-            term: The theory term of the guard.
+            statement: The statement to add.
         """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TheoryRightGuard | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryRightGuard:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def term(
-        self,
-    ) -> (
-        TheoryTermVariable
-        | TheoryTermSymbolic
-        | TheoryTermTuple
-        | TheoryTermFunction
-        | TheoryTermUnparsed
-    ):
-        """
-        The theory term of the guard.
-        """
-
-    @property
-    def theory_operator(self) -> str:
-        """
-        The operator of the guard.
-        """
-
-class TheoryTermDefinition:
-    """
-    A theory term definition.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        name: str,
-        operators: typing.Iterable[TheoryOperatorDefinition],
-    ) -> None:
-        """
-        Construct a TheoryTermDefinition object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the definition.
-            name: The name of the definition.
-            operators: The operator definitions to construct terms.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TheoryTermDefinition | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermDefinition:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the definition.
-        """
-
-    @property
-    def name(self) -> str:
-        """
-        The name of the definition.
-        """
-
-    @property
-    def operators(self) -> typing.Sequence[TheoryOperatorDefinition]:
-        """
-        The operator definitions to construct terms.
-        """
-
-class TheoryTermFunction:
-    """
-    A theory term representing a function.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        name: str,
-        arguments: typing.Iterable[
-            TheoryTermVariable
-            | TheoryTermSymbolic
-            | TheoryTermTuple
-            | TheoryTermFunction
-            | TheoryTermUnparsed
-        ],
-    ) -> None:
-        """
-        Construct a TheoryTermFunction object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the function.
-            name: The name of the function.
-            arguments: The arguments of the function.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TheoryTermFunction | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermFunction:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def arguments(
-        self,
-    ) -> typing.Sequence[
-        TheoryTermVariable
-        | TheoryTermSymbolic
-        | TheoryTermTuple
-        | TheoryTermFunction
-        | TheoryTermUnparsed
-    ]:
-        """
-        The arguments of the function.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the function.
-        """
-
-    @property
-    def name(self) -> str:
-        """
-        The name of the function.
-        """
-
-class TheoryTermSymbolic:
-    """
-    A theory term representing a symbol.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        symbol: clingo.symbol.Symbol,
-    ) -> None:
-        """
-        Construct a TheoryTermSymbolic object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the symbol.
-            symbol: The symbol.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TheoryTermSymbolic | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermSymbolic:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the symbol.
-        """
-
-    @property
-    def symbol(self) -> clingo.symbol.Symbol:
-        """
-        The symbol.
-        """
-
-class TheoryTermTuple:
-    """
-    A theory term representing a tuple.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        tuple_type: TheoryTupleType,
-        arguments: typing.Iterable[
-            TheoryTermVariable
-            | TheoryTermSymbolic
-            | TheoryTermTuple
-            | TheoryTermFunction
-            | TheoryTermUnparsed
-        ],
-    ) -> None:
-        """
-        Construct a TheoryTermTuple object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the tuple.
-            tuple_type: The type of the tuple.
-            arguments: The arguments of the tuple.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TheoryTermTuple | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermTuple:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def arguments(
-        self,
-    ) -> typing.Sequence[
-        TheoryTermVariable
-        | TheoryTermSymbolic
-        | TheoryTermTuple
-        | TheoryTermFunction
-        | TheoryTermUnparsed
-    ]:
-        """
-        The arguments of the tuple.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the tuple.
-        """
-
-    @property
-    def tuple_type(self) -> TheoryTupleType:
-        """
-        The type of the tuple.
-        """
-
-class TheoryTermUnparsed:
-    """
-    A theory term representing an unparsed theory term.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        elements: typing.Iterable[UnparsedElement],
-    ) -> None:
-        """
-        Construct a TheoryTermUnparsed object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the theory term.
-            elements: The unparsed theory elements.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TheoryTermUnparsed | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermUnparsed:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def elements(self) -> typing.Sequence[UnparsedElement]:
-        """
-        The unparsed theory elements.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the theory term.
-        """
-
-class TheoryTermVariable:
-    """
-    A theory term representing a variable.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        location: clingo.core.Location,
-        name: str,
-        anonymous: bool = False,
-    ) -> None:
-        """
-        Construct a TheoryTermVariable object.
-
-        Args:
-            lib: The library object for storing symbols.
-            location: The location of the variable.
-            name: The name of the variable.
-            anonymous: Whether the variable is anonymous.
-
-                Anonymous variables receive a unique name during
-                preprocessing.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> TheoryTermVariable | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> TheoryTermVariable:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def anonymous(self) -> bool:
-        """
-        Whether the variable is anonymous.
-        Anonymous variables receive a unique name during preprocessing.
-        """
-
-    @property
-    def location(self) -> clingo.core.Location:
-        """
-        The location of the variable.
-        """
-
-    @property
-    def name(self) -> str:
-        """
-        The name of the variable.
-        """
-
-class UnparsedElement:
-    """
-    A list of unparsed theory terms and operators.
-    """
-
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
-        """
-        Compute a hash for the object.
-        """
-
-    def __init__(
-        self,
-        lib: clingo.core.Library,
-        operators: typing.Iterable[str],
-        term: (
-            TheoryTermVariable
-            | TheoryTermSymbolic
-            | TheoryTermTuple
-            | TheoryTermFunction
-            | TheoryTermUnparsed
-        ),
-    ) -> None:
-        """
-        Construct a UnparsedElement object.
-
-        Args:
-            lib: The library object for storing symbols.
-            operators: The list of theory operators.
-            term: The theory term.
-        """
-
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str: ...
-    def transform(
-        self, lib: clingo.core.Library, transformer: typing.Any, *args, **kwargs
-    ) -> UnparsedElement | None:
-        """
-        Transform the expression.
-
-        Additional arguments are passed to the transformer.
-
-        Args:
-            lib: The library object for storing symbols.
-            transformer: The transformer accepting the sub expressions.
-        Returns:
-            The transformed object or None.
-        """
-
-    def update(self, lib: clingo.core.Library, **kwargs) -> UnparsedElement:
-        """
-        Update the expression.
-
-        Accepts keyword arguments with attributes to update.
-
-        Args:
-            lib: The library object for storing symbols.
-        Returns:
-            The updated object.
-        """
-
-    def visit(self, visitor: typing.Any, *args, **kwargs) -> None:
-        """
-        Visit the children of the expression.
-
-        Args:
-            visitor: The visitor accepting the sub expressions.
-        """
-
-    @property
-    def operators(self) -> typing.Sequence[str]:
-        """
-        The list of theory operators.
-        """
-
-    @property
-    def term(
-        self,
-    ) -> (
-        TheoryTermVariable
-        | TheoryTermSymbolic
-        | TheoryTermTuple
-        | TheoryTermFunction
-        | TheoryTermUnparsed
-    ):
-        """
-        The theory term.
-        """
-
-BodyLiteral = (
-    BodySimpleLiteral
-    | BodyAggregate
-    | BodySort
-    | BodySetAggregate
-    | BodyTheoryAtom
-    | BodyConditionalLiteral
-)
-DisjunctionElement = (
-    LiteralBoolean | LiteralComparison | LiteralSymbolic | HeadConditionalLiteral
-)
-FormatField = FormatFieldLiteral | FormatFieldExpression
-HeadLiteral = (
-    HeadSimpleLiteral
-    | HeadAggregate
-    | HeadSetAggregate
-    | HeadTheoryAtom
-    | HeadDisjunction
-)
-Literal = LiteralBoolean | LiteralComparison | LiteralSymbolic
-Statement = (
-    StatementRule
-    | StatementTheory
-    | StatementOptimize
-    | StatementWeakConstraint
-    | StatementShow
-    | StatementShowNothing
-    | StatementShowSignature
-    | StatementProject
-    | StatementProjectSignature
-    | StatementDefined
-    | StatementExternal
-    | StatementEdge
-    | StatementHeuristic
-    | StatementScript
-    | StatementInclude
-    | StatementProgram
-    | StatementParts
-    | StatementConst
-    | StatementComment
-)
-Term = (
-    TermVariable
-    | TermSymbolic
-    | TermAbsolute
-    | TermUnaryOperation
-    | TermBinaryOperation
-    | TermTuple
-    | TermFunction
-    | TermFormatString
-)
-TermOrArgumentTuple = (
-    TermVariable
-    | TermSymbolic
-    | TermAbsolute
-    | TermUnaryOperation
-    | TermBinaryOperation
-    | TermTuple
-    | TermFunction
-    | TermFormatString
-    | ArgumentTuple
-)
-TermOrProjection = (
-    TermVariable
-    | TermSymbolic
-    | TermAbsolute
-    | TermUnaryOperation
-    | TermBinaryOperation
-    | TermTuple
-    | TermFunction
-    | TermFormatString
-    | Projection
-)
-TheoryTerm = (
-    TheoryTermVariable
-    | TheoryTermSymbolic
-    | TheoryTermTuple
-    | TheoryTermFunction
-    | TheoryTermUnparsed
-)

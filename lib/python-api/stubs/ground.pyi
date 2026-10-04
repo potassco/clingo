@@ -64,17 +64,9 @@ class GroundResult(enum.IntEnum):
     Enumeration of ground result types.
     """
 
-    Interrupted: typing.ClassVar[GroundResult]  # value = <GroundResult.Interrupted: 2>
-    Ok: typing.ClassVar[GroundResult]  # value = <GroundResult.Ok: 0>
-    Unsatisfiable: typing.ClassVar[
-        GroundResult
-    ]  # value = <GroundResult.Unsatisfiable: 1>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
+    Interrupted = typing.cast(int, ...)
+    Ok = typing.cast(int, ...)
+    Unsatisfiable = typing.cast(int, ...)
 
 class GroundHandle:
     """

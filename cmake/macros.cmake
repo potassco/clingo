@@ -88,7 +88,13 @@ function(clingo_git_hash target)
     )
 
     file(MAKE_DIRECTORY "${header_directory}")
-    if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+    if(DEFINED CLINGO_GIT_HASH AND NOT "${CLINGO_GIT_HASH}" STREQUAL "")
+        file(WRITE "${header_file}"
+"#pragma once
+
+#define CLINGO_GIT_HASH ${CLINGO_GIT_HASH}
+")
+    elseif(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
         add_custom_target("${target}_git_hash" ALL
             COMMAND "${CMAKE_COMMAND}"
                 "-DGIT_EXECUTABLE=${GIT_EXECUTABLE}"

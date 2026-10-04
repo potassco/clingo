@@ -44,15 +44,56 @@ class ControlMode(enum.IntEnum):
     Available control modes.
     """
 
-    Ground: typing.ClassVar[ControlMode]  # value = <ControlMode.Ground: 2>
-    Parse: typing.ClassVar[ControlMode]  # value = <ControlMode.Parse: 0>
-    Rewrite: typing.ClassVar[ControlMode]  # value = <ControlMode.Rewrite: 1>
-    Solve: typing.ClassVar[ControlMode]  # value = <ControlMode.Solve: 3>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
+    Ground = typing.cast(int, ...)
+    Parse = typing.cast(int, ...)
+    Rewrite = typing.cast(int, ...)
+    Solve = typing.cast(int, ...)
+
+class _ConstMap:
+    """
+    The map from constants defined by #const directives.
+    """
+
+    def __contains__(self, key: str) -> bool:
         """
-        Convert to a string according to format_spec.
+        Check if the map contains the given key.
+        """
+
+    def __getitem__(self, key: str) -> clingo.symbol.Symbol:
+        """
+        Get the value for the given key.
+        """
+
+    def __iter__(self) -> collections.abc.Iterator[str]:
+        """
+        Get an iterator over the keys in the map.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the number elements in the map.
+        """
+
+    def get(
+        self, key: str, default: clingo.symbol.Symbol | None = None
+    ) -> clingo.symbol.Symbol | None:
+        """
+        Get the value for the given key or the default if absent.
+        """
+
+    def items(self) -> collections.abc.Iterator[tuple[str, clingo.symbol.Symbol]]:
+        """
+        Get an iterator over the items in the map.
+        """
+
+    def keys(self) -> collections.abc.Iterator[str]:
+        """
+        Get an iterator over the keys in the map.
+        """
+
+    def values(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
+        """
+        Get an iterator over the values in the map.
         """
 
 class Control:
@@ -411,51 +452,4 @@ class Control:
     def stats(self) -> clingo.stats.StatsView:
         """
         Get the solver stats.
-        """
-
-class _ConstMap:
-    """
-    The map from constants defined by #const directives.
-    """
-
-    def __contains__(self, key: str) -> bool:
-        """
-        Check if the map contains the given key.
-        """
-
-    def __getitem__(self, key: str) -> clingo.symbol.Symbol:
-        """
-        Get the value for the given key.
-        """
-
-    def __iter__(self) -> collections.abc.Iterator[str]:
-        """
-        Get an iterator over the keys in the map.
-        """
-
-    def __len__(self) -> int:
-        """
-        Get the number elements in the map.
-        """
-
-    def get(
-        self, key: str, default: clingo.symbol.Symbol | None = None
-    ) -> clingo.symbol.Symbol | None:
-        """
-        Get the value for the given key or the default if absent.
-        """
-
-    def items(self) -> collections.abc.Iterator[tuple[str, clingo.symbol.Symbol]]:
-        """
-        Get an iterator over the items in the map.
-        """
-
-    def keys(self) -> collections.abc.Iterator[str]:
-        """
-        Get an iterator over the keys in the map.
-        """
-
-    def values(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
-        """
-        Get an iterator over the values in the map.
         """

@@ -20,8 +20,8 @@ import isort
 def reorder_classes(content: str, order: list[str]) -> str:
     class_regex = re.compile(
         r"^class\s+(\w+).*?:\n"  # class preamble
-        r"(?:^[ ]{4}.*\n|^\n)*"  # class body
-        r"^[ ]{4}[^ ].*$",  # end of class body
+        r"(?:^[ ]{4}.*\n|^\n)*",  # class body
+        # r"^[ ]{4}[^ ].*$",  # end of class body
         re.MULTILINE,
     )
 
@@ -47,6 +47,7 @@ def reorder_classes(content: str, order: list[str]) -> str:
     for piece in pieces:
         if piece in classes:
             if piece in order:
+                print(order_stack[0])
                 result.append(classes[order_stack.pop(0)])
             else:
                 result.append(classes[piece])
@@ -143,26 +144,39 @@ class Rewriter:
 
         return re.sub(repr_pattern, replace_repr, class_def)
 
-    def generate_enum_members(self, class_def):
+    def generate_enum_members_spec(self, class_def):
         """
         Generate members of enums.
         """
-        pattern = r"(\w+):\s*typing\.ClassVar\[(.*?)\].*?#\s*value\s*=\s*<.*?\.\w+:\s*(-?\d+)>"
-        matches = re.findall(pattern, class_def, re.DOTALL)
+        pattern = r"(\w+):\s*typing\.ClassVar\[(.*?)\].*?"
 
         def repl(match):
-            member, _, value = match.groups()
-            return f"{member} = {value}"
+            member, _ = match.groups()
+            return f"{member} = typing.cast(int, ...)"
 
         class_def = re.sub(pattern, repl, class_def)
         class_def = re.sub(r"@classmethod[\s\S]*", "", class_def)
 
-        repr_impl = ""
-        # Generate assignments
-        for member, class_name, _value in matches:
-            repr_impl += f'if self.{member} is self: return "{class_name}.{member}"\n'
+        return class_def
 
-        return self.patch_repr(class_def, repr_impl) + "\n"
+    def generate_enum_members(self, class_def):
+        """
+        Generate members of enums.
+        """
+        pattern = r"(\w+):\s*typing\.ClassVar\[(.*?)\].*?"
+
+        i = -1
+
+        def repl(match):
+            nonlocal i
+            member, _ = match.groups()
+            i += 1
+            return f"{member} = {i}"
+
+        class_def = re.sub(pattern, repl, class_def)
+        class_def = re.sub(r"@classmethod[\s\S]*", "", class_def)
+
+        return class_def
 
     def enums_to_top(self, content: str):
         """
@@ -184,7 +198,9 @@ class Rewriter:
         for class_def in classes:
             if "typing.ClassVar" in class_def:
                 enum_classes.append(
-                    self.generate_enum_members(class_def) if self.python else class_def
+                    self.generate_enum_members(class_def)
+                    if self.python
+                    else self.generate_enum_members_spec(class_def)
                 )
             else:
                 other_classes.append(class_def)

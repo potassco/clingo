@@ -74,55 +74,173 @@ __all__: list[str] = [
     "WeightConstraintType",
 ]
 
+class WeightConstraintType(enum.IntEnum):
+    """
+    Enumeration of weight constraint types.
+    """
+
+    Equivalence = typing.cast(int, ...)
+    LeftImplication = typing.cast(int, ...)
+    RightImplication = typing.cast(int, ...)
+
 class CheckMode(enum.IntEnum):
     """
     Enumeration of check modes.
     """
 
-    Both: typing.ClassVar[CheckMode]  # value = <CheckMode.Both: 3>
-    Fixpoint: typing.ClassVar[CheckMode]  # value = <CheckMode.Fixpoint: 2>
-    Off: typing.ClassVar[CheckMode]  # value = <CheckMode.Off: 0>
-    Total: typing.ClassVar[CheckMode]  # value = <CheckMode.Total: 1>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
+    Both = typing.cast(int, ...)
+    Fixpoint = typing.cast(int, ...)
+    Off = typing.cast(int, ...)
+    Total = typing.cast(int, ...)
 
 class UndoMode(enum.IntEnum):
     """
     Enumeration of undo modes.
     """
 
-    Always: typing.ClassVar[UndoMode]  # value = <UndoMode.Always: 1>
-    Default: typing.ClassVar[UndoMode]  # value = <UndoMode.Default: 0>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
-        """
-        Convert to a string according to format_spec.
-        """
+    Always = typing.cast(int, ...)
+    Default = typing.cast(int, ...)
 
-class WeightConstraintType(enum.IntEnum):
+class _TrailView:
     """
-    Enumeration of weight constraint types.
+    Provides access to a subrange of literals in the solver's trail.
+
+    Implements `Sequence[int]` to access the solver literals in the view.
     """
 
-    Equivalence: typing.ClassVar[
-        WeightConstraintType
-    ]  # value = <WeightConstraintType.Equivalence: 0>
-    LeftImplication: typing.ClassVar[
-        WeightConstraintType
-    ]  # value = <WeightConstraintType.LeftImplication: -1>
-    RightImplication: typing.ClassVar[
-        WeightConstraintType
-    ]  # value = <WeightConstraintType.RightImplication: 1>
-    @classmethod
-    def __new__(cls, value): ...
-    def __format__(self, format_spec):
+    def __contains__(self, value: int) -> bool:
         """
-        Convert to a string according to format_spec.
+        Check whether the sequence contains the given value.
+        """
+
+    @typing.overload
+    def __getitem__(self, index: int) -> int:
+        """
+        Get the value at the given index.
+        """
+
+    @typing.overload
+    def __getitem__(self, slice: slice) -> typing.Sequence[int]:
+        """
+        Slice the sequence.
+        """
+
+    def __iter__(self) -> collections.abc.Iterator[int]:
+        """
+        Get an iterator for the sequence.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the size of the sequence.
+        """
+
+    def __reversed__(self) -> collections.abc.Iterator[int]:
+        """
+        Get a reverse iterator for the sequence.
+        """
+
+    def count(self, value: int) -> int:
+        """
+        Count how often the given value occurs in the sequence.
+        """
+
+    def index(self, value: int) -> int:
+        """
+        Get the index of the given value in the sequence.
+        """
+
+class Trail:
+    """
+    Provides access to literals in the solver's trail.
+
+    The trail represents the sequence of literals assigned during the solving
+    process. It is structured by decision levels, where each level contains
+    literals assigned due to implications from the decision literal at that level.
+
+    The literals within each level are ordered by implication, reflecting the
+    logical dependencies between them as determined by the solver's propagation and
+    learning mechanisms. The decision literal for each level is placed at the
+    beginning of its respective sequence.
+
+    Implements `Sequence[int]` to access the solver literals in the trail.
+    """
+
+    def __contains__(self, value: int) -> bool:
+        """
+        Check whether the sequence contains the given value.
+        """
+
+    @typing.overload
+    def __getitem__(self, index: int) -> int:
+        """
+        Get the value at the given index.
+        """
+
+    @typing.overload
+    def __getitem__(self, slice: slice) -> typing.Sequence[int]:
+        """
+        Slice the sequence.
+        """
+
+    def __iter__(self) -> collections.abc.Iterator[int]:
+        """
+        Get an iterator for the sequence.
+        """
+
+    def __len__(self) -> int:
+        """
+        Get the size of the sequence.
+        """
+
+    def __reversed__(self) -> collections.abc.Iterator[int]:
+        """
+        Get a reverse iterator for the sequence.
+        """
+
+    def begin(self, level: int) -> int:
+        """
+        Get the index of the first literal on the given level.
+
+        This also corresponds to the decision literal for that level.
+
+        Args:
+            level: A decision level.
+        Returns:
+            The index of the decision literal.
+        """
+
+    def count(self, value: int) -> int:
+        """
+        Count how often the given value occurs in the sequence.
+        """
+
+    def end(self, level: int) -> int:
+        """
+        Get the index after the last literal on the given level.
+
+        Args:
+            level: A decision level.
+        Returns:
+            The index after the last literal.
+        """
+
+    def index(self, value: int) -> int:
+        """
+        Get the index of the given value in the sequence.
+        """
+
+    def level(self, level: int) -> typing.Sequence[int]:
+        """
+        Get the literals assigned at the given decision level.
+
+        This sequence includes all literals assigned at this level in implication
+        order, with the decision literal at the beginning of the sequence.
+
+        Args:
+            level: A decision level.
+        Returns:
+            A sequence of literals.
         """
 
 class Assignment:
@@ -512,7 +630,6 @@ class PropagateInit(PropagateControl):
 
 class Propagator:
     """
-
     Interface for implementing propagators.
 
     This class defines methods that can be implemented to create custom propagators
@@ -620,146 +737,4 @@ class Propagator:
                 The current assignment.
             changes:
                 The literals whose assignment is undone.
-        """
-
-class Trail:
-    """
-    Provides access to literals in the solver's trail.
-
-    The trail represents the sequence of literals assigned during the solving
-    process. It is structured by decision levels, where each level contains
-    literals assigned due to implications from the decision literal at that level.
-
-    The literals within each level are ordered by implication, reflecting the
-    logical dependencies between them as determined by the solver's propagation and
-    learning mechanisms. The decision literal for each level is placed at the
-    beginning of its respective sequence.
-
-    Implements `Sequence[int]` to access the solver literals in the trail.
-    """
-
-    def __contains__(self, value: int) -> bool:
-        """
-        Check whether the sequence contains the given value.
-        """
-
-    @typing.overload
-    def __getitem__(self, index: int) -> int:
-        """
-        Get the value at the given index.
-        """
-
-    @typing.overload
-    def __getitem__(self, slice: slice) -> typing.Sequence[int]:
-        """
-        Slice the sequence.
-        """
-
-    def __iter__(self) -> collections.abc.Iterator[int]:
-        """
-        Get an iterator for the sequence.
-        """
-
-    def __len__(self) -> int:
-        """
-        Get the size of the sequence.
-        """
-
-    def __reversed__(self) -> collections.abc.Iterator[int]:
-        """
-        Get a reverse iterator for the sequence.
-        """
-
-    def begin(self, level: int) -> int:
-        """
-        Get the index of the first literal on the given level.
-
-        This also corresponds to the decision literal for that level.
-
-        Args:
-            level: A decision level.
-        Returns:
-            The index of the decision literal.
-        """
-
-    def count(self, value: int) -> int:
-        """
-        Count how often the given value occurs in the sequence.
-        """
-
-    def end(self, level: int) -> int:
-        """
-        Get the index after the last literal on the given level.
-
-        Args:
-            level: A decision level.
-        Returns:
-            The index after the last literal.
-        """
-
-    def index(self, value: int) -> int:
-        """
-        Get the index of the given value in the sequence.
-        """
-
-    def level(self, level: int) -> typing.Sequence[int]:
-        """
-        Get the literals assigned at the given decision level.
-
-        This sequence includes all literals assigned at this level in implication
-        order, with the decision literal at the beginning of the sequence.
-
-        Args:
-            level: A decision level.
-        Returns:
-            A sequence of literals.
-        """
-
-class _TrailView:
-    """
-    Provides access to a subrange of literals in the solver's trail.
-
-    Implements `Sequence[int]` to access the solver literals in the view.
-    """
-
-    def __contains__(self, value: int) -> bool:
-        """
-        Check whether the sequence contains the given value.
-        """
-
-    @typing.overload
-    def __getitem__(self, index: int) -> int:
-        """
-        Get the value at the given index.
-        """
-
-    @typing.overload
-    def __getitem__(self, slice: slice) -> typing.Sequence[int]:
-        """
-        Slice the sequence.
-        """
-
-    def __iter__(self) -> collections.abc.Iterator[int]:
-        """
-        Get an iterator for the sequence.
-        """
-
-    def __len__(self) -> int:
-        """
-        Get the size of the sequence.
-        """
-
-    def __reversed__(self) -> collections.abc.Iterator[int]:
-        """
-        Get a reverse iterator for the sequence.
-        """
-
-    def count(self, value: int) -> int:
-        """
-        Count how often the given value occurs in the sequence.
-        """
-
-    def index(self, value: int) -> int:
-        """
-        Get the index of the given value in the sequence.
         """
