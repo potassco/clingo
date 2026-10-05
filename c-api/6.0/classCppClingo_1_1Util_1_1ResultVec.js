@@ -1,0 +1,28 @@
+var classCppClingo_1_1Util_1_1ResultVec =
+[
+    [ "Array", "classCppClingo_1_1Util_1_1ResultVec.html#a64bb6e42ba431b4171057e9904a72bca", null ],
+    [ "Iterator", "classCppClingo_1_1Util_1_1ResultVec.html#a28192523d3db875e7cdcf56c9453cfaa", null ],
+    [ "Result", "classCppClingo_1_1Util_1_1ResultVec.html#a31176b2236ab950b6a596fe21f83980d", null ],
+    [ "Source", "classCppClingo_1_1Util_1_1ResultVec.html#a986b3e62a90f55b033d8c789a2922d5d", null ],
+    [ "Span", "classCppClingo_1_1Util_1_1ResultVec.html#a56e0575141be450df8a36959b366d2be", null ],
+    [ "ValueType", "classCppClingo_1_1Util_1_1ResultVec.html#a7ea7a7df5fb7be6ca84ee333e4b88f2a", null ],
+    [ "Vector", "classCppClingo_1_1Util_1_1ResultVec.html#ad4bae33fa0fb5b13e59f06d63ec164a4", null ],
+    [ "ResultVec", "classCppClingo_1_1Util_1_1ResultVec.html#ab1a08c2f1343f916dde6f8f606d75269", null ],
+    [ "append", "classCppClingo_1_1Util_1_1ResultVec.html#a9cd5cbc63f82d63e5952adcef6863343", null ],
+    [ "as_optional", "classCppClingo_1_1Util_1_1ResultVec.html#ad106b4029ef994dfc44711f2a04dd16c", null ],
+    [ "as_optional", "classCppClingo_1_1Util_1_1ResultVec.html#acbffdd8950cbd6be53dd0f4b5967d38e", null ],
+    [ "complete", "classCppClingo_1_1Util_1_1ResultVec.html#a41463e7b6ecbd0b2ff299545b4923151", null ],
+    [ "current", "classCppClingo_1_1Util_1_1ResultVec.html#a411b8a654cbe76891575ee18e622c8a2", null ],
+    [ "extend", "classCppClingo_1_1Util_1_1ResultVec.html#ad868e92b12160c90542aeb0da5f72a5c", null ],
+    [ "has_value", "classCppClingo_1_1Util_1_1ResultVec.html#aac70af294a4c0f7add0aa357e1cd29a6", null ],
+    [ "keep", "classCppClingo_1_1Util_1_1ResultVec.html#a1de37d26b0ac667814917b9a604df995", null ],
+    [ "keep_all", "classCppClingo_1_1Util_1_1ResultVec.html#a545aeb79be46ee6e1eb12388ed22b07e", null ],
+    [ "operator bool", "classCppClingo_1_1Util_1_1ResultVec.html#a593e1f5cb2f49fa769bd5d7273513eb7", null ],
+    [ "operator*", "classCppClingo_1_1Util_1_1ResultVec.html#af0fc2c7cf169348b06b57896d0693a83", null ],
+    [ "operator*", "classCppClingo_1_1Util_1_1ResultVec.html#aa65181ab47b5b3a33096c384ba9ca9de", null ],
+    [ "remove", "classCppClingo_1_1Util_1_1ResultVec.html#a2817b0a50e130e3e7577a8b479144425", null ],
+    [ "replace", "classCppClingo_1_1Util_1_1ResultVec.html#aed150b533daa3677d73455aeff9a6269", null ],
+    [ "update", "classCppClingo_1_1Util_1_1ResultVec.html#ac270287ff34ea8d7c3453d8b84e41575", null ],
+    [ "value", "classCppClingo_1_1Util_1_1ResultVec.html#a5ff349043d10d3a2643fbb2950a24f24", null ],
+    [ "value", "classCppClingo_1_1Util_1_1ResultVec.html#a64b7450c5de0136ebe3f04fe3d2767ed", null ]
+];

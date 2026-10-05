@@ -1,0 +1,1574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>clingo.solving API documentation</title>
+<meta name="description" content="Functions and classes related to solving …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<nav class="http-server-breadcrumbs">
+<a href="https://potassco.org/clingo/python-api/5.8/">All packages</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/">clingo</a>
+</nav>
+<h1 class="title">Module <code>clingo.solving</code></h1>
+</header>
+<section id="section-intro">
+<p>Functions and classes related to solving.</p>
+<h2 id="examples">Examples</h2>
+<p>The following example shows how to intercept models with a callback:</p>
+<pre><code>&gt;&gt;&gt; from clingo import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl = Control(["0"])
+&gt;&gt;&gt; ctl.add("base", [], "1 { a; b } 1.")
+&gt;&gt;&gt; ctl.ground([("base", [])])
+&gt;&gt;&gt; print(ctl.solve(on_model=print))
+Answer: a
+Answer: b
+SAT
+</code></pre>
+<p>The following example shows how to yield models:</p>
+<pre><code>&gt;&gt;&gt; from clingo import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl = Control(["0"])
+&gt;&gt;&gt; ctl.add("base", [], "1 { a; b } 1.")
+&gt;&gt;&gt; ctl.ground([("base", [])])
+&gt;&gt;&gt; with ctl.solve(yield_=True) as hnd:
+...     for m in hnd:
+...         print(m)
+...     print(hnd.get())
+...
+Answer: a
+Answer: b
+SAT
+</code></pre>
+<p>The following example shows how to solve asynchronously:</p>
+<pre><code>&gt;&gt;&gt; from clingo import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl = Control(["0"])
+&gt;&gt;&gt; ctl.add("base", [], "1 { a; b } 1.")
+&gt;&gt;&gt; ctl.ground([("base", [])])
+&gt;&gt;&gt; with ctl.solve(on_model=print, async_=True) as hnd:
+...     # some computation here
+...     hnd.wait()
+...     print(hnd.get())
+...
+Answer: a
+Answer: b
+SAT
+</code></pre>
+<p>This example shows how to solve both iteratively and asynchronously:</p>
+<pre><code>&gt;&gt;&gt; from clingo import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl = Control(["0"])
+&gt;&gt;&gt; ctl.add("base", [], "1 { a; b } 1.")
+&gt;&gt;&gt; ctl.ground([("base", [])])
+&gt;&gt;&gt; with ctl.solve(yield_=True, async_=True) as hnd:
+...     while True:
+...         hnd.resume()
+...         # some computation here
+...         _ = hnd.wait()
+...         m = hnd.model()
+...         if m is None:
+...             print(hnd.get())
+...             break
+...         print(m)
+b
+a
+a b
+None
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.solving.Model"><code class="flex name class">
+<span>class <span class="ident">Model</span></span>
+<span>(</span><span>rep)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Model:
+    &#34;&#34;&#34;
+    Provides access to a model during a solve call and provides a
+    `SolveContext` object to influence the running search.
+
+    Notes
+    -----
+    The string representation of a model object is similar to the output of
+    models by clingo using the default output.
+
+    `Model` objects cannot be constructed from Python. Instead they are obained
+    during solving (see `Control.solve`). Furthermore, the lifetime of a model
+    object is limited to the scope of the callback it was passed to or until
+    the search for the next model is started. They must not be stored for later
+    use.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep):
+        self._rep = rep
+
+    def contains(self, atom: Symbol) -&gt; bool:
+        &#34;&#34;&#34;
+        Efficiently check if an atom is contained in the model.
+
+        Parameters
+        ----------
+        atom
+            The atom to lookup.
+
+        Returns
+        -------
+        Whether the given atom is contained in the model.
+
+        Notes
+        -----
+        The atom must be represented using a function symbol.
+        &#34;&#34;&#34;
+        # pylint: disable=protected-access
+        return _c_call(&#34;bool&#34;, _lib.clingo_model_contains, self._rep, atom._rep)
+
+    def extend(self, symbols: Sequence[Symbol]) -&gt; None:
+        &#34;&#34;&#34;
+        Extend a model with the given symbols.
+
+        Parameters
+        ----------
+        symbols
+            The symbols to add to the model.
+
+        Notes
+        -----
+        This only has an effect if there is an underlying clingo application,
+        which will print the added symbols.
+        &#34;&#34;&#34;
+        # pylint: disable=protected-access
+        c_symbols = _ffi.new(&#34;clingo_symbol_t[]&#34;, len(symbols))
+        for i, sym in enumerate(symbols):
+            c_symbols[i] = sym._rep
+        _handle_error(_lib.clingo_model_extend(self._rep, c_symbols, len(symbols)))
+
+    def is_true(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Check if the given program literal is true.
+
+        Parameters
+        ----------
+        literal
+            The given program literal.
+
+        Returns
+        -------
+        Whether the given program literal is true.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_model_is_true, self._rep, literal)
+
+    def is_consequence(self, literal: int) -&gt; Optional[bool]:
+        &#34;&#34;&#34;
+        Check if the given program literal is a consequence.
+
+        The function returns `True`, `False`, or `None` if the literal is a
+        consequence, not a consequence, or it is not yet known whether it is a
+        consequence, respectively.
+
+        While enumerating cautious or brave consequences, there is partial
+        information about which literals are consequences. The current state of
+        a literal can be requested using this function. If this function is
+        used during normal model enumeration, the function just returns whether
+        a literal is true of false in the current model.
+
+        Parameters
+        ----------
+        literal
+            The given program literal.
+
+        Returns
+        -------
+        Whether the given program literal is a consequence.
+        &#34;&#34;&#34;
+        res = _c_call(
+            &#34;clingo_consequence_t&#34;, _lib.clingo_model_is_consequence, self._rep, literal
+        )
+        if res == _lib.clingo_consequence_true:
+            return True
+        if res == _lib.clingo_consequence_false:
+            return False
+        return None
+
+    def symbols(
+        self,
+        atoms: bool = False,
+        terms: bool = False,
+        shown: bool = False,
+        theory: bool = False,
+        complement: bool = False,
+    ) -&gt; Sequence[Symbol]:
+        &#34;&#34;&#34;
+        Return the list of atoms, terms, or CSP assignments in the model.
+
+        Parameters
+        ----------
+        atoms
+            Select all atoms in the model (independent of `#show` statements).
+        terms
+            Select all terms displayed with `#show` statements in the model.
+        shown
+            Select all atoms and terms as outputted by clingo.
+        theory
+            Select atoms added with `Model.extend`.
+        complement
+            Return the complement of the answer set w.r.t. to the atoms known
+            to the grounder.
+
+        Returns
+        -------
+        The selected symbols.
+
+        Notes
+        -----
+        Atoms are represented using functions (`Symbol` objects), and CSP
+        assignments are represented using functions with name `&#34;$&#34;` where the
+        first argument is the name of the CSP variable and the second its
+        value.
+        &#34;&#34;&#34;
+        show = 0
+        if atoms:
+            show |= _lib.clingo_show_type_atoms
+        if terms:
+            show |= _lib.clingo_show_type_terms
+        if shown:
+            show |= _lib.clingo_show_type_shown
+        if theory:
+            show |= _lib.clingo_show_type_theory
+        if complement:
+            show |= _lib.clingo_show_type_complement
+
+        size = _c_call(&#34;size_t&#34;, _lib.clingo_model_symbols_size, self._rep, show)
+
+        p_symbols = _ffi.new(&#34;clingo_symbol_t[]&#34;, size)
+        _handle_error(_lib.clingo_model_symbols(self._rep, show, p_symbols, size))
+
+        return _SymbolSequence(p_symbols)
+
+    def __str__(self):
+        return &#34; &#34;.join(map(str, self.symbols(shown=True)))
+
+    def __repr__(self):
+        return f&#34;Model({self._rep!r})&#34;
+
+    @property
+    def context(self) -&gt; SolveControl:
+        &#34;&#34;&#34;
+        Object that allows for controlling the running search.
+        &#34;&#34;&#34;
+        ctl = _c_call(&#34;clingo_solve_control_t*&#34;, _lib.clingo_model_context, self._rep)
+        return SolveControl(ctl)
+
+    @property
+    def cost(self) -&gt; List[int]:
+        &#34;&#34;&#34;
+        Return the list of integer cost values of the model.
+
+        The return values correspond to clasp&#39;s cost output.
+        &#34;&#34;&#34;
+        size = _c_call(&#34;size_t&#34;, _lib.clingo_model_cost_size, self._rep)
+
+        p_costs = _ffi.new(&#34;int64_t[]&#34;, size)
+        _handle_error(_lib.clingo_model_cost(self._rep, p_costs, size))
+
+        return list(p_costs)
+
+    @property
+    def priority(self) -&gt; List[int]:
+        &#34;&#34;&#34;
+        Return the priorities of the model&#39;s cost values.
+        &#34;&#34;&#34;
+        size = _c_call(&#34;size_t&#34;, _lib.clingo_model_cost_size, self._rep)
+
+        p_priorities = _ffi.new(&#34;clingo_weight_t[]&#34;, size)
+        _handle_error(_lib.clingo_model_priority(self._rep, p_priorities, size))
+
+        return list(p_priorities)
+
+    @property
+    def number(self) -&gt; int:
+        &#34;&#34;&#34;
+        The running number of the model.
+        &#34;&#34;&#34;
+        return _c_call(&#34;uint64_t&#34;, _lib.clingo_model_number, self._rep)
+
+    @property
+    def optimality_proven(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Whether the optimality of the model has been proven.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_model_optimality_proven, self._rep)
+
+    @property
+    def thread_id(self) -&gt; int:
+        &#34;&#34;&#34;
+        The id of the thread which found the model.
+        &#34;&#34;&#34;
+        return _c_call(&#34;clingo_id_t&#34;, _lib.clingo_model_thread_id, self._rep)
+
+    @property
+    def type(self) -&gt; ModelType:
+        &#34;&#34;&#34;
+        The type of the model.
+        &#34;&#34;&#34;
+        return ModelType(
+            _c_call(&#34;clingo_model_type_t&#34;, _lib.clingo_model_type, self._rep)
+        )</code></pre>
+</details>
+<div class="desc"><p>Provides access to a model during a solve call and provides a
+<code>SolveContext</code> object to influence the running search.</p>
+<h2 id="notes">Notes</h2>
+<p>The string representation of a model object is similar to the output of
+models by clingo using the default output.</p>
+<p><code><a title="clingo.solving.Model" href="#clingo.solving.Model">Model</a></code> objects cannot be constructed from Python. Instead they are obained
+during solving (see <code>Control.solve</code>). Furthermore, the lifetime of a model
+object is limited to the scope of the callback it was passed to or until
+the search for the next model is started. They must not be stored for later
+use.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="clingo.solving.Model.context"><code class="name">prop <span class="ident">context</span> : <a title="clingo.solving.SolveControl" href="#clingo.solving.SolveControl">SolveControl</a></code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def context(self) -&gt; SolveControl:
+    &#34;&#34;&#34;
+    Object that allows for controlling the running search.
+    &#34;&#34;&#34;
+    ctl = _c_call(&#34;clingo_solve_control_t*&#34;, _lib.clingo_model_context, self._rep)
+    return SolveControl(ctl)</code></pre>
+</details>
+<div class="desc"><p>Object that allows for controlling the running search.</p></div>
+</dd>
+<dt id="clingo.solving.Model.cost"><code class="name">prop <span class="ident">cost</span> : List[int]</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def cost(self) -&gt; List[int]:
+    &#34;&#34;&#34;
+    Return the list of integer cost values of the model.
+
+    The return values correspond to clasp&#39;s cost output.
+    &#34;&#34;&#34;
+    size = _c_call(&#34;size_t&#34;, _lib.clingo_model_cost_size, self._rep)
+
+    p_costs = _ffi.new(&#34;int64_t[]&#34;, size)
+    _handle_error(_lib.clingo_model_cost(self._rep, p_costs, size))
+
+    return list(p_costs)</code></pre>
+</details>
+<div class="desc"><p>Return the list of integer cost values of the model.</p>
+<p>The return values correspond to clasp's cost output.</p></div>
+</dd>
+<dt id="clingo.solving.Model.number"><code class="name">prop <span class="ident">number</span> : int</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def number(self) -&gt; int:
+    &#34;&#34;&#34;
+    The running number of the model.
+    &#34;&#34;&#34;
+    return _c_call(&#34;uint64_t&#34;, _lib.clingo_model_number, self._rep)</code></pre>
+</details>
+<div class="desc"><p>The running number of the model.</p></div>
+</dd>
+<dt id="clingo.solving.Model.optimality_proven"><code class="name">prop <span class="ident">optimality_proven</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def optimality_proven(self) -&gt; bool:
+    &#34;&#34;&#34;
+    Whether the optimality of the model has been proven.
+    &#34;&#34;&#34;
+    return _c_call(&#34;bool&#34;, _lib.clingo_model_optimality_proven, self._rep)</code></pre>
+</details>
+<div class="desc"><p>Whether the optimality of the model has been proven.</p></div>
+</dd>
+<dt id="clingo.solving.Model.priority"><code class="name">prop <span class="ident">priority</span> : List[int]</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def priority(self) -&gt; List[int]:
+    &#34;&#34;&#34;
+    Return the priorities of the model&#39;s cost values.
+    &#34;&#34;&#34;
+    size = _c_call(&#34;size_t&#34;, _lib.clingo_model_cost_size, self._rep)
+
+    p_priorities = _ffi.new(&#34;clingo_weight_t[]&#34;, size)
+    _handle_error(_lib.clingo_model_priority(self._rep, p_priorities, size))
+
+    return list(p_priorities)</code></pre>
+</details>
+<div class="desc"><p>Return the priorities of the model's cost values.</p></div>
+</dd>
+<dt id="clingo.solving.Model.thread_id"><code class="name">prop <span class="ident">thread_id</span> : int</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def thread_id(self) -&gt; int:
+    &#34;&#34;&#34;
+    The id of the thread which found the model.
+    &#34;&#34;&#34;
+    return _c_call(&#34;clingo_id_t&#34;, _lib.clingo_model_thread_id, self._rep)</code></pre>
+</details>
+<div class="desc"><p>The id of the thread which found the model.</p></div>
+</dd>
+<dt id="clingo.solving.Model.type"><code class="name">prop <span class="ident">type</span> : <a title="clingo.solving.ModelType" href="#clingo.solving.ModelType">ModelType</a></code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def type(self) -&gt; ModelType:
+    &#34;&#34;&#34;
+    The type of the model.
+    &#34;&#34;&#34;
+    return ModelType(
+        _c_call(&#34;clingo_model_type_t&#34;, _lib.clingo_model_type, self._rep)
+    )</code></pre>
+</details>
+<div class="desc"><p>The type of the model.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.solving.Model.contains"><code class="name flex">
+<span>def <span class="ident">contains</span></span>(<span>self,<br>atom: <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def contains(self, atom: Symbol) -&gt; bool:
+    &#34;&#34;&#34;
+    Efficiently check if an atom is contained in the model.
+
+    Parameters
+    ----------
+    atom
+        The atom to lookup.
+
+    Returns
+    -------
+    Whether the given atom is contained in the model.
+
+    Notes
+    -----
+    The atom must be represented using a function symbol.
+    &#34;&#34;&#34;
+    # pylint: disable=protected-access
+    return _c_call(&#34;bool&#34;, _lib.clingo_model_contains, self._rep, atom._rep)</code></pre>
+</details>
+<div class="desc"><p>Efficiently check if an atom is contained in the model.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atom</code></strong></dt>
+<dd>The atom to lookup.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Whether the given atom is contained in the model.</p>
+<h2 id="notes">Notes</h2>
+<p>The atom must be represented using a function symbol.</p></div>
+</dd>
+<dt id="clingo.solving.Model.extend"><code class="name flex">
+<span>def <span class="ident">extend</span></span>(<span>self,<br>symbols: Sequence[<a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def extend(self, symbols: Sequence[Symbol]) -&gt; None:
+    &#34;&#34;&#34;
+    Extend a model with the given symbols.
+
+    Parameters
+    ----------
+    symbols
+        The symbols to add to the model.
+
+    Notes
+    -----
+    This only has an effect if there is an underlying clingo application,
+    which will print the added symbols.
+    &#34;&#34;&#34;
+    # pylint: disable=protected-access
+    c_symbols = _ffi.new(&#34;clingo_symbol_t[]&#34;, len(symbols))
+    for i, sym in enumerate(symbols):
+        c_symbols[i] = sym._rep
+    _handle_error(_lib.clingo_model_extend(self._rep, c_symbols, len(symbols)))</code></pre>
+</details>
+<div class="desc"><p>Extend a model with the given symbols.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>symbols</code></strong></dt>
+<dd>The symbols to add to the model.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>This only has an effect if there is an underlying clingo application,
+which will print the added symbols.</p></div>
+</dd>
+<dt id="clingo.solving.Model.is_consequence"><code class="name flex">
+<span>def <span class="ident">is_consequence</span></span>(<span>self, literal: int) ‑> bool | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_consequence(self, literal: int) -&gt; Optional[bool]:
+    &#34;&#34;&#34;
+    Check if the given program literal is a consequence.
+
+    The function returns `True`, `False`, or `None` if the literal is a
+    consequence, not a consequence, or it is not yet known whether it is a
+    consequence, respectively.
+
+    While enumerating cautious or brave consequences, there is partial
+    information about which literals are consequences. The current state of
+    a literal can be requested using this function. If this function is
+    used during normal model enumeration, the function just returns whether
+    a literal is true of false in the current model.
+
+    Parameters
+    ----------
+    literal
+        The given program literal.
+
+    Returns
+    -------
+    Whether the given program literal is a consequence.
+    &#34;&#34;&#34;
+    res = _c_call(
+        &#34;clingo_consequence_t&#34;, _lib.clingo_model_is_consequence, self._rep, literal
+    )
+    if res == _lib.clingo_consequence_true:
+        return True
+    if res == _lib.clingo_consequence_false:
+        return False
+    return None</code></pre>
+</details>
+<div class="desc"><p>Check if the given program literal is a consequence.</p>
+<p>The function returns <code>True</code>, <code>False</code>, or <code>None</code> if the literal is a
+consequence, not a consequence, or it is not yet known whether it is a
+consequence, respectively.</p>
+<p>While enumerating cautious or brave consequences, there is partial
+information about which literals are consequences. The current state of
+a literal can be requested using this function. If this function is
+used during normal model enumeration, the function just returns whether
+a literal is true of false in the current model.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The given program literal.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Whether the given program literal is a consequence.</p></div>
+</dd>
+<dt id="clingo.solving.Model.is_true"><code class="name flex">
+<span>def <span class="ident">is_true</span></span>(<span>self, literal: int) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_true(self, literal: int) -&gt; bool:
+    &#34;&#34;&#34;
+    Check if the given program literal is true.
+
+    Parameters
+    ----------
+    literal
+        The given program literal.
+
+    Returns
+    -------
+    Whether the given program literal is true.
+    &#34;&#34;&#34;
+    return _c_call(&#34;bool&#34;, _lib.clingo_model_is_true, self._rep, literal)</code></pre>
+</details>
+<div class="desc"><p>Check if the given program literal is true.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The given program literal.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Whether the given program literal is true.</p></div>
+</dd>
+<dt id="clingo.solving.Model.symbols"><code class="name flex">
+<span>def <span class="ident">symbols</span></span>(<span>self,<br>atoms: bool = False,<br>terms: bool = False,<br>shown: bool = False,<br>theory: bool = False,<br>complement: bool = False) ‑> Sequence[<a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def symbols(
+    self,
+    atoms: bool = False,
+    terms: bool = False,
+    shown: bool = False,
+    theory: bool = False,
+    complement: bool = False,
+) -&gt; Sequence[Symbol]:
+    &#34;&#34;&#34;
+    Return the list of atoms, terms, or CSP assignments in the model.
+
+    Parameters
+    ----------
+    atoms
+        Select all atoms in the model (independent of `#show` statements).
+    terms
+        Select all terms displayed with `#show` statements in the model.
+    shown
+        Select all atoms and terms as outputted by clingo.
+    theory
+        Select atoms added with `Model.extend`.
+    complement
+        Return the complement of the answer set w.r.t. to the atoms known
+        to the grounder.
+
+    Returns
+    -------
+    The selected symbols.
+
+    Notes
+    -----
+    Atoms are represented using functions (`Symbol` objects), and CSP
+    assignments are represented using functions with name `&#34;$&#34;` where the
+    first argument is the name of the CSP variable and the second its
+    value.
+    &#34;&#34;&#34;
+    show = 0
+    if atoms:
+        show |= _lib.clingo_show_type_atoms
+    if terms:
+        show |= _lib.clingo_show_type_terms
+    if shown:
+        show |= _lib.clingo_show_type_shown
+    if theory:
+        show |= _lib.clingo_show_type_theory
+    if complement:
+        show |= _lib.clingo_show_type_complement
+
+    size = _c_call(&#34;size_t&#34;, _lib.clingo_model_symbols_size, self._rep, show)
+
+    p_symbols = _ffi.new(&#34;clingo_symbol_t[]&#34;, size)
+    _handle_error(_lib.clingo_model_symbols(self._rep, show, p_symbols, size))
+
+    return _SymbolSequence(p_symbols)</code></pre>
+</details>
+<div class="desc"><p>Return the list of atoms, terms, or CSP assignments in the model.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atoms</code></strong></dt>
+<dd>Select all atoms in the model (independent of <code>#show</code> statements).</dd>
+<dt><strong><code>terms</code></strong></dt>
+<dd>Select all terms displayed with <code>#show</code> statements in the model.</dd>
+<dt><strong><code>shown</code></strong></dt>
+<dd>Select all atoms and terms as outputted by clingo.</dd>
+<dt><strong><code>theory</code></strong></dt>
+<dd>Select atoms added with <code><a title="clingo.solving.Model.extend" href="#clingo.solving.Model.extend">Model.extend()</a></code>.</dd>
+<dt><strong><code>complement</code></strong></dt>
+<dd>Return the complement of the answer set w.r.t. to the atoms known
+to the grounder.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The selected symbols.</p>
+<h2 id="notes">Notes</h2>
+<p>Atoms are represented using functions (<code>Symbol</code> objects), and CSP
+assignments are represented using functions with name <code>"$"</code> where the
+first argument is the name of the CSP variable and the second its
+value.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.solving.ModelType"><code class="flex name class">
+<span>class <span class="ident">ModelType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ModelType(OrderedEnum):
+    &#34;&#34;&#34;
+    Enumeration of the different types of models.
+    &#34;&#34;&#34;
+
+    BraveConsequences = _lib.clingo_model_type_brave_consequences
+    &#34;&#34;&#34;
+    The model stores the set of brave consequences.
+    &#34;&#34;&#34;
+    CautiousConsequences = _lib.clingo_model_type_cautious_consequences
+    &#34;&#34;&#34;
+    The model stores the set of cautious consequences.
+    &#34;&#34;&#34;
+    StableModel = _lib.clingo_model_type_stable_model
+    &#34;&#34;&#34;
+    The model captures a stable model.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Enumeration of the different types of models.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.core.OrderedEnum" href="core.html#clingo.core.OrderedEnum">OrderedEnum</a></li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="clingo.solving.ModelType.BraveConsequences"><code class="name">var <span class="ident">BraveConsequences</span></code></dt>
+<dd>
+<div class="desc"><p>The model stores the set of brave consequences.</p></div>
+</dd>
+<dt id="clingo.solving.ModelType.CautiousConsequences"><code class="name">var <span class="ident">CautiousConsequences</span></code></dt>
+<dd>
+<div class="desc"><p>The model stores the set of cautious consequences.</p></div>
+</dd>
+<dt id="clingo.solving.ModelType.StableModel"><code class="name">var <span class="ident">StableModel</span></code></dt>
+<dd>
+<div class="desc"><p>The model captures a stable model.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.solving.SolveControl"><code class="flex name class">
+<span>class <span class="ident">SolveControl</span></span>
+<span>(</span><span>rep)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SolveControl:
+    &#34;&#34;&#34;
+    Object that allows for controlling a running search.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep):
+        self._rep = rep
+
+    def add_clause(self, literals: Sequence[Union[Tuple[Symbol, bool], int]]) -&gt; None:
+        &#34;&#34;&#34;
+        Add a clause that applies to the current solving step during the search.
+
+        Parameters
+        ----------
+        literals
+            List of literals either represented as pairs of symbolic atoms and
+            Booleans or as program literals.
+
+        Notes
+        -----
+        This function can only be called in a model callback or while iterating
+        when using a `SolveHandle`.
+        &#34;&#34;&#34;
+        atoms = self.symbolic_atoms
+        p_lits = _ffi.new(&#34;clingo_literal_t[]&#34;, len(literals))
+        for i, lit in enumerate(literals):
+            if isinstance(lit, int):
+                p_lits[i] = lit
+            else:
+                atom = atoms[lit[0]]
+                if atom is not None:
+                    slit = atom.literal
+                else:
+                    slit = -1
+                p_lits[i] = slit if lit[1] else -slit
+
+        _handle_error(
+            _lib.clingo_solve_control_add_clause(self._rep, p_lits, len(literals))
+        )
+
+    def _invert(
+        self, lit: Union[Tuple[Symbol, bool], int]
+    ) -&gt; Union[Tuple[Symbol, bool], int]:
+        if isinstance(lit, int):
+            return -lit
+        return lit[0], not lit[1]
+
+    def add_nogood(self, literals: Sequence[Union[Tuple[Symbol, bool], int]]) -&gt; None:
+        &#34;&#34;&#34;
+        Equivalent to `SolveControl.add_clause` with the literals inverted.
+        &#34;&#34;&#34;
+        self.add_clause([self._invert(lit) for lit in literals])
+
+    @property
+    def symbolic_atoms(self) -&gt; SymbolicAtoms:
+        &#34;&#34;&#34;
+        `clingo.symbolic_atoms.SymbolicAtoms` object to inspect the symbolic atoms.
+        &#34;&#34;&#34;
+        atoms = _c_call(
+            &#34;clingo_symbolic_atoms_t*&#34;,
+            _lib.clingo_solve_control_symbolic_atoms,
+            self._rep,
+        )
+        return SymbolicAtoms(atoms)</code></pre>
+</details>
+<div class="desc"><p>Object that allows for controlling a running search.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="clingo.solving.SolveControl.symbolic_atoms"><code class="name">prop <span class="ident">symbolic_atoms</span> : <a title="clingo.symbolic_atoms.SymbolicAtoms" href="symbolic_atoms.html#clingo.symbolic_atoms.SymbolicAtoms">SymbolicAtoms</a></code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def symbolic_atoms(self) -&gt; SymbolicAtoms:
+    &#34;&#34;&#34;
+    `clingo.symbolic_atoms.SymbolicAtoms` object to inspect the symbolic atoms.
+    &#34;&#34;&#34;
+    atoms = _c_call(
+        &#34;clingo_symbolic_atoms_t*&#34;,
+        _lib.clingo_solve_control_symbolic_atoms,
+        self._rep,
+    )
+    return SymbolicAtoms(atoms)</code></pre>
+</details>
+<div class="desc"><p><code><a title="clingo.symbolic_atoms.SymbolicAtoms" href="symbolic_atoms.html#clingo.symbolic_atoms.SymbolicAtoms">SymbolicAtoms</a></code> object to inspect the symbolic atoms.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.solving.SolveControl.add_clause"><code class="name flex">
+<span>def <span class="ident">add_clause</span></span>(<span>self,<br>literals: Sequence[Tuple[<a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>, bool] | int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_clause(self, literals: Sequence[Union[Tuple[Symbol, bool], int]]) -&gt; None:
+    &#34;&#34;&#34;
+    Add a clause that applies to the current solving step during the search.
+
+    Parameters
+    ----------
+    literals
+        List of literals either represented as pairs of symbolic atoms and
+        Booleans or as program literals.
+
+    Notes
+    -----
+    This function can only be called in a model callback or while iterating
+    when using a `SolveHandle`.
+    &#34;&#34;&#34;
+    atoms = self.symbolic_atoms
+    p_lits = _ffi.new(&#34;clingo_literal_t[]&#34;, len(literals))
+    for i, lit in enumerate(literals):
+        if isinstance(lit, int):
+            p_lits[i] = lit
+        else:
+            atom = atoms[lit[0]]
+            if atom is not None:
+                slit = atom.literal
+            else:
+                slit = -1
+            p_lits[i] = slit if lit[1] else -slit
+
+    _handle_error(
+        _lib.clingo_solve_control_add_clause(self._rep, p_lits, len(literals))
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a clause that applies to the current solving step during the search.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literals</code></strong></dt>
+<dd>List of literals either represented as pairs of symbolic atoms and
+Booleans or as program literals.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>This function can only be called in a model callback or while iterating
+when using a <code><a title="clingo.solving.SolveHandle" href="#clingo.solving.SolveHandle">SolveHandle</a></code>.</p></div>
+</dd>
+<dt id="clingo.solving.SolveControl.add_nogood"><code class="name flex">
+<span>def <span class="ident">add_nogood</span></span>(<span>self,<br>literals: Sequence[Tuple[<a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>, bool] | int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_nogood(self, literals: Sequence[Union[Tuple[Symbol, bool], int]]) -&gt; None:
+    &#34;&#34;&#34;
+    Equivalent to `SolveControl.add_clause` with the literals inverted.
+    &#34;&#34;&#34;
+    self.add_clause([self._invert(lit) for lit in literals])</code></pre>
+</details>
+<div class="desc"><p>Equivalent to <code><a title="clingo.solving.SolveControl.add_clause" href="#clingo.solving.SolveControl.add_clause">SolveControl.add_clause()</a></code> with the literals inverted.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.solving.SolveHandle"><code class="flex name class">
+<span>class <span class="ident">SolveHandle</span></span>
+<span>(</span><span>rep, handler)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SolveHandle(ContextManager[&#34;SolveHandle&#34;]):
+    &#34;&#34;&#34;
+    Handle for solve calls.
+
+    They can be used to control solving, like, retrieving models or cancelling
+    a search.
+
+    See Also
+    --------
+    Control.solve
+
+    Notes
+    -----
+    A `SolveHandle` is a context manager and must be used with Python&#39;s `with`
+    statement.
+
+    Blocking functions in this object release the GIL. They are not thread-safe
+    though.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep, handler):
+        self._rep = rep
+        self._handler = handler
+
+    def __iter__(self) -&gt; Iterator[Model]:
+        while True:
+            self.resume()
+            m = self.model()
+            if m is None:
+                break
+            yield m
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        _handle_error(_lib.clingo_solve_handle_close(self._rep), self._handler)
+        return False
+
+    def cancel(self) -&gt; None:
+        &#34;&#34;&#34;
+        Cancel the running search.
+
+        See Also
+        --------
+        clingo.control.Control.interrupt
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_solve_handle_cancel(self._rep), self._handler)
+
+    def core(self) -&gt; List[int]:
+        &#34;&#34;&#34;
+        The subset of assumptions that made the problem unsatisfiable.
+        &#34;&#34;&#34;
+        core, size = _c_call2(
+            &#34;clingo_literal_t*&#34;,
+            &#34;size_t&#34;,
+            _lib.clingo_solve_handle_core,
+            self._rep,
+            handler=self._handler,
+        )
+        return [core[i] for i in range(size)]
+
+    def last(self) -&gt; Optional[Model]:
+        &#34;&#34;&#34;
+        The last computed model if there is any.
+
+        Notes
+        -----
+        If the search is not completed yet or the problem is unsatisfiable, the function returns None.
+        &#34;&#34;&#34;
+        p_model = _ffi.new(&#34;clingo_model_t**&#34;)
+        _handle_error(_lib.clingo_solve_handle_last(self._rep, p_model), self._handler)
+        if p_model[0] == _ffi.NULL:
+            return None
+        return Model(p_model[0])
+
+    def get(self) -&gt; SolveResult:
+        &#34;&#34;&#34;
+        Get the result of a solve call.
+
+        If the search is not completed yet, the function blocks until the
+        result is ready.
+        &#34;&#34;&#34;
+        res = _c_call(
+            &#34;clingo_solve_result_bitset_t&#34;,
+            _lib.clingo_solve_handle_get,
+            self._rep,
+            handler=self._handler,
+        )
+        return SolveResult(res)
+
+    def model(self) -&gt; Optional[Model]:
+        &#34;&#34;&#34;
+        Get the current model if there is any.
+        &#34;&#34;&#34;
+        p_model = _ffi.new(&#34;clingo_model_t**&#34;)
+        _handle_error(_lib.clingo_solve_handle_model(self._rep, p_model), self._handler)
+        if p_model[0] == _ffi.NULL:
+            return None
+        return Model(p_model[0])
+
+    def resume(self) -&gt; None:
+        &#34;&#34;&#34;
+        Discards the last model and starts searching for the next one.
+
+        Notes
+        -----
+        If the search has been started asynchronously, this function starts the
+        search in the background.
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_solve_handle_resume(self._rep), self._handler)
+
+    def wait(self, timeout: Optional[float] = None) -&gt; bool:
+        &#34;&#34;&#34;
+        Wait for solve call to finish or the next result with an optional timeout.
+
+        If a timeout is given, the behavior of the function changes depending
+        on the sign of the timeout. If a postive timeout is given, the function
+        blocks for the given amount time or until a result is ready. If the
+        timeout is negative, the function will block until a result is ready,
+        which also corresponds to the behavior of the function if no timeout is
+        given. A timeout of zero can be used to poll if a result is ready.
+
+        Parameters
+        ----------
+        timeout
+            If a timeout is given, the function blocks for at most timeout seconds.
+
+        Returns
+        -------
+        Indicates whether the solve call has finished or the next result is ready.
+        &#34;&#34;&#34;
+        p_res = _ffi.new(&#34;bool*&#34;)
+        _lib.clingo_solve_handle_wait(
+            self._rep, -1 if timeout is None else timeout, p_res
+        )
+        return p_res[0]</code></pre>
+</details>
+<div class="desc"><p>Handle for solve calls.</p>
+<p>They can be used to control solving, like, retrieving models or cancelling
+a search.</p>
+<h2 id="see-also">See Also</h2>
+<p><code>Control.solve</code></p>
+<h2 id="notes">Notes</h2>
+<p>A <code><a title="clingo.solving.SolveHandle" href="#clingo.solving.SolveHandle">SolveHandle</a></code> is a context manager and must be used with Python's <code>with</code>
+statement.</p>
+<p>Blocking functions in this object release the GIL. They are not thread-safe
+though.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>contextlib.AbstractContextManager</li>
+<li>abc.ABC</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.solving.SolveHandle.cancel"><code class="name flex">
+<span>def <span class="ident">cancel</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cancel(self) -&gt; None:
+    &#34;&#34;&#34;
+    Cancel the running search.
+
+    See Also
+    --------
+    clingo.control.Control.interrupt
+    &#34;&#34;&#34;
+    _handle_error(_lib.clingo_solve_handle_cancel(self._rep), self._handler)</code></pre>
+</details>
+<div class="desc"><p>Cancel the running search.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.control.Control.interrupt" href="control.html#clingo.control.Control.interrupt">Control.interrupt()</a></code></p></div>
+</dd>
+<dt id="clingo.solving.SolveHandle.core"><code class="name flex">
+<span>def <span class="ident">core</span></span>(<span>self) ‑> List[int]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def core(self) -&gt; List[int]:
+    &#34;&#34;&#34;
+    The subset of assumptions that made the problem unsatisfiable.
+    &#34;&#34;&#34;
+    core, size = _c_call2(
+        &#34;clingo_literal_t*&#34;,
+        &#34;size_t&#34;,
+        _lib.clingo_solve_handle_core,
+        self._rep,
+        handler=self._handler,
+    )
+    return [core[i] for i in range(size)]</code></pre>
+</details>
+<div class="desc"><p>The subset of assumptions that made the problem unsatisfiable.</p></div>
+</dd>
+<dt id="clingo.solving.SolveHandle.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self) ‑> <a title="clingo.solving.SolveResult" href="#clingo.solving.SolveResult">SolveResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self) -&gt; SolveResult:
+    &#34;&#34;&#34;
+    Get the result of a solve call.
+
+    If the search is not completed yet, the function blocks until the
+    result is ready.
+    &#34;&#34;&#34;
+    res = _c_call(
+        &#34;clingo_solve_result_bitset_t&#34;,
+        _lib.clingo_solve_handle_get,
+        self._rep,
+        handler=self._handler,
+    )
+    return SolveResult(res)</code></pre>
+</details>
+<div class="desc"><p>Get the result of a solve call.</p>
+<p>If the search is not completed yet, the function blocks until the
+result is ready.</p></div>
+</dd>
+<dt id="clingo.solving.SolveHandle.last"><code class="name flex">
+<span>def <span class="ident">last</span></span>(<span>self) ‑> <a title="clingo.solving.Model" href="#clingo.solving.Model">Model</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def last(self) -&gt; Optional[Model]:
+    &#34;&#34;&#34;
+    The last computed model if there is any.
+
+    Notes
+    -----
+    If the search is not completed yet or the problem is unsatisfiable, the function returns None.
+    &#34;&#34;&#34;
+    p_model = _ffi.new(&#34;clingo_model_t**&#34;)
+    _handle_error(_lib.clingo_solve_handle_last(self._rep, p_model), self._handler)
+    if p_model[0] == _ffi.NULL:
+        return None
+    return Model(p_model[0])</code></pre>
+</details>
+<div class="desc"><p>The last computed model if there is any.</p>
+<h2 id="notes">Notes</h2>
+<p>If the search is not completed yet or the problem is unsatisfiable, the function returns None.</p></div>
+</dd>
+<dt id="clingo.solving.SolveHandle.model"><code class="name flex">
+<span>def <span class="ident">model</span></span>(<span>self) ‑> <a title="clingo.solving.Model" href="#clingo.solving.Model">Model</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def model(self) -&gt; Optional[Model]:
+    &#34;&#34;&#34;
+    Get the current model if there is any.
+    &#34;&#34;&#34;
+    p_model = _ffi.new(&#34;clingo_model_t**&#34;)
+    _handle_error(_lib.clingo_solve_handle_model(self._rep, p_model), self._handler)
+    if p_model[0] == _ffi.NULL:
+        return None
+    return Model(p_model[0])</code></pre>
+</details>
+<div class="desc"><p>Get the current model if there is any.</p></div>
+</dd>
+<dt id="clingo.solving.SolveHandle.resume"><code class="name flex">
+<span>def <span class="ident">resume</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def resume(self) -&gt; None:
+    &#34;&#34;&#34;
+    Discards the last model and starts searching for the next one.
+
+    Notes
+    -----
+    If the search has been started asynchronously, this function starts the
+    search in the background.
+    &#34;&#34;&#34;
+    _handle_error(_lib.clingo_solve_handle_resume(self._rep), self._handler)</code></pre>
+</details>
+<div class="desc"><p>Discards the last model and starts searching for the next one.</p>
+<h2 id="notes">Notes</h2>
+<p>If the search has been started asynchronously, this function starts the
+search in the background.</p></div>
+</dd>
+<dt id="clingo.solving.SolveHandle.wait"><code class="name flex">
+<span>def <span class="ident">wait</span></span>(<span>self, timeout: float | None = None) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def wait(self, timeout: Optional[float] = None) -&gt; bool:
+    &#34;&#34;&#34;
+    Wait for solve call to finish or the next result with an optional timeout.
+
+    If a timeout is given, the behavior of the function changes depending
+    on the sign of the timeout. If a postive timeout is given, the function
+    blocks for the given amount time or until a result is ready. If the
+    timeout is negative, the function will block until a result is ready,
+    which also corresponds to the behavior of the function if no timeout is
+    given. A timeout of zero can be used to poll if a result is ready.
+
+    Parameters
+    ----------
+    timeout
+        If a timeout is given, the function blocks for at most timeout seconds.
+
+    Returns
+    -------
+    Indicates whether the solve call has finished or the next result is ready.
+    &#34;&#34;&#34;
+    p_res = _ffi.new(&#34;bool*&#34;)
+    _lib.clingo_solve_handle_wait(
+        self._rep, -1 if timeout is None else timeout, p_res
+    )
+    return p_res[0]</code></pre>
+</details>
+<div class="desc"><p>Wait for solve call to finish or the next result with an optional timeout.</p>
+<p>If a timeout is given, the behavior of the function changes depending
+on the sign of the timeout. If a postive timeout is given, the function
+blocks for the given amount time or until a result is ready. If the
+timeout is negative, the function will block until a result is ready,
+which also corresponds to the behavior of the function if no timeout is
+given. A timeout of zero can be used to poll if a result is ready.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>timeout</code></strong></dt>
+<dd>If a timeout is given, the function blocks for at most timeout seconds.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Indicates whether the solve call has finished or the next result is ready.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.solving.SolveResult"><code class="flex name class">
+<span>class <span class="ident">SolveResult</span></span>
+<span>(</span><span>rep)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SolveResult:
+    &#34;&#34;&#34;
+    Captures the result of a solve call.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep):
+        self._rep = rep
+
+    @property
+    def exhausted(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the search space was exhausted.
+        &#34;&#34;&#34;
+        return (_lib.clingo_solve_result_exhausted &amp; self._rep) != 0
+
+    @property
+    def interrupted(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the search was interrupted.
+        &#34;&#34;&#34;
+        return (_lib.clingo_solve_result_interrupted &amp; self._rep) != 0
+
+    @property
+    def satisfiable(self) -&gt; Optional[bool]:
+        &#34;&#34;&#34;
+        `True` if the problem is satisfiable, `False` if the problem is
+        unsatisfiable, or `None` if the satisfiablity is not known.
+        &#34;&#34;&#34;
+        if (_lib.clingo_solve_result_satisfiable &amp; self._rep) != 0:
+            return True
+        if (_lib.clingo_solve_result_unsatisfiable &amp; self._rep) != 0:
+            return False
+        return None
+
+    @property
+    def unknown(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the satisfiablity is not known.
+
+        This is equivalent to satisfiable is None.
+        &#34;&#34;&#34;
+        return self.satisfiable is None
+
+    @property
+    def unsatisfiable(self) -&gt; Optional[bool]:
+        &#34;&#34;&#34;
+        `True` if the problem is unsatisfiable, `False` if the problem is
+        satisfiable, or `None` if the satisfiablity is not known.
+        &#34;&#34;&#34;
+        if (_lib.clingo_solve_result_unsatisfiable &amp; self._rep) != 0:
+            return True
+        if (_lib.clingo_solve_result_satisfiable &amp; self._rep) != 0:
+            return False
+        return None
+
+    def __str__(self):
+        if self.satisfiable:
+            return &#34;SAT&#34;
+        if self.unsatisfiable:
+            return &#34;UNSAT&#34;
+        return &#34;UNKNOWN&#34;
+
+    def __repr__(self):
+        return f&#34;SolveResult({self._rep})&#34;</code></pre>
+</details>
+<div class="desc"><p>Captures the result of a solve call.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="clingo.solving.SolveResult.exhausted"><code class="name">prop <span class="ident">exhausted</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def exhausted(self) -&gt; bool:
+    &#34;&#34;&#34;
+    Determine if the search space was exhausted.
+    &#34;&#34;&#34;
+    return (_lib.clingo_solve_result_exhausted &amp; self._rep) != 0</code></pre>
+</details>
+<div class="desc"><p>Determine if the search space was exhausted.</p></div>
+</dd>
+<dt id="clingo.solving.SolveResult.interrupted"><code class="name">prop <span class="ident">interrupted</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def interrupted(self) -&gt; bool:
+    &#34;&#34;&#34;
+    Determine if the search was interrupted.
+    &#34;&#34;&#34;
+    return (_lib.clingo_solve_result_interrupted &amp; self._rep) != 0</code></pre>
+</details>
+<div class="desc"><p>Determine if the search was interrupted.</p></div>
+</dd>
+<dt id="clingo.solving.SolveResult.satisfiable"><code class="name">prop <span class="ident">satisfiable</span> : bool | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def satisfiable(self) -&gt; Optional[bool]:
+    &#34;&#34;&#34;
+    `True` if the problem is satisfiable, `False` if the problem is
+    unsatisfiable, or `None` if the satisfiablity is not known.
+    &#34;&#34;&#34;
+    if (_lib.clingo_solve_result_satisfiable &amp; self._rep) != 0:
+        return True
+    if (_lib.clingo_solve_result_unsatisfiable &amp; self._rep) != 0:
+        return False
+    return None</code></pre>
+</details>
+<div class="desc"><p><code>True</code> if the problem is satisfiable, <code>False</code> if the problem is
+unsatisfiable, or <code>None</code> if the satisfiablity is not known.</p></div>
+</dd>
+<dt id="clingo.solving.SolveResult.unknown"><code class="name">prop <span class="ident">unknown</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def unknown(self) -&gt; bool:
+    &#34;&#34;&#34;
+    Determine if the satisfiablity is not known.
+
+    This is equivalent to satisfiable is None.
+    &#34;&#34;&#34;
+    return self.satisfiable is None</code></pre>
+</details>
+<div class="desc"><p>Determine if the satisfiablity is not known.</p>
+<p>This is equivalent to satisfiable is None.</p></div>
+</dd>
+<dt id="clingo.solving.SolveResult.unsatisfiable"><code class="name">prop <span class="ident">unsatisfiable</span> : bool | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def unsatisfiable(self) -&gt; Optional[bool]:
+    &#34;&#34;&#34;
+    `True` if the problem is unsatisfiable, `False` if the problem is
+    satisfiable, or `None` if the satisfiablity is not known.
+    &#34;&#34;&#34;
+    if (_lib.clingo_solve_result_unsatisfiable &amp; self._rep) != 0:
+        return True
+    if (_lib.clingo_solve_result_satisfiable &amp; self._rep) != 0:
+        return False
+    return None</code></pre>
+</details>
+<div class="desc"><p><code>True</code> if the problem is unsatisfiable, <code>False</code> if the problem is
+satisfiable, or <code>None</code> if the satisfiablity is not known.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#examples">Examples</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo" href="index.html">clingo</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.solving.Model" href="#clingo.solving.Model">Model</a></code></h4>
+<ul class="two-column">
+<li><code><a title="clingo.solving.Model.contains" href="#clingo.solving.Model.contains">contains</a></code></li>
+<li><code><a title="clingo.solving.Model.context" href="#clingo.solving.Model.context">context</a></code></li>
+<li><code><a title="clingo.solving.Model.cost" href="#clingo.solving.Model.cost">cost</a></code></li>
+<li><code><a title="clingo.solving.Model.extend" href="#clingo.solving.Model.extend">extend</a></code></li>
+<li><code><a title="clingo.solving.Model.is_consequence" href="#clingo.solving.Model.is_consequence">is_consequence</a></code></li>
+<li><code><a title="clingo.solving.Model.is_true" href="#clingo.solving.Model.is_true">is_true</a></code></li>
+<li><code><a title="clingo.solving.Model.number" href="#clingo.solving.Model.number">number</a></code></li>
+<li><code><a title="clingo.solving.Model.optimality_proven" href="#clingo.solving.Model.optimality_proven">optimality_proven</a></code></li>
+<li><code><a title="clingo.solving.Model.priority" href="#clingo.solving.Model.priority">priority</a></code></li>
+<li><code><a title="clingo.solving.Model.symbols" href="#clingo.solving.Model.symbols">symbols</a></code></li>
+<li><code><a title="clingo.solving.Model.thread_id" href="#clingo.solving.Model.thread_id">thread_id</a></code></li>
+<li><code><a title="clingo.solving.Model.type" href="#clingo.solving.Model.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.solving.ModelType" href="#clingo.solving.ModelType">ModelType</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.solving.ModelType.BraveConsequences" href="#clingo.solving.ModelType.BraveConsequences">BraveConsequences</a></code></li>
+<li><code><a title="clingo.solving.ModelType.CautiousConsequences" href="#clingo.solving.ModelType.CautiousConsequences">CautiousConsequences</a></code></li>
+<li><code><a title="clingo.solving.ModelType.StableModel" href="#clingo.solving.ModelType.StableModel">StableModel</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.solving.SolveControl" href="#clingo.solving.SolveControl">SolveControl</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.solving.SolveControl.add_clause" href="#clingo.solving.SolveControl.add_clause">add_clause</a></code></li>
+<li><code><a title="clingo.solving.SolveControl.add_nogood" href="#clingo.solving.SolveControl.add_nogood">add_nogood</a></code></li>
+<li><code><a title="clingo.solving.SolveControl.symbolic_atoms" href="#clingo.solving.SolveControl.symbolic_atoms">symbolic_atoms</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.solving.SolveHandle" href="#clingo.solving.SolveHandle">SolveHandle</a></code></h4>
+<ul class="two-column">
+<li><code><a title="clingo.solving.SolveHandle.cancel" href="#clingo.solving.SolveHandle.cancel">cancel</a></code></li>
+<li><code><a title="clingo.solving.SolveHandle.core" href="#clingo.solving.SolveHandle.core">core</a></code></li>
+<li><code><a title="clingo.solving.SolveHandle.get" href="#clingo.solving.SolveHandle.get">get</a></code></li>
+<li><code><a title="clingo.solving.SolveHandle.last" href="#clingo.solving.SolveHandle.last">last</a></code></li>
+<li><code><a title="clingo.solving.SolveHandle.model" href="#clingo.solving.SolveHandle.model">model</a></code></li>
+<li><code><a title="clingo.solving.SolveHandle.resume" href="#clingo.solving.SolveHandle.resume">resume</a></code></li>
+<li><code><a title="clingo.solving.SolveHandle.wait" href="#clingo.solving.SolveHandle.wait">wait</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.solving.SolveResult" href="#clingo.solving.SolveResult">SolveResult</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.solving.SolveResult.exhausted" href="#clingo.solving.SolveResult.exhausted">exhausted</a></code></li>
+<li><code><a title="clingo.solving.SolveResult.interrupted" href="#clingo.solving.SolveResult.interrupted">interrupted</a></code></li>
+<li><code><a title="clingo.solving.SolveResult.satisfiable" href="#clingo.solving.SolveResult.satisfiable">satisfiable</a></code></li>
+<li><code><a title="clingo.solving.SolveResult.unknown" href="#clingo.solving.SolveResult.unknown">unknown</a></code></li>
+<li><code><a title="clingo.solving.SolveResult.unsatisfiable" href="#clingo.solving.SolveResult.unsatisfiable">unsatisfiable</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

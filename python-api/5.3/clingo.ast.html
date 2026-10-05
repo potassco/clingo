@@ -1,0 +1,1023 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module clingo.ast</title>
+<meta charset="utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong><a href="clingo.html"><font color="#ffffff">clingo</font></a>.ast</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href="/">&laquo;Potassco</a></font></td></tr></table>
+    <p><tt>The&nbsp;clingo.ast-5.3.0&nbsp;module.<br>
+&nbsp;<br>
+&nbsp;<br>
+The&nbsp;grammar&nbsp;below&nbsp;defines&nbsp;valid&nbsp;ASTs.&nbsp;For&nbsp;each&nbsp;upper&nbsp;case&nbsp;identifier&nbsp;there&nbsp;is&nbsp;a<br>
+matching&nbsp;function&nbsp;in&nbsp;the&nbsp;module.&nbsp;Arguments&nbsp;follow&nbsp;in&nbsp;paranthesis:&nbsp;each&nbsp;having&nbsp;a<br>
+type&nbsp;given&nbsp;on&nbsp;the&nbsp;right-hand&nbsp;side&nbsp;of&nbsp;the&nbsp;colon.&nbsp;The&nbsp;symbols&nbsp;?,&nbsp;*,&nbsp;and&nbsp;+&nbsp;are<br>
+used&nbsp;to&nbsp;denote&nbsp;optional&nbsp;arguments&nbsp;(None&nbsp;encodes&nbsp;abscence),&nbsp;list&nbsp;arguments,&nbsp;and<br>
+non-empty&nbsp;list&nbsp;arguments.<br>
+&nbsp;<br>
+--&nbsp;Terms<br>
+&nbsp;<br>
+term&nbsp;=&nbsp;Symbol<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;symbol&nbsp;&nbsp;&nbsp;:&nbsp;clingo.Symbol<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Variable<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;UnaryOperation<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;operator&nbsp;:&nbsp;<a href="#UnaryOperator">UnaryOperator</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;argument&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;BinaryOperation<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;operator&nbsp;:&nbsp;<a href="#BinaryOperator">BinaryOperator</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;left&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;right&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Interval<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;left&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;right&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Function<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;arguments&nbsp;:&nbsp;term*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;external&nbsp;&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Pool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;arguments&nbsp;:&nbsp;term*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+csp_term&nbsp;=&nbsp;CSPSum<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;terms&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;CSPProduct<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;coefficient&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;variable&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+theory_term&nbsp;=&nbsp;Symbol<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;symbol&nbsp;&nbsp;&nbsp;:&nbsp;clingo.Symbol<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Variable<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TheoryTermSequence<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;sequence_type&nbsp;:&nbsp;<a href="#TheorySequenceType">TheorySequenceType</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;terms&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;theory_term*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TheoryFunction<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;arguments&nbsp;:&nbsp;theory_term*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TheoryUnparsedTerm<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;elements&nbsp;:&nbsp;TheoryUnparsedTermElement<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;operators&nbsp;:&nbsp;str*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;term&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;theory_term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+--&nbsp;Literals<br>
+&nbsp;<br>
+symbolic_atom&nbsp;=&nbsp;SymbolicAtom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;term&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+literal&nbsp;=&nbsp;Literal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;sign&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;<a href="#Sign">Sign</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;atom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Comparison<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;comparison&nbsp;:&nbsp;<a href="#ComparisonOperator">ComparisonOperator</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;left&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;right&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;BooleanConstant<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;value&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;symbolic_atom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;CSPLiteral<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;term&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;csp_term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;guards&nbsp;&nbsp;&nbsp;:&nbsp;CSPGuard<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;comparison&nbsp;:&nbsp;<a href="#ComparisonOperator">ComparisonOperator</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;term&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;csp_term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+--&nbsp;Head&nbsp;and&nbsp;Body&nbsp;Literals<br>
+&nbsp;<br>
+aggregate_guard&nbsp;=&nbsp;AggregateGuard<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;comparison&nbsp;:&nbsp;<a href="#ComparisonOperator">ComparisonOperator</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;term&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+conditional_literal&nbsp;=&nbsp;ConditionalLiteral<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;literal&nbsp;&nbsp;&nbsp;:&nbsp;Literal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;condition&nbsp;:&nbsp;Literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+aggregate&nbsp;=&nbsp;Aggregate<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;left_guard&nbsp;&nbsp;:&nbsp;aggregate_guard?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;elements&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;conditional_literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;right_guard&nbsp;:&nbsp;aggregate_guard?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+theory_atom&nbsp;=&nbsp;TheoryAtom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;term&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;elements&nbsp;:&nbsp;TheoryAtomElement<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;tuple&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;theory_term*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;condition&nbsp;:&nbsp;literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;guard&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;TheoryGuard<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;operator_name&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;term&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;theory_term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+body_atom&nbsp;=&nbsp;aggregate<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;BodyAggregate<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;left_guard&nbsp;&nbsp;:&nbsp;aggregate_guard?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;function&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;<a href="#AggregateFunction">AggregateFunction</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;elements&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;BodyAggregateElement<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;tuple&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;condition&nbsp;:&nbsp;literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;right_guard&nbsp;:&nbsp;aggregate_guard?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Disjoint<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;elements&nbsp;:&nbsp;DisjointElement<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;tuple&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;term&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;csp_term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;condition&nbsp;:&nbsp;literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;theory_atom<br>
+&nbsp;<br>
+body_literal&nbsp;=&nbsp;literal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;conditional_literal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Literal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;sign&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;<a href="#Sign">Sign</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;atom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;body_atom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+head&nbsp;=&nbsp;literal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;aggregate<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;HeadAggregate<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;left_guard&nbsp;&nbsp;:&nbsp;aggregate_guard?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;function&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;<a href="#AggregateFunction">AggregateFunction</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;elements&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;HeadAggregateElement<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;tuple&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;condition&nbsp;:&nbsp;conditional_literal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;right_guard&nbsp;:&nbsp;aggregate_guard?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Disjunction<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;elements&nbsp;:&nbsp;conditional_literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;theory_atom<br>
+&nbsp;<br>
+--&nbsp;Theory&nbsp;Definitions<br>
+&nbsp;<br>
+theory&nbsp;=&nbsp;TheoryDefinition<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;terms&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;TheoryTermDefinition<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;operators&nbsp;:&nbsp;TheoryOperatorDefinition<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;priority&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;operator_type&nbsp;:&nbsp;<a href="#TheoryOperatorType">TheoryOperatorType</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;atoms&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;TheoryAtomDefinition<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;atom_type&nbsp;:&nbsp;<a href="#TheoryAtomType">TheoryAtomType</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;arity&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;elements&nbsp;&nbsp;:&nbsp;str*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;guard&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;TheoryGuardDefinition<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;operators&nbsp;:&nbsp;str*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;term&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;<br>
+--&nbsp;Statements<br>
+&nbsp;<br>
+statement&nbsp;=&nbsp;Rule<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;head&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;head<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;body&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;body_literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Definition<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;value&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;is_default&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ShowSignature<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;arity&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;sign&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;csp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Defined<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;arity&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;sign&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ShowTerm<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;term&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;body&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;body_literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;csp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Minimize<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;weight&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;priority&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;tuple&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;body&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;body_literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Script<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;script_type&nbsp;:&nbsp;<a href="#ScriptType">ScriptType</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;code&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Program<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;parameters&nbsp;:&nbsp;Id<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;id&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;External<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;atom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;symbolic_atom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;body&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;body_literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Edge<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;u&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;v&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;body&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;body_literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Heuristic<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;atom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;symbolic_atom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;body&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;body_literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;bias&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;priority&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;modifier&nbsp;:&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ProjectAtom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;atom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;symbolic_atom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;body&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;body_literal*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;ProjectSignature<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;location&nbsp;&nbsp;&nbsp;:&nbsp;Location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;arity&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;int<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;positive&nbsp;&nbsp;&nbsp;:&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#22bb33">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Classes</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#22bb33"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl>
+<dt><font face="helvetica, arial">object
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="clingo.ast.html#AST">AST</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.ast.html#ASTType">ASTType</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.ast.html#AggregateFunction">AggregateFunction</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.ast.html#BinaryOperator">BinaryOperator</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.ast.html#ComparisonOperator">ComparisonOperator</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.ast.html#ScriptType">ScriptType</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.ast.html#Sign">Sign</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.ast.html#TheoryAtomType">TheoryAtomType</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.ast.html#TheoryOperatorType">TheoryOperatorType</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.ast.html#TheorySequenceType">TheorySequenceType</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.ast.html#UnaryOperator">UnaryOperator</a>
+</font></dt></dl>
+</dd>
+</dl>
+ <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="AST">class <strong>AST</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#AST">AST</a>(type,&nbsp;**arguments)&nbsp;-&gt;&nbsp;<a href="#AST">AST</a><br>
+&nbsp;<br>
+Node&nbsp;in&nbsp;the&nbsp;abstract&nbsp;syntax&nbsp;tree.<br>
+&nbsp;<br>
+Arguments:<br>
+type&nbsp;--&nbsp;value&nbsp;in&nbsp;the&nbsp;enumeration&nbsp;<a href="#ASTType">ASTType</a><br>
+&nbsp;<br>
+Additionally,&nbsp;the&nbsp;functions&nbsp;takes&nbsp;an&nbsp;arbitrary&nbsp;number&nbsp;of&nbsp;keyword&nbsp;arguments.<br>
+These&nbsp;should&nbsp;contain&nbsp;the&nbsp;required&nbsp;fields&nbsp;of&nbsp;the&nbsp;node&nbsp;but&nbsp;can&nbsp;also&nbsp;be&nbsp;set<br>
+later.<br>
+&nbsp;<br>
+<a href="#AST">AST</a>&nbsp;nodes&nbsp;can&nbsp;be&nbsp;structually&nbsp;compared&nbsp;ignoring&nbsp;the&nbsp;location.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;it&nbsp;is&nbsp;also&nbsp;possible&nbsp;to&nbsp;create&nbsp;<a href="#AST">AST</a>&nbsp;nodes&nbsp;using&nbsp;one&nbsp;of&nbsp;the&nbsp;functions<br>
+provided&nbsp;in&nbsp;this&nbsp;module.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="AST-__contains__"><strong>__contains__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__contains__">__contains__</a>(y)&nbsp;&lt;==&gt;&nbsp;y&nbsp;in&nbsp;x</tt></dd></dl>
+
+<dl><dt><a name="AST-__delattr__"><strong>__delattr__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__delattr__">__delattr__</a>('name')&nbsp;&lt;==&gt;&nbsp;del&nbsp;x.name</tt></dd></dl>
+
+<dl><dt><a name="AST-__delitem__"><strong>__delitem__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__delitem__">__delitem__</a>(y)&nbsp;&lt;==&gt;&nbsp;del&nbsp;x[y]</tt></dd></dl>
+
+<dl><dt><a name="AST-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="AST-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="AST-__getattribute__"><strong>__getattribute__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__getattribute__">__getattribute__</a>('name')&nbsp;&lt;==&gt;&nbsp;x.name</tt></dd></dl>
+
+<dl><dt><a name="AST-__getitem__"><strong>__getitem__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__getitem__">__getitem__</a>(y)&nbsp;&lt;==&gt;&nbsp;x[y]</tt></dd></dl>
+
+<dl><dt><a name="AST-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="AST-__init__"><strong>__init__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__init__">__init__</a>(...)&nbsp;initializes&nbsp;x;&nbsp;see&nbsp;help(<a href="#AST-type">type</a>(x))&nbsp;for&nbsp;signature</tt></dd></dl>
+
+<dl><dt><a name="AST-__iter__"><strong>__iter__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__iter__">__iter__</a>()&nbsp;&lt;==&gt;&nbsp;iter(x)</tt></dd></dl>
+
+<dl><dt><a name="AST-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="AST-__len__"><strong>__len__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__len__">__len__</a>()&nbsp;&lt;==&gt;&nbsp;len(x)</tt></dd></dl>
+
+<dl><dt><a name="AST-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="AST-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="AST-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="AST-__setattr__"><strong>__setattr__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__setattr__">__setattr__</a>('name',&nbsp;value)&nbsp;&lt;==&gt;&nbsp;x.name&nbsp;=&nbsp;value</tt></dd></dl>
+
+<dl><dt><a name="AST-__setitem__"><strong>__setitem__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__setitem__">__setitem__</a>(i,&nbsp;y)&nbsp;&lt;==&gt;&nbsp;x[i]=y</tt></dd></dl>
+
+<dl><dt><a name="AST-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#AST-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<dl><dt><a name="AST-items"><strong>items</strong></a>(...)</dt><dd><tt><a href="#AST-items">items</a>(self)&nbsp;-&gt;&nbsp;list<br>
+&nbsp;<br>
+The&nbsp;list&nbsp;of&nbsp;items&nbsp;of&nbsp;the&nbsp;<a href="#AST">AST</a>&nbsp;node.</tt></dd></dl>
+
+<dl><dt><a name="AST-keys"><strong>keys</strong></a>(...)</dt><dd><tt><a href="#AST-keys">keys</a>(self)&nbsp;-&gt;&nbsp;list<br>
+&nbsp;<br>
+The&nbsp;list&nbsp;of&nbsp;keys&nbsp;of&nbsp;the&nbsp;<a href="#AST">AST</a>&nbsp;node.</tt></dd></dl>
+
+<dl><dt><a name="AST-values"><strong>values</strong></a>(...)</dt><dd><tt><a href="#AST-values">values</a>(self)&nbsp;-&gt;&nbsp;list<br>
+&nbsp;<br>
+The&nbsp;list&nbsp;of&nbsp;values&nbsp;of&nbsp;the&nbsp;<a href="#AST">AST</a>&nbsp;node.</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>child_keys</strong></dt>
+<dd><tt>List&nbsp;of&nbsp;names&nbsp;of&nbsp;all&nbsp;AST&nbsp;child&nbsp;nodes.</tt></dd>
+</dl>
+<dl><dt><strong>type</strong></dt>
+<dd><tt>The&nbsp;type&nbsp;of&nbsp;the&nbsp;node.</tt></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>__new__</strong> = &lt;built-in method __new__ of type object&gt;<dd><tt>T.<a href="#AST-__new__">__new__</a>(S,&nbsp;...)&nbsp;-&gt;&nbsp;a&nbsp;new&nbsp;object&nbsp;with&nbsp;type&nbsp;S,&nbsp;a&nbsp;subtype&nbsp;of&nbsp;T</tt></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="ASTType">class <strong>ASTType</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;ast&nbsp;node&nbsp;types.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="ASTType-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#ASTType-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="ASTType-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#ASTType-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="ASTType-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#ASTType-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="ASTType-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#ASTType-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="ASTType-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#ASTType-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="ASTType-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#ASTType-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="ASTType-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#ASTType-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="ASTType-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#ASTType-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="ASTType-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#ASTType-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Aggregate</strong> = Aggregate</dl>
+
+<dl><dt><strong>AggregateGuard</strong> = AggregateGuard</dl>
+
+<dl><dt><strong>BinaryOperation</strong> = BinaryOperation</dl>
+
+<dl><dt><strong>BodyAggregate</strong> = BodyAggregate</dl>
+
+<dl><dt><strong>BodyAggregateElement</strong> = BodyAggregateElement</dl>
+
+<dl><dt><strong>BooleanConstant</strong> = BooleanConstant</dl>
+
+<dl><dt><strong>CSPGuard</strong> = CSPGuard</dl>
+
+<dl><dt><strong>CSPLiteral</strong> = CSPLiteral</dl>
+
+<dl><dt><strong>CSPProduct</strong> = CSPProduct</dl>
+
+<dl><dt><strong>CSPSum</strong> = CSPSum</dl>
+
+<dl><dt><strong>Comparison</strong> = Comparison</dl>
+
+<dl><dt><strong>ConditionalLiteral</strong> = ConditionalLiteral</dl>
+
+<dl><dt><strong>Defined</strong> = Defined</dl>
+
+<dl><dt><strong>Definition</strong> = Definition</dl>
+
+<dl><dt><strong>Disjoint</strong> = Disjoint</dl>
+
+<dl><dt><strong>DisjointElement</strong> = DisjointElement</dl>
+
+<dl><dt><strong>Disjunction</strong> = Disjunction</dl>
+
+<dl><dt><strong>Edge</strong> = Edge</dl>
+
+<dl><dt><strong>External</strong> = External</dl>
+
+<dl><dt><strong>Function</strong> = Function</dl>
+
+<dl><dt><strong>HeadAggregate</strong> = HeadAggregate</dl>
+
+<dl><dt><strong>HeadAggregateElement</strong> = HeadAggregateElement</dl>
+
+<dl><dt><strong>Heuristic</strong> = Heuristic</dl>
+
+<dl><dt><strong>Id</strong> = Id</dl>
+
+<dl><dt><strong>Interval</strong> = Interval</dl>
+
+<dl><dt><strong>Literal</strong> = Literal</dl>
+
+<dl><dt><strong>Minimize</strong> = Minimize</dl>
+
+<dl><dt><strong>Pool</strong> = Pool</dl>
+
+<dl><dt><strong>Program</strong> = Program</dl>
+
+<dl><dt><strong>ProjectAtom</strong> = ProjectAtom</dl>
+
+<dl><dt><strong>ProjectSignature</strong> = ProjectSignature</dl>
+
+<dl><dt><strong>Rule</strong> = Rule</dl>
+
+<dl><dt><strong>Script</strong> = Script</dl>
+
+<dl><dt><strong>ShowSignature</strong> = ShowSignature</dl>
+
+<dl><dt><strong>ShowTerm</strong> = ShowTerm</dl>
+
+<dl><dt><strong>Symbol</strong> = Symbol</dl>
+
+<dl><dt><strong>SymbolicAtom</strong> = SymbolicAtom</dl>
+
+<dl><dt><strong>TheoryAtom</strong> = TheoryAtom</dl>
+
+<dl><dt><strong>TheoryAtomDefinition</strong> = TheoryAtomDefinition</dl>
+
+<dl><dt><strong>TheoryAtomElement</strong> = TheoryAtomElement</dl>
+
+<dl><dt><strong>TheoryDefinition</strong> = TheoryDefinition</dl>
+
+<dl><dt><strong>TheoryFunction</strong> = TheoryFunction</dl>
+
+<dl><dt><strong>TheoryGuard</strong> = TheoryGuard</dl>
+
+<dl><dt><strong>TheoryGuardDefinition</strong> = TheoryGuardDefinition</dl>
+
+<dl><dt><strong>TheoryOperatorDefinition</strong> = TheoryOperatorDefinition</dl>
+
+<dl><dt><strong>TheorySequence</strong> = TheorySequence</dl>
+
+<dl><dt><strong>TheoryTermDefinition</strong> = TheoryTermDefinition</dl>
+
+<dl><dt><strong>TheoryUnparsedTerm</strong> = TheoryUnparsedTerm</dl>
+
+<dl><dt><strong>TheoryUnparsedTermElement</strong> = TheoryUnparsedTermElement</dl>
+
+<dl><dt><strong>UnaryOperation</strong> = UnaryOperation</dl>
+
+<dl><dt><strong>Variable</strong> = Variable</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="AggregateFunction">class <strong>AggregateFunction</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;aggegate&nbsp;functions.<br>
+&nbsp;<br>
+<a href="#AggregateFunction">AggregateFunction</a>.Count&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;#count&nbsp;function<br>
+<a href="#AggregateFunction">AggregateFunction</a>.Sum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;#sum&nbsp;function<br>
+<a href="#AggregateFunction">AggregateFunction</a>.SumPlus&nbsp;--&nbsp;the&nbsp;#sum+&nbsp;function<br>
+<a href="#AggregateFunction">AggregateFunction</a>.Min&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;#min&nbsp;function<br>
+<a href="#AggregateFunction">AggregateFunction</a>.Max&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;#max&nbsp;function<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="AggregateFunction-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#AggregateFunction-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="AggregateFunction-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#AggregateFunction-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="AggregateFunction-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#AggregateFunction-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="AggregateFunction-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#AggregateFunction-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="AggregateFunction-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#AggregateFunction-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="AggregateFunction-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#AggregateFunction-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="AggregateFunction-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#AggregateFunction-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="AggregateFunction-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#AggregateFunction-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="AggregateFunction-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#AggregateFunction-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Count</strong> = #count</dl>
+
+<dl><dt><strong>Max</strong> = #max</dl>
+
+<dl><dt><strong>Min</strong> = #min</dl>
+
+<dl><dt><strong>Sum</strong> = #sum</dl>
+
+<dl><dt><strong>SumPlus</strong> = #sum+</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="BinaryOperator">class <strong>BinaryOperator</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;binary&nbsp;operators.<br>
+&nbsp;<br>
+<a href="#BinaryOperator">BinaryOperator</a>.XOr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;bitwise&nbsp;exclusive&nbsp;or<br>
+<a href="#BinaryOperator">BinaryOperator</a>.Or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;bitwise&nbsp;or<br>
+<a href="#BinaryOperator">BinaryOperator</a>.And&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;bitwise&nbsp;and<br>
+<a href="#BinaryOperator">BinaryOperator</a>.Plus&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;arithmetic&nbsp;addition<br>
+<a href="#BinaryOperator">BinaryOperator</a>.Minus&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;arithmetic&nbsp;subtraction<br>
+<a href="#BinaryOperator">BinaryOperator</a>.Multiplication&nbsp;--&nbsp;arithmetic&nbsp;multipilcation<br>
+<a href="#BinaryOperator">BinaryOperator</a>.Division&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;arithmetic&nbsp;division<br>
+<a href="#BinaryOperator">BinaryOperator</a>.Modulo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;arithmetic&nbsp;modulo<br>
+<a href="#BinaryOperator">BinaryOperator</a>.Power&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;arithmetic&nbsp;exponentiation<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="BinaryOperator-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#BinaryOperator-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="BinaryOperator-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#BinaryOperator-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="BinaryOperator-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#BinaryOperator-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="BinaryOperator-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#BinaryOperator-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="BinaryOperator-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#BinaryOperator-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="BinaryOperator-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#BinaryOperator-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="BinaryOperator-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#BinaryOperator-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="BinaryOperator-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#BinaryOperator-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="BinaryOperator-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#BinaryOperator-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>And</strong> = &amp;</dl>
+
+<dl><dt><strong>Division</strong> = /</dl>
+
+<dl><dt><strong>Minus</strong> = -</dl>
+
+<dl><dt><strong>Modulo</strong> = \</dl>
+
+<dl><dt><strong>Multiplication</strong> = *</dl>
+
+<dl><dt><strong>Or</strong> = ?</dl>
+
+<dl><dt><strong>Plus</strong> = +</dl>
+
+<dl><dt><strong>Power</strong> = **</dl>
+
+<dl><dt><strong>XOr</strong> = ^</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="ComparisonOperator">class <strong>ComparisonOperator</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;comparison&nbsp;operators.<br>
+&nbsp;<br>
+<a href="#ComparisonOperator">ComparisonOperator</a>.GreaterThan&nbsp;&nbsp;--&nbsp;the&nbsp;&gt;&nbsp;operator<br>
+<a href="#ComparisonOperator">ComparisonOperator</a>.LessThan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;&lt;&nbsp;operator<br>
+<a href="#ComparisonOperator">ComparisonOperator</a>.LessEqual&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;&lt;=&nbsp;operator<br>
+<a href="#ComparisonOperator">ComparisonOperator</a>.GreaterEqual&nbsp;--&nbsp;the&nbsp;&gt;=&nbsp;operator<br>
+<a href="#ComparisonOperator">ComparisonOperator</a>.NotEqual&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;!=&nbsp;operator<br>
+<a href="#ComparisonOperator">ComparisonOperator</a>.Equal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;=&nbsp;operator<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="ComparisonOperator-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#ComparisonOperator-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="ComparisonOperator-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#ComparisonOperator-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="ComparisonOperator-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#ComparisonOperator-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="ComparisonOperator-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#ComparisonOperator-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="ComparisonOperator-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#ComparisonOperator-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="ComparisonOperator-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#ComparisonOperator-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="ComparisonOperator-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#ComparisonOperator-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="ComparisonOperator-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#ComparisonOperator-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="ComparisonOperator-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#ComparisonOperator-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Equal</strong> = =</dl>
+
+<dl><dt><strong>GreaterEqual</strong> = &gt;=</dl>
+
+<dl><dt><strong>GreaterThan</strong> = &gt;</dl>
+
+<dl><dt><strong>LessEqual</strong> = &lt;=</dl>
+
+<dl><dt><strong>LessThan</strong> = &lt;</dl>
+
+<dl><dt><strong>NotEqual</strong> = !=</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="ScriptType">class <strong>ScriptType</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;theory&nbsp;atom&nbsp;types.<br>
+&nbsp;<br>
+<a href="#ScriptType">ScriptType</a>.Python&nbsp;--&nbsp;python&nbsp;code<br>
+<a href="#ScriptType">ScriptType</a>.Lua&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;lua&nbsp;code<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="ScriptType-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#ScriptType-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="ScriptType-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#ScriptType-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="ScriptType-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#ScriptType-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="ScriptType-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#ScriptType-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="ScriptType-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#ScriptType-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="ScriptType-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#ScriptType-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="ScriptType-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#ScriptType-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="ScriptType-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#ScriptType-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="ScriptType-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#ScriptType-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Lua</strong> = lua</dl>
+
+<dl><dt><strong>Python</strong> = python</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Sign">class <strong>Sign</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>The&nbsp;available&nbsp;signs&nbsp;for&nbsp;literals.<br>
+&nbsp;<br>
+<a href="#Sign">Sign</a>.NoSign&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--<br>
+<a href="#Sign">Sign</a>.Negation&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;not<br>
+<a href="#Sign">Sign</a>.DoubleNegation&nbsp;--&nbsp;not&nbsp;not<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Sign-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#Sign-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="Sign-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#Sign-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="Sign-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#Sign-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="Sign-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#Sign-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="Sign-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#Sign-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="Sign-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#Sign-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="Sign-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#Sign-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="Sign-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#Sign-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="Sign-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#Sign-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>DoubleNegation</strong> = not not </dl>
+
+<dl><dt><strong>Negation</strong> = not </dl>
+
+<dl><dt><strong>NoSign</strong> = </dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="TheoryAtomType">class <strong>TheoryAtomType</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;theory&nbsp;atom&nbsp;types.<br>
+&nbsp;<br>
+<a href="#TheoryAtomType">TheoryAtomType</a>.Any&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;atom&nbsp;can&nbsp;occur&nbsp;anywhere<br>
+<a href="#TheoryAtomType">TheoryAtomType</a>.Body&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;atom&nbsp;can&nbsp;only&nbsp;occur&nbsp;in&nbsp;rule&nbsp;bodies<br>
+<a href="#TheoryAtomType">TheoryAtomType</a>.Head&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;atom&nbsp;can&nbsp;only&nbsp;occur&nbsp;in&nbsp;rule&nbsp;heads<br>
+<a href="#TheoryAtomType">TheoryAtomType</a>.Directive&nbsp;--&nbsp;atom&nbsp;can&nbsp;only&nbsp;occur&nbsp;in&nbsp;facts<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="TheoryAtomType-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomType-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomType-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomType-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomType-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomType-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomType-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomType-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomType-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomType-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomType-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomType-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomType-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomType-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomType-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomType-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomType-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomType-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Any</strong> = any</dl>
+
+<dl><dt><strong>Body</strong> = body</dl>
+
+<dl><dt><strong>Directive</strong> = directive</dl>
+
+<dl><dt><strong>Head</strong> = head</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="TheoryOperatorType">class <strong>TheoryOperatorType</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;operator&nbsp;types.<br>
+&nbsp;<br>
+<a href="#TheoryOperatorType">TheoryOperatorType</a>.Unary&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;unary&nbsp;operator<br>
+<a href="#TheoryOperatorType">TheoryOperatorType</a>.BinaryLeft&nbsp;&nbsp;--&nbsp;binary&nbsp;left&nbsp;associative&nbsp;operator<br>
+<a href="#TheoryOperatorType">TheoryOperatorType</a>.BinaryRight&nbsp;--&nbsp;binary&nbsp;right&nbsp;associative&nbsp;operator<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="TheoryOperatorType-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryOperatorType-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="TheoryOperatorType-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryOperatorType-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryOperatorType-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryOperatorType-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryOperatorType-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryOperatorType-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryOperatorType-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryOperatorType-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryOperatorType-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryOperatorType-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryOperatorType-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryOperatorType-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryOperatorType-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryOperatorType-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryOperatorType-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryOperatorType-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>BinaryLeft</strong> = binary, left</dl>
+
+<dl><dt><strong>BinaryRight</strong> = binary, right</dl>
+
+<dl><dt><strong>Unary</strong> = unary</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="TheorySequenceType">class <strong>TheorySequenceType</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;theory&nbsp;term&nbsp;sequence&nbsp;types.<br>
+&nbsp;<br>
+<a href="#TheorySequenceType">TheorySequenceType</a>.Tuple&nbsp;--&nbsp;sequence&nbsp;enclosed&nbsp;in&nbsp;parenthesis<br>
+<a href="#TheorySequenceType">TheorySequenceType</a>.List&nbsp;&nbsp;--&nbsp;sequence&nbsp;enclosed&nbsp;in&nbsp;brackets<br>
+<a href="#TheorySequenceType">TheorySequenceType</a>.Set&nbsp;&nbsp;&nbsp;--&nbsp;sequence&nbsp;enclosed&nbsp;in&nbsp;braces<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="TheorySequenceType-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#TheorySequenceType-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="TheorySequenceType-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#TheorySequenceType-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheorySequenceType-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheorySequenceType-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="TheorySequenceType-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#TheorySequenceType-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="TheorySequenceType-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#TheorySequenceType-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheorySequenceType-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheorySequenceType-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="TheorySequenceType-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#TheorySequenceType-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="TheorySequenceType-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#TheorySequenceType-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="TheorySequenceType-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#TheorySequenceType-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<dl><dt><a name="TheorySequenceType-left_hand_side"><strong>left_hand_side</strong></a>(...)</dt><dd><tt><a href="#TheorySequenceType-left_hand_side">left_hand_side</a>(self)&nbsp;-&gt;&nbsp;str<br>
+&nbsp;<br>
+Left-hand&nbsp;side&nbsp;representation&nbsp;of&nbsp;the&nbsp;sequence.</tt></dd></dl>
+
+<dl><dt><a name="TheorySequenceType-right_hand_side"><strong>right_hand_side</strong></a>(...)</dt><dd><tt><a href="#TheorySequenceType-right_hand_side">right_hand_side</a>(self)&nbsp;-&gt;&nbsp;str<br>
+&nbsp;<br>
+Right-hand&nbsp;side&nbsp;representation&nbsp;of&nbsp;the&nbsp;sequence.</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>List</strong> = List</dl>
+
+<dl><dt><strong>Set</strong> = Set</dl>
+
+<dl><dt><strong>Tuple</strong> = Tuple</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="UnaryOperator">class <strong>UnaryOperator</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;unary&nbsp;operators.<br>
+&nbsp;<br>
+<a href="#UnaryOperator">UnaryOperator</a>.Negation&nbsp;--&nbsp;bitwise&nbsp;negation<br>
+<a href="#UnaryOperator">UnaryOperator</a>.Minus&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;unary&nbsp;minus&nbsp;and&nbsp;classical&nbsp;negation<br>
+<a href="#UnaryOperator">UnaryOperator</a>.Absolute&nbsp;--&nbsp;absolute&nbsp;value<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="UnaryOperator-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#UnaryOperator-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="UnaryOperator-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#UnaryOperator-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="UnaryOperator-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#UnaryOperator-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="UnaryOperator-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#UnaryOperator-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="UnaryOperator-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#UnaryOperator-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="UnaryOperator-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#UnaryOperator-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="UnaryOperator-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#UnaryOperator-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="UnaryOperator-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#UnaryOperator-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="UnaryOperator-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#UnaryOperator-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<dl><dt><a name="UnaryOperator-left_hand_side"><strong>left_hand_side</strong></a>(...)</dt><dd><tt><a href="#UnaryOperator-left_hand_side">left_hand_side</a>(self)&nbsp;-&gt;&nbsp;str<br>
+&nbsp;<br>
+Left-hand&nbsp;side&nbsp;representation&nbsp;of&nbsp;the&nbsp;operator.</tt></dd></dl>
+
+<dl><dt><a name="UnaryOperator-right_hand_side"><strong>right_hand_side</strong></a>(...)</dt><dd><tt><a href="#UnaryOperator-right_hand_side">right_hand_side</a>(self)&nbsp;-&gt;&nbsp;str<br>
+&nbsp;<br>
+Right-hand&nbsp;side&nbsp;representation&nbsp;of&nbsp;the&nbsp;operator.</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Absolute</strong> = Absolute</dl>
+
+<dl><dt><strong>Minus</strong> = Minus</dl>
+
+<dl><dt><strong>Negation</strong> = Negation</dl>
+
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-Aggregate"><strong>Aggregate</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-AggregateGuard"><strong>AggregateGuard</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-BinaryOperation"><strong>BinaryOperation</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-BodyAggregate"><strong>BodyAggregate</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-BodyAggregateElement"><strong>BodyAggregateElement</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-BooleanConstant"><strong>BooleanConstant</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-CSPGuard"><strong>CSPGuard</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-CSPLiteral"><strong>CSPLiteral</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-CSPProduct"><strong>CSPProduct</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-CSPSum"><strong>CSPSum</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Comparison"><strong>Comparison</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-ConditionalLiteral"><strong>ConditionalLiteral</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Defined"><strong>Defined</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Definition"><strong>Definition</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Disjoint"><strong>Disjoint</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-DisjointElement"><strong>DisjointElement</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Disjunction"><strong>Disjunction</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Edge"><strong>Edge</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-External"><strong>External</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Function"><strong>Function</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-HeadAggregate"><strong>HeadAggregate</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-HeadAggregateElement"><strong>HeadAggregateElement</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Heuristic"><strong>Heuristic</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Id"><strong>Id</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Interval"><strong>Interval</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Literal"><strong>Literal</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Minimize"><strong>Minimize</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Pool"><strong>Pool</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Program"><strong>Program</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-ProjectAtom"><strong>ProjectAtom</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-ProjectSignature"><strong>ProjectSignature</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Rule"><strong>Rule</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Script"><strong>Script</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-ShowSignature"><strong>ShowSignature</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-ShowTerm"><strong>ShowTerm</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Symbol"><strong>Symbol</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-SymbolicAtom"><strong>SymbolicAtom</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheoryAtom"><strong>TheoryAtom</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheoryAtomDefinition"><strong>TheoryAtomDefinition</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheoryAtomElement"><strong>TheoryAtomElement</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheoryDefinition"><strong>TheoryDefinition</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheoryFunction"><strong>TheoryFunction</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheoryGuard"><strong>TheoryGuard</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheoryGuardDefinition"><strong>TheoryGuardDefinition</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheoryOperatorDefinition"><strong>TheoryOperatorDefinition</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheorySequence"><strong>TheorySequence</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheoryTermDefinition"><strong>TheoryTermDefinition</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheoryUnparsedTerm"><strong>TheoryUnparsedTerm</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-TheoryUnparsedTermElement"><strong>TheoryUnparsedTermElement</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-UnaryOperation"><strong>UnaryOperation</strong></a>(...)</dt></dl>
+ <dl><dt><a name="-Variable"><strong>Variable</strong></a>(...)</dt></dl>
+</td></tr></table>
+</body></html>

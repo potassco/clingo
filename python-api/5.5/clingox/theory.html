@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>clingox.theory API documentation</title>
+<meta name="description" content="This module provides functions to work with clingo&#39;s theories …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<nav class="http-server-breadcrumbs">
+<a href="https://potassco.org/clingo/python-api/5.5/">All packages</a>
+:: <a href="https://potassco.org/clingo/python-api/5.5/clingox/">clingox</a>
+</nav>
+<h1 class="title">Module <code>clingox.theory</code></h1>
+</header>
+<section id="section-intro">
+<p>This module provides functions to work with clingo's theories.</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from clingo.control import Control
+&gt;&gt;&gt; from clingox.theory import evaluate
+&gt;&gt;&gt;
+&gt;&gt;&gt; prg = &quot;&quot;&quot;... #theory test {
+...     term {
+...         -  : 3, unary;
+...         ** : 2, binary, right;
+...         *  : 1, binary, left;
+...         +  : 0, binary, left;
+...         -  : 0, binary, left
+...     };
+...     &amp;eval/0 : term, head
+... }.
+...
+... &amp;eval{ 3**5-201 }.
+... &quot;&quot;&quot;
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl = Control()
+&gt;&gt;&gt; ctl.add('base', [], prg)
+&gt;&gt;&gt; ctl.ground([('base', [])])
+&gt;&gt;&gt;
+&gt;&gt;&gt; atom = next(ctl.theory_atoms)
+&gt;&gt;&gt; print(evaluate(atom.elements[0].terms[0]))
+42
+</code></pre>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#39;&#39;&#39;
+This module provides functions to work with clingo&#39;s theories.
+
+Example
+-------
+
+```python-repl
+&gt;&gt;&gt; from clingo.control import Control
+&gt;&gt;&gt; from clingox.theory import evaluate
+&gt;&gt;&gt;
+&gt;&gt;&gt; prg = &#34;&#34;&#34;\
+... #theory test {
+...     term {
+...         -  : 3, unary;
+...         ** : 2, binary, right;
+...         *  : 1, binary, left;
+...         +  : 0, binary, left;
+...         -  : 0, binary, left
+...     };
+...     &amp;eval/0 : term, head
+... }.
+...
+... &amp;eval{ 3**5-201 }.
+... &#34;&#34;&#34;
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl = Control()
+&gt;&gt;&gt; ctl.add(&#39;base&#39;, [], prg)
+&gt;&gt;&gt; ctl.ground([(&#39;base&#39;, [])])
+&gt;&gt;&gt;
+&gt;&gt;&gt; atom = next(ctl.theory_atoms)
+&gt;&gt;&gt; print(evaluate(atom.elements[0].terms[0]))
+42
+```
+&#39;&#39;&#39;
+
+from typing import Any
+
+from clingo import Symbol, Function, String, Tuple_, Number, SymbolType, TheoryTermType
+
+__all__ = [&#39;evaluate&#39;, &#39;invert_symbol&#39;, &#39;is_clingo_operator&#39;, &#39;is_operator&#39;, &#39;require_number&#39;, &#39;TermEvaluator&#39;]
+__pdoc__ = {}
+
+
+def require_number(x: Symbol) -&gt; int:
+    &#39;&#39;&#39;
+    Requires the argument to be a number returning the given number or throwing
+    a type error.
+    &#39;&#39;&#39;
+    if x.type == SymbolType.Number:
+        return x.number
+
+    raise TypeError(&#39;number exepected&#39;)
+
+
+def invert_symbol(sym: Symbol) -&gt; Symbol:
+    &#39;&#39;&#39;
+    Inverts the given symbol.
+
+    Parameters
+    ----------
+    sym
+        The symbol to invert.
+
+    Returns
+    -------
+    The inverted symbol.
+    &#39;&#39;&#39;
+    if sym.type == SymbolType.Number:
+        return Number(-sym.number)
+
+    if sym.type == SymbolType.Function and sym.name:
+        return Function(sym.name, sym.arguments, not sym.positive)
+
+    raise TypeError(&#39;cannot invert symbol&#39;)
+
+
+def is_clingo_operator(op: str):
+    &#39;&#39;&#39;
+    Return true if the given string is a operator as supported by the
+    Evaluator.
+    &#39;&#39;&#39;
+    return op in (&#39;+&#39;, &#39;-&#39;, &#39;*&#39;, &#39;\\&#39;, &#39;/&#39;)
+
+
+def is_operator(op: str):
+    &#39;&#39;&#39;
+    Return true if the given string is an operator.
+
+    Parameters
+    ----------
+    op
+        The operator name to check.
+
+    Returns
+    -------
+    Whether the string is an operator name.
+    &#39;&#39;&#39;
+    return op and op[0] in &#34;/!&lt;=&gt;+-*\\?&amp;@|:;~^.&#34;
+
+
+def _unquote(s: str) -&gt; str:
+    &#39;&#39;&#39;
+    Remove quotes in the same fashion as clingo.
+    &#39;&#39;&#39;
+    ret = []
+    slash = False
+    for c in s:
+        if slash:
+            if c == &#39;n&#39;:
+                ret.append(&#39;\n&#39;)
+            else:
+                assert c in &#39;\\&#34;&#39;
+                ret.append(c)
+            slash = False
+        elif c == &#39;\\&#39;:
+            slash = True
+        else:
+            ret.append(c)
+
+    return &#39;&#39;.join(ret)
+
+
+class TermEvaluator:
+    &#39;&#39;&#39;
+    This class provides a call operator to evaluate the operators in a theory
+    term in the same fashion as clingo evaluates its arithmetic functions.
+
+    This class can easily be extended for additional binary and unary
+    operators.
+    &#39;&#39;&#39;
+
+    def evaluate_binary(self, op: str, lhs: Symbol, rhs: Symbol) -&gt; Symbol:
+        &#39;&#39;&#39;
+        Evaluate binary terms as clingo would.
+
+        Parameters
+        ----------
+        op
+            The operator name.
+        lhs
+            The left-hand-side argument.
+        lhs
+            The right-hand-side argument.
+
+        Returns
+        -------
+        The evaluated operator in form of a symbol.
+        &#39;&#39;&#39;
+        if op == &#34;+&#34;:
+            return Number(require_number(lhs) + require_number(rhs))
+        if op == &#34;-&#34;:
+            return Number(require_number(lhs) - require_number(rhs))
+        if op == &#34;*&#34;:
+            return Number(require_number(lhs) * require_number(rhs))
+        if op == &#34;**&#34;:
+            return Number(require_number(lhs) ** require_number(rhs))
+        if op == &#34;\\&#34;:
+            if rhs == Number(0):
+                raise ZeroDivisionError(&#34;division by zero&#34;)
+            return Number(require_number(lhs) % require_number(rhs))
+        if op == &#34;/&#34;:
+            if rhs == Number(0):
+                raise ZeroDivisionError(&#34;division by zero&#34;)
+            return Number(require_number(lhs) // require_number(rhs))
+
+        if is_operator(op):
+            raise AttributeError(&#39;unexpected operator&#39;)
+
+        return Function(op, [lhs, rhs])
+
+    def evaluate_unary(self, op: str, arg: Symbol):
+        &#39;&#39;&#39;
+        Evaluate unary terms as clingo would.
+
+        Parameters
+        ----------
+        op
+            The operator name.
+        arg
+            The argument of the operator.
+
+        Returns
+        -------
+        The evaluated operator in form of a symbol.
+        &#39;&#39;&#39;
+        if op == &#34;+&#34;:
+            return Number(require_number(arg))
+        if op == &#34;-&#34;:
+            return invert_symbol(arg)
+        if is_operator(op):
+            raise AttributeError(&#39;unexpected operator&#39;)
+
+        return Function(op, [arg])
+
+    def __call__(self, term: Any):
+        &#39;&#39;&#39;
+        Evaluate the given term.
+
+        Parameters
+        ----------
+        term
+            The term to evaluate.
+
+        Returns
+        -------
+        The evaluated term in form of a symbol.
+        &#39;&#39;&#39;
+        # tuples
+        if term.type == TheoryTermType.Tuple:
+            return Tuple_([self(x) for x in term.arguments])
+
+        # functions and arithmetic operations
+        if term.type == TheoryTermType.Function:
+            arguments = [self(x) for x in term.arguments]
+            # binary operations
+            if len(arguments) == 2:
+                return self.evaluate_binary(term.name, *arguments)
+
+            # unary operations
+            if len(arguments) == 1:
+                return self.evaluate_unary(term.name, *arguments)
+
+            # functions
+            return Function(term.name, arguments)
+
+        # constants
+        if term.type == TheoryTermType.Symbol:
+            if term.name.startswith(&#39;&#34;&#39;) and term.name.endswith(&#39;&#34;&#39;):
+                return String(_unquote(term.name[1:-1]))
+
+            return Function(term.name)
+
+        # numbers
+        if term.type == TheoryTermType.Number:
+            return Number(term.number)
+
+        raise RuntimeError(&#34;cannot evaluate term&#34;)
+
+
+__pdoc__[&#39;TermEvaluator.__call__&#39;] = True
+
+
+def evaluate(term: Any) -&gt; Symbol:
+    &#39;&#39;&#39;
+    Evaluates the operators in a theory term in the same fashion as clingo
+    evaluates its arithmetic functions.
+
+    We use `Any` as a type hint here to allow for evaluating terms that are
+    duck typing copmatible with clingo&#39;s `TheoryTerm` class.
+
+    Parameters
+    ----------
+    term
+        The theory term to evaluate.
+
+    Returns
+    -------
+    The evaluated term in form of a symbol.
+    &#39;&#39;&#39;
+    return TermEvaluator()(term)</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="clingox.theory.evaluate"><code class="name flex">
+<span>def <span class="ident">evaluate</span></span>(<span>term: Any) ‑> <a title="clingo.symbol.Symbol" href="../clingo/symbol.html#clingo.symbol.Symbol">Symbol</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Evaluates the operators in a theory term in the same fashion as clingo
+evaluates its arithmetic functions.</p>
+<p>We use <code>Any</code> as a type hint here to allow for evaluating terms that are
+duck typing copmatible with clingo's <code>TheoryTerm</code> class.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>term</code></strong></dt>
+<dd>The theory term to evaluate.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The evaluated term in form of a symbol.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def evaluate(term: Any) -&gt; Symbol:
+    &#39;&#39;&#39;
+    Evaluates the operators in a theory term in the same fashion as clingo
+    evaluates its arithmetic functions.
+
+    We use `Any` as a type hint here to allow for evaluating terms that are
+    duck typing copmatible with clingo&#39;s `TheoryTerm` class.
+
+    Parameters
+    ----------
+    term
+        The theory term to evaluate.
+
+    Returns
+    -------
+    The evaluated term in form of a symbol.
+    &#39;&#39;&#39;
+    return TermEvaluator()(term)</code></pre>
+</details>
+</dd>
+<dt id="clingox.theory.invert_symbol"><code class="name flex">
+<span>def <span class="ident">invert_symbol</span></span>(<span>sym: <a title="clingo.symbol.Symbol" href="../clingo/symbol.html#clingo.symbol.Symbol">Symbol</a>) ‑> <a title="clingo.symbol.Symbol" href="../clingo/symbol.html#clingo.symbol.Symbol">Symbol</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Inverts the given symbol.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>sym</code></strong></dt>
+<dd>The symbol to invert.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The inverted symbol.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def invert_symbol(sym: Symbol) -&gt; Symbol:
+    &#39;&#39;&#39;
+    Inverts the given symbol.
+
+    Parameters
+    ----------
+    sym
+        The symbol to invert.
+
+    Returns
+    -------
+    The inverted symbol.
+    &#39;&#39;&#39;
+    if sym.type == SymbolType.Number:
+        return Number(-sym.number)
+
+    if sym.type == SymbolType.Function and sym.name:
+        return Function(sym.name, sym.arguments, not sym.positive)
+
+    raise TypeError(&#39;cannot invert symbol&#39;)</code></pre>
+</details>
+</dd>
+<dt id="clingox.theory.is_clingo_operator"><code class="name flex">
+<span>def <span class="ident">is_clingo_operator</span></span>(<span>op: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return true if the given string is a operator as supported by the
+Evaluator.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_clingo_operator(op: str):
+    &#39;&#39;&#39;
+    Return true if the given string is a operator as supported by the
+    Evaluator.
+    &#39;&#39;&#39;
+    return op in (&#39;+&#39;, &#39;-&#39;, &#39;*&#39;, &#39;\\&#39;, &#39;/&#39;)</code></pre>
+</details>
+</dd>
+<dt id="clingox.theory.is_operator"><code class="name flex">
+<span>def <span class="ident">is_operator</span></span>(<span>op: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return true if the given string is an operator.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>op</code></strong></dt>
+<dd>The operator name to check.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Whether the string is an operator name.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_operator(op: str):
+    &#39;&#39;&#39;
+    Return true if the given string is an operator.
+
+    Parameters
+    ----------
+    op
+        The operator name to check.
+
+    Returns
+    -------
+    Whether the string is an operator name.
+    &#39;&#39;&#39;
+    return op and op[0] in &#34;/!&lt;=&gt;+-*\\?&amp;@|:;~^.&#34;</code></pre>
+</details>
+</dd>
+<dt id="clingox.theory.require_number"><code class="name flex">
+<span>def <span class="ident">require_number</span></span>(<span>x: <a title="clingo.symbol.Symbol" href="../clingo/symbol.html#clingo.symbol.Symbol">Symbol</a>) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Requires the argument to be a number returning the given number or throwing
+a type error.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def require_number(x: Symbol) -&gt; int:
+    &#39;&#39;&#39;
+    Requires the argument to be a number returning the given number or throwing
+    a type error.
+    &#39;&#39;&#39;
+    if x.type == SymbolType.Number:
+        return x.number
+
+    raise TypeError(&#39;number exepected&#39;)</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingox.theory.TermEvaluator"><code class="flex name class">
+<span>class <span class="ident">TermEvaluator</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>This class provides a call operator to evaluate the operators in a theory
+term in the same fashion as clingo evaluates its arithmetic functions.</p>
+<p>This class can easily be extended for additional binary and unary
+operators.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TermEvaluator:
+    &#39;&#39;&#39;
+    This class provides a call operator to evaluate the operators in a theory
+    term in the same fashion as clingo evaluates its arithmetic functions.
+
+    This class can easily be extended for additional binary and unary
+    operators.
+    &#39;&#39;&#39;
+
+    def evaluate_binary(self, op: str, lhs: Symbol, rhs: Symbol) -&gt; Symbol:
+        &#39;&#39;&#39;
+        Evaluate binary terms as clingo would.
+
+        Parameters
+        ----------
+        op
+            The operator name.
+        lhs
+            The left-hand-side argument.
+        lhs
+            The right-hand-side argument.
+
+        Returns
+        -------
+        The evaluated operator in form of a symbol.
+        &#39;&#39;&#39;
+        if op == &#34;+&#34;:
+            return Number(require_number(lhs) + require_number(rhs))
+        if op == &#34;-&#34;:
+            return Number(require_number(lhs) - require_number(rhs))
+        if op == &#34;*&#34;:
+            return Number(require_number(lhs) * require_number(rhs))
+        if op == &#34;**&#34;:
+            return Number(require_number(lhs) ** require_number(rhs))
+        if op == &#34;\\&#34;:
+            if rhs == Number(0):
+                raise ZeroDivisionError(&#34;division by zero&#34;)
+            return Number(require_number(lhs) % require_number(rhs))
+        if op == &#34;/&#34;:
+            if rhs == Number(0):
+                raise ZeroDivisionError(&#34;division by zero&#34;)
+            return Number(require_number(lhs) // require_number(rhs))
+
+        if is_operator(op):
+            raise AttributeError(&#39;unexpected operator&#39;)
+
+        return Function(op, [lhs, rhs])
+
+    def evaluate_unary(self, op: str, arg: Symbol):
+        &#39;&#39;&#39;
+        Evaluate unary terms as clingo would.
+
+        Parameters
+        ----------
+        op
+            The operator name.
+        arg
+            The argument of the operator.
+
+        Returns
+        -------
+        The evaluated operator in form of a symbol.
+        &#39;&#39;&#39;
+        if op == &#34;+&#34;:
+            return Number(require_number(arg))
+        if op == &#34;-&#34;:
+            return invert_symbol(arg)
+        if is_operator(op):
+            raise AttributeError(&#39;unexpected operator&#39;)
+
+        return Function(op, [arg])
+
+    def __call__(self, term: Any):
+        &#39;&#39;&#39;
+        Evaluate the given term.
+
+        Parameters
+        ----------
+        term
+            The term to evaluate.
+
+        Returns
+        -------
+        The evaluated term in form of a symbol.
+        &#39;&#39;&#39;
+        # tuples
+        if term.type == TheoryTermType.Tuple:
+            return Tuple_([self(x) for x in term.arguments])
+
+        # functions and arithmetic operations
+        if term.type == TheoryTermType.Function:
+            arguments = [self(x) for x in term.arguments]
+            # binary operations
+            if len(arguments) == 2:
+                return self.evaluate_binary(term.name, *arguments)
+
+            # unary operations
+            if len(arguments) == 1:
+                return self.evaluate_unary(term.name, *arguments)
+
+            # functions
+            return Function(term.name, arguments)
+
+        # constants
+        if term.type == TheoryTermType.Symbol:
+            if term.name.startswith(&#39;&#34;&#39;) and term.name.endswith(&#39;&#34;&#39;):
+                return String(_unquote(term.name[1:-1]))
+
+            return Function(term.name)
+
+        # numbers
+        if term.type == TheoryTermType.Number:
+            return Number(term.number)
+
+        raise RuntimeError(&#34;cannot evaluate term&#34;)</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="clingox.theory.TermEvaluator.__call__"><code class="name flex">
+<span>def <span class="ident">__call__</span></span>(<span>self, term: Any)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Evaluate the given term.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>term</code></strong></dt>
+<dd>The term to evaluate.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The evaluated term in form of a symbol.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def __call__(self, term: Any):
+    &#39;&#39;&#39;
+    Evaluate the given term.
+
+    Parameters
+    ----------
+    term
+        The term to evaluate.
+
+    Returns
+    -------
+    The evaluated term in form of a symbol.
+    &#39;&#39;&#39;
+    # tuples
+    if term.type == TheoryTermType.Tuple:
+        return Tuple_([self(x) for x in term.arguments])
+
+    # functions and arithmetic operations
+    if term.type == TheoryTermType.Function:
+        arguments = [self(x) for x in term.arguments]
+        # binary operations
+        if len(arguments) == 2:
+            return self.evaluate_binary(term.name, *arguments)
+
+        # unary operations
+        if len(arguments) == 1:
+            return self.evaluate_unary(term.name, *arguments)
+
+        # functions
+        return Function(term.name, arguments)
+
+    # constants
+    if term.type == TheoryTermType.Symbol:
+        if term.name.startswith(&#39;&#34;&#39;) and term.name.endswith(&#39;&#34;&#39;):
+            return String(_unquote(term.name[1:-1]))
+
+        return Function(term.name)
+
+    # numbers
+    if term.type == TheoryTermType.Number:
+        return Number(term.number)
+
+    raise RuntimeError(&#34;cannot evaluate term&#34;)</code></pre>
+</details>
+</dd>
+<dt id="clingox.theory.TermEvaluator.evaluate_binary"><code class="name flex">
+<span>def <span class="ident">evaluate_binary</span></span>(<span>self, op: str, lhs: <a title="clingo.symbol.Symbol" href="../clingo/symbol.html#clingo.symbol.Symbol">Symbol</a>, rhs: <a title="clingo.symbol.Symbol" href="../clingo/symbol.html#clingo.symbol.Symbol">Symbol</a>) ‑> <a title="clingo.symbol.Symbol" href="../clingo/symbol.html#clingo.symbol.Symbol">Symbol</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Evaluate binary terms as clingo would.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>op</code></strong></dt>
+<dd>The operator name.</dd>
+<dt><strong><code>lhs</code></strong></dt>
+<dd>The left-hand-side argument.</dd>
+<dt><strong><code>lhs</code></strong></dt>
+<dd>The right-hand-side argument.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The evaluated operator in form of a symbol.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def evaluate_binary(self, op: str, lhs: Symbol, rhs: Symbol) -&gt; Symbol:
+    &#39;&#39;&#39;
+    Evaluate binary terms as clingo would.
+
+    Parameters
+    ----------
+    op
+        The operator name.
+    lhs
+        The left-hand-side argument.
+    lhs
+        The right-hand-side argument.
+
+    Returns
+    -------
+    The evaluated operator in form of a symbol.
+    &#39;&#39;&#39;
+    if op == &#34;+&#34;:
+        return Number(require_number(lhs) + require_number(rhs))
+    if op == &#34;-&#34;:
+        return Number(require_number(lhs) - require_number(rhs))
+    if op == &#34;*&#34;:
+        return Number(require_number(lhs) * require_number(rhs))
+    if op == &#34;**&#34;:
+        return Number(require_number(lhs) ** require_number(rhs))
+    if op == &#34;\\&#34;:
+        if rhs == Number(0):
+            raise ZeroDivisionError(&#34;division by zero&#34;)
+        return Number(require_number(lhs) % require_number(rhs))
+    if op == &#34;/&#34;:
+        if rhs == Number(0):
+            raise ZeroDivisionError(&#34;division by zero&#34;)
+        return Number(require_number(lhs) // require_number(rhs))
+
+    if is_operator(op):
+        raise AttributeError(&#39;unexpected operator&#39;)
+
+    return Function(op, [lhs, rhs])</code></pre>
+</details>
+</dd>
+<dt id="clingox.theory.TermEvaluator.evaluate_unary"><code class="name flex">
+<span>def <span class="ident">evaluate_unary</span></span>(<span>self, op: str, arg: <a title="clingo.symbol.Symbol" href="../clingo/symbol.html#clingo.symbol.Symbol">Symbol</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Evaluate unary terms as clingo would.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>op</code></strong></dt>
+<dd>The operator name.</dd>
+<dt><strong><code>arg</code></strong></dt>
+<dd>The argument of the operator.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The evaluated operator in form of a symbol.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def evaluate_unary(self, op: str, arg: Symbol):
+    &#39;&#39;&#39;
+    Evaluate unary terms as clingo would.
+
+    Parameters
+    ----------
+    op
+        The operator name.
+    arg
+        The argument of the operator.
+
+    Returns
+    -------
+    The evaluated operator in form of a symbol.
+    &#39;&#39;&#39;
+    if op == &#34;+&#34;:
+        return Number(require_number(arg))
+    if op == &#34;-&#34;:
+        return invert_symbol(arg)
+    if is_operator(op):
+        raise AttributeError(&#39;unexpected operator&#39;)
+
+    return Function(op, [arg])</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul>
+<li><a href="#example">Example</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingox" href="index.html">clingox</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="clingox.theory.evaluate" href="#clingox.theory.evaluate">evaluate</a></code></li>
+<li><code><a title="clingox.theory.invert_symbol" href="#clingox.theory.invert_symbol">invert_symbol</a></code></li>
+<li><code><a title="clingox.theory.is_clingo_operator" href="#clingox.theory.is_clingo_operator">is_clingo_operator</a></code></li>
+<li><code><a title="clingox.theory.is_operator" href="#clingox.theory.is_operator">is_operator</a></code></li>
+<li><code><a title="clingox.theory.require_number" href="#clingox.theory.require_number">require_number</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingox.theory.TermEvaluator" href="#clingox.theory.TermEvaluator">TermEvaluator</a></code></h4>
+<ul class="">
+<li><code><a title="clingox.theory.TermEvaluator.__call__" href="#clingox.theory.TermEvaluator.__call__">__call__</a></code></li>
+<li><code><a title="clingox.theory.TermEvaluator.evaluate_binary" href="#clingox.theory.TermEvaluator.evaluate_binary">evaluate_binary</a></code></li>
+<li><code><a title="clingox.theory.TermEvaluator.evaluate_unary" href="#clingox.theory.TermEvaluator.evaluate_unary">evaluate_unary</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>

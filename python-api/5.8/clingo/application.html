@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>clingo.application API documentation</title>
+<meta name="description" content="Functions and classes to implement applications based on clingo …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<nav class="http-server-breadcrumbs">
+<a href="https://potassco.org/clingo/python-api/5.8/">All packages</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/">clingo</a>
+</nav>
+<h1 class="title">Module <code>clingo.application</code></h1>
+</header>
+<section id="section-intro">
+<p>Functions and classes to implement applications based on clingo.</p>
+<h2 id="examples">Examples</h2>
+<p>The following example reproduces the default clingo application:</p>
+<pre><code>import sys
+from clingo.application import Application, clingo_main
+
+class ClingoApp(Application):
+    def __init__(self, name):
+        self.program_name = name
+
+    def main(self, ctl, files):
+        for f in files:
+            ctl.load(f)
+        if not files:
+            ctl.load("-")
+        ctl.ground([("base", [])])
+        ctl.solve()
+
+clingo_main(ClingoApp(sys.argv[0]), sys.argv[1:])
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="clingo.application.clingo_main"><code class="name flex">
+<span>def <span class="ident">clingo_main</span></span>(<span>application: <a title="clingo.application.Application" href="#clingo.application.Application">Application</a>,<br>arguments: Sequence[str] | None = None) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def clingo_main(
+    application: Application, arguments: Optional[Sequence[str]] = None
+) -&gt; int:
+    &#34;&#34;&#34;
+    Runs the given application using clingo&#39;s default output and signal handling.
+
+    The application can overwrite clingo&#39;s default behaviour by registering
+    additional options and overriding its default main function.
+
+    Parameters
+    ----------
+    application
+        The application object.
+    arguments
+        The command line arguments excluding the program name.
+
+        If omitted, then `sys.argv[1:]` is used.
+
+    Returns
+    -------
+    The exit code of the application.
+
+    Notes
+    -----
+    The main function of the `Application` interface has to be implemented. All
+    other members are optional.
+    &#34;&#34;&#34;
+    if arguments is None:
+        arguments = sys.argv[1:]
+
+    # pylint: disable=dangerous-default-value,protected-access,line-too-long
+    c_application = _ffi.new(
+        &#34;clingo_application_t*&#34;,
+        (
+            (
+                _lib.pyclingo_application_program_name
+                if _overwritten(Application, application, &#34;program_name&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_application_version
+                if _overwritten(Application, application, &#34;version&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_application_message_limit
+                if _overwritten(Application, application, &#34;message_limit&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_application_main
+                if _overwritten(Application, application, &#34;main&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_application_logger
+                if _overwritten(Application, application, &#34;logger&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_application_print_model
+                if _overwritten(Application, application, &#34;print_model&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_application_register_options
+                if _overwritten(Application, application, &#34;register_options&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_application_validate_options
+                if _overwritten(Application, application, &#34;validate_options&#34;)
+                else _ffi.NULL
+            ),
+        ),
+    )
+
+    mem: List[Any] = []
+    c_data = _ffi.new_handle((application, mem))
+
+    return _lib.clingo_main(
+        c_application,
+        [_ffi.new(&#34;char[]&#34;, arg.encode()) for arg in arguments],
+        len(arguments),
+        c_data,
+    )</code></pre>
+</details>
+<div class="desc"><p>Runs the given application using clingo's default output and signal handling.</p>
+<p>The application can overwrite clingo's default behaviour by registering
+additional options and overriding its default main function.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>application</code></strong></dt>
+<dd>The application object.</dd>
+<dt><strong><code>arguments</code></strong></dt>
+<dd>
+<p>The command line arguments excluding the program name.</p>
+<p>If omitted, then <code>sys.argv[1:]</code> is used.</p>
+</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The exit code of the application.</p>
+<h2 id="notes">Notes</h2>
+<p>The main function of the <code><a title="clingo.application.Application" href="#clingo.application.Application">Application</a></code> interface has to be implemented. All
+other members are optional.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.application.Application"><code class="flex name class">
+<span>class <span class="ident">Application</span></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Application(metaclass=ABCMeta):
+    &#34;&#34;&#34;
+    Interface that has to be implemented to customize clingo.
+    &#34;&#34;&#34;
+
+    program_name: str
+    &#34;&#34;&#34;
+    Program name defaulting to `&#39;clingo&#39;` used in the help output.
+    &#34;&#34;&#34;
+    version: str
+    &#34;&#34;&#34;
+    Version string defaulting to clingo&#39;s version.
+    &#34;&#34;&#34;
+    message_limit: int
+    &#34;&#34;&#34;
+    Maximum number of messages defaulting to `20` passed to the logger.
+    &#34;&#34;&#34;
+
+    def main(self, control: Control, files: Sequence[str]) -&gt; None:
+        &#34;&#34;&#34;
+        Function to replace clingo&#39;s default main function.
+
+        If this function is not implemented, clingo&#39;s default is used.
+
+        Parameters
+        ----------
+        control
+            The main control object.
+        files
+            The files passed to clingo_main.
+        &#34;&#34;&#34;
+
+    def register_options(self, options: ApplicationOptions) -&gt; None:
+        &#34;&#34;&#34;
+        Function to register custom options.
+
+        Parameters
+        ----------
+        options
+            Object to register additional options
+        &#34;&#34;&#34;
+
+    def validate_options(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Function to validate custom options.
+
+        Returns
+        -------
+        This function should return false if option validation fails.
+        &#34;&#34;&#34;
+
+    def print_model(self, model: Model, printer: Callable[[], None]) -&gt; None:
+        &#34;&#34;&#34;
+        Function to print additional information when the text output is used.
+
+        To avoid entangled output, `sys.stdout.flush` is automatically called
+        after this function.
+
+        Parameters
+        ----------
+        model
+            The current model
+        printer
+            The default printer as used in clingo.
+        &#34;&#34;&#34;
+
+    def logger(self, code: MessageCode, message: str) -&gt; None:
+        &#34;&#34;&#34;
+        Function to intercept messages normally printed to standard error.
+
+        By default, messages are printed to standard error.
+
+        Parameters
+        ----------
+        code
+            The message code.
+        message
+            The message string.
+
+        Notes
+        -----
+        This function should not raise exceptions.
+        &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Interface that has to be implemented to customize clingo.</p></div>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="clingo.tests.test_application.TestApp" href="tests/test_application.html#clingo.tests.test_application.TestApp">TestApp</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="clingo.application.Application.message_limit"><code class="name">var <span class="ident">message_limit</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Maximum number of messages defaulting to <code>20</code> passed to the logger.</p></div>
+</dd>
+<dt id="clingo.application.Application.program_name"><code class="name">var <span class="ident">program_name</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Program name defaulting to <code>'clingo'</code> used in the help output.</p></div>
+</dd>
+<dt id="clingo.application.Application.version"><code class="name">var <span class="ident">version</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Version string defaulting to clingo's version.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.application.Application.logger"><code class="name flex">
+<span>def <span class="ident">logger</span></span>(<span>self,<br>code: <a title="clingo.core.MessageCode" href="core.html#clingo.core.MessageCode">MessageCode</a>,<br>message: str) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def logger(self, code: MessageCode, message: str) -&gt; None:
+    &#34;&#34;&#34;
+    Function to intercept messages normally printed to standard error.
+
+    By default, messages are printed to standard error.
+
+    Parameters
+    ----------
+    code
+        The message code.
+    message
+        The message string.
+
+    Notes
+    -----
+    This function should not raise exceptions.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Function to intercept messages normally printed to standard error.</p>
+<p>By default, messages are printed to standard error.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>code</code></strong></dt>
+<dd>The message code.</dd>
+<dt><strong><code>message</code></strong></dt>
+<dd>The message string.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>This function should not raise exceptions.</p></div>
+</dd>
+<dt id="clingo.application.Application.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>self,<br>control: <a title="clingo.control.Control" href="control.html#clingo.control.Control">Control</a>,<br>files: Sequence[str]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def main(self, control: Control, files: Sequence[str]) -&gt; None:
+    &#34;&#34;&#34;
+    Function to replace clingo&#39;s default main function.
+
+    If this function is not implemented, clingo&#39;s default is used.
+
+    Parameters
+    ----------
+    control
+        The main control object.
+    files
+        The files passed to clingo_main.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Function to replace clingo's default main function.</p>
+<p>If this function is not implemented, clingo's default is used.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>control</code></strong></dt>
+<dd>The main control object.</dd>
+<dt><strong><code>files</code></strong></dt>
+<dd>The files passed to clingo_main.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.application.Application.print_model"><code class="name flex">
+<span>def <span class="ident">print_model</span></span>(<span>self,<br>model: <a title="clingo.solving.Model" href="solving.html#clingo.solving.Model">Model</a>,<br>printer: Callable[[], None]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def print_model(self, model: Model, printer: Callable[[], None]) -&gt; None:
+    &#34;&#34;&#34;
+    Function to print additional information when the text output is used.
+
+    To avoid entangled output, `sys.stdout.flush` is automatically called
+    after this function.
+
+    Parameters
+    ----------
+    model
+        The current model
+    printer
+        The default printer as used in clingo.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Function to print additional information when the text output is used.</p>
+<p>To avoid entangled output, <code>sys.stdout.flush</code> is automatically called
+after this function.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>model</code></strong></dt>
+<dd>The current model</dd>
+<dt><strong><code>printer</code></strong></dt>
+<dd>The default printer as used in clingo.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.application.Application.register_options"><code class="name flex">
+<span>def <span class="ident">register_options</span></span>(<span>self,<br>options: <a title="clingo.application.ApplicationOptions" href="#clingo.application.ApplicationOptions">ApplicationOptions</a>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def register_options(self, options: ApplicationOptions) -&gt; None:
+    &#34;&#34;&#34;
+    Function to register custom options.
+
+    Parameters
+    ----------
+    options
+        Object to register additional options
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Function to register custom options.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>options</code></strong></dt>
+<dd>Object to register additional options</dd>
+</dl></div>
+</dd>
+<dt id="clingo.application.Application.validate_options"><code class="name flex">
+<span>def <span class="ident">validate_options</span></span>(<span>self) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def validate_options(self) -&gt; bool:
+    &#34;&#34;&#34;
+    Function to validate custom options.
+
+    Returns
+    -------
+    This function should return false if option validation fails.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Function to validate custom options.</p>
+<h2 id="returns">Returns</h2>
+<p>This function should return false if option validation fails.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.application.ApplicationOptions"><code class="flex name class">
+<span>class <span class="ident">ApplicationOptions</span></span>
+<span>(</span><span>rep, mem)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ApplicationOptions(metaclass=ABCMeta):
+    &#34;&#34;&#34;
+    Object to add custom options to a clingo based application.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep, mem):
+        self._rep = rep
+        self._mem = mem
+
+    def add(
+        self,
+        group: str,
+        option: str,
+        description: str,
+        parser: Callable[[str], bool],
+        multi: bool = False,
+        argument: Optional[str] = None,
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Add an option that is processed with a custom parser.
+
+        Parameters
+        ----------
+        group
+            Options are grouped into sections as given by this string.
+        option
+            Parameter option specifies the name(s) of the option. For example,
+            `&#34;ping,p&#34;` adds the short option `-p` and its long form `--ping`. It is
+            also possible to associate an option with a help level by adding `&#34;,@l&#34;` to
+            the option specification. Options with a level greater than zero are only
+            shown if the argument to help is greater or equal to `l`.
+        description
+            The description of the option shown in the help output.
+        parser
+            An option parser is a function that takes a string as input and returns
+            true or false depending on whether the option was parsed successively.
+        multi
+            Whether the option can appear multiple times on the command-line.
+        argument
+            Optional string to change the value name in the generated help.
+
+        Notes
+        -----
+        The parser callback has to take care of storing the semantic value of
+        the option somewhere.
+        &#34;&#34;&#34;
+        # pylint: disable=protected-access
+        c_data = _ffi.new_handle(parser)
+        self._mem.append(c_data)
+
+        _handle_error(
+            _lib.clingo_options_add(
+                self._rep,
+                group.encode(),
+                option.encode(),
+                description.encode(),
+                _lib.pyclingo_application_options_parse,
+                c_data,
+                multi,
+                argument.encode() if argument is not None else _ffi.NULL,
+            )
+        )
+
+    def add_flag(self, group: str, option: str, description: str, target: Flag) -&gt; None:
+        &#34;&#34;&#34;
+        Add an option that is a simple flag.
+
+        This function is similar to `ApplicationOptions.add` but simpler because
+        it only supports flags, which do not have values. Note that the target
+        parameter must be of type Flag, which is set to true if the flag is passed on
+        the command line.
+
+        Parameters
+        ----------
+        group
+            Options are grouped into sections as given by this string.
+        option
+            Same as for `ApplicationOptions.add`.
+        description
+            The description of the option shown in the help output.
+        target
+            The object that receives the value.
+        &#34;&#34;&#34;
+        # pylint: disable=protected-access
+        self._mem.append(target)
+        _handle_error(
+            _lib.clingo_options_add_flag(
+                self._rep,
+                group.encode(),
+                option.encode(),
+                description.encode(),
+                target._flag,
+            )
+        )</code></pre>
+</details>
+<div class="desc"><p>Object to add custom options to a clingo based application.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.application.ApplicationOptions.add"><code class="name flex">
+<span>def <span class="ident">add</span></span>(<span>self,<br>group: str,<br>option: str,<br>description: str,<br>parser: Callable[[str], bool],<br>multi: bool = False,<br>argument: str | None = None) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add(
+    self,
+    group: str,
+    option: str,
+    description: str,
+    parser: Callable[[str], bool],
+    multi: bool = False,
+    argument: Optional[str] = None,
+) -&gt; None:
+    &#34;&#34;&#34;
+    Add an option that is processed with a custom parser.
+
+    Parameters
+    ----------
+    group
+        Options are grouped into sections as given by this string.
+    option
+        Parameter option specifies the name(s) of the option. For example,
+        `&#34;ping,p&#34;` adds the short option `-p` and its long form `--ping`. It is
+        also possible to associate an option with a help level by adding `&#34;,@l&#34;` to
+        the option specification. Options with a level greater than zero are only
+        shown if the argument to help is greater or equal to `l`.
+    description
+        The description of the option shown in the help output.
+    parser
+        An option parser is a function that takes a string as input and returns
+        true or false depending on whether the option was parsed successively.
+    multi
+        Whether the option can appear multiple times on the command-line.
+    argument
+        Optional string to change the value name in the generated help.
+
+    Notes
+    -----
+    The parser callback has to take care of storing the semantic value of
+    the option somewhere.
+    &#34;&#34;&#34;
+    # pylint: disable=protected-access
+    c_data = _ffi.new_handle(parser)
+    self._mem.append(c_data)
+
+    _handle_error(
+        _lib.clingo_options_add(
+            self._rep,
+            group.encode(),
+            option.encode(),
+            description.encode(),
+            _lib.pyclingo_application_options_parse,
+            c_data,
+            multi,
+            argument.encode() if argument is not None else _ffi.NULL,
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Add an option that is processed with a custom parser.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>group</code></strong></dt>
+<dd>Options are grouped into sections as given by this string.</dd>
+<dt><strong><code>option</code></strong></dt>
+<dd>Parameter option specifies the name(s) of the option. For example,
+<code>"ping,p"</code> adds the short option <code>-p</code> and its long form <code>--ping</code>. It is
+also possible to associate an option with a help level by adding <code>",@l"</code> to
+the option specification. Options with a level greater than zero are only
+shown if the argument to help is greater or equal to <code>l</code>.</dd>
+<dt><strong><code>description</code></strong></dt>
+<dd>The description of the option shown in the help output.</dd>
+<dt><strong><code>parser</code></strong></dt>
+<dd>An option parser is a function that takes a string as input and returns
+true or false depending on whether the option was parsed successively.</dd>
+<dt><strong><code>multi</code></strong></dt>
+<dd>Whether the option can appear multiple times on the command-line.</dd>
+<dt><strong><code>argument</code></strong></dt>
+<dd>Optional string to change the value name in the generated help.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>The parser callback has to take care of storing the semantic value of
+the option somewhere.</p></div>
+</dd>
+<dt id="clingo.application.ApplicationOptions.add_flag"><code class="name flex">
+<span>def <span class="ident">add_flag</span></span>(<span>self,<br>group: str,<br>option: str,<br>description: str,<br>target: <a title="clingo.application.Flag" href="#clingo.application.Flag">Flag</a>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_flag(self, group: str, option: str, description: str, target: Flag) -&gt; None:
+    &#34;&#34;&#34;
+    Add an option that is a simple flag.
+
+    This function is similar to `ApplicationOptions.add` but simpler because
+    it only supports flags, which do not have values. Note that the target
+    parameter must be of type Flag, which is set to true if the flag is passed on
+    the command line.
+
+    Parameters
+    ----------
+    group
+        Options are grouped into sections as given by this string.
+    option
+        Same as for `ApplicationOptions.add`.
+    description
+        The description of the option shown in the help output.
+    target
+        The object that receives the value.
+    &#34;&#34;&#34;
+    # pylint: disable=protected-access
+    self._mem.append(target)
+    _handle_error(
+        _lib.clingo_options_add_flag(
+            self._rep,
+            group.encode(),
+            option.encode(),
+            description.encode(),
+            target._flag,
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Add an option that is a simple flag.</p>
+<p>This function is similar to <code><a title="clingo.application.ApplicationOptions.add" href="#clingo.application.ApplicationOptions.add">ApplicationOptions.add()</a></code> but simpler because
+it only supports flags, which do not have values. Note that the target
+parameter must be of type Flag, which is set to true if the flag is passed on
+the command line.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>group</code></strong></dt>
+<dd>Options are grouped into sections as given by this string.</dd>
+<dt><strong><code>option</code></strong></dt>
+<dd>Same as for <code><a title="clingo.application.ApplicationOptions.add" href="#clingo.application.ApplicationOptions.add">ApplicationOptions.add()</a></code>.</dd>
+<dt><strong><code>description</code></strong></dt>
+<dd>The description of the option shown in the help output.</dd>
+<dt><strong><code>target</code></strong></dt>
+<dd>The object that receives the value.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.application.Flag"><code class="flex name class">
+<span>class <span class="ident">Flag</span></span>
+<span>(</span><span>value: bool = False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Flag:
+    &#34;&#34;&#34;
+    Helper object to parse command-line flags.
+
+    Parameters
+    ----------
+    value
+        The initial value of the flag.
+    &#34;&#34;&#34;
+
+    def __init__(self, value: bool = False):
+        self._flag = _ffi.new(&#34;bool*&#34;, value)
+
+    def __bool__(self):
+        return self.flag
+
+    @property
+    def flag(self) -&gt; bool:
+        &#34;&#34;&#34;
+        The value of the flag.
+        &#34;&#34;&#34;
+        return self._flag[0]
+
+    @flag.setter
+    def flag(self, value: bool):
+        self._flag[0] = value</code></pre>
+</details>
+<div class="desc"><p>Helper object to parse command-line flags.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>value</code></strong></dt>
+<dd>The initial value of the flag.</dd>
+</dl></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="clingo.application.Flag.flag"><code class="name">prop <span class="ident">flag</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def flag(self) -&gt; bool:
+    &#34;&#34;&#34;
+    The value of the flag.
+    &#34;&#34;&#34;
+    return self._flag[0]</code></pre>
+</details>
+<div class="desc"><p>The value of the flag.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#examples">Examples</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo" href="index.html">clingo</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="clingo.application.clingo_main" href="#clingo.application.clingo_main">clingo_main</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.application.Application" href="#clingo.application.Application">Application</a></code></h4>
+<ul class="two-column">
+<li><code><a title="clingo.application.Application.logger" href="#clingo.application.Application.logger">logger</a></code></li>
+<li><code><a title="clingo.application.Application.main" href="#clingo.application.Application.main">main</a></code></li>
+<li><code><a title="clingo.application.Application.message_limit" href="#clingo.application.Application.message_limit">message_limit</a></code></li>
+<li><code><a title="clingo.application.Application.print_model" href="#clingo.application.Application.print_model">print_model</a></code></li>
+<li><code><a title="clingo.application.Application.program_name" href="#clingo.application.Application.program_name">program_name</a></code></li>
+<li><code><a title="clingo.application.Application.register_options" href="#clingo.application.Application.register_options">register_options</a></code></li>
+<li><code><a title="clingo.application.Application.validate_options" href="#clingo.application.Application.validate_options">validate_options</a></code></li>
+<li><code><a title="clingo.application.Application.version" href="#clingo.application.Application.version">version</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.application.ApplicationOptions" href="#clingo.application.ApplicationOptions">ApplicationOptions</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.application.ApplicationOptions.add" href="#clingo.application.ApplicationOptions.add">add</a></code></li>
+<li><code><a title="clingo.application.ApplicationOptions.add_flag" href="#clingo.application.ApplicationOptions.add_flag">add_flag</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.application.Flag" href="#clingo.application.Flag">Flag</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.application.Flag.flag" href="#clingo.application.Flag.flag">flag</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

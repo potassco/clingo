@@ -1,0 +1,35 @@
+var group__c__symbol =
+[
+    [ "clingo_symbol_callback_t", "group__c__symbol.html#ga2b90cb7057487f8ad261a42bc0977d60", null ],
+    [ "clingo_symbol_t", "group__c__symbol.html#ga6c75c60fa57c3b97505265ff08f6f951", null ],
+    [ "clingo_symbol_type_t", "group__c__symbol.html#ga9b19ed21ac0f89860fc57c943f7618e0", null ],
+    [ "clingo_symbol_type_e", "group__c__symbol.html#ga6a10b046b6426fd2955dfa72e266faab", [
+      [ "clingo_symbol_type_number", "group__c__symbol.html#gga6a10b046b6426fd2955dfa72e266faaba498cb34a333861a9ba21ffd6ede7b2b7", null ],
+      [ "clingo_symbol_type_supremum", "group__c__symbol.html#gga6a10b046b6426fd2955dfa72e266faaba6ad9a95a9ec5fde1e6078ebae2fa3b48", null ],
+      [ "clingo_symbol_type_infimum", "group__c__symbol.html#gga6a10b046b6426fd2955dfa72e266faabaa67c716e8002666c3fb216fc8358041d", null ],
+      [ "clingo_symbol_type_string", "group__c__symbol.html#gga6a10b046b6426fd2955dfa72e266faaba57a870e8808b0f3329df368878b7733c", null ],
+      [ "clingo_symbol_type_tuple", "group__c__symbol.html#gga6a10b046b6426fd2955dfa72e266faaba911396db3d22a77d82cf52b6f159979e", null ],
+      [ "clingo_symbol_type_function", "group__c__symbol.html#gga6a10b046b6426fd2955dfa72e266faaba5dc2205be475548ab5e33b1f8156b38c", null ]
+    ] ],
+    [ "clingo_parse_term", "group__c__symbol.html#ga8b2f4d66291175b77cd57bdeb52d505c", null ],
+    [ "clingo_symbol_acquire", "group__c__symbol.html#ga7da500930ef6a44eb3b78abd75799921", null ],
+    [ "clingo_symbol_arguments", "group__c__symbol.html#gaa3cb5dc221406dddf849e167d4efa43a", null ],
+    [ "clingo_symbol_compare", "group__c__symbol.html#ga05064956261d98a0a757e271abb75650", null ],
+    [ "clingo_symbol_create_function", "group__c__symbol.html#ga7308d3a57e7779555811e3c8fb75eccb", null ],
+    [ "clingo_symbol_create_id", "group__c__symbol.html#ga5ef0f59405928e6903f1bd8282e0c3fe", null ],
+    [ "clingo_symbol_create_infimum", "group__c__symbol.html#gae490975da9ededc66538e68447918168", null ],
+    [ "clingo_symbol_create_number", "group__c__symbol.html#gadb3966e28aade92377de0d7beef4c715", null ],
+    [ "clingo_symbol_create_number_str", "group__c__symbol.html#gaa18cc21cd59ab1890fb548999db9b69f", null ],
+    [ "clingo_symbol_create_string", "group__c__symbol.html#ga533f9d68005718783f06c447f47e7e8e", null ],
+    [ "clingo_symbol_create_supremum", "group__c__symbol.html#ga0e741302a2daf2c0ade9d37ad8bf5bbf", null ],
+    [ "clingo_symbol_create_tuple", "group__c__symbol.html#ga150d325dbfeba514fd860cf5e9f93f30", null ],
+    [ "clingo_symbol_equal", "group__c__symbol.html#gabbd0b83f58d9adab7a84ca42adfd0547", null ],
+    [ "clingo_symbol_hash", "group__c__symbol.html#ga4290b2c7841caa338bbb315c31210464", null ],
+    [ "clingo_symbol_is_positive", "group__c__symbol.html#gaa36f1e6cfa3a50d6773b5610ba0269f5", null ],
+    [ "clingo_symbol_name", "group__c__symbol.html#ga0232762a6e5e1ce9c09b824ab27f4823", null ],
+    [ "clingo_symbol_number", "group__c__symbol.html#gafd8177e3512a21d3a3990905f0d240b3", null ],
+    [ "clingo_symbol_release", "group__c__symbol.html#ga9f57d5b16947c68bf9b216f524339ab6", null ],
+    [ "clingo_symbol_string", "group__c__symbol.html#gad07d6bd22e54ade3208d5e12f5d9032c", null ],
+    [ "clingo_symbol_to_string", "group__c__symbol.html#ga31dfd36256293192482fb5213247ff58", null ],
+    [ "clingo_symbol_type", "group__c__symbol.html#ga866191ed06cf12a54a74abfcb97211f8", null ]
+];

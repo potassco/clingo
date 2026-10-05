@@ -1,0 +1,2117 @@
+---
+layout: page
+title: clingo.ast API documentation
+description: The clingo.ast-5.4.0 module …
+css:
+- /assets/css/pdoc.css
+- /assets/css/github.min.css
+permalink: /clingo/python-api/5.4/ast/
+---
+<main>
+   <article id="content">
+      <header>
+         <h1 class="title"><code>clingo.ast</code> module</h1>
+      </header>
+      <section id="section-intro">
+         <p>The clingo.ast-5.4.0 module.</p>
+         <p>The grammar below defines valid ASTs. For each upper case identifier there is a
+            matching function in the module. Arguments follow in parenthesis: each having a
+            type given on the right-hand side of the colon. The symbols <code>?</code>, <code>*</code>, and
+            <code>+</code>
+            are used to denote optional arguments (<code>None</code> encodes abscence), list
+            arguments, and non-empty list arguments.
+         </p>
+         <pre><code class="hljs python"># Terms
+
+term = Symbol
+        ( location : Location
+        , symbol   : clingo.Symbol
+        )
+     | Variable
+        ( location : Location
+        , name     : str
+        )
+     | UnaryOperation
+        ( location : Location
+        , operator : UnaryOperator
+        , argument : term
+        )
+     | BinaryOperation
+        ( location : Location
+        , operator : BinaryOperator
+        , left     : term
+        , right    : term
+        )
+     | Interval
+        ( location : Location
+        , left     : term
+        , right    : term
+        )
+     | Function
+        ( location  : Location
+        , name      : str
+        , arguments : term*
+        , external  : bool
+        )
+     | Pool
+        ( location  : Location
+        , arguments : term*
+        )
+
+csp_term = CSPSum
+            ( location : Location
+            , terms    : CSPProduct
+                          ( location    : Location
+                          , coefficient : term
+                          , variable    : term?
+                          )*
+            )
+
+theory_term = Symbol
+               ( location : Location
+               , symbol   : clingo.Symbol
+               )
+            | Variable
+               ( location : Location
+               , name     : str
+               )
+            | TheoryTermSequence
+               ( location : Location
+               , sequence_type : TheorySequenceType
+               , terms         : theory_term*
+               )
+            | TheoryFunction
+               ( location  : Location
+               , name      : str
+               , arguments : theory_term*
+               )
+            | TheoryUnparsedTerm
+               ( location : Location
+               , elements : TheoryUnparsedTermElement
+                             ( operators : str*
+                             , term      : theory_term
+                             )+
+               )
+
+# Literals
+
+symbolic_atom = SymbolicAtom
+                 ( term : term
+                 )
+
+literal = Literal
+           ( location : Location
+           , sign     : Sign
+           , atom     : Comparison
+                         ( comparison : ComparisonOperator
+                         , left       : term
+                         , right      : term
+                         )
+                      | BooleanConstant
+                         ( value : bool
+                         )
+                      | symbolic_atom
+           )
+
+        | CSPLiteral
+           ( location : Location
+           , term     : csp_term
+           , guards   : CSPGuard
+                         ( comparison : ComparisonOperator
+                         , term       : csp_term
+                         )+
+           )
+
+# Head and Body Literals
+
+aggregate_guard = AggregateGuard
+                   ( comparison : ComparisonOperator
+                   , term       : term
+                   )
+
+conditional_literal = ConditionalLiteral
+                       ( location  : Location
+                       , literal   : Literal
+                       , condition : Literal*
+                       )
+
+aggregate = Aggregate
+             ( location    : Location
+             , left_guard  : aggregate_guard?
+             , elements    : conditional_literal*
+             , right_guard : aggregate_guard?
+             )
+
+theory_atom = TheoryAtom
+               ( location : Location
+               , term     : term
+               , elements : TheoryAtomElement
+                             ( tuple     : theory_term*
+                             , condition : literal*
+                             )*
+               , guard    : TheoryGuard
+                             ( operator_name : str
+                             , term          : theory_term
+                             )?
+               )
+
+body_atom = aggregate
+          | BodyAggregate
+             ( location    : Location
+             , left_guard  : aggregate_guard?
+             , function    : AggregateFunction
+             , elements    : BodyAggregateElement
+                              ( tuple     : term*
+                              , condition : literal*
+                              )*
+             , right_guard : aggregate_guard?
+             )
+          | Disjoint
+             ( location : Location
+             , elements : DisjointElement
+                           ( location  : Location
+                           , tuple     : term*
+                           , term      : csp_term
+                           , condition : literal*
+                           )*
+             )
+          | theory_atom
+
+body_literal = literal
+             | conditional_literal
+             | Literal
+                ( location : Location
+                , sign     : Sign
+                , atom     : body_atom
+                )
+
+head = literal
+     | aggregate
+     | HeadAggregate
+        ( location    : Location
+        , left_guard  : aggregate_guard?
+        , function    : AggregateFunction
+        , elements    : HeadAggregateElement
+                         ( tuple     : term*
+                         , condition : conditional_literal
+                         )*
+        , right_guard : aggregate_guard?
+        )
+     | Disjunction
+        ( location : Location
+        , elements : conditional_literal*
+        )
+     | theory_atom
+
+# Theory Definitions
+
+theory = TheoryDefinition
+          ( location : Location
+          , name     : str
+          , terms    : TheoryTermDefinition
+                        ( location  : Location
+                        , name      : str
+                        , operators : TheoryOperatorDefinition
+                                       ( location      : Location
+                                       , name          : str
+                                       , priority      : int
+                                       , operator_type : TheoryOperatorType
+                                       )*
+                        )
+          , atoms    : TheoryAtomDefinition
+                        ( location  : Location
+                        , atom_type : TheoryAtomType
+                        , name      : str
+                        , arity     : int
+                        , elements  : str*
+                        , guard     : TheoryGuardDefinition
+                                       ( operators : str*
+                                       , term      : str
+                                       )?
+                        )
+          )
+
+# Statements
+
+statement = Rule
+             ( location : Location
+             , head     : head
+             , body     : body_literal*
+             )
+          | Definition
+             ( location   : Location
+             , name       : str
+             , value      : term
+             , is_default : bool
+             )
+          | ShowSignature
+             ( location   : Location
+             , name       : str
+             , arity      : int
+             , sign       : bool
+             , csp        : bool
+             )
+          | Defined
+             ( location   : Location
+             , name       : str
+             , arity      : int
+             , sign       : bool
+             )
+          | ShowTerm
+             ( location : Location
+             , term     : term
+             , body     : body_literal*
+             , csp      : bool
+             )
+          | Minimize
+             ( location : Location
+             , weight   : term
+             , priority : term
+             , tuple    : term*
+             , body     : body_literal*
+             )
+          | Script
+             ( location    : Location
+             , script_type : ScriptType
+             , code        : str
+             )
+          | Program
+             ( location   : Location
+             , name       : str
+             , parameters : Id
+                             ( location : Location
+                             , id       : str
+                             )*
+             )
+          | External
+             ( location : Location
+             , atom     : symbolic_atom
+             , body     : body_literal*
+             , type     : term
+             )
+          | Edge
+             ( location : Location
+             , u        : term
+             , v        : term
+             , body     : body_literal*
+             )
+          | Heuristic
+             ( location : Location
+             , atom     : symbolic_atom
+             , body     : body_literal*
+             , bias     : term
+             , priority : term
+             , modifier : term
+             )
+          | ProjectAtom
+             ( location : Location
+             , atom     : symbolic_atom
+             , body     : body_literal*
+             )
+          | ProjectSignature
+             ( location   : Location
+             , name       : str
+             , arity      : int
+             , positive   : bool
+             )
+</code></pre>
+      </section>
+      <section id="section-toc">
+         <h2 id="header-toc" class="section-toc">Overview</h2>
+         <nav class="sidebar">
+            <ul class="index">
+               <li>
+                  <h3>Super-module</h3>
+                  <ul>
+                     <li>
+                        <code><a title="clingo" href="{{site.baseurl}}{% link clingo/python-api/5.4/index.html %}">clingo</a></code>
+                     </li>
+                  </ul>
+               </li>
+               <li>
+                  <h3><a href="#header-functions">Functions</a></h3>
+                  <ul class="two-column">
+                     <li><code><a title="clingo.ast.Aggregate" href="#clingo.ast.Aggregate">Aggregate</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.AggregateGuard" href="#clingo.ast.AggregateGuard">AggregateGuard</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BinaryOperation" href="#clingo.ast.BinaryOperation">BinaryOperation</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BodyAggregate" href="#clingo.ast.BodyAggregate">BodyAggregate</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BodyAggregateElement" href="#clingo.ast.BodyAggregateElement">BodyAggregateElement</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BooleanConstant" href="#clingo.ast.BooleanConstant">BooleanConstant</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.CSPGuard" href="#clingo.ast.CSPGuard">CSPGuard</a></code></li>
+                     <li><code><a title="clingo.ast.CSPLiteral" href="#clingo.ast.CSPLiteral">CSPLiteral</a></code></li>
+                     <li><code><a title="clingo.ast.CSPProduct" href="#clingo.ast.CSPProduct">CSPProduct</a></code></li>
+                     <li><code><a title="clingo.ast.CSPSum" href="#clingo.ast.CSPSum">CSPSum</a></code></li>
+                     <li><code><a title="clingo.ast.Comparison" href="#clingo.ast.Comparison">Comparison</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.ConditionalLiteral" href="#clingo.ast.ConditionalLiteral">ConditionalLiteral</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.Defined" href="#clingo.ast.Defined">Defined</a></code></li>
+                     <li><code><a title="clingo.ast.Definition" href="#clingo.ast.Definition">Definition</a></code></li>
+                     <li><code><a title="clingo.ast.Disjoint" href="#clingo.ast.Disjoint">Disjoint</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.DisjointElement" href="#clingo.ast.DisjointElement">DisjointElement</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.Disjunction" href="#clingo.ast.Disjunction">Disjunction</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.Edge" href="#clingo.ast.Edge">Edge</a></code></li>
+                     <li><code><a title="clingo.ast.External" href="#clingo.ast.External">External</a></code></li>
+                     <li><code><a title="clingo.ast.Function" href="#clingo.ast.Function">Function</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.HeadAggregate" href="#clingo.ast.HeadAggregate">HeadAggregate</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.HeadAggregateElement" href="#clingo.ast.HeadAggregateElement">HeadAggregateElement</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.Heuristic" href="#clingo.ast.Heuristic">Heuristic</a></code></li>
+                     <li><code><a title="clingo.ast.Id" href="#clingo.ast.Id">Id</a></code></li>
+                     <li><code><a title="clingo.ast.Interval" href="#clingo.ast.Interval">Interval</a></code></li>
+                     <li><code><a title="clingo.ast.Literal" href="#clingo.ast.Literal">Literal</a></code></li>
+                     <li><code><a title="clingo.ast.Minimize" href="#clingo.ast.Minimize">Minimize</a></code></li>
+                     <li><code><a title="clingo.ast.Pool" href="#clingo.ast.Pool">Pool</a></code></li>
+                     <li><code><a title="clingo.ast.Program" href="#clingo.ast.Program">Program</a></code></li>
+                     <li><code><a title="clingo.ast.ProjectAtom" href="#clingo.ast.ProjectAtom">ProjectAtom</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ProjectSignature" href="#clingo.ast.ProjectSignature">ProjectSignature</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.Rule" href="#clingo.ast.Rule">Rule</a></code></li>
+                     <li><code><a title="clingo.ast.Script" href="#clingo.ast.Script">Script</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.ShowSignature" href="#clingo.ast.ShowSignature">ShowSignature</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.ShowTerm" href="#clingo.ast.ShowTerm">ShowTerm</a></code></li>
+                     <li><code><a title="clingo.ast.Symbol" href="#clingo.ast.Symbol">Symbol</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.SymbolicAtom" href="#clingo.ast.SymbolicAtom">SymbolicAtom</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.TheoryAtom" href="#clingo.ast.TheoryAtom">TheoryAtom</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryAtomDefinition" href="#clingo.ast.TheoryAtomDefinition">TheoryAtomDefinition</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryAtomElement" href="#clingo.ast.TheoryAtomElement">TheoryAtomElement</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryDefinition" href="#clingo.ast.TheoryDefinition">TheoryDefinition</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryFunction" href="#clingo.ast.TheoryFunction">TheoryFunction</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.TheoryGuard" href="#clingo.ast.TheoryGuard">TheoryGuard</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryGuardDefinition" href="#clingo.ast.TheoryGuardDefinition">TheoryGuardDefinition</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryOperatorDefinition" href="#clingo.ast.TheoryOperatorDefinition">TheoryOperatorDefinition</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheorySequence" href="#clingo.ast.TheorySequence">TheorySequence</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryTermDefinition" href="#clingo.ast.TheoryTermDefinition">TheoryTermDefinition</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryUnparsedTerm" href="#clingo.ast.TheoryUnparsedTerm">TheoryUnparsedTerm</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryUnparsedTermElement" href="#clingo.ast.TheoryUnparsedTermElement">TheoryUnparsedTermElement</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.UnaryOperation" href="#clingo.ast.UnaryOperation">UnaryOperation</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.Variable" href="#clingo.ast.Variable">Variable</a></code></li>
+                  </ul>
+               </li>
+               <li>
+                  <h3><a href="#header-classes">Classes</a></h3>
+                  <ul class="two-column">
+                     <li><code><a title="clingo.ast.AST" href="#clingo.ast.AST">AST</a></code></li>
+                     <li><code><a title="clingo.ast.ASTType" href="#clingo.ast.ASTType">ASTType</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.AggregateFunction" href="#clingo.ast.AggregateFunction">AggregateFunction</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BinaryOperator" href="#clingo.ast.BinaryOperator">BinaryOperator</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ComparisonOperator" href="#clingo.ast.ComparisonOperator">ComparisonOperator</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.ScriptType" href="#clingo.ast.ScriptType">ScriptType</a></code></li>
+                     <li><code><a title="clingo.ast.Sign" href="#clingo.ast.Sign">Sign</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryAtomType" href="#clingo.ast.TheoryAtomType">TheoryAtomType</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryOperatorType" href="#clingo.ast.TheoryOperatorType">TheoryOperatorType</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheorySequenceType" href="#clingo.ast.TheorySequenceType">TheorySequenceType</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.UnaryOperator" href="#clingo.ast.UnaryOperator">UnaryOperator</a></code>
+                     </li>
+                  </ul>
+               </li>
+            </ul>
+         </nav>
+      </section>
+      <section>
+      </section>
+      <section>
+      </section>
+      <section>
+         <h2 class="section-title" id="header-functions">Functions</h2>
+         <dl>
+            <dt id="clingo.ast.Aggregate"><code class="name flex">
+<span>def <span class="ident">Aggregate</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.AggregateGuard"><code class="name flex">
+<span>def <span class="ident">AggregateGuard</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.BinaryOperation"><code class="name flex">
+<span>def <span class="ident">BinaryOperation</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.BodyAggregate"><code class="name flex">
+<span>def <span class="ident">BodyAggregate</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.BodyAggregateElement"><code class="name flex">
+<span>def <span class="ident">BodyAggregateElement</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.BooleanConstant"><code class="name flex">
+<span>def <span class="ident">BooleanConstant</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.CSPGuard"><code class="name flex">
+<span>def <span class="ident">CSPGuard</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.CSPLiteral"><code class="name flex">
+<span>def <span class="ident">CSPLiteral</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.CSPProduct"><code class="name flex">
+<span>def <span class="ident">CSPProduct</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.CSPSum"><code class="name flex">
+<span>def <span class="ident">CSPSum</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Comparison"><code class="name flex">
+<span>def <span class="ident">Comparison</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.ConditionalLiteral"><code class="name flex">
+<span>def <span class="ident">ConditionalLiteral</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Defined"><code class="name flex">
+<span>def <span class="ident">Defined</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Definition"><code class="name flex">
+<span>def <span class="ident">Definition</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Disjoint"><code class="name flex">
+<span>def <span class="ident">Disjoint</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.DisjointElement"><code class="name flex">
+<span>def <span class="ident">DisjointElement</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Disjunction"><code class="name flex">
+<span>def <span class="ident">Disjunction</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Edge"><code class="name flex">
+<span>def <span class="ident">Edge</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.External"><code class="name flex">
+<span>def <span class="ident">External</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Function"><code class="name flex">
+<span>def <span class="ident">Function</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.HeadAggregate"><code class="name flex">
+<span>def <span class="ident">HeadAggregate</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.HeadAggregateElement"><code class="name flex">
+<span>def <span class="ident">HeadAggregateElement</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Heuristic"><code class="name flex">
+<span>def <span class="ident">Heuristic</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Id"><code class="name flex">
+<span>def <span class="ident">Id</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Interval"><code class="name flex">
+<span>def <span class="ident">Interval</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Literal"><code class="name flex">
+<span>def <span class="ident">Literal</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Minimize"><code class="name flex">
+<span>def <span class="ident">Minimize</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Pool"><code class="name flex">
+<span>def <span class="ident">Pool</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Program"><code class="name flex">
+<span>def <span class="ident">Program</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.ProjectAtom"><code class="name flex">
+<span>def <span class="ident">ProjectAtom</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.ProjectSignature"><code class="name flex">
+<span>def <span class="ident">ProjectSignature</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Rule"><code class="name flex">
+<span>def <span class="ident">Rule</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Script"><code class="name flex">
+<span>def <span class="ident">Script</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.ShowSignature"><code class="name flex">
+<span>def <span class="ident">ShowSignature</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.ShowTerm"><code class="name flex">
+<span>def <span class="ident">ShowTerm</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Symbol"><code class="name flex">
+<span>def <span class="ident">Symbol</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.SymbolicAtom"><code class="name flex">
+<span>def <span class="ident">SymbolicAtom</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheoryAtom"><code class="name flex">
+<span>def <span class="ident">TheoryAtom</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheoryAtomDefinition"><code class="name flex">
+<span>def <span class="ident">TheoryAtomDefinition</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheoryAtomElement"><code class="name flex">
+<span>def <span class="ident">TheoryAtomElement</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheoryDefinition"><code class="name flex">
+<span>def <span class="ident">TheoryDefinition</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheoryFunction"><code class="name flex">
+<span>def <span class="ident">TheoryFunction</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheoryGuard"><code class="name flex">
+<span>def <span class="ident">TheoryGuard</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheoryGuardDefinition"><code class="name flex">
+<span>def <span class="ident">TheoryGuardDefinition</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheoryOperatorDefinition"><code class="name flex">
+<span>def <span class="ident">TheoryOperatorDefinition</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheorySequence"><code class="name flex">
+<span>def <span class="ident">TheorySequence</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheoryTermDefinition"><code class="name flex">
+<span>def <span class="ident">TheoryTermDefinition</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheoryUnparsedTerm"><code class="name flex">
+<span>def <span class="ident">TheoryUnparsedTerm</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.TheoryUnparsedTermElement"><code class="name flex">
+<span>def <span class="ident">TheoryUnparsedTermElement</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.UnaryOperation"><code class="name flex">
+<span>def <span class="ident">UnaryOperation</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+            <dt id="clingo.ast.Variable"><code class="name flex">
+<span>def <span class="ident">Variable</span></span><span>()</span>
+</code></dt>
+            <dd>
+               <section class="desc"></section>
+            </dd>
+         </dl>
+      </section>
+      <section>
+         <h2 class="section-title" id="header-classes">Classes</h2>
+         <dl>
+            <dt id="clingo.ast.AST"><code class="flex name class">
+<span>class <span class="ident">AST</span></span><span>(type:<a title="clingo.ast.ASTType" href="#clingo.ast.ASTType"><code>ASTType</code></a>,
+               **arguments:<code>Mapping</code>[<code>str</code>,<code>Any</code>])</span>
+               </code></dt>
+            <dd>
+               <section class="desc">
+                  <p>Represents a node in the abstract syntax tree.</p>
+                  <p>AST nodes implement Python's rich comparison operators and are ordered
+                     structurally ignoring the location. They can also be used as dictionary keys.
+                     Their string representation corresponds to their gringo representation.</p>
+                  <h2 id="parameters">Parameters</h2>
+                  <dl>
+                     <dt><strong><code>type</code></strong> :&ensp;<a title="clingo.ast.ASTType"
+                           href="#clingo.ast.ASTType"><code>ASTType</code></a></dt>
+                     <dd>The type of the onde.</dd>
+                     <dt><strong><code>arguments</code></strong>
+                        :&ensp;<code>Mapping</code>[<code>str</code>,<code>Any</code>]</dt>
+                     <dd>Additionally, the functions takes an arbitrary number of keyword arguments.
+                        These should contain the required fields of the node but can also be set
+                        later.</dd>
+                  </dl>
+                  <h2 id="notes">Notes</h2>
+                  <p>It is also possible to create AST nodes using one of the functions provided in
+                     this module. The parameters of the functions correspond to the nonterminals as
+                     given in the <a href=".">grammar</a> above.</p>
+               </section>
+               <h3>Instance variables</h3>
+               <dl>
+                  <dt id="clingo.ast.AST.child_keys"><code
+                        class="name">var <span class="ident">child_keys</span><span> : <code>List</code>[<code>str</code>]</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc">
+                        <p>List of names of all AST child nodes.</p>
+                     </section>
+                  </dd>
+                  <dt id="clingo.ast.AST.type"><code
+                        class="name">var <span class="ident">type</span><span> : <a title="clingo.ast.ASTType" href="#clingo.ast.ASTType"><code>ASTType</code></a></span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc">
+                        <p>The type of the node.</p>
+                     </section>
+                  </dd>
+               </dl>
+               <h3>Methods</h3>
+               <dl>
+                  <dt id="clingo.ast.AST.items"><code class="name flex">
+<span>def <span class="ident">items</span></span><span>(self) -> <code>List</code>[<code>Tuple</code>[<code>str</code>,<a
+                        title="clingo.ast.AST" href="#clingo.ast.AST"><code>AST</code></a>]]</span>
+                     </code></dt>
+                  <dd>
+                     <section class="desc">
+                        <p>The list of items of the AST node.</p>
+                        <h2 id="returns">Returns</h2>
+                        <dl>
+                           <dt><code>List</code>[<code>Tuple</code>[<code>str</code>,<a title="clingo.ast.AST"
+                                 href="#clingo.ast.AST"><code>AST</code></a>]]</dt>
+                        </dl>
+                     </section>
+                  </dd>
+                  <dt id="clingo.ast.AST.keys"><code class="name flex">
+<span>def <span class="ident">keys</span></span><span>(self) -> <code>List</code>[<code>str</code>]</span>
+                     </code></dt>
+                  <dd>
+                     <section class="desc">
+                        <p>The list of keys of the AST node.</p>
+                        <h2 id="returns">Returns</h2>
+                        <dl>
+                           <dt><code>List</code>[<code>str</code>]</dt>
+                        </dl>
+                     </section>
+                  </dd>
+                  <dt id="clingo.ast.AST.values"><code class="name flex">
+<span>def <span class="ident">values</span></span><span>(self) -> <code>List</code>[<a title="clingo.ast.AST"
+                        href="#clingo.ast.AST"><code>AST</code></a>]</span>
+                     </code></dt>
+                  <dd>
+                     <section class="desc">
+                        <p>The list of values of the AST node.</p>
+                        <h2 id="returns">Returns</h2>
+                        <dl>
+                           <dt><code>List</code>[<a title="clingo.ast.AST" href="#clingo.ast.AST"><code>AST</code></a>]
+                           </dt>
+                        </dl>
+                     </section>
+                  </dd>
+               </dl>
+            </dd>
+            <dt id="clingo.ast.ASTType"><code class="flex name class">
+<span>class <span class="ident">ASTType</span><span>
+</code></dt>
+            <dd>
+               <section class="desc">
+                  <p>Enumeration of ast node types.</p>
+               </section>
+               <h3>Class variables</h3>
+               <dl>
+                  <dt id="clingo.ast.ASTType.Aggregate"><code
+                        class="name">var <span class="ident">Aggregate</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.AggregateGuard"><code
+                        class="name">var <span class="ident">AggregateGuard</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.BinaryOperation"><code
+                        class="name">var <span class="ident">BinaryOperation</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.BodyAggregate"><code
+                        class="name">var <span class="ident">BodyAggregate</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.BodyAggregateElement"><code
+                        class="name">var <span class="ident">BodyAggregateElement</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.BooleanConstant"><code
+                        class="name">var <span class="ident">BooleanConstant</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.CSPGuard"><code class="name">var <span class="ident">CSPGuard</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.CSPLiteral"><code
+                        class="name">var <span class="ident">CSPLiteral</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.CSPProduct"><code
+                        class="name">var <span class="ident">CSPProduct</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.CSPSum"><code class="name">var <span class="ident">CSPSum</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Comparison"><code
+                        class="name">var <span class="ident">Comparison</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.ConditionalLiteral"><code
+                        class="name">var <span class="ident">ConditionalLiteral</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Defined"><code class="name">var <span class="ident">Defined</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Definition"><code
+                        class="name">var <span class="ident">Definition</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Disjoint"><code class="name">var <span class="ident">Disjoint</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.DisjointElement"><code
+                        class="name">var <span class="ident">DisjointElement</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Disjunction"><code
+                        class="name">var <span class="ident">Disjunction</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Edge"><code class="name">var <span class="ident">Edge</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.External"><code class="name">var <span class="ident">External</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Function"><code class="name">var <span class="ident">Function</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.HeadAggregate"><code
+                        class="name">var <span class="ident">HeadAggregate</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.HeadAggregateElement"><code
+                        class="name">var <span class="ident">HeadAggregateElement</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Heuristic"><code
+                        class="name">var <span class="ident">Heuristic</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Id"><code class="name">var <span class="ident">Id</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Interval"><code class="name">var <span class="ident">Interval</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Literal"><code class="name">var <span class="ident">Literal</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Minimize"><code class="name">var <span class="ident">Minimize</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Pool"><code class="name">var <span class="ident">Pool</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Program"><code class="name">var <span class="ident">Program</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.ProjectAtom"><code
+                        class="name">var <span class="ident">ProjectAtom</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.ProjectSignature"><code
+                        class="name">var <span class="ident">ProjectSignature</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Rule"><code class="name">var <span class="ident">Rule</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Script"><code class="name">var <span class="ident">Script</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.ShowSignature"><code
+                        class="name">var <span class="ident">ShowSignature</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.ShowTerm"><code class="name">var <span class="ident">ShowTerm</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Symbol"><code class="name">var <span class="ident">Symbol</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.SymbolicAtom"><code
+                        class="name">var <span class="ident">SymbolicAtom</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheoryAtom"><code
+                        class="name">var <span class="ident">TheoryAtom</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheoryAtomDefinition"><code
+                        class="name">var <span class="ident">TheoryAtomDefinition</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheoryAtomElement"><code
+                        class="name">var <span class="ident">TheoryAtomElement</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheoryDefinition"><code
+                        class="name">var <span class="ident">TheoryDefinition</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheoryFunction"><code
+                        class="name">var <span class="ident">TheoryFunction</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheoryGuard"><code
+                        class="name">var <span class="ident">TheoryGuard</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheoryGuardDefinition"><code
+                        class="name">var <span class="ident">TheoryGuardDefinition</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheoryOperatorDefinition"><code
+                        class="name">var <span class="ident">TheoryOperatorDefinition</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheorySequence"><code
+                        class="name">var <span class="ident">TheorySequence</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheoryTermDefinition"><code
+                        class="name">var <span class="ident">TheoryTermDefinition</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheoryUnparsedTerm"><code
+                        class="name">var <span class="ident">TheoryUnparsedTerm</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.TheoryUnparsedTermElement"><code
+                        class="name">var <span class="ident">TheoryUnparsedTermElement</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.UnaryOperation"><code
+                        class="name">var <span class="ident">UnaryOperation</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ASTType.Variable"><code class="name">var <span class="ident">Variable</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+               </dl>
+            </dd>
+            <dt id="clingo.ast.AggregateFunction"><code class="flex name class">
+<span>class <span class="ident">AggregateFunction</span><span>
+</code></dt>
+            <dd>
+               <section class="desc">
+                  <p>Enumeration of aggegate functions.</p>
+                  <p><a title="clingo.ast.AggregateFunction"
+                        href="#clingo.ast.AggregateFunction"><code>AggregateFunction</code></a> objects have a readable
+                     string representation, implement
+                     Python's rich comparison operators, and can be used as dictionary keys.</p>
+                  <p>Furthermore, they cannot be constructed from Python. Instead the following
+                     preconstructed class attributes are available:</p>
+                  <h2 id="attributes">Attributes</h2>
+                  <dl>
+                     <dt><strong><code>Count</code></strong> :&ensp;<a title="clingo.ast.AggregateFunction"
+                           href="#clingo.ast.AggregateFunction"><code>AggregateFunction</code></a></dt>
+                     <dd>The <code>#count</code> function.</dd>
+                     <dt><strong><code>Sum</code></strong> :&ensp;<a title="clingo.ast.AggregateFunction"
+                           href="#clingo.ast.AggregateFunction"><code>AggregateFunction</code></a></dt>
+                     <dd>The <code>#sum</code> function.</dd>
+                     <dt><strong><code>SumPlus</code></strong> :&ensp;<a title="clingo.ast.AggregateFunction"
+                           href="#clingo.ast.AggregateFunction"><code>AggregateFunction</code></a></dt>
+                     <dd>The <code>#sum+</code> function.</dd>
+                     <dt><strong><code>Min</code></strong> :&ensp;<a title="clingo.ast.AggregateFunction"
+                           href="#clingo.ast.AggregateFunction"><code>AggregateFunction</code></a></dt>
+                     <dd>The <code>#min</code> function.</dd>
+                     <dt><strong><code>Max</code></strong> :&ensp;<a title="clingo.ast.AggregateFunction"
+                           href="#clingo.ast.AggregateFunction"><code>AggregateFunction</code></a></dt>
+                     <dd>The <code>#max</code> function.</dd>
+                  </dl>
+               </section>
+               <h3>Class variables</h3>
+               <dl>
+                  <dt id="clingo.ast.AggregateFunction.Count"><code
+                        class="name">var <span class="ident">Count</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.AggregateFunction.Max"><code class="name">var <span class="ident">Max</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.AggregateFunction.Min"><code class="name">var <span class="ident">Min</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.AggregateFunction.Sum"><code class="name">var <span class="ident">Sum</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.AggregateFunction.SumPlus"><code
+                        class="name">var <span class="ident">SumPlus</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+               </dl>
+            </dd>
+            <dt id="clingo.ast.BinaryOperator"><code class="flex name class">
+<span>class <span class="ident">BinaryOperator</span><span>
+</code></dt>
+            <dd>
+               <section class="desc">
+                  <p>Enumeration of binary operators.</p>
+                  <p><a title="clingo.ast.BinaryOperator"
+                        href="#clingo.ast.BinaryOperator"><code>BinaryOperator</code></a> objects have a readable string
+                     representation, implement
+                     Python's rich comparison operators, and can be used as dictionary keys.</p>
+                  <p>Furthermore, they cannot be constructed from Python. Instead the
+                     following preconstructed class attributes are available:</p>
+                  <h2 id="attributes">Attributes</h2>
+                  <dl>
+                     <dt><strong><code>XOr</code></strong> :&ensp;<a title="clingo.ast.BinaryOperator"
+                           href="#clingo.ast.BinaryOperator"><code>BinaryOperator</code></a></dt>
+                     <dd>For bitwise exclusive or.</dd>
+                     <dt><strong><code>Or</code></strong> :&ensp;<a title="clingo.ast.BinaryOperator"
+                           href="#clingo.ast.BinaryOperator"><code>BinaryOperator</code></a></dt>
+                     <dd>For bitwise or.</dd>
+                     <dt><strong><code>And</code></strong> :&ensp;<a title="clingo.ast.BinaryOperator"
+                           href="#clingo.ast.BinaryOperator"><code>BinaryOperator</code></a></dt>
+                     <dd>For bitwise and.</dd>
+                     <dt><strong><code>Plus</code></strong> :&ensp;<a title="clingo.ast.BinaryOperator"
+                           href="#clingo.ast.BinaryOperator"><code>BinaryOperator</code></a></dt>
+                     <dd>For arithmetic addition.</dd>
+                     <dt><strong><code>Minus</code></strong> :&ensp;<a title="clingo.ast.BinaryOperator"
+                           href="#clingo.ast.BinaryOperator"><code>BinaryOperator</code></a></dt>
+                     <dd>For arithmetic subtraction.</dd>
+                     <dt><strong><code>Multiplication</code></strong> :&ensp;<a title="clingo.ast.BinaryOperator"
+                           href="#clingo.ast.BinaryOperator"><code>BinaryOperator</code></a></dt>
+                     <dd>For arithmetic multipilcation.</dd>
+                     <dt><strong><code>Division</code></strong> :&ensp;<a title="clingo.ast.BinaryOperator"
+                           href="#clingo.ast.BinaryOperator"><code>BinaryOperator</code></a></dt>
+                     <dd>For arithmetic division.</dd>
+                     <dt><strong><code>Modulo</code></strong> :&ensp;<a title="clingo.ast.BinaryOperator"
+                           href="#clingo.ast.BinaryOperator"><code>BinaryOperator</code></a></dt>
+                     <dd>For arithmetic modulo.</dd>
+                     <dt><strong><code>Power</code></strong> :&ensp;<a title="clingo.ast.BinaryOperator"
+                           href="#clingo.ast.BinaryOperator"><code>BinaryOperator</code></a></dt>
+                     <dd>For arithmetic exponentiation.</dd>
+                  </dl>
+               </section>
+               <h3>Class variables</h3>
+               <dl>
+                  <dt id="clingo.ast.BinaryOperator.And"><code class="name">var <span class="ident">And</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.BinaryOperator.Division"><code
+                        class="name">var <span class="ident">Division</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.BinaryOperator.Minus"><code
+                        class="name">var <span class="ident">Minus</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.BinaryOperator.Modulo"><code
+                        class="name">var <span class="ident">Modulo</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.BinaryOperator.Multiplication"><code
+                        class="name">var <span class="ident">Multiplication</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.BinaryOperator.Or"><code class="name">var <span class="ident">Or</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.BinaryOperator.Plus"><code class="name">var <span class="ident">Plus</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.BinaryOperator.Power"><code
+                        class="name">var <span class="ident">Power</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.BinaryOperator.XOr"><code class="name">var <span class="ident">XOr</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+               </dl>
+            </dd>
+            <dt id="clingo.ast.ComparisonOperator"><code class="flex name class">
+<span>class <span class="ident">ComparisonOperator</span><span>
+</code></dt>
+            <dd>
+               <section class="desc">
+                  <p>Enumeration of comparison operators.</p>
+                  <p><a title="clingo.ast.ComparisonOperator"
+                        href="#clingo.ast.ComparisonOperator"><code>ComparisonOperator</code></a> objects have a
+                     readable string representation, implement
+                     Python's rich comparison operators, and can be used as dictionary keys.</p>
+                  <p>Furthermore, they cannot be constructed from Python. Instead the following
+                     preconstructed class attributes are available:</p>
+                  <h2 id="attributes">Attributes</h2>
+                  <dl>
+                     <dt><strong><code>GreaterThan</code></strong> :&ensp;<a title="clingo.ast.ComparisonOperator"
+                           href="#clingo.ast.ComparisonOperator"><code>ComparisonOperator</code></a></dt>
+                     <dd>The <code>&gt;</code> operator.</dd>
+                     <dt><strong><code>LessThan</code></strong> :&ensp;<a title="clingo.ast.ComparisonOperator"
+                           href="#clingo.ast.ComparisonOperator"><code>ComparisonOperator</code></a></dt>
+                     <dd>The <code>&lt;</code> operator.</dd>
+                     <dt><strong><code>LessEqual</code></strong> :&ensp;<a title="clingo.ast.ComparisonOperator"
+                           href="#clingo.ast.ComparisonOperator"><code>ComparisonOperator</code></a></dt>
+                     <dd>The <code>&lt;=</code> operator.</dd>
+                     <dt><strong><code>GreaterEqual</code></strong> :&ensp;<a title="clingo.ast.ComparisonOperator"
+                           href="#clingo.ast.ComparisonOperator"><code>ComparisonOperator</code></a></dt>
+                     <dd>The <code>&gt;=</code> operator.</dd>
+                     <dt><strong><code>NotEqual</code></strong> :&ensp;<a title="clingo.ast.ComparisonOperator"
+                           href="#clingo.ast.ComparisonOperator"><code>ComparisonOperator</code></a></dt>
+                     <dd>The <code>!=</code> operator.</dd>
+                     <dt><strong><code>Equal</code></strong> :&ensp;<a title="clingo.ast.ComparisonOperator"
+                           href="#clingo.ast.ComparisonOperator"><code>ComparisonOperator</code></a></dt>
+                     <dd>The <code>=</code> operator</dd>
+                  </dl>
+               </section>
+               <h3>Class variables</h3>
+               <dl>
+                  <dt id="clingo.ast.ComparisonOperator.Equal"><code
+                        class="name">var <span class="ident">Equal</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ComparisonOperator.GreaterEqual"><code
+                        class="name">var <span class="ident">GreaterEqual</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ComparisonOperator.GreaterThan"><code
+                        class="name">var <span class="ident">GreaterThan</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ComparisonOperator.LessEqual"><code
+                        class="name">var <span class="ident">LessEqual</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ComparisonOperator.LessThan"><code
+                        class="name">var <span class="ident">LessThan</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ComparisonOperator.NotEqual"><code
+                        class="name">var <span class="ident">NotEqual</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+               </dl>
+            </dd>
+            <dt id="clingo.ast.ScriptType"><code class="flex name class">
+<span>class <span class="ident">ScriptType</span><span>
+</code></dt>
+            <dd>
+               <section class="desc">
+                  <p>Enumeration of theory atom types.</p>
+                  <p><a title="clingo.ast.ScriptType" href="#clingo.ast.ScriptType"><code>ScriptType</code></a> objects
+                     have a readable string representation, implement Python's
+                     rich comparison operators, and can be used as dictionary keys.</p>
+                  <p>Furthermore, they cannot be constructed from Python. Instead the following
+                     preconstructed class attributes are available:</p>
+                  <h2 id="attributes">Attributes</h2>
+                  <dl>
+                     <dt><strong><code>Python</code></strong> :&ensp;<a title="clingo.ast.ScriptType"
+                           href="#clingo.ast.ScriptType"><code>ScriptType</code></a></dt>
+                     <dd>For Python code.</dd>
+                     <dt><strong><code>Lua</code></strong> :&ensp;<a title="clingo.ast.ScriptType"
+                           href="#clingo.ast.ScriptType"><code>ScriptType</code></a></dt>
+                     <dd>For Lua code.</dd>
+                  </dl>
+               </section>
+               <h3>Class variables</h3>
+               <dl>
+                  <dt id="clingo.ast.ScriptType.Lua"><code class="name">var <span class="ident">Lua</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.ScriptType.Python"><code class="name">var <span class="ident">Python</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+               </dl>
+            </dd>
+            <dt id="clingo.ast.Sign"><code class="flex name class">
+<span>class <span class="ident">Sign</span><span>
+</code></dt>
+            <dd>
+               <section class="desc">
+                  <p>Enumeration of signs for literals.</p>
+                  <p><a title="clingo.ast.Sign" href="#clingo.ast.Sign"><code>Sign</code></a> objects have a readable
+                     string representation, implement Python's rich
+                     comparison operators, and can be used as dictionary keys.</p>
+                  <p>Furthermore, they cannot be constructed from Python. Instead the following
+                     preconstructed class attributes are available:</p>
+                  <h2 id="attributes">Attributes</h2>
+                  <dl>
+                     <dt><strong><code>NoSign</code></strong> :&ensp;<a title="clingo.ast.Sign"
+                           href="#clingo.ast.Sign"><code>Sign</code></a></dt>
+                     <dd>For positive literals.</dd>
+                     <dt><strong><code>Negation</code></strong> :&ensp;<a title="clingo.ast.Sign"
+                           href="#clingo.ast.Sign"><code>Sign</code></a></dt>
+                     <dd>For negative literals (with prefix <code>not</code>).</dd>
+                     <dt><strong><code>DoubleNegation</code></strong> :&ensp;<a title="clingo.ast.Sign"
+                           href="#clingo.ast.Sign"><code>Sign</code></a></dt>
+                     <dd>For double negated literals (with prefix <code>not not</code>)</dd>
+                  </dl>
+               </section>
+               <h3>Class variables</h3>
+               <dl>
+                  <dt id="clingo.ast.Sign.DoubleNegation"><code
+                        class="name">var <span class="ident">DoubleNegation</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.Sign.Negation"><code class="name">var <span class="ident">Negation</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.Sign.NoSign"><code class="name">var <span class="ident">NoSign</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+               </dl>
+            </dd>
+            <dt id="clingo.ast.TheoryAtomType"><code class="flex name class">
+<span>class <span class="ident">TheoryAtomType</span><span>
+</code></dt>
+            <dd>
+               <section class="desc">
+                  <p>Enumeration of theory atom types.</p>
+                  <p><a title="clingo.ast.TheoryAtomType"
+                        href="#clingo.ast.TheoryAtomType"><code>TheoryAtomType</code></a> objects have a readable string
+                     representation, implement
+                     Python's rich comparison operators, and can be used as dictionary keys.</p>
+                  <p>Furthermore, they cannot be constructed from Python. Instead the following
+                     preconstructed class attributes are available:</p>
+                  <h2 id="attributes">Attributes</h2>
+                  <dl>
+                     <dt><strong><code>Any</code></strong> :&ensp;<a title="clingo.ast.TheoryAtomType"
+                           href="#clingo.ast.TheoryAtomType"><code>TheoryAtomType</code></a></dt>
+                     <dd>For atoms that can occur anywhere.</dd>
+                     <dt><strong><code>Body</code></strong> :&ensp;<a title="clingo.ast.TheoryAtomType"
+                           href="#clingo.ast.TheoryAtomType"><code>TheoryAtomType</code></a></dt>
+                     <dd>For atoms that can only occur in rule bodies.</dd>
+                     <dt><strong><code>Head</code></strong> :&ensp;<a title="clingo.ast.TheoryAtomType"
+                           href="#clingo.ast.TheoryAtomType"><code>TheoryAtomType</code></a></dt>
+                     <dd>For atoms that can only occur in rule heads.</dd>
+                     <dt><strong><code>Directive</code></strong> :&ensp;<a title="clingo.ast.TheoryAtomType"
+                           href="#clingo.ast.TheoryAtomType"><code>TheoryAtomType</code></a></dt>
+                     <dd>For atoms that can only occur in facts.</dd>
+                  </dl>
+               </section>
+               <h3>Class variables</h3>
+               <dl>
+                  <dt id="clingo.ast.TheoryAtomType.Any"><code class="name">var <span class="ident">Any</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.TheoryAtomType.Body"><code class="name">var <span class="ident">Body</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.TheoryAtomType.Directive"><code
+                        class="name">var <span class="ident">Directive</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.TheoryAtomType.Head"><code class="name">var <span class="ident">Head</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+               </dl>
+            </dd>
+            <dt id="clingo.ast.TheoryOperatorType"><code class="flex name class">
+<span>class <span class="ident">TheoryOperatorType</span><span>
+</code></dt>
+            <dd>
+               <section class="desc">
+                  <p>Enumeration of operator types.</p>
+                  <p><a title="clingo.ast.TheoryOperatorType"
+                        href="#clingo.ast.TheoryOperatorType"><code>TheoryOperatorType</code></a> objects have a
+                     readable string representation, implement
+                     Python's rich comparison operators, and can be used as dictionary keys.</p>
+                  <p>Furthermore, they cannot be constructed from Python. Instead the following
+                     preconstructed class attributes are available:</p>
+                  <h2 id="attributes">Attributes</h2>
+                  <dl>
+                     <dt><strong><code>Unary</code></strong> :&ensp;<a title="clingo.ast.TheoryOperatorType"
+                           href="#clingo.ast.TheoryOperatorType"><code>TheoryOperatorType</code></a></dt>
+                     <dd>For unary operators.</dd>
+                     <dt><strong><code>BinaryLeft</code></strong> :&ensp;<a title="clingo.ast.TheoryOperatorType"
+                           href="#clingo.ast.TheoryOperatorType"><code>TheoryOperatorType</code></a></dt>
+                     <dd>For binary left associative operators.</dd>
+                     <dt><strong><code>BinaryRight</code></strong> :&ensp;<a title="clingo.ast.TheoryOperatorType"
+                           href="#clingo.ast.TheoryOperatorType"><code>TheoryOperatorType</code></a></dt>
+                     <dd>For binary right associative operator.</dd>
+                  </dl>
+               </section>
+               <h3>Class variables</h3>
+               <dl>
+                  <dt id="clingo.ast.TheoryOperatorType.BinaryLeft"><code
+                        class="name">var <span class="ident">BinaryLeft</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.TheoryOperatorType.BinaryRight"><code
+                        class="name">var <span class="ident">BinaryRight</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.TheoryOperatorType.Unary"><code
+                        class="name">var <span class="ident">Unary</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+               </dl>
+            </dd>
+            <dt id="clingo.ast.TheorySequenceType"><code class="flex name class">
+<span>class <span class="ident">TheorySequenceType</span><span>
+</code></dt>
+            <dd>
+               <section class="desc">
+                  <p>Enumeration of theory term sequence types.</p>
+                  <p><a title="clingo.ast.TheorySequenceType"
+                        href="#clingo.ast.TheorySequenceType"><code>TheorySequenceType</code></a> objects have a
+                     readable string representation, implement
+                     Python's rich comparison operators, and can be used as dictionary keys.</p>
+                  <p>Furthermore, they cannot be constructed from Python. Instead the following
+                     preconstructed class attributes are available:</p>
+                  <h2 id="attributes">Attributes</h2>
+                  <dl>
+                     <dt><strong><code>Tuple</code></strong> :&ensp;<a title="clingo.ast.TheorySequenceType"
+                           href="#clingo.ast.TheorySequenceType"><code>TheorySequenceType</code></a></dt>
+                     <dd>For sequences enclosed in parenthesis.</dd>
+                     <dt><strong><code>List</code></strong> :&ensp;<a title="clingo.ast.TheorySequenceType"
+                           href="#clingo.ast.TheorySequenceType"><code>TheorySequenceType</code></a></dt>
+                     <dd>For sequences enclosed in brackets.</dd>
+                     <dt><strong><code>Set</code></strong> :&ensp;<a title="clingo.ast.TheorySequenceType"
+                           href="#clingo.ast.TheorySequenceType"><code>TheorySequenceType</code></a></dt>
+                     <dd>For sequences enclosed in braces.</dd>
+                  </dl>
+               </section>
+               <h3>Class variables</h3>
+               <dl>
+                  <dt id="clingo.ast.TheorySequenceType.List"><code
+                        class="name">var <span class="ident">List</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.TheorySequenceType.Set"><code
+                        class="name">var <span class="ident">Set</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.TheorySequenceType.Tuple"><code
+                        class="name">var <span class="ident">Tuple</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+               </dl>
+               <h3>Instance variables</h3>
+               <dl>
+                  <dt id="clingo.ast.TheorySequenceType.left_hand_side"><code
+                        class="name">var <span class="ident">left_hand_side</span><span> : <code>str</code></span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc">
+                        <p>Left-hand side representation of the sequence.</p>
+                     </section>
+                  </dd>
+                  <dt id="clingo.ast.TheorySequenceType.right_hand_side"><code
+                        class="name">var <span class="ident">right_hand_side</span><span> : <code>str</code></span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc">
+                        <p>Right-hand side representation of the sequence.</p>
+                     </section>
+                  </dd>
+               </dl>
+            </dd>
+            <dt id="clingo.ast.UnaryOperator"><code class="flex name class">
+<span>class <span class="ident">UnaryOperator</span><span>
+</code></dt>
+            <dd>
+               <section class="desc">
+                  <p>Enumeration of signs for literals.</p>
+                  <p><a title="clingo.ast.UnaryOperator" href="#clingo.ast.UnaryOperator"><code>UnaryOperator</code></a>
+                     objects have a readable string representation, implement
+                     Python's rich comparison operators, and can be used as dictionary keys.</p>
+                  <p>Furthermore, they cannot be constructed from Python. Instead the following
+                     preconstructed class attributes are available:</p>
+                  <h2 id="attributes">Attributes</h2>
+                  <dl>
+                     <dt><strong><code>Negation</code></strong> :&ensp;<a title="clingo.ast.UnaryOperator"
+                           href="#clingo.ast.UnaryOperator"><code>UnaryOperator</code></a></dt>
+                     <dd>For bitwise negation.</dd>
+                     <dt><strong><code>Minus</code></strong> :&ensp;<a title="clingo.ast.UnaryOperator"
+                           href="#clingo.ast.UnaryOperator"><code>UnaryOperator</code></a></dt>
+                     <dd>For unary minus and classical negation.</dd>
+                     <dt><strong><code>Absolute</code></strong> :&ensp;<a title="clingo.ast.UnaryOperator"
+                           href="#clingo.ast.UnaryOperator"><code>UnaryOperator</code></a></dt>
+                     <dd>For taking the absolute value.</dd>
+                  </dl>
+               </section>
+               <h3>Class variables</h3>
+               <dl>
+                  <dt id="clingo.ast.UnaryOperator.Absolute"><code
+                        class="name">var <span class="ident">Absolute</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.UnaryOperator.Minus"><code class="name">var <span class="ident">Minus</span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+                  <dt id="clingo.ast.UnaryOperator.Negation"><code
+                        class="name">var <span class="ident">Negation</span></code></dt>
+                  <dd>
+                     <section class="desc"></section>
+                  </dd>
+               </dl>
+               <h3>Instance variables</h3>
+               <dl>
+                  <dt id="clingo.ast.UnaryOperator.left_hand_side"><code
+                        class="name">var <span class="ident">left_hand_side</span><span> : <code>str</code></span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc">
+                        <p>Left-hand side representation of the operator.</p>
+                     </section>
+                  </dd>
+                  <dt id="clingo.ast.UnaryOperator.right_hand_side"><code
+                        class="name">var <span class="ident">right_hand_side</span><span> : <code>str</code></span></code>
+                  </dt>
+                  <dd>
+                     <section class="desc">
+                        <p>Right-hand side representation of the operator.</p>
+                     </section>
+                  </dd>
+               </dl>
+            </dd>
+         </dl>
+      </section>
+   </article>
+   <nav class="sidebar">
+      <h1>Index</h1>
+      <div class="toc">
+         <ul></ul>
+      </div>
+      <ul class="index">
+         <li>
+            <h3>Super-module</h3>
+            <ul>
+               <li>
+                  <code><a title="clingo" href="{{site.baseurl}}{% link clingo/python-api/5.4/index.html %}">clingo</a></code>
+               </li>
+            </ul>
+         </li>
+         <li>
+            <h3><a href="#header-functions">Functions</a></h3>
+            <ul class="two-column">
+               <li><code><a title="clingo.ast.Aggregate" href="#clingo.ast.Aggregate">Aggregate</a></code></li>
+               <li>
+                  <code><a title="clingo.ast.AggregateGuard" href="#clingo.ast.AggregateGuard">AggregateGuard</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.BinaryOperation" href="#clingo.ast.BinaryOperation">BinaryOperation</a></code>
+               </li>
+               <li><code><a title="clingo.ast.BodyAggregate" href="#clingo.ast.BodyAggregate">BodyAggregate</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.BodyAggregateElement" href="#clingo.ast.BodyAggregateElement">BodyAggregateElement</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.BooleanConstant" href="#clingo.ast.BooleanConstant">BooleanConstant</a></code>
+               </li>
+               <li><code><a title="clingo.ast.CSPGuard" href="#clingo.ast.CSPGuard">CSPGuard</a></code></li>
+               <li><code><a title="clingo.ast.CSPLiteral" href="#clingo.ast.CSPLiteral">CSPLiteral</a></code></li>
+               <li><code><a title="clingo.ast.CSPProduct" href="#clingo.ast.CSPProduct">CSPProduct</a></code></li>
+               <li><code><a title="clingo.ast.CSPSum" href="#clingo.ast.CSPSum">CSPSum</a></code></li>
+               <li><code><a title="clingo.ast.Comparison" href="#clingo.ast.Comparison">Comparison</a></code></li>
+               <li>
+                  <code><a title="clingo.ast.ConditionalLiteral" href="#clingo.ast.ConditionalLiteral">ConditionalLiteral</a></code>
+               </li>
+               <li><code><a title="clingo.ast.Defined" href="#clingo.ast.Defined">Defined</a></code></li>
+               <li><code><a title="clingo.ast.Definition" href="#clingo.ast.Definition">Definition</a></code></li>
+               <li><code><a title="clingo.ast.Disjoint" href="#clingo.ast.Disjoint">Disjoint</a></code></li>
+               <li>
+                  <code><a title="clingo.ast.DisjointElement" href="#clingo.ast.DisjointElement">DisjointElement</a></code>
+               </li>
+               <li><code><a title="clingo.ast.Disjunction" href="#clingo.ast.Disjunction">Disjunction</a></code></li>
+               <li><code><a title="clingo.ast.Edge" href="#clingo.ast.Edge">Edge</a></code></li>
+               <li><code><a title="clingo.ast.External" href="#clingo.ast.External">External</a></code></li>
+               <li><code><a title="clingo.ast.Function" href="#clingo.ast.Function">Function</a></code></li>
+               <li><code><a title="clingo.ast.HeadAggregate" href="#clingo.ast.HeadAggregate">HeadAggregate</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.HeadAggregateElement" href="#clingo.ast.HeadAggregateElement">HeadAggregateElement</a></code>
+               </li>
+               <li><code><a title="clingo.ast.Heuristic" href="#clingo.ast.Heuristic">Heuristic</a></code></li>
+               <li><code><a title="clingo.ast.Id" href="#clingo.ast.Id">Id</a></code></li>
+               <li><code><a title="clingo.ast.Interval" href="#clingo.ast.Interval">Interval</a></code></li>
+               <li><code><a title="clingo.ast.Literal" href="#clingo.ast.Literal">Literal</a></code></li>
+               <li><code><a title="clingo.ast.Minimize" href="#clingo.ast.Minimize">Minimize</a></code></li>
+               <li><code><a title="clingo.ast.Pool" href="#clingo.ast.Pool">Pool</a></code></li>
+               <li><code><a title="clingo.ast.Program" href="#clingo.ast.Program">Program</a></code></li>
+               <li><code><a title="clingo.ast.ProjectAtom" href="#clingo.ast.ProjectAtom">ProjectAtom</a></code></li>
+               <li>
+                  <code><a title="clingo.ast.ProjectSignature" href="#clingo.ast.ProjectSignature">ProjectSignature</a></code>
+               </li>
+               <li><code><a title="clingo.ast.Rule" href="#clingo.ast.Rule">Rule</a></code></li>
+               <li><code><a title="clingo.ast.Script" href="#clingo.ast.Script">Script</a></code></li>
+               <li><code><a title="clingo.ast.ShowSignature" href="#clingo.ast.ShowSignature">ShowSignature</a></code>
+               </li>
+               <li><code><a title="clingo.ast.ShowTerm" href="#clingo.ast.ShowTerm">ShowTerm</a></code></li>
+               <li><code><a title="clingo.ast.Symbol" href="#clingo.ast.Symbol">Symbol</a></code></li>
+               <li><code><a title="clingo.ast.SymbolicAtom" href="#clingo.ast.SymbolicAtom">SymbolicAtom</a></code></li>
+               <li><code><a title="clingo.ast.TheoryAtom" href="#clingo.ast.TheoryAtom">TheoryAtom</a></code></li>
+               <li>
+                  <code><a title="clingo.ast.TheoryAtomDefinition" href="#clingo.ast.TheoryAtomDefinition">TheoryAtomDefinition</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.TheoryAtomElement" href="#clingo.ast.TheoryAtomElement">TheoryAtomElement</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.TheoryDefinition" href="#clingo.ast.TheoryDefinition">TheoryDefinition</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.TheoryFunction" href="#clingo.ast.TheoryFunction">TheoryFunction</a></code>
+               </li>
+               <li><code><a title="clingo.ast.TheoryGuard" href="#clingo.ast.TheoryGuard">TheoryGuard</a></code></li>
+               <li>
+                  <code><a title="clingo.ast.TheoryGuardDefinition" href="#clingo.ast.TheoryGuardDefinition">TheoryGuardDefinition</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.TheoryOperatorDefinition" href="#clingo.ast.TheoryOperatorDefinition">TheoryOperatorDefinition</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.TheorySequence" href="#clingo.ast.TheorySequence">TheorySequence</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.TheoryTermDefinition" href="#clingo.ast.TheoryTermDefinition">TheoryTermDefinition</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.TheoryUnparsedTerm" href="#clingo.ast.TheoryUnparsedTerm">TheoryUnparsedTerm</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.TheoryUnparsedTermElement" href="#clingo.ast.TheoryUnparsedTermElement">TheoryUnparsedTermElement</a></code>
+               </li>
+               <li>
+                  <code><a title="clingo.ast.UnaryOperation" href="#clingo.ast.UnaryOperation">UnaryOperation</a></code>
+               </li>
+               <li><code><a title="clingo.ast.Variable" href="#clingo.ast.Variable">Variable</a></code></li>
+            </ul>
+         </li>
+         <li>
+            <h3><a href="#header-classes">Classes</a></h3>
+            <ul>
+               <li>
+                  <h4><code><a title="clingo.ast.AST" href="#clingo.ast.AST">AST</a></code></h4>
+                  <ul class="two-column">
+                     <li>
+                        <code><a title="clingo.ast.AST.child_keys" href="#clingo.ast.AST.child_keys">child_keys</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.AST.items" href="#clingo.ast.AST.items">items</a></code></li>
+                     <li><code><a title="clingo.ast.AST.keys" href="#clingo.ast.AST.keys">keys</a></code></li>
+                     <li><code><a title="clingo.ast.AST.type" href="#clingo.ast.AST.type">type</a></code></li>
+                     <li><code><a title="clingo.ast.AST.values" href="#clingo.ast.AST.values">values</a></code></li>
+                  </ul>
+               </li>
+               <li>
+                  <h4><code><a title="clingo.ast.ASTType" href="#clingo.ast.ASTType">ASTType</a></code></h4>
+                  <ul class="two-column">
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Aggregate" href="#clingo.ast.ASTType.Aggregate">Aggregate</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.AggregateGuard" href="#clingo.ast.ASTType.AggregateGuard">AggregateGuard</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.BinaryOperation" href="#clingo.ast.ASTType.BinaryOperation">BinaryOperation</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.BodyAggregate" href="#clingo.ast.ASTType.BodyAggregate">BodyAggregate</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.BodyAggregateElement" href="#clingo.ast.ASTType.BodyAggregateElement">BodyAggregateElement</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.BooleanConstant" href="#clingo.ast.ASTType.BooleanConstant">BooleanConstant</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.CSPGuard" href="#clingo.ast.ASTType.CSPGuard">CSPGuard</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.CSPLiteral" href="#clingo.ast.ASTType.CSPLiteral">CSPLiteral</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.CSPProduct" href="#clingo.ast.ASTType.CSPProduct">CSPProduct</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.ASTType.CSPSum" href="#clingo.ast.ASTType.CSPSum">CSPSum</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Comparison" href="#clingo.ast.ASTType.Comparison">Comparison</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.ConditionalLiteral" href="#clingo.ast.ASTType.ConditionalLiteral">ConditionalLiteral</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Defined" href="#clingo.ast.ASTType.Defined">Defined</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Definition" href="#clingo.ast.ASTType.Definition">Definition</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Disjoint" href="#clingo.ast.ASTType.Disjoint">Disjoint</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.DisjointElement" href="#clingo.ast.ASTType.DisjointElement">DisjointElement</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Disjunction" href="#clingo.ast.ASTType.Disjunction">Disjunction</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.ASTType.Edge" href="#clingo.ast.ASTType.Edge">Edge</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.External" href="#clingo.ast.ASTType.External">External</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Function" href="#clingo.ast.ASTType.Function">Function</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.HeadAggregate" href="#clingo.ast.ASTType.HeadAggregate">HeadAggregate</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.HeadAggregateElement" href="#clingo.ast.ASTType.HeadAggregateElement">HeadAggregateElement</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Heuristic" href="#clingo.ast.ASTType.Heuristic">Heuristic</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.ASTType.Id" href="#clingo.ast.ASTType.Id">Id</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Interval" href="#clingo.ast.ASTType.Interval">Interval</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Literal" href="#clingo.ast.ASTType.Literal">Literal</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Minimize" href="#clingo.ast.ASTType.Minimize">Minimize</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.ASTType.Pool" href="#clingo.ast.ASTType.Pool">Pool</a></code></li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Program" href="#clingo.ast.ASTType.Program">Program</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.ProjectAtom" href="#clingo.ast.ASTType.ProjectAtom">ProjectAtom</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.ProjectSignature" href="#clingo.ast.ASTType.ProjectSignature">ProjectSignature</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.ASTType.Rule" href="#clingo.ast.ASTType.Rule">Rule</a></code></li>
+                     <li><code><a title="clingo.ast.ASTType.Script" href="#clingo.ast.ASTType.Script">Script</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.ShowSignature" href="#clingo.ast.ASTType.ShowSignature">ShowSignature</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.ShowTerm" href="#clingo.ast.ASTType.ShowTerm">ShowTerm</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.ASTType.Symbol" href="#clingo.ast.ASTType.Symbol">Symbol</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.SymbolicAtom" href="#clingo.ast.ASTType.SymbolicAtom">SymbolicAtom</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheoryAtom" href="#clingo.ast.ASTType.TheoryAtom">TheoryAtom</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheoryAtomDefinition" href="#clingo.ast.ASTType.TheoryAtomDefinition">TheoryAtomDefinition</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheoryAtomElement" href="#clingo.ast.ASTType.TheoryAtomElement">TheoryAtomElement</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheoryDefinition" href="#clingo.ast.ASTType.TheoryDefinition">TheoryDefinition</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheoryFunction" href="#clingo.ast.ASTType.TheoryFunction">TheoryFunction</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheoryGuard" href="#clingo.ast.ASTType.TheoryGuard">TheoryGuard</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheoryGuardDefinition" href="#clingo.ast.ASTType.TheoryGuardDefinition">TheoryGuardDefinition</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheoryOperatorDefinition" href="#clingo.ast.ASTType.TheoryOperatorDefinition">TheoryOperatorDefinition</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheorySequence" href="#clingo.ast.ASTType.TheorySequence">TheorySequence</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheoryTermDefinition" href="#clingo.ast.ASTType.TheoryTermDefinition">TheoryTermDefinition</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheoryUnparsedTerm" href="#clingo.ast.ASTType.TheoryUnparsedTerm">TheoryUnparsedTerm</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.TheoryUnparsedTermElement" href="#clingo.ast.ASTType.TheoryUnparsedTermElement">TheoryUnparsedTermElement</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.UnaryOperation" href="#clingo.ast.ASTType.UnaryOperation">UnaryOperation</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ASTType.Variable" href="#clingo.ast.ASTType.Variable">Variable</a></code>
+                     </li>
+                  </ul>
+               </li>
+               <li>
+                  <h4>
+                     <code><a title="clingo.ast.AggregateFunction" href="#clingo.ast.AggregateFunction">AggregateFunction</a></code>
+                  </h4>
+                  <ul class="two-column">
+                     <li>
+                        <code><a title="clingo.ast.AggregateFunction.Count" href="#clingo.ast.AggregateFunction.Count">Count</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.AggregateFunction.Max" href="#clingo.ast.AggregateFunction.Max">Max</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.AggregateFunction.Min" href="#clingo.ast.AggregateFunction.Min">Min</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.AggregateFunction.Sum" href="#clingo.ast.AggregateFunction.Sum">Sum</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.AggregateFunction.SumPlus" href="#clingo.ast.AggregateFunction.SumPlus">SumPlus</a></code>
+                     </li>
+                  </ul>
+               </li>
+               <li>
+                  <h4>
+                     <code><a title="clingo.ast.BinaryOperator" href="#clingo.ast.BinaryOperator">BinaryOperator</a></code>
+                  </h4>
+                  <ul class="two-column">
+                     <li>
+                        <code><a title="clingo.ast.BinaryOperator.And" href="#clingo.ast.BinaryOperator.And">And</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BinaryOperator.Division" href="#clingo.ast.BinaryOperator.Division">Division</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BinaryOperator.Minus" href="#clingo.ast.BinaryOperator.Minus">Minus</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BinaryOperator.Modulo" href="#clingo.ast.BinaryOperator.Modulo">Modulo</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BinaryOperator.Multiplication" href="#clingo.ast.BinaryOperator.Multiplication">Multiplication</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BinaryOperator.Or" href="#clingo.ast.BinaryOperator.Or">Or</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BinaryOperator.Plus" href="#clingo.ast.BinaryOperator.Plus">Plus</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BinaryOperator.Power" href="#clingo.ast.BinaryOperator.Power">Power</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.BinaryOperator.XOr" href="#clingo.ast.BinaryOperator.XOr">XOr</a></code>
+                     </li>
+                  </ul>
+               </li>
+               <li>
+                  <h4>
+                     <code><a title="clingo.ast.ComparisonOperator" href="#clingo.ast.ComparisonOperator">ComparisonOperator</a></code>
+                  </h4>
+                  <ul class="two-column">
+                     <li>
+                        <code><a title="clingo.ast.ComparisonOperator.Equal" href="#clingo.ast.ComparisonOperator.Equal">Equal</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ComparisonOperator.GreaterEqual" href="#clingo.ast.ComparisonOperator.GreaterEqual">GreaterEqual</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ComparisonOperator.GreaterThan" href="#clingo.ast.ComparisonOperator.GreaterThan">GreaterThan</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ComparisonOperator.LessEqual" href="#clingo.ast.ComparisonOperator.LessEqual">LessEqual</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ComparisonOperator.LessThan" href="#clingo.ast.ComparisonOperator.LessThan">LessThan</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ComparisonOperator.NotEqual" href="#clingo.ast.ComparisonOperator.NotEqual">NotEqual</a></code>
+                     </li>
+                  </ul>
+               </li>
+               <li>
+                  <h4><code><a title="clingo.ast.ScriptType" href="#clingo.ast.ScriptType">ScriptType</a></code></h4>
+                  <ul class="two-column">
+                     <li><code><a title="clingo.ast.ScriptType.Lua" href="#clingo.ast.ScriptType.Lua">Lua</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.ScriptType.Python" href="#clingo.ast.ScriptType.Python">Python</a></code>
+                     </li>
+                  </ul>
+               </li>
+               <li>
+                  <h4><code><a title="clingo.ast.Sign" href="#clingo.ast.Sign">Sign</a></code></h4>
+                  <ul class="two-column">
+                     <li>
+                        <code><a title="clingo.ast.Sign.DoubleNegation" href="#clingo.ast.Sign.DoubleNegation">DoubleNegation</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.Sign.Negation" href="#clingo.ast.Sign.Negation">Negation</a></code>
+                     </li>
+                     <li><code><a title="clingo.ast.Sign.NoSign" href="#clingo.ast.Sign.NoSign">NoSign</a></code></li>
+                  </ul>
+               </li>
+               <li>
+                  <h4>
+                     <code><a title="clingo.ast.TheoryAtomType" href="#clingo.ast.TheoryAtomType">TheoryAtomType</a></code>
+                  </h4>
+                  <ul class="two-column">
+                     <li>
+                        <code><a title="clingo.ast.TheoryAtomType.Any" href="#clingo.ast.TheoryAtomType.Any">Any</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryAtomType.Body" href="#clingo.ast.TheoryAtomType.Body">Body</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryAtomType.Directive" href="#clingo.ast.TheoryAtomType.Directive">Directive</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryAtomType.Head" href="#clingo.ast.TheoryAtomType.Head">Head</a></code>
+                     </li>
+                  </ul>
+               </li>
+               <li>
+                  <h4>
+                     <code><a title="clingo.ast.TheoryOperatorType" href="#clingo.ast.TheoryOperatorType">TheoryOperatorType</a></code>
+                  </h4>
+                  <ul class="two-column">
+                     <li>
+                        <code><a title="clingo.ast.TheoryOperatorType.BinaryLeft" href="#clingo.ast.TheoryOperatorType.BinaryLeft">BinaryLeft</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryOperatorType.BinaryRight" href="#clingo.ast.TheoryOperatorType.BinaryRight">BinaryRight</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheoryOperatorType.Unary" href="#clingo.ast.TheoryOperatorType.Unary">Unary</a></code>
+                     </li>
+                  </ul>
+               </li>
+               <li>
+                  <h4>
+                     <code><a title="clingo.ast.TheorySequenceType" href="#clingo.ast.TheorySequenceType">TheorySequenceType</a></code>
+                  </h4>
+                  <ul class="two-column">
+                     <li>
+                        <code><a title="clingo.ast.TheorySequenceType.List" href="#clingo.ast.TheorySequenceType.List">List</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheorySequenceType.Set" href="#clingo.ast.TheorySequenceType.Set">Set</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheorySequenceType.Tuple" href="#clingo.ast.TheorySequenceType.Tuple">Tuple</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheorySequenceType.left_hand_side" href="#clingo.ast.TheorySequenceType.left_hand_side">left_hand_side</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.TheorySequenceType.right_hand_side" href="#clingo.ast.TheorySequenceType.right_hand_side">right_hand_side</a></code>
+                     </li>
+                  </ul>
+               </li>
+               <li>
+                  <h4>
+                     <code><a title="clingo.ast.UnaryOperator" href="#clingo.ast.UnaryOperator">UnaryOperator</a></code>
+                  </h4>
+                  <ul class="two-column">
+                     <li>
+                        <code><a title="clingo.ast.UnaryOperator.Absolute" href="#clingo.ast.UnaryOperator.Absolute">Absolute</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.UnaryOperator.Minus" href="#clingo.ast.UnaryOperator.Minus">Minus</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.UnaryOperator.Negation" href="#clingo.ast.UnaryOperator.Negation">Negation</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.UnaryOperator.left_hand_side" href="#clingo.ast.UnaryOperator.left_hand_side">left_hand_side</a></code>
+                     </li>
+                     <li>
+                        <code><a title="clingo.ast.UnaryOperator.right_hand_side" href="#clingo.ast.UnaryOperator.right_hand_side">right_hand_side</a></code>
+                     </li>
+                  </ul>
+               </li>
+            </ul>
+         </li>
+      </ul>
+   </nav>
+</main>
+<script src="{{ '/assets/js/highlight.min.js' | relative_url }}"></script>
+<script>hljs.initHighlightingOnLoad()</script>

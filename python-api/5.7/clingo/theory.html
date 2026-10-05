@@ -1,0 +1,1400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>clingo.theory API documentation</title>
+<meta name="description" content="This module defines the `Theory` class for using a [CFFI] based module with
+clingo&#39;s Python package …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>clingo.theory</code></h1>
+</header>
+<section id="section-intro">
+<p>This module defines the <code><a title="clingo.theory.Theory" href="#clingo.theory.Theory">Theory</a></code> class for using a <a href="https://cffi.readthedocs.io/en/latest/">CFFI</a> based module with
+clingo's Python package.</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python">&gt;&gt;&gt; from clingo import Control
+&gt;&gt;&gt; from clingo.ast import parse_string, ProgramBuilder
+&gt;&gt;&gt; from clingo.theory import Theory
+&gt;&gt;&gt; from clingcon._clingcon import lib, ffi
+&gt;&gt;&gt;
+&gt;&gt;&gt; prg = '&amp;sum { x } &gt;= 1. &amp;sum { x } &lt;= 3.'
+&gt;&gt;&gt;
+&gt;&gt;&gt; thy = Theory('clingcon', lib, ffi)
+&gt;&gt;&gt; ctl = Control(['0'])
+&gt;&gt;&gt; thy.register(ctl)
+&gt;&gt;&gt; with ProgramBuilder(ctl) as bld:
+...     parse_string(prg, lambda ast: thy.rewrite_ast(ast, bld.add))
+...
+&gt;&gt;&gt; ctl.ground([('base', [])])
+&gt;&gt;&gt; thy.prepare(ctl)
+&gt;&gt;&gt; with ctl.solve(yield_=True, on_model=thy.on_model) as hnd:
+...     for mdl in hnd:
+...         print([f'{key}={val}' for key, val in thy.assignment(mdl.thread_id)])
+...
+['x=1']
+['x=2']
+['x=3']
+</code></pre>
+<h2 id="notes">Notes</h2>
+<p>The CFFI module must provide the following functions and data structures, where
+<code>PREFIX</code> corresponds to the prefix string passed to the <code><a title="clingo.theory.Theory" href="#clingo.theory.Theory">Theory</a></code> constructor:</p>
+<pre><code class="language-c">enum PREFIX_value_type {
+    PREFIX_value_type_int = 0,
+    PREFIX_value_type_double = 1,
+    PREFIX_value_type_symbol = 2
+};
+typedef int PREFIX_value_type_t;
+typedef struct PREFIX_value {
+    PREFIX_value_type_t type;
+    union {
+        int int_number;
+        double double_number;
+        clingo_symbol_t symbol;
+    };
+} PREFIX_value_t;
+typedef bool (*PREFIX_ast_callback_t)(clingo_ast_t *ast, void *data);
+
+bool PREFIX_create(PREFIX_theory_t **theory)
+bool PREFIX_destroy(PREFIX_theory_t *theory)
+bool PREFIX_version(PREFIX_theory_t **theory, int *major, int *minor, int *patch);
+bool PREFIX_register(PREFIX_theory_t *theory, clingo_control_t* control)
+bool PREFIX_rewrite_ast(PREFIX_theory_t *theory, clingo_ast_t *ast, PREFIX_ast_callback_t add, void *data);
+bool PREFIX_prepare(PREFIX_theory_t *theory, clingo_control_t* control)
+bool PREFIX_register_options(PREFIX_theory_t *theory, clingo_options_t* options)
+bool PREFIX_validate_options(PREFIX_theory_t *theory)
+bool PREFIX_on_model(PREFIX_theory_t *theory, clingo_model_t* model)
+bool PREFIX_on_statistics(PREFIX_theory_t *theory, clingo_statistics_t* step, clingo_statistics_t* accu)
+bool PREFIX_lookup_symbol(PREFIX_theory_t *theory, clingo_symbol_t symbol, size_t *index)
+clingo_symbol_t PREFIX_get_symbol(PREFIX_theory_t *theory, size_t index)
+void PREFIX_assignment_begin(PREFIX_theory_t *theory, uint32_t thread_id, size_t *index)
+bool PREFIX_assignment_next(PREFIX_theory_t *theory, uint32_t thread_id, size_t *index)
+bool PREFIX_assignment_has_value(PREFIX_theory_t *theory, uint32_t thread_id, size_t index)
+void PREFIX_assignment_get_value(PREFIX_theory_t *theory, uint32_t thread_id, size_t index, PREFIX_value_t *value)
+bool PREFIX_configure(PREFIX_theory_t *theory, char const *key, char const *value)
+</code></pre>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;
+This module defines the `Theory` class for using a [CFFI] based module with
+clingo&#39;s Python package.
+
+[CFFI]: https://cffi.readthedocs.io/en/latest/
+
+Example
+-------
+
+```python
+&gt;&gt;&gt; from clingo import Control
+&gt;&gt;&gt; from clingo.ast import parse_string, ProgramBuilder
+&gt;&gt;&gt; from clingo.theory import Theory
+&gt;&gt;&gt; from clingcon._clingcon import lib, ffi
+&gt;&gt;&gt;
+&gt;&gt;&gt; prg = &#39;&amp;sum { x } &gt;= 1. &amp;sum { x } &lt;= 3.&#39;
+&gt;&gt;&gt;
+&gt;&gt;&gt; thy = Theory(&#39;clingcon&#39;, lib, ffi)
+&gt;&gt;&gt; ctl = Control([&#39;0&#39;])
+&gt;&gt;&gt; thy.register(ctl)
+&gt;&gt;&gt; with ProgramBuilder(ctl) as bld:
+...     parse_string(prg, lambda ast: thy.rewrite_ast(ast, bld.add))
+...
+&gt;&gt;&gt; ctl.ground([(&#39;base&#39;, [])])
+&gt;&gt;&gt; thy.prepare(ctl)
+&gt;&gt;&gt; with ctl.solve(yield_=True, on_model=thy.on_model) as hnd:
+...     for mdl in hnd:
+...         print([f&#39;{key}={val}&#39; for key, val in thy.assignment(mdl.thread_id)])
+...
+[&#39;x=1&#39;]
+[&#39;x=2&#39;]
+[&#39;x=3&#39;]
+```
+
+Notes
+-----
+The CFFI module must provide the following functions and data structures, where
+`PREFIX` corresponds to the prefix string passed to the `Theory` constructor:
+
+```c
+enum PREFIX_value_type {
+    PREFIX_value_type_int = 0,
+    PREFIX_value_type_double = 1,
+    PREFIX_value_type_symbol = 2
+};
+typedef int PREFIX_value_type_t;
+typedef struct PREFIX_value {
+    PREFIX_value_type_t type;
+    union {
+        int int_number;
+        double double_number;
+        clingo_symbol_t symbol;
+    };
+} PREFIX_value_t;
+typedef bool (*PREFIX_ast_callback_t)(clingo_ast_t *ast, void *data);
+
+bool PREFIX_create(PREFIX_theory_t **theory)
+bool PREFIX_destroy(PREFIX_theory_t *theory)
+bool PREFIX_version(PREFIX_theory_t **theory, int *major, int *minor, int *patch);
+bool PREFIX_register(PREFIX_theory_t *theory, clingo_control_t* control)
+bool PREFIX_rewrite_ast(PREFIX_theory_t *theory, clingo_ast_t *ast, PREFIX_ast_callback_t add, void *data);
+bool PREFIX_prepare(PREFIX_theory_t *theory, clingo_control_t* control)
+bool PREFIX_register_options(PREFIX_theory_t *theory, clingo_options_t* options)
+bool PREFIX_validate_options(PREFIX_theory_t *theory)
+bool PREFIX_on_model(PREFIX_theory_t *theory, clingo_model_t* model)
+bool PREFIX_on_statistics(PREFIX_theory_t *theory, clingo_statistics_t* step, clingo_statistics_t* accu)
+bool PREFIX_lookup_symbol(PREFIX_theory_t *theory, clingo_symbol_t symbol, size_t *index)
+clingo_symbol_t PREFIX_get_symbol(PREFIX_theory_t *theory, size_t index)
+void PREFIX_assignment_begin(PREFIX_theory_t *theory, uint32_t thread_id, size_t *index)
+bool PREFIX_assignment_next(PREFIX_theory_t *theory, uint32_t thread_id, size_t *index)
+bool PREFIX_assignment_has_value(PREFIX_theory_t *theory, uint32_t thread_id, size_t index)
+void PREFIX_assignment_get_value(PREFIX_theory_t *theory, uint32_t thread_id, size_t index, PREFIX_value_t *value)
+bool PREFIX_configure(PREFIX_theory_t *theory, char const *key, char const *value)
+```
+&#34;&#34;&#34;
+from typing import Any, Callable, Iterator, Optional, Tuple, Union
+
+from ._internal import _ffi, _handle_error, _lib
+from .control import Control
+from .application import ApplicationOptions
+from .solving import Model
+from .statistics import StatisticsMap
+from .symbol import Symbol
+from .ast import AST
+
+__all__ = [&#34;Theory&#34;]
+
+ValueType = Union[int, float, Symbol]
+
+
+class _CBData:  # pylint: disable=too-few-public-methods
+    &#34;&#34;&#34;
+    The class stores the data object that should be passed to a callback as
+    well as provides the means to set an error while a callback is running.
+    &#34;&#34;&#34;
+
+    def __init__(self, data):
+        self.data = data
+        self.error = None
+
+
+class Theory:
+    &#34;&#34;&#34;
+    Interface to call functions from a C-library extending clingo&#39;s C/Python
+    library.
+
+    The functions in here are designed to be used with a `Application`
+    object but can also be used with a standalone `Control` object.
+    &#34;&#34;&#34;
+
+    # pylint: disable=too-many-instance-attributes,line-too-long,protected-access
+
+    def __init__(self, prefix: str, lib: Any, ffi: Any):
+        &#34;&#34;&#34;
+        Loads a given library.
+
+        Arguments
+        ---------
+        prefix
+            Prefix of functions and data structures in the library.
+        lib
+            [A CFFI lib object](https://cffi.readthedocs.io/en/latest/using.html).
+        ffi
+            [A CFFI ffi object](https://cffi.readthedocs.io/en/latest/ref.html).
+        &#34;&#34;&#34;
+        self._pre = prefix
+        self._lib = lib
+        self._ffi = ffi
+        self._theory = self.__call1(self.__pre(&#34;theory_t*&#34;), &#34;create&#34;)
+        self._rewrite = self.__define_rewrite()
+
+    def __pre(self, name, extra=&#34;&#34;):
+        return f&#34;{extra}{self._pre}_{name}&#34;
+
+    def __get(self, name, extra=&#34;&#34;):
+        return getattr(self._lib, self.__pre(name, extra))
+
+    def __error_handler(self, exception, exc_value, traceback) -&gt; bool:
+        if traceback is not None:
+            cb_data = self._ffi.from_handle(traceback.tb_frame.f_locals[&#34;data&#34;])
+            cb_data.error = (exception, exc_value, traceback)
+            _lib.clingo_set_error(_lib.clingo_error_unknown, str(exc_value).encode())
+        else:
+            _lib.clingo_set_error(
+                _lib.clingo_error_runtime, &#34;error in callback&#34;.encode()
+            )
+        return False
+
+    def __define_rewrite(self):
+        @self._ffi.def_extern(
+            name=self.__pre(&#34;rewrite&#34;, &#34;py&#34;), onerror=self.__error_handler
+        )
+        def rewrite(ast, data):
+            add = self._ffi.from_handle(data).data
+            ast = _ffi.cast(&#34;clingo_ast_t*&#34;, ast)
+            _lib.clingo_ast_acquire(ast)
+            add(AST(ast))
+            return True
+
+        return rewrite
+
+    def __call(self, c_fun, *args):
+        &#34;&#34;&#34;
+        Helper to simplify calling C functions without error handling.
+        &#34;&#34;&#34;
+        return self.__get(c_fun)(*args)
+
+    def __call0(self, c_fun, *args):
+        &#34;&#34;&#34;
+        Helper to simplify calling C functions without a return value.
+        &#34;&#34;&#34;
+        _handle_error(self.__call(c_fun, *args))
+
+    def __call1(self, c_type, c_fun, *args):
+        &#34;&#34;&#34;
+        Helper to simplify calling C functions where the last parameter is a
+        reference to the return value.
+        &#34;&#34;&#34;
+        if isinstance(c_type, str):
+            p_ret = self._ffi.new(f&#34;{c_type}*&#34;)
+        else:
+            p_ret = c_type
+        _handle_error(self.__call(c_fun, *args, p_ret))
+        return p_ret[0]
+
+    def __del__(self):
+        if self._theory is not None:
+            self.__call0(&#34;destroy&#34;, self._theory)
+            self._theory = None
+
+    def version(self) -&gt; Tuple[int, int, int]:
+        &#34;&#34;&#34;
+        This function returns the version of the theory.
+
+        Returns
+        -------
+        A 3-tuple of integers representing major and minor version as well as
+        the patch level.
+        &#34;&#34;&#34;
+        p_version = self._ffi.new(&#34;int[3]&#34;)
+        self.__call(&#34;version&#34;, p_version, p_version + 1, p_version + 2)
+        return p_version[0], p_version[1], p_version[2]
+
+    def configure(self, key: str, value: str) -&gt; None:
+        &#34;&#34;&#34;
+        Allows for configuring a theory via key/value pairs similar to
+        command line options.
+
+        This function must be called before the theory is registered.
+
+        Arguments
+        ---------
+        key
+            The name of the option.
+        value
+            The value of the option.
+        &#34;&#34;&#34;
+        self.__call0(&#34;configure&#34;, self._theory, key.encode(), value.encode())
+
+    def register(self, control: Control) -&gt; None:
+        &#34;&#34;&#34;
+        Register the theory with the given control object.
+
+        Arguments
+        ---------
+        control
+            Target to register with.
+        &#34;&#34;&#34;
+        self.__call0(
+            &#34;register&#34;, self._theory, self._ffi.cast(&#34;clingo_control_t*&#34;, control._rep)
+        )
+
+    def prepare(self, control: Control) -&gt; None:
+        &#34;&#34;&#34;
+        Prepare the theory.
+
+        Must be called between ground and solve.
+
+        Arguments
+        ---------
+        control
+            The associated control object.
+        &#34;&#34;&#34;
+        self.__call0(
+            &#34;prepare&#34;, self._theory, self._ffi.cast(&#34;clingo_control_t*&#34;, control._rep)
+        )
+
+    def rewrite_ast(self, stm: AST, add: Callable[[AST], None]) -&gt; None:
+        &#34;&#34;&#34;
+        Rewrite the given statement and call add on the rewritten version(s).
+
+        Must be called for some theories that have to perform rewritings on the
+        AST.
+
+        Arguments
+        ---------
+        stm
+            Statement to translate.
+        add
+            Callback for adding translated statements.
+        &#34;&#34;&#34;
+
+        cb_data = _CBData(add)
+        handle = self._ffi.new_handle(cb_data)
+        self.__call0(
+            &#34;rewrite_ast&#34;,
+            self._theory,
+            self._ffi.cast(&#34;clingo_ast_t*&#34;, stm._rep),
+            self.__get(&#34;rewrite&#34;, &#34;py&#34;),
+            handle,
+        )
+
+    def register_options(self, options: ApplicationOptions) -&gt; None:
+        &#34;&#34;&#34;
+        Register the theory&#39;s options with the given application options
+        object.
+
+        Arguments
+        ---------
+        options
+            Target to register with.
+        &#34;&#34;&#34;
+        self.__call0(
+            &#34;register_options&#34;,
+            self._theory,
+            self._ffi.cast(&#34;clingo_options_t*&#34;, options._rep),
+        )
+
+    def validate_options(self) -&gt; None:
+        &#34;&#34;&#34;
+        Validate the options of the theory.
+        &#34;&#34;&#34;
+        self.__call0(&#34;validate_options&#34;, self._theory)
+
+    def on_model(self, model: Model) -&gt; None:
+        &#34;&#34;&#34;
+        Inform the theory that a model has been found.
+
+        Arguments
+        ---------
+        model
+            The current model.
+        &#34;&#34;&#34;
+        self.__call0(
+            &#34;on_model&#34;, self._theory, self._ffi.cast(&#34;clingo_model_t*&#34;, model._rep)
+        )
+
+    def on_statistics(self, step: StatisticsMap, accu: StatisticsMap) -&gt; None:
+        &#34;&#34;&#34;
+        Add the theory&#39;s statistics to the given maps.
+
+        Arguments
+        ---------
+        step: StatisticsMap
+            Map for per step statistics.
+        accu: StatisticsMap
+            Map for accumulated statistics.
+        &#34;&#34;&#34;
+        self.__call0(
+            &#34;on_statistics&#34;,
+            self._theory,
+            self._ffi.cast(&#34;clingo_statistics_t*&#34;, step._rep),
+            self._ffi.cast(&#34;clingo_statistics_t*&#34;, accu._rep),
+        )
+
+    def lookup_symbol(self, symbol: Symbol) -&gt; Optional[int]:
+        &#34;&#34;&#34;
+        Get the integer index of a symbol assigned by the theory when a
+        model is found.
+
+        Using indices allows for efficent retrieval of values.
+
+        Arguments
+        ---------
+        symbol
+            The symbol to look up.
+
+        Returns
+        -------
+        The index of the value if found.
+        &#34;&#34;&#34;
+        c_index = self._ffi.new(&#34;size_t*&#34;)
+        if self.__call(&#34;lookup_symbol&#34;, self._theory, symbol._rep, c_index):
+            return c_index[0]
+        return None
+
+    def get_symbol(self, index: int) -&gt; Symbol:
+        &#34;&#34;&#34;
+        Get the symbol associated with an index.
+
+        The index must be valid.
+
+        Arguments
+        ---------
+        index
+            Index to retreive.
+
+        Returns
+        -------
+        The associated symbol.
+        &#34;&#34;&#34;
+        return Symbol(
+            _ffi.cast(&#34;clingo_symbol_t&#34;, self.__call(&#34;get_symbol&#34;, self._theory, index))
+        )
+
+    def has_value(self, thread_id: int, index: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Check if the given symbol index has a value in the current model.
+
+        Arguments
+        ---------
+        thread_id
+            The index of the solving thread that found the model.
+        index
+            Index to retreive.
+
+        Returns
+        -------
+        Whether the given index has a value.
+        &#34;&#34;&#34;
+        return self.__call(&#34;assignment_has_value&#34;, self._theory, thread_id, index)
+
+    def get_value(self, thread_id: int, index: int) -&gt; ValueType:
+        &#34;&#34;&#34;
+        Get the value of the symbol index in the current model.
+
+        Arguments
+        ---------
+        thread_id
+            The index of the solving thread that found the model.
+        index
+            Index to retreive.
+
+        Returns
+        -------
+        The value of the index in form of an int, float, or Symbol.
+        &#34;&#34;&#34;
+        c_value = self._ffi.new(self.__pre(&#34;value_t*&#34;))
+        self.__call(&#34;assignment_get_value&#34;, self._theory, thread_id, index, c_value)
+        if c_value.type == 0:
+            return c_value.int_number
+        if c_value.type == 1:
+            return c_value.double_number
+        if c_value.type == 2:
+            return Symbol(c_value.symbol)
+        raise RuntimeError(&#34;must not happen&#34;)
+
+    def assignment(self, thread_id: int) -&gt; Iterator[Tuple[Symbol, ValueType]]:
+        &#34;&#34;&#34;
+        Get all values symbol/value pairs assigned by the theory in the
+        current model.
+
+        Arguments
+        ---------
+        thread_id
+            The index of the solving thread that found the model.
+
+        Returns
+        -------
+        An iterator over symbol/value pairs.
+        &#34;&#34;&#34;
+        c_index = self._ffi.new(&#34;size_t*&#34;)
+        self.__call(&#34;assignment_begin&#34;, self._theory, thread_id, c_index)
+        while self.__call(&#34;assignment_next&#34;, self._theory, thread_id, c_index):
+            yield (self.get_symbol(c_index[0]), self.get_value(thread_id, c_index[0]))</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.theory.Theory"><code class="flex name class">
+<span>class <span class="ident">Theory</span></span>
+<span>(</span><span>prefix: str, lib: Any, ffi: Any)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Interface to call functions from a C-library extending clingo's C/Python
+library.</p>
+<p>The functions in here are designed to be used with a <code>Application</code>
+object but can also be used with a standalone <code>Control</code> object.</p>
+<p>Loads a given library.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>prefix</code></strong></dt>
+<dd>Prefix of functions and data structures in the library.</dd>
+<dt><strong><code>lib</code></strong></dt>
+<dd><a href="https://cffi.readthedocs.io/en/latest/using.html">A CFFI lib object</a>.</dd>
+<dt><strong><code>ffi</code></strong></dt>
+<dd><a href="https://cffi.readthedocs.io/en/latest/ref.html">A CFFI ffi object</a>.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Theory:
+    &#34;&#34;&#34;
+    Interface to call functions from a C-library extending clingo&#39;s C/Python
+    library.
+
+    The functions in here are designed to be used with a `Application`
+    object but can also be used with a standalone `Control` object.
+    &#34;&#34;&#34;
+
+    # pylint: disable=too-many-instance-attributes,line-too-long,protected-access
+
+    def __init__(self, prefix: str, lib: Any, ffi: Any):
+        &#34;&#34;&#34;
+        Loads a given library.
+
+        Arguments
+        ---------
+        prefix
+            Prefix of functions and data structures in the library.
+        lib
+            [A CFFI lib object](https://cffi.readthedocs.io/en/latest/using.html).
+        ffi
+            [A CFFI ffi object](https://cffi.readthedocs.io/en/latest/ref.html).
+        &#34;&#34;&#34;
+        self._pre = prefix
+        self._lib = lib
+        self._ffi = ffi
+        self._theory = self.__call1(self.__pre(&#34;theory_t*&#34;), &#34;create&#34;)
+        self._rewrite = self.__define_rewrite()
+
+    def __pre(self, name, extra=&#34;&#34;):
+        return f&#34;{extra}{self._pre}_{name}&#34;
+
+    def __get(self, name, extra=&#34;&#34;):
+        return getattr(self._lib, self.__pre(name, extra))
+
+    def __error_handler(self, exception, exc_value, traceback) -&gt; bool:
+        if traceback is not None:
+            cb_data = self._ffi.from_handle(traceback.tb_frame.f_locals[&#34;data&#34;])
+            cb_data.error = (exception, exc_value, traceback)
+            _lib.clingo_set_error(_lib.clingo_error_unknown, str(exc_value).encode())
+        else:
+            _lib.clingo_set_error(
+                _lib.clingo_error_runtime, &#34;error in callback&#34;.encode()
+            )
+        return False
+
+    def __define_rewrite(self):
+        @self._ffi.def_extern(
+            name=self.__pre(&#34;rewrite&#34;, &#34;py&#34;), onerror=self.__error_handler
+        )
+        def rewrite(ast, data):
+            add = self._ffi.from_handle(data).data
+            ast = _ffi.cast(&#34;clingo_ast_t*&#34;, ast)
+            _lib.clingo_ast_acquire(ast)
+            add(AST(ast))
+            return True
+
+        return rewrite
+
+    def __call(self, c_fun, *args):
+        &#34;&#34;&#34;
+        Helper to simplify calling C functions without error handling.
+        &#34;&#34;&#34;
+        return self.__get(c_fun)(*args)
+
+    def __call0(self, c_fun, *args):
+        &#34;&#34;&#34;
+        Helper to simplify calling C functions without a return value.
+        &#34;&#34;&#34;
+        _handle_error(self.__call(c_fun, *args))
+
+    def __call1(self, c_type, c_fun, *args):
+        &#34;&#34;&#34;
+        Helper to simplify calling C functions where the last parameter is a
+        reference to the return value.
+        &#34;&#34;&#34;
+        if isinstance(c_type, str):
+            p_ret = self._ffi.new(f&#34;{c_type}*&#34;)
+        else:
+            p_ret = c_type
+        _handle_error(self.__call(c_fun, *args, p_ret))
+        return p_ret[0]
+
+    def __del__(self):
+        if self._theory is not None:
+            self.__call0(&#34;destroy&#34;, self._theory)
+            self._theory = None
+
+    def version(self) -&gt; Tuple[int, int, int]:
+        &#34;&#34;&#34;
+        This function returns the version of the theory.
+
+        Returns
+        -------
+        A 3-tuple of integers representing major and minor version as well as
+        the patch level.
+        &#34;&#34;&#34;
+        p_version = self._ffi.new(&#34;int[3]&#34;)
+        self.__call(&#34;version&#34;, p_version, p_version + 1, p_version + 2)
+        return p_version[0], p_version[1], p_version[2]
+
+    def configure(self, key: str, value: str) -&gt; None:
+        &#34;&#34;&#34;
+        Allows for configuring a theory via key/value pairs similar to
+        command line options.
+
+        This function must be called before the theory is registered.
+
+        Arguments
+        ---------
+        key
+            The name of the option.
+        value
+            The value of the option.
+        &#34;&#34;&#34;
+        self.__call0(&#34;configure&#34;, self._theory, key.encode(), value.encode())
+
+    def register(self, control: Control) -&gt; None:
+        &#34;&#34;&#34;
+        Register the theory with the given control object.
+
+        Arguments
+        ---------
+        control
+            Target to register with.
+        &#34;&#34;&#34;
+        self.__call0(
+            &#34;register&#34;, self._theory, self._ffi.cast(&#34;clingo_control_t*&#34;, control._rep)
+        )
+
+    def prepare(self, control: Control) -&gt; None:
+        &#34;&#34;&#34;
+        Prepare the theory.
+
+        Must be called between ground and solve.
+
+        Arguments
+        ---------
+        control
+            The associated control object.
+        &#34;&#34;&#34;
+        self.__call0(
+            &#34;prepare&#34;, self._theory, self._ffi.cast(&#34;clingo_control_t*&#34;, control._rep)
+        )
+
+    def rewrite_ast(self, stm: AST, add: Callable[[AST], None]) -&gt; None:
+        &#34;&#34;&#34;
+        Rewrite the given statement and call add on the rewritten version(s).
+
+        Must be called for some theories that have to perform rewritings on the
+        AST.
+
+        Arguments
+        ---------
+        stm
+            Statement to translate.
+        add
+            Callback for adding translated statements.
+        &#34;&#34;&#34;
+
+        cb_data = _CBData(add)
+        handle = self._ffi.new_handle(cb_data)
+        self.__call0(
+            &#34;rewrite_ast&#34;,
+            self._theory,
+            self._ffi.cast(&#34;clingo_ast_t*&#34;, stm._rep),
+            self.__get(&#34;rewrite&#34;, &#34;py&#34;),
+            handle,
+        )
+
+    def register_options(self, options: ApplicationOptions) -&gt; None:
+        &#34;&#34;&#34;
+        Register the theory&#39;s options with the given application options
+        object.
+
+        Arguments
+        ---------
+        options
+            Target to register with.
+        &#34;&#34;&#34;
+        self.__call0(
+            &#34;register_options&#34;,
+            self._theory,
+            self._ffi.cast(&#34;clingo_options_t*&#34;, options._rep),
+        )
+
+    def validate_options(self) -&gt; None:
+        &#34;&#34;&#34;
+        Validate the options of the theory.
+        &#34;&#34;&#34;
+        self.__call0(&#34;validate_options&#34;, self._theory)
+
+    def on_model(self, model: Model) -&gt; None:
+        &#34;&#34;&#34;
+        Inform the theory that a model has been found.
+
+        Arguments
+        ---------
+        model
+            The current model.
+        &#34;&#34;&#34;
+        self.__call0(
+            &#34;on_model&#34;, self._theory, self._ffi.cast(&#34;clingo_model_t*&#34;, model._rep)
+        )
+
+    def on_statistics(self, step: StatisticsMap, accu: StatisticsMap) -&gt; None:
+        &#34;&#34;&#34;
+        Add the theory&#39;s statistics to the given maps.
+
+        Arguments
+        ---------
+        step: StatisticsMap
+            Map for per step statistics.
+        accu: StatisticsMap
+            Map for accumulated statistics.
+        &#34;&#34;&#34;
+        self.__call0(
+            &#34;on_statistics&#34;,
+            self._theory,
+            self._ffi.cast(&#34;clingo_statistics_t*&#34;, step._rep),
+            self._ffi.cast(&#34;clingo_statistics_t*&#34;, accu._rep),
+        )
+
+    def lookup_symbol(self, symbol: Symbol) -&gt; Optional[int]:
+        &#34;&#34;&#34;
+        Get the integer index of a symbol assigned by the theory when a
+        model is found.
+
+        Using indices allows for efficent retrieval of values.
+
+        Arguments
+        ---------
+        symbol
+            The symbol to look up.
+
+        Returns
+        -------
+        The index of the value if found.
+        &#34;&#34;&#34;
+        c_index = self._ffi.new(&#34;size_t*&#34;)
+        if self.__call(&#34;lookup_symbol&#34;, self._theory, symbol._rep, c_index):
+            return c_index[0]
+        return None
+
+    def get_symbol(self, index: int) -&gt; Symbol:
+        &#34;&#34;&#34;
+        Get the symbol associated with an index.
+
+        The index must be valid.
+
+        Arguments
+        ---------
+        index
+            Index to retreive.
+
+        Returns
+        -------
+        The associated symbol.
+        &#34;&#34;&#34;
+        return Symbol(
+            _ffi.cast(&#34;clingo_symbol_t&#34;, self.__call(&#34;get_symbol&#34;, self._theory, index))
+        )
+
+    def has_value(self, thread_id: int, index: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Check if the given symbol index has a value in the current model.
+
+        Arguments
+        ---------
+        thread_id
+            The index of the solving thread that found the model.
+        index
+            Index to retreive.
+
+        Returns
+        -------
+        Whether the given index has a value.
+        &#34;&#34;&#34;
+        return self.__call(&#34;assignment_has_value&#34;, self._theory, thread_id, index)
+
+    def get_value(self, thread_id: int, index: int) -&gt; ValueType:
+        &#34;&#34;&#34;
+        Get the value of the symbol index in the current model.
+
+        Arguments
+        ---------
+        thread_id
+            The index of the solving thread that found the model.
+        index
+            Index to retreive.
+
+        Returns
+        -------
+        The value of the index in form of an int, float, or Symbol.
+        &#34;&#34;&#34;
+        c_value = self._ffi.new(self.__pre(&#34;value_t*&#34;))
+        self.__call(&#34;assignment_get_value&#34;, self._theory, thread_id, index, c_value)
+        if c_value.type == 0:
+            return c_value.int_number
+        if c_value.type == 1:
+            return c_value.double_number
+        if c_value.type == 2:
+            return Symbol(c_value.symbol)
+        raise RuntimeError(&#34;must not happen&#34;)
+
+    def assignment(self, thread_id: int) -&gt; Iterator[Tuple[Symbol, ValueType]]:
+        &#34;&#34;&#34;
+        Get all values symbol/value pairs assigned by the theory in the
+        current model.
+
+        Arguments
+        ---------
+        thread_id
+            The index of the solving thread that found the model.
+
+        Returns
+        -------
+        An iterator over symbol/value pairs.
+        &#34;&#34;&#34;
+        c_index = self._ffi.new(&#34;size_t*&#34;)
+        self.__call(&#34;assignment_begin&#34;, self._theory, thread_id, c_index)
+        while self.__call(&#34;assignment_next&#34;, self._theory, thread_id, c_index):
+            yield (self.get_symbol(c_index[0]), self.get_value(thread_id, c_index[0]))</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.theory.Theory.assignment"><code class="name flex">
+<span>def <span class="ident">assignment</span></span>(<span>self, thread_id: int) ‑> Iterator[Tuple[<a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>, Union[int, float, <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>]]]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get all values symbol/value pairs assigned by the theory in the
+current model.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>thread_id</code></strong></dt>
+<dd>The index of the solving thread that found the model.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>An iterator over symbol/value pairs.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def assignment(self, thread_id: int) -&gt; Iterator[Tuple[Symbol, ValueType]]:
+    &#34;&#34;&#34;
+    Get all values symbol/value pairs assigned by the theory in the
+    current model.
+
+    Arguments
+    ---------
+    thread_id
+        The index of the solving thread that found the model.
+
+    Returns
+    -------
+    An iterator over symbol/value pairs.
+    &#34;&#34;&#34;
+    c_index = self._ffi.new(&#34;size_t*&#34;)
+    self.__call(&#34;assignment_begin&#34;, self._theory, thread_id, c_index)
+    while self.__call(&#34;assignment_next&#34;, self._theory, thread_id, c_index):
+        yield (self.get_symbol(c_index[0]), self.get_value(thread_id, c_index[0]))</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.configure"><code class="name flex">
+<span>def <span class="ident">configure</span></span>(<span>self, key: str, value: str) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Allows for configuring a theory via key/value pairs similar to
+command line options.</p>
+<p>This function must be called before the theory is registered.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>key</code></strong></dt>
+<dd>The name of the option.</dd>
+<dt><strong><code>value</code></strong></dt>
+<dd>The value of the option.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def configure(self, key: str, value: str) -&gt; None:
+    &#34;&#34;&#34;
+    Allows for configuring a theory via key/value pairs similar to
+    command line options.
+
+    This function must be called before the theory is registered.
+
+    Arguments
+    ---------
+    key
+        The name of the option.
+    value
+        The value of the option.
+    &#34;&#34;&#34;
+    self.__call0(&#34;configure&#34;, self._theory, key.encode(), value.encode())</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.get_symbol"><code class="name flex">
+<span>def <span class="ident">get_symbol</span></span>(<span>self, index: int) ‑> <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get the symbol associated with an index.</p>
+<p>The index must be valid.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>index</code></strong></dt>
+<dd>Index to retreive.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The associated symbol.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_symbol(self, index: int) -&gt; Symbol:
+    &#34;&#34;&#34;
+    Get the symbol associated with an index.
+
+    The index must be valid.
+
+    Arguments
+    ---------
+    index
+        Index to retreive.
+
+    Returns
+    -------
+    The associated symbol.
+    &#34;&#34;&#34;
+    return Symbol(
+        _ffi.cast(&#34;clingo_symbol_t&#34;, self.__call(&#34;get_symbol&#34;, self._theory, index))
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.get_value"><code class="name flex">
+<span>def <span class="ident">get_value</span></span>(<span>self, thread_id: int, index: int) ‑> Union[int, float, <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get the value of the symbol index in the current model.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>thread_id</code></strong></dt>
+<dd>The index of the solving thread that found the model.</dd>
+<dt><strong><code>index</code></strong></dt>
+<dd>Index to retreive.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The value of the index in form of an int, float, or Symbol.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_value(self, thread_id: int, index: int) -&gt; ValueType:
+    &#34;&#34;&#34;
+    Get the value of the symbol index in the current model.
+
+    Arguments
+    ---------
+    thread_id
+        The index of the solving thread that found the model.
+    index
+        Index to retreive.
+
+    Returns
+    -------
+    The value of the index in form of an int, float, or Symbol.
+    &#34;&#34;&#34;
+    c_value = self._ffi.new(self.__pre(&#34;value_t*&#34;))
+    self.__call(&#34;assignment_get_value&#34;, self._theory, thread_id, index, c_value)
+    if c_value.type == 0:
+        return c_value.int_number
+    if c_value.type == 1:
+        return c_value.double_number
+    if c_value.type == 2:
+        return Symbol(c_value.symbol)
+    raise RuntimeError(&#34;must not happen&#34;)</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.has_value"><code class="name flex">
+<span>def <span class="ident">has_value</span></span>(<span>self, thread_id: int, index: int) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check if the given symbol index has a value in the current model.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>thread_id</code></strong></dt>
+<dd>The index of the solving thread that found the model.</dd>
+<dt><strong><code>index</code></strong></dt>
+<dd>Index to retreive.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Whether the given index has a value.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def has_value(self, thread_id: int, index: int) -&gt; bool:
+    &#34;&#34;&#34;
+    Check if the given symbol index has a value in the current model.
+
+    Arguments
+    ---------
+    thread_id
+        The index of the solving thread that found the model.
+    index
+        Index to retreive.
+
+    Returns
+    -------
+    Whether the given index has a value.
+    &#34;&#34;&#34;
+    return self.__call(&#34;assignment_has_value&#34;, self._theory, thread_id, index)</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.lookup_symbol"><code class="name flex">
+<span>def <span class="ident">lookup_symbol</span></span>(<span>self, symbol: <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>) ‑> Optional[int]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get the integer index of a symbol assigned by the theory when a
+model is found.</p>
+<p>Using indices allows for efficent retrieval of values.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>symbol</code></strong></dt>
+<dd>The symbol to look up.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The index of the value if found.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def lookup_symbol(self, symbol: Symbol) -&gt; Optional[int]:
+    &#34;&#34;&#34;
+    Get the integer index of a symbol assigned by the theory when a
+    model is found.
+
+    Using indices allows for efficent retrieval of values.
+
+    Arguments
+    ---------
+    symbol
+        The symbol to look up.
+
+    Returns
+    -------
+    The index of the value if found.
+    &#34;&#34;&#34;
+    c_index = self._ffi.new(&#34;size_t*&#34;)
+    if self.__call(&#34;lookup_symbol&#34;, self._theory, symbol._rep, c_index):
+        return c_index[0]
+    return None</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.on_model"><code class="name flex">
+<span>def <span class="ident">on_model</span></span>(<span>self, model: <a title="clingo.solving.Model" href="solving.html#clingo.solving.Model">Model</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Inform the theory that a model has been found.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>model</code></strong></dt>
+<dd>The current model.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def on_model(self, model: Model) -&gt; None:
+    &#34;&#34;&#34;
+    Inform the theory that a model has been found.
+
+    Arguments
+    ---------
+    model
+        The current model.
+    &#34;&#34;&#34;
+    self.__call0(
+        &#34;on_model&#34;, self._theory, self._ffi.cast(&#34;clingo_model_t*&#34;, model._rep)
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.on_statistics"><code class="name flex">
+<span>def <span class="ident">on_statistics</span></span>(<span>self, step: <a title="clingo.statistics.StatisticsMap" href="statistics.html#clingo.statistics.StatisticsMap">StatisticsMap</a>, accu: <a title="clingo.statistics.StatisticsMap" href="statistics.html#clingo.statistics.StatisticsMap">StatisticsMap</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add the theory's statistics to the given maps.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>step</code></strong> :&ensp;<code>StatisticsMap</code></dt>
+<dd>Map for per step statistics.</dd>
+<dt><strong><code>accu</code></strong> :&ensp;<code>StatisticsMap</code></dt>
+<dd>Map for accumulated statistics.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def on_statistics(self, step: StatisticsMap, accu: StatisticsMap) -&gt; None:
+    &#34;&#34;&#34;
+    Add the theory&#39;s statistics to the given maps.
+
+    Arguments
+    ---------
+    step: StatisticsMap
+        Map for per step statistics.
+    accu: StatisticsMap
+        Map for accumulated statistics.
+    &#34;&#34;&#34;
+    self.__call0(
+        &#34;on_statistics&#34;,
+        self._theory,
+        self._ffi.cast(&#34;clingo_statistics_t*&#34;, step._rep),
+        self._ffi.cast(&#34;clingo_statistics_t*&#34;, accu._rep),
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.prepare"><code class="name flex">
+<span>def <span class="ident">prepare</span></span>(<span>self, control: <a title="clingo.control.Control" href="control.html#clingo.control.Control">Control</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Prepare the theory.</p>
+<p>Must be called between ground and solve.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>control</code></strong></dt>
+<dd>The associated control object.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def prepare(self, control: Control) -&gt; None:
+    &#34;&#34;&#34;
+    Prepare the theory.
+
+    Must be called between ground and solve.
+
+    Arguments
+    ---------
+    control
+        The associated control object.
+    &#34;&#34;&#34;
+    self.__call0(
+        &#34;prepare&#34;, self._theory, self._ffi.cast(&#34;clingo_control_t*&#34;, control._rep)
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.register"><code class="name flex">
+<span>def <span class="ident">register</span></span>(<span>self, control: <a title="clingo.control.Control" href="control.html#clingo.control.Control">Control</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Register the theory with the given control object.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>control</code></strong></dt>
+<dd>Target to register with.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def register(self, control: Control) -&gt; None:
+    &#34;&#34;&#34;
+    Register the theory with the given control object.
+
+    Arguments
+    ---------
+    control
+        Target to register with.
+    &#34;&#34;&#34;
+    self.__call0(
+        &#34;register&#34;, self._theory, self._ffi.cast(&#34;clingo_control_t*&#34;, control._rep)
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.register_options"><code class="name flex">
+<span>def <span class="ident">register_options</span></span>(<span>self, options: <a title="clingo.application.ApplicationOptions" href="application.html#clingo.application.ApplicationOptions">ApplicationOptions</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Register the theory's options with the given application options
+object.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>options</code></strong></dt>
+<dd>Target to register with.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def register_options(self, options: ApplicationOptions) -&gt; None:
+    &#34;&#34;&#34;
+    Register the theory&#39;s options with the given application options
+    object.
+
+    Arguments
+    ---------
+    options
+        Target to register with.
+    &#34;&#34;&#34;
+    self.__call0(
+        &#34;register_options&#34;,
+        self._theory,
+        self._ffi.cast(&#34;clingo_options_t*&#34;, options._rep),
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.rewrite_ast"><code class="name flex">
+<span>def <span class="ident">rewrite_ast</span></span>(<span>self, stm: <a title="clingo.ast.AST" href="ast.html#clingo.ast.AST">AST</a>, add: Callable[[<a title="clingo.ast.AST" href="ast.html#clingo.ast.AST">AST</a>], None]) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Rewrite the given statement and call add on the rewritten version(s).</p>
+<p>Must be called for some theories that have to perform rewritings on the
+AST.</p>
+<h2 id="arguments">Arguments</h2>
+<dl>
+<dt><strong><code>stm</code></strong></dt>
+<dd>Statement to translate.</dd>
+<dt><strong><code>add</code></strong></dt>
+<dd>Callback for adding translated statements.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rewrite_ast(self, stm: AST, add: Callable[[AST], None]) -&gt; None:
+    &#34;&#34;&#34;
+    Rewrite the given statement and call add on the rewritten version(s).
+
+    Must be called for some theories that have to perform rewritings on the
+    AST.
+
+    Arguments
+    ---------
+    stm
+        Statement to translate.
+    add
+        Callback for adding translated statements.
+    &#34;&#34;&#34;
+
+    cb_data = _CBData(add)
+    handle = self._ffi.new_handle(cb_data)
+    self.__call0(
+        &#34;rewrite_ast&#34;,
+        self._theory,
+        self._ffi.cast(&#34;clingo_ast_t*&#34;, stm._rep),
+        self.__get(&#34;rewrite&#34;, &#34;py&#34;),
+        handle,
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.validate_options"><code class="name flex">
+<span>def <span class="ident">validate_options</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Validate the options of the theory.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def validate_options(self) -&gt; None:
+    &#34;&#34;&#34;
+    Validate the options of the theory.
+    &#34;&#34;&#34;
+    self.__call0(&#34;validate_options&#34;, self._theory)</code></pre>
+</details>
+</dd>
+<dt id="clingo.theory.Theory.version"><code class="name flex">
+<span>def <span class="ident">version</span></span>(<span>self) ‑> Tuple[int, int, int]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function returns the version of the theory.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>A 3-tuple</code> of <code>integers representing major and minor version as well as</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>the patch level.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def version(self) -&gt; Tuple[int, int, int]:
+    &#34;&#34;&#34;
+    This function returns the version of the theory.
+
+    Returns
+    -------
+    A 3-tuple of integers representing major and minor version as well as
+    the patch level.
+    &#34;&#34;&#34;
+    p_version = self._ffi.new(&#34;int[3]&#34;)
+    self.__call(&#34;version&#34;, p_version, p_version + 1, p_version + 2)
+    return p_version[0], p_version[1], p_version[2]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul>
+<li><a href="#example">Example</a></li>
+<li><a href="#notes">Notes</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo" href="index.html">clingo</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.theory.Theory" href="#clingo.theory.Theory">Theory</a></code></h4>
+<ul class="two-column">
+<li><code><a title="clingo.theory.Theory.assignment" href="#clingo.theory.Theory.assignment">assignment</a></code></li>
+<li><code><a title="clingo.theory.Theory.configure" href="#clingo.theory.Theory.configure">configure</a></code></li>
+<li><code><a title="clingo.theory.Theory.get_symbol" href="#clingo.theory.Theory.get_symbol">get_symbol</a></code></li>
+<li><code><a title="clingo.theory.Theory.get_value" href="#clingo.theory.Theory.get_value">get_value</a></code></li>
+<li><code><a title="clingo.theory.Theory.has_value" href="#clingo.theory.Theory.has_value">has_value</a></code></li>
+<li><code><a title="clingo.theory.Theory.lookup_symbol" href="#clingo.theory.Theory.lookup_symbol">lookup_symbol</a></code></li>
+<li><code><a title="clingo.theory.Theory.on_model" href="#clingo.theory.Theory.on_model">on_model</a></code></li>
+<li><code><a title="clingo.theory.Theory.on_statistics" href="#clingo.theory.Theory.on_statistics">on_statistics</a></code></li>
+<li><code><a title="clingo.theory.Theory.prepare" href="#clingo.theory.Theory.prepare">prepare</a></code></li>
+<li><code><a title="clingo.theory.Theory.register" href="#clingo.theory.Theory.register">register</a></code></li>
+<li><code><a title="clingo.theory.Theory.register_options" href="#clingo.theory.Theory.register_options">register_options</a></code></li>
+<li><code><a title="clingo.theory.Theory.rewrite_ast" href="#clingo.theory.Theory.rewrite_ast">rewrite_ast</a></code></li>
+<li><code><a title="clingo.theory.Theory.validate_options" href="#clingo.theory.Theory.validate_options">validate_options</a></code></li>
+<li><code><a title="clingo.theory.Theory.version" href="#clingo.theory.Theory.version">version</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>

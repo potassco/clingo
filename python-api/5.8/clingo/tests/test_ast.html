@@ -1,0 +1,1143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>clingo.tests.test_ast API documentation</title>
+<meta name="description" content="Tests for the ast module.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<nav class="http-server-breadcrumbs">
+<a href="https://potassco.org/clingo/python-api/5.8/">All packages</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/">clingo</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/tests/">clingo.tests</a>
+</nav>
+<h1 class="title">Module <code>clingo.tests.test_ast</code></h1>
+</header>
+<section id="section-intro">
+<p>Tests for the ast module.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.tests.test_ast.TestAST"><code class="flex name class">
+<span>class <span class="ident">TestAST</span></span>
+<span>(</span><span>methodName='runTest')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestAST(TestCase):
+    &#34;&#34;&#34;
+    Tests for the ast module.
+    &#34;&#34;&#34;
+
+    def _deepcopy(self, node: AST) -&gt; AST:
+        &#34;&#34;&#34;
+        This functions tests manual deep copying of ast nodes using all the
+        constructor functions in the ast module.
+
+        Since this functions visits all possible AST nodes, further
+        functionality of the AST is tested here.
+        &#34;&#34;&#34;
+        cons_name = str(node.ast_type).split(&#34;.&#34;)[1]
+        cons = getattr(ast, cons_name)
+        args = cast(dict, dict(node.items()))
+
+        def to_list(val):
+            return list(val) if isinstance(val, Sequence) else val
+
+        items = [to_list(val) for key, val in node.items()]
+        zipped = [to_list(val) for key, val in zip(node.keys(), node.values())]
+        self.assertEqual(items, zipped)
+
+        for key in node.child_keys:
+            if isinstance(args[key], Sequence):
+                args[key] = [self._deepcopy(cast(AST, child)) for child in args[key]]
+            elif isinstance(args[key], AST):
+                args[key] = self._deepcopy(cast(AST, args[key]))
+
+        cpy = cons(**args)
+        self.assertEqual(cpy, node)
+
+        for key in node.keys():
+            setattr(cpy, key, getattr(cpy, key))
+
+        cpz = copy(cpy)
+        for key in node.keys():
+            setattr(cpy, key, getattr(cpz, key))
+
+        self.assertEqual(cpy, node)
+
+        return cpy
+
+    def _str(self, s, alt=None):
+        prg = []
+        parse_string(s, prg.append)
+        cpy = copy(deepcopy(self._deepcopy(prg[-1])))
+        self.assertEqual(str(cpy), s if alt is None else alt)
+
+        prg = []
+        parse_string(str(cpy), prg.append)
+        self.assertEqual(str(prg[-1]), s if alt is None else alt)
+
+        try:
+            ctl = Control()
+            with ProgramBuilder(ctl) as bld:
+                bld.add(prg[-1])
+        except RuntimeError as e:
+            msg = e.args[0]
+            if (
+                &#34;error: python support not available&#34; not in msg
+                and &#34;error: lua support not available&#34; not in msg
+            ):
+                raise RuntimeError from e
+
+    def test_terms(self):
+        &#34;&#34;&#34;
+        Test terms.
+        &#34;&#34;&#34;
+        self._str(&#34;a.&#34;)
+        self._str(&#34;-a.&#34;)
+        self._str(&#34;a(X).&#34;)
+        self._str(&#34;a(-X).&#34;)
+        self._str(&#34;a(|X|).&#34;)
+        self._str(&#34;a(~X).&#34;)
+        self._str(&#34;a((X^Y)).&#34;)
+        self._str(&#34;a((X?Y)).&#34;)
+        self._str(&#34;a((X&amp;Y)).&#34;)
+        self._str(&#34;a((X+Y)).&#34;)
+        self._str(&#34;a((X-Y)).&#34;)
+        self._str(&#34;a((X*Y)).&#34;)
+        self._str(&#34;a((X/Y)).&#34;)
+        self._str(&#34;a((X\\Y)).&#34;)
+        self._str(&#34;a((X**Y)).&#34;)
+        self._str(&#34;a((X..Y)).&#34;)
+        self._str(&#34;-a(f).&#34;)
+        self._str(&#34;-a(-f).&#34;)
+        self._str(&#34;-a(f(X)).&#34;)
+        self._str(&#34;-a(f(X,Y)).&#34;)
+        self._str(&#34;-a(()).&#34;)
+        self._str(&#34;-a((a,)).&#34;)
+        self._str(&#34;-a((a,b)).&#34;)
+        self._str(&#34;-a(@f(a,b)).&#34;)
+        self._str(&#34;-a(@f).&#34;)
+        self._str(&#34;-a(a;b;c).&#34;)
+        self._str(&#34;-a((a;b;c)).&#34;)
+        self._str(&#34;-a(f(a);f(b);f(c)).&#34;)
+
+    def test_theory_terms(self):
+        &#34;&#34;&#34;
+        Test theory terms.
+        &#34;&#34;&#34;
+        self._str(&#34;&amp;a { 1 }.&#34;)
+        self._str(&#34;&amp;a { (- 1) }.&#34;)
+        self._str(&#34;&amp;a { X }.&#34;)
+        self._str(&#34;&amp;a { () }.&#34;)
+        self._str(&#34;&amp;a { (1,) }.&#34;)
+        self._str(&#34;&amp;a { (1,2) }.&#34;)
+        self._str(&#34;&amp;a { [] }.&#34;)
+        self._str(&#34;&amp;a { [1] }.&#34;)
+        self._str(&#34;&amp;a { [1,2] }.&#34;)
+        self._str(&#34;&amp;a { {} }.&#34;)
+        self._str(&#34;&amp;a { {1} }.&#34;)
+        self._str(&#34;&amp;a { {1,2} }.&#34;)
+        self._str(&#34;&amp;a { f }.&#34;)
+        self._str(&#34;&amp;a { f(X) }.&#34;)
+        self._str(&#34;&amp;a { f(X,Y) }.&#34;)
+        self._str(&#34;&amp;a { (+ a + - * b + c) }.&#34;)
+
+    def test_literals(self):
+        &#34;&#34;&#34;
+        Test literals.
+        &#34;&#34;&#34;
+        self._str(&#34;a.&#34;)
+        self._str(&#34;not a.&#34;)
+        self._str(&#34;not not a.&#34;)
+        self._str(&#34;1 &lt; 2.&#34;)
+        self._str(&#34;1 &lt;= 2.&#34;)
+        self._str(&#34;1 &gt; 2.&#34;)
+        self._str(&#34;1 &gt;= 2.&#34;)
+        self._str(&#34;1 = 2.&#34;)
+        self._str(&#34;not 1 = 2.&#34;)
+        self._str(&#34;not not 1 = 2.&#34;)
+        self._str(&#34;1 != 2.&#34;)
+        self._str(&#34;#false.&#34;)
+        self._str(&#34;#true.&#34;)
+
+    def test_head_literals(self):
+        &#34;&#34;&#34;
+        Test head literals.
+        &#34;&#34;&#34;
+        self._str(&#34;{ }.&#34;)
+        self._str(&#34;{ } &lt; 2.&#34;, &#34;2 &gt; { }.&#34;)
+        self._str(&#34;1 &lt; { }.&#34;)
+        self._str(&#34;1 &lt; { } &lt; 2.&#34;)
+        self._str(&#34;{ b }.&#34;)
+        self._str(&#34;{ a; b }.&#34;)
+        self._str(&#34;{ a; b: c, d }.&#34;)
+        self._str(&#34;#count { }.&#34;)
+        self._str(&#34;#count { } &lt; 2.&#34;, &#34;2 &gt; #count { }.&#34;)
+        self._str(&#34;1 &lt; #count { }.&#34;)
+        self._str(&#34;1 &lt; #count { } &lt; 2.&#34;)
+        self._str(&#34;#count { b: a }.&#34;)
+        self._str(&#34;#count { b,c: a }.&#34;)
+        self._str(&#34;#count { a: a; b: c }.&#34;)
+        self._str(&#34;#count { a: d; b: x: c, d }.&#34;)
+        self._str(&#34;#min { }.&#34;)
+        self._str(&#34;#max { }.&#34;)
+        self._str(&#34;#sum { }.&#34;)
+        self._str(&#34;#sum+ { }.&#34;)
+        self._str(&#34;a; b.&#34;)
+        self._str(&#34;a; b: c.&#34;)
+        self._str(&#34;a; b: c, d.&#34;)
+        self._str(&#34;&amp;a { }.&#34;)
+        self._str(&#34;&amp;a { 1 }.&#34;)
+        self._str(&#34;&amp;a { 1; 2 }.&#34;)
+        self._str(&#34;&amp;a { 1,2 }.&#34;)
+        self._str(&#34;&amp;a { 1,2: a }.&#34;)
+        self._str(&#34;&amp;a { 1,2: a, b }.&#34;)
+        self._str(&#34;&amp;a { } != x.&#34;)
+        self._str(&#34;&amp;a(x) { }.&#34;)
+
+    def test_body_literals(self):
+        &#34;&#34;&#34;
+        Test body literals.
+        &#34;&#34;&#34;
+        self._str(&#34;a :- { }.&#34;)
+        self._str(&#34;a :- not { }.&#34;)
+        self._str(&#34;a :- not not { }.&#34;)
+        self._str(&#34;a :- { } &lt; 2.&#34;, &#34;a :- 2 &gt; { }.&#34;)
+        self._str(&#34;a :- 1 &lt; { }.&#34;)
+        self._str(&#34;a :- 1 &lt; { } &lt; 2.&#34;)
+        self._str(&#34;a :- { b }.&#34;)
+        self._str(&#34;a :- { a; b }.&#34;)
+        self._str(&#34;a :- { a; b: c, d }.&#34;)
+        self._str(&#34;a :- #count { }.&#34;)
+        self._str(&#34;a :- not #count { }.&#34;)
+        self._str(&#34;a :- not not #count { }.&#34;)
+        self._str(&#34;a :- #count { } &lt; 2.&#34;, &#34;a :- 2 &gt; #count { }.&#34;)
+        self._str(&#34;a :- 1 &lt; #count { }.&#34;)
+        self._str(&#34;a :- 1 &lt; #count { } &lt; 2.&#34;)
+        self._str(&#34;a :- #count { b }.&#34;)
+        self._str(&#34;a :- #count { b,c }.&#34;)
+        self._str(&#34;a :- #count { a; b }.&#34;)
+        self._str(&#34;a :- #count { a; b: c, d }.&#34;)
+        self._str(&#34;a :- #min { }.&#34;)
+        self._str(&#34;a :- #max { }.&#34;)
+        self._str(&#34;a :- #sum { }.&#34;)
+        self._str(&#34;a :- #sum+ { }.&#34;)
+        self._str(&#34;a :- a; b.&#34;)
+        self._str(&#34;a :- a; b: c.&#34;)
+        self._str(&#34;a :- a; b: c, d.&#34;)
+        self._str(&#34;a :- &amp;a { }.&#34;)
+        self._str(&#34;a :- &amp;a { 1 }.&#34;)
+        self._str(&#34;a :- &amp;a { 1; 2 }.&#34;)
+        self._str(&#34;a :- &amp;a { 1,2 }.&#34;)
+        self._str(&#34;a :- &amp;a { 1,2: a }.&#34;)
+        self._str(&#34;a :- &amp;a { 1,2: a, b }.&#34;)
+        self._str(&#34;a :- &amp;a { } != x.&#34;)
+        self._str(&#34;a :- &amp;a(x) { }.&#34;)
+        self._str(&#34;a :- a.&#34;)
+        self._str(&#34;a :- not a.&#34;)
+        self._str(&#34;a :- not not a.&#34;)
+        self._str(&#34;a :- 1 &lt; 2.&#34;)
+        self._str(&#34;a :- 1 &lt;= 2.&#34;)
+        self._str(&#34;a :- 1 &gt; 2.&#34;)
+        self._str(&#34;a :- 1 &gt;= 2.&#34;)
+        self._str(&#34;a :- 1 = 2.&#34;)
+        self._str(&#34;a :- 1 != 2.&#34;)
+        self._str(&#34;a :- #false.&#34;)
+        self._str(&#34;a :- #true.&#34;)
+
+    def test_statements(self):
+        &#34;&#34;&#34;
+        Test statements.
+        &#34;&#34;&#34;
+        self._str(&#34;a.&#34;)
+        self._str(&#34;#false.&#34;)
+        self._str(&#34;#false :- a.&#34;)
+        self._str(&#34;a :- a; b.&#34;)
+        self._str(&#34;#const x = 10.&#34;)
+        self._str(&#34;#const x = 10. [override]&#34;)
+        self._str(&#34;#show.&#34;)
+        self._str(&#34;#show p/1.&#34;)
+        self._str(&#34;#show -p/1.&#34;)
+        self._str(&#34;#defined p/1.&#34;)
+        self._str(&#34;#defined -p/1.&#34;)
+        self._str(&#34;#show x.&#34;)
+        self._str(&#34;#show x : y; z.&#34;)
+        self._str(&#34;:~ . [1@0]&#34;)
+        self._str(&#34;:~ b; c. [1@2,s,t]&#34;)
+        self._str(&#34;#script (lua)\ncode\n#end.&#34;)
+        self._str(&#34;#script (python)\ncode\n#end.&#34;)
+        self._str(&#34;#program x(y, z).&#34;)
+        self._str(&#34;#program x.&#34;)
+        self._str(&#34;#external a. [X]&#34;)
+        self._str(&#34;#external a : b; c. [false]&#34;)
+        self._str(&#34;#edge (1,2).&#34;)
+        self._str(&#34;#edge (1,2) : x; y.&#34;)
+        self._str(&#34;#heuristic a. [b@p,m]&#34;)
+        self._str(&#34;#heuristic a : b; c. [b@p,m]&#34;)
+        self._str(&#34;#project a.&#34;)
+        self._str(&#34;#project a : b; c.&#34;)
+        self._str(&#34;#project -a/0.&#34;)
+        self._str(&#34;#project a/0.&#34;)
+        self._str(&#34;#theory x {\n}.&#34;)
+        self._str(
+            dedent(
+                &#34;&#34;&#34;\
+                         #theory x {
+                           t {
+                             + : 0, unary;
+                             - : 1, binary, left;
+                             * : 2, binary, right
+                           };
+                           &amp;a/0: t, head;
+                           &amp;b/0: t, body;
+                           &amp;c/0: t, directive;
+                           &amp;d/0: t, { }, t, any;
+                           &amp;e/0: t, { =, !=, + }, t, any
+                         }.&#34;&#34;&#34;
+            )
+        )
+        self._str(&#34;%* test *%&#34;)
+        self._str(&#34;%* test *%\n&#34;, &#34;%* test *%&#34;)
+        self._str(&#34;% test&#34;)
+        self._str(&#34;% test\n&#34;, &#34;% test&#34;)
+
+    def test_compare(self):
+        &#34;&#34;&#34;
+        Test comparison and hashing.
+        &#34;&#34;&#34;
+        pos = Position(&#34;&lt;string&gt;&#34;, 1, 1)
+        loc = Location(pos, pos)
+        x = Id(location=loc, name=&#34;x&#34;)
+        y = Id(location=Location(pos, Position(&#34;&lt;string&gt;&#34;, 1, 2)), name=&#34;x&#34;)
+        z = Id(location=loc, name=&#34;z&#34;)
+        self.assertEqual(x, y)
+        self.assertEqual(x, x)
+        self.assertNotEqual(x, z)
+        self.assertEqual(hash(x), hash(x))
+        self.assertEqual(hash(x), hash(y))
+        self.assertNotEqual(hash(x), hash(z))
+        self.assertLess(x, z)
+        self.assertNotEqual(x, z)
+        self.assertGreater(z, x)
+        self.assertLessEqual(y, x)
+        self.assertLessEqual(x, y)
+        self.assertGreaterEqual(y, x)
+        self.assertGreaterEqual(x, y)
+
+    def test_compare_bug(self):
+        &#34;&#34;&#34;
+        Test comparisons.
+        &#34;&#34;&#34;
+        r1, r2 = [], []
+        parse_string(&#34;:- b.&#34;, r1.append)
+        parse_string(&#34;:- not a.&#34;, r2.append)
+        self.assertTrue((r1[-1] &lt; r2[-1]) != (r2[-1] &lt; r1[-1]))
+
+    def test_ast_sequence(self):
+        &#34;&#34;&#34;
+        Test ast sequences.
+        &#34;&#34;&#34;
+        pos = Position(&#34;&lt;string&gt;&#34;, 1, 1)
+        loc = Location(pos, pos)
+        lst = [Id(loc, &#34;x&#34;), Id(loc, &#34;y&#34;), Id(loc, &#34;z&#34;)]
+        prg = Program(loc, &#34;p&#34;, lst)
+        seq = prg.parameters
+        self.assertIsInstance(seq, ASTSequence)
+        self.assertEqual(len(seq), 3)
+        self.assertEqual(list(seq), lst)
+        self.assertEqual(seq[0], lst[0])
+        seq.insert(0, Id(loc, &#34;i&#34;))
+        self.assertEqual(list(seq), [Id(loc, &#34;i&#34;)] + lst)
+        seq.insert(0, seq[3])
+        self.assertEqual(list(seq), [Id(loc, &#34;z&#34;), Id(loc, &#34;i&#34;)] + lst)
+        del seq[2]
+        self.assertEqual(list(seq), [Id(loc, &#34;z&#34;), Id(loc, &#34;i&#34;)] + lst[1:])
+
+    def test_str_sequence(self):
+        &#34;&#34;&#34;
+        Test ast sequences.
+        &#34;&#34;&#34;
+        pos = Position(&#34;&lt;string&gt;&#34;, 1, 1)
+        loc = Location(pos, pos)
+
+        lst = [&#34;x&#34;, &#34;y&#34;, &#34;z&#34;]
+        sym = SymbolicTerm(loc, Function(&#34;a&#34;, [Number(1)]))
+        tue = TheoryUnparsedTermElement(lst, sym)
+        seq = tue.operators
+        self.assertIsInstance(seq, StrSequence)
+        self.assertEqual(len(seq), 3)
+        self.assertEqual(list(seq), lst)
+        self.assertEqual(seq[0], lst[0])
+        seq.insert(0, &#34;i&#34;)
+        self.assertEqual(list(seq), [&#34;i&#34;] + lst)
+        seq.insert(0, seq[3])
+        self.assertEqual(list(seq), [&#34;z&#34;, &#34;i&#34;] + lst)
+        del seq[2]
+        self.assertEqual(list(seq), [&#34;z&#34;, &#34;i&#34;] + lst[1:])
+
+    def test_unpool(self):
+        &#34;&#34;&#34;
+        Test unpooling.
+        &#34;&#34;&#34;
+        prg = []
+        parse_string(&#34;%comment\n:- a(1;2): a(3;4).&#34;, prg.append)
+        com = prg[-2]
+        lit = prg[-1].body[0]
+
+        def unpool(other=True, condition=True):
+            return [str(x) for x in lit.unpool(other, condition)]
+
+        self.assertEqual([str(x) for x in com.unpool()], [&#34;%comment&#34;])
+        self.assertEqual(
+            unpool(), [&#34;a(1): a(3)&#34;, &#34;a(1): a(4)&#34;, &#34;a(2): a(3)&#34;, &#34;a(2): a(4)&#34;]
+        )
+        self.assertEqual(unpool(other=False), [&#34;a(1;2): a(3)&#34;, &#34;a(1;2): a(4)&#34;])
+        self.assertEqual(unpool(condition=False), [&#34;a(1): a(3;4)&#34;, &#34;a(2): a(3;4)&#34;])
+        self.assertEqual(unpool(other=False, condition=False), [&#34;a(1;2): a(3;4)&#34;])
+
+    def test_transformer(self):
+        &#34;&#34;&#34;
+        Test the transformer class.
+        &#34;&#34;&#34;
+        prg = []
+        vrt = VariableRenamer()
+        parse_string(&#34;p(X) :- q(X).&#34;, lambda stm: prg.append(str(vrt(stm))))
+        self.assertEqual(prg[-1], &#34;p(_X) :- q(_X).&#34;)
+
+    def test_comment_order(self):
+        &#34;&#34;&#34;
+        Test if comments are reported in proper order.
+        &#34;&#34;&#34;
+        prg = dedent(
+            &#34;&#34;&#34;\
+            % comment before `x=10`
+            #const x=10.
+            % comment after `x=10`
+            a.
+            % comment before `y=10`
+            #const y=10. [override]
+            % comment after `y=10`
+            b.
+            % comment before `#external a`
+            #external a.
+            % comment after `#external a`
+            a.
+            % comment before `#external b`
+            #external b. [true]
+            % comment after `#external b`
+            &#34;&#34;&#34;
+        )
+
+        expected = [
+            &#34;#program base.&#34;,
+            &#34;% comment before `x=10`&#34;,
+            &#34;#const x = 10.&#34;,
+            &#34;% comment after `x=10`&#34;,
+            &#34;a.&#34;,
+            &#34;% comment before `y=10`&#34;,
+            &#34;#const y = 10. [override]&#34;,
+            &#34;% comment after `y=10`&#34;,
+            &#34;b.&#34;,
+            &#34;% comment before `#external a`&#34;,
+            &#34;#external a. [false]&#34;,
+            &#34;% comment after `#external a`&#34;,
+            &#34;a.&#34;,
+            &#34;% comment before `#external b`&#34;,
+            &#34;#external b. [true]&#34;,
+            &#34;% comment after `#external b`&#34;,
+        ]
+        result = []
+        parse_string(prg, lambda stm: result.append(str(stm)))
+        self.assertEqual(result, expected)
+
+    def test_repr(self):
+        &#34;&#34;&#34;
+        Test the string representation of AST nodes.
+        &#34;&#34;&#34;
+        # pylint: disable=eval-used
+        stms = []
+        prg = dedent(
+            &#34;&#34;&#34;\
+            a :- &amp;sum(body,second) { foo; (1 - 3) } &gt; (4 * 17).
+            &amp;theory { (X * a ** stuff): dom(X); (1 - 3) }.
+            &amp;diff { (foo - bar) } &lt;= 42.
+            1 #max { X : a } :- a, X = #count { a }.
+            &#34;&#34;&#34;
+        )
+        parse_string(prg, stms.append)
+        self.assertEqual(stms, eval(repr(stms)))</code></pre>
+</details>
+<div class="desc"><p>Tests for the ast module.</p>
+<p>Create an instance of the class that will use the named test
+method when executed. Raises a ValueError if the instance does
+not have a method with the specified name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>unittest.case.TestCase</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.tests.test_ast.TestAST.test_ast_sequence"><code class="name flex">
+<span>def <span class="ident">test_ast_sequence</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_ast_sequence(self):
+    &#34;&#34;&#34;
+    Test ast sequences.
+    &#34;&#34;&#34;
+    pos = Position(&#34;&lt;string&gt;&#34;, 1, 1)
+    loc = Location(pos, pos)
+    lst = [Id(loc, &#34;x&#34;), Id(loc, &#34;y&#34;), Id(loc, &#34;z&#34;)]
+    prg = Program(loc, &#34;p&#34;, lst)
+    seq = prg.parameters
+    self.assertIsInstance(seq, ASTSequence)
+    self.assertEqual(len(seq), 3)
+    self.assertEqual(list(seq), lst)
+    self.assertEqual(seq[0], lst[0])
+    seq.insert(0, Id(loc, &#34;i&#34;))
+    self.assertEqual(list(seq), [Id(loc, &#34;i&#34;)] + lst)
+    seq.insert(0, seq[3])
+    self.assertEqual(list(seq), [Id(loc, &#34;z&#34;), Id(loc, &#34;i&#34;)] + lst)
+    del seq[2]
+    self.assertEqual(list(seq), [Id(loc, &#34;z&#34;), Id(loc, &#34;i&#34;)] + lst[1:])</code></pre>
+</details>
+<div class="desc"><p>Test ast sequences.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_body_literals"><code class="name flex">
+<span>def <span class="ident">test_body_literals</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_body_literals(self):
+    &#34;&#34;&#34;
+    Test body literals.
+    &#34;&#34;&#34;
+    self._str(&#34;a :- { }.&#34;)
+    self._str(&#34;a :- not { }.&#34;)
+    self._str(&#34;a :- not not { }.&#34;)
+    self._str(&#34;a :- { } &lt; 2.&#34;, &#34;a :- 2 &gt; { }.&#34;)
+    self._str(&#34;a :- 1 &lt; { }.&#34;)
+    self._str(&#34;a :- 1 &lt; { } &lt; 2.&#34;)
+    self._str(&#34;a :- { b }.&#34;)
+    self._str(&#34;a :- { a; b }.&#34;)
+    self._str(&#34;a :- { a; b: c, d }.&#34;)
+    self._str(&#34;a :- #count { }.&#34;)
+    self._str(&#34;a :- not #count { }.&#34;)
+    self._str(&#34;a :- not not #count { }.&#34;)
+    self._str(&#34;a :- #count { } &lt; 2.&#34;, &#34;a :- 2 &gt; #count { }.&#34;)
+    self._str(&#34;a :- 1 &lt; #count { }.&#34;)
+    self._str(&#34;a :- 1 &lt; #count { } &lt; 2.&#34;)
+    self._str(&#34;a :- #count { b }.&#34;)
+    self._str(&#34;a :- #count { b,c }.&#34;)
+    self._str(&#34;a :- #count { a; b }.&#34;)
+    self._str(&#34;a :- #count { a; b: c, d }.&#34;)
+    self._str(&#34;a :- #min { }.&#34;)
+    self._str(&#34;a :- #max { }.&#34;)
+    self._str(&#34;a :- #sum { }.&#34;)
+    self._str(&#34;a :- #sum+ { }.&#34;)
+    self._str(&#34;a :- a; b.&#34;)
+    self._str(&#34;a :- a; b: c.&#34;)
+    self._str(&#34;a :- a; b: c, d.&#34;)
+    self._str(&#34;a :- &amp;a { }.&#34;)
+    self._str(&#34;a :- &amp;a { 1 }.&#34;)
+    self._str(&#34;a :- &amp;a { 1; 2 }.&#34;)
+    self._str(&#34;a :- &amp;a { 1,2 }.&#34;)
+    self._str(&#34;a :- &amp;a { 1,2: a }.&#34;)
+    self._str(&#34;a :- &amp;a { 1,2: a, b }.&#34;)
+    self._str(&#34;a :- &amp;a { } != x.&#34;)
+    self._str(&#34;a :- &amp;a(x) { }.&#34;)
+    self._str(&#34;a :- a.&#34;)
+    self._str(&#34;a :- not a.&#34;)
+    self._str(&#34;a :- not not a.&#34;)
+    self._str(&#34;a :- 1 &lt; 2.&#34;)
+    self._str(&#34;a :- 1 &lt;= 2.&#34;)
+    self._str(&#34;a :- 1 &gt; 2.&#34;)
+    self._str(&#34;a :- 1 &gt;= 2.&#34;)
+    self._str(&#34;a :- 1 = 2.&#34;)
+    self._str(&#34;a :- 1 != 2.&#34;)
+    self._str(&#34;a :- #false.&#34;)
+    self._str(&#34;a :- #true.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Test body literals.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_comment_order"><code class="name flex">
+<span>def <span class="ident">test_comment_order</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_comment_order(self):
+    &#34;&#34;&#34;
+    Test if comments are reported in proper order.
+    &#34;&#34;&#34;
+    prg = dedent(
+        &#34;&#34;&#34;\
+        % comment before `x=10`
+        #const x=10.
+        % comment after `x=10`
+        a.
+        % comment before `y=10`
+        #const y=10. [override]
+        % comment after `y=10`
+        b.
+        % comment before `#external a`
+        #external a.
+        % comment after `#external a`
+        a.
+        % comment before `#external b`
+        #external b. [true]
+        % comment after `#external b`
+        &#34;&#34;&#34;
+    )
+
+    expected = [
+        &#34;#program base.&#34;,
+        &#34;% comment before `x=10`&#34;,
+        &#34;#const x = 10.&#34;,
+        &#34;% comment after `x=10`&#34;,
+        &#34;a.&#34;,
+        &#34;% comment before `y=10`&#34;,
+        &#34;#const y = 10. [override]&#34;,
+        &#34;% comment after `y=10`&#34;,
+        &#34;b.&#34;,
+        &#34;% comment before `#external a`&#34;,
+        &#34;#external a. [false]&#34;,
+        &#34;% comment after `#external a`&#34;,
+        &#34;a.&#34;,
+        &#34;% comment before `#external b`&#34;,
+        &#34;#external b. [true]&#34;,
+        &#34;% comment after `#external b`&#34;,
+    ]
+    result = []
+    parse_string(prg, lambda stm: result.append(str(stm)))
+    self.assertEqual(result, expected)</code></pre>
+</details>
+<div class="desc"><p>Test if comments are reported in proper order.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_compare"><code class="name flex">
+<span>def <span class="ident">test_compare</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_compare(self):
+    &#34;&#34;&#34;
+    Test comparison and hashing.
+    &#34;&#34;&#34;
+    pos = Position(&#34;&lt;string&gt;&#34;, 1, 1)
+    loc = Location(pos, pos)
+    x = Id(location=loc, name=&#34;x&#34;)
+    y = Id(location=Location(pos, Position(&#34;&lt;string&gt;&#34;, 1, 2)), name=&#34;x&#34;)
+    z = Id(location=loc, name=&#34;z&#34;)
+    self.assertEqual(x, y)
+    self.assertEqual(x, x)
+    self.assertNotEqual(x, z)
+    self.assertEqual(hash(x), hash(x))
+    self.assertEqual(hash(x), hash(y))
+    self.assertNotEqual(hash(x), hash(z))
+    self.assertLess(x, z)
+    self.assertNotEqual(x, z)
+    self.assertGreater(z, x)
+    self.assertLessEqual(y, x)
+    self.assertLessEqual(x, y)
+    self.assertGreaterEqual(y, x)
+    self.assertGreaterEqual(x, y)</code></pre>
+</details>
+<div class="desc"><p>Test comparison and hashing.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_compare_bug"><code class="name flex">
+<span>def <span class="ident">test_compare_bug</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_compare_bug(self):
+    &#34;&#34;&#34;
+    Test comparisons.
+    &#34;&#34;&#34;
+    r1, r2 = [], []
+    parse_string(&#34;:- b.&#34;, r1.append)
+    parse_string(&#34;:- not a.&#34;, r2.append)
+    self.assertTrue((r1[-1] &lt; r2[-1]) != (r2[-1] &lt; r1[-1]))</code></pre>
+</details>
+<div class="desc"><p>Test comparisons.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_head_literals"><code class="name flex">
+<span>def <span class="ident">test_head_literals</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_head_literals(self):
+    &#34;&#34;&#34;
+    Test head literals.
+    &#34;&#34;&#34;
+    self._str(&#34;{ }.&#34;)
+    self._str(&#34;{ } &lt; 2.&#34;, &#34;2 &gt; { }.&#34;)
+    self._str(&#34;1 &lt; { }.&#34;)
+    self._str(&#34;1 &lt; { } &lt; 2.&#34;)
+    self._str(&#34;{ b }.&#34;)
+    self._str(&#34;{ a; b }.&#34;)
+    self._str(&#34;{ a; b: c, d }.&#34;)
+    self._str(&#34;#count { }.&#34;)
+    self._str(&#34;#count { } &lt; 2.&#34;, &#34;2 &gt; #count { }.&#34;)
+    self._str(&#34;1 &lt; #count { }.&#34;)
+    self._str(&#34;1 &lt; #count { } &lt; 2.&#34;)
+    self._str(&#34;#count { b: a }.&#34;)
+    self._str(&#34;#count { b,c: a }.&#34;)
+    self._str(&#34;#count { a: a; b: c }.&#34;)
+    self._str(&#34;#count { a: d; b: x: c, d }.&#34;)
+    self._str(&#34;#min { }.&#34;)
+    self._str(&#34;#max { }.&#34;)
+    self._str(&#34;#sum { }.&#34;)
+    self._str(&#34;#sum+ { }.&#34;)
+    self._str(&#34;a; b.&#34;)
+    self._str(&#34;a; b: c.&#34;)
+    self._str(&#34;a; b: c, d.&#34;)
+    self._str(&#34;&amp;a { }.&#34;)
+    self._str(&#34;&amp;a { 1 }.&#34;)
+    self._str(&#34;&amp;a { 1; 2 }.&#34;)
+    self._str(&#34;&amp;a { 1,2 }.&#34;)
+    self._str(&#34;&amp;a { 1,2: a }.&#34;)
+    self._str(&#34;&amp;a { 1,2: a, b }.&#34;)
+    self._str(&#34;&amp;a { } != x.&#34;)
+    self._str(&#34;&amp;a(x) { }.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Test head literals.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_literals"><code class="name flex">
+<span>def <span class="ident">test_literals</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_literals(self):
+    &#34;&#34;&#34;
+    Test literals.
+    &#34;&#34;&#34;
+    self._str(&#34;a.&#34;)
+    self._str(&#34;not a.&#34;)
+    self._str(&#34;not not a.&#34;)
+    self._str(&#34;1 &lt; 2.&#34;)
+    self._str(&#34;1 &lt;= 2.&#34;)
+    self._str(&#34;1 &gt; 2.&#34;)
+    self._str(&#34;1 &gt;= 2.&#34;)
+    self._str(&#34;1 = 2.&#34;)
+    self._str(&#34;not 1 = 2.&#34;)
+    self._str(&#34;not not 1 = 2.&#34;)
+    self._str(&#34;1 != 2.&#34;)
+    self._str(&#34;#false.&#34;)
+    self._str(&#34;#true.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Test literals.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_repr"><code class="name flex">
+<span>def <span class="ident">test_repr</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_repr(self):
+    &#34;&#34;&#34;
+    Test the string representation of AST nodes.
+    &#34;&#34;&#34;
+    # pylint: disable=eval-used
+    stms = []
+    prg = dedent(
+        &#34;&#34;&#34;\
+        a :- &amp;sum(body,second) { foo; (1 - 3) } &gt; (4 * 17).
+        &amp;theory { (X * a ** stuff): dom(X); (1 - 3) }.
+        &amp;diff { (foo - bar) } &lt;= 42.
+        1 #max { X : a } :- a, X = #count { a }.
+        &#34;&#34;&#34;
+    )
+    parse_string(prg, stms.append)
+    self.assertEqual(stms, eval(repr(stms)))</code></pre>
+</details>
+<div class="desc"><p>Test the string representation of AST nodes.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_statements"><code class="name flex">
+<span>def <span class="ident">test_statements</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_statements(self):
+    &#34;&#34;&#34;
+    Test statements.
+    &#34;&#34;&#34;
+    self._str(&#34;a.&#34;)
+    self._str(&#34;#false.&#34;)
+    self._str(&#34;#false :- a.&#34;)
+    self._str(&#34;a :- a; b.&#34;)
+    self._str(&#34;#const x = 10.&#34;)
+    self._str(&#34;#const x = 10. [override]&#34;)
+    self._str(&#34;#show.&#34;)
+    self._str(&#34;#show p/1.&#34;)
+    self._str(&#34;#show -p/1.&#34;)
+    self._str(&#34;#defined p/1.&#34;)
+    self._str(&#34;#defined -p/1.&#34;)
+    self._str(&#34;#show x.&#34;)
+    self._str(&#34;#show x : y; z.&#34;)
+    self._str(&#34;:~ . [1@0]&#34;)
+    self._str(&#34;:~ b; c. [1@2,s,t]&#34;)
+    self._str(&#34;#script (lua)\ncode\n#end.&#34;)
+    self._str(&#34;#script (python)\ncode\n#end.&#34;)
+    self._str(&#34;#program x(y, z).&#34;)
+    self._str(&#34;#program x.&#34;)
+    self._str(&#34;#external a. [X]&#34;)
+    self._str(&#34;#external a : b; c. [false]&#34;)
+    self._str(&#34;#edge (1,2).&#34;)
+    self._str(&#34;#edge (1,2) : x; y.&#34;)
+    self._str(&#34;#heuristic a. [b@p,m]&#34;)
+    self._str(&#34;#heuristic a : b; c. [b@p,m]&#34;)
+    self._str(&#34;#project a.&#34;)
+    self._str(&#34;#project a : b; c.&#34;)
+    self._str(&#34;#project -a/0.&#34;)
+    self._str(&#34;#project a/0.&#34;)
+    self._str(&#34;#theory x {\n}.&#34;)
+    self._str(
+        dedent(
+            &#34;&#34;&#34;\
+                     #theory x {
+                       t {
+                         + : 0, unary;
+                         - : 1, binary, left;
+                         * : 2, binary, right
+                       };
+                       &amp;a/0: t, head;
+                       &amp;b/0: t, body;
+                       &amp;c/0: t, directive;
+                       &amp;d/0: t, { }, t, any;
+                       &amp;e/0: t, { =, !=, + }, t, any
+                     }.&#34;&#34;&#34;
+        )
+    )
+    self._str(&#34;%* test *%&#34;)
+    self._str(&#34;%* test *%\n&#34;, &#34;%* test *%&#34;)
+    self._str(&#34;% test&#34;)
+    self._str(&#34;% test\n&#34;, &#34;% test&#34;)</code></pre>
+</details>
+<div class="desc"><p>Test statements.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_str_sequence"><code class="name flex">
+<span>def <span class="ident">test_str_sequence</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_str_sequence(self):
+    &#34;&#34;&#34;
+    Test ast sequences.
+    &#34;&#34;&#34;
+    pos = Position(&#34;&lt;string&gt;&#34;, 1, 1)
+    loc = Location(pos, pos)
+
+    lst = [&#34;x&#34;, &#34;y&#34;, &#34;z&#34;]
+    sym = SymbolicTerm(loc, Function(&#34;a&#34;, [Number(1)]))
+    tue = TheoryUnparsedTermElement(lst, sym)
+    seq = tue.operators
+    self.assertIsInstance(seq, StrSequence)
+    self.assertEqual(len(seq), 3)
+    self.assertEqual(list(seq), lst)
+    self.assertEqual(seq[0], lst[0])
+    seq.insert(0, &#34;i&#34;)
+    self.assertEqual(list(seq), [&#34;i&#34;] + lst)
+    seq.insert(0, seq[3])
+    self.assertEqual(list(seq), [&#34;z&#34;, &#34;i&#34;] + lst)
+    del seq[2]
+    self.assertEqual(list(seq), [&#34;z&#34;, &#34;i&#34;] + lst[1:])</code></pre>
+</details>
+<div class="desc"><p>Test ast sequences.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_terms"><code class="name flex">
+<span>def <span class="ident">test_terms</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_terms(self):
+    &#34;&#34;&#34;
+    Test terms.
+    &#34;&#34;&#34;
+    self._str(&#34;a.&#34;)
+    self._str(&#34;-a.&#34;)
+    self._str(&#34;a(X).&#34;)
+    self._str(&#34;a(-X).&#34;)
+    self._str(&#34;a(|X|).&#34;)
+    self._str(&#34;a(~X).&#34;)
+    self._str(&#34;a((X^Y)).&#34;)
+    self._str(&#34;a((X?Y)).&#34;)
+    self._str(&#34;a((X&amp;Y)).&#34;)
+    self._str(&#34;a((X+Y)).&#34;)
+    self._str(&#34;a((X-Y)).&#34;)
+    self._str(&#34;a((X*Y)).&#34;)
+    self._str(&#34;a((X/Y)).&#34;)
+    self._str(&#34;a((X\\Y)).&#34;)
+    self._str(&#34;a((X**Y)).&#34;)
+    self._str(&#34;a((X..Y)).&#34;)
+    self._str(&#34;-a(f).&#34;)
+    self._str(&#34;-a(-f).&#34;)
+    self._str(&#34;-a(f(X)).&#34;)
+    self._str(&#34;-a(f(X,Y)).&#34;)
+    self._str(&#34;-a(()).&#34;)
+    self._str(&#34;-a((a,)).&#34;)
+    self._str(&#34;-a((a,b)).&#34;)
+    self._str(&#34;-a(@f(a,b)).&#34;)
+    self._str(&#34;-a(@f).&#34;)
+    self._str(&#34;-a(a;b;c).&#34;)
+    self._str(&#34;-a((a;b;c)).&#34;)
+    self._str(&#34;-a(f(a);f(b);f(c)).&#34;)</code></pre>
+</details>
+<div class="desc"><p>Test terms.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_theory_terms"><code class="name flex">
+<span>def <span class="ident">test_theory_terms</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_theory_terms(self):
+    &#34;&#34;&#34;
+    Test theory terms.
+    &#34;&#34;&#34;
+    self._str(&#34;&amp;a { 1 }.&#34;)
+    self._str(&#34;&amp;a { (- 1) }.&#34;)
+    self._str(&#34;&amp;a { X }.&#34;)
+    self._str(&#34;&amp;a { () }.&#34;)
+    self._str(&#34;&amp;a { (1,) }.&#34;)
+    self._str(&#34;&amp;a { (1,2) }.&#34;)
+    self._str(&#34;&amp;a { [] }.&#34;)
+    self._str(&#34;&amp;a { [1] }.&#34;)
+    self._str(&#34;&amp;a { [1,2] }.&#34;)
+    self._str(&#34;&amp;a { {} }.&#34;)
+    self._str(&#34;&amp;a { {1} }.&#34;)
+    self._str(&#34;&amp;a { {1,2} }.&#34;)
+    self._str(&#34;&amp;a { f }.&#34;)
+    self._str(&#34;&amp;a { f(X) }.&#34;)
+    self._str(&#34;&amp;a { f(X,Y) }.&#34;)
+    self._str(&#34;&amp;a { (+ a + - * b + c) }.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Test theory terms.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_transformer"><code class="name flex">
+<span>def <span class="ident">test_transformer</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_transformer(self):
+    &#34;&#34;&#34;
+    Test the transformer class.
+    &#34;&#34;&#34;
+    prg = []
+    vrt = VariableRenamer()
+    parse_string(&#34;p(X) :- q(X).&#34;, lambda stm: prg.append(str(vrt(stm))))
+    self.assertEqual(prg[-1], &#34;p(_X) :- q(_X).&#34;)</code></pre>
+</details>
+<div class="desc"><p>Test the transformer class.</p></div>
+</dd>
+<dt id="clingo.tests.test_ast.TestAST.test_unpool"><code class="name flex">
+<span>def <span class="ident">test_unpool</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_unpool(self):
+    &#34;&#34;&#34;
+    Test unpooling.
+    &#34;&#34;&#34;
+    prg = []
+    parse_string(&#34;%comment\n:- a(1;2): a(3;4).&#34;, prg.append)
+    com = prg[-2]
+    lit = prg[-1].body[0]
+
+    def unpool(other=True, condition=True):
+        return [str(x) for x in lit.unpool(other, condition)]
+
+    self.assertEqual([str(x) for x in com.unpool()], [&#34;%comment&#34;])
+    self.assertEqual(
+        unpool(), [&#34;a(1): a(3)&#34;, &#34;a(1): a(4)&#34;, &#34;a(2): a(3)&#34;, &#34;a(2): a(4)&#34;]
+    )
+    self.assertEqual(unpool(other=False), [&#34;a(1;2): a(3)&#34;, &#34;a(1;2): a(4)&#34;])
+    self.assertEqual(unpool(condition=False), [&#34;a(1): a(3;4)&#34;, &#34;a(2): a(3;4)&#34;])
+    self.assertEqual(unpool(other=False, condition=False), [&#34;a(1;2): a(3;4)&#34;])</code></pre>
+</details>
+<div class="desc"><p>Test unpooling.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.tests.test_ast.VariableRenamer"><code class="flex name class">
+<span>class <span class="ident">VariableRenamer</span></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VariableRenamer(ast.Transformer):
+    &#34;&#34;&#34;
+    Add an underscore to all names of variables in an ast.
+    &#34;&#34;&#34;
+
+    def visit_Variable(self, node):  # pylint: disable=no-self-use,invalid-name
+        &#34;&#34;&#34;
+        Rename a variable.
+        &#34;&#34;&#34;
+        return ast.Variable(node.location, &#34;_&#34; + node.name)</code></pre>
+</details>
+<div class="desc"><p>Add an underscore to all names of variables in an ast.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.ast.Transformer" href="../ast.html#clingo.ast.Transformer">Transformer</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.tests.test_ast.VariableRenamer.visit_Variable"><code class="name flex">
+<span>def <span class="ident">visit_Variable</span></span>(<span>self, node)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def visit_Variable(self, node):  # pylint: disable=no-self-use,invalid-name
+    &#34;&#34;&#34;
+    Rename a variable.
+    &#34;&#34;&#34;
+    return ast.Variable(node.location, &#34;_&#34; + node.name)</code></pre>
+</details>
+<div class="desc"><p>Rename a variable.</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="clingo.ast.Transformer" href="../ast.html#clingo.ast.Transformer">Transformer</a></b></code>:
+<ul class="hlist">
+<li><code><a title="clingo.ast.Transformer.visit" href="../ast.html#clingo.ast.Transformer.visit">visit</a></code></li>
+<li><code><a title="clingo.ast.Transformer.visit_children" href="../ast.html#clingo.ast.Transformer.visit_children">visit_children</a></code></li>
+<li><code><a title="clingo.ast.Transformer.visit_sequence" href="../ast.html#clingo.ast.Transformer.visit_sequence">visit_sequence</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo.tests" href="index.html">clingo.tests</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.tests.test_ast.TestAST" href="#clingo.tests.test_ast.TestAST">TestAST</a></code></h4>
+<ul class="two-column">
+<li><code><a title="clingo.tests.test_ast.TestAST.test_ast_sequence" href="#clingo.tests.test_ast.TestAST.test_ast_sequence">test_ast_sequence</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_body_literals" href="#clingo.tests.test_ast.TestAST.test_body_literals">test_body_literals</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_comment_order" href="#clingo.tests.test_ast.TestAST.test_comment_order">test_comment_order</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_compare" href="#clingo.tests.test_ast.TestAST.test_compare">test_compare</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_compare_bug" href="#clingo.tests.test_ast.TestAST.test_compare_bug">test_compare_bug</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_head_literals" href="#clingo.tests.test_ast.TestAST.test_head_literals">test_head_literals</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_literals" href="#clingo.tests.test_ast.TestAST.test_literals">test_literals</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_repr" href="#clingo.tests.test_ast.TestAST.test_repr">test_repr</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_statements" href="#clingo.tests.test_ast.TestAST.test_statements">test_statements</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_str_sequence" href="#clingo.tests.test_ast.TestAST.test_str_sequence">test_str_sequence</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_terms" href="#clingo.tests.test_ast.TestAST.test_terms">test_terms</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_theory_terms" href="#clingo.tests.test_ast.TestAST.test_theory_terms">test_theory_terms</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_transformer" href="#clingo.tests.test_ast.TestAST.test_transformer">test_transformer</a></code></li>
+<li><code><a title="clingo.tests.test_ast.TestAST.test_unpool" href="#clingo.tests.test_ast.TestAST.test_unpool">test_unpool</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.tests.test_ast.VariableRenamer" href="#clingo.tests.test_ast.VariableRenamer">VariableRenamer</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.tests.test_ast.VariableRenamer.visit_Variable" href="#clingo.tests.test_ast.VariableRenamer.visit_Variable">visit_Variable</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>clingo.tests.test_propagator API documentation</title>
+<meta name="description" content="Tests for the propagator.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<nav class="http-server-breadcrumbs">
+<a href="https://potassco.org/clingo/python-api/5.8/">All packages</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/">clingo</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/tests/">clingo.tests</a>
+</nav>
+<h1 class="title">Module <code>clingo.tests.test_propagator</code></h1>
+</header>
+<section id="section-intro">
+<p>Tests for the propagator.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.tests.test_propagator.TestAddAssertingClause"><code class="flex name class">
+<span>class <span class="ident">TestAddAssertingClause</span></span>
+<span>(</span><span>methodName='runTest')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestAddAssertingClause(TestCase):
+    class Prop(Propagator):
+        def __init__(self, tc, lock=False):
+            self._start_lit = 0
+            self._end_lit = 0
+            self._value_lit = 0
+            self._test = tc
+            self._lock = lock
+
+        def init(self, init: PropagateInit) -&gt; None:
+            for atom in init.symbolic_atoms.by_signature(&#34;start&#34;, 0):
+                self._start_lit = init.solver_literal(atom.literal)
+            for atom in init.symbolic_atoms.by_signature(&#34;end&#34;, 0):
+                self._end_lit = init.solver_literal(atom.literal)
+            for atom in init.symbolic_atoms.by_signature(&#34;value&#34;, 0):
+                self._value_lit = init.solver_literal(atom.literal)
+            for lit in sorted([self._start_lit, self._end_lit, self._value_lit]):
+                init.add_watch(lit)
+                init.add_watch(-lit)
+
+        def propagate(self, control: PropagateControl, changes):
+            ass = control.assignment
+            if ass.is_false(self._value_lit) and ass.is_false(self._end_lit):
+                nogood = [self._start_lit, -self._end_lit, -self._value_lit]
+                dl = ass.decision_level
+                result = control.add_nogood(nogood, tag=False, lock=self._lock)
+                self._test.assertEqual(dl, ass.decision_level)
+                self._test.assertFalse(result)
+
+        def decide(self, thread_id: int, assignment: Assignment, fallback: int) -&gt; int:
+            if assignment.is_free(self._end_lit):
+                return -self._end_lit
+            if assignment.is_free(self._value_lit):
+                return -self._value_lit
+            return fallback
+
+    def setUp(self):
+        self.ctl = Control([&#34;0&#34;])
+        self.ctl.add(&#34;base&#34;, [], &#34;start. {value}. {end}.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+
+    def test_default(self):
+        prop = TestAddAssertingClause.Prop(self, lock=False)
+        self.ctl.register_propagator(prop)
+        self.ctl.solve()
+
+    def test_locked(self):
+        prop = TestAddAssertingClause.Prop(self, lock=True)
+        self.ctl.register_propagator(prop)
+        self.ctl.solve()</code></pre>
+</details>
+<div class="desc"><p>A class whose instances are single test cases.</p>
+<p>By default, the test code itself should be placed in a method named
+'runTest'.</p>
+<p>If the fixture may be used for many test cases, create as
+many test methods as are needed. When instantiating such a TestCase
+subclass, specify in the constructor arguments the name of the test method
+that the instance is to execute.</p>
+<p>Test authors should subclass TestCase for their own tests. Construction
+and deconstruction of the test's environment ('fixture') can be
+implemented by overriding the 'setUp' and 'tearDown' methods respectively.</p>
+<p>If it is necessary to override the <strong>init</strong> method, the base class
+<strong>init</strong> method must always be called. It is important that subclasses
+should not change the signature of their <strong>init</strong> method, since instances
+of the classes are instantiated automatically by parts of the framework
+in order to be run.</p>
+<p>When subclassing TestCase, you can set these attributes:
+* failureException: determines which exception will be raised when
+the instance's assertion methods fail; test methods raising this
+exception will be deemed to have 'failed' rather than 'errored'.
+* longMessage: determines whether long messages (including repr of
+objects used in assert methods) will be printed on failure in <em>addition</em>
+to any explicit message passed.
+* maxDiff: sets the maximum length of a diff in failure messages
+by assert methods using difflib. It is looked up as an instance
+attribute so can be configured by individual tests if required.</p>
+<p>Create an instance of the class that will use the named test
+method when executed. Raises a ValueError if the instance does
+not have a method with the specified name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>unittest.case.TestCase</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="clingo.tests.test_propagator.TestAddAssertingClause.Prop"><code class="name">var <span class="ident">Prop</span></code></dt>
+<dd>
+<div class="desc"><p>Propagator interface for custom constraints.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.control.Control.register_propagator" href="../control.html#clingo.control.Control.register_propagator">Control.register_propagator()</a></code></p>
+<h2 id="notes">Notes</h2>
+<p>Not all functions of the <code>Propagator</code> interface have to be implemented and
+can be omitted if not needed.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.tests.test_propagator.TestAddAssertingClause.setUp"><code class="name flex">
+<span>def <span class="ident">setUp</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def setUp(self):
+    self.ctl = Control([&#34;0&#34;])
+    self.ctl.add(&#34;base&#34;, [], &#34;start. {value}. {end}.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])</code></pre>
+</details>
+<div class="desc"><p>Hook method for setting up the test fixture before exercising it.</p></div>
+</dd>
+<dt id="clingo.tests.test_propagator.TestAddAssertingClause.test_default"><code class="name flex">
+<span>def <span class="ident">test_default</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_default(self):
+    prop = TestAddAssertingClause.Prop(self, lock=False)
+    self.ctl.register_propagator(prop)
+    self.ctl.solve()</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="clingo.tests.test_propagator.TestAddAssertingClause.test_locked"><code class="name flex">
+<span>def <span class="ident">test_locked</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_locked(self):
+    prop = TestAddAssertingClause.Prop(self, lock=True)
+    self.ctl.register_propagator(prop)
+    self.ctl.solve()</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.tests.test_propagator.TestHeuristic"><code class="flex name class">
+<span>class <span class="ident">TestHeuristic</span></span>
+<span>(</span><span>case: unittest.case.TestCase)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestHeuristic(Propagator):
+    &#34;&#34;&#34;
+    Test decide.
+    &#34;&#34;&#34;
+
+    def __init__(self, case: TestCase):
+        self._case = case
+        self._lit_a = 0
+        self._lit_b = 0
+
+    def init(self, init: PropagateInit):
+        a = init.symbolic_atoms[Function(&#34;a&#34;)]
+        b = init.symbolic_atoms[Function(&#34;b&#34;)]
+        self._case.assertIsNotNone(a)
+        self._case.assertIsNotNone(b)
+        self._lit_a = init.solver_literal(cast(SymbolicAtom, a).literal)
+        self._lit_b = init.solver_literal(cast(SymbolicAtom, b).literal)
+
+    def decide(self, thread_id: int, assignment: Assignment, fallback: int) -&gt; int:
+        self._case.assertEqual(thread_id, 0)
+        if assignment.is_free(self._lit_a):
+            return self._lit_a
+        if assignment.is_free(self._lit_b):
+            return -self._lit_b
+        return fallback</code></pre>
+</details>
+<div class="desc"><p>Test decide.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.propagator.Propagator" href="../propagator.html#clingo.propagator.Propagator">Propagator</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="clingo.propagator.Propagator" href="../propagator.html#clingo.propagator.Propagator">Propagator</a></b></code>:
+<ul class="hlist">
+<li><code><a title="clingo.propagator.Propagator.check" href="../propagator.html#clingo.propagator.Propagator.check">check</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.decide" href="../propagator.html#clingo.propagator.Propagator.decide">decide</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.init" href="../propagator.html#clingo.propagator.Propagator.init">init</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.propagate" href="../propagator.html#clingo.propagator.Propagator.propagate">propagate</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.undo" href="../propagator.html#clingo.propagator.Propagator.undo">undo</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="clingo.tests.test_propagator.TestPropagator"><code class="flex name class">
+<span>class <span class="ident">TestPropagator</span></span>
+<span>(</span><span>case: unittest.case.TestCase)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestPropagator(Propagator):
+    &#34;&#34;&#34;
+    Test adding literals while solving.
+    &#34;&#34;&#34;
+
+    def __init__(self, case: TestCase):
+        self._case = case
+        self._added = False
+
+    def check(self, control: PropagateControl):
+        if not self._added:
+            self._added = True
+            lit = control.add_literal()
+            self._case.assertFalse(control.has_watch(lit))
+            control.add_watch(lit)
+            self._case.assertTrue(control.has_watch(lit))
+            control.remove_watch(lit)
+            self._case.assertFalse(control.has_watch(lit))</code></pre>
+</details>
+<div class="desc"><p>Test adding literals while solving.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.propagator.Propagator" href="../propagator.html#clingo.propagator.Propagator">Propagator</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="clingo.propagator.Propagator" href="../propagator.html#clingo.propagator.Propagator">Propagator</a></b></code>:
+<ul class="hlist">
+<li><code><a title="clingo.propagator.Propagator.check" href="../propagator.html#clingo.propagator.Propagator.check">check</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.decide" href="../propagator.html#clingo.propagator.Propagator.decide">decide</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.init" href="../propagator.html#clingo.propagator.Propagator.init">init</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.propagate" href="../propagator.html#clingo.propagator.Propagator.propagate">propagate</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.undo" href="../propagator.html#clingo.propagator.Propagator.undo">undo</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="clingo.tests.test_propagator.TestPropagatorControl"><code class="flex name class">
+<span>class <span class="ident">TestPropagatorControl</span></span>
+<span>(</span><span>case: unittest.case.TestCase)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestPropagatorControl(Propagator):
+    &#34;&#34;&#34;
+    Test functions in PropagateControl.
+    &#34;&#34;&#34;
+
+    def __init__(self, case: TestCase):
+        self._case = case
+        self._lit_a = 0
+
+    def init(self, init: PropagateInit):
+        init.check_mode = PropagatorCheckMode.Off
+        self._case.assertEqual(init.check_mode, PropagatorCheckMode.Off)
+        self._case.assertEqual(init.number_of_threads, 1)
+        a = init.symbolic_atoms[Function(&#34;a&#34;)]
+        self._case.assertIsNotNone(a)
+        self._lit_a = init.solver_literal(cast(SymbolicAtom, a).literal)
+        init.add_watch(-self._lit_a)
+
+    def propagate(self, control: PropagateControl, changes):
+        ass = control.assignment
+        trail = ass.trail
+        lvl = ass.decision_level
+        self._case.assertIn(-self._lit_a, changes)
+        self._case.assertGreaterEqual(lvl, 1)
+        self._case.assertGreaterEqual(ass.level(self._lit_a), 1)
+        self._case.assertGreaterEqual(len(trail), 1)
+        self._case.assertGreaterEqual(len(list(trail)), 1)
+        self._case.assertEqual(trail[trail.begin(lvl)], -self._lit_a)
+        self._case.assertEqual(
+            list(trail[trail.begin(lvl) : trail.end(lvl)]), [-self._lit_a]
+        )
+        self._case.assertEqual(ass.decision(lvl), -self._lit_a)
+        self._case.assertEqual(control.thread_id, 0)
+        self._case.assertTrue(control.has_watch(-self._lit_a))
+        self._case.assertTrue(control.propagate())
+        self._case.assertFalse(control.add_clause([self._lit_a]))
+
+    def undo(self, thread_id, assignment, changes):
+        self._case.assertEqual(thread_id, 0)
+        self._case.assertIn(-self._lit_a, changes)</code></pre>
+</details>
+<div class="desc"><p>Test functions in PropagateControl.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.propagator.Propagator" href="../propagator.html#clingo.propagator.Propagator">Propagator</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="clingo.propagator.Propagator" href="../propagator.html#clingo.propagator.Propagator">Propagator</a></b></code>:
+<ul class="hlist">
+<li><code><a title="clingo.propagator.Propagator.check" href="../propagator.html#clingo.propagator.Propagator.check">check</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.decide" href="../propagator.html#clingo.propagator.Propagator.decide">decide</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.init" href="../propagator.html#clingo.propagator.Propagator.init">init</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.propagate" href="../propagator.html#clingo.propagator.Propagator.propagate">propagate</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.undo" href="../propagator.html#clingo.propagator.Propagator.undo">undo</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="clingo.tests.test_propagator.TestPropagatorInit"><code class="flex name class">
+<span>class <span class="ident">TestPropagatorInit</span></span>
+<span>(</span><span>case: unittest.case.TestCase)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestPropagatorInit(Propagator):
+    &#34;&#34;&#34;
+    Test functions in PropagateInit.
+    &#34;&#34;&#34;
+
+    def __init__(self, case: TestCase):
+        self._case = case
+
+    def init(self, init: PropagateInit):
+        a = init.symbolic_atoms[Function(&#34;a&#34;)]
+        b = init.symbolic_atoms[Function(&#34;b&#34;)]
+        c = init.symbolic_atoms[Function(&#34;c&#34;)]
+        self._case.assertIsNotNone(a)
+        self._case.assertIsNotNone(b)
+        self._case.assertIsNotNone(c)
+        lit_a = init.solver_literal(cast(SymbolicAtom, a).literal)
+        lit_b = init.solver_literal(cast(SymbolicAtom, b).literal)
+        lit_c = init.solver_literal(cast(SymbolicAtom, c).literal)
+        lit = init.add_literal()
+        # a &lt;=&gt; b
+        init.add_clause([lit_a, -lit])
+        init.add_clause([lit, -lit_a])
+        init.add_clause([lit_b, -lit])
+        init.add_clause([lit, -lit_b])
+        # c &lt;=&gt; {a, b} &gt;= 2
+        init.add_weight_constraint(lit_c, [(lit_a, 1), (lit_b, 1)], 2, 0)
+        init.add_minimize(lit_a, -1)
+        self._case.assertTrue(init.propagate())
+        self._case.assertEqual(list(init.theory_atoms), [])
+        # test assignment
+        self._case.assertIsNone(init.assignment.value(lit_a))
+        self._case.assertFalse(init.assignment.is_true(lit_a))
+        self._case.assertFalse(init.assignment.is_false(lit_a))
+        self._case.assertFalse(init.assignment.is_fixed(lit_a))
+        self._case.assertEqual(init.assignment.decision_level, 0)
+        self._case.assertTrue(init.assignment.has_literal(lit_a))
+        self._case.assertFalse(init.assignment.has_conflict)
+        self._case.assertFalse(init.assignment.is_total)
+        self._case.assertEqual(init.assignment.root_level, 0)
+        self._case.assertGreaterEqual(len(init.assignment), 4)
+        self._case.assertGreaterEqual(len(list(init.assignment)), 4)
+        self._case.assertEqual(len(init.assignment[0:4][0:4:2]), 2)
+        self._case.assertEqual(init.assignment[0:4][0:4:2][1], init.assignment[2])</code></pre>
+</details>
+<div class="desc"><p>Test functions in PropagateInit.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.propagator.Propagator" href="../propagator.html#clingo.propagator.Propagator">Propagator</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="clingo.propagator.Propagator" href="../propagator.html#clingo.propagator.Propagator">Propagator</a></b></code>:
+<ul class="hlist">
+<li><code><a title="clingo.propagator.Propagator.check" href="../propagator.html#clingo.propagator.Propagator.check">check</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.decide" href="../propagator.html#clingo.propagator.Propagator.decide">decide</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.init" href="../propagator.html#clingo.propagator.Propagator.init">init</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.propagate" href="../propagator.html#clingo.propagator.Propagator.propagate">propagate</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.undo" href="../propagator.html#clingo.propagator.Propagator.undo">undo</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="clingo.tests.test_propagator.TestPropagatorMode"><code class="flex name class">
+<span>class <span class="ident">TestPropagatorMode</span></span>
+<span>(</span><span>case: unittest.case.TestCase)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestPropagatorMode(Propagator):
+    &#34;&#34;&#34;
+    Test check/undo mode.
+    &#34;&#34;&#34;
+
+    def __init__(self, case: TestCase):
+        self._case = case
+        self.num_check = 0
+        self.num_undo = 0
+
+    def init(self, init: PropagateInit):
+        init.check_mode = PropagatorCheckMode.Fixpoint
+        init.undo_mode = PropagatorUndoMode.Always
+
+        self._case.assertEqual(init.check_mode, PropagatorCheckMode.Fixpoint)
+        self._case.assertEqual(init.undo_mode, PropagatorUndoMode.Always)
+
+    def check(self, control: PropagateControl):
+        self.num_check += 1
+
+    def undo(self, thread_id, assignment, changes):
+        self.num_undo += 1</code></pre>
+</details>
+<div class="desc"><p>Test check/undo mode.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.propagator.Propagator" href="../propagator.html#clingo.propagator.Propagator">Propagator</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="clingo.propagator.Propagator" href="../propagator.html#clingo.propagator.Propagator">Propagator</a></b></code>:
+<ul class="hlist">
+<li><code><a title="clingo.propagator.Propagator.check" href="../propagator.html#clingo.propagator.Propagator.check">check</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.decide" href="../propagator.html#clingo.propagator.Propagator.decide">decide</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.init" href="../propagator.html#clingo.propagator.Propagator.init">init</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.propagate" href="../propagator.html#clingo.propagator.Propagator.propagate">propagate</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.undo" href="../propagator.html#clingo.propagator.Propagator.undo">undo</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="clingo.tests.test_propagator.TestSymbol"><code class="flex name class">
+<span>class <span class="ident">TestSymbol</span></span>
+<span>(</span><span>methodName='runTest')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestSymbol(TestCase):
+    &#34;&#34;&#34;
+    Tests basic solving and related functions.
+    &#34;&#34;&#34;
+
+    def setUp(self):
+        self.mcb = _MCB()
+        self.ctl = Control([&#34;0&#34;])
+
+    def tearDown(self):
+        self.mcb = None
+        self.ctl = None
+
+    def test_propagator_control(self):
+        &#34;&#34;&#34;
+        Test PropagateControl.
+        &#34;&#34;&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;{a}.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        self.ctl.register_propagator(TestPropagatorControl(self))
+        _check_sat(
+            self,
+            cast(
+                SolveResult,
+                self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False),
+            ),
+        )
+        self.assertEqual(self.mcb.models, _p([&#34;a&#34;]))
+
+    def test_propagator_init(self):
+        &#34;&#34;&#34;
+        Test PropagateInit and Assignment.
+        &#34;&#34;&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;{a; b; c}.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        self.ctl.register_propagator(TestPropagatorInit(self))
+        _check_sat(
+            self,
+            cast(
+                SolveResult,
+                self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False),
+            ),
+        )
+        self.assertEqual(self.mcb.models[-1:], _p([&#34;a&#34;, &#34;b&#34;, &#34;c&#34;]))
+
+    def test_propagator_mode(self):
+        &#34;&#34;&#34;
+        Test check and undo mode.
+        &#34;&#34;&#34;
+        self.ctl = Control([])
+        self.ctl.add(&#34;base&#34;, [], &#34;{a; b}.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        tpm = TestPropagatorMode(self)
+        self.ctl.register_propagator(tpm)
+        ret = self.ctl.solve()
+        self.assertTrue(ret.satisfiable)
+        self.assertGreaterEqual(tpm.num_check, 3)
+        self.assertEqual(tpm.num_undo + 1, tpm.num_check)
+
+    def test_propagator(self):
+        &#34;&#34;&#34;
+        Test adding literals while solving.
+        &#34;&#34;&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        self.ctl.register_propagator(TestPropagator(self))
+        _check_sat(
+            self,
+            cast(
+                SolveResult,
+                self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False),
+            ),
+        )
+        self.assertEqual(self.mcb.models, _p([], []))
+
+    def test_heurisitc(self):
+        &#34;&#34;&#34;
+        Test decide.
+        &#34;&#34;&#34;
+        self.ctl = Control([&#34;1&#34;])
+        self.ctl.add(&#34;base&#34;, [], &#34;{a;b}.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        self.ctl.register_propagator(TestHeuristic(self))
+        self.ctl.solve(on_model=self.mcb.on_model)
+        self.assertEqual(self.mcb.models, _p([&#34;a&#34;]))</code></pre>
+</details>
+<div class="desc"><p>Tests basic solving and related functions.</p>
+<p>Create an instance of the class that will use the named test
+method when executed. Raises a ValueError if the instance does
+not have a method with the specified name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>unittest.case.TestCase</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.tests.test_propagator.TestSymbol.setUp"><code class="name flex">
+<span>def <span class="ident">setUp</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def setUp(self):
+    self.mcb = _MCB()
+    self.ctl = Control([&#34;0&#34;])</code></pre>
+</details>
+<div class="desc"><p>Hook method for setting up the test fixture before exercising it.</p></div>
+</dd>
+<dt id="clingo.tests.test_propagator.TestSymbol.tearDown"><code class="name flex">
+<span>def <span class="ident">tearDown</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def tearDown(self):
+    self.mcb = None
+    self.ctl = None</code></pre>
+</details>
+<div class="desc"><p>Hook method for deconstructing the test fixture after testing it.</p></div>
+</dd>
+<dt id="clingo.tests.test_propagator.TestSymbol.test_heurisitc"><code class="name flex">
+<span>def <span class="ident">test_heurisitc</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_heurisitc(self):
+    &#34;&#34;&#34;
+    Test decide.
+    &#34;&#34;&#34;
+    self.ctl = Control([&#34;1&#34;])
+    self.ctl.add(&#34;base&#34;, [], &#34;{a;b}.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    self.ctl.register_propagator(TestHeuristic(self))
+    self.ctl.solve(on_model=self.mcb.on_model)
+    self.assertEqual(self.mcb.models, _p([&#34;a&#34;]))</code></pre>
+</details>
+<div class="desc"><p>Test decide.</p></div>
+</dd>
+<dt id="clingo.tests.test_propagator.TestSymbol.test_propagator"><code class="name flex">
+<span>def <span class="ident">test_propagator</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_propagator(self):
+    &#34;&#34;&#34;
+    Test adding literals while solving.
+    &#34;&#34;&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    self.ctl.register_propagator(TestPropagator(self))
+    _check_sat(
+        self,
+        cast(
+            SolveResult,
+            self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False),
+        ),
+    )
+    self.assertEqual(self.mcb.models, _p([], []))</code></pre>
+</details>
+<div class="desc"><p>Test adding literals while solving.</p></div>
+</dd>
+<dt id="clingo.tests.test_propagator.TestSymbol.test_propagator_control"><code class="name flex">
+<span>def <span class="ident">test_propagator_control</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_propagator_control(self):
+    &#34;&#34;&#34;
+    Test PropagateControl.
+    &#34;&#34;&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;{a}.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    self.ctl.register_propagator(TestPropagatorControl(self))
+    _check_sat(
+        self,
+        cast(
+            SolveResult,
+            self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False),
+        ),
+    )
+    self.assertEqual(self.mcb.models, _p([&#34;a&#34;]))</code></pre>
+</details>
+<div class="desc"><p>Test PropagateControl.</p></div>
+</dd>
+<dt id="clingo.tests.test_propagator.TestSymbol.test_propagator_init"><code class="name flex">
+<span>def <span class="ident">test_propagator_init</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_propagator_init(self):
+    &#34;&#34;&#34;
+    Test PropagateInit and Assignment.
+    &#34;&#34;&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;{a; b; c}.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    self.ctl.register_propagator(TestPropagatorInit(self))
+    _check_sat(
+        self,
+        cast(
+            SolveResult,
+            self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False),
+        ),
+    )
+    self.assertEqual(self.mcb.models[-1:], _p([&#34;a&#34;, &#34;b&#34;, &#34;c&#34;]))</code></pre>
+</details>
+<div class="desc"><p>Test PropagateInit and Assignment.</p></div>
+</dd>
+<dt id="clingo.tests.test_propagator.TestSymbol.test_propagator_mode"><code class="name flex">
+<span>def <span class="ident">test_propagator_mode</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_propagator_mode(self):
+    &#34;&#34;&#34;
+    Test check and undo mode.
+    &#34;&#34;&#34;
+    self.ctl = Control([])
+    self.ctl.add(&#34;base&#34;, [], &#34;{a; b}.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    tpm = TestPropagatorMode(self)
+    self.ctl.register_propagator(tpm)
+    ret = self.ctl.solve()
+    self.assertTrue(ret.satisfiable)
+    self.assertGreaterEqual(tpm.num_check, 3)
+    self.assertEqual(tpm.num_undo + 1, tpm.num_check)</code></pre>
+</details>
+<div class="desc"><p>Test check and undo mode.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo.tests" href="index.html">clingo.tests</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.tests.test_propagator.TestAddAssertingClause" href="#clingo.tests.test_propagator.TestAddAssertingClause">TestAddAssertingClause</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.tests.test_propagator.TestAddAssertingClause.Prop" href="#clingo.tests.test_propagator.TestAddAssertingClause.Prop">Prop</a></code></li>
+<li><code><a title="clingo.tests.test_propagator.TestAddAssertingClause.setUp" href="#clingo.tests.test_propagator.TestAddAssertingClause.setUp">setUp</a></code></li>
+<li><code><a title="clingo.tests.test_propagator.TestAddAssertingClause.test_default" href="#clingo.tests.test_propagator.TestAddAssertingClause.test_default">test_default</a></code></li>
+<li><code><a title="clingo.tests.test_propagator.TestAddAssertingClause.test_locked" href="#clingo.tests.test_propagator.TestAddAssertingClause.test_locked">test_locked</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.tests.test_propagator.TestHeuristic" href="#clingo.tests.test_propagator.TestHeuristic">TestHeuristic</a></code></h4>
+</li>
+<li>
+<h4><code><a title="clingo.tests.test_propagator.TestPropagator" href="#clingo.tests.test_propagator.TestPropagator">TestPropagator</a></code></h4>
+</li>
+<li>
+<h4><code><a title="clingo.tests.test_propagator.TestPropagatorControl" href="#clingo.tests.test_propagator.TestPropagatorControl">TestPropagatorControl</a></code></h4>
+</li>
+<li>
+<h4><code><a title="clingo.tests.test_propagator.TestPropagatorInit" href="#clingo.tests.test_propagator.TestPropagatorInit">TestPropagatorInit</a></code></h4>
+</li>
+<li>
+<h4><code><a title="clingo.tests.test_propagator.TestPropagatorMode" href="#clingo.tests.test_propagator.TestPropagatorMode">TestPropagatorMode</a></code></h4>
+</li>
+<li>
+<h4><code><a title="clingo.tests.test_propagator.TestSymbol" href="#clingo.tests.test_propagator.TestSymbol">TestSymbol</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.tests.test_propagator.TestSymbol.setUp" href="#clingo.tests.test_propagator.TestSymbol.setUp">setUp</a></code></li>
+<li><code><a title="clingo.tests.test_propagator.TestSymbol.tearDown" href="#clingo.tests.test_propagator.TestSymbol.tearDown">tearDown</a></code></li>
+<li><code><a title="clingo.tests.test_propagator.TestSymbol.test_heurisitc" href="#clingo.tests.test_propagator.TestSymbol.test_heurisitc">test_heurisitc</a></code></li>
+<li><code><a title="clingo.tests.test_propagator.TestSymbol.test_propagator" href="#clingo.tests.test_propagator.TestSymbol.test_propagator">test_propagator</a></code></li>
+<li><code><a title="clingo.tests.test_propagator.TestSymbol.test_propagator_control" href="#clingo.tests.test_propagator.TestSymbol.test_propagator_control">test_propagator_control</a></code></li>
+<li><code><a title="clingo.tests.test_propagator.TestSymbol.test_propagator_init" href="#clingo.tests.test_propagator.TestSymbol.test_propagator_init">test_propagator_init</a></code></li>
+<li><code><a title="clingo.tests.test_propagator.TestSymbol.test_propagator_mode" href="#clingo.tests.test_propagator.TestSymbol.test_propagator_mode">test_propagator_mode</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

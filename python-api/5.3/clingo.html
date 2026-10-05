@@ -1,0 +1,2292 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: built-in module clingo</title>
+<meta charset="utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>clingo</strong></big></big> (version 5.3.0)</font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href="/">&laquo;Potassco</a></font></td></tr></table>
+    <p><tt>The&nbsp;clingo-5.3.0&nbsp;module.<br>
+&nbsp;<br>
+This&nbsp;module&nbsp;provides&nbsp;functions&nbsp;and&nbsp;classes&nbsp;to&nbsp;work&nbsp;with&nbsp;ground&nbsp;terms&nbsp;and&nbsp;to<br>
+control&nbsp;the&nbsp;instantiation&nbsp;process.&nbsp;&nbsp;In&nbsp;clingo&nbsp;builts,&nbsp;additional&nbsp;functions&nbsp;to<br>
+control&nbsp;and&nbsp;inspect&nbsp;the&nbsp;solving&nbsp;process&nbsp;are&nbsp;available.<br>
+&nbsp;<br>
+Functions&nbsp;defined&nbsp;in&nbsp;a&nbsp;python&nbsp;script&nbsp;block&nbsp;are&nbsp;callable&nbsp;during&nbsp;the<br>
+instantiation&nbsp;process&nbsp;using&nbsp;@-syntax.&nbsp;The&nbsp;default&nbsp;grounding/solving&nbsp;process&nbsp;can<br>
+be&nbsp;customized&nbsp;if&nbsp;a&nbsp;main&nbsp;function&nbsp;is&nbsp;provided.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;gringo's&nbsp;precomputed&nbsp;terms&nbsp;(terms&nbsp;without&nbsp;variables&nbsp;and&nbsp;interpreted<br>
+functions),&nbsp;called&nbsp;symbols&nbsp;in&nbsp;the&nbsp;following,&nbsp;are&nbsp;wrapped&nbsp;in&nbsp;the&nbsp;<a href="#Symbol">Symbol</a>&nbsp;class.<br>
+Furthermore,&nbsp;strings,&nbsp;numbers,&nbsp;and&nbsp;tuples&nbsp;can&nbsp;be&nbsp;passed&nbsp;wherever&nbsp;a&nbsp;symbol&nbsp;is<br>
+expected&nbsp;-&nbsp;they&nbsp;are&nbsp;automatically&nbsp;converted&nbsp;into&nbsp;a&nbsp;<a href="#Symbol">Symbol</a>&nbsp;object.&nbsp;&nbsp;Functions<br>
+called&nbsp;during&nbsp;the&nbsp;grounding&nbsp;process&nbsp;from&nbsp;the&nbsp;logic&nbsp;program&nbsp;must&nbsp;either&nbsp;return&nbsp;a<br>
+symbol&nbsp;or&nbsp;a&nbsp;sequence&nbsp;of&nbsp;symbols.&nbsp;&nbsp;If&nbsp;a&nbsp;sequence&nbsp;is&nbsp;returned,&nbsp;the&nbsp;corresponding<br>
+@-term&nbsp;is&nbsp;successively&nbsp;substituted&nbsp;by&nbsp;the&nbsp;values&nbsp;in&nbsp;the&nbsp;sequence.<br>
+&nbsp;<br>
+Static&nbsp;Objects:<br>
+&nbsp;<br>
+__version__&nbsp;--&nbsp;version&nbsp;of&nbsp;the&nbsp;clingo&nbsp;module&nbsp;(5.3.0)<br>
+Infimum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;represents&nbsp;an&nbsp;#inf&nbsp;symbol<br>
+Supremum&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;represents&nbsp;a&nbsp;#sup&nbsp;symbol<br>
+&nbsp;<br>
+Functions:<br>
+&nbsp;<br>
+<a href="#-Function">Function</a>()&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;create&nbsp;a&nbsp;function&nbsp;symbol<br>
+<a href="#-Number">Number</a>()&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;create&nbsp;a&nbsp;number&nbsp;symbol<br>
+<a href="#-parse_program">parse_program</a>()&nbsp;--&nbsp;parse&nbsp;a&nbsp;logic&nbsp;program<br>
+<a href="#-parse_term">parse_term</a>()&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;parse&nbsp;ground&nbsp;terms<br>
+<a href="#-String">String</a>()&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;create&nbsp;a&nbsp;string&nbsp;symbol<br>
+<a href="#-Tuple">Tuple</a>()&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;create&nbsp;a&nbsp;tuple&nbsp;symbol&nbsp;(shortcut)<br>
+&nbsp;<br>
+Classes:<br>
+&nbsp;<br>
+<a href="#ApplicationOptions">ApplicationOptions</a>&nbsp;&nbsp;--&nbsp;add&nbsp;custom&nbsp;options&nbsp;to&nbsp;clingo<br>
+<a href="#Assignment">Assignment</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;partial&nbsp;assignment&nbsp;of&nbsp;truth&nbsp;values&nbsp;to&nbsp;solver&nbsp;literals<br>
+<a href="#Backend">Backend</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;extend&nbsp;the&nbsp;logic&nbsp;program<br>
+<a href="#Configuration">Configuration</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;modify/inspect&nbsp;the&nbsp;solver&nbsp;configuration<br>
+<a href="#Control">Control</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;controls&nbsp;the&nbsp;grounding/solving&nbsp;process<br>
+<a href="#Flag">Flag</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;helper&nbsp;object&nbsp;to&nbsp;parse&nbsp;command&nbsp;line&nbsp;flags<br>
+<a href="#HeuristicType">HeuristicType</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;enumeration&nbsp;of&nbsp;heuristic&nbsp;modificators<br>
+<a href="#MessageCode">MessageCode</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;enumeration&nbsp;of&nbsp;message&nbsp;codes<br>
+<a href="#Model">Model</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;provides&nbsp;access&nbsp;to&nbsp;a&nbsp;model&nbsp;during&nbsp;solve&nbsp;call<br>
+<a href="#ModelType">ModelType</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;captures&nbsp;the&nbsp;type&nbsp;of&nbsp;a&nbsp;model<br>
+<a href="#ProgramBuilder">ProgramBuilder</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;extend&nbsp;a&nbsp;non-ground&nbsp;logic&nbsp;program<br>
+<a href="#PropagatorCheckMode">PropagatorCheckMode</a>&nbsp;--&nbsp;enumeration&nbsp;of&nbsp;check&nbsp;modes<br>
+<a href="#PropagateControl">PropagateControl</a>&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;controls&nbsp;running&nbsp;search&nbsp;in&nbsp;a&nbsp;custom&nbsp;propagator<br>
+<a href="#PropagateInit">PropagateInit</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;object&nbsp;to&nbsp;initialize&nbsp;custom&nbsp;propagators<br>
+<a href="#SolveControl">SolveControl</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;controls&nbsp;running&nbsp;search&nbsp;in&nbsp;a&nbsp;model&nbsp;handler<br>
+<a href="#SolveHandle">SolveHandle</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;handle&nbsp;for&nbsp;solve&nbsp;calls<br>
+<a href="#SolveResult">SolveResult</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;result&nbsp;of&nbsp;a&nbsp;solve&nbsp;call<br>
+<a href="#StatisticsArray">StatisticsArray</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;updatable&nbsp;statistics&nbsp;stored&nbsp;in&nbsp;an&nbsp;array<br>
+<a href="#StatisticsMap">StatisticsMap</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;updatable&nbsp;statistics&nbsp;stored&nbsp;in&nbsp;a&nbsp;map<br>
+<a href="#Symbol">Symbol</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;captures&nbsp;precomputed&nbsp;terms<br>
+<a href="#SymbolicAtom">SymbolicAtom</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;captures&nbsp;information&nbsp;about&nbsp;a&nbsp;symbolic&nbsp;atom<br>
+<a href="#SymbolicAtomIter">SymbolicAtomIter</a>&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;iterate&nbsp;over&nbsp;symbolic&nbsp;atoms<br>
+<a href="#SymbolicAtoms">SymbolicAtoms</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;inspection&nbsp;of&nbsp;symbolic&nbsp;atoms<br>
+<a href="#SymbolType">SymbolType</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;enumeration&nbsp;of&nbsp;symbol&nbsp;types<br>
+<a href="#TheoryAtom">TheoryAtom</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;captures&nbsp;theory&nbsp;atoms<br>
+<a href="#TheoryAtomIter">TheoryAtomIter</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;iterate&nbsp;over&nbsp;theory&nbsp;atoms<br>
+<a href="#TheoryElement">TheoryElement</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;captures&nbsp;theory&nbsp;elements<br>
+<a href="#TheoryTerm">TheoryTerm</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;captures&nbsp;theory&nbsp;terms<br>
+<a href="#TheoryTermType">TheoryTermType</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;type&nbsp;of&nbsp;a&nbsp;theory&nbsp;term<br>
+<a href="#TruthValue">TruthValue</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;enumeration&nbsp;of&nbsp;truth&nbsp;values<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+#script&nbsp;(python)<br>
+import&nbsp;clingo<br>
+def&nbsp;id(x):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;x<br>
+&nbsp;<br>
+def&nbsp;seq(x,&nbsp;y):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;[x,&nbsp;y]<br>
+&nbsp;<br>
+def&nbsp;main(prg):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.ground([("base",&nbsp;[])])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.solve()<br>
+&nbsp;<br>
+#end.<br>
+&nbsp;<br>
+p(@id(10)).<br>
+q(@seq(1,2)).</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="clingo.ast.html">clingo.ast</a><br>
+</td><td width="25%" valign=top></td><td width="25%" valign=top></td><td width="25%" valign=top></td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#22bb33">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Classes</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#22bb33"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl>
+<dt><font face="helvetica, arial">object
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="clingo.html#ApplicationOptions">ApplicationOptions</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#Assignment">Assignment</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#Backend">Backend</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#Configuration">Configuration</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#Control">Control</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#Flag">Flag</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#HeuristicType">HeuristicType</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#MessageCode">MessageCode</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#Model">Model</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#ModelType">ModelType</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#ProgramBuilder">ProgramBuilder</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#PropagateControl">PropagateControl</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#PropagateInit">PropagateInit</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#PropagatorCheckMode">PropagatorCheckMode</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#SolveControl">SolveControl</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#SolveHandle">SolveHandle</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#SolveResult">SolveResult</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#StatisticsArray">StatisticsArray</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#StatisticsMap">StatisticsMap</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#Symbol">Symbol</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#SymbolType">SymbolType</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#SymbolicAtom">SymbolicAtom</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#SymbolicAtomIter">SymbolicAtomIter</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#SymbolicAtoms">SymbolicAtoms</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#TheoryAtom">TheoryAtom</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#TheoryAtomIter">TheoryAtomIter</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#TheoryElement">TheoryElement</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#TheoryTerm">TheoryTerm</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#TheoryTermType">TheoryTermType</a>
+</font></dt><dt><font face="helvetica, arial"><a href="clingo.html#TruthValue">TruthValue</a>
+</font></dt></dl>
+</dd>
+</dl>
+ <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="ApplicationOptions">class <strong>ApplicationOptions</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Object&nbsp;add&nbsp;custom&nbsp;options&nbsp;to&nbsp;a&nbsp;clingo&nbsp;based&nbsp;application.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="ApplicationOptions-add"><strong>add</strong></a>(...)</dt><dd><tt><a href="#ApplicationOptions-add_flag">add_flag</a>(self,&nbsp;group,&nbsp;option,&nbsp;description,&nbsp;parser,&nbsp;multi,&nbsp;argument)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Add&nbsp;an&nbsp;option&nbsp;that&nbsp;is&nbsp;processed&nbsp;with&nbsp;a&nbsp;custom&nbsp;parser.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;the&nbsp;parser&nbsp;also&nbsp;has&nbsp;to&nbsp;take&nbsp;care&nbsp;of&nbsp;storing&nbsp;the&nbsp;semantic&nbsp;value&nbsp;of<br>
+the&nbsp;option&nbsp;somewhere.<br>
+&nbsp;<br>
+Parameter&nbsp;option&nbsp;specifies&nbsp;the&nbsp;name(s)&nbsp;of&nbsp;the&nbsp;option.&nbsp;For&nbsp;example,&nbsp;"ping,p"<br>
+adds&nbsp;the&nbsp;short&nbsp;option&nbsp;"-p"&nbsp;and&nbsp;its&nbsp;long&nbsp;form&nbsp;"--ping".&nbsp;It&nbsp;is&nbsp;also&nbsp;possible&nbsp;to<br>
+associate&nbsp;an&nbsp;option&nbsp;with&nbsp;a&nbsp;help&nbsp;level&nbsp;by&nbsp;adding&nbsp;"@l"&nbsp;to&nbsp;the&nbsp;option<br>
+specification.&nbsp;Options&nbsp;with&nbsp;a&nbsp;level&nbsp;greater&nbsp;than&nbsp;zero&nbsp;are&nbsp;only&nbsp;shown&nbsp;if&nbsp;the<br>
+argument&nbsp;to&nbsp;help&nbsp;is&nbsp;greater&nbsp;or&nbsp;equal&nbsp;to&nbsp;l.<br>
+&nbsp;<br>
+An&nbsp;option&nbsp;parser&nbsp;is&nbsp;a&nbsp;function&nbsp;that&nbsp;takes&nbsp;a&nbsp;string&nbsp;as&nbsp;input&nbsp;and&nbsp;returns&nbsp;true&nbsp;or<br>
+false&nbsp;depending&nbsp;on&nbsp;whether&nbsp;the&nbsp;option&nbsp;was&nbsp;parsed&nbsp;successively.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;an&nbsp;error&nbsp;is&nbsp;raised&nbsp;if&nbsp;an&nbsp;option&nbsp;with&nbsp;the&nbsp;same&nbsp;name&nbsp;already&nbsp;exists.<br>
+&nbsp;<br>
+Arguments:<br>
+options&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;object&nbsp;to&nbsp;register&nbsp;the&nbsp;option&nbsp;with<br>
+group&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;options&nbsp;are&nbsp;grouped&nbsp;into&nbsp;sections&nbsp;as&nbsp;given&nbsp;by&nbsp;this&nbsp;string<br>
+option&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;specifies&nbsp;the&nbsp;command&nbsp;line&nbsp;option<br>
+description&nbsp;--&nbsp;the&nbsp;description&nbsp;of&nbsp;the&nbsp;option<br>
+parser&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;callback&nbsp;to&nbsp;parse&nbsp;the&nbsp;value&nbsp;of&nbsp;the&nbsp;option<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+multi&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;whether&nbsp;the&nbsp;option&nbsp;can&nbsp;appear&nbsp;multiple&nbsp;times&nbsp;on&nbsp;the&nbsp;command-line<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;False)<br>
+argument&nbsp;--&nbsp;optional&nbsp;string&nbsp;to&nbsp;change&nbsp;the&nbsp;value&nbsp;name&nbsp;in&nbsp;the&nbsp;generated&nbsp;help<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;output</tt></dd></dl>
+
+<dl><dt><a name="ApplicationOptions-add_flag"><strong>add_flag</strong></a>(...)</dt><dd><tt><a href="#ApplicationOptions-add_flag">add_flag</a>(self,&nbsp;group,&nbsp;option,&nbsp;description,&nbsp;target)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Add&nbsp;an&nbsp;option&nbsp;that&nbsp;is&nbsp;a&nbsp;simple&nbsp;flag.<br>
+&nbsp;<br>
+This&nbsp;function&nbsp;is&nbsp;similar&nbsp;to&nbsp;<a href="#ApplicationOptions-add">add</a>()&nbsp;but&nbsp;simpler&nbsp;because&nbsp;it&nbsp;only&nbsp;supports&nbsp;flags,<br>
+which&nbsp;do&nbsp;not&nbsp;have&nbsp;values.&nbsp;Note&nbsp;that&nbsp;the&nbsp;target&nbsp;parameter&nbsp;must&nbsp;be&nbsp;of&nbsp;type&nbsp;<a href="#Flag">Flag</a>,<br>
+which&nbsp;is&nbsp;set&nbsp;to&nbsp;true&nbsp;if&nbsp;the&nbsp;flag&nbsp;is&nbsp;passed&nbsp;on&nbsp;the&nbsp;command&nbsp;line.<br>
+&nbsp;<br>
+Arguments:<br>
+group&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;options&nbsp;are&nbsp;grouped&nbsp;into&nbsp;sections&nbsp;as&nbsp;given&nbsp;by&nbsp;this&nbsp;string<br>
+option&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;name&nbsp;on&nbsp;the&nbsp;command&nbsp;line<br>
+description&nbsp;--&nbsp;description&nbsp;of&nbsp;the&nbsp;option<br>
+target&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;<a href="#Flag">Flag</a>&nbsp;object</tt></dd></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Assignment">class <strong>Assignment</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Object&nbsp;to&nbsp;inspect&nbsp;the&nbsp;(parital)&nbsp;assignment&nbsp;of&nbsp;an&nbsp;associated&nbsp;solver.<br>
+&nbsp;<br>
+Assigns&nbsp;truth&nbsp;values&nbsp;to&nbsp;solver&nbsp;literals.&nbsp;&nbsp;Each&nbsp;solver&nbsp;literal&nbsp;is&nbsp;either&nbsp;true,<br>
+false,&nbsp;or&nbsp;undefined,&nbsp;represented&nbsp;by&nbsp;the&nbsp;python&nbsp;constants&nbsp;True,&nbsp;False,&nbsp;or&nbsp;None,<br>
+respectively.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Assignment-decision"><strong>decision</strong></a>(...)</dt><dd><tt><a href="#Assignment-decision">decision</a>(self,&nbsp;level)&nbsp;-&gt;&nbsp;int<br>
+&nbsp;<br>
+Return&nbsp;the&nbsp;decision&nbsp;literal&nbsp;of&nbsp;the&nbsp;given&nbsp;level.</tt></dd></dl>
+
+<dl><dt><a name="Assignment-has_literal"><strong>has_literal</strong></a>(...)</dt><dd><tt><a href="#Assignment-has_literal">has_literal</a>(self,&nbsp;lit)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;<br>
+Determine&nbsp;if&nbsp;the&nbsp;literal&nbsp;is&nbsp;valid&nbsp;in&nbsp;this&nbsp;solver.</tt></dd></dl>
+
+<dl><dt><a name="Assignment-is_false"><strong>is_false</strong></a>(...)</dt><dd><tt><a href="#Assignment-is_false">is_false</a>(self,&nbsp;lit)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;<br>
+Determine&nbsp;if&nbsp;the&nbsp;literal&nbsp;is&nbsp;false.</tt></dd></dl>
+
+<dl><dt><a name="Assignment-is_fixed"><strong>is_fixed</strong></a>(...)</dt><dd><tt><a href="#Assignment-is_fixed">is_fixed</a>(self,&nbsp;lit)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;<br>
+Determine&nbsp;if&nbsp;the&nbsp;literal&nbsp;is&nbsp;assigned&nbsp;on&nbsp;the&nbsp;top&nbsp;level.</tt></dd></dl>
+
+<dl><dt><a name="Assignment-is_true"><strong>is_true</strong></a>(...)</dt><dd><tt><a href="#Assignment-is_true">is_true</a>(self,&nbsp;lit)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;<br>
+Determine&nbsp;if&nbsp;the&nbsp;literal&nbsp;is&nbsp;true.</tt></dd></dl>
+
+<dl><dt><a name="Assignment-level"><strong>level</strong></a>(...)</dt><dd><tt><a href="#Assignment-level">level</a>(self,&nbsp;lit)&nbsp;-&gt;&nbsp;int<br>
+&nbsp;<br>
+The&nbsp;decision&nbsp;level&nbsp;of&nbsp;the&nbsp;given&nbsp;literal.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;the&nbsp;returned&nbsp;value&nbsp;is&nbsp;only&nbsp;meaningful&nbsp;if&nbsp;the&nbsp;literal&nbsp;is&nbsp;assigned&nbsp;-<br>
+i.e.,&nbsp;<a href="#Assignment-value">value</a>(lit)&nbsp;is&nbsp;not&nbsp;None.</tt></dd></dl>
+
+<dl><dt><a name="Assignment-value"><strong>value</strong></a>(...)</dt><dd><tt><a href="#Assignment-value">value</a>(self,&nbsp;lit)&nbsp;-&gt;&nbsp;bool&nbsp;or&nbsp;None<br>
+&nbsp;<br>
+The&nbsp;truth&nbsp;value&nbsp;of&nbsp;the&nbsp;given&nbsp;literal&nbsp;or&nbsp;None&nbsp;if&nbsp;it&nbsp;has&nbsp;none.</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>decision_level</strong></dt>
+<dd><tt>The&nbsp;current&nbsp;decision&nbsp;level.</tt></dd>
+</dl>
+<dl><dt><strong>has_conflict</strong></dt>
+<dd><tt>True&nbsp;if&nbsp;the&nbsp;assignment&nbsp;is&nbsp;conflicting.</tt></dd>
+</dl>
+<dl><dt><strong>is_total</strong></dt>
+<dd><tt>Wheather&nbsp;the&nbsp;assignment&nbsp;is&nbsp;total.</tt></dd>
+</dl>
+<dl><dt><strong>max_size</strong></dt>
+<dd><tt>The&nbsp;maximum&nbsp;size&nbsp;of&nbsp;the&nbsp;assignment&nbsp;(if&nbsp;all&nbsp;literals&nbsp;are&nbsp;assigned).</tt></dd>
+</dl>
+<dl><dt><strong>size</strong></dt>
+<dd><tt>The&nbsp;number&nbsp;of&nbsp;assigned&nbsp;literals.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Backend">class <strong>Backend</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Backend">Backend</a>&nbsp;object&nbsp;providing&nbsp;a&nbsp;low&nbsp;level&nbsp;interface&nbsp;to&nbsp;extend&nbsp;a&nbsp;logic&nbsp;program.<br>
+&nbsp;<br>
+This&nbsp;class&nbsp;provides&nbsp;an&nbsp;interface&nbsp;that&nbsp;allows&nbsp;for&nbsp;adding&nbsp;statements&nbsp;in&nbsp;ASPIF<br>
+format.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Backend-__enter__"><strong>__enter__</strong></a>(...)</dt><dd><tt><a href="#Backend-__enter__">__enter__</a>(self)&nbsp;-&gt;&nbsp;<a href="#Backend">Backend</a><br>
+&nbsp;<br>
+Initialize&nbsp;the&nbsp;backend.<br>
+&nbsp;<br>
+Must&nbsp;be&nbsp;called&nbsp;before&nbsp;using&nbsp;the&nbsp;backend.</tt></dd></dl>
+
+<dl><dt><a name="Backend-__exit__"><strong>__exit__</strong></a>(...)</dt><dd><tt><a href="#Backend-__exit__">__exit__</a>(self,&nbsp;type,&nbsp;value,&nbsp;traceback)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;<br>
+Finalize&nbsp;the&nbsp;backend.<br>
+&nbsp;<br>
+Follows&nbsp;python&nbsp;__exit__&nbsp;conventions.&nbsp;Does&nbsp;not&nbsp;suppress&nbsp;exceptions.</tt></dd></dl>
+
+<dl><dt><a name="Backend-add_atom"><strong>add_atom</strong></a>(...)</dt><dd><tt><a href="#Backend-add_atom">add_atom</a>(self,&nbsp;symbol)&nbsp;-&gt;&nbsp;Int<br>
+&nbsp;<br>
+Return&nbsp;a&nbsp;fresh&nbsp;program&nbsp;atom&nbsp;or&nbsp;the&nbsp;atom&nbsp;associated&nbsp;with&nbsp;the&nbsp;given&nbsp;symbol.<br>
+&nbsp;<br>
+If&nbsp;the&nbsp;given&nbsp;symbol&nbsp;does&nbsp;not&nbsp;exist&nbsp;in&nbsp;the&nbsp;atom&nbsp;base,&nbsp;it&nbsp;is&nbsp;added&nbsp;first.&nbsp;Such<br>
+atoms&nbsp;will&nbsp;be&nbsp;used&nbsp;in&nbsp;susequents&nbsp;calls&nbsp;to&nbsp;ground&nbsp;for&nbsp;instantiation.<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+symbol&nbsp;--&nbsp;optional&nbsp;symbol&nbsp;(Default:&nbsp;None)</tt></dd></dl>
+
+<dl><dt><a name="Backend-add_external"><strong>add_external</strong></a>(...)</dt><dd><tt><a href="#Backend-add_atom">add_atom</a>(self,&nbsp;atom,&nbsp;value)&nbsp;-&gt;&nbsp;Int<br>
+&nbsp;<br>
+Mark&nbsp;an&nbsp;atom&nbsp;as&nbsp;external&nbsp;optionally&nbsp;fixing&nbsp;its&nbsp;truth&nbsp;value.<br>
+&nbsp;<br>
+Can&nbsp;also&nbsp;be&nbsp;used&nbsp;to&nbsp;unmark&nbsp;an&nbsp;external&nbsp;atom.<br>
+&nbsp;<br>
+Arguments:<br>
+atom&nbsp;--&nbsp;the&nbsp;atom&nbsp;to&nbsp;mark&nbsp;as&nbsp;external<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+value&nbsp;--&nbsp;optional&nbsp;truth&nbsp;value&nbsp;(Default:&nbsp;<a href="#TruthValue">TruthValue</a>._False)</tt></dd></dl>
+
+<dl><dt><a name="Backend-add_minimize"><strong>add_minimize</strong></a>(...)</dt><dd><tt><a href="#Backend-add_minimize">add_minimize</a>(self,&nbsp;priority,&nbsp;literals)&nbsp;-&gt;&nbsp;None<br>
+Add&nbsp;a&nbsp;minimize&nbsp;constraint&nbsp;to&nbsp;the&nbsp;program.<br>
+&nbsp;<br>
+Arguments:<br>
+priority&nbsp;--&nbsp;integer&nbsp;for&nbsp;the&nbsp;priority<br>
+literals&nbsp;--&nbsp;list&nbsp;of&nbsp;pairs&nbsp;of&nbsp;program&nbsp;literals&nbsp;and&nbsp;weights</tt></dd></dl>
+
+<dl><dt><a name="Backend-add_rule"><strong>add_rule</strong></a>(...)</dt><dd><tt><a href="#Backend-add_rule">add_rule</a>(self,&nbsp;head,&nbsp;body,&nbsp;choice)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Add&nbsp;a&nbsp;disjuntive&nbsp;or&nbsp;choice&nbsp;rule&nbsp;to&nbsp;the&nbsp;program.<br>
+&nbsp;<br>
+Arguments:<br>
+head&nbsp;--&nbsp;list&nbsp;of&nbsp;program&nbsp;atoms<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+body&nbsp;&nbsp;&nbsp;--&nbsp;list&nbsp;of&nbsp;program&nbsp;literals&nbsp;(Default:&nbsp;[])<br>
+choice&nbsp;--&nbsp;whether&nbsp;to&nbsp;add&nbsp;a&nbsp;disjunctive&nbsp;or&nbsp;choice&nbsp;rule&nbsp;(Default:&nbsp;False)<br>
+&nbsp;<br>
+Integrity&nbsp;constraints&nbsp;and&nbsp;normal&nbsp;rules&nbsp;can&nbsp;be&nbsp;added&nbsp;by&nbsp;using&nbsp;an&nbsp;empty&nbsp;or<br>
+singleton&nbsp;head&nbsp;list,&nbsp;respectively.</tt></dd></dl>
+
+<dl><dt><a name="Backend-add_weight_rule"><strong>add_weight_rule</strong></a>(...)</dt><dd><tt><a href="#Backend-add_weight_rule">add_weight_rule</a>(self,&nbsp;head,&nbsp;lower,&nbsp;body,&nbsp;choice)&nbsp;-&gt;&nbsp;None<br>
+Add&nbsp;a&nbsp;disjuntive&nbsp;or&nbsp;choice&nbsp;rule&nbsp;with&nbsp;one&nbsp;weight&nbsp;constraint&nbsp;with&nbsp;a&nbsp;lower&nbsp;bound<br>
+in&nbsp;the&nbsp;body&nbsp;to&nbsp;the&nbsp;program.<br>
+&nbsp;<br>
+Arguments:<br>
+head&nbsp;&nbsp;--&nbsp;list&nbsp;of&nbsp;program&nbsp;atoms<br>
+lower&nbsp;--&nbsp;integer&nbsp;for&nbsp;the&nbsp;lower&nbsp;bound<br>
+body&nbsp;&nbsp;--&nbsp;list&nbsp;of&nbsp;pairs&nbsp;of&nbsp;program&nbsp;literals&nbsp;and&nbsp;weights<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+choice&nbsp;--&nbsp;whether&nbsp;to&nbsp;add&nbsp;a&nbsp;disjunctive&nbsp;or&nbsp;choice&nbsp;rule&nbsp;(Default:&nbsp;False)</tt></dd></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Configuration">class <strong>Configuration</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Allows&nbsp;for&nbsp;changing&nbsp;the&nbsp;configuration&nbsp;of&nbsp;the&nbsp;underlying&nbsp;solver.<br>
+&nbsp;<br>
+Options&nbsp;are&nbsp;organized&nbsp;hierarchically.&nbsp;To&nbsp;change&nbsp;and&nbsp;inspect&nbsp;an&nbsp;option&nbsp;use:<br>
+&nbsp;<br>
+&nbsp;&nbsp;config.group.subgroup.option&nbsp;=&nbsp;"value"<br>
+&nbsp;&nbsp;value&nbsp;=&nbsp;config.group.subgroup.option<br>
+&nbsp;<br>
+There&nbsp;are&nbsp;also&nbsp;arrays&nbsp;of&nbsp;option&nbsp;groups&nbsp;that&nbsp;can&nbsp;be&nbsp;accessed&nbsp;using&nbsp;integer<br>
+indices:<br>
+&nbsp;<br>
+&nbsp;&nbsp;config.group.subgroup[0].option&nbsp;=&nbsp;"value1"<br>
+&nbsp;&nbsp;config.group.subgroup[1].option&nbsp;=&nbsp;"value2"<br>
+&nbsp;<br>
+To&nbsp;list&nbsp;the&nbsp;subgroups&nbsp;of&nbsp;an&nbsp;option&nbsp;group,&nbsp;use&nbsp;the&nbsp;keys&nbsp;member.&nbsp;Array&nbsp;option<br>
+groups,&nbsp;like&nbsp;solver,&nbsp;have&nbsp;a&nbsp;non-negative&nbsp;length&nbsp;and&nbsp;can&nbsp;be&nbsp;iterated.<br>
+Furthermore,&nbsp;there&nbsp;are&nbsp;meta&nbsp;options&nbsp;having&nbsp;key&nbsp;"configuration".&nbsp;Assigning&nbsp;a<br>
+meta&nbsp;option&nbsp;sets&nbsp;a&nbsp;number&nbsp;of&nbsp;related&nbsp;options.&nbsp;&nbsp;To&nbsp;get&nbsp;further&nbsp;information&nbsp;about<br>
+an&nbsp;option&nbsp;or&nbsp;option&nbsp;group&nbsp;&lt;opt&gt;,&nbsp;use&nbsp;property&nbsp;__desc_&lt;opt&gt;&nbsp;to&nbsp;retrieve&nbsp;a<br>
+description.<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+#script&nbsp;(python)<br>
+import&nbsp;clingo<br>
+&nbsp;<br>
+def&nbsp;main(prg):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.configuration.solve.models&nbsp;=&nbsp;0<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.ground([("base",&nbsp;[])])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.solve()<br>
+&nbsp;<br>
+#end.<br>
+&nbsp;<br>
+{a;&nbsp;c}.<br>
+&nbsp;<br>
+Expected&nbsp;Answer&nbsp;Sets:<br>
+&nbsp;<br>
+{&nbsp;{},&nbsp;{a},&nbsp;{c},&nbsp;{a,c}&nbsp;}<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Configuration-__delattr__"><strong>__delattr__</strong></a>(...)</dt><dd><tt>x.<a href="#Configuration-__delattr__">__delattr__</a>('name')&nbsp;&lt;==&gt;&nbsp;del&nbsp;x.name</tt></dd></dl>
+
+<dl><dt><a name="Configuration-__getattribute__"><strong>__getattribute__</strong></a>(...)</dt><dd><tt>x.<a href="#Configuration-__getattribute__">__getattribute__</a>('name')&nbsp;&lt;==&gt;&nbsp;x.name</tt></dd></dl>
+
+<dl><dt><a name="Configuration-__getitem__"><strong>__getitem__</strong></a>(...)</dt><dd><tt>x.<a href="#Configuration-__getitem__">__getitem__</a>(y)&nbsp;&lt;==&gt;&nbsp;x[y]</tt></dd></dl>
+
+<dl><dt><a name="Configuration-__len__"><strong>__len__</strong></a>(...)</dt><dd><tt>x.<a href="#Configuration-__len__">__len__</a>()&nbsp;&lt;==&gt;&nbsp;len(x)</tt></dd></dl>
+
+<dl><dt><a name="Configuration-__setattr__"><strong>__setattr__</strong></a>(...)</dt><dd><tt>x.<a href="#Configuration-__setattr__">__setattr__</a>('name',&nbsp;value)&nbsp;&lt;==&gt;&nbsp;x.name&nbsp;=&nbsp;value</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>keys</strong></dt>
+<dd><tt>The&nbsp;list&nbsp;of&nbsp;names&nbsp;of&nbsp;sub-option&nbsp;groups&nbsp;or&nbsp;options.<br>
+&nbsp;<br>
+The&nbsp;list&nbsp;is&nbsp;None&nbsp;if&nbsp;the&nbsp;current&nbsp;object&nbsp;is&nbsp;not&nbsp;an&nbsp;option&nbsp;group.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Control">class <strong>Control</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Control">Control</a>(arguments)&nbsp;-&gt;&nbsp;<a href="#Control">Control</a><br>
+&nbsp;<br>
+<a href="#Control">Control</a>&nbsp;object&nbsp;for&nbsp;the&nbsp;grounding/solving&nbsp;process.<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+arguments&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;arguments&nbsp;to&nbsp;the&nbsp;grounder&nbsp;and&nbsp;solver&nbsp;(default:&nbsp;[]).<br>
+logger&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;function&nbsp;to&nbsp;intercept&nbsp;messages&nbsp;normally&nbsp;printed&nbsp;to&nbsp;standard<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;error&nbsp;(default:&nbsp;None)<br>
+message_limit&nbsp;--&nbsp;maximum&nbsp;number&nbsp;of&nbsp;messages&nbsp;passed&nbsp;to&nbsp;the&nbsp;logger&nbsp;(default:&nbsp;20)<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;only&nbsp;gringo&nbsp;options&nbsp;(without&nbsp;--text)&nbsp;and&nbsp;clasp's&nbsp;search&nbsp;options&nbsp;are<br>
+supported.&nbsp;Furthermore,&nbsp;a&nbsp;<a href="#Control">Control</a>&nbsp;object&nbsp;is&nbsp;blocked&nbsp;while&nbsp;a&nbsp;search&nbsp;call&nbsp;is<br>
+active;&nbsp;you&nbsp;must&nbsp;not&nbsp;call&nbsp;any&nbsp;member&nbsp;function&nbsp;during&nbsp;search.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Control-__init__"><strong>__init__</strong></a>(...)</dt><dd><tt>x.<a href="#Control-__init__">__init__</a>(...)&nbsp;initializes&nbsp;x;&nbsp;see&nbsp;help(type(x))&nbsp;for&nbsp;signature</tt></dd></dl>
+
+<dl><dt><a name="Control-add"><strong>add</strong></a>(...)</dt><dd><tt><a href="#Control-add">add</a>(self,&nbsp;name,&nbsp;params,&nbsp;program)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Extend&nbsp;the&nbsp;logic&nbsp;program&nbsp;with&nbsp;the&nbsp;given&nbsp;non-ground&nbsp;logic&nbsp;program&nbsp;in&nbsp;string&nbsp;form.<br>
+&nbsp;<br>
+Arguments:<br>
+name&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;name&nbsp;of&nbsp;program&nbsp;block&nbsp;to&nbsp;add<br>
+params&nbsp;&nbsp;--&nbsp;parameters&nbsp;of&nbsp;program&nbsp;block<br>
+program&nbsp;--&nbsp;non-ground&nbsp;program&nbsp;as&nbsp;string<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+#script&nbsp;(python)<br>
+import&nbsp;clingo<br>
+&nbsp;<br>
+def&nbsp;main(prg):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-add">add</a>("p",&nbsp;["t"],&nbsp;"q(t).")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-ground">ground</a>([("p",&nbsp;[2])])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-solve">solve</a>()<br>
+&nbsp;<br>
+#end.<br>
+&nbsp;<br>
+Expected&nbsp;Answer&nbsp;Set:<br>
+q(2)</tt></dd></dl>
+
+<dl><dt><a name="Control-assign_external"><strong>assign_external</strong></a>(...)</dt><dd><tt><a href="#Control-assign_external">assign_external</a>(self,&nbsp;external,&nbsp;truth)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Assign&nbsp;a&nbsp;truth&nbsp;value&nbsp;to&nbsp;an&nbsp;external&nbsp;atom&nbsp;(represented&nbsp;as&nbsp;a&nbsp;function&nbsp;symbol&nbsp;or<br>
+program&nbsp;literal).<br>
+&nbsp;<br>
+It&nbsp;is&nbsp;possible&nbsp;to&nbsp;assign&nbsp;a&nbsp;Boolean&nbsp;or&nbsp;None.&nbsp;&nbsp;A&nbsp;Boolean&nbsp;fixes&nbsp;the&nbsp;external&nbsp;to&nbsp;the<br>
+respective&nbsp;truth&nbsp;value;&nbsp;and&nbsp;None&nbsp;leaves&nbsp;its&nbsp;truth&nbsp;value&nbsp;open.<br>
+&nbsp;<br>
+The&nbsp;truth&nbsp;value&nbsp;of&nbsp;an&nbsp;external&nbsp;atom&nbsp;can&nbsp;be&nbsp;changed&nbsp;before&nbsp;each&nbsp;solve&nbsp;call.&nbsp;An<br>
+atom&nbsp;is&nbsp;treated&nbsp;as&nbsp;external&nbsp;if&nbsp;it&nbsp;has&nbsp;been&nbsp;declared&nbsp;using&nbsp;an&nbsp;#external<br>
+directive,&nbsp;and&nbsp;has&nbsp;not&nbsp;been&nbsp;forgotten&nbsp;by&nbsp;calling&nbsp;<a href="#Control-release_external">release_external</a>()&nbsp;or&nbsp;defined<br>
+in&nbsp;a&nbsp;logic&nbsp;program&nbsp;with&nbsp;some&nbsp;rule.&nbsp;If&nbsp;the&nbsp;given&nbsp;atom&nbsp;is&nbsp;not&nbsp;external,&nbsp;then&nbsp;the<br>
+function&nbsp;has&nbsp;no&nbsp;effect.<br>
+&nbsp;<br>
+For&nbsp;convenience,&nbsp;the&nbsp;truth&nbsp;assigned&nbsp;to&nbsp;atoms&nbsp;over&nbsp;negative&nbsp;program&nbsp;literals&nbsp;is<br>
+inverted.<br>
+&nbsp;<br>
+Arguments:<br>
+external&nbsp;--&nbsp;symbol&nbsp;or&nbsp;program&nbsp;literal&nbsp;representing&nbsp;the&nbsp;external&nbsp;atom<br>
+truth&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;bool&nbsp;or&nbsp;None&nbsp;indicating&nbsp;the&nbsp;truth&nbsp;value<br>
+&nbsp;<br>
+To&nbsp;determine&nbsp;whether&nbsp;an&nbsp;atom&nbsp;a&nbsp;is&nbsp;external,&nbsp;inspect&nbsp;the&nbsp;symbolic_atoms&nbsp;using<br>
+<a href="#SolveControl">SolveControl</a>.symbolic_atoms[a].is_external.&nbsp;See&nbsp;<a href="#Control-release_external">release_external</a>()&nbsp;for&nbsp;an<br>
+example.</tt></dd></dl>
+
+<dl><dt><a name="Control-backend"><strong>backend</strong></a>(...)</dt><dd><tt><a href="#Control-backend">backend</a>()&nbsp;-&gt;&nbsp;<a href="#Backend">Backend</a><br>
+&nbsp;<br>
+Returns&nbsp;a&nbsp;<a href="#Backend">Backend</a>&nbsp;object&nbsp;providing&nbsp;a&nbsp;low&nbsp;level&nbsp;interface&nbsp;to&nbsp;extend&nbsp;a&nbsp;logic&nbsp;program.</tt></dd></dl>
+
+<dl><dt><a name="Control-builder"><strong>builder</strong></a>(...)</dt><dd><tt><a href="#Control-builder">builder</a>(self)&nbsp;-&gt;&nbsp;<a href="#ProgramBuilder">ProgramBuilder</a><br>
+&nbsp;<br>
+Return&nbsp;a&nbsp;builder&nbsp;to&nbsp;construct&nbsp;non-ground&nbsp;logic&nbsp;programs.<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+#script&nbsp;(python)<br>
+&nbsp;<br>
+import&nbsp;clingo<br>
+&nbsp;<br>
+def&nbsp;main(prg):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;"a."<br>
+&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;prg.<a href="#Control-builder">builder</a>()&nbsp;as&nbsp;b:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;clingo.<a href="#-parse_program">parse_program</a>(s,&nbsp;lambda&nbsp;stm:&nbsp;b.<a href="#Control-add">add</a>(stm))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-ground">ground</a>([("base",&nbsp;[])])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-solve">solve</a>()<br>
+&nbsp;<br>
+#end.</tt></dd></dl>
+
+<dl><dt><a name="Control-cleanup"><strong>cleanup</strong></a>(...)</dt><dd><tt><a href="#Control-cleanup">cleanup</a>(self)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Cleanup&nbsp;the&nbsp;domain&nbsp;used&nbsp;for&nbsp;grounding&nbsp;by&nbsp;incorporating&nbsp;information&nbsp;from&nbsp;the<br>
+solver.<br>
+&nbsp;<br>
+This&nbsp;function&nbsp;cleans&nbsp;up&nbsp;the&nbsp;domain&nbsp;used&nbsp;for&nbsp;grounding.&nbsp;&nbsp;This&nbsp;is&nbsp;done&nbsp;by&nbsp;first<br>
+simplifying&nbsp;the&nbsp;current&nbsp;program&nbsp;representation&nbsp;(falsifying&nbsp;released&nbsp;external<br>
+atoms).&nbsp;&nbsp;Afterwards,&nbsp;the&nbsp;top-level&nbsp;implications&nbsp;are&nbsp;used&nbsp;to&nbsp;either&nbsp;remove&nbsp;atoms<br>
+from&nbsp;the&nbsp;domain&nbsp;or&nbsp;mark&nbsp;them&nbsp;as&nbsp;facts.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;any&nbsp;atoms&nbsp;falsified&nbsp;are&nbsp;completely&nbsp;removed&nbsp;from&nbsp;the&nbsp;logic&nbsp;program.<br>
+Hence,&nbsp;a&nbsp;definition&nbsp;for&nbsp;such&nbsp;an&nbsp;atom&nbsp;in&nbsp;a&nbsp;successive&nbsp;step&nbsp;introduces&nbsp;a&nbsp;fresh&nbsp;atom.</tt></dd></dl>
+
+<dl><dt><a name="Control-get_const"><strong>get_const</strong></a>(...)</dt><dd><tt><a href="#Control-get_const">get_const</a>(self,&nbsp;name)&nbsp;-&gt;&nbsp;<a href="#Symbol">Symbol</a><br>
+&nbsp;<br>
+Return&nbsp;the&nbsp;symbol&nbsp;for&nbsp;a&nbsp;constant&nbsp;definition&nbsp;of&nbsp;form:&nbsp;#const&nbsp;name&nbsp;=&nbsp;symbol.</tt></dd></dl>
+
+<dl><dt><a name="Control-ground"><strong>ground</strong></a>(...)</dt><dd><tt><a href="#Control-ground">ground</a>(self,&nbsp;parts,&nbsp;context)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Ground&nbsp;the&nbsp;given&nbsp;list&nbsp;of&nbsp;program&nbsp;parts&nbsp;specified&nbsp;by&nbsp;tuples&nbsp;of&nbsp;names&nbsp;and&nbsp;arguments.<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+parts&nbsp;&nbsp;&nbsp;--&nbsp;list&nbsp;of&nbsp;tuples&nbsp;of&nbsp;program&nbsp;names&nbsp;and&nbsp;program&nbsp;arguments&nbsp;to&nbsp;ground<br>
+context&nbsp;--&nbsp;context&nbsp;object&nbsp;whose&nbsp;methods&nbsp;are&nbsp;called&nbsp;during&nbsp;grounding&nbsp;using<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;@-syntax&nbsp;(if&nbsp;omitted&nbsp;methods&nbsp;from&nbsp;the&nbsp;main&nbsp;module&nbsp;are&nbsp;used)<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;parts&nbsp;of&nbsp;a&nbsp;logic&nbsp;program&nbsp;without&nbsp;an&nbsp;explicit&nbsp;#program&nbsp;specification<br>
+are&nbsp;by&nbsp;default&nbsp;put&nbsp;into&nbsp;a&nbsp;program&nbsp;called&nbsp;base&nbsp;without&nbsp;arguments.<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+#script&nbsp;(python)<br>
+import&nbsp;clingo<br>
+&nbsp;<br>
+def&nbsp;main(prg):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;parts&nbsp;=&nbsp;[]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;parts.append(("p",&nbsp;[1]))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;parts.append(("p",&nbsp;[2]))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-ground">ground</a>(parts)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-solve">solve</a>()<br>
+&nbsp;<br>
+#end.<br>
+&nbsp;<br>
+#program&nbsp;p(t).<br>
+q(t).<br>
+&nbsp;<br>
+Expected&nbsp;Answer&nbsp;Set:<br>
+q(1)&nbsp;q(2)</tt></dd></dl>
+
+<dl><dt><a name="Control-interrupt"><strong>interrupt</strong></a>(...)</dt><dd><tt><a href="#Control-interrupt">interrupt</a>(self)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Interrupt&nbsp;the&nbsp;active&nbsp;solve&nbsp;call.<br>
+&nbsp;<br>
+This&nbsp;function&nbsp;is&nbsp;thread-safe&nbsp;and&nbsp;can&nbsp;be&nbsp;called&nbsp;from&nbsp;a&nbsp;signal&nbsp;handler.&nbsp;If&nbsp;no<br>
+search&nbsp;is&nbsp;active&nbsp;the&nbsp;subsequent&nbsp;call&nbsp;to&nbsp;<a href="#Control-solve">solve</a>()&nbsp;is&nbsp;interrupted.&nbsp;The&nbsp;<a href="#SolveResult">SolveResult</a><br>
+of&nbsp;the&nbsp;above&nbsp;solving&nbsp;methods&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;query&nbsp;if&nbsp;the&nbsp;search&nbsp;was<br>
+interrupted.</tt></dd></dl>
+
+<dl><dt><a name="Control-load"><strong>load</strong></a>(...)</dt><dd><tt><a href="#Control-load">load</a>(self,&nbsp;path)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Extend&nbsp;the&nbsp;logic&nbsp;program&nbsp;with&nbsp;a&nbsp;(non-ground)&nbsp;logic&nbsp;program&nbsp;in&nbsp;a&nbsp;file.<br>
+&nbsp;<br>
+Arguments:<br>
+path&nbsp;--&nbsp;path&nbsp;to&nbsp;program</tt></dd></dl>
+
+<dl><dt><a name="Control-register_observer"><strong>register_observer</strong></a>(...)</dt><dd><tt><a href="#Control-register_observer">register_observer</a>(self,&nbsp;observer,&nbsp;replace)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Registers&nbsp;the&nbsp;given&nbsp;observer&nbsp;to&nbsp;inspect&nbsp;the&nbsp;produced&nbsp;grounding.<br>
+&nbsp;<br>
+Arguments:<br>
+observer&nbsp;--&nbsp;the&nbsp;observer&nbsp;to&nbsp;register<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+replace&nbsp;&nbsp;--&nbsp;if&nbsp;set&nbsp;to&nbsp;true,&nbsp;the&nbsp;output&nbsp;is&nbsp;just&nbsp;passed&nbsp;to&nbsp;the&nbsp;observer&nbsp;and&nbsp;no<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;longer&nbsp;to&nbsp;the&nbsp;underlying&nbsp;solver<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;False)<br>
+&nbsp;<br>
+An&nbsp;observer&nbsp;should&nbsp;be&nbsp;a&nbsp;class&nbsp;of&nbsp;the&nbsp;form&nbsp;below.&nbsp;Not&nbsp;all&nbsp;functions&nbsp;have&nbsp;to&nbsp;be<br>
+implemented&nbsp;and&nbsp;can&nbsp;be&nbsp;omitted&nbsp;if&nbsp;not&nbsp;needed.<br>
+&nbsp;<br>
+class&nbsp;GroundProgramObserver:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;init_program(self,&nbsp;incremental)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Called&nbsp;once&nbsp;in&nbsp;the&nbsp;beginning.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;the&nbsp;incremental&nbsp;flag&nbsp;is&nbsp;true,&nbsp;there&nbsp;can&nbsp;be&nbsp;multiple&nbsp;calls&nbsp;to<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Control">Control</a>.<a href="#Control-solve">solve</a>().<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;incremental&nbsp;--&nbsp;whether&nbsp;the&nbsp;program&nbsp;is&nbsp;incremental<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;begin_step(self)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Marks&nbsp;the&nbsp;beginning&nbsp;of&nbsp;a&nbsp;block&nbsp;of&nbsp;directives&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;rule(self,&nbsp;choice,&nbsp;head,&nbsp;body)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;rules&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;choice&nbsp;--&nbsp;determines&nbsp;if&nbsp;the&nbsp;head&nbsp;is&nbsp;a&nbsp;choice&nbsp;or&nbsp;a&nbsp;disjunction<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;head&nbsp;&nbsp;&nbsp;--&nbsp;list&nbsp;of&nbsp;program&nbsp;atoms<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;body&nbsp;&nbsp;&nbsp;--&nbsp;list&nbsp;of&nbsp;program&nbsp;literals<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;weight_rule(self,&nbsp;choice,&nbsp;head,&nbsp;lower_bound,&nbsp;body)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;weight&nbsp;rules&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;choice&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;determines&nbsp;if&nbsp;the&nbsp;head&nbsp;is&nbsp;a&nbsp;choice&nbsp;or&nbsp;a&nbsp;disjunction<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;head&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;list&nbsp;of&nbsp;program&nbsp;atoms<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lower_bound&nbsp;--&nbsp;the&nbsp;lower&nbsp;bound&nbsp;of&nbsp;the&nbsp;weight&nbsp;rule<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;body&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;list&nbsp;of&nbsp;weighted&nbsp;literals&nbsp;(pairs&nbsp;of&nbsp;literal&nbsp;and&nbsp;weight)<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;minimize(self,&nbsp;priority,&nbsp;literals)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;minimize&nbsp;constraints&nbsp;(or&nbsp;weak&nbsp;constraints)&nbsp;passed&nbsp;to&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;priority&nbsp;--&nbsp;the&nbsp;priority&nbsp;of&nbsp;the&nbsp;constraint<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;literals&nbsp;--&nbsp;list&nbsp;of&nbsp;weighted&nbsp;literals&nbsp;whose&nbsp;sum&nbsp;to&nbsp;minimize<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(pairs&nbsp;of&nbsp;literal&nbsp;and&nbsp;weight)<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;project(self,&nbsp;atoms)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;projection&nbsp;directives&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;atoms&nbsp;--&nbsp;the&nbsp;program&nbsp;atoms&nbsp;to&nbsp;project&nbsp;on<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;output_atom(self,&nbsp;symbol,&nbsp;atom)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;shown&nbsp;atoms&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.&nbsp;&nbsp;Facts&nbsp;do&nbsp;not&nbsp;have&nbsp;an<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;associated&nbsp;program&nbsp;atom.&nbsp;&nbsp;The&nbsp;value&nbsp;of&nbsp;the&nbsp;atom&nbsp;is&nbsp;set&nbsp;to&nbsp;zero.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;symbol&nbsp;--&nbsp;the&nbsp;symbolic&nbsp;representation&nbsp;of&nbsp;the&nbsp;atom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;atom&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;program&nbsp;atom&nbsp;(0&nbsp;for&nbsp;facts)<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;output_term(self,&nbsp;symbol,&nbsp;condition)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;shown&nbsp;terms&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;symbol&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;symbolic&nbsp;representation&nbsp;of&nbsp;the&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;condition&nbsp;--&nbsp;list&nbsp;of&nbsp;program&nbsp;literals<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;output_csp(self,&nbsp;symbol,&nbsp;value,&nbsp;condition)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;shown&nbsp;csp&nbsp;variables&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;symbol&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;symbolic&nbsp;representation&nbsp;of&nbsp;the&nbsp;variable<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;integer&nbsp;value&nbsp;of&nbsp;the&nbsp;variable<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;condition&nbsp;--&nbsp;list&nbsp;of&nbsp;program&nbsp;literals<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;external(self,&nbsp;atom,&nbsp;value)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;external&nbsp;statements&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;atom&nbsp;&nbsp;--&nbsp;the&nbsp;external&nbsp;atom&nbsp;in&nbsp;form&nbsp;of&nbsp;a&nbsp;literal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value&nbsp;--&nbsp;the&nbsp;<a href="#TruthValue">TruthValue</a>&nbsp;of&nbsp;the&nbsp;external&nbsp;statement<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;assume(self,&nbsp;literals)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;assumption&nbsp;directives&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;literals&nbsp;--&nbsp;the&nbsp;program&nbsp;literals&nbsp;to&nbsp;assume&nbsp;(positive&nbsp;literals&nbsp;are&nbsp;true<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;and&nbsp;negative&nbsp;literals&nbsp;false&nbsp;for&nbsp;the&nbsp;next&nbsp;solve&nbsp;call)<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;heuristic(self,&nbsp;atom,&nbsp;type,&nbsp;bias,&nbsp;priority,&nbsp;condition)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;heuristic&nbsp;directives&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;atom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;target&nbsp;atom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;type&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;<a href="#HeuristicType">HeuristicType</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bias&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;heuristic&nbsp;bias<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;priority&nbsp;&nbsp;--&nbsp;the&nbsp;heuristic&nbsp;priority<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;condition&nbsp;--&nbsp;list&nbsp;of&nbsp;program&nbsp;literals<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;acyc_edge(self,&nbsp;node_u,&nbsp;node_v,&nbsp;condition)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;edge&nbsp;directives&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;node_u&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;start&nbsp;vertex&nbsp;of&nbsp;the&nbsp;edge&nbsp;(in&nbsp;form&nbsp;of&nbsp;an&nbsp;integer)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;node_v&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;end&nbsp;vertex&nbsp;of&nbsp;the&nbsp;edge&nbsp;(in&nbsp;form&nbsp;of&nbsp;an&nbsp;integer)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;condition&nbsp;--&nbsp;list&nbsp;of&nbsp;program&nbsp;literals<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;theory_term_number(self,&nbsp;term_id,&nbsp;number)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;numeric&nbsp;theory&nbsp;terms.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;term_id&nbsp;--&nbsp;the&nbsp;id&nbsp;of&nbsp;the&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;number&nbsp;&nbsp;--&nbsp;the&nbsp;(integer)&nbsp;value&nbsp;of&nbsp;the&nbsp;term<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;theory_term_string(self,&nbsp;term_id,&nbsp;name)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;string&nbsp;theory&nbsp;terms.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;term_id&nbsp;--&nbsp;the&nbsp;id&nbsp;of&nbsp;the&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;string&nbsp;value&nbsp;of&nbsp;the&nbsp;term<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;theory_term_compound(self,&nbsp;term_id,&nbsp;name_id_or_type,&nbsp;arguments)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;compound&nbsp;theory&nbsp;terms.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name_id_or_type&nbsp;gives&nbsp;the&nbsp;type&nbsp;of&nbsp;the&nbsp;compound&nbsp;term:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;if&nbsp;it&nbsp;is&nbsp;-1,&nbsp;then&nbsp;it&nbsp;is&nbsp;a&nbsp;tuple<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;if&nbsp;it&nbsp;is&nbsp;-2,&nbsp;then&nbsp;it&nbsp;is&nbsp;a&nbsp;set<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;if&nbsp;it&nbsp;is&nbsp;-3,&nbsp;then&nbsp;it&nbsp;is&nbsp;a&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;otherwise,&nbsp;it&nbsp;is&nbsp;a&nbsp;function&nbsp;and&nbsp;name_id_or_type&nbsp;refers&nbsp;to&nbsp;the&nbsp;id&nbsp;of<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;name&nbsp;(in&nbsp;form&nbsp;of&nbsp;a&nbsp;string&nbsp;term)<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;term_id&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;id&nbsp;of&nbsp;the&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name_id_or_type&nbsp;--&nbsp;the&nbsp;name&nbsp;or&nbsp;type&nbsp;of&nbsp;the&nbsp;term<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;arguments&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;arguments&nbsp;of&nbsp;the&nbsp;term<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;theory_element(self,&nbsp;element_id,&nbsp;terms,&nbsp;condition)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;theory&nbsp;elements.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;element_id&nbsp;--&nbsp;the&nbsp;id&nbsp;of&nbsp;the&nbsp;element<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;terms&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;term&nbsp;tuple&nbsp;of&nbsp;the&nbsp;element<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;condition&nbsp;&nbsp;--&nbsp;list&nbsp;of&nbsp;program&nbsp;literals<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;theory_atom(self,&nbsp;atom_id_or_zero,&nbsp;term_id,&nbsp;elements)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;theory&nbsp;atoms&nbsp;without&nbsp;guard.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;atom_id_or_zero&nbsp;--&nbsp;the&nbsp;id&nbsp;of&nbsp;the&nbsp;atom&nbsp;or&nbsp;zero&nbsp;for&nbsp;directives<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;term_id&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;term&nbsp;associated&nbsp;with&nbsp;the&nbsp;atom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;elements&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;list&nbsp;of&nbsp;elements&nbsp;of&nbsp;the&nbsp;atom<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;theory_atom_with_guard(self,&nbsp;atom_id_or_zero,&nbsp;term_id,&nbsp;elements,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;operator_id,&nbsp;right_hand_side_id)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observe&nbsp;theory&nbsp;atoms&nbsp;with&nbsp;guard.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;atom_id_or_zero&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;id&nbsp;of&nbsp;the&nbsp;atom&nbsp;or&nbsp;zero&nbsp;for&nbsp;directives<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;term_id&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;term&nbsp;associated&nbsp;with&nbsp;the&nbsp;atom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;elements&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;elements&nbsp;of&nbsp;the&nbsp;atom<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;operator_id&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;id&nbsp;of&nbsp;the&nbsp;operator&nbsp;(a&nbsp;string&nbsp;term)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;right_hand_side_id&nbsp;--&nbsp;the&nbsp;id&nbsp;of&nbsp;the&nbsp;term&nbsp;on&nbsp;the&nbsp;right&nbsp;hand&nbsp;side&nbsp;of&nbsp;the&nbsp;atom<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;end_step(self)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Marks&nbsp;the&nbsp;end&nbsp;of&nbsp;a&nbsp;block&nbsp;of&nbsp;directives&nbsp;passed&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This&nbsp;function&nbsp;is&nbsp;called&nbsp;right&nbsp;before&nbsp;solving&nbsp;starts.</tt></dd></dl>
+
+<dl><dt><a name="Control-register_propagator"><strong>register_propagator</strong></a>(...)</dt><dd><tt><a href="#Control-register_propagator">register_propagator</a>(self,&nbsp;propagator)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Registers&nbsp;the&nbsp;given&nbsp;propagator&nbsp;with&nbsp;all&nbsp;solvers.<br>
+&nbsp;<br>
+Arguments:<br>
+propagator&nbsp;--&nbsp;the&nbsp;propagator&nbsp;to&nbsp;register<br>
+&nbsp;<br>
+A&nbsp;propagator&nbsp;should&nbsp;be&nbsp;a&nbsp;class&nbsp;of&nbsp;the&nbsp;form&nbsp;below.&nbsp;Not&nbsp;all&nbsp;functions&nbsp;have&nbsp;to&nbsp;be<br>
+implemented&nbsp;and&nbsp;can&nbsp;be&nbsp;omitted&nbsp;if&nbsp;not&nbsp;needed.<br>
+&nbsp;<br>
+class&nbsp;Propagator(object)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;init(self,&nbsp;init)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This&nbsp;function&nbsp;is&nbsp;called&nbsp;once&nbsp;before&nbsp;each&nbsp;solving&nbsp;step.&nbsp;&nbsp;It&nbsp;is&nbsp;used&nbsp;to<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;map&nbsp;relevant&nbsp;program&nbsp;literals&nbsp;to&nbsp;solver&nbsp;literals,&nbsp;add&nbsp;watches&nbsp;for<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;solver&nbsp;literals,&nbsp;and&nbsp;initialize&nbsp;the&nbsp;data&nbsp;structures&nbsp;used&nbsp;during<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;propagation.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;init&nbsp;--&nbsp;<a href="#PropagateInit">PropagateInit</a>&nbsp;object<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Note&nbsp;that&nbsp;this&nbsp;is&nbsp;the&nbsp;last&nbsp;point&nbsp;to&nbsp;access&nbsp;theory&nbsp;atoms.&nbsp;&nbsp;Once&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;search&nbsp;has&nbsp;started,&nbsp;they&nbsp;are&nbsp;no&nbsp;longer&nbsp;accessible.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;propagate(self,&nbsp;control,&nbsp;changes)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Can&nbsp;be&nbsp;used&nbsp;to&nbsp;propagate&nbsp;solver&nbsp;literals&nbsp;given&nbsp;a&nbsp;partial&nbsp;assignment.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;control&nbsp;--&nbsp;<a href="#PropagateControl">PropagateControl</a>&nbsp;object<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;changes&nbsp;--&nbsp;list&nbsp;of&nbsp;watched&nbsp;solver&nbsp;literals&nbsp;assigned&nbsp;to&nbsp;true<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Usage:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Called&nbsp;during&nbsp;propagation&nbsp;with&nbsp;a&nbsp;non-empty&nbsp;list&nbsp;of&nbsp;watched&nbsp;solver<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;literals&nbsp;that&nbsp;have&nbsp;been&nbsp;assigned&nbsp;to&nbsp;true&nbsp;since&nbsp;the&nbsp;last&nbsp;call&nbsp;to&nbsp;either<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;propagate,&nbsp;undo,&nbsp;(or&nbsp;the&nbsp;start&nbsp;of&nbsp;the&nbsp;search)&nbsp;-&nbsp;the&nbsp;change&nbsp;set.&nbsp;&nbsp;Only<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;watched&nbsp;solver&nbsp;literals&nbsp;are&nbsp;contained&nbsp;in&nbsp;the&nbsp;change&nbsp;set.&nbsp;&nbsp;Each&nbsp;literal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;in&nbsp;the&nbsp;change&nbsp;set&nbsp;is&nbsp;true&nbsp;w.r.t.&nbsp;the&nbsp;current&nbsp;<a href="#Assignment">Assignment</a>.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#PropagateControl">PropagateControl</a>.add_clause&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;add&nbsp;clauses.&nbsp;&nbsp;If&nbsp;a&nbsp;clause&nbsp;is<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unit&nbsp;resulting,&nbsp;it&nbsp;can&nbsp;be&nbsp;propagated&nbsp;using<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#PropagateControl">PropagateControl</a>.propagate().&nbsp;&nbsp;If&nbsp;either&nbsp;of&nbsp;the&nbsp;two&nbsp;methods&nbsp;returns<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False,&nbsp;the&nbsp;propagate&nbsp;function&nbsp;must&nbsp;return&nbsp;immediately.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;c&nbsp;=&nbsp;...<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;not&nbsp;control.add_clause(c)&nbsp;or&nbsp;not&nbsp;control.propagate(c):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Note&nbsp;that&nbsp;this&nbsp;function&nbsp;can&nbsp;be&nbsp;called&nbsp;from&nbsp;different&nbsp;solving&nbsp;threads.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Each&nbsp;thread&nbsp;has&nbsp;its&nbsp;own&nbsp;assignment&nbsp;and&nbsp;id,&nbsp;which&nbsp;can&nbsp;be&nbsp;obtained&nbsp;using<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#PropagateControl">PropagateControl</a>.id().<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;undo(self,&nbsp;thread_id,&nbsp;assign,&nbsp;changes)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Called&nbsp;whenever&nbsp;a&nbsp;solver&nbsp;with&nbsp;the&nbsp;given&nbsp;id&nbsp;undos&nbsp;assignments&nbsp;to&nbsp;watched<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;solver&nbsp;literals.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;thread_id&nbsp;--&nbsp;the&nbsp;solver&nbsp;thread&nbsp;id<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;changes&nbsp;&nbsp;&nbsp;--&nbsp;list&nbsp;of&nbsp;watched&nbsp;solver&nbsp;literals&nbsp;whose&nbsp;assignment&nbsp;is&nbsp;undone<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This&nbsp;function&nbsp;is&nbsp;meant&nbsp;to&nbsp;update&nbsp;assignment&nbsp;dependent&nbsp;state&nbsp;in&nbsp;a<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;propagator.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;check(self,&nbsp;control)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This&nbsp;function&nbsp;is&nbsp;similar&nbsp;to&nbsp;propagate&nbsp;but&nbsp;is&nbsp;called&nbsp;without&nbsp;a&nbsp;change<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;set&nbsp;on&nbsp;propagation&nbsp;fixpoints.&nbsp;&nbsp;When&nbsp;exactly&nbsp;this&nbsp;function&nbsp;is&nbsp;called,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;can&nbsp;be&nbsp;configured&nbsp;using&nbsp;the&nbsp;@ref&nbsp;<a href="#PropagateInit">PropagateInit</a>.check_mode&nbsp;property.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Note&nbsp;that&nbsp;this&nbsp;function&nbsp;is&nbsp;called&nbsp;even&nbsp;if&nbsp;no&nbsp;watches&nbsp;have&nbsp;been&nbsp;added.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;control&nbsp;--&nbsp;<a href="#PropagateControl">PropagateControl</a>&nbsp;object<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This&nbsp;function&nbsp;is&nbsp;called&nbsp;even&nbsp;if&nbsp;no&nbsp;watches&nbsp;have&nbsp;been&nbsp;added.</tt></dd></dl>
+
+<dl><dt><a name="Control-release_external"><strong>release_external</strong></a>(...)</dt><dd><tt><a href="#Control-release_external">release_external</a>(self,&nbsp;symbol)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Release&nbsp;an&nbsp;external&nbsp;atom&nbsp;represented&nbsp;by&nbsp;the&nbsp;given&nbsp;symbol&nbsp;or&nbsp;program&nbsp;literal.<br>
+&nbsp;<br>
+This&nbsp;function&nbsp;causes&nbsp;the&nbsp;corresponding&nbsp;atom&nbsp;to&nbsp;become&nbsp;permanently&nbsp;false&nbsp;if<br>
+there&nbsp;is&nbsp;no&nbsp;definition&nbsp;for&nbsp;the&nbsp;atom&nbsp;in&nbsp;the&nbsp;program.&nbsp;Otherwise,&nbsp;the&nbsp;function&nbsp;has<br>
+no&nbsp;effect.<br>
+&nbsp;<br>
+If&nbsp;the&nbsp;program&nbsp;literal&nbsp;is&nbsp;negative,&nbsp;the&nbsp;corresponding&nbsp;atom&nbsp;is&nbsp;released.<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+#script&nbsp;(python)<br>
+from&nbsp;clingo&nbsp;import&nbsp;function<br>
+&nbsp;<br>
+def&nbsp;main(prg):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-ground">ground</a>([("base",&nbsp;[])])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-assign_external">assign_external</a>(<a href="#-Function">Function</a>("b"),&nbsp;True)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-solve">solve</a>()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-release_external">release_external</a>(<a href="#-Function">Function</a>("b"))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-solve">solve</a>()<br>
+&nbsp;<br>
+#end.<br>
+&nbsp;<br>
+a.<br>
+#external&nbsp;b.<br>
+&nbsp;<br>
+Expected&nbsp;Answer&nbsp;Sets:<br>
+a&nbsp;b<br>
+a</tt></dd></dl>
+
+<dl><dt><a name="Control-solve"><strong>solve</strong></a>(...)</dt><dd><tt><a href="#Control-solve">solve</a>(self,&nbsp;assumptions,&nbsp;on_model,&nbsp;on_finish,&nbsp;yield_,&nbsp;async)&nbsp;-&gt;&nbsp;<a href="#SolveHandle">SolveHandle</a>|<a href="#SolveResult">SolveResult</a><br>
+&nbsp;<br>
+Starts&nbsp;a&nbsp;search.<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+on_model&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;Optional&nbsp;callback&nbsp;for&nbsp;intercepting&nbsp;models.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;<a href="#Model">Model</a>&nbsp;object&nbsp;is&nbsp;passed&nbsp;to&nbsp;the&nbsp;callback.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;None)<br>
+on_statistics&nbsp;--&nbsp;Optional&nbsp;callback&nbsp;to&nbsp;update&nbsp;statistics.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;step&nbsp;and&nbsp;accumulated&nbsp;statistics&nbsp;are&nbsp;passed&nbsp;as&nbsp;arguments.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;None)<br>
+on_finish&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;Optional&nbsp;callback&nbsp;called&nbsp;once&nbsp;search&nbsp;has&nbsp;finished.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;<a href="#SolveResult">SolveResult</a>&nbsp;and&nbsp;a&nbsp;Boolean&nbsp;indicating&nbsp;whether&nbsp;the&nbsp;solve&nbsp;call<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;has&nbsp;been&nbsp;canceled&nbsp;is&nbsp;passed&nbsp;to&nbsp;the&nbsp;callback.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;None)<br>
+assumptions&nbsp;&nbsp;&nbsp;--&nbsp;List&nbsp;of&nbsp;(atom,&nbsp;boolean)&nbsp;tuples&nbsp;or&nbsp;program&nbsp;literals&nbsp;that&nbsp;serve<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;as&nbsp;assumptions&nbsp;for&nbsp;the&nbsp;solve&nbsp;call,&nbsp;e.g.&nbsp;-&nbsp;solving&nbsp;under<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assumptions&nbsp;[(<a href="#-Function">Function</a>("a"),&nbsp;True)]&nbsp;only&nbsp;admits&nbsp;answer&nbsp;sets<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;that&nbsp;contain&nbsp;atom&nbsp;a.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;[])<br>
+yield_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;The&nbsp;resulting&nbsp;<a href="#SolveHandle">SolveHandle</a>&nbsp;is&nbsp;iterable&nbsp;yielding&nbsp;<a href="#Model">Model</a>&nbsp;objects.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;False)<br>
+async&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;The&nbsp;solve&nbsp;call&nbsp;and&nbsp;<a href="#SolveHandle">SolveHandle</a>.resume()&nbsp;are&nbsp;non-blocking.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;False)<br>
+&nbsp;<br>
+If&nbsp;neither&nbsp;yield_&nbsp;nor&nbsp;async&nbsp;is&nbsp;set,&nbsp;the&nbsp;function&nbsp;returns&nbsp;a&nbsp;<a href="#SolveResult">SolveResult</a>&nbsp;right<br>
+away.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;in&nbsp;gringo&nbsp;or&nbsp;in&nbsp;clingo&nbsp;with&nbsp;lparse&nbsp;or&nbsp;text&nbsp;output&nbsp;enabled&nbsp;this<br>
+function&nbsp;just&nbsp;grounds&nbsp;and&nbsp;returns&nbsp;a&nbsp;<a href="#SolveResult">SolveResult</a>&nbsp;where&nbsp;<a href="#SolveResult">SolveResult</a>.satisfiable<br>
+is&nbsp;True.<br>
+&nbsp;<br>
+You&nbsp;might&nbsp;want&nbsp;to&nbsp;start&nbsp;clingo&nbsp;using&nbsp;the&nbsp;--outf=3&nbsp;option&nbsp;to&nbsp;disable&nbsp;all&nbsp;output<br>
+from&nbsp;clingo.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;asynchronous&nbsp;solving&nbsp;is&nbsp;only&nbsp;available&nbsp;in&nbsp;clingo&nbsp;with&nbsp;thread&nbsp;support<br>
+enabled.&nbsp;Furthermore,&nbsp;the&nbsp;on_model&nbsp;and&nbsp;on_finish&nbsp;callbacks&nbsp;are&nbsp;called&nbsp;from<br>
+another&nbsp;thread.&nbsp;&nbsp;To&nbsp;ensure&nbsp;that&nbsp;the&nbsp;methods&nbsp;can&nbsp;be&nbsp;called,&nbsp;make&nbsp;sure&nbsp;to&nbsp;not&nbsp;use<br>
+any&nbsp;functions&nbsp;that&nbsp;block&nbsp;the&nbsp;GIL&nbsp;indefinitely.<br>
+&nbsp;<br>
+This&nbsp;function&nbsp;as&nbsp;well&nbsp;as&nbsp;blocking&nbsp;functions&nbsp;on&nbsp;the&nbsp;<a href="#SolveHandle">SolveHandle</a>&nbsp;release&nbsp;the&nbsp;GIL<br>
+but&nbsp;are&nbsp;not&nbsp;thread-safe.<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+#script&nbsp;(python)<br>
+import&nbsp;clingo<br>
+&nbsp;<br>
+def&nbsp;main(prg):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-add">add</a>("p",&nbsp;[],&nbsp;"{a;b;c}.")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-ground">ground</a>([("p",&nbsp;[])])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;ret&nbsp;=&nbsp;prg.<a href="#Control-solve">solve</a>()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;print(ret)<br>
+&nbsp;<br>
+#end.<br>
+&nbsp;<br>
+Yielding&nbsp;Example:<br>
+&nbsp;<br>
+#script&nbsp;(python)<br>
+import&nbsp;clingo<br>
+&nbsp;<br>
+def&nbsp;main(prg):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-add">add</a>("p",&nbsp;[],&nbsp;"{a;b;c}.")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-ground">ground</a>([("p",&nbsp;[])])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;prg.<a href="#Control-solve">solve</a>(yield_=True)&nbsp;as&nbsp;handle:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;m&nbsp;in&nbsp;handle:&nbsp;print&nbsp;m<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print(handle.get())<br>
+&nbsp;<br>
+#end.<br>
+&nbsp;<br>
+Asynchronous&nbsp;Example:<br>
+&nbsp;<br>
+#script&nbsp;(python)<br>
+import&nbsp;clingo<br>
+&nbsp;<br>
+def&nbsp;on_model(model):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;print&nbsp;model<br>
+&nbsp;<br>
+def&nbsp;on_finish(res,&nbsp;canceled):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;print&nbsp;res,&nbsp;canceled<br>
+&nbsp;<br>
+def&nbsp;main(prg):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-add">add</a>("p",&nbsp;[],&nbsp;"{a;b;c}.")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.<a href="#Control-ground">ground</a>([("base",&nbsp;[])])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;prg.<a href="#Control-solve">solve</a>(on_model=on_model,&nbsp;on_finish=on_finish,&nbsp;async=True)&nbsp;as&nbsp;handle:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;not&nbsp;handle.wait(0):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;do&nbsp;something&nbsp;asynchronously<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print(handle.get())<br>
+&nbsp;<br>
+#end.</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>configuration</strong></dt>
+<dd><tt>Configuration&nbsp;object&nbsp;to&nbsp;change&nbsp;the&nbsp;configuration.</tt></dd>
+</dl>
+<dl><dt><strong>is_conflicting</strong></dt>
+<dd><tt>Whether&nbsp;the&nbsp;internal&nbsp;program&nbsp;representation&nbsp;is&nbsp;conflicting.<br>
+&nbsp;<br>
+If&nbsp;this&nbsp;(read-only)&nbsp;property&nbsp;is&nbsp;true,&nbsp;solve&nbsp;calls&nbsp;return&nbsp;immediately&nbsp;with&nbsp;an<br>
+unsatisfiable&nbsp;solve&nbsp;result.&nbsp;&nbsp;Note&nbsp;that&nbsp;conflicts&nbsp;first&nbsp;have&nbsp;to&nbsp;be&nbsp;detected,<br>
+e.g.&nbsp;-&nbsp;initial&nbsp;unit&nbsp;propagation&nbsp;results&nbsp;in&nbsp;an&nbsp;empty&nbsp;clause,&nbsp;or&nbsp;later&nbsp;if&nbsp;an<br>
+empty&nbsp;clause&nbsp;is&nbsp;resolved&nbsp;during&nbsp;solving.&nbsp;&nbsp;Hence,&nbsp;the&nbsp;property&nbsp;might&nbsp;be&nbsp;false<br>
+even&nbsp;if&nbsp;the&nbsp;problem&nbsp;is&nbsp;unsatisfiable.</tt></dd>
+</dl>
+<dl><dt><strong>statistics</strong></dt>
+<dd><tt>A&nbsp;dictionary&nbsp;containing&nbsp;solve&nbsp;statistics&nbsp;of&nbsp;the&nbsp;last&nbsp;solve&nbsp;call.<br>
+&nbsp;<br>
+Contains&nbsp;the&nbsp;statistics&nbsp;of&nbsp;the&nbsp;last&nbsp;solve()&nbsp;call.&nbsp;The&nbsp;statistics&nbsp;correspond&nbsp;to<br>
+the&nbsp;--stats&nbsp;output&nbsp;of&nbsp;clingo.&nbsp;&nbsp;The&nbsp;detail&nbsp;of&nbsp;the&nbsp;statistics&nbsp;depends&nbsp;on&nbsp;what<br>
+level&nbsp;is&nbsp;requested&nbsp;on&nbsp;the&nbsp;command&nbsp;line.&nbsp;Furthermore,&nbsp;you&nbsp;might&nbsp;want&nbsp;to&nbsp;start<br>
+clingo&nbsp;using&nbsp;the&nbsp;--outf=3&nbsp;option&nbsp;to&nbsp;disable&nbsp;all&nbsp;output&nbsp;from&nbsp;clingo.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;this&nbsp;(read-only)&nbsp;property&nbsp;is&nbsp;only&nbsp;available&nbsp;in&nbsp;clingo.<br>
+&nbsp;<br>
+Example:<br>
+import&nbsp;json<br>
+json.dumps(prg.statistics,&nbsp;sort_keys=True,&nbsp;indent=4,&nbsp;separators=(',',&nbsp;':&nbsp;'))</tt></dd>
+</dl>
+<dl><dt><strong>symbolic_atoms</strong></dt>
+<dd><tt>SymbolicAtoms&nbsp;object&nbsp;to&nbsp;inspect&nbsp;the&nbsp;symbolic&nbsp;atoms.</tt></dd>
+</dl>
+<dl><dt><strong>theory_atoms</strong></dt>
+<dd><tt>A&nbsp;TheoryAtomIter&nbsp;object,&nbsp;which&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;iterate&nbsp;over&nbsp;the&nbsp;theory&nbsp;atoms.</tt></dd>
+</dl>
+<dl><dt><strong>use_enumeration_assumption</strong></dt>
+<dd><tt>Boolean&nbsp;determining&nbsp;how&nbsp;learnt&nbsp;information&nbsp;from&nbsp;enumeration&nbsp;modes&nbsp;is&nbsp;treated.<br>
+&nbsp;<br>
+If&nbsp;the&nbsp;enumeration&nbsp;assumption&nbsp;is&nbsp;enabled,&nbsp;then&nbsp;all&nbsp;information&nbsp;learnt&nbsp;from<br>
+clasp's&nbsp;various&nbsp;enumeration&nbsp;modes&nbsp;is&nbsp;removed&nbsp;after&nbsp;a&nbsp;solve&nbsp;call.&nbsp;This&nbsp;includes<br>
+enumeration&nbsp;of&nbsp;cautious&nbsp;or&nbsp;brave&nbsp;consequences,&nbsp;enumeration&nbsp;of&nbsp;answer&nbsp;sets&nbsp;with<br>
+or&nbsp;without&nbsp;projection,&nbsp;or&nbsp;finding&nbsp;optimal&nbsp;models;&nbsp;as&nbsp;well&nbsp;as&nbsp;clauses/nogoods<br>
+added&nbsp;with&nbsp;Model.add_clause()/Model.add_nogood().<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;initially&nbsp;the&nbsp;enumeration&nbsp;assumption&nbsp;is&nbsp;enabled.</tt></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>__new__</strong> = &lt;built-in method __new__ of type object&gt;<dd><tt>T.<a href="#Control-__new__">__new__</a>(S,&nbsp;...)&nbsp;-&gt;&nbsp;a&nbsp;new&nbsp;object&nbsp;with&nbsp;type&nbsp;S,&nbsp;a&nbsp;subtype&nbsp;of&nbsp;T</tt></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Flag">class <strong>Flag</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Helper&nbsp;object&nbsp;to&nbsp;parse&nbsp;flags.<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+value&nbsp;--&nbsp;initial&nbsp;value&nbsp;of&nbsp;the&nbsp;flag<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Flag-__init__"><strong>__init__</strong></a>(...)</dt><dd><tt>x.<a href="#Flag-__init__">__init__</a>(...)&nbsp;initializes&nbsp;x;&nbsp;see&nbsp;help(type(x))&nbsp;for&nbsp;signature</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>value</strong></dt>
+<dd><tt>The&nbsp;value&nbsp;of&nbsp;the&nbsp;flag.</tt></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>__new__</strong> = &lt;built-in method __new__ of type object&gt;<dd><tt>T.<a href="#Flag-__new__">__new__</a>(S,&nbsp;...)&nbsp;-&gt;&nbsp;a&nbsp;new&nbsp;object&nbsp;with&nbsp;type&nbsp;S,&nbsp;a&nbsp;subtype&nbsp;of&nbsp;T</tt></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="HeuristicType">class <strong>HeuristicType</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;the&nbsp;different&nbsp;heuristic&nbsp;types.<br>
+&nbsp;<br>
+<a href="#HeuristicType">HeuristicType</a>&nbsp;objects&nbsp;cannot&nbsp;be&nbsp;constructed&nbsp;from&nbsp;python.&nbsp;Instead&nbsp;the&nbsp;following<br>
+preconstructed&nbsp;objects&nbsp;are&nbsp;available:<br>
+&nbsp;<br>
+<a href="#HeuristicType">HeuristicType</a>.True&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;truth&nbsp;value&nbsp;true<br>
+<a href="#HeuristicType">HeuristicType</a>.False&nbsp;&nbsp;&nbsp;--&nbsp;truth&nbsp;value&nbsp;false<br>
+<a href="#HeuristicType">HeuristicType</a>.Free&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;no&nbsp;truth&nbsp;value<br>
+<a href="#HeuristicType">HeuristicType</a>.Release&nbsp;--&nbsp;indicates&nbsp;that&nbsp;an&nbsp;atom&nbsp;is&nbsp;to&nbsp;be&nbsp;released<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="HeuristicType-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#HeuristicType-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="HeuristicType-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#HeuristicType-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="HeuristicType-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#HeuristicType-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="HeuristicType-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#HeuristicType-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="HeuristicType-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#HeuristicType-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="HeuristicType-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#HeuristicType-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="HeuristicType-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#HeuristicType-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="HeuristicType-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#HeuristicType-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="HeuristicType-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#HeuristicType-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Factor</strong> = Factor</dl>
+
+<dl><dt><strong>False</strong> = False</dl>
+
+<dl><dt><strong>Init</strong> = Init</dl>
+
+<dl><dt><strong>Level</strong> = Level</dl>
+
+<dl><dt><strong>Sign</strong> = Sign</dl>
+
+<dl><dt><strong>True</strong> = True</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="MessageCode">class <strong>MessageCode</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;the&nbsp;different&nbsp;types&nbsp;of&nbsp;messages.<br>
+&nbsp;<br>
+<a href="#MessageCode">MessageCode</a>&nbsp;objects&nbsp;cannot&nbsp;be&nbsp;constructed&nbsp;from&nbsp;python.&nbsp;Instead&nbsp;the&nbsp;following<br>
+preconstructed&nbsp;objects&nbsp;are&nbsp;available:<br>
+&nbsp;<br>
+<a href="#MessageCode">MessageCode</a>.OperationUndefined&nbsp;--&nbsp;undefined&nbsp;arithmetic&nbsp;operation&nbsp;or&nbsp;weight&nbsp;of&nbsp;aggregate<br>
+<a href="#MessageCode">MessageCode</a>.RuntimeError&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;to&nbsp;report&nbsp;multiple&nbsp;errors;&nbsp;a&nbsp;corresponding&nbsp;runtime&nbsp;error&nbsp;is&nbsp;raised&nbsp;later<br>
+<a href="#MessageCode">MessageCode</a>.AtomUndefined&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;undefined&nbsp;atom&nbsp;in&nbsp;program<br>
+<a href="#MessageCode">MessageCode</a>.FileIncluded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;same&nbsp;file&nbsp;included&nbsp;multiple&nbsp;times<br>
+<a href="#MessageCode">MessageCode</a>.VariableUnbounded&nbsp;&nbsp;--&nbsp;CSP&nbsp;variable&nbsp;with&nbsp;unbounded&nbsp;domain<br>
+<a href="#MessageCode">MessageCode</a>.GlobalVariable&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;global&nbsp;variable&nbsp;in&nbsp;tuple&nbsp;of&nbsp;aggregate&nbsp;element<br>
+<a href="#MessageCode">MessageCode</a>.Other&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;other&nbsp;kinds&nbsp;of&nbsp;messages<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="MessageCode-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#MessageCode-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="MessageCode-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#MessageCode-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="MessageCode-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#MessageCode-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="MessageCode-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#MessageCode-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="MessageCode-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#MessageCode-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="MessageCode-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#MessageCode-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="MessageCode-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#MessageCode-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="MessageCode-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#MessageCode-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="MessageCode-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#MessageCode-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>AtomUndefined</strong> = AtomUndefined</dl>
+
+<dl><dt><strong>FileIncluded</strong> = FileIncluded</dl>
+
+<dl><dt><strong>GlobalVariable</strong> = GlobalVariable</dl>
+
+<dl><dt><strong>OperationUndefined</strong> = OperationUndefined</dl>
+
+<dl><dt><strong>Other</strong> = Other</dl>
+
+<dl><dt><strong>RuntimeError</strong> = RuntimeError</dl>
+
+<dl><dt><strong>VariableUnbounded</strong> = VariableUnbounded</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Model">class <strong>Model</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Provides&nbsp;access&nbsp;to&nbsp;a&nbsp;model&nbsp;during&nbsp;a&nbsp;solve&nbsp;call.<br>
+&nbsp;<br>
+The&nbsp;string&nbsp;representation&nbsp;of&nbsp;a&nbsp;model&nbsp;object&nbsp;is&nbsp;similar&nbsp;to&nbsp;the&nbsp;output&nbsp;of&nbsp;models<br>
+by&nbsp;clingo&nbsp;using&nbsp;the&nbsp;default&nbsp;output.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;model&nbsp;objects&nbsp;cannot&nbsp;be&nbsp;constructed&nbsp;from&nbsp;python.&nbsp;Instead&nbsp;they&nbsp;are<br>
+passed&nbsp;as&nbsp;argument&nbsp;to&nbsp;a&nbsp;model&nbsp;callback&nbsp;(see&nbsp;<a href="#Control">Control</a>.solve()).&nbsp;Furthermore,&nbsp;the<br>
+lifetime&nbsp;of&nbsp;a&nbsp;model&nbsp;object&nbsp;is&nbsp;limited&nbsp;to&nbsp;the&nbsp;scope&nbsp;of&nbsp;the&nbsp;callback.&nbsp;They&nbsp;must<br>
+not&nbsp;be&nbsp;stored&nbsp;for&nbsp;later&nbsp;use&nbsp;in&nbsp;other&nbsp;places&nbsp;like&nbsp;-&nbsp;e.g.,&nbsp;the&nbsp;main&nbsp;function.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Model-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#Model-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="Model-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#Model-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<dl><dt><a name="Model-contains"><strong>contains</strong></a>(...)</dt><dd><tt><a href="#Model-contains">contains</a>(self,&nbsp;atom)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;<br>
+Check&nbsp;if&nbsp;an&nbsp;atom&nbsp;is&nbsp;contained&nbsp;in&nbsp;the&nbsp;model.<br>
+&nbsp;<br>
+The&nbsp;atom&nbsp;must&nbsp;be&nbsp;represented&nbsp;using&nbsp;a&nbsp;function&nbsp;symbol.</tt></dd></dl>
+
+<dl><dt><a name="Model-extend"><strong>extend</strong></a>(...)</dt><dd><tt><a href="#Model-extend">extend</a>(self,&nbsp;symbols)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Extend&nbsp;a&nbsp;model&nbsp;with&nbsp;the&nbsp;given&nbsp;symbols.<br>
+&nbsp;<br>
+This&nbsp;only&nbsp;has&nbsp;an&nbsp;effect&nbsp;if&nbsp;there&nbsp;is&nbsp;an&nbsp;underlying&nbsp;clingo&nbsp;application,&nbsp;which<br>
+will&nbsp;print&nbsp;the&nbsp;added&nbsp;symbols.</tt></dd></dl>
+
+<dl><dt><a name="Model-is_true"><strong>is_true</strong></a>(...)</dt><dd><tt><a href="#Model-is_true">is_true</a>(self,&nbsp;a)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;<br>
+Check&nbsp;if&nbsp;the&nbsp;given&nbsp;program&nbsp;literal&nbsp;is&nbsp;true.</tt></dd></dl>
+
+<dl><dt><a name="Model-symbols"><strong>symbols</strong></a>(...)</dt><dd><tt><a href="#Model-symbols">symbols</a>(self,&nbsp;atoms,&nbsp;terms,&nbsp;shown,&nbsp;csp,&nbsp;complement)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&gt;&nbsp;list&nbsp;of&nbsp;terms<br>
+&nbsp;<br>
+Return&nbsp;the&nbsp;list&nbsp;of&nbsp;atoms,&nbsp;terms,&nbsp;or&nbsp;CSP&nbsp;assignments&nbsp;in&nbsp;the&nbsp;model.<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+atoms&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;select&nbsp;all&nbsp;atoms&nbsp;in&nbsp;the&nbsp;model&nbsp;(independent&nbsp;of&nbsp;#show&nbsp;statements)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;False)<br>
+terms&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;select&nbsp;all&nbsp;terms&nbsp;displayed&nbsp;with&nbsp;#show&nbsp;statements&nbsp;in&nbsp;the&nbsp;model<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;False)<br>
+shown&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;select&nbsp;all&nbsp;atoms&nbsp;and&nbsp;terms&nbsp;as&nbsp;outputted&nbsp;by&nbsp;clingo<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;False)<br>
+csp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;select&nbsp;all&nbsp;csp&nbsp;assignments&nbsp;(independent&nbsp;of&nbsp;#show&nbsp;statements)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;False)<br>
+complement&nbsp;--&nbsp;return&nbsp;the&nbsp;complement&nbsp;of&nbsp;the&nbsp;answer&nbsp;set&nbsp;w.r.t.&nbsp;to&nbsp;the&nbsp;Herbrand<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;base&nbsp;accumulated&nbsp;so&nbsp;far&nbsp;(does&nbsp;not&nbsp;affect&nbsp;csp&nbsp;assignments)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;False)<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;atoms&nbsp;are&nbsp;represented&nbsp;using&nbsp;functions&nbsp;(<a href="#Symbol">Symbol</a>&nbsp;objects),&nbsp;and&nbsp;that&nbsp;CSP<br>
+assignments&nbsp;are&nbsp;represented&nbsp;using&nbsp;functions&nbsp;with&nbsp;name&nbsp;"$"&nbsp;where&nbsp;the&nbsp;first<br>
+argument&nbsp;is&nbsp;the&nbsp;name&nbsp;of&nbsp;the&nbsp;CSP&nbsp;variable&nbsp;and&nbsp;the&nbsp;second&nbsp;its&nbsp;value.</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>context</strong></dt>
+<dd><tt>SolveControl&nbsp;object&nbsp;that&nbsp;allows&nbsp;for&nbsp;controlling&nbsp;the&nbsp;running&nbsp;search.</tt></dd>
+</dl>
+<dl><dt><strong>cost</strong></dt>
+<dd><tt>Return&nbsp;the&nbsp;list&nbsp;of&nbsp;integer&nbsp;cost&nbsp;values&nbsp;of&nbsp;the&nbsp;model.<br>
+&nbsp;<br>
+The&nbsp;return&nbsp;values&nbsp;correspond&nbsp;to&nbsp;clasp's&nbsp;cost&nbsp;output.</tt></dd>
+</dl>
+<dl><dt><strong>number</strong></dt>
+<dd><tt>The&nbsp;running&nbsp;number&nbsp;of&nbsp;the&nbsp;model.</tt></dd>
+</dl>
+<dl><dt><strong>optimality_proven</strong></dt>
+<dd><tt>Whether&nbsp;the&nbsp;optimality&nbsp;of&nbsp;the&nbsp;model&nbsp;has&nbsp;been&nbsp;proven.</tt></dd>
+</dl>
+<dl><dt><strong>thread_id</strong></dt>
+<dd><tt>The&nbsp;id&nbsp;of&nbsp;the&nbsp;thread&nbsp;which&nbsp;found&nbsp;the&nbsp;model.</tt></dd>
+</dl>
+<dl><dt><strong>type</strong></dt>
+<dd><tt>The&nbsp;type&nbsp;of&nbsp;the&nbsp;model.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="ModelType">class <strong>ModelType</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;the&nbsp;different&nbsp;types&nbsp;of&nbsp;models.<br>
+&nbsp;<br>
+<a href="#ModelType">ModelType</a>&nbsp;objects&nbsp;cannot&nbsp;be&nbsp;constructed&nbsp;from&nbsp;python.&nbsp;Instead&nbsp;the&nbsp;following<br>
+preconstructed&nbsp;objects&nbsp;are&nbsp;available:<br>
+&nbsp;<br>
+<a href="#SymbolType">SymbolType</a>.StableModel&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;a&nbsp;stable&nbsp;model<br>
+<a href="#SymbolType">SymbolType</a>.BraveConsequences&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;set&nbsp;of&nbsp;brave&nbsp;consequences<br>
+<a href="#SymbolType">SymbolType</a>.CautiousConsequences&nbsp;--&nbsp;set&nbsp;of&nbsp;cautious&nbsp;consequences<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="ModelType-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#ModelType-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="ModelType-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#ModelType-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="ModelType-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#ModelType-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="ModelType-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#ModelType-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="ModelType-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#ModelType-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="ModelType-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#ModelType-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="ModelType-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#ModelType-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="ModelType-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#ModelType-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="ModelType-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#ModelType-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>BraveConsequences</strong> = BraveConsequences</dl>
+
+<dl><dt><strong>CautiousConsequences</strong> = CautiousConsequences</dl>
+
+<dl><dt><strong>StableModel</strong> = StableModel</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="ProgramBuilder">class <strong>ProgramBuilder</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Object&nbsp;to&nbsp;build&nbsp;non-ground&nbsp;programs.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="ProgramBuilder-__enter__"><strong>__enter__</strong></a>(...)</dt><dd><tt><a href="#ProgramBuilder-__enter__">__enter__</a>(self)&nbsp;-&gt;&nbsp;<a href="#ProgramBuilder">ProgramBuilder</a><br>
+&nbsp;<br>
+Begin&nbsp;building&nbsp;a&nbsp;program.<br>
+&nbsp;<br>
+Must&nbsp;be&nbsp;called&nbsp;before&nbsp;adding&nbsp;statements.</tt></dd></dl>
+
+<dl><dt><a name="ProgramBuilder-__exit__"><strong>__exit__</strong></a>(...)</dt><dd><tt><a href="#ProgramBuilder-__exit__">__exit__</a>(self,&nbsp;type,&nbsp;value,&nbsp;traceback)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;<br>
+Finish&nbsp;building&nbsp;a&nbsp;program.<br>
+&nbsp;<br>
+Follows&nbsp;python&nbsp;__exit__&nbsp;conventions.&nbsp;Does&nbsp;not&nbsp;suppress&nbsp;exceptions.</tt></dd></dl>
+
+<dl><dt><a name="ProgramBuilder-add"><strong>add</strong></a>(...)</dt><dd><tt><a href="#ProgramBuilder-add">add</a>(self,&nbsp;statement)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Adds&nbsp;a&nbsp;statement&nbsp;in&nbsp;form&nbsp;of&nbsp;an&nbsp;ast.AST&nbsp;node&nbsp;to&nbsp;the&nbsp;program.</tt></dd></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="PropagateControl">class <strong>PropagateControl</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>This&nbsp;object&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;add&nbsp;clauses&nbsp;and&nbsp;propagate&nbsp;literals.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="PropagateControl-add_clause"><strong>add_clause</strong></a>(...)</dt><dd><tt><a href="#PropagateControl-add_clause">add_clause</a>(self,&nbsp;clause,&nbsp;tag,&nbsp;lock)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;<br>
+Add&nbsp;the&nbsp;given&nbsp;clause&nbsp;to&nbsp;the&nbsp;solver.<br>
+&nbsp;<br>
+This&nbsp;method&nbsp;returns&nbsp;False&nbsp;if&nbsp;the&nbsp;current&nbsp;propagation&nbsp;must&nbsp;be&nbsp;stopped.<br>
+&nbsp;<br>
+Arguments:<br>
+clause&nbsp;--&nbsp;sequence&nbsp;of&nbsp;solver&nbsp;literals<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+tag&nbsp;&nbsp;--&nbsp;clause&nbsp;applies&nbsp;only&nbsp;in&nbsp;the&nbsp;current&nbsp;solving&nbsp;step<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;False)<br>
+lock&nbsp;--&nbsp;exclude&nbsp;clause&nbsp;from&nbsp;the&nbsp;solver's&nbsp;regular&nbsp;clause&nbsp;deletion&nbsp;policy<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;False)</tt></dd></dl>
+
+<dl><dt><a name="PropagateControl-add_literal"><strong>add_literal</strong></a>(...)</dt><dd><tt><a href="#PropagateControl-add_literal">add_literal</a>(self)&nbsp;-&gt;&nbsp;int<br>
+&nbsp;<br>
+Adds&nbsp;a&nbsp;new&nbsp;positive&nbsp;volatile&nbsp;literal&nbsp;to&nbsp;the&nbsp;underlying&nbsp;solver&nbsp;thread.<br>
+&nbsp;<br>
+The&nbsp;literal&nbsp;is&nbsp;only&nbsp;valid&nbsp;within&nbsp;the&nbsp;current&nbsp;solving&nbsp;step&nbsp;and&nbsp;solver&nbsp;thread.<br>
+All&nbsp;volatile&nbsp;literals&nbsp;and&nbsp;clauses&nbsp;involving&nbsp;a&nbsp;volatile&nbsp;literal&nbsp;are&nbsp;deleted<br>
+after&nbsp;the&nbsp;current&nbsp;search.</tt></dd></dl>
+
+<dl><dt><a name="PropagateControl-add_nogood"><strong>add_nogood</strong></a>(...)</dt><dd><tt><a href="#PropagateControl-add_nogood">add_nogood</a>(self,&nbsp;clause,&nbsp;tag,&nbsp;lock)&nbsp;-&gt;&nbsp;bool<br>
+Equivalent&nbsp;to&nbsp;self.<a href="#PropagateControl-add_clause">add_clause</a>([-lit&nbsp;for&nbsp;lit&nbsp;in&nbsp;clause],&nbsp;tag,&nbsp;lock).</tt></dd></dl>
+
+<dl><dt><a name="PropagateControl-add_watch"><strong>add_watch</strong></a>(...)</dt><dd><tt><a href="#PropagateControl-add_watch">add_watch</a>(self,&nbsp;literal)&nbsp;-&gt;&nbsp;None<br>
+Add&nbsp;a&nbsp;watch&nbsp;for&nbsp;the&nbsp;solver&nbsp;literal&nbsp;in&nbsp;the&nbsp;given&nbsp;phase.<br>
+&nbsp;<br>
+Unlike&nbsp;<a href="#PropagateInit">PropagateInit</a>.<a href="#PropagateControl-add_watch">add_watch</a>()&nbsp;this&nbsp;does&nbsp;not&nbsp;add&nbsp;a&nbsp;watch&nbsp;to&nbsp;all&nbsp;solver<br>
+threads&nbsp;but&nbsp;just&nbsp;the&nbsp;current&nbsp;one.<br>
+&nbsp;<br>
+Arguments:<br>
+literal&nbsp;--&nbsp;the&nbsp;target&nbsp;literal</tt></dd></dl>
+
+<dl><dt><a name="PropagateControl-has_watch"><strong>has_watch</strong></a>(...)</dt><dd><tt><a href="#PropagateControl-has_watch">has_watch</a>(self,&nbsp;literal)&nbsp;-&gt;&nbsp;bool<br>
+Check&nbsp;whether&nbsp;a&nbsp;literal&nbsp;is&nbsp;watched&nbsp;in&nbsp;the&nbsp;current&nbsp;solver&nbsp;thread.<br>
+&nbsp;<br>
+Arguments:<br>
+literal&nbsp;--&nbsp;the&nbsp;target&nbsp;literal</tt></dd></dl>
+
+<dl><dt><a name="PropagateControl-propagate"><strong>propagate</strong></a>(...)</dt><dd><tt><a href="#PropagateControl-propagate">propagate</a>(self)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;<br>
+Propagate&nbsp;implied&nbsp;literals.</tt></dd></dl>
+
+<dl><dt><a name="PropagateControl-remove_watch"><strong>remove_watch</strong></a>(...)</dt><dd><tt><a href="#PropagateControl-remove_watch">remove_watch</a>(self,&nbsp;literal)&nbsp;-&gt;&nbsp;None<br>
+Removes&nbsp;the&nbsp;watch&nbsp;(if&nbsp;any)&nbsp;for&nbsp;the&nbsp;given&nbsp;solver&nbsp;literal.<br>
+&nbsp;<br>
+Similar&nbsp;to&nbsp;<a href="#PropagateInit">PropagateInit</a>.<a href="#PropagateControl-add_watch">add_watch</a>()&nbsp;this&nbsp;just&nbsp;removes&nbsp;the&nbsp;watch&nbsp;in&nbsp;the&nbsp;current<br>
+solver&nbsp;thread.<br>
+&nbsp;<br>
+Arguments:<br>
+literal&nbsp;--&nbsp;the&nbsp;target&nbsp;literal</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>assignment</strong></dt>
+<dd><tt>The&nbsp;partial&nbsp;assignment&nbsp;of&nbsp;the&nbsp;current&nbsp;solver&nbsp;thread.</tt></dd>
+</dl>
+<dl><dt><strong>thread_id</strong></dt>
+<dd><tt>The&nbsp;numeric&nbsp;id&nbsp;of&nbsp;the&nbsp;current&nbsp;solver&nbsp;thread.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="PropagateInit">class <strong>PropagateInit</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Object&nbsp;that&nbsp;is&nbsp;used&nbsp;to&nbsp;initialize&nbsp;a&nbsp;propagator&nbsp;before&nbsp;each&nbsp;solving&nbsp;step.<br>
+&nbsp;<br>
+Each&nbsp;symbolic&nbsp;or&nbsp;theory&nbsp;atom&nbsp;is&nbsp;uniquely&nbsp;associated&nbsp;with&nbsp;a&nbsp;positive&nbsp;program<br>
+atom&nbsp;in&nbsp;form&nbsp;of&nbsp;a&nbsp;positive&nbsp;integer.&nbsp;&nbsp;Program&nbsp;literals&nbsp;additionally&nbsp;have&nbsp;a&nbsp;sign<br>
+to&nbsp;represent&nbsp;default&nbsp;negation.&nbsp;&nbsp;Furthermore,&nbsp;there&nbsp;are&nbsp;non-zero&nbsp;integer&nbsp;solver<br>
+literals.&nbsp;&nbsp;There&nbsp;is&nbsp;a&nbsp;surjective&nbsp;mapping&nbsp;from&nbsp;program&nbsp;atoms&nbsp;to&nbsp;solver&nbsp;literals.<br>
+&nbsp;<br>
+All&nbsp;methods&nbsp;called&nbsp;during&nbsp;propagation&nbsp;use&nbsp;solver&nbsp;literals&nbsp;whereas<br>
+<a href="#SymbolicAtom">SymbolicAtom</a>.literal()&nbsp;and&nbsp;<a href="#TheoryAtom">TheoryAtom</a>.literal()&nbsp;return&nbsp;program&nbsp;literals.&nbsp;&nbsp;The<br>
+function&nbsp;<a href="#PropagateInit">PropagateInit</a>.<a href="#PropagateInit-solver_literal">solver_literal</a>()&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;map&nbsp;program&nbsp;literals&nbsp;or<br>
+condition&nbsp;ids&nbsp;to&nbsp;solver&nbsp;literals.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="PropagateInit-add_watch"><strong>add_watch</strong></a>(...)</dt><dd><tt><a href="#PropagateInit-add_watch">add_watch</a>(self,&nbsp;lit,&nbsp;thread_id)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Add&nbsp;a&nbsp;watch&nbsp;for&nbsp;the&nbsp;solver&nbsp;literal&nbsp;in&nbsp;the&nbsp;given&nbsp;phase.<br>
+&nbsp;<br>
+If&nbsp;the&nbsp;thread_id&nbsp;is&nbsp;None&nbsp;then&nbsp;all&nbsp;active&nbsp;threads&nbsp;will&nbsp;watch&nbsp;the&nbsp;literal.<br>
+&nbsp;<br>
+Arguments:<br>
+literal&nbsp;--&nbsp;the&nbsp;literal&nbsp;to&nbsp;watch<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+thread_id&nbsp;--&nbsp;id&nbsp;of&nbsp;the&nbsp;thread&nbsp;to&nbsp;watch&nbsp;the&nbsp;literal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;None)</tt></dd></dl>
+
+<dl><dt><a name="PropagateInit-solver_literal"><strong>solver_literal</strong></a>(...)</dt><dd><tt><a href="#PropagateInit-solver_literal">solver_literal</a>(self,&nbsp;lit)&nbsp;-&gt;&nbsp;int<br>
+&nbsp;<br>
+Map&nbsp;the&nbsp;given&nbsp;program&nbsp;literal&nbsp;or&nbsp;condition&nbsp;id&nbsp;to&nbsp;its&nbsp;solver&nbsp;literal.</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>assignment</strong></dt>
+<dd><tt>The&nbsp;top&nbsp;level&nbsp;assignment.</tt></dd>
+</dl>
+<dl><dt><strong>check_mode</strong></dt>
+<dd><tt>PropagatorCheckMode&nbsp;controlling&nbsp;when&nbsp;to&nbsp;call&nbsp;Propagator.check().</tt></dd>
+</dl>
+<dl><dt><strong>number_of_threads</strong></dt>
+<dd><tt>The&nbsp;number&nbsp;of&nbsp;solver&nbsp;threads&nbsp;used&nbsp;in&nbsp;the&nbsp;corresponding&nbsp;solve&nbsp;call.</tt></dd>
+</dl>
+<dl><dt><strong>symbolic_atoms</strong></dt>
+<dd><tt>The&nbsp;symbolic&nbsp;atoms&nbsp;captured&nbsp;by&nbsp;a&nbsp;SymbolicAtoms&nbsp;object.</tt></dd>
+</dl>
+<dl><dt><strong>theory_atoms</strong></dt>
+<dd><tt>A&nbsp;TheoryAtomIter&nbsp;object&nbsp;to&nbsp;iterate&nbsp;over&nbsp;all&nbsp;theory&nbsp;atoms.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="PropagatorCheckMode">class <strong>PropagatorCheckMode</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;supported&nbsp;check&nbsp;modes&nbsp;for&nbsp;propagators.<br>
+&nbsp;<br>
+<a href="#PropagatorCheckMode">PropagatorCheckMode</a>&nbsp;objects&nbsp;cannot&nbsp;be&nbsp;constructed&nbsp;from&nbsp;python.&nbsp;Instead&nbsp;the<br>
+following&nbsp;preconstructed&nbsp;objects&nbsp;are&nbsp;available:<br>
+&nbsp;<br>
+<a href="#PropagatorCheckMode">PropagatorCheckMode</a>.None&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;do&nbsp;not&nbsp;call&nbsp;Propagator.check()&nbsp;at&nbsp;all<br>
+<a href="#PropagatorCheckMode">PropagatorCheckMode</a>.Total&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;call&nbsp;Propagator.check()&nbsp;on&nbsp;total&nbsp;assignment<br>
+<a href="#PropagatorCheckMode">PropagatorCheckMode</a>.Fixpoint&nbsp;--&nbsp;call&nbsp;Propagator.check()&nbsp;on&nbsp;propagation&nbsp;fixpoints<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="PropagatorCheckMode-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#PropagatorCheckMode-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="PropagatorCheckMode-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#PropagatorCheckMode-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="PropagatorCheckMode-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#PropagatorCheckMode-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="PropagatorCheckMode-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#PropagatorCheckMode-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="PropagatorCheckMode-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#PropagatorCheckMode-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="PropagatorCheckMode-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#PropagatorCheckMode-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="PropagatorCheckMode-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#PropagatorCheckMode-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="PropagatorCheckMode-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#PropagatorCheckMode-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="PropagatorCheckMode-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#PropagatorCheckMode-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Fixpoint</strong> = Fixpoint</dl>
+
+<dl><dt><strong>Off</strong> = Off</dl>
+
+<dl><dt><strong>Total</strong> = Total</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="SolveControl">class <strong>SolveControl</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Object&nbsp;that&nbsp;allows&nbsp;for&nbsp;controlling&nbsp;a&nbsp;running&nbsp;search.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;<a href="#SolveControl">SolveControl</a>&nbsp;objects&nbsp;cannot&nbsp;be&nbsp;constructed&nbsp;from&nbsp;python.&nbsp;&nbsp;Instead<br>
+they&nbsp;are&nbsp;available&nbsp;as&nbsp;properties&nbsp;of&nbsp;<a href="#Model">Model</a>&nbsp;objects.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="SolveControl-add_clause"><strong>add_clause</strong></a>(...)</dt><dd><tt><a href="#SolveControl-add_clause">add_clause</a>(self,&nbsp;literals)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Add&nbsp;a&nbsp;clause&nbsp;that&nbsp;applies&nbsp;to&nbsp;the&nbsp;current&nbsp;solving&nbsp;step&nbsp;during&nbsp;the&nbsp;search.<br>
+&nbsp;<br>
+Arguments:<br>
+literals&nbsp;--&nbsp;list&nbsp;of&nbsp;literals&nbsp;either&nbsp;represented&nbsp;as&nbsp;pairs&nbsp;of&nbsp;symbolic&nbsp;atoms&nbsp;and<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Booleans&nbsp;or&nbsp;as&nbsp;program&nbsp;literals<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;this&nbsp;function&nbsp;can&nbsp;only&nbsp;be&nbsp;called&nbsp;in&nbsp;the&nbsp;model&nbsp;callback&nbsp;(or&nbsp;while<br>
+iterating&nbsp;when&nbsp;using&nbsp;a&nbsp;<a href="#SolveHandle">SolveHandle</a>).</tt></dd></dl>
+
+<dl><dt><a name="SolveControl-add_nogood"><strong>add_nogood</strong></a>(...)</dt><dd><tt><a href="#SolveControl-add_nogood">add_nogood</a>(self,&nbsp;literals)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Equivalent&nbsp;to&nbsp;add_clause&nbsp;with&nbsp;the&nbsp;literals&nbsp;inverted.<br>
+&nbsp;<br>
+Arguments:<br>
+literals&nbsp;--&nbsp;list&nbsp;of&nbsp;pairs&nbsp;of&nbsp;Booleans&nbsp;and&nbsp;atoms&nbsp;representing&nbsp;the&nbsp;nogood</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>symbolic_atoms</strong></dt>
+<dd><tt>The&nbsp;symbolic&nbsp;atoms&nbsp;captured&nbsp;by&nbsp;a&nbsp;SymbolicAtoms&nbsp;object.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="SolveHandle">class <strong>SolveHandle</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Handle&nbsp;for&nbsp;solve&nbsp;calls.<br>
+&nbsp;<br>
+<a href="#SolveHandle">SolveHandle</a>&nbsp;objects&nbsp;cannot&nbsp;be&nbsp;created&nbsp;from&nbsp;python.&nbsp;Instead&nbsp;they&nbsp;are&nbsp;returned&nbsp;by<br>
+<a href="#Control">Control</a>.solve.&nbsp;&nbsp;A&nbsp;<a href="#SolveHandle">SolveHandle</a>&nbsp;object&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;control&nbsp;solving,&nbsp;like,<br>
+retrieving&nbsp;models&nbsp;or&nbsp;cancelling&nbsp;a&nbsp;search.<br>
+&nbsp;<br>
+Blocking&nbsp;functions&nbsp;in&nbsp;this&nbsp;object&nbsp;release&nbsp;the&nbsp;GIL.&nbsp;They&nbsp;are&nbsp;not&nbsp;thread-safe&nbsp;though.<br>
+&nbsp;<br>
+See&nbsp;<a href="#Control">Control</a>.solve()&nbsp;for&nbsp;an&nbsp;example.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="SolveHandle-__enter__"><strong>__enter__</strong></a>(...)</dt><dd><tt><a href="#SolveHandle-__enter__">__enter__</a>(self)&nbsp;-&gt;&nbsp;<a href="#SolveHandle">SolveHandle</a><br>
+&nbsp;<br>
+Returns&nbsp;self.</tt></dd></dl>
+
+<dl><dt><a name="SolveHandle-__exit__"><strong>__exit__</strong></a>(...)</dt><dd><tt><a href="#SolveHandle-__exit__">__exit__</a>(self,&nbsp;type,&nbsp;value,&nbsp;traceback)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;<br>
+Follows&nbsp;python&nbsp;__exit__&nbsp;conventions.&nbsp;Does&nbsp;not&nbsp;suppress&nbsp;exceptions.<br>
+&nbsp;<br>
+Stops&nbsp;the&nbsp;current&nbsp;search.&nbsp;It&nbsp;is&nbsp;necessary&nbsp;to&nbsp;call&nbsp;this&nbsp;method&nbsp;after&nbsp;each<br>
+search.</tt></dd></dl>
+
+<dl><dt><a name="SolveHandle-__iter__"><strong>__iter__</strong></a>(...)</dt><dd><tt>x.<a href="#SolveHandle-__iter__">__iter__</a>()&nbsp;&lt;==&gt;&nbsp;iter(x)</tt></dd></dl>
+
+<dl><dt><a name="SolveHandle-cancel"><strong>cancel</strong></a>(...)</dt><dd><tt><a href="#SolveHandle-cancel">cancel</a>(self)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Cancel&nbsp;the&nbsp;running&nbsp;search.<br>
+&nbsp;<br>
+See&nbsp;<a href="#Control">Control</a>.interrupt()&nbsp;for&nbsp;a&nbsp;thread-safe&nbsp;alternative.</tt></dd></dl>
+
+<dl><dt><a name="SolveHandle-get"><strong>get</strong></a>(...)</dt><dd><tt><a href="#SolveHandle-get">get</a>(self)&nbsp;-&gt;&nbsp;<a href="#SolveResult">SolveResult</a><br>
+&nbsp;<br>
+Get&nbsp;the&nbsp;result&nbsp;of&nbsp;a&nbsp;solve&nbsp;call.<br>
+&nbsp;<br>
+If&nbsp;the&nbsp;search&nbsp;is&nbsp;not&nbsp;completed&nbsp;yet,&nbsp;the&nbsp;function&nbsp;blocks&nbsp;until&nbsp;the&nbsp;result&nbsp;is<br>
+ready.</tt></dd></dl>
+
+<dl><dt><a name="SolveHandle-next"><strong>next</strong></a>(...)</dt><dd><tt>x.<a href="#SolveHandle-next">next</a>()&nbsp;-&gt;&nbsp;the&nbsp;next&nbsp;value,&nbsp;or&nbsp;raise&nbsp;StopIteration</tt></dd></dl>
+
+<dl><dt><a name="SolveHandle-resume"><strong>resume</strong></a>(...)</dt><dd><tt><a href="#SolveHandle-resume">resume</a>(self)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Discards&nbsp;the&nbsp;last&nbsp;model&nbsp;and&nbsp;starts&nbsp;the&nbsp;search&nbsp;for&nbsp;the&nbsp;next&nbsp;one.<br>
+&nbsp;<br>
+If&nbsp;the&nbsp;search&nbsp;has&nbsp;been&nbsp;started&nbsp;asynchronously,&nbsp;this&nbsp;function&nbsp;also&nbsp;starts&nbsp;the<br>
+search&nbsp;in&nbsp;the&nbsp;background.&nbsp;&nbsp;A&nbsp;model&nbsp;that&nbsp;was&nbsp;not&nbsp;yet&nbsp;retrieved&nbsp;by&nbsp;calling&nbsp;__next__<br>
+is&nbsp;not&nbsp;discared.</tt></dd></dl>
+
+<dl><dt><a name="SolveHandle-wait"><strong>wait</strong></a>(...)</dt><dd><tt><a href="#SolveHandle-wait">wait</a>(self,&nbsp;timeout)&nbsp;-&gt;&nbsp;None&nbsp;or&nbsp;bool<br>
+&nbsp;<br>
+Wait&nbsp;for&nbsp;solve&nbsp;call&nbsp;to&nbsp;finish&nbsp;with&nbsp;an&nbsp;optional&nbsp;timeout.<br>
+&nbsp;<br>
+If&nbsp;a&nbsp;timeout&nbsp;is&nbsp;given,&nbsp;the&nbsp;function&nbsp;waits&nbsp;at&nbsp;most&nbsp;timeout&nbsp;seconds&nbsp;and&nbsp;returns&nbsp;a<br>
+Boolean&nbsp;indicating&nbsp;whether&nbsp;the&nbsp;search&nbsp;has&nbsp;finished.&nbsp;Otherwise,&nbsp;the&nbsp;function<br>
+blocks&nbsp;until&nbsp;the&nbsp;search&nbsp;is&nbsp;finished&nbsp;and&nbsp;returns&nbsp;nothing.<br>
+&nbsp;<br>
+Arguments:<br>
+timeout&nbsp;--&nbsp;optional&nbsp;timeout&nbsp;in&nbsp;seconds<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(permits&nbsp;floating&nbsp;point&nbsp;values)</tt></dd></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="SolveResult">class <strong>SolveResult</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Captures&nbsp;the&nbsp;result&nbsp;of&nbsp;a&nbsp;solve&nbsp;call.<br>
+&nbsp;<br>
+<a href="#SolveResult">SolveResult</a>&nbsp;objects&nbsp;cannot&nbsp;be&nbsp;constructed&nbsp;from&nbsp;python.&nbsp;Instead&nbsp;they<br>
+are&nbsp;returned&nbsp;by&nbsp;the&nbsp;solve&nbsp;methods&nbsp;of&nbsp;the&nbsp;<a href="#Control">Control</a>&nbsp;object.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="SolveResult-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#SolveResult-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="SolveResult-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#SolveResult-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>exhausted</strong></dt>
+<dd><tt>True&nbsp;if&nbsp;the&nbsp;search&nbsp;space&nbsp;was&nbsp;exhausted.</tt></dd>
+</dl>
+<dl><dt><strong>interrupted</strong></dt>
+<dd><tt>True&nbsp;if&nbsp;the&nbsp;search&nbsp;was&nbsp;interrupted.</tt></dd>
+</dl>
+<dl><dt><strong>satisfiable</strong></dt>
+<dd><tt>True&nbsp;if&nbsp;the&nbsp;problem&nbsp;is&nbsp;satisfiable,&nbsp;False&nbsp;if&nbsp;the&nbsp;problem&nbsp;is<br>
+unsatisfiable,&nbsp;or&nbsp;None&nbsp;if&nbsp;the&nbsp;satisfiablity&nbsp;is&nbsp;not&nbsp;known.</tt></dd>
+</dl>
+<dl><dt><strong>unknown</strong></dt>
+<dd><tt>True&nbsp;if&nbsp;the&nbsp;satisfiablity&nbsp;is&nbsp;not&nbsp;known.<br>
+&nbsp;<br>
+This&nbsp;is&nbsp;equivalent&nbsp;to&nbsp;satisfiable&nbsp;is&nbsp;None.</tt></dd>
+</dl>
+<dl><dt><strong>unsatisfiable</strong></dt>
+<dd><tt>True&nbsp;if&nbsp;the&nbsp;problem&nbsp;is&nbsp;unsatisfiable,&nbsp;False&nbsp;if&nbsp;the&nbsp;problem&nbsp;is<br>
+satisfiable,&nbsp;or&nbsp;None&nbsp;if&nbsp;the&nbsp;satisfiablity&nbsp;is&nbsp;not&nbsp;known.<br>
+&nbsp;<br>
+This&nbsp;is&nbsp;equivalent&nbsp;to&nbsp;None&nbsp;if&nbsp;satisfiable&nbsp;is&nbsp;None&nbsp;else&nbsp;not&nbsp;satisfiable.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="StatisticsArray">class <strong>StatisticsArray</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#StatisticsArray">StatisticsArray</a>&nbsp;object&nbsp;to&nbsp;capture&nbsp;statistics&nbsp;stored&nbsp;in&nbsp;an&nbsp;array.<br>
+&nbsp;<br>
+This&nbsp;class&nbsp;implements&nbsp;the&nbsp;sequence&nbsp;protocol&nbsp;but&nbsp;does&nbsp;not&nbsp;support&nbsp;deletion.<br>
+Furthermore,&nbsp;only&nbsp;existing&nbsp;numeric&nbsp;values&nbsp;in&nbsp;a&nbsp;statistics&nbsp;array&nbsp;can&nbsp;be&nbsp;changed<br>
+using&nbsp;the&nbsp;assignment&nbsp;operator.<br>
+&nbsp;<br>
+The&nbsp;update&nbsp;function&nbsp;provides&nbsp;a&nbsp;convenient&nbsp;means&nbsp;to&nbsp;initialize&nbsp;and&nbsp;modify&nbsp;a<br>
+statistics&nbsp;array.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="StatisticsArray-__delitem__"><strong>__delitem__</strong></a>(...)</dt><dd><tt>x.<a href="#StatisticsArray-__delitem__">__delitem__</a>(y)&nbsp;&lt;==&gt;&nbsp;del&nbsp;x[y]</tt></dd></dl>
+
+<dl><dt><a name="StatisticsArray-__getitem__"><strong>__getitem__</strong></a>(...)</dt><dd><tt>x.<a href="#StatisticsArray-__getitem__">__getitem__</a>(y)&nbsp;&lt;==&gt;&nbsp;x[y]</tt></dd></dl>
+
+<dl><dt><a name="StatisticsArray-__len__"><strong>__len__</strong></a>(...)</dt><dd><tt>x.<a href="#StatisticsArray-__len__">__len__</a>()&nbsp;&lt;==&gt;&nbsp;len(x)</tt></dd></dl>
+
+<dl><dt><a name="StatisticsArray-__setitem__"><strong>__setitem__</strong></a>(...)</dt><dd><tt>x.<a href="#StatisticsArray-__setitem__">__setitem__</a>(i,&nbsp;y)&nbsp;&lt;==&gt;&nbsp;x[i]=y</tt></dd></dl>
+
+<dl><dt><a name="StatisticsArray-append"><strong>append</strong></a>(...)</dt><dd><tt><a href="#StatisticsArray-append">append</a>(self,&nbsp;statistics)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Append&nbsp;a&nbsp;statistics&nbsp;to&nbsp;an&nbsp;array.<br>
+&nbsp;<br>
+The&nbsp;statistics&nbsp;parameter&nbsp;has&nbsp;to&nbsp;be&nbsp;a&nbsp;nested&nbsp;structure&nbsp;composed&nbsp;of&nbsp;numbers,<br>
+sequences,&nbsp;and&nbsp;mappings.</tt></dd></dl>
+
+<dl><dt><a name="StatisticsArray-extend"><strong>extend</strong></a>(...)</dt><dd><tt><a href="#StatisticsArray-extend">extend</a>(self,&nbsp;values)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Extend&nbsp;the&nbsp;statistics&nbsp;array&nbsp;with&nbsp;the&nbsp;given&nbsp;values.<br>
+&nbsp;<br>
+Calls&nbsp;<a href="#StatisticsArray-append">append</a>()&nbsp;for&nbsp;each&nbsp;element&nbsp;of&nbsp;values.</tt></dd></dl>
+
+<dl><dt><a name="StatisticsArray-update"><strong>update</strong></a>(...)</dt><dd><tt><a href="#StatisticsArray-update">update</a>(self,&nbsp;statistics)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Update&nbsp;a&nbsp;statistics&nbsp;array.<br>
+&nbsp;<br>
+The&nbsp;statistics&nbsp;argument&nbsp;must&nbsp;be&nbsp;a&nbsp;sequence.&nbsp;Further,&nbsp;it&nbsp;has&nbsp;to&nbsp;be&nbsp;a&nbsp;nested<br>
+structure&nbsp;composed&nbsp;of&nbsp;numbers,&nbsp;sequences,&nbsp;mappings,&nbsp;and&nbsp;callables.&nbsp;A&nbsp;callable<br>
+can&nbsp;be&nbsp;used&nbsp;to&nbsp;update&nbsp;an&nbsp;existing&nbsp;value,&nbsp;it&nbsp;receives&nbsp;the&nbsp;previous&nbsp;numeric&nbsp;value<br>
+(or&nbsp;None&nbsp;if&nbsp;absent)&nbsp;as&nbsp;argument&nbsp;and&nbsp;must&nbsp;return&nbsp;an&nbsp;updated&nbsp;numeric&nbsp;value.</tt></dd></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="StatisticsMap">class <strong>StatisticsMap</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#StatisticsMap">StatisticsMap</a>&nbsp;object&nbsp;to&nbsp;capture&nbsp;statistics&nbsp;stored&nbsp;in&nbsp;a&nbsp;map.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="StatisticsMap-__contains__"><strong>__contains__</strong></a>(...)</dt><dd><tt>x.<a href="#StatisticsMap-__contains__">__contains__</a>(y)&nbsp;&lt;==&gt;&nbsp;y&nbsp;in&nbsp;x</tt></dd></dl>
+
+<dl><dt><a name="StatisticsMap-__delitem__"><strong>__delitem__</strong></a>(...)</dt><dd><tt>x.<a href="#StatisticsMap-__delitem__">__delitem__</a>(y)&nbsp;&lt;==&gt;&nbsp;del&nbsp;x[y]</tt></dd></dl>
+
+<dl><dt><a name="StatisticsMap-__getitem__"><strong>__getitem__</strong></a>(...)</dt><dd><tt>x.<a href="#StatisticsMap-__getitem__">__getitem__</a>(y)&nbsp;&lt;==&gt;&nbsp;x[y]</tt></dd></dl>
+
+<dl><dt><a name="StatisticsMap-__iter__"><strong>__iter__</strong></a>(...)</dt><dd><tt>x.<a href="#StatisticsMap-__iter__">__iter__</a>()&nbsp;&lt;==&gt;&nbsp;iter(x)</tt></dd></dl>
+
+<dl><dt><a name="StatisticsMap-__len__"><strong>__len__</strong></a>(...)</dt><dd><tt>x.<a href="#StatisticsMap-__len__">__len__</a>()&nbsp;&lt;==&gt;&nbsp;len(x)</tt></dd></dl>
+
+<dl><dt><a name="StatisticsMap-__setitem__"><strong>__setitem__</strong></a>(...)</dt><dd><tt>x.<a href="#StatisticsMap-__setitem__">__setitem__</a>(i,&nbsp;y)&nbsp;&lt;==&gt;&nbsp;x[i]=y</tt></dd></dl>
+
+<dl><dt><a name="StatisticsMap-items"><strong>items</strong></a>(...)</dt><dd><tt><a href="#StatisticsMap-items">items</a>(self)&nbsp;-&gt;&nbsp;[(str,&nbsp;Statstics)]<br>
+&nbsp;<br>
+Return&nbsp;the&nbsp;items&nbsp;in&nbsp;the&nbsp;statistics&nbsp;map.</tt></dd></dl>
+
+<dl><dt><a name="StatisticsMap-keys"><strong>keys</strong></a>(...)</dt><dd><tt><a href="#StatisticsMap-keys">keys</a>(self)&nbsp;-&gt;&nbsp;[str]<br>
+&nbsp;<br>
+Return&nbsp;the&nbsp;keys&nbsp;in&nbsp;the&nbsp;statistics&nbsp;map.</tt></dd></dl>
+
+<dl><dt><a name="StatisticsMap-update"><strong>update</strong></a>(...)</dt><dd><tt><a href="#StatisticsMap-update">update</a>(self,&nbsp;statistics)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Update&nbsp;a&nbsp;statistics&nbsp;array.<br>
+&nbsp;<br>
+The&nbsp;statistics&nbsp;argument&nbsp;must&nbsp;be&nbsp;a&nbsp;map.&nbsp;Otherwise,&nbsp;it&nbsp;is&nbsp;equivalent&nbsp;to<br>
+<a href="#StatisticsArray">StatisticsArray</a>.<a href="#StatisticsMap-update">update</a>().</tt></dd></dl>
+
+<dl><dt><a name="StatisticsMap-values"><strong>values</strong></a>(...)</dt><dd><tt><a href="#StatisticsMap-values">values</a>(self)&nbsp;-&gt;&nbsp;[Statistics]<br>
+&nbsp;<br>
+Return&nbsp;the&nbsp;values&nbsp;in&nbsp;the&nbsp;statistics&nbsp;map.</tt></dd></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Symbol">class <strong>Symbol</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Represents&nbsp;a&nbsp;gringo&nbsp;symbol.<br>
+&nbsp;<br>
+This&nbsp;includes&nbsp;numbers,&nbsp;strings,&nbsp;functions&nbsp;(including&nbsp;constants&nbsp;with<br>
+len(arguments)&nbsp;==&nbsp;0&nbsp;and&nbsp;tuples&nbsp;with&nbsp;len(name)&nbsp;==&nbsp;0),&nbsp;#inf&nbsp;and&nbsp;#sup.&nbsp;&nbsp;<a href="#Symbol">Symbol</a><br>
+objects&nbsp;are&nbsp;ordered&nbsp;like&nbsp;in&nbsp;gringo&nbsp;and&nbsp;their&nbsp;string&nbsp;representation&nbsp;corresponds<br>
+to&nbsp;their&nbsp;gringo&nbsp;representation.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;this&nbsp;class&nbsp;does&nbsp;not&nbsp;have&nbsp;a&nbsp;constructor.&nbsp;Instead&nbsp;there&nbsp;are&nbsp;the<br>
+functions&nbsp;<a href="#-Number">Number</a>(),&nbsp;<a href="#-String">String</a>(),&nbsp;and&nbsp;<a href="#-Function">Function</a>()&nbsp;to&nbsp;construct&nbsp;symbol&nbsp;objects&nbsp;or&nbsp;the<br>
+preconstructed&nbsp;symbols&nbsp;Infimum&nbsp;and&nbsp;Supremum.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Symbol-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#Symbol-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="Symbol-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#Symbol-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="Symbol-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#Symbol-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="Symbol-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#Symbol-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="Symbol-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#Symbol-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="Symbol-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#Symbol-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="Symbol-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#Symbol-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="Symbol-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#Symbol-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="Symbol-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#Symbol-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>arguments</strong></dt>
+<dd><tt>The&nbsp;arguments&nbsp;of&nbsp;a&nbsp;function.</tt></dd>
+</dl>
+<dl><dt><strong>name</strong></dt>
+<dd><tt>The&nbsp;name&nbsp;of&nbsp;a&nbsp;function.</tt></dd>
+</dl>
+<dl><dt><strong>negative</strong></dt>
+<dd><tt>The&nbsp;sign&nbsp;of&nbsp;a&nbsp;function.</tt></dd>
+</dl>
+<dl><dt><strong>number</strong></dt>
+<dd><tt>The&nbsp;value&nbsp;of&nbsp;a&nbsp;number.</tt></dd>
+</dl>
+<dl><dt><strong>positive</strong></dt>
+<dd><tt>The&nbsp;sign&nbsp;of&nbsp;a&nbsp;function.</tt></dd>
+</dl>
+<dl><dt><strong>string</strong></dt>
+<dd><tt>The&nbsp;value&nbsp;of&nbsp;a&nbsp;string.</tt></dd>
+</dl>
+<dl><dt><strong>type</strong></dt>
+<dd><tt>The&nbsp;type&nbsp;of&nbsp;the&nbsp;symbol.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="SymbolType">class <strong>SymbolType</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;the&nbsp;different&nbsp;types&nbsp;of&nbsp;symbols.<br>
+&nbsp;<br>
+<a href="#SymbolType">SymbolType</a>&nbsp;objects&nbsp;cannot&nbsp;be&nbsp;constructed&nbsp;from&nbsp;python.&nbsp;Instead&nbsp;the&nbsp;following<br>
+preconstructed&nbsp;objects&nbsp;are&nbsp;available:<br>
+&nbsp;<br>
+<a href="#SymbolType">SymbolType</a>.Number&nbsp;&nbsp;&nbsp;--&nbsp;a&nbsp;numeric&nbsp;symbol&nbsp;-&nbsp;e.g.,&nbsp;1<br>
+<a href="#SymbolType">SymbolType</a>.String&nbsp;&nbsp;&nbsp;--&nbsp;a&nbsp;string&nbsp;symbol&nbsp;-&nbsp;e.g.,&nbsp;"a"<br>
+<a href="#SymbolType">SymbolType</a>.Function&nbsp;--&nbsp;a&nbsp;numeric&nbsp;symbol&nbsp;-&nbsp;e.g.,&nbsp;c,&nbsp;(1,&nbsp;"a"),&nbsp;or&nbsp;f(1,"a")<br>
+<a href="#SymbolType">SymbolType</a>.Infimum&nbsp;&nbsp;--&nbsp;the&nbsp;#inf&nbsp;symbol<br>
+<a href="#SymbolType">SymbolType</a>.Supremum&nbsp;--&nbsp;the&nbsp;#sup&nbsp;symbol<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="SymbolType-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolType-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="SymbolType-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolType-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="SymbolType-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolType-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="SymbolType-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolType-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="SymbolType-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolType-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="SymbolType-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolType-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="SymbolType-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolType-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="SymbolType-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolType-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="SymbolType-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolType-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Function</strong> = Function</dl>
+
+<dl><dt><strong>Infimum</strong> = Infimum</dl>
+
+<dl><dt><strong>Number</strong> = Number</dl>
+
+<dl><dt><strong>String</strong> = String</dl>
+
+<dl><dt><strong>Supremum</strong> = Supremum</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="SymbolicAtom">class <strong>SymbolicAtom</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Captures&nbsp;a&nbsp;symbolic&nbsp;atom&nbsp;and&nbsp;provides&nbsp;properties&nbsp;to&nbsp;inspect&nbsp;its&nbsp;state.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Data descriptors defined here:<br>
+<dl><dt><strong>is_external</strong></dt>
+<dd><tt>Wheather&nbsp;the&nbsp;atom&nbsp;is&nbsp;an&nbsp;external&nbsp;atom.</tt></dd>
+</dl>
+<dl><dt><strong>is_fact</strong></dt>
+<dd><tt>Wheather&nbsp;the&nbsp;atom&nbsp;is&nbsp;a&nbsp;is_fact.</tt></dd>
+</dl>
+<dl><dt><strong>literal</strong></dt>
+<dd><tt>The&nbsp;program&nbsp;literal&nbsp;associated&nbsp;with&nbsp;the&nbsp;atom.</tt></dd>
+</dl>
+<dl><dt><strong>symbol</strong></dt>
+<dd><tt>The&nbsp;representation&nbsp;of&nbsp;the&nbsp;atom&nbsp;in&nbsp;form&nbsp;of&nbsp;a&nbsp;symbol&nbsp;(Symbol&nbsp;object).</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="SymbolicAtomIter">class <strong>SymbolicAtomIter</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Class&nbsp;to&nbsp;iterate&nbsp;over&nbsp;symbolic&nbsp;atoms.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="SymbolicAtomIter-__iter__"><strong>__iter__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolicAtomIter-__iter__">__iter__</a>()&nbsp;&lt;==&gt;&nbsp;iter(x)</tt></dd></dl>
+
+<dl><dt><a name="SymbolicAtomIter-next"><strong>next</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolicAtomIter-next">next</a>()&nbsp;-&gt;&nbsp;the&nbsp;next&nbsp;value,&nbsp;or&nbsp;raise&nbsp;StopIteration</tt></dd></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="SymbolicAtoms">class <strong>SymbolicAtoms</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>This&nbsp;class&nbsp;provides&nbsp;read-only&nbsp;access&nbsp;to&nbsp;the&nbsp;symbolic&nbsp;atoms&nbsp;of&nbsp;the&nbsp;grounder<br>
+(the&nbsp;Herbrand&nbsp;base).<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+p(1).<br>
+{&nbsp;p(3)&nbsp;}.<br>
+#external&nbsp;p(1..3).<br>
+&nbsp;<br>
+q(X)&nbsp;:-&nbsp;p(X).<br>
+&nbsp;<br>
+#script&nbsp;(python)<br>
+&nbsp;<br>
+import&nbsp;clingo<br>
+&nbsp;<br>
+def&nbsp;main(prg):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prg.ground([("base",&nbsp;[])])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;print&nbsp;"universe:",&nbsp;len(prg.symbolic_atoms)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;x&nbsp;in&nbsp;prg.symbolic_atoms:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print&nbsp;x.symbol,&nbsp;x.is_fact,&nbsp;x.is_external<br>
+&nbsp;&nbsp;&nbsp;&nbsp;print&nbsp;"p(2)&nbsp;is&nbsp;in&nbsp;domain:",&nbsp;prg.symbolic_atoms[clingo.<a href="#-Function">Function</a>("p",&nbsp;[3])]&nbsp;is&nbsp;not&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;print&nbsp;"p(4)&nbsp;is&nbsp;in&nbsp;domain:",&nbsp;prg.symbolic_atoms[clingo.<a href="#-Function">Function</a>("p",&nbsp;[6])]&nbsp;is&nbsp;not&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;print&nbsp;"domain&nbsp;of&nbsp;p/1:"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;x&nbsp;in&nbsp;prg.symbolic_atoms.<a href="#SymbolicAtoms-by_signature">by_signature</a>("p",&nbsp;1):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print&nbsp;x.symbol,&nbsp;x.is_fact,&nbsp;x.is_external<br>
+&nbsp;&nbsp;&nbsp;&nbsp;print&nbsp;"signatures:",&nbsp;prg.symbolic_atoms.signatures<br>
+&nbsp;<br>
+#end.<br>
+&nbsp;<br>
+Expected&nbsp;Output:<br>
+&nbsp;<br>
+universe:&nbsp;6<br>
+p(1)&nbsp;True&nbsp;False<br>
+p(3)&nbsp;False&nbsp;False<br>
+p(2)&nbsp;False&nbsp;True<br>
+q(1)&nbsp;True&nbsp;False<br>
+q(3)&nbsp;False&nbsp;False<br>
+q(2)&nbsp;False&nbsp;False<br>
+p(2)&nbsp;is&nbsp;in&nbsp;domain:&nbsp;True<br>
+p(4)&nbsp;is&nbsp;in&nbsp;domain:&nbsp;False<br>
+domain&nbsp;of&nbsp;p/1:<br>
+p(1)&nbsp;True&nbsp;False<br>
+p(3)&nbsp;False&nbsp;False<br>
+p(2)&nbsp;False&nbsp;True<br>
+signatures:&nbsp;[('p',&nbsp;1),&nbsp;('q',&nbsp;1)]<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="SymbolicAtoms-__contains__"><strong>__contains__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolicAtoms-__contains__">__contains__</a>(y)&nbsp;&lt;==&gt;&nbsp;y&nbsp;in&nbsp;x</tt></dd></dl>
+
+<dl><dt><a name="SymbolicAtoms-__getitem__"><strong>__getitem__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolicAtoms-__getitem__">__getitem__</a>(y)&nbsp;&lt;==&gt;&nbsp;x[y]</tt></dd></dl>
+
+<dl><dt><a name="SymbolicAtoms-__iter__"><strong>__iter__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolicAtoms-__iter__">__iter__</a>()&nbsp;&lt;==&gt;&nbsp;iter(x)</tt></dd></dl>
+
+<dl><dt><a name="SymbolicAtoms-__len__"><strong>__len__</strong></a>(...)</dt><dd><tt>x.<a href="#SymbolicAtoms-__len__">__len__</a>()&nbsp;&lt;==&gt;&nbsp;len(x)</tt></dd></dl>
+
+<dl><dt><a name="SymbolicAtoms-by_signature"><strong>by_signature</strong></a>(...)</dt><dd><tt><a href="#SymbolicAtoms-by_signature">by_signature</a>(self,&nbsp;name,&nbsp;arity,&nbsp;positive)&nbsp;-&gt;&nbsp;<a href="#SymbolicAtomIter">SymbolicAtomIter</a><br>
+&nbsp;<br>
+Return&nbsp;an&nbsp;iterator&nbsp;over&nbsp;the&nbsp;symbolic&nbsp;atoms&nbsp;with&nbsp;the&nbsp;given&nbsp;signature.<br>
+&nbsp;<br>
+Arguments:<br>
+name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;name&nbsp;of&nbsp;the&nbsp;signature<br>
+arity&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;arity&nbsp;of&nbsp;the&nbsp;signature<br>
+positive&nbsp;--&nbsp;the&nbsp;sign&nbsp;of&nbsp;the&nbsp;signature</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>signatures</strong></dt>
+<dd><tt>The&nbsp;list&nbsp;of&nbsp;predicate&nbsp;signatures&nbsp;(triples&nbsp;of&nbsp;names,&nbsp;arities,&nbsp;and&nbsp;Booleans)<br>
+occurring&nbsp;in&nbsp;the&nbsp;program.&nbsp;A&nbsp;true&nbsp;Boolean&nbsp;stands&nbsp;for&nbsp;a&nbsp;positive&nbsp;signature.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="TheoryAtom">class <strong>TheoryAtom</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#TheoryAtom">TheoryAtom</a>&nbsp;objects&nbsp;represent&nbsp;theory&nbsp;atoms.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="TheoryAtom-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtom-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtom-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtom-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtom-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtom-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtom-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtom-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtom-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtom-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtom-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtom-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtom-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtom-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtom-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtom-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtom-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtom-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>elements</strong></dt>
+<dd><tt>elements&nbsp;-&gt;&nbsp;[TheoryElement]<br>
+&nbsp;<br>
+The&nbsp;theory&nbsp;elements&nbsp;of&nbsp;the&nbsp;theory&nbsp;atom.</tt></dd>
+</dl>
+<dl><dt><strong>guard</strong></dt>
+<dd><tt>guard&nbsp;-&gt;&nbsp;(str,&nbsp;TheoryTerm)<br>
+&nbsp;<br>
+The&nbsp;guard&nbsp;of&nbsp;the&nbsp;theory&nbsp;atom&nbsp;or&nbsp;None&nbsp;if&nbsp;the&nbsp;atom&nbsp;has&nbsp;no&nbsp;guard.</tt></dd>
+</dl>
+<dl><dt><strong>literal</strong></dt>
+<dd><tt>literal&nbsp;-&gt;&nbsp;int<br>
+&nbsp;<br>
+The&nbsp;program&nbsp;literal&nbsp;associated&nbsp;with&nbsp;the&nbsp;theory&nbsp;atom.</tt></dd>
+</dl>
+<dl><dt><strong>term</strong></dt>
+<dd><tt>term&nbsp;-&gt;&nbsp;TheoryTerm<br>
+&nbsp;<br>
+The&nbsp;term&nbsp;of&nbsp;the&nbsp;theory&nbsp;atom.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="TheoryAtomIter">class <strong>TheoryAtomIter</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Object&nbsp;to&nbsp;iterate&nbsp;over&nbsp;all&nbsp;theory&nbsp;atoms.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="TheoryAtomIter-__getitem__"><strong>__getitem__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomIter-__getitem__">__getitem__</a>(y)&nbsp;&lt;==&gt;&nbsp;x[y]</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomIter-__iter__"><strong>__iter__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomIter-__iter__">__iter__</a>()&nbsp;&lt;==&gt;&nbsp;iter(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomIter-__len__"><strong>__len__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomIter-__len__">__len__</a>()&nbsp;&lt;==&gt;&nbsp;len(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomIter-get"><strong>get</strong></a>(...)</dt><dd><tt><a href="#TheoryAtomIter-get">get</a>(self)&nbsp;-&gt;&nbsp;<a href="#TheoryAtom">TheoryAtom</a></tt></dd></dl>
+
+<dl><dt><a name="TheoryAtomIter-next"><strong>next</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryAtomIter-next">next</a>()&nbsp;-&gt;&nbsp;the&nbsp;next&nbsp;value,&nbsp;or&nbsp;raise&nbsp;StopIteration</tt></dd></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="TheoryElement">class <strong>TheoryElement</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#TheoryElement">TheoryElement</a>&nbsp;objects&nbsp;represent&nbsp;theory&nbsp;elements&nbsp;which&nbsp;consist&nbsp;of&nbsp;a&nbsp;tuple&nbsp;of<br>
+terms&nbsp;and&nbsp;a&nbsp;set&nbsp;of&nbsp;literals.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="TheoryElement-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryElement-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="TheoryElement-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryElement-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryElement-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryElement-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryElement-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryElement-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryElement-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryElement-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryElement-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryElement-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryElement-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryElement-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryElement-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryElement-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryElement-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryElement-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>condition</strong></dt>
+<dd><tt>condition&nbsp;-&gt;&nbsp;[TheoryTerm]<br>
+&nbsp;<br>
+The&nbsp;condition&nbsp;of&nbsp;the&nbsp;element.</tt></dd>
+</dl>
+<dl><dt><strong>condition_id</strong></dt>
+<dd><tt>condition_id&nbsp;-&gt;&nbsp;int<br>
+&nbsp;<br>
+Each&nbsp;condition&nbsp;has&nbsp;an&nbsp;id.&nbsp;This&nbsp;id&nbsp;can&nbsp;be&nbsp;passed&nbsp;to&nbsp;PropagateInit.solver_literal<br>
+to&nbsp;obtain&nbsp;a&nbsp;solver&nbsp;literal&nbsp;equivalent&nbsp;to&nbsp;the&nbsp;condition.</tt></dd>
+</dl>
+<dl><dt><strong>terms</strong></dt>
+<dd><tt>terms&nbsp;-&gt;&nbsp;[TheoryTerm]<br>
+&nbsp;<br>
+The&nbsp;tuple&nbsp;of&nbsp;the&nbsp;element.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="TheoryTerm">class <strong>TheoryTerm</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#TheoryTerm">TheoryTerm</a>&nbsp;objects&nbsp;represent&nbsp;theory&nbsp;terms.<br>
+&nbsp;<br>
+This&nbsp;are&nbsp;read-only&nbsp;objects,&nbsp;which&nbsp;can&nbsp;be&nbsp;obtained&nbsp;from&nbsp;theory&nbsp;atoms&nbsp;and<br>
+elements.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="TheoryTerm-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTerm-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTerm-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTerm-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTerm-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTerm-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTerm-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTerm-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryTerm-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTerm-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTerm-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTerm-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTerm-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTerm-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTerm-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTerm-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryTerm-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTerm-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>arguments</strong></dt>
+<dd><tt>arguments&nbsp;-&gt;&nbsp;[Symbol]<br>
+&nbsp;<br>
+The&nbsp;arguments&nbsp;of&nbsp;the&nbsp;TheoryTerm&nbsp;(for&nbsp;functions,&nbsp;tuples,&nbsp;list,&nbsp;and&nbsp;sets).</tt></dd>
+</dl>
+<dl><dt><strong>name</strong></dt>
+<dd><tt>name&nbsp;-&gt;&nbsp;str<br>
+&nbsp;<br>
+The&nbsp;name&nbsp;of&nbsp;the&nbsp;TheoryTerm\n(for&nbsp;symbols&nbsp;and&nbsp;functions).</tt></dd>
+</dl>
+<dl><dt><strong>number</strong></dt>
+<dd><tt>number&nbsp;-&gt;&nbsp;integer<br>
+&nbsp;<br>
+The&nbsp;numeric&nbsp;representation&nbsp;of&nbsp;the&nbsp;TheoryTerm&nbsp;(for&nbsp;numbers).</tt></dd>
+</dl>
+<dl><dt><strong>type</strong></dt>
+<dd><tt>type&nbsp;-&gt;&nbsp;TheoryTermType<br>
+&nbsp;<br>
+The&nbsp;type&nbsp;of&nbsp;the&nbsp;theory&nbsp;term.</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="TheoryTermType">class <strong>TheoryTermType</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;the&nbsp;different&nbsp;types&nbsp;of&nbsp;theory&nbsp;terms.<br>
+&nbsp;<br>
+<a href="#TheoryTermType">TheoryTermType</a>&nbsp;objects&nbsp;cannot&nbsp;be&nbsp;constructed&nbsp;from&nbsp;python.&nbsp;Instead&nbsp;the<br>
+following&nbsp;preconstructed&nbsp;objects&nbsp;are&nbsp;available:<br>
+&nbsp;<br>
+<a href="#TheoryTermType">TheoryTermType</a>.Function&nbsp;--&nbsp;a&nbsp;function&nbsp;theory&nbsp;term<br>
+<a href="#TheoryTermType">TheoryTermType</a>.Number&nbsp;&nbsp;&nbsp;--&nbsp;a&nbsp;numeric&nbsp;theory&nbsp;term<br>
+<a href="#TheoryTermType">TheoryTermType</a>.<a href="#Symbol">Symbol</a>&nbsp;&nbsp;&nbsp;--&nbsp;a&nbsp;symbolic&nbsp;theory&nbsp;term<br>
+<a href="#TheoryTermType">TheoryTermType</a>.List&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;a&nbsp;list&nbsp;theory&nbsp;term<br>
+<a href="#TheoryTermType">TheoryTermType</a>.Tuple&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;a&nbsp;tuple&nbsp;theory&nbsp;term<br>
+<a href="#TheoryTermType">TheoryTermType</a>.Set&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;a&nbsp;set&nbsp;theory&nbsp;term<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="TheoryTermType-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTermType-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTermType-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTermType-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTermType-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTermType-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTermType-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTermType-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryTermType-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTermType-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTermType-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTermType-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTermType-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTermType-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="TheoryTermType-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTermType-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="TheoryTermType-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#TheoryTermType-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Function</strong> = Function</dl>
+
+<dl><dt><strong>List</strong> = List</dl>
+
+<dl><dt><strong>Number</strong> = Number</dl>
+
+<dl><dt><strong>Set</strong> = Set</dl>
+
+<dl><dt><strong>Symbol</strong> = Symbol</dl>
+
+<dl><dt><strong>Tuple</strong> = Tuple</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#88ff99">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="TruthValue">class <strong>TruthValue</strong></a>(object)</font></td></tr>
+    
+<tr bgcolor="#88ff99"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Enumeration&nbsp;of&nbsp;the&nbsp;different&nbsp;truth&nbsp;values.<br>
+&nbsp;<br>
+<a href="#TruthValue">TruthValue</a>&nbsp;objects&nbsp;cannot&nbsp;be&nbsp;constructed&nbsp;from&nbsp;python.&nbsp;Instead&nbsp;the&nbsp;following<br>
+preconstructed&nbsp;objects&nbsp;are&nbsp;available:<br>
+&nbsp;<br>
+<a href="#TruthValue">TruthValue</a>._True&nbsp;&nbsp;&nbsp;--&nbsp;truth&nbsp;value&nbsp;true<br>
+<a href="#TruthValue">TruthValue</a>._False&nbsp;&nbsp;--&nbsp;truth&nbsp;value&nbsp;false<br>
+<a href="#TruthValue">TruthValue</a>.Free&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;no&nbsp;truth&nbsp;value<br>
+<a href="#TruthValue">TruthValue</a>.Release&nbsp;--&nbsp;indicates&nbsp;that&nbsp;an&nbsp;atom&nbsp;is&nbsp;to&nbsp;be&nbsp;released<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="TruthValue-__eq__"><strong>__eq__</strong></a>(...)</dt><dd><tt>x.<a href="#TruthValue-__eq__">__eq__</a>(y)&nbsp;&lt;==&gt;&nbsp;x==y</tt></dd></dl>
+
+<dl><dt><a name="TruthValue-__ge__"><strong>__ge__</strong></a>(...)</dt><dd><tt>x.<a href="#TruthValue-__ge__">__ge__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;=y</tt></dd></dl>
+
+<dl><dt><a name="TruthValue-__gt__"><strong>__gt__</strong></a>(...)</dt><dd><tt>x.<a href="#TruthValue-__gt__">__gt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&gt;y</tt></dd></dl>
+
+<dl><dt><a name="TruthValue-__hash__"><strong>__hash__</strong></a>(...)</dt><dd><tt>x.<a href="#TruthValue-__hash__">__hash__</a>()&nbsp;&lt;==&gt;&nbsp;hash(x)</tt></dd></dl>
+
+<dl><dt><a name="TruthValue-__le__"><strong>__le__</strong></a>(...)</dt><dd><tt>x.<a href="#TruthValue-__le__">__le__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;=y</tt></dd></dl>
+
+<dl><dt><a name="TruthValue-__lt__"><strong>__lt__</strong></a>(...)</dt><dd><tt>x.<a href="#TruthValue-__lt__">__lt__</a>(y)&nbsp;&lt;==&gt;&nbsp;x&lt;y</tt></dd></dl>
+
+<dl><dt><a name="TruthValue-__ne__"><strong>__ne__</strong></a>(...)</dt><dd><tt>x.<a href="#TruthValue-__ne__">__ne__</a>(y)&nbsp;&lt;==&gt;&nbsp;x!=y</tt></dd></dl>
+
+<dl><dt><a name="TruthValue-__repr__"><strong>__repr__</strong></a>(...)</dt><dd><tt>x.<a href="#TruthValue-__repr__">__repr__</a>()&nbsp;&lt;==&gt;&nbsp;repr(x)</tt></dd></dl>
+
+<dl><dt><a name="TruthValue-__str__"><strong>__str__</strong></a>(...)</dt><dd><tt>x.<a href="#TruthValue-__str__">__str__</a>()&nbsp;&lt;==&gt;&nbsp;str(x)</tt></dd></dl>
+
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Free</strong> = Free</dl>
+
+<dl><dt><strong>Release</strong> = Release</dl>
+
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-Function"><strong>Function</strong></a>(...)</dt><dd><tt><a href="#-Function">Function</a>(name,&nbsp;arguments,&nbsp;positive)&nbsp;-&gt;&nbsp;<a href="#Symbol">Symbol</a><br>
+&nbsp;<br>
+Construct&nbsp;a&nbsp;function&nbsp;symbol.<br>
+&nbsp;<br>
+Arguments:<br>
+name&nbsp;--&nbsp;the&nbsp;name&nbsp;of&nbsp;the&nbsp;function&nbsp;(empty&nbsp;for&nbsp;tuples)<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+arguments&nbsp;--&nbsp;the&nbsp;arguments&nbsp;in&nbsp;form&nbsp;of&nbsp;a&nbsp;list&nbsp;of&nbsp;symbols<br>
+positive&nbsp;&nbsp;--&nbsp;the&nbsp;sign&nbsp;of&nbsp;the&nbsp;function&nbsp;(tuples&nbsp;must&nbsp;not&nbsp;have&nbsp;signs)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;True)<br>
+&nbsp;<br>
+This&nbsp;includes&nbsp;constants&nbsp;and&nbsp;tuples.&nbsp;Constants&nbsp;have&nbsp;an&nbsp;empty&nbsp;argument&nbsp;list&nbsp;and<br>
+tuples&nbsp;have&nbsp;an&nbsp;empty&nbsp;name.&nbsp;Functions&nbsp;can&nbsp;represent&nbsp;classically&nbsp;negated&nbsp;atoms.<br>
+Argument&nbsp;positive&nbsp;has&nbsp;to&nbsp;be&nbsp;set&nbsp;to&nbsp;False&nbsp;to&nbsp;represent&nbsp;such&nbsp;atoms.</tt></dd></dl>
+ <dl><dt><a name="-Number"><strong>Number</strong></a>(...)</dt><dd><tt><a href="#-Number">Number</a>(number)&nbsp;-&gt;&nbsp;<a href="#Symbol">Symbol</a><br>
+&nbsp;<br>
+Construct&nbsp;a&nbsp;numeric&nbsp;symbol&nbsp;given&nbsp;a&nbsp;number.</tt></dd></dl>
+ <dl><dt><a name="-String"><strong>String</strong></a>(...)</dt><dd><tt><a href="#-String">String</a>(string)&nbsp;-&gt;&nbsp;<a href="#Symbol">Symbol</a><br>
+&nbsp;<br>
+Construct&nbsp;a&nbsp;string&nbsp;symbol&nbsp;given&nbsp;a&nbsp;string.</tt></dd></dl>
+ <dl><dt><a name="-Tuple"><strong>Tuple</strong></a>(...)</dt><dd><tt><a href="#-Tuple">Tuple</a>(arguments)&nbsp;-&gt;&nbsp;<a href="#Symbol">Symbol</a><br>
+&nbsp;<br>
+Shortcut&nbsp;for&nbsp;<a href="#-Function">Function</a>("",&nbsp;arguments).</tt></dd></dl>
+ <dl><dt><a name="-clingo_main"><strong>clingo_main</strong></a>(...)</dt><dd><tt><a href="#-clingo_main">clingo_main</a>(application,&nbsp;files)&nbsp;-&gt;&nbsp;int<br>
+&nbsp;<br>
+Runs&nbsp;the&nbsp;given&nbsp;applications&nbsp;using&nbsp;clingo's&nbsp;default&nbsp;output&nbsp;and&nbsp;signal&nbsp;handling.<br>
+&nbsp;<br>
+The&nbsp;application&nbsp;can&nbsp;overwrite&nbsp;clingo's&nbsp;default&nbsp;behaviour&nbsp;by&nbsp;registering<br>
+additional&nbsp;options&nbsp;and&nbsp;overriding&nbsp;its&nbsp;default&nbsp;main&nbsp;function.<br>
+&nbsp;<br>
+Arguments:<br>
+application&nbsp;--&nbsp;the&nbsp;Application&nbsp;object<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+files&nbsp;--&nbsp;files&nbsp;passed&nbsp;on&nbsp;the&nbsp;command&nbsp;line<br>
+&nbsp;<br>
+The&nbsp;application&nbsp;object&nbsp;must&nbsp;implement&nbsp;a&nbsp;main&nbsp;function&nbsp;and&nbsp;additionally&nbsp;can<br>
+override&nbsp;the&nbsp;other&nbsp;functions.<br>
+&nbsp;<br>
+class&nbsp;Application(object):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;main(self,&nbsp;control,&nbsp;files)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Function&nbsp;to&nbsp;replace&nbsp;clingo's&nbsp;default&nbsp;main&nbsp;function.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;register_options(self,&nbsp;options)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Function&nbsp;to&nbsp;register&nbsp;custom&nbsp;options.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;options&nbsp;--&nbsp;<a href="#ApplicationOptions">ApplicationOptions</a>&nbsp;object&nbsp;that&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;register<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;different&nbsp;kind&nbsp;of&nbsp;options<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;validate_options(self)&nbsp;-&gt;&nbsp;bool<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Function&nbsp;to&nbsp;validate&nbsp;custom&nbsp;options.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This&nbsp;function&nbsp;should&nbsp;return&nbsp;a&nbsp;boolean&nbsp;to&nbsp;indicate&nbsp;that&nbsp;option<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;validation&nbsp;failed.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Note:&nbsp;this&nbsp;function&nbsp;should&nbsp;not&nbsp;raise&nbsp;execptions<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;logger(self,&nbsp;code,&nbsp;message)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Function&nbsp;to&nbsp;intercept&nbsp;messages&nbsp;normally&nbsp;printed&nbsp;to&nbsp;standard&nbsp;error.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;messages&nbsp;are&nbsp;printed&nbsp;to&nbsp;stdandard&nbsp;error)<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;code&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;<a href="#MessageCode">MessageCode</a>&nbsp;object<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;message&nbsp;--&nbsp;message&nbsp;string<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Note:&nbsp;this&nbsp;function&nbsp;should&nbsp;not&nbsp;raise&nbsp;execptions<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;program_name&nbsp;-&gt;&nbsp;String:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Optional&nbsp;program&nbsp;name&nbsp;to&nbsp;be&nbsp;used&nbsp;in&nbsp;the&nbsp;help&nbsp;output.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;clingo)<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;message_limit&nbsp;-&gt;&nbsp;Int:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Maximum&nbsp;number&nbsp;of&nbsp;messages&nbsp;passed&nbsp;to&nbsp;the&nbsp;logger.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Default:&nbsp;20)<br>
+&nbsp;<br>
+Example&nbsp;reproducing&nbsp;the&nbsp;default&nbsp;clingo&nbsp;behaviour:<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;import&nbsp;sys<br>
+&nbsp;&nbsp;&nbsp;&nbsp;import&nbsp;clingo<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;class&nbsp;Application:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;def&nbsp;__init__(self,&nbsp;name):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.<strong>program_name</strong>&nbsp;=&nbsp;name<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;def&nbsp;main(self,&nbsp;ctl,&nbsp;files):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;len(files)&nbsp;&gt;&nbsp;0:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;f&nbsp;in&nbsp;files:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ctl.load(f)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ctl.load("-")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ctl.ground([("base",&nbsp;[])])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ctl.solve()<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;clingo.<a href="#-clingo_main">clingo_main</a>(Application(sys.argv[0]),&nbsp;sys.argv[1:])</tt></dd></dl>
+ <dl><dt><a name="-parse_program"><strong>parse_program</strong></a>(...)</dt><dd><tt><a href="#-parse_program">parse_program</a>(program,&nbsp;callback)&nbsp;-&gt;&nbsp;None<br>
+&nbsp;<br>
+Parse&nbsp;the&nbsp;given&nbsp;program&nbsp;and&nbsp;return&nbsp;an&nbsp;abstract&nbsp;syntax&nbsp;tree&nbsp;for&nbsp;each&nbsp;statement<br>
+via&nbsp;a&nbsp;callback.<br>
+&nbsp;<br>
+Arguments:<br>
+program&nbsp;&nbsp;--&nbsp;string&nbsp;representation&nbsp;of&nbsp;program<br>
+callback&nbsp;--&nbsp;callback&nbsp;taking&nbsp;an&nbsp;ast&nbsp;as&nbsp;argument</tt></dd></dl>
+ <dl><dt><a name="-parse_term"><strong>parse_term</strong></a>(...)</dt><dd><tt><a href="#-parse_term">parse_term</a>(string,&nbsp;logger,&nbsp;message_limit)&nbsp;-&gt;&nbsp;<a href="#Symbol">Symbol</a><br>
+&nbsp;<br>
+Parse&nbsp;the&nbsp;given&nbsp;string&nbsp;using&nbsp;gringo's&nbsp;term&nbsp;parser&nbsp;for&nbsp;ground&nbsp;terms.&nbsp;The<br>
+function&nbsp;also&nbsp;evaluates&nbsp;arithmetic&nbsp;functions.<br>
+&nbsp;<br>
+Arguments:<br>
+string&nbsp;--&nbsp;the&nbsp;string&nbsp;to&nbsp;be&nbsp;parsed<br>
+&nbsp;<br>
+Keyword&nbsp;Arguments:<br>
+logger&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;function&nbsp;to&nbsp;intercept&nbsp;messages&nbsp;normally&nbsp;printed&nbsp;to&nbsp;standard<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;error&nbsp;(default:&nbsp;None)<br>
+message_limit&nbsp;--&nbsp;maximum&nbsp;number&nbsp;of&nbsp;messages&nbsp;passed&nbsp;to&nbsp;the&nbsp;logger&nbsp;(default:&nbsp;20)<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+clingo.<a href="#-parse_term">parse_term</a>('p(1+2)')&nbsp;==&nbsp;clingo.<a href="#-Function">Function</a>("p",&nbsp;[3])</tt></dd></dl>
+</td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#55aa55">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Data</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#55aa55"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><strong>Infimum</strong> = #inf<br>
+<strong>Supremum</strong> = #sup<br>
+<strong>__version__</strong> = '5.3.0'</td></tr></table>
+</body></html>

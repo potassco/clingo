@@ -1,0 +1,2607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>clingo.control API documentation</title>
+<meta name="description" content="This module contains the `clingo.control.Control` class responsible for
+controling grounding and solving …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<nav class="http-server-breadcrumbs">
+<a href="https://potassco.org/clingo/python-api/5.8/">All packages</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/">clingo</a>
+</nav>
+<h1 class="title">Module <code>clingo.control</code></h1>
+</header>
+<section id="section-intro">
+<p>This module contains the <code><a title="clingo.control.Control" href="#clingo.control.Control">Control</a></code> class responsible for
+controling grounding and solving.</p>
+<h2 id="examples">Examples</h2>
+<p>The following example shows the basic ground solve process:</p>
+<pre><code>&gt;&gt;&gt; from clingo.symbol import Number
+&gt;&gt;&gt; from clingo.control import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl = Control()
+&gt;&gt;&gt; ctl.add("q.")
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl.ground()
+&gt;&gt;&gt; print(ctl.solve(on_model=print))
+q
+SAT
+</code></pre>
+<p>The following example shows basic (multishot) grounding and solving:</p>
+<pre><code>&gt;&gt;&gt; from clingo.symbol import Number
+&gt;&gt;&gt; from clingo.control import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl = Control()
+&gt;&gt;&gt; ctl.add("a", [], "q.")
+&gt;&gt;&gt; ctl.add("b", ["t"], "q(t).")
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl.ground([("a", [])])
+&gt;&gt;&gt; print(ctl.solve(on_model=print))
+q
+SAT
+&gt;&gt;&gt; ctl.ground([("b", [Number(1)]), ("b", [Number(2)])])
+&gt;&gt;&gt; print(ctl.solve(on_model=print))
+q q(1) q(2)
+SAT
+&gt;&gt;&gt; ctl.ground([("b", [Number(3)])])
+&gt;&gt;&gt; print(ctl.solve(on_model=print))
+q q(1) q(2) q(3)
+SAT
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.control.BackendType"><code class="flex name class">
+<span>class <span class="ident">BackendType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BackendType(IntEnum):
+    &#34;&#34;&#34;
+    Enumeration of available backends.
+    &#34;&#34;&#34;
+
+    Aspif = _lib.clingo_backend_type_aspif
+    &#34;&#34;&#34;
+    The aspif Backend.
+    &#34;&#34;&#34;
+    Smodels = _lib.clingo_backend_type_smodels
+    &#34;&#34;&#34;
+    The smodels backend.
+    &#34;&#34;&#34;
+    Reify = _lib.clingo_backend_type_reify
+    &#34;&#34;&#34;
+    The reify backend.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Enumeration of available backends.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.IntEnum</li>
+<li>builtins.int</li>
+<li>enum.ReprEnum</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="clingo.control.BackendType.Aspif"><code class="name">var <span class="ident">Aspif</span></code></dt>
+<dd>
+<div class="desc"><p>The aspif Backend.</p></div>
+</dd>
+<dt id="clingo.control.BackendType.Reify"><code class="name">var <span class="ident">Reify</span></code></dt>
+<dd>
+<div class="desc"><p>The reify backend.</p></div>
+</dd>
+<dt id="clingo.control.BackendType.Smodels"><code class="name">var <span class="ident">Smodels</span></code></dt>
+<dd>
+<div class="desc"><p>The smodels backend.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.control.Control"><code class="flex name class">
+<span>class <span class="ident">Control</span></span>
+<span>(</span><span>arguments: Sequence[str] = [],<br>logger: Callable[[<a title="clingo.core.MessageCode" href="core.html#clingo.core.MessageCode">MessageCode</a>, str], None] | None = None,<br>message_limit: int = 20)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Control:
+    &#34;&#34;&#34;
+    Control object for the grounding/solving process.
+
+    Parameters
+    ----------
+    arguments
+        Arguments to the grounder and solver.
+    logger
+        Function to intercept messages normally printed to standard error.
+    message_limit
+        The maximum number of messages passed to the logger.
+
+    Notes
+    -----
+    Note that only gringo options (without `--text`) and clasp&#39;s search options
+    are supported. Furthermore, you must not call any functions of a `Control`
+    object while a solve call is active.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        arguments: Sequence[str] = [],
+        logger: Optional[Logger] = None,
+        message_limit: int = 20,
+    ):
+        # pylint: disable=protected-access,dangerous-default-value
+        self._free = False
+        self._mem = []
+        if isinstance(arguments, abc.Sequence):
+            if logger is not None:
+                c_handle = _ffi.new_handle(logger)
+                c_cb = _lib.pyclingo_logger_callback
+                self._mem.append(c_handle)
+            else:
+                c_handle = _ffi.NULL
+                c_cb = _ffi.NULL
+            c_mem = []
+            c_args = _ffi.new(&#34;char*[]&#34;, len(arguments))
+            for i, arg in enumerate(arguments):
+                c_mem.append(_ffi.new(&#34;char[]&#34;, arg.encode()))
+                c_args[i] = c_mem[-1]
+            self._rep = _c_call(
+                &#34;clingo_control_t *&#34;,
+                _lib.clingo_control_new,
+                c_args,
+                len(arguments),
+                c_cb,
+                c_handle,
+                message_limit,
+            )
+            self._free = True
+        else:
+            self._rep = arguments
+
+        self._handler = None
+        self._statistics = None
+        self._statistics_call = -1.0
+        self._error = _Error()
+
+    def __del__(self):
+        if self._free:
+            _lib.clingo_control_free(self._rep)
+
+    @overload
+    def add(self, name: str, parameters: Sequence[str], program: str) -&gt; None:
+        &#34;&#34;&#34;
+        Extend the logic program with the given non-ground logic program in string form.
+
+        Parameters
+        ----------
+        name
+            The name of program block to add.
+        parameters
+            The parameters of the program block to add.
+        program
+            The non-ground program in string form.
+
+        See Also
+        --------
+        Control.ground
+        &#34;&#34;&#34;
+
+    @overload
+    def add(self, program: str) -&gt; None:
+        &#34;&#34;&#34;
+        Extend the logic program with the given non-ground logic program in string form.
+
+        Parameters
+        ----------
+        name
+            The name of program block to add.
+
+        Notes
+        -----
+        This function is equivalent to calling `add(&#34;base&#34;, [], program)`.
+        &#34;&#34;&#34;
+
+    def add(self, *args, **kwargs) -&gt; None:
+        &#34;&#34;&#34;
+        Extend the logic program with the given non-ground logic program in string form.
+
+        This function provides two overloads:
+
+        ```python
+        def add(self, name: str, parameters: Sequence[str], program: str) -&gt; None:
+            ...
+
+        def add(self, program: str) -&gt; None:
+            return self.add(&#34;base&#34;, [], program)
+        ```
+
+        Parameters
+        ----------
+        name
+            The name of program block to add.
+        parameters
+            The parameters of the program block to add.
+        program
+            The non-ground program in string form.
+
+        See Also
+        --------
+        Control.ground
+        &#34;&#34;&#34;
+        n = len(args) + len(kwargs)
+        if n == 1:
+            self._add1(*args, **kwargs)
+        else:
+            self._add2(*args, **kwargs)
+
+    def _add1(self, program: str) -&gt; None:
+        self._add2(&#34;base&#34;, [], program)
+
+    def _add2(self, name: str, parameters: Sequence[str], program: str) -&gt; None:
+        c_mem = []
+        c_params = _ffi.new(&#34;char*[]&#34;, len(parameters))
+        for i, param in enumerate(parameters):
+            c_mem.append(_ffi.new(&#34;char[]&#34;, param.encode()))
+            c_params[i] = c_mem[-1]
+        _handle_error(
+            _lib.clingo_control_add(
+                self._rep, name.encode(), c_params, len(parameters), program.encode()
+            )
+        )
+
+    def _program_atom(self, lit: Union[Symbol, int]) -&gt; int:
+        if isinstance(lit, int):
+            return lit
+        satom = self.symbolic_atoms[lit]
+        return 0 if satom is None else satom.literal
+
+    def remove_minimize(self) -&gt; None:
+        &#34;&#34;&#34;
+        Remove all minimize constraints from the program.
+
+        This function removes all minimize constraints that were previously added to the program.
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_control_remove_minimize(self._rep))
+
+    def _update_project(
+        self, atoms: Sequence[Union[Symbol, int]], append: bool
+    ) -&gt; None:
+        p_proj = _ffi.new(&#34;clingo_atom_t[]&#34;, len(atoms))
+        for i, lit in enumerate(atoms):
+            p_proj[i] = self._program_atom(lit)
+
+        _handle_error(
+            _lib.clingo_control_update_project(self._rep, p_proj, len(atoms), append)
+        )
+
+    def add_project(self, atoms: Sequence[Union[Symbol, int]]) -&gt; None:
+        &#34;&#34;&#34;
+        Add atoms to project on to the program.
+
+        Parameters
+        ----------
+        atoms
+            List of atoms or program literals (see `clingo.symbolic_atoms.SymbolicAtom.literal`) to project on.
+
+        Notes
+        -----
+        The function extends the set of atoms to project on with the given atoms.
+
+        See Also
+        --------
+        Control.replace_project
+        &#34;&#34;&#34;
+        self._update_project(atoms, append=True)
+
+    def replace_project(self, atoms: Sequence[Union[Symbol, int]]) -&gt; None:
+        &#34;&#34;&#34;
+        Set atoms to project on.
+
+        Parameters
+        ----------
+        atoms
+           List of atoms or program literals (see `clingo.symbolic_atoms.SymbolicAtom.literal`) to project on.
+
+        Notes
+        -----
+        The function sets the atoms to project on to the given atoms thereby replacing any previously added project
+        statements.
+
+        See Also
+        --------
+        Control.add_project
+        &#34;&#34;&#34;
+        self._update_project(atoms, append=False)
+
+    def remove_project(self) -&gt; None:
+        &#34;&#34;&#34;
+        Remove all projection atoms.
+
+        See Also
+        --------
+        Control.add_project
+        &#34;&#34;&#34;
+        self._update_project([], append=False)
+
+    def assign_external(
+        self, external: Union[Symbol, int], truth: Optional[bool]
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Assign a truth value to an external atom.
+
+        Parameters
+        ----------
+        external
+            A symbol or program literal representing the external atom.
+        truth
+            A Boolean fixes the external to the respective truth value; and
+            None leaves its truth value open.
+
+        See Also
+        --------
+        Control.release_external, clingo.solving.SolveControl.symbolic_atoms,
+        clingo.symbolic_atoms.SymbolicAtom.is_external
+
+        Notes
+        -----
+        The truth value of an external atom can be changed before each solve
+        call. An atom is treated as external if it has been declared using an
+        `#external` directive, and has not been released by calling
+        `Control.release_external` or defined in a logic program with some
+        rule. If the given atom is not external, then the function has no
+        effect.
+
+        For convenience, the truth assigned to atoms over negative program
+        literals is inverted.
+        &#34;&#34;&#34;
+
+        if truth is None:
+            val = _lib.clingo_external_type_free
+        elif truth:
+            val = _lib.clingo_external_type_true
+        else:
+            val = _lib.clingo_external_type_false
+        _handle_error(
+            _lib.clingo_control_assign_external(
+                self._rep, self._program_atom(external), val
+            )
+        )
+
+    def backend(self) -&gt; Backend:
+        &#34;&#34;&#34;
+        Returns a `Backend` object providing a low level interface to extend a
+        logic program.
+
+        See Also
+        --------
+        clingo.backend
+        &#34;&#34;&#34;
+        return Backend(
+            _c_call(&#34;clingo_backend_t*&#34;, _lib.clingo_control_backend, self._rep),
+            self._error,
+        )
+
+    def cleanup(self) -&gt; None:
+        &#34;&#34;&#34;
+        Cleanup the domain used for grounding by incorporating information from
+        the solver.
+
+        This function cleans up the domain used for grounding.  This is done by
+        first simplifying the current program representation (falsifying
+        released external atoms).  Afterwards, the top-level implications are
+        used to either remove atoms from the domain or mark them as facts.
+
+        See Also
+        --------
+        Control.enable_cleanup
+
+        Notes
+        -----
+        Any atoms falsified are completely removed from the logic program.
+        Hence, a definition for such an atom in a successive step introduces a
+        fresh atom.
+
+        With the current implementation, the function only has an effect if
+        called after solving and before any function is called that starts a
+        new step.
+
+        Typically, it is not necessary to call this function manually because
+        automatic cleanups are enabled by default.
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_control_cleanup(self._rep))
+
+    def get_const(self, name: str) -&gt; Optional[Symbol]:
+        &#34;&#34;&#34;
+        Return the symbol for a constant definition of form:
+
+            #const name = symbol.
+
+        Parameters
+        ----------
+        name
+            The name of the constant to retrieve.
+
+        Returns
+        -------
+        The function returns `None` if no matching constant definition exists.
+        &#34;&#34;&#34;
+        if not _c_call(&#34;bool&#34;, _lib.clingo_control_has_const, self._rep, name.encode()):
+            return None
+
+        return Symbol(
+            _c_call(
+                &#34;clingo_symbol_t&#34;,
+                _lib.clingo_control_get_const,
+                self._rep,
+                name.encode(),
+            )
+        )
+
+    def ground(
+        self,
+        parts: Sequence[Tuple[str, Sequence[Symbol]]] = ((&#34;base&#34;, ()),),
+        context: Any = None,
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Ground the given list of program parts specified by tuples of names and
+        arguments.
+
+        Parameters
+        ----------
+        parts
+            List of tuples of program names and program arguments to ground.
+        context
+            A context object whose methods are called during grounding using
+            the `@`-syntax (if omitted, those from the main module are used).
+
+        Notes
+        -----
+        Note that parts of a logic program without an explicit `#program`
+        specification are by default put into a program called `base` without
+        arguments.
+        &#34;&#34;&#34;
+        # pylint: disable=protected-access,dangerous-default-value
+        self._error.clear()
+        data = _CBData(context, self._error)
+        c_data = _ffi.new_handle(data) if context else _ffi.NULL
+        c_cb = _lib.pyclingo_ground_callback if context else _ffi.NULL
+
+        c_mem = []
+        c_parts = _ffi.new(&#34;clingo_part_t[]&#34;, len(parts))
+        for part, c_part in zip(parts, c_parts):
+            c_mem.append(_ffi.new(&#34;char[]&#34;, part[0].encode()))
+            c_part.name = c_mem[-1]
+            c_mem.append(_ffi.new(&#34;clingo_symbol_t[]&#34;, len(part[1])))
+            c_part.params = c_mem[-1]
+            for i, sym in enumerate(part[1]):
+                c_part.params[i] = sym._rep
+            c_part.size = len(part[1])
+
+        _handle_error(
+            _lib.clingo_control_ground(self._rep, c_parts, len(parts), c_cb, c_data),
+            data,
+        )
+
+    def interrupt(self) -&gt; None:
+        &#34;&#34;&#34;
+        Interrupt the active solve call.
+
+        Notes
+        -----
+        This function is thread-safe and can be called from a signal handler. If no
+        search is active, the subsequent call to `Control.solve` is interrupted. The
+        result of the `Control.solve` method can be used to query if the search was
+        interrupted.
+        &#34;&#34;&#34;
+        _lib.clingo_control_interrupt(self._rep)
+
+    def load(self, path: str) -&gt; None:
+        &#34;&#34;&#34;
+        Extend the logic program with a (non-ground) logic program in a file.
+
+        Parameters
+        ----------
+        path
+            The path of the file to load.
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_control_load(self._rep, path.encode()))
+
+    def load_aspif(self, files: Sequence[str]) -&gt; None:
+        &#34;&#34;&#34;
+        Extend the logic program with a program in aspif format.
+
+        This function should be called on an empty control object. If more than
+        one file is given, they are merged into one file. Only the first one
+        should have a preamble.
+
+        Parameters
+        ----------
+        files
+            A list of files to load.
+        &#34;&#34;&#34;
+        c_mem = []
+        c_files = _ffi.new(&#34;char*[]&#34;, len(files))
+        for i, path in enumerate(files):
+            c_mem.append(_ffi.new(&#34;char[]&#34;, path.encode()))
+            c_files[i] = c_mem[-1]
+        _handle_error(_lib.clingo_control_load_aspif(self._rep, c_files, len(files)))
+
+    def register_observer(self, observer: Observer, replace: bool = False) -&gt; None:
+        &#34;&#34;&#34;
+        Registers the given observer to inspect the produced grounding.
+
+        Parameters
+        ----------
+        observer
+            The observer to register. See below for a description of the required
+            interface.
+        replace
+            If set to true, the output is just passed to the observer and no longer to
+            the underlying solver (or any previously registered observers).
+
+        See Also
+        --------
+        clingo.backend
+        &#34;&#34;&#34;
+        # pylint: disable=protected-access,line-too-long
+        c_observer = _ffi.new(
+            &#34;clingo_ground_program_observer_t*&#34;,
+            (
+                (
+                    _lib.pyclingo_observer_init_program
+                    if _overwritten(Observer, observer, &#34;init_program&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_begin_step
+                    if _overwritten(Observer, observer, &#34;begin_step&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_end_step
+                    if _overwritten(Observer, observer, &#34;end_step&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_rule
+                    if _overwritten(Observer, observer, &#34;rule&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_weight_rule
+                    if _overwritten(Observer, observer, &#34;weight_rule&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_minimize
+                    if _overwritten(Observer, observer, &#34;minimize&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_project
+                    if _overwritten(Observer, observer, &#34;project&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_output_atom
+                    if _overwritten(Observer, observer, &#34;output_atom&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_output_term
+                    if _overwritten(Observer, observer, &#34;output_term&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_external
+                    if _overwritten(Observer, observer, &#34;external&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_assume
+                    if _overwritten(Observer, observer, &#34;assume&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_heuristic
+                    if _overwritten(Observer, observer, &#34;heuristic&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_acyc_edge
+                    if _overwritten(Observer, observer, &#34;acyc_edge&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_theory_term_number
+                    if _overwritten(Observer, observer, &#34;theory_term_number&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_theory_term_string
+                    if _overwritten(Observer, observer, &#34;theory_term_string&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_theory_term_compound
+                    if _overwritten(Observer, observer, &#34;theory_term_compound&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_theory_element
+                    if _overwritten(Observer, observer, &#34;theory_element&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_theory_atom
+                    if _overwritten(Observer, observer, &#34;theory_atom&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_observer_theory_atom_with_guard
+                    if _overwritten(Observer, observer, &#34;theory_atom_with_guard&#34;)
+                    else _ffi.NULL
+                ),
+            ),
+        )
+        c_data = _ffi.new_handle(_CBData(observer, self._error))
+        self._mem.append(c_data)
+        _handle_error(
+            _lib.clingo_control_register_observer(
+                self._rep, c_observer, replace, c_data
+            )
+        )
+
+    def register_backend(
+        self,
+        type: BackendType,
+        file: str,
+        replace: bool = False,
+        reify_sccs: bool = False,
+        reify_steps: bool = False,
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Registers a backend of the given type.
+
+        This function is similar to register_observer but instead registers a predefined backend.
+
+        Parameters
+        ----------
+        type
+            The type of backend to register.
+        file:
+            The path of the file to write to.
+        replace
+            If set to true, the output is just passed to the backend and no longer to
+            the underlying solver (or any previously registered backends/observers).
+        reify_sccs
+            Whether to reify sccs.
+        reify_steps
+            Whether to reify steps.
+
+        See Also
+        --------
+        clingo.backend
+        &#34;&#34;&#34;
+        bitset = type.value
+        if reify_sccs:
+            bitset = bitset | _lib.clingo_backend_type_reify_sccs
+        if reify_steps:
+            bitset = bitset | _lib.clingo_backend_type_reify_steps
+        _handle_error(
+            _lib.clingo_control_register_backend(
+                self._rep, bitset, file.encode(), replace
+            )
+        )
+
+    def register_propagator(self, propagator: Propagator) -&gt; None:
+        &#34;&#34;&#34;
+        Registers the given propagator with all solvers.
+
+        Parameters
+        ----------
+        propagator
+            The propagator to register.
+
+        See Also
+        --------
+        clingo.propagator
+        &#34;&#34;&#34;
+        # pylint: disable=protected-access
+        c_propagator = _ffi.new(
+            &#34;clingo_propagator_t*&#34;,
+            (
+                (
+                    _lib.pyclingo_propagator_init
+                    if _overwritten(Propagator, propagator, &#34;init&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_propagator_propagate
+                    if _overwritten(Propagator, propagator, &#34;propagate&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_propagator_undo
+                    if _overwritten(Propagator, propagator, &#34;undo&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_propagator_check
+                    if _overwritten(Propagator, propagator, &#34;check&#34;)
+                    else _ffi.NULL
+                ),
+                (
+                    _lib.pyclingo_propagator_decide
+                    if _overwritten(Propagator, propagator, &#34;decide&#34;)
+                    else _ffi.NULL
+                ),
+            ),
+        )
+        c_data = _ffi.new_handle(_CBData(propagator, self._error))
+        self._mem.append(c_data)
+        _handle_error(
+            _lib.clingo_control_register_propagator(
+                self._rep, c_propagator, c_data, False
+            )
+        )
+
+    def release_external(self, external: Union[Symbol, int]) -&gt; None:
+        &#34;&#34;&#34;
+        Release an external atom represented by the given symbol or program
+        literal.
+
+        This function causes the corresponding atom to become permanently false
+        if there is no definition for the atom in the program. Otherwise, the
+        function has no effect.
+
+        Parameters
+        ----------
+        external
+            The symbolic atom or program atom to release.
+
+        Notes
+        -----
+        If the program literal is negative, the corresponding atom is released.
+
+        Examples
+        --------
+        The following example shows the effect of assigning and releasing and external
+        atom.
+
+            &gt;&gt;&gt; from clingo.symbol import Function
+            &gt;&gt;&gt; from clingo.control import Control
+            &gt;&gt;&gt;
+            &gt;&gt;&gt; ctl = Control()
+            &gt;&gt;&gt; ctl.add(&#34;base&#34;, [], &#34;a. #external b.&#34;)
+            &gt;&gt;&gt; ctl.ground([(&#34;base&#34;, [])])
+            &gt;&gt;&gt; ctl.assign_external(Function(&#34;b&#34;), True)
+            &gt;&gt;&gt; print(ctl.solve(on_model=print))
+            b a
+            SAT
+            &gt;&gt;&gt; ctl.release_external(Function(&#34;b&#34;))
+            &gt;&gt;&gt; print(ctl.solve(on_model=print))
+            a
+            SAT
+        &#34;&#34;&#34;
+        _handle_error(
+            _lib.clingo_control_release_external(
+                self._rep, self._program_atom(external)
+            )
+        )
+
+    # this assumes that overloads are matched in the order they appear
+    # unfortunately, PEP0484 does not specify any kind of semantics just giving examples
+    if sys.version_info &gt;= (3, 8):
+
+        @overload
+        def solve(
+            self,
+            assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+            on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+            on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+            on_statistics: Optional[
+                Callable[[StatisticsMap, StatisticsMap], None]
+            ] = None,
+            on_finish: Optional[Callable[[SolveResult], None]] = None,
+            on_core: Optional[Callable[[Sequence[int]], None]] = None,
+            on_last: Optional[Callable[[Model], None]] = None,
+            *,
+            yield_: Literal[False] = False,
+            async_: Literal[False] = False,
+        ) -&gt; SolveResult: ...
+        @overload
+        def solve(
+            self,
+            assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+            on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+            on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+            on_statistics: Optional[
+                Callable[[StatisticsMap, StatisticsMap], None]
+            ] = None,
+            on_finish: Optional[Callable[[SolveResult], None]] = None,
+            on_core: Optional[Callable[[Sequence[int]], None]] = None,
+            *,
+            yield_: Literal[True],
+            async_: bool = False,
+        ) -&gt; SolveHandle: ...
+        @overload
+        def solve(
+            self,
+            assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+            on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+            on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+            on_statistics: Optional[
+                Callable[[StatisticsMap, StatisticsMap], None]
+            ] = None,
+            on_finish: Optional[Callable[[SolveResult], None]] = None,
+            on_core: Optional[Callable[[Sequence[int]], None]] = None,
+            *,
+            yield_: bool = False,
+            async_: Literal[True],
+        ) -&gt; SolveHandle: ...
+
+    else:
+
+        @overload
+        def solve(
+            self,
+            assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+            on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+            on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+            on_statistics: Optional[
+                Callable[[StatisticsMap, StatisticsMap], None]
+            ] = None,
+            on_finish: Optional[Callable[[SolveResult], None]] = None,
+            on_core: Optional[Callable[[Sequence[int]], None]] = None,
+            on_last: Optional[Callable[[Model], None]] = None,
+        ) -&gt; SolveResult: ...
+
+    @overload
+    def solve(
+        self,
+        assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+        on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+        on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+        on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+        on_finish: Optional[Callable[[SolveResult], None]] = None,
+        on_core: Optional[Callable[[Sequence[int]], None]] = None,
+        on_last: Optional[Callable[[Model], None]] = None,
+        yield_: bool = False,
+        async_: bool = False,
+    ) -&gt; Union[SolveHandle, SolveResult]: ...
+
+    def solve(
+        self,
+        assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+        on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+        on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+        on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+        on_finish: Optional[Callable[[SolveResult], None]] = None,
+        on_core: Optional[Callable[[Sequence[int]], None]] = None,
+        on_last: Optional[Callable[[Model], None]] = None,
+        yield_: bool = False,
+        async_: bool = False,
+    ) -&gt; Union[SolveHandle, SolveResult]:
+        &#34;&#34;&#34;
+        Starts a search.
+
+        Parameters
+        ----------
+        assumptions
+            List of (atom, boolean) tuples or program literals (see
+            `clingo.symbolic_atoms.SymbolicAtom.literal`) that serve as
+            assumptions for the solve call, e.g., solving under assumptions
+            `[(Function(&#34;a&#34;), True)]` only admits answer sets that contain atom `a`.
+        on_model
+            Optional callback for intercepting models.
+            A `clingo.solving.Model` object is passed to the callback. The
+            search can be interrupted from the model callback by returning
+            False.
+        on_unsat
+            Optional callback to intercept lower bounds during optimization.
+        on_statistics
+            Optional callback to update statistics.
+            The step and accumulated statistics are passed as arguments.
+        on_finish
+            Optional callback called once search has finished.
+            A `clingo.solving.SolveResult` also indicating whether the solve
+            call has been interrupted is passed to the callback.
+        on_core
+            Optional callback called with the assumptions that made a problem
+            unsatisfiable.
+        on_last
+            Optional callback for getting the last model computed for a satisfiable problem.
+            A `clingo.solving.Model` object is passed to the callback.
+        yield_
+            The resulting `clingo.solving.SolveHandle` is iterable yielding
+            `clingo.solving.Model` objects.
+        async_
+            The solve call and the method `clingo.solving.SolveHandle.resume`
+            of the returned handle are non-blocking.
+
+        Returns
+        -------
+        The return value depends on the parameters. If either `yield_` or
+        `async_` is true, then a handle is returned. Otherwise, a
+        `clingo.solving.SolveResult` is returned.
+
+        See Also
+        --------
+        clingo.solving
+
+        Notes
+        -----
+        If neither `yield_` nor `async_` is set, the function returns a
+        `clingo.solving.SolveResult` right away.
+
+        In gringo or in clingo with lparse or text output enabled, this
+        function just grounds and returns a `clingo.solving.SolveResult` where
+        `clingo.solving.SolveResult.unknown` is true.
+
+        If this function is used in embedded Python code, you might want to start
+        clingo using the `--outf=3` option to disable all output from clingo.
+
+        Asynchronous solving is only available in clingo with thread support
+        enabled. Furthermore, the on_model and on_finish callbacks are called
+        from another thread. To ensure that the methods can be called, make
+        sure to not use any functions that block Python&#39;s GIL indefinitely.
+
+        This function as well as blocking functions on the
+        `clingo.solving.SolveHandle` release the GIL but are not thread-safe.
+        &#34;&#34;&#34;
+        # pylint: disable=protected-access,dangerous-default-value
+        self._error.clear()
+        handler = _SolveEventHandler(on_model, on_unsat, on_statistics, on_finish)
+        data = _CBData(handler, self._error)
+        self._handler = _ffi.new_handle(data)
+
+        p_ass = _ffi.NULL
+        if assumptions:
+            atoms = None
+            p_ass = _ffi.new(&#34;clingo_literal_t[]&#34;, len(assumptions))
+            for i, lit in enumerate(assumptions):
+                if isinstance(lit, int):
+                    p_ass[i] = lit
+                else:
+                    if atoms is None:
+                        atoms = self.symbolic_atoms
+                    atom = self.symbolic_atoms[lit[0]]
+                    slit = -1 if atom is None else atom.literal
+                    p_ass[i] = slit if lit[1] else -slit
+
+        mode = 0
+        if yield_:
+            mode |= _lib.clingo_solve_mode_yield
+        if async_:
+            mode |= _lib.clingo_solve_mode_async
+
+        handle = SolveHandle(
+            _c_call(
+                &#34;clingo_solve_handle_t*&#34;,
+                _lib.clingo_control_solve,
+                self._rep,
+                mode,
+                p_ass,
+                len(assumptions),
+                _lib.pyclingo_solve_event_callback,
+                self._handler,
+                handler=data,
+            ),
+            data,
+        )
+
+        if not yield_ and not async_:
+            with handle:
+                ret = handle.get()
+                if on_core is not None and ret.unsatisfiable:
+                    on_core(handle.core())
+                if on_last is not None:
+                    m = handle.last()
+                    if m is not None:
+                        on_last(m)
+                return ret
+        return handle
+
+    @property
+    def configuration(self) -&gt; Configuration:
+        &#34;&#34;&#34;
+        Object to change the configuration.
+        &#34;&#34;&#34;
+        conf = _c_call(
+            &#34;clingo_configuration_t*&#34;, _lib.clingo_control_configuration, self._rep
+        )
+        key = _c_call(&#34;clingo_id_t&#34;, _lib.clingo_configuration_root, conf)
+        return Configuration(conf, key)
+
+    @property
+    def enable_cleanup(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Whether to enable automatic calls to `Control.cleanup`.
+        &#34;&#34;&#34;
+        return _lib.clingo_control_get_enable_cleanup(self._rep)
+
+    @enable_cleanup.setter
+    def enable_cleanup(self, value: bool) -&gt; None:
+        _handle_error(_lib.clingo_control_set_enable_cleanup(self._rep, value))
+
+    @property
+    def enable_enumeration_assumption(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Whether to discard or keep learnt information from enumeration modes.
+
+        If the enumeration assumption is enabled, then all information learnt from
+        clasp&#39;s various enumeration modes is removed after a solve call. This includes
+        enumeration of cautious or brave consequences, enumeration of answer sets with
+        or without projection, or finding optimal models; as well as clauses added with
+        `clingo.solving.SolveControl.add_clause`.
+
+        Notes
+        -----
+        Initially the enumeration assumption is enabled.
+
+        In general, the enumeration assumption should be enabled whenever there are
+        multiple calls to solve. Otherwise, the behavior of the solver will be
+        unpredictable because there are no guarantees which information exactly is
+        kept. There might be small speed benefits when disabling the enumeration
+        assumption for single shot solving.
+        &#34;&#34;&#34;
+        return _lib.clingo_control_get_enable_enumeration_assumption(self._rep)
+
+    @enable_enumeration_assumption.setter
+    def enable_enumeration_assumption(self, value: bool) -&gt; None:
+        _handle_error(
+            _lib.clingo_control_set_enable_enumeration_assumption(self._rep, value)
+        )
+
+    @property
+    def is_conflicting(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Whether the internal program representation is conflicting.
+
+        If this (read-only) property is true, solve calls return immediately with an
+        unsatisfiable solve result.
+
+        Notes
+        -----
+        Conflicts first have to be detected, e.g., initial unit propagation results in
+        an empty clause, or later if an empty clause is resolved during solving. Hence,
+        the property might be false even if the problem is unsatisfiable.
+        &#34;&#34;&#34;
+        return _lib.clingo_control_is_conflicting(self._rep)
+
+    @property
+    def statistics(self) -&gt; dict:
+        &#34;&#34;&#34;
+        A `dict` containing solve statistics of the last solve call.
+
+        See Also
+        --------
+        clingo.statistics
+
+        Notes
+        -----
+        The statistics correspond to the `--stats` output of clingo. The detail of the
+        statistics depends on what level is requested on the command line. Furthermore,
+        there are some functions like `Control.release_external` that start a new
+        solving step resetting the current step statistics. It is best to access the
+        statistics right after solving.
+
+        This property is only available in clingo.
+        &#34;&#34;&#34;
+        stats = _c_call(
+            &#34;clingo_statistics_t*&#34;, _lib.clingo_control_statistics, self._rep
+        )
+
+        p_key = _ffi.new(&#34;uint64_t*&#34;)
+        key_root = _c_call(p_key, _lib.clingo_statistics_root, stats)
+
+        key_summary = _c_call(
+            p_key, _lib.clingo_statistics_map_at, stats, key_root, &#34;summary&#34;.encode()
+        )
+        key_call = _c_call(
+            p_key, _lib.clingo_statistics_map_at, stats, key_summary, &#34;call&#34;.encode()
+        )
+        call = _c_call(&#34;double&#34;, _lib.clingo_statistics_value_get, stats, key_call)
+        if self._statistics is not None and call != self._statistics_call:
+            self._statistics = None
+
+        if self._statistics is None:
+            self._statistics_call = call
+            self._statistics = _statistics(stats, key_root)
+
+        return cast(dict, self._statistics)
+
+    @property
+    def symbolic_atoms(self) -&gt; SymbolicAtoms:
+        &#34;&#34;&#34;
+        An object to inspect the symbolic atoms.
+
+        See Also
+        --------
+        clingo.symbolic_atoms
+        &#34;&#34;&#34;
+        return SymbolicAtoms(
+            _c_call(
+                &#34;clingo_symbolic_atoms_t*&#34;,
+                _lib.clingo_control_symbolic_atoms,
+                self._rep,
+            )
+        )
+
+    @property
+    def theory_atoms(self) -&gt; Iterator[TheoryAtom]:
+        &#34;&#34;&#34;
+        An iterator over the theory atoms in a program.
+
+        See Also
+        --------
+        clingo.theory_atoms
+        &#34;&#34;&#34;
+        atoms = _c_call(
+            &#34;clingo_theory_atoms_t*&#34;, _lib.clingo_control_theory_atoms, self._rep
+        )
+        size = _c_call(&#34;size_t&#34;, _lib.clingo_theory_atoms_size, atoms)
+
+        for idx in range(size):
+            yield TheoryAtom(atoms, idx)</code></pre>
+</details>
+<div class="desc"><p>Control object for the grounding/solving process.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>arguments</code></strong></dt>
+<dd>Arguments to the grounder and solver.</dd>
+<dt><strong><code>logger</code></strong></dt>
+<dd>Function to intercept messages normally printed to standard error.</dd>
+<dt><strong><code>message_limit</code></strong></dt>
+<dd>The maximum number of messages passed to the logger.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>Note that only gringo options (without <code>--text</code>) and clasp's search options
+are supported. Furthermore, you must not call any functions of a <code><a title="clingo.control.Control" href="#clingo.control.Control">Control</a></code>
+object while a solve call is active.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="clingo.control.Control.configuration"><code class="name">prop <span class="ident">configuration</span> : <a title="clingo.configuration.Configuration" href="configuration.html#clingo.configuration.Configuration">Configuration</a></code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def configuration(self) -&gt; Configuration:
+    &#34;&#34;&#34;
+    Object to change the configuration.
+    &#34;&#34;&#34;
+    conf = _c_call(
+        &#34;clingo_configuration_t*&#34;, _lib.clingo_control_configuration, self._rep
+    )
+    key = _c_call(&#34;clingo_id_t&#34;, _lib.clingo_configuration_root, conf)
+    return Configuration(conf, key)</code></pre>
+</details>
+<div class="desc"><p>Object to change the configuration.</p></div>
+</dd>
+<dt id="clingo.control.Control.enable_cleanup"><code class="name">prop <span class="ident">enable_cleanup</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def enable_cleanup(self) -&gt; bool:
+    &#34;&#34;&#34;
+    Whether to enable automatic calls to `Control.cleanup`.
+    &#34;&#34;&#34;
+    return _lib.clingo_control_get_enable_cleanup(self._rep)</code></pre>
+</details>
+<div class="desc"><p>Whether to enable automatic calls to <code><a title="clingo.control.Control.cleanup" href="#clingo.control.Control.cleanup">Control.cleanup()</a></code>.</p></div>
+</dd>
+<dt id="clingo.control.Control.enable_enumeration_assumption"><code class="name">prop <span class="ident">enable_enumeration_assumption</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def enable_enumeration_assumption(self) -&gt; bool:
+    &#34;&#34;&#34;
+    Whether to discard or keep learnt information from enumeration modes.
+
+    If the enumeration assumption is enabled, then all information learnt from
+    clasp&#39;s various enumeration modes is removed after a solve call. This includes
+    enumeration of cautious or brave consequences, enumeration of answer sets with
+    or without projection, or finding optimal models; as well as clauses added with
+    `clingo.solving.SolveControl.add_clause`.
+
+    Notes
+    -----
+    Initially the enumeration assumption is enabled.
+
+    In general, the enumeration assumption should be enabled whenever there are
+    multiple calls to solve. Otherwise, the behavior of the solver will be
+    unpredictable because there are no guarantees which information exactly is
+    kept. There might be small speed benefits when disabling the enumeration
+    assumption for single shot solving.
+    &#34;&#34;&#34;
+    return _lib.clingo_control_get_enable_enumeration_assumption(self._rep)</code></pre>
+</details>
+<div class="desc"><p>Whether to discard or keep learnt information from enumeration modes.</p>
+<p>If the enumeration assumption is enabled, then all information learnt from
+clasp's various enumeration modes is removed after a solve call. This includes
+enumeration of cautious or brave consequences, enumeration of answer sets with
+or without projection, or finding optimal models; as well as clauses added with
+<code><a title="clingo.solving.SolveControl.add_clause" href="solving.html#clingo.solving.SolveControl.add_clause">SolveControl.add_clause()</a></code>.</p>
+<h2 id="notes">Notes</h2>
+<p>Initially the enumeration assumption is enabled.</p>
+<p>In general, the enumeration assumption should be enabled whenever there are
+multiple calls to solve. Otherwise, the behavior of the solver will be
+unpredictable because there are no guarantees which information exactly is
+kept. There might be small speed benefits when disabling the enumeration
+assumption for single shot solving.</p></div>
+</dd>
+<dt id="clingo.control.Control.is_conflicting"><code class="name">prop <span class="ident">is_conflicting</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def is_conflicting(self) -&gt; bool:
+    &#34;&#34;&#34;
+    Whether the internal program representation is conflicting.
+
+    If this (read-only) property is true, solve calls return immediately with an
+    unsatisfiable solve result.
+
+    Notes
+    -----
+    Conflicts first have to be detected, e.g., initial unit propagation results in
+    an empty clause, or later if an empty clause is resolved during solving. Hence,
+    the property might be false even if the problem is unsatisfiable.
+    &#34;&#34;&#34;
+    return _lib.clingo_control_is_conflicting(self._rep)</code></pre>
+</details>
+<div class="desc"><p>Whether the internal program representation is conflicting.</p>
+<p>If this (read-only) property is true, solve calls return immediately with an
+unsatisfiable solve result.</p>
+<h2 id="notes">Notes</h2>
+<p>Conflicts first have to be detected, e.g., initial unit propagation results in
+an empty clause, or later if an empty clause is resolved during solving. Hence,
+the property might be false even if the problem is unsatisfiable.</p></div>
+</dd>
+<dt id="clingo.control.Control.statistics"><code class="name">prop <span class="ident">statistics</span> : dict</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def statistics(self) -&gt; dict:
+    &#34;&#34;&#34;
+    A `dict` containing solve statistics of the last solve call.
+
+    See Also
+    --------
+    clingo.statistics
+
+    Notes
+    -----
+    The statistics correspond to the `--stats` output of clingo. The detail of the
+    statistics depends on what level is requested on the command line. Furthermore,
+    there are some functions like `Control.release_external` that start a new
+    solving step resetting the current step statistics. It is best to access the
+    statistics right after solving.
+
+    This property is only available in clingo.
+    &#34;&#34;&#34;
+    stats = _c_call(
+        &#34;clingo_statistics_t*&#34;, _lib.clingo_control_statistics, self._rep
+    )
+
+    p_key = _ffi.new(&#34;uint64_t*&#34;)
+    key_root = _c_call(p_key, _lib.clingo_statistics_root, stats)
+
+    key_summary = _c_call(
+        p_key, _lib.clingo_statistics_map_at, stats, key_root, &#34;summary&#34;.encode()
+    )
+    key_call = _c_call(
+        p_key, _lib.clingo_statistics_map_at, stats, key_summary, &#34;call&#34;.encode()
+    )
+    call = _c_call(&#34;double&#34;, _lib.clingo_statistics_value_get, stats, key_call)
+    if self._statistics is not None and call != self._statistics_call:
+        self._statistics = None
+
+    if self._statistics is None:
+        self._statistics_call = call
+        self._statistics = _statistics(stats, key_root)
+
+    return cast(dict, self._statistics)</code></pre>
+</details>
+<div class="desc"><p>A <code>dict</code> containing solve statistics of the last solve call.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.statistics" href="statistics.html">clingo.statistics</a></code></p>
+<h2 id="notes">Notes</h2>
+<p>The statistics correspond to the <code>--stats</code> output of clingo. The detail of the
+statistics depends on what level is requested on the command line. Furthermore,
+there are some functions like <code><a title="clingo.control.Control.release_external" href="#clingo.control.Control.release_external">Control.release_external()</a></code> that start a new
+solving step resetting the current step statistics. It is best to access the
+statistics right after solving.</p>
+<p>This property is only available in clingo.</p></div>
+</dd>
+<dt id="clingo.control.Control.symbolic_atoms"><code class="name">prop <span class="ident">symbolic_atoms</span> : <a title="clingo.symbolic_atoms.SymbolicAtoms" href="symbolic_atoms.html#clingo.symbolic_atoms.SymbolicAtoms">SymbolicAtoms</a></code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def symbolic_atoms(self) -&gt; SymbolicAtoms:
+    &#34;&#34;&#34;
+    An object to inspect the symbolic atoms.
+
+    See Also
+    --------
+    clingo.symbolic_atoms
+    &#34;&#34;&#34;
+    return SymbolicAtoms(
+        _c_call(
+            &#34;clingo_symbolic_atoms_t*&#34;,
+            _lib.clingo_control_symbolic_atoms,
+            self._rep,
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>An object to inspect the symbolic atoms.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.symbolic_atoms" href="symbolic_atoms.html">clingo.symbolic_atoms</a></code></p></div>
+</dd>
+<dt id="clingo.control.Control.theory_atoms"><code class="name">prop <span class="ident">theory_atoms</span> : Iterator[<a title="clingo.theory_atoms.TheoryAtom" href="theory_atoms.html#clingo.theory_atoms.TheoryAtom">TheoryAtom</a>]</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def theory_atoms(self) -&gt; Iterator[TheoryAtom]:
+    &#34;&#34;&#34;
+    An iterator over the theory atoms in a program.
+
+    See Also
+    --------
+    clingo.theory_atoms
+    &#34;&#34;&#34;
+    atoms = _c_call(
+        &#34;clingo_theory_atoms_t*&#34;, _lib.clingo_control_theory_atoms, self._rep
+    )
+    size = _c_call(&#34;size_t&#34;, _lib.clingo_theory_atoms_size, atoms)
+
+    for idx in range(size):
+        yield TheoryAtom(atoms, idx)</code></pre>
+</details>
+<div class="desc"><p>An iterator over the theory atoms in a program.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.theory_atoms" href="theory_atoms.html">clingo.theory_atoms</a></code></p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.control.Control.add"><code class="name flex">
+<span>def <span class="ident">add</span></span>(<span>self, *args, **kwargs) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add(self, *args, **kwargs) -&gt; None:
+    &#34;&#34;&#34;
+    Extend the logic program with the given non-ground logic program in string form.
+
+    This function provides two overloads:
+
+    ```python
+    def add(self, name: str, parameters: Sequence[str], program: str) -&gt; None:
+        ...
+
+    def add(self, program: str) -&gt; None:
+        return self.add(&#34;base&#34;, [], program)
+    ```
+
+    Parameters
+    ----------
+    name
+        The name of program block to add.
+    parameters
+        The parameters of the program block to add.
+    program
+        The non-ground program in string form.
+
+    See Also
+    --------
+    Control.ground
+    &#34;&#34;&#34;
+    n = len(args) + len(kwargs)
+    if n == 1:
+        self._add1(*args, **kwargs)
+    else:
+        self._add2(*args, **kwargs)</code></pre>
+</details>
+<div class="desc"><p>Extend the logic program with the given non-ground logic program in string form.</p>
+<p>This function provides two overloads:</p>
+<pre><code class="language-python">def add(self, name: str, parameters: Sequence[str], program: str) -&gt; None:
+    ...
+
+def add(self, program: str) -&gt; None:
+    return self.add(&quot;base&quot;, [], program)
+</code></pre>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong></dt>
+<dd>The name of program block to add.</dd>
+<dt><strong><code>parameters</code></strong></dt>
+<dd>The parameters of the program block to add.</dd>
+<dt><strong><code>program</code></strong></dt>
+<dd>The non-ground program in string form.</dd>
+</dl>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.control.Control.ground" href="#clingo.control.Control.ground">Control.ground()</a></code></p></div>
+</dd>
+<dt id="clingo.control.Control.add_project"><code class="name flex">
+<span>def <span class="ident">add_project</span></span>(<span>self,<br>atoms: Sequence[<a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a> | int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_project(self, atoms: Sequence[Union[Symbol, int]]) -&gt; None:
+    &#34;&#34;&#34;
+    Add atoms to project on to the program.
+
+    Parameters
+    ----------
+    atoms
+        List of atoms or program literals (see `clingo.symbolic_atoms.SymbolicAtom.literal`) to project on.
+
+    Notes
+    -----
+    The function extends the set of atoms to project on with the given atoms.
+
+    See Also
+    --------
+    Control.replace_project
+    &#34;&#34;&#34;
+    self._update_project(atoms, append=True)</code></pre>
+</details>
+<div class="desc"><p>Add atoms to project on to the program.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atoms</code></strong></dt>
+<dd>List of atoms or program literals (see <code><a title="clingo.symbolic_atoms.SymbolicAtom.literal" href="symbolic_atoms.html#clingo.symbolic_atoms.SymbolicAtom.literal">SymbolicAtom.literal</a></code>) to project on.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>The function extends the set of atoms to project on with the given atoms.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.control.Control.replace_project" href="#clingo.control.Control.replace_project">Control.replace_project()</a></code></p></div>
+</dd>
+<dt id="clingo.control.Control.assign_external"><code class="name flex">
+<span>def <span class="ident">assign_external</span></span>(<span>self,<br>external: <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a> | int,<br>truth: bool | None) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def assign_external(
+    self, external: Union[Symbol, int], truth: Optional[bool]
+) -&gt; None:
+    &#34;&#34;&#34;
+    Assign a truth value to an external atom.
+
+    Parameters
+    ----------
+    external
+        A symbol or program literal representing the external atom.
+    truth
+        A Boolean fixes the external to the respective truth value; and
+        None leaves its truth value open.
+
+    See Also
+    --------
+    Control.release_external, clingo.solving.SolveControl.symbolic_atoms,
+    clingo.symbolic_atoms.SymbolicAtom.is_external
+
+    Notes
+    -----
+    The truth value of an external atom can be changed before each solve
+    call. An atom is treated as external if it has been declared using an
+    `#external` directive, and has not been released by calling
+    `Control.release_external` or defined in a logic program with some
+    rule. If the given atom is not external, then the function has no
+    effect.
+
+    For convenience, the truth assigned to atoms over negative program
+    literals is inverted.
+    &#34;&#34;&#34;
+
+    if truth is None:
+        val = _lib.clingo_external_type_free
+    elif truth:
+        val = _lib.clingo_external_type_true
+    else:
+        val = _lib.clingo_external_type_false
+    _handle_error(
+        _lib.clingo_control_assign_external(
+            self._rep, self._program_atom(external), val
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Assign a truth value to an external atom.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>external</code></strong></dt>
+<dd>A symbol or program literal representing the external atom.</dd>
+<dt><strong><code>truth</code></strong></dt>
+<dd>A Boolean fixes the external to the respective truth value; and
+None leaves its truth value open.</dd>
+</dl>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.control.Control.release_external" href="#clingo.control.Control.release_external">Control.release_external()</a></code>, <code><a title="clingo.solving.SolveControl.symbolic_atoms" href="solving.html#clingo.solving.SolveControl.symbolic_atoms">SolveControl.symbolic_atoms</a>,</code>
+<code><a title="clingo.symbolic_atoms.SymbolicAtom.is_external" href="symbolic_atoms.html#clingo.symbolic_atoms.SymbolicAtom.is_external">SymbolicAtom.is_external</a></code></p>
+<h2 id="notes">Notes</h2>
+<p>The truth value of an external atom can be changed before each solve
+call. An atom is treated as external if it has been declared using an
+<code>#external</code> directive, and has not been released by calling
+<code><a title="clingo.control.Control.release_external" href="#clingo.control.Control.release_external">Control.release_external()</a></code> or defined in a logic program with some
+rule. If the given atom is not external, then the function has no
+effect.</p>
+<p>For convenience, the truth assigned to atoms over negative program
+literals is inverted.</p></div>
+</dd>
+<dt id="clingo.control.Control.backend"><code class="name flex">
+<span>def <span class="ident">backend</span></span>(<span>self) ‑> <a title="clingo.backend.Backend" href="backend.html#clingo.backend.Backend">Backend</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def backend(self) -&gt; Backend:
+    &#34;&#34;&#34;
+    Returns a `Backend` object providing a low level interface to extend a
+    logic program.
+
+    See Also
+    --------
+    clingo.backend
+    &#34;&#34;&#34;
+    return Backend(
+        _c_call(&#34;clingo_backend_t*&#34;, _lib.clingo_control_backend, self._rep),
+        self._error,
+    )</code></pre>
+</details>
+<div class="desc"><p>Returns a <code>Backend</code> object providing a low level interface to extend a
+logic program.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.backend" href="backend.html">clingo.backend</a></code></p></div>
+</dd>
+<dt id="clingo.control.Control.cleanup"><code class="name flex">
+<span>def <span class="ident">cleanup</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cleanup(self) -&gt; None:
+    &#34;&#34;&#34;
+    Cleanup the domain used for grounding by incorporating information from
+    the solver.
+
+    This function cleans up the domain used for grounding.  This is done by
+    first simplifying the current program representation (falsifying
+    released external atoms).  Afterwards, the top-level implications are
+    used to either remove atoms from the domain or mark them as facts.
+
+    See Also
+    --------
+    Control.enable_cleanup
+
+    Notes
+    -----
+    Any atoms falsified are completely removed from the logic program.
+    Hence, a definition for such an atom in a successive step introduces a
+    fresh atom.
+
+    With the current implementation, the function only has an effect if
+    called after solving and before any function is called that starts a
+    new step.
+
+    Typically, it is not necessary to call this function manually because
+    automatic cleanups are enabled by default.
+    &#34;&#34;&#34;
+    _handle_error(_lib.clingo_control_cleanup(self._rep))</code></pre>
+</details>
+<div class="desc"><p>Cleanup the domain used for grounding by incorporating information from
+the solver.</p>
+<p>This function cleans up the domain used for grounding.
+This is done by
+first simplifying the current program representation (falsifying
+released external atoms).
+Afterwards, the top-level implications are
+used to either remove atoms from the domain or mark them as facts.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.control.Control.enable_cleanup" href="#clingo.control.Control.enable_cleanup">Control.enable_cleanup</a></code></p>
+<h2 id="notes">Notes</h2>
+<p>Any atoms falsified are completely removed from the logic program.
+Hence, a definition for such an atom in a successive step introduces a
+fresh atom.</p>
+<p>With the current implementation, the function only has an effect if
+called after solving and before any function is called that starts a
+new step.</p>
+<p>Typically, it is not necessary to call this function manually because
+automatic cleanups are enabled by default.</p></div>
+</dd>
+<dt id="clingo.control.Control.get_const"><code class="name flex">
+<span>def <span class="ident">get_const</span></span>(<span>self, name: str) ‑> <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_const(self, name: str) -&gt; Optional[Symbol]:
+    &#34;&#34;&#34;
+    Return the symbol for a constant definition of form:
+
+        #const name = symbol.
+
+    Parameters
+    ----------
+    name
+        The name of the constant to retrieve.
+
+    Returns
+    -------
+    The function returns `None` if no matching constant definition exists.
+    &#34;&#34;&#34;
+    if not _c_call(&#34;bool&#34;, _lib.clingo_control_has_const, self._rep, name.encode()):
+        return None
+
+    return Symbol(
+        _c_call(
+            &#34;clingo_symbol_t&#34;,
+            _lib.clingo_control_get_const,
+            self._rep,
+            name.encode(),
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Return the symbol for a constant definition of form:</p>
+<pre><code>#const name = symbol.
+</code></pre>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong></dt>
+<dd>The name of the constant to retrieve.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The function returns <code>None</code> if no matching constant definition exists.</p></div>
+</dd>
+<dt id="clingo.control.Control.ground"><code class="name flex">
+<span>def <span class="ident">ground</span></span>(<span>self,<br>parts: Sequence[Tuple[str, Sequence[<a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>]]] = (('base', ()),),<br>context: Any = None) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def ground(
+    self,
+    parts: Sequence[Tuple[str, Sequence[Symbol]]] = ((&#34;base&#34;, ()),),
+    context: Any = None,
+) -&gt; None:
+    &#34;&#34;&#34;
+    Ground the given list of program parts specified by tuples of names and
+    arguments.
+
+    Parameters
+    ----------
+    parts
+        List of tuples of program names and program arguments to ground.
+    context
+        A context object whose methods are called during grounding using
+        the `@`-syntax (if omitted, those from the main module are used).
+
+    Notes
+    -----
+    Note that parts of a logic program without an explicit `#program`
+    specification are by default put into a program called `base` without
+    arguments.
+    &#34;&#34;&#34;
+    # pylint: disable=protected-access,dangerous-default-value
+    self._error.clear()
+    data = _CBData(context, self._error)
+    c_data = _ffi.new_handle(data) if context else _ffi.NULL
+    c_cb = _lib.pyclingo_ground_callback if context else _ffi.NULL
+
+    c_mem = []
+    c_parts = _ffi.new(&#34;clingo_part_t[]&#34;, len(parts))
+    for part, c_part in zip(parts, c_parts):
+        c_mem.append(_ffi.new(&#34;char[]&#34;, part[0].encode()))
+        c_part.name = c_mem[-1]
+        c_mem.append(_ffi.new(&#34;clingo_symbol_t[]&#34;, len(part[1])))
+        c_part.params = c_mem[-1]
+        for i, sym in enumerate(part[1]):
+            c_part.params[i] = sym._rep
+        c_part.size = len(part[1])
+
+    _handle_error(
+        _lib.clingo_control_ground(self._rep, c_parts, len(parts), c_cb, c_data),
+        data,
+    )</code></pre>
+</details>
+<div class="desc"><p>Ground the given list of program parts specified by tuples of names and
+arguments.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>parts</code></strong></dt>
+<dd>List of tuples of program names and program arguments to ground.</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>A context object whose methods are called during grounding using
+the <code>@</code>-syntax (if omitted, those from the main module are used).</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>Note that parts of a logic program without an explicit <code>#program</code>
+specification are by default put into a program called <code>base</code> without
+arguments.</p></div>
+</dd>
+<dt id="clingo.control.Control.interrupt"><code class="name flex">
+<span>def <span class="ident">interrupt</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def interrupt(self) -&gt; None:
+    &#34;&#34;&#34;
+    Interrupt the active solve call.
+
+    Notes
+    -----
+    This function is thread-safe and can be called from a signal handler. If no
+    search is active, the subsequent call to `Control.solve` is interrupted. The
+    result of the `Control.solve` method can be used to query if the search was
+    interrupted.
+    &#34;&#34;&#34;
+    _lib.clingo_control_interrupt(self._rep)</code></pre>
+</details>
+<div class="desc"><p>Interrupt the active solve call.</p>
+<h2 id="notes">Notes</h2>
+<p>This function is thread-safe and can be called from a signal handler. If no
+search is active, the subsequent call to <code><a title="clingo.control.Control.solve" href="#clingo.control.Control.solve">Control.solve()</a></code> is interrupted. The
+result of the <code><a title="clingo.control.Control.solve" href="#clingo.control.Control.solve">Control.solve()</a></code> method can be used to query if the search was
+interrupted.</p></div>
+</dd>
+<dt id="clingo.control.Control.load"><code class="name flex">
+<span>def <span class="ident">load</span></span>(<span>self, path: str) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def load(self, path: str) -&gt; None:
+    &#34;&#34;&#34;
+    Extend the logic program with a (non-ground) logic program in a file.
+
+    Parameters
+    ----------
+    path
+        The path of the file to load.
+    &#34;&#34;&#34;
+    _handle_error(_lib.clingo_control_load(self._rep, path.encode()))</code></pre>
+</details>
+<div class="desc"><p>Extend the logic program with a (non-ground) logic program in a file.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>path</code></strong></dt>
+<dd>The path of the file to load.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.control.Control.load_aspif"><code class="name flex">
+<span>def <span class="ident">load_aspif</span></span>(<span>self, files: Sequence[str]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def load_aspif(self, files: Sequence[str]) -&gt; None:
+    &#34;&#34;&#34;
+    Extend the logic program with a program in aspif format.
+
+    This function should be called on an empty control object. If more than
+    one file is given, they are merged into one file. Only the first one
+    should have a preamble.
+
+    Parameters
+    ----------
+    files
+        A list of files to load.
+    &#34;&#34;&#34;
+    c_mem = []
+    c_files = _ffi.new(&#34;char*[]&#34;, len(files))
+    for i, path in enumerate(files):
+        c_mem.append(_ffi.new(&#34;char[]&#34;, path.encode()))
+        c_files[i] = c_mem[-1]
+    _handle_error(_lib.clingo_control_load_aspif(self._rep, c_files, len(files)))</code></pre>
+</details>
+<div class="desc"><p>Extend the logic program with a program in aspif format.</p>
+<p>This function should be called on an empty control object. If more than
+one file is given, they are merged into one file. Only the first one
+should have a preamble.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>files</code></strong></dt>
+<dd>A list of files to load.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.control.Control.register_backend"><code class="name flex">
+<span>def <span class="ident">register_backend</span></span>(<span>self,<br>type: <a title="clingo.control.BackendType" href="#clingo.control.BackendType">BackendType</a>,<br>file: str,<br>replace: bool = False,<br>reify_sccs: bool = False,<br>reify_steps: bool = False) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def register_backend(
+    self,
+    type: BackendType,
+    file: str,
+    replace: bool = False,
+    reify_sccs: bool = False,
+    reify_steps: bool = False,
+) -&gt; None:
+    &#34;&#34;&#34;
+    Registers a backend of the given type.
+
+    This function is similar to register_observer but instead registers a predefined backend.
+
+    Parameters
+    ----------
+    type
+        The type of backend to register.
+    file:
+        The path of the file to write to.
+    replace
+        If set to true, the output is just passed to the backend and no longer to
+        the underlying solver (or any previously registered backends/observers).
+    reify_sccs
+        Whether to reify sccs.
+    reify_steps
+        Whether to reify steps.
+
+    See Also
+    --------
+    clingo.backend
+    &#34;&#34;&#34;
+    bitset = type.value
+    if reify_sccs:
+        bitset = bitset | _lib.clingo_backend_type_reify_sccs
+    if reify_steps:
+        bitset = bitset | _lib.clingo_backend_type_reify_steps
+    _handle_error(
+        _lib.clingo_control_register_backend(
+            self._rep, bitset, file.encode(), replace
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Registers a backend of the given type.</p>
+<p>This function is similar to register_observer but instead registers a predefined backend.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>type</code></strong></dt>
+<dd>The type of backend to register.</dd>
+<dt>file:</dt>
+<dt>The path of the file to write to.</dt>
+<dt><strong><code>replace</code></strong></dt>
+<dd>If set to true, the output is just passed to the backend and no longer to
+the underlying solver (or any previously registered backends/observers).</dd>
+<dt><strong><code>reify_sccs</code></strong></dt>
+<dd>Whether to reify sccs.</dd>
+<dt><strong><code>reify_steps</code></strong></dt>
+<dd>Whether to reify steps.</dd>
+</dl>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.backend" href="backend.html">clingo.backend</a></code></p></div>
+</dd>
+<dt id="clingo.control.Control.register_observer"><code class="name flex">
+<span>def <span class="ident">register_observer</span></span>(<span>self,<br>observer: <a title="clingo.backend.Observer" href="backend.html#clingo.backend.Observer">Observer</a>,<br>replace: bool = False) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def register_observer(self, observer: Observer, replace: bool = False) -&gt; None:
+    &#34;&#34;&#34;
+    Registers the given observer to inspect the produced grounding.
+
+    Parameters
+    ----------
+    observer
+        The observer to register. See below for a description of the required
+        interface.
+    replace
+        If set to true, the output is just passed to the observer and no longer to
+        the underlying solver (or any previously registered observers).
+
+    See Also
+    --------
+    clingo.backend
+    &#34;&#34;&#34;
+    # pylint: disable=protected-access,line-too-long
+    c_observer = _ffi.new(
+        &#34;clingo_ground_program_observer_t*&#34;,
+        (
+            (
+                _lib.pyclingo_observer_init_program
+                if _overwritten(Observer, observer, &#34;init_program&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_begin_step
+                if _overwritten(Observer, observer, &#34;begin_step&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_end_step
+                if _overwritten(Observer, observer, &#34;end_step&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_rule
+                if _overwritten(Observer, observer, &#34;rule&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_weight_rule
+                if _overwritten(Observer, observer, &#34;weight_rule&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_minimize
+                if _overwritten(Observer, observer, &#34;minimize&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_project
+                if _overwritten(Observer, observer, &#34;project&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_output_atom
+                if _overwritten(Observer, observer, &#34;output_atom&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_output_term
+                if _overwritten(Observer, observer, &#34;output_term&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_external
+                if _overwritten(Observer, observer, &#34;external&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_assume
+                if _overwritten(Observer, observer, &#34;assume&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_heuristic
+                if _overwritten(Observer, observer, &#34;heuristic&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_acyc_edge
+                if _overwritten(Observer, observer, &#34;acyc_edge&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_theory_term_number
+                if _overwritten(Observer, observer, &#34;theory_term_number&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_theory_term_string
+                if _overwritten(Observer, observer, &#34;theory_term_string&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_theory_term_compound
+                if _overwritten(Observer, observer, &#34;theory_term_compound&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_theory_element
+                if _overwritten(Observer, observer, &#34;theory_element&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_theory_atom
+                if _overwritten(Observer, observer, &#34;theory_atom&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_observer_theory_atom_with_guard
+                if _overwritten(Observer, observer, &#34;theory_atom_with_guard&#34;)
+                else _ffi.NULL
+            ),
+        ),
+    )
+    c_data = _ffi.new_handle(_CBData(observer, self._error))
+    self._mem.append(c_data)
+    _handle_error(
+        _lib.clingo_control_register_observer(
+            self._rep, c_observer, replace, c_data
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Registers the given observer to inspect the produced grounding.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>observer</code></strong></dt>
+<dd>The observer to register. See below for a description of the required
+interface.</dd>
+<dt><strong><code>replace</code></strong></dt>
+<dd>If set to true, the output is just passed to the observer and no longer to
+the underlying solver (or any previously registered observers).</dd>
+</dl>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.backend" href="backend.html">clingo.backend</a></code></p></div>
+</dd>
+<dt id="clingo.control.Control.register_propagator"><code class="name flex">
+<span>def <span class="ident">register_propagator</span></span>(<span>self,<br>propagator: <a title="clingo.propagator.Propagator" href="propagator.html#clingo.propagator.Propagator">Propagator</a>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def register_propagator(self, propagator: Propagator) -&gt; None:
+    &#34;&#34;&#34;
+    Registers the given propagator with all solvers.
+
+    Parameters
+    ----------
+    propagator
+        The propagator to register.
+
+    See Also
+    --------
+    clingo.propagator
+    &#34;&#34;&#34;
+    # pylint: disable=protected-access
+    c_propagator = _ffi.new(
+        &#34;clingo_propagator_t*&#34;,
+        (
+            (
+                _lib.pyclingo_propagator_init
+                if _overwritten(Propagator, propagator, &#34;init&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_propagator_propagate
+                if _overwritten(Propagator, propagator, &#34;propagate&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_propagator_undo
+                if _overwritten(Propagator, propagator, &#34;undo&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_propagator_check
+                if _overwritten(Propagator, propagator, &#34;check&#34;)
+                else _ffi.NULL
+            ),
+            (
+                _lib.pyclingo_propagator_decide
+                if _overwritten(Propagator, propagator, &#34;decide&#34;)
+                else _ffi.NULL
+            ),
+        ),
+    )
+    c_data = _ffi.new_handle(_CBData(propagator, self._error))
+    self._mem.append(c_data)
+    _handle_error(
+        _lib.clingo_control_register_propagator(
+            self._rep, c_propagator, c_data, False
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Registers the given propagator with all solvers.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>propagator</code></strong></dt>
+<dd>The propagator to register.</dd>
+</dl>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.propagator" href="propagator.html">clingo.propagator</a></code></p></div>
+</dd>
+<dt id="clingo.control.Control.release_external"><code class="name flex">
+<span>def <span class="ident">release_external</span></span>(<span>self,<br>external: <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a> | int) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def release_external(self, external: Union[Symbol, int]) -&gt; None:
+    &#34;&#34;&#34;
+    Release an external atom represented by the given symbol or program
+    literal.
+
+    This function causes the corresponding atom to become permanently false
+    if there is no definition for the atom in the program. Otherwise, the
+    function has no effect.
+
+    Parameters
+    ----------
+    external
+        The symbolic atom or program atom to release.
+
+    Notes
+    -----
+    If the program literal is negative, the corresponding atom is released.
+
+    Examples
+    --------
+    The following example shows the effect of assigning and releasing and external
+    atom.
+
+        &gt;&gt;&gt; from clingo.symbol import Function
+        &gt;&gt;&gt; from clingo.control import Control
+        &gt;&gt;&gt;
+        &gt;&gt;&gt; ctl = Control()
+        &gt;&gt;&gt; ctl.add(&#34;base&#34;, [], &#34;a. #external b.&#34;)
+        &gt;&gt;&gt; ctl.ground([(&#34;base&#34;, [])])
+        &gt;&gt;&gt; ctl.assign_external(Function(&#34;b&#34;), True)
+        &gt;&gt;&gt; print(ctl.solve(on_model=print))
+        b a
+        SAT
+        &gt;&gt;&gt; ctl.release_external(Function(&#34;b&#34;))
+        &gt;&gt;&gt; print(ctl.solve(on_model=print))
+        a
+        SAT
+    &#34;&#34;&#34;
+    _handle_error(
+        _lib.clingo_control_release_external(
+            self._rep, self._program_atom(external)
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Release an external atom represented by the given symbol or program
+literal.</p>
+<p>This function causes the corresponding atom to become permanently false
+if there is no definition for the atom in the program. Otherwise, the
+function has no effect.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>external</code></strong></dt>
+<dd>The symbolic atom or program atom to release.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>If the program literal is negative, the corresponding atom is released.</p>
+<h2 id="examples">Examples</h2>
+<p>The following example shows the effect of assigning and releasing and external
+atom.</p>
+<pre><code>&gt;&gt;&gt; from clingo.symbol import Function
+&gt;&gt;&gt; from clingo.control import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl = Control()
+&gt;&gt;&gt; ctl.add("base", [], "a. #external b.")
+&gt;&gt;&gt; ctl.ground([("base", [])])
+&gt;&gt;&gt; ctl.assign_external(Function("b"), True)
+&gt;&gt;&gt; print(ctl.solve(on_model=print))
+b a
+SAT
+&gt;&gt;&gt; ctl.release_external(Function("b"))
+&gt;&gt;&gt; print(ctl.solve(on_model=print))
+a
+SAT
+</code></pre></div>
+</dd>
+<dt id="clingo.control.Control.remove_minimize"><code class="name flex">
+<span>def <span class="ident">remove_minimize</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_minimize(self) -&gt; None:
+    &#34;&#34;&#34;
+    Remove all minimize constraints from the program.
+
+    This function removes all minimize constraints that were previously added to the program.
+    &#34;&#34;&#34;
+    _handle_error(_lib.clingo_control_remove_minimize(self._rep))</code></pre>
+</details>
+<div class="desc"><p>Remove all minimize constraints from the program.</p>
+<p>This function removes all minimize constraints that were previously added to the program.</p></div>
+</dd>
+<dt id="clingo.control.Control.remove_project"><code class="name flex">
+<span>def <span class="ident">remove_project</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_project(self) -&gt; None:
+    &#34;&#34;&#34;
+    Remove all projection atoms.
+
+    See Also
+    --------
+    Control.add_project
+    &#34;&#34;&#34;
+    self._update_project([], append=False)</code></pre>
+</details>
+<div class="desc"><p>Remove all projection atoms.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.control.Control.add_project" href="#clingo.control.Control.add_project">Control.add_project()</a></code></p></div>
+</dd>
+<dt id="clingo.control.Control.replace_project"><code class="name flex">
+<span>def <span class="ident">replace_project</span></span>(<span>self,<br>atoms: Sequence[<a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a> | int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def replace_project(self, atoms: Sequence[Union[Symbol, int]]) -&gt; None:
+    &#34;&#34;&#34;
+    Set atoms to project on.
+
+    Parameters
+    ----------
+    atoms
+       List of atoms or program literals (see `clingo.symbolic_atoms.SymbolicAtom.literal`) to project on.
+
+    Notes
+    -----
+    The function sets the atoms to project on to the given atoms thereby replacing any previously added project
+    statements.
+
+    See Also
+    --------
+    Control.add_project
+    &#34;&#34;&#34;
+    self._update_project(atoms, append=False)</code></pre>
+</details>
+<div class="desc"><p>Set atoms to project on.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atoms</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>List of atoms or program literals (see <code><a title="clingo.symbolic_atoms.SymbolicAtom.literal" href="symbolic_atoms.html#clingo.symbolic_atoms.SymbolicAtom.literal">SymbolicAtom.literal</a></code>) to project on.</p>
+<h2 id="notes">Notes</h2>
+<p>The function sets the atoms to project on to the given atoms thereby replacing any previously added project
+statements.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.control.Control.add_project" href="#clingo.control.Control.add_project">Control.add_project()</a></code></p></div>
+</dd>
+<dt id="clingo.control.Control.solve"><code class="name flex">
+<span>def <span class="ident">solve</span></span>(<span>self,<br>assumptions: Sequence[Tuple[<a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>, bool] | int] = (),<br>on_model: Callable[[<a title="clingo.solving.Model" href="solving.html#clingo.solving.Model">Model</a>], bool | None] | None = None,<br>on_unsat: Callable[[Sequence[int]], None] | None = None,<br>on_statistics: Callable[[<a title="clingo.statistics.StatisticsMap" href="statistics.html#clingo.statistics.StatisticsMap">StatisticsMap</a>, <a title="clingo.statistics.StatisticsMap" href="statistics.html#clingo.statistics.StatisticsMap">StatisticsMap</a>], None] | None = None,<br>on_finish: Callable[[<a title="clingo.solving.SolveResult" href="solving.html#clingo.solving.SolveResult">SolveResult</a>], None] | None = None,<br>on_core: Callable[[Sequence[int]], None] | None = None,<br>on_last: Callable[[<a title="clingo.solving.Model" href="solving.html#clingo.solving.Model">Model</a>], None] | None = None,<br>yield_: bool = False,<br>async_: bool = False) ‑> <a title="clingo.solving.SolveHandle" href="solving.html#clingo.solving.SolveHandle">SolveHandle</a> | <a title="clingo.solving.SolveResult" href="solving.html#clingo.solving.SolveResult">SolveResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def solve(
+    self,
+    assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
+    on_model: Optional[Callable[[Model], Optional[bool]]] = None,
+    on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
+    on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+    on_finish: Optional[Callable[[SolveResult], None]] = None,
+    on_core: Optional[Callable[[Sequence[int]], None]] = None,
+    on_last: Optional[Callable[[Model], None]] = None,
+    yield_: bool = False,
+    async_: bool = False,
+) -&gt; Union[SolveHandle, SolveResult]:
+    &#34;&#34;&#34;
+    Starts a search.
+
+    Parameters
+    ----------
+    assumptions
+        List of (atom, boolean) tuples or program literals (see
+        `clingo.symbolic_atoms.SymbolicAtom.literal`) that serve as
+        assumptions for the solve call, e.g., solving under assumptions
+        `[(Function(&#34;a&#34;), True)]` only admits answer sets that contain atom `a`.
+    on_model
+        Optional callback for intercepting models.
+        A `clingo.solving.Model` object is passed to the callback. The
+        search can be interrupted from the model callback by returning
+        False.
+    on_unsat
+        Optional callback to intercept lower bounds during optimization.
+    on_statistics
+        Optional callback to update statistics.
+        The step and accumulated statistics are passed as arguments.
+    on_finish
+        Optional callback called once search has finished.
+        A `clingo.solving.SolveResult` also indicating whether the solve
+        call has been interrupted is passed to the callback.
+    on_core
+        Optional callback called with the assumptions that made a problem
+        unsatisfiable.
+    on_last
+        Optional callback for getting the last model computed for a satisfiable problem.
+        A `clingo.solving.Model` object is passed to the callback.
+    yield_
+        The resulting `clingo.solving.SolveHandle` is iterable yielding
+        `clingo.solving.Model` objects.
+    async_
+        The solve call and the method `clingo.solving.SolveHandle.resume`
+        of the returned handle are non-blocking.
+
+    Returns
+    -------
+    The return value depends on the parameters. If either `yield_` or
+    `async_` is true, then a handle is returned. Otherwise, a
+    `clingo.solving.SolveResult` is returned.
+
+    See Also
+    --------
+    clingo.solving
+
+    Notes
+    -----
+    If neither `yield_` nor `async_` is set, the function returns a
+    `clingo.solving.SolveResult` right away.
+
+    In gringo or in clingo with lparse or text output enabled, this
+    function just grounds and returns a `clingo.solving.SolveResult` where
+    `clingo.solving.SolveResult.unknown` is true.
+
+    If this function is used in embedded Python code, you might want to start
+    clingo using the `--outf=3` option to disable all output from clingo.
+
+    Asynchronous solving is only available in clingo with thread support
+    enabled. Furthermore, the on_model and on_finish callbacks are called
+    from another thread. To ensure that the methods can be called, make
+    sure to not use any functions that block Python&#39;s GIL indefinitely.
+
+    This function as well as blocking functions on the
+    `clingo.solving.SolveHandle` release the GIL but are not thread-safe.
+    &#34;&#34;&#34;
+    # pylint: disable=protected-access,dangerous-default-value
+    self._error.clear()
+    handler = _SolveEventHandler(on_model, on_unsat, on_statistics, on_finish)
+    data = _CBData(handler, self._error)
+    self._handler = _ffi.new_handle(data)
+
+    p_ass = _ffi.NULL
+    if assumptions:
+        atoms = None
+        p_ass = _ffi.new(&#34;clingo_literal_t[]&#34;, len(assumptions))
+        for i, lit in enumerate(assumptions):
+            if isinstance(lit, int):
+                p_ass[i] = lit
+            else:
+                if atoms is None:
+                    atoms = self.symbolic_atoms
+                atom = self.symbolic_atoms[lit[0]]
+                slit = -1 if atom is None else atom.literal
+                p_ass[i] = slit if lit[1] else -slit
+
+    mode = 0
+    if yield_:
+        mode |= _lib.clingo_solve_mode_yield
+    if async_:
+        mode |= _lib.clingo_solve_mode_async
+
+    handle = SolveHandle(
+        _c_call(
+            &#34;clingo_solve_handle_t*&#34;,
+            _lib.clingo_control_solve,
+            self._rep,
+            mode,
+            p_ass,
+            len(assumptions),
+            _lib.pyclingo_solve_event_callback,
+            self._handler,
+            handler=data,
+        ),
+        data,
+    )
+
+    if not yield_ and not async_:
+        with handle:
+            ret = handle.get()
+            if on_core is not None and ret.unsatisfiable:
+                on_core(handle.core())
+            if on_last is not None:
+                m = handle.last()
+                if m is not None:
+                    on_last(m)
+            return ret
+    return handle</code></pre>
+</details>
+<div class="desc"><p>Starts a search.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>assumptions</code></strong></dt>
+<dd>List of (atom, boolean) tuples or program literals (see
+<code><a title="clingo.symbolic_atoms.SymbolicAtom.literal" href="symbolic_atoms.html#clingo.symbolic_atoms.SymbolicAtom.literal">SymbolicAtom.literal</a></code>) that serve as
+assumptions for the solve call, e.g., solving under assumptions
+<code>[(Function("a"), True)]</code> only admits answer sets that contain atom <code>a</code>.</dd>
+<dt><strong><code>on_model</code></strong></dt>
+<dd>Optional callback for intercepting models.
+A <code><a title="clingo.solving.Model" href="solving.html#clingo.solving.Model">Model</a></code> object is passed to the callback. The
+search can be interrupted from the model callback by returning
+False.</dd>
+<dt><strong><code>on_unsat</code></strong></dt>
+<dd>Optional callback to intercept lower bounds during optimization.</dd>
+<dt><strong><code>on_statistics</code></strong></dt>
+<dd>Optional callback to update statistics.
+The step and accumulated statistics are passed as arguments.</dd>
+<dt><strong><code>on_finish</code></strong></dt>
+<dd>Optional callback called once search has finished.
+A <code><a title="clingo.solving.SolveResult" href="solving.html#clingo.solving.SolveResult">SolveResult</a></code> also indicating whether the solve
+call has been interrupted is passed to the callback.</dd>
+<dt><strong><code>on_core</code></strong></dt>
+<dd>Optional callback called with the assumptions that made a problem
+unsatisfiable.</dd>
+<dt><strong><code>on_last</code></strong></dt>
+<dd>Optional callback for getting the last model computed for a satisfiable problem.
+A <code><a title="clingo.solving.Model" href="solving.html#clingo.solving.Model">Model</a></code> object is passed to the callback.</dd>
+<dt><strong><code>yield_</code></strong></dt>
+<dd>The resulting <code><a title="clingo.solving.SolveHandle" href="solving.html#clingo.solving.SolveHandle">SolveHandle</a></code> is iterable yielding
+<code><a title="clingo.solving.Model" href="solving.html#clingo.solving.Model">Model</a></code> objects.</dd>
+<dt><strong><code>async_</code></strong></dt>
+<dd>The solve call and the method <code><a title="clingo.solving.SolveHandle.resume" href="solving.html#clingo.solving.SolveHandle.resume">SolveHandle.resume()</a></code>
+of the returned handle are non-blocking.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The return value depends on the parameters. If either <code>yield_</code> or
+<code>async_</code> is true, then a handle is returned. Otherwise, a
+<code><a title="clingo.solving.SolveResult" href="solving.html#clingo.solving.SolveResult">SolveResult</a></code> is returned.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.solving" href="solving.html">clingo.solving</a></code></p>
+<h2 id="notes">Notes</h2>
+<p>If neither <code>yield_</code> nor <code>async_</code> is set, the function returns a
+<code><a title="clingo.solving.SolveResult" href="solving.html#clingo.solving.SolveResult">SolveResult</a></code> right away.</p>
+<p>In gringo or in clingo with lparse or text output enabled, this
+function just grounds and returns a <code><a title="clingo.solving.SolveResult" href="solving.html#clingo.solving.SolveResult">SolveResult</a></code> where
+<code><a title="clingo.solving.SolveResult.unknown" href="solving.html#clingo.solving.SolveResult.unknown">SolveResult.unknown</a></code> is true.</p>
+<p>If this function is used in embedded Python code, you might want to start
+clingo using the <code>--outf=3</code> option to disable all output from clingo.</p>
+<p>Asynchronous solving is only available in clingo with thread support
+enabled. Furthermore, the on_model and on_finish callbacks are called
+from another thread. To ensure that the methods can be called, make
+sure to not use any functions that block Python's GIL indefinitely.</p>
+<p>This function as well as blocking functions on the
+<code><a title="clingo.solving.SolveHandle" href="solving.html#clingo.solving.SolveHandle">SolveHandle</a></code> release the GIL but are not thread-safe.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#examples">Examples</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo" href="index.html">clingo</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.control.BackendType" href="#clingo.control.BackendType">BackendType</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.control.BackendType.Aspif" href="#clingo.control.BackendType.Aspif">Aspif</a></code></li>
+<li><code><a title="clingo.control.BackendType.Reify" href="#clingo.control.BackendType.Reify">Reify</a></code></li>
+<li><code><a title="clingo.control.BackendType.Smodels" href="#clingo.control.BackendType.Smodels">Smodels</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.control.Control" href="#clingo.control.Control">Control</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.control.Control.add" href="#clingo.control.Control.add">add</a></code></li>
+<li><code><a title="clingo.control.Control.add_project" href="#clingo.control.Control.add_project">add_project</a></code></li>
+<li><code><a title="clingo.control.Control.assign_external" href="#clingo.control.Control.assign_external">assign_external</a></code></li>
+<li><code><a title="clingo.control.Control.backend" href="#clingo.control.Control.backend">backend</a></code></li>
+<li><code><a title="clingo.control.Control.cleanup" href="#clingo.control.Control.cleanup">cleanup</a></code></li>
+<li><code><a title="clingo.control.Control.configuration" href="#clingo.control.Control.configuration">configuration</a></code></li>
+<li><code><a title="clingo.control.Control.enable_cleanup" href="#clingo.control.Control.enable_cleanup">enable_cleanup</a></code></li>
+<li><code><a title="clingo.control.Control.enable_enumeration_assumption" href="#clingo.control.Control.enable_enumeration_assumption">enable_enumeration_assumption</a></code></li>
+<li><code><a title="clingo.control.Control.get_const" href="#clingo.control.Control.get_const">get_const</a></code></li>
+<li><code><a title="clingo.control.Control.ground" href="#clingo.control.Control.ground">ground</a></code></li>
+<li><code><a title="clingo.control.Control.interrupt" href="#clingo.control.Control.interrupt">interrupt</a></code></li>
+<li><code><a title="clingo.control.Control.is_conflicting" href="#clingo.control.Control.is_conflicting">is_conflicting</a></code></li>
+<li><code><a title="clingo.control.Control.load" href="#clingo.control.Control.load">load</a></code></li>
+<li><code><a title="clingo.control.Control.load_aspif" href="#clingo.control.Control.load_aspif">load_aspif</a></code></li>
+<li><code><a title="clingo.control.Control.register_backend" href="#clingo.control.Control.register_backend">register_backend</a></code></li>
+<li><code><a title="clingo.control.Control.register_observer" href="#clingo.control.Control.register_observer">register_observer</a></code></li>
+<li><code><a title="clingo.control.Control.register_propagator" href="#clingo.control.Control.register_propagator">register_propagator</a></code></li>
+<li><code><a title="clingo.control.Control.release_external" href="#clingo.control.Control.release_external">release_external</a></code></li>
+<li><code><a title="clingo.control.Control.remove_minimize" href="#clingo.control.Control.remove_minimize">remove_minimize</a></code></li>
+<li><code><a title="clingo.control.Control.remove_project" href="#clingo.control.Control.remove_project">remove_project</a></code></li>
+<li><code><a title="clingo.control.Control.replace_project" href="#clingo.control.Control.replace_project">replace_project</a></code></li>
+<li><code><a title="clingo.control.Control.solve" href="#clingo.control.Control.solve">solve</a></code></li>
+<li><code><a title="clingo.control.Control.statistics" href="#clingo.control.Control.statistics">statistics</a></code></li>
+<li><code><a title="clingo.control.Control.symbolic_atoms" href="#clingo.control.Control.symbolic_atoms">symbolic_atoms</a></code></li>
+<li><code><a title="clingo.control.Control.theory_atoms" href="#clingo.control.Control.theory_atoms">theory_atoms</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

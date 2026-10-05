@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>clingox.pprint API documentation</title>
+<meta name="description" content="This module is a replacement for Python`s pprint module for pretty printing
+clingo objects." />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>clingox.pprint</code></h1>
+</header>
+<section id="section-intro">
+<p>This module is a replacement for Python`s pprint module for pretty printing
+clingo objects.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;
+This module is a replacement for Python`s pprint module for pretty printing
+clingo objects.
+&#34;&#34;&#34;
+
+# pylint: disable=protected-access
+
+import pprint as _pp
+from typing import IO, Any, Dict, Optional, Sequence, Tuple
+
+from clingo.ast import AST, ASTSequence, Location, Position
+from clingo.symbol import Symbol, SymbolType
+
+__all__ = [
+    &#34;PrettyPrinter&#34;,
+    &#34;isreadable&#34;,
+    &#34;isrecursive&#34;,
+    &#34;pformat&#34;,
+    &#34;pp&#34;,
+    &#34;pprint&#34;,
+    &#34;saferepr&#34;,
+]
+
+
+def pprint(
+    obj: Any,
+    stream: Optional[IO[str]] = None,
+    indent: int = 1,
+    width: int = 80,
+    depth: Optional[int] = None,
+    **kwargs
+):
+    &#34;&#34;&#34;Pretty-print a Python object to a stream [default is sys.stdout].&#34;&#34;&#34;
+    printer = PrettyPrinter(
+        stream=stream, indent=indent, width=width, depth=depth, **kwargs
+    )
+    printer.pprint(obj)
+
+
+def pformat(
+    obj: Any, indent: int = 1, width: int = 80, depth: Optional[int] = None, **kwargs
+) -&gt; str:
+    &#34;&#34;&#34;Format a Python object into a pretty-printed representation.&#34;&#34;&#34;
+    return PrettyPrinter(
+        stream=None, indent=indent, width=width, depth=depth, **kwargs
+    ).pformat(obj)
+
+
+def pp(obj: Any, *args, sort_dicts: bool = False, **kwargs):
+    &#34;&#34;&#34;Pretty-print a Python object.&#34;&#34;&#34;
+    # pylint: disable=invalid-name
+    pprint(obj, *args, sort_dicts=sort_dicts, **kwargs)  # nocoverage
+
+
+def saferepr(obj: Any) -&gt; str:
+    &#34;&#34;&#34;Version of repr() which can handle recursive data structures.&#34;&#34;&#34;
+    if hasattr(PrettyPrinter, &#34;_safe_repr&#34;):
+        return PrettyPrinter()._safe_repr(obj, {}, None, 0)[0]  # type: ignore
+    return _pp.saferepr(obj)  # nocoverage
+
+
+def isreadable(obj: Any) -&gt; bool:
+    &#34;&#34;&#34;Determine if saferepr(object) is readable by eval().&#34;&#34;&#34;
+    if hasattr(PrettyPrinter, &#34;_safe_repr&#34;):
+        return PrettyPrinter()._safe_repr(obj, {}, None, 0)[1]  # type: ignore
+    return _pp.isreadable(obj)  # nocoverage
+
+
+def isrecursive(obj: Any) -&gt; bool:
+    &#34;&#34;&#34;Determine if object requires a recursive representation.&#34;&#34;&#34;
+    if hasattr(PrettyPrinter, &#34;_safe_repr&#34;):
+        return PrettyPrinter()._safe_repr(obj, {}, None, 0)[2]  # type: ignore
+    return _pp.isrecursive(obj)  # nocoverage
+
+
+class _DummyLoc:
+    def __repr__(self):
+        return &#34;LOC&#34;
+
+
+class PrettyPrinter(_pp.PrettyPrinter):
+    &#34;&#34;&#34;
+    A pretty printer extending the standard `PrettyPrinter` class with
+    functions to format `clingo.ast.AST` objects.
+    &#34;&#34;&#34;
+
+    _hide_location: bool
+
+    def __init__(self, *args, **kwargs):
+        hide_location = kwargs.pop(&#34;hide_location&#34;, False)
+        super().__init__(*args, **kwargs)
+        self._hide_location = hide_location
+
+    if _pp.PrettyPrinter.__init__.__doc__ is not None:
+        __init__.__doc__ = (
+            _pp.PrettyPrinter.__init__.__doc__
+            + &#34;&#34;&#34;hide_location
+            Replace locations in `clingo.ast.AST` objects by placeholder LOC.
+        &#34;&#34;&#34;
+        )
+
+    def _pprint_namedtuple(
+        self,
+        obj: Any,
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        # Note: adjusted _pprint_dataclass from python 3.10
+        cls_name = obj.__class__.__name__
+        indent += len(cls_name) + 1
+        stream.write(cls_name + &#34;(&#34;)
+        self._format_kwargs_items(
+            obj._asdict().items(), stream, indent, allowance, context, level
+        )
+        stream.write(&#34;)&#34;)
+
+    def _format_kwargs_items(
+        self,
+        items: Sequence[Tuple[str, Any]],
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        # Note: copied _pprint_namespace_items from python 3.10
+        write = stream.write
+        delimnl = &#34;,\n&#34; + &#34; &#34; * indent
+        last_index = len(items) - 1
+        for i, (key, ent) in enumerate(items):
+            last = i == last_index
+            write(key)
+            write(&#34;=&#34;)
+            if id(ent) in context:
+                write(&#34;...&#34;)  # nocoverage
+            else:
+                self._format(  # type: ignore
+                    ent,
+                    stream,
+                    indent + len(key) + 1,
+                    allowance if last else 1,
+                    context,
+                    level,
+                )
+            if not last:
+                write(delimnl)
+
+    def _format_args_items(
+        self,
+        items: Sequence[Any],
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        write = stream.write
+        delimnl = &#34;,\n&#34; + &#34; &#34; * indent
+        last_index = len(items) - 1
+        for i, ent in enumerate(items):
+            last = i == last_index
+            if id(ent) in context:
+                write(&#34;...&#34;)  # nocoverage
+            else:
+                self._format(  # type: ignore
+                    ent,
+                    stream,
+                    indent,
+                    allowance if last else 1,
+                    context,
+                    level,
+                )
+            if not last:
+                write(delimnl)
+
+    _dispatch = _pp.PrettyPrinter._dispatch.copy()  # type: ignore
+
+    def _pprint_pos(
+        self,
+        obj: Position,
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        self._pprint_namedtuple(obj, stream, indent, allowance, context, level)
+
+    _dispatch[Position.__repr__] = _pprint_pos
+
+    def _pprint_loc(
+        self,
+        obj: Location,
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        self._pprint_namedtuple(obj, stream, indent, allowance, context, level)
+
+    _dispatch[Location.__repr__] = _pprint_loc
+
+    def _pprint_ast(
+        self,
+        obj: AST,
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        name = str(obj.ast_type).replace(&#34;ASTType&#34;, &#34;ast&#34;)
+        indent += len(name) + 1
+        items = [
+            (key, _DummyLoc() if self._hide_location and key == &#34;location&#34; else val)
+            for key, val in obj.items()
+        ]
+        stream.write(name + &#34;(&#34;)
+        self._format_kwargs_items(items, stream, indent, allowance, context, level)
+        stream.write(&#34;)&#34;)
+
+    _dispatch[AST.__repr__] = _pprint_ast
+    _dispatch[ASTSequence.__repr__] = _pp.PrettyPrinter._pprint_list  # type: ignore
+
+    def _pprint_sym(
+        self,
+        obj: Symbol,
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        if obj.type == SymbolType.Function:
+            indent += 9
+            items = [obj.name, obj.arguments, obj.positive]
+
+            stream.write(&#34;Function(&#34;)
+            self._format_args_items(items, stream, indent, allowance, context, level)
+            stream.write(&#34;)&#34;)
+        else:
+            stream.write(repr(obj))
+
+    _dispatch[Symbol.__repr__] = _pprint_sym</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="clingox.pprint.isreadable"><code class="name flex">
+<span>def <span class="ident">isreadable</span></span>(<span>obj: Any) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Determine if saferepr(object) is readable by eval().</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def isreadable(obj: Any) -&gt; bool:
+    &#34;&#34;&#34;Determine if saferepr(object) is readable by eval().&#34;&#34;&#34;
+    if hasattr(PrettyPrinter, &#34;_safe_repr&#34;):
+        return PrettyPrinter()._safe_repr(obj, {}, None, 0)[1]  # type: ignore
+    return _pp.isreadable(obj)  # nocoverage</code></pre>
+</details>
+</dd>
+<dt id="clingox.pprint.isrecursive"><code class="name flex">
+<span>def <span class="ident">isrecursive</span></span>(<span>obj: Any) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Determine if object requires a recursive representation.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def isrecursive(obj: Any) -&gt; bool:
+    &#34;&#34;&#34;Determine if object requires a recursive representation.&#34;&#34;&#34;
+    if hasattr(PrettyPrinter, &#34;_safe_repr&#34;):
+        return PrettyPrinter()._safe_repr(obj, {}, None, 0)[2]  # type: ignore
+    return _pp.isrecursive(obj)  # nocoverage</code></pre>
+</details>
+</dd>
+<dt id="clingox.pprint.pformat"><code class="name flex">
+<span>def <span class="ident">pformat</span></span>(<span>obj: Any, indent: int = 1, width: int = 80, depth: Optional[int] = None, **kwargs) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Format a Python object into a pretty-printed representation.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pformat(
+    obj: Any, indent: int = 1, width: int = 80, depth: Optional[int] = None, **kwargs
+) -&gt; str:
+    &#34;&#34;&#34;Format a Python object into a pretty-printed representation.&#34;&#34;&#34;
+    return PrettyPrinter(
+        stream=None, indent=indent, width=width, depth=depth, **kwargs
+    ).pformat(obj)</code></pre>
+</details>
+</dd>
+<dt id="clingox.pprint.pp"><code class="name flex">
+<span>def <span class="ident">pp</span></span>(<span>obj: Any, *args, sort_dicts: bool = False, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Pretty-print a Python object.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pp(obj: Any, *args, sort_dicts: bool = False, **kwargs):
+    &#34;&#34;&#34;Pretty-print a Python object.&#34;&#34;&#34;
+    # pylint: disable=invalid-name
+    pprint(obj, *args, sort_dicts=sort_dicts, **kwargs)  # nocoverage</code></pre>
+</details>
+</dd>
+<dt id="clingox.pprint.pprint"><code class="name flex">
+<span>def <span class="ident">pprint</span></span>(<span>obj: Any, stream: Optional[IO[str]] = None, indent: int = 1, width: int = 80, depth: Optional[int] = None, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Pretty-print a Python object to a stream [default is sys.stdout].</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pprint(
+    obj: Any,
+    stream: Optional[IO[str]] = None,
+    indent: int = 1,
+    width: int = 80,
+    depth: Optional[int] = None,
+    **kwargs
+):
+    &#34;&#34;&#34;Pretty-print a Python object to a stream [default is sys.stdout].&#34;&#34;&#34;
+    printer = PrettyPrinter(
+        stream=stream, indent=indent, width=width, depth=depth, **kwargs
+    )
+    printer.pprint(obj)</code></pre>
+</details>
+</dd>
+<dt id="clingox.pprint.saferepr"><code class="name flex">
+<span>def <span class="ident">saferepr</span></span>(<span>obj: Any) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Version of repr() which can handle recursive data structures.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def saferepr(obj: Any) -&gt; str:
+    &#34;&#34;&#34;Version of repr() which can handle recursive data structures.&#34;&#34;&#34;
+    if hasattr(PrettyPrinter, &#34;_safe_repr&#34;):
+        return PrettyPrinter()._safe_repr(obj, {}, None, 0)[0]  # type: ignore
+    return _pp.saferepr(obj)  # nocoverage</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingox.pprint.PrettyPrinter"><code class="flex name class">
+<span>class <span class="ident">PrettyPrinter</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A pretty printer extending the standard <code><a title="clingox.pprint.PrettyPrinter" href="#clingox.pprint.PrettyPrinter">PrettyPrinter</a></code> class with
+functions to format <code><a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></code> objects.</p>
+<p>Handle pretty printing operations onto a stream using a set of
+configured parameters.</p>
+<p>indent
+Number of spaces to indent for each level of nesting.</p>
+<p>width
+Attempted maximum number of columns in the output.</p>
+<p>depth
+The maximum depth to print out nested structures.</p>
+<p>stream
+The desired output stream.
+If omitted (or false), the standard
+output stream available at construction will be used.</p>
+<p>compact
+If true, several items will be combined in one line.</p>
+<p>sort_dicts
+If true, dict keys are sorted.</p>
+<p>hide_location
+Replace locations in <code><a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></code> objects by placeholder LOC.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PrettyPrinter(_pp.PrettyPrinter):
+    &#34;&#34;&#34;
+    A pretty printer extending the standard `PrettyPrinter` class with
+    functions to format `clingo.ast.AST` objects.
+    &#34;&#34;&#34;
+
+    _hide_location: bool
+
+    def __init__(self, *args, **kwargs):
+        hide_location = kwargs.pop(&#34;hide_location&#34;, False)
+        super().__init__(*args, **kwargs)
+        self._hide_location = hide_location
+
+    if _pp.PrettyPrinter.__init__.__doc__ is not None:
+        __init__.__doc__ = (
+            _pp.PrettyPrinter.__init__.__doc__
+            + &#34;&#34;&#34;hide_location
+            Replace locations in `clingo.ast.AST` objects by placeholder LOC.
+        &#34;&#34;&#34;
+        )
+
+    def _pprint_namedtuple(
+        self,
+        obj: Any,
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        # Note: adjusted _pprint_dataclass from python 3.10
+        cls_name = obj.__class__.__name__
+        indent += len(cls_name) + 1
+        stream.write(cls_name + &#34;(&#34;)
+        self._format_kwargs_items(
+            obj._asdict().items(), stream, indent, allowance, context, level
+        )
+        stream.write(&#34;)&#34;)
+
+    def _format_kwargs_items(
+        self,
+        items: Sequence[Tuple[str, Any]],
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        # Note: copied _pprint_namespace_items from python 3.10
+        write = stream.write
+        delimnl = &#34;,\n&#34; + &#34; &#34; * indent
+        last_index = len(items) - 1
+        for i, (key, ent) in enumerate(items):
+            last = i == last_index
+            write(key)
+            write(&#34;=&#34;)
+            if id(ent) in context:
+                write(&#34;...&#34;)  # nocoverage
+            else:
+                self._format(  # type: ignore
+                    ent,
+                    stream,
+                    indent + len(key) + 1,
+                    allowance if last else 1,
+                    context,
+                    level,
+                )
+            if not last:
+                write(delimnl)
+
+    def _format_args_items(
+        self,
+        items: Sequence[Any],
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        write = stream.write
+        delimnl = &#34;,\n&#34; + &#34; &#34; * indent
+        last_index = len(items) - 1
+        for i, ent in enumerate(items):
+            last = i == last_index
+            if id(ent) in context:
+                write(&#34;...&#34;)  # nocoverage
+            else:
+                self._format(  # type: ignore
+                    ent,
+                    stream,
+                    indent,
+                    allowance if last else 1,
+                    context,
+                    level,
+                )
+            if not last:
+                write(delimnl)
+
+    _dispatch = _pp.PrettyPrinter._dispatch.copy()  # type: ignore
+
+    def _pprint_pos(
+        self,
+        obj: Position,
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        self._pprint_namedtuple(obj, stream, indent, allowance, context, level)
+
+    _dispatch[Position.__repr__] = _pprint_pos
+
+    def _pprint_loc(
+        self,
+        obj: Location,
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        self._pprint_namedtuple(obj, stream, indent, allowance, context, level)
+
+    _dispatch[Location.__repr__] = _pprint_loc
+
+    def _pprint_ast(
+        self,
+        obj: AST,
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        name = str(obj.ast_type).replace(&#34;ASTType&#34;, &#34;ast&#34;)
+        indent += len(name) + 1
+        items = [
+            (key, _DummyLoc() if self._hide_location and key == &#34;location&#34; else val)
+            for key, val in obj.items()
+        ]
+        stream.write(name + &#34;(&#34;)
+        self._format_kwargs_items(items, stream, indent, allowance, context, level)
+        stream.write(&#34;)&#34;)
+
+    _dispatch[AST.__repr__] = _pprint_ast
+    _dispatch[ASTSequence.__repr__] = _pp.PrettyPrinter._pprint_list  # type: ignore
+
+    def _pprint_sym(
+        self,
+        obj: Symbol,
+        stream: IO[str],
+        indent: int,
+        allowance: int,
+        context: Dict[int, Any],
+        level: int,
+    ):
+        if obj.type == SymbolType.Function:
+            indent += 9
+            items = [obj.name, obj.arguments, obj.positive]
+
+            stream.write(&#34;Function(&#34;)
+            self._format_args_items(items, stream, indent, allowance, context, level)
+            stream.write(&#34;)&#34;)
+        else:
+            stream.write(repr(obj))
+
+    _dispatch[Symbol.__repr__] = _pprint_sym</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pprint.PrettyPrinter</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingox" href="index.html">clingox</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="two-column">
+<li><code><a title="clingox.pprint.isreadable" href="#clingox.pprint.isreadable">isreadable</a></code></li>
+<li><code><a title="clingox.pprint.isrecursive" href="#clingox.pprint.isrecursive">isrecursive</a></code></li>
+<li><code><a title="clingox.pprint.pformat" href="#clingox.pprint.pformat">pformat</a></code></li>
+<li><code><a title="clingox.pprint.pp" href="#clingox.pprint.pp">pp</a></code></li>
+<li><code><a title="clingox.pprint.pprint" href="#clingox.pprint.pprint">pprint</a></code></li>
+<li><code><a title="clingox.pprint.saferepr" href="#clingox.pprint.saferepr">saferepr</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingox.pprint.PrettyPrinter" href="#clingox.pprint.PrettyPrinter">PrettyPrinter</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>

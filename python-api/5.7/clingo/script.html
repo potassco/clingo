@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>clingo.script API documentation</title>
+<meta name="description" content="This module contains functions to add custom scripts, which can be embedded
+into logic programs …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>clingo.script</code></h1>
+</header>
+<section id="section-intro">
+<p>This module contains functions to add custom scripts, which can be embedded
+into logic programs.</p>
+<h2 id="examples">Examples</h2>
+<p>The following example shows how to add a script that works the same way as
+clingo's embedded Python script:</p>
+<pre><code class="language-python">&gt;&gt;&gt; from clingo.script import Script, register_script
+&gt;&gt;&gt; from clingo.control import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; import __main__
+&gt;&gt;&gt;
+&gt;&gt;&gt; class MyPythonScript(Script):
+...     def execute(self, location, code):
+...         exec(code, __main__.__dict__, __main__.__dict__)
+...     def call(self, location, name, arguments):
+...         return getattr(__main__, name)(*arguments)
+...     def callable(self, name):
+...         return name in __main__.__dict__ and callable(__main__.__dict__[name])
+...
+&gt;&gt;&gt; register_script('mypython', MyPythonScript())
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl = Control()
+&gt;&gt;&gt; ctl.add('base', [], &quot;&quot;&quot;
+... #script(mypython)
+... from clingo.symbol import Number
+... def func(a):
+...     return Number(a.number + 1)
+... #end.
+... a(@func(1)).
+... &quot;&quot;&quot;)
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl.ground([('base',[])])
+&gt;&gt;&gt; ctl.solve(on_model=print)
+a(2)
+</code></pre>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#39;&#39;&#39;
+This module contains functions to add custom scripts, which can be embedded
+into logic programs.
+
+Examples
+--------
+The following example shows how to add a script that works the same way as
+clingo&#39;s embedded Python script:
+```python
+&gt;&gt;&gt; from clingo.script import Script, register_script
+&gt;&gt;&gt; from clingo.control import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; import __main__
+&gt;&gt;&gt;
+&gt;&gt;&gt; class MyPythonScript(Script):
+...     def execute(self, location, code):
+...         exec(code, __main__.__dict__, __main__.__dict__)
+...     def call(self, location, name, arguments):
+...         return getattr(__main__, name)(*arguments)
+...     def callable(self, name):
+...         return name in __main__.__dict__ and callable(__main__.__dict__[name])
+...
+&gt;&gt;&gt; register_script(&#39;mypython&#39;, MyPythonScript())
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl = Control()
+&gt;&gt;&gt; ctl.add(&#39;base&#39;, [], &#34;&#34;&#34;
+... #script(mypython)
+... from clingo.symbol import Number
+... def func(a):
+...     return Number(a.number + 1)
+... #end.
+... a(@func(1)).
+... &#34;&#34;&#34;)
+&gt;&gt;&gt;
+&gt;&gt;&gt; ctl.ground([(&#39;base&#39;,[])])
+&gt;&gt;&gt; ctl.solve(on_model=print)
+a(2)
+```
+&#39;&#39;&#39;
+
+from platform import python_version
+from abc import ABCMeta, abstractmethod
+from typing import Any, List, Iterable, Tuple, Union
+from collections.abc import Iterable as IterableABC
+from traceback import format_exception
+from clingo._internal import _c_call, _ffi, _handle_error, _lib
+from clingo.control import Control
+from clingo.symbol import Symbol
+from clingo.ast import Location, _py_location
+
+try:
+    import __main__  # type: ignore
+except ImportError:
+    # Note: pypy does not create a main module if embedded
+    import sys
+    import types
+
+    sys.modules[&#34;__main__&#34;] = types.ModuleType(&#34;__main__&#34;, &#34;the main module&#34;)
+    import __main__  # type: ignore
+
+__all__ = [&#34;Script&#34;, &#34;enable_python&#34;, &#34;register_script&#34;]
+
+
+def _cb_error_top_level(exception, exc_value, traceback):
+    msg = &#34;&#34;.join(format_exception(exception, exc_value, traceback))
+    _lib.clingo_set_error(_lib.clingo_error_runtime, msg.encode())
+    return False
+
+
+class Script(metaclass=ABCMeta):
+    &#34;&#34;&#34;
+    This interface can be implemented to embed custom scripting languages into
+    logic programs.
+    &#34;&#34;&#34;
+
+    @abstractmethod
+    def execute(self, location: Location, code: str) -&gt; None:
+        &#34;&#34;&#34;
+        Execute the given source code.
+
+        Parameters
+        ----------
+        location
+            The location of the code.
+        code
+            The code to execute.
+        &#34;&#34;&#34;
+
+    @abstractmethod
+    def call(
+        self, location: Location, name: str, arguments: Iterable[Symbol]
+    ) -&gt; Union[Iterable[Symbol], Symbol]:
+        &#34;&#34;&#34;
+        Call the function with the given name and arguments.
+
+        Parameters
+        ----------
+        location
+            From where in the logic program the function was called.
+        name
+            The name of the function.
+        arguments
+            The arguments to the function.
+
+        Returns
+        -------
+        The resulting pool of symbols.
+        &#34;&#34;&#34;
+
+    @abstractmethod
+    def callable(self, name: str) -&gt; bool:
+        &#34;&#34;&#34;
+        Check there is a function with the given name.
+
+        Parameters
+        ----------
+        name
+            The name of the function.
+
+        Returns
+        -------
+        Whether the function is callable.
+        &#34;&#34;&#34;
+
+    def main(self, control: Control) -&gt; None:
+        &#34;&#34;&#34;
+        Run the main function.
+
+        This function exisits primarily for internal purposes and does not need
+        to be implemented.
+
+        Parameters
+        ----------
+        control
+            Control object to pass to the main function.
+        &#34;&#34;&#34;
+
+
+class _PythonScript(Script):
+    def execute(self, location, code):
+        exec(code, __main__.__dict__, __main__.__dict__)  # pylint: disable=exec-used
+
+    def call(self, location, name, arguments):
+        fun = getattr(__main__, name)
+        return fun(*arguments)
+
+    def callable(self, name):
+        return name in __main__.__dict__ and callable(__main__.__dict__[name])
+
+    def main(self, control):
+        __main__.main(control)  # pylint: disable=c-extension-no-member
+
+
+_PYTHON_SCRIPT = _PythonScript()
+_GLOBAL_SCRIPTS: List[Tuple[Script, Any]] = []
+
+
+@_ffi.def_extern(onerror=_cb_error_top_level, name=&#34;pyclingo_script_execute&#34;)
+def _pyclingo_script_execute(location, code, data):
+    script: Script = _ffi.from_handle(data)
+    script.execute(_py_location(location), _ffi.string(code).decode())
+    return True
+
+
+@_ffi.def_extern(onerror=_cb_error_top_level, name=&#34;pyclingo_script_call&#34;)
+def _pyclingo_script_call(
+    location, name, arguments, size, symbol_callback, symbol_callback_data, data
+):
+    script: Script = _ffi.from_handle(data)
+    symbol_callback = _ffi.cast(&#34;clingo_symbol_callback_t&#34;, symbol_callback)
+    arguments = _ffi.cast(&#34;clingo_symbol_t*&#34;, arguments)
+    py_name = _ffi.string(name).decode()
+    py_args = [Symbol(arguments[i]) for i in range(size)]
+
+    ret = script.call(_py_location(location), py_name, py_args)
+    symbols = list(ret) if isinstance(ret, IterableABC) else [ret]
+
+    c_symbols = _ffi.new(&#34;clingo_symbol_t[]&#34;, len(symbols))
+    for i, sym in enumerate(symbols):
+        c_symbols[i] = sym._rep  # pylint: disable=protected-access
+    _handle_error(symbol_callback(c_symbols, len(symbols), symbol_callback_data))
+    return True
+
+
+@_ffi.def_extern(onerror=_cb_error_top_level, name=&#34;pyclingo_script_callable&#34;)
+def _pyclingo_script_callable(name, ret, data):
+    script: Script = _ffi.from_handle(data)
+    py_name = _ffi.string(name).decode()
+    ret[0] = script.callable(py_name)
+    return True
+
+
+@_ffi.def_extern(onerror=_cb_error_top_level, name=&#34;pyclingo_script_main&#34;)
+def _pyclingo_script_main(ctl, data):
+    script: Script = _ffi.from_handle(data)
+    script.main(Control(_ffi.cast(&#34;clingo_control_t*&#34;, ctl)))
+    return True
+
+
+@_ffi.def_extern(onerror=_cb_error_top_level, name=&#34;pyclingo_execute&#34;)
+def _pyclingo_execute(location, code, data):
+    assert data == _ffi.NULL
+    return _pyclingo_script_execute(
+        _ffi.cast(&#34;clingo_location_t*&#34;, location), code, _ffi.new_handle(_PYTHON_SCRIPT)
+    )
+
+
+@_ffi.def_extern(onerror=_cb_error_top_level, name=&#34;pyclingo_call&#34;)
+def _pyclingo_call(
+    location, name, arguments, size, symbol_callback, symbol_callback_data, data
+):
+    assert data == _ffi.NULL
+    return _pyclingo_script_call(
+        _ffi.cast(&#34;clingo_location_t*&#34;, location),
+        name,
+        arguments,
+        size,
+        symbol_callback,
+        symbol_callback_data,
+        _ffi.new_handle(_PYTHON_SCRIPT),
+    )
+
+
+@_ffi.def_extern(onerror=_cb_error_top_level, name=&#34;pyclingo_callable&#34;)
+def _pyclingo_callable(name, ret, data):
+    assert data == _ffi.NULL
+    return _pyclingo_script_callable(name, ret, _ffi.new_handle(_PYTHON_SCRIPT))
+
+
+@_ffi.def_extern(onerror=_cb_error_top_level, name=&#34;pyclingo_main&#34;)
+def _pyclingo_main(ctl, data):
+    assert data == _ffi.NULL
+    return _pyclingo_script_main(
+        _ffi.cast(&#34;clingo_control_t*&#34;, ctl), _ffi.new_handle(_PYTHON_SCRIPT)
+    )
+
+
+def register_script(name: str, script: Script, version: str = &#34;1.0.0&#34;) -&gt; None:
+    &#34;&#34;&#34;
+    Registers a script language which can then be embedded into a logic
+    program.
+
+    Parameters
+    ----------
+    name
+        The name of the script. This name can then be used in the script
+        statement in a logic program.
+    script
+        The class to register.
+    version
+        The version of the script.
+    &#34;&#34;&#34;
+    c_version = _c_call(&#34;char const*&#34;, _lib.clingo_add_string, version.encode())
+    c_script = _ffi.new(&#34;clingo_script_t*&#34;)
+    c_script[0].execute = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_script_execute)
+    c_script[0].call = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_script_call)
+    c_script[0].callable = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_script_callable)
+    c_script[0].main = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_script_main)
+    c_script[0].free = _ffi.NULL
+    c_script[0].version = c_version
+    data = _ffi.new_handle(script)
+    _GLOBAL_SCRIPTS.append((script, data))
+    _handle_error(_lib.clingo_register_script(name.encode(), c_script, data))
+
+
+def enable_python() -&gt; None:
+    &#34;&#34;&#34;
+    This function can be called to enable evaluation of Python scripts in logic
+    programs.
+
+    By default evaluation is only enabled in the clingo executable but not in
+    the Python module.
+    &#34;&#34;&#34;
+    c_version = _c_call(
+        &#34;char const*&#34;, _lib.clingo_add_string, python_version().encode()
+    )
+    c_script = _ffi.new(&#34;clingo_script_t*&#34;)
+    c_script[0].execute = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_execute)
+    c_script[0].call = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_call)
+    c_script[0].callable = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_callable)
+    c_script[0].main = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_main)
+    c_script[0].free = _ffi.NULL
+    c_script[0].version = c_version
+    _handle_error(_lib.clingo_register_script(&#34;python&#34;.encode(), c_script, _ffi.NULL))</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="clingo.script.enable_python"><code class="name flex">
+<span>def <span class="ident">enable_python</span></span>(<span>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function can be called to enable evaluation of Python scripts in logic
+programs.</p>
+<p>By default evaluation is only enabled in the clingo executable but not in
+the Python module.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def enable_python() -&gt; None:
+    &#34;&#34;&#34;
+    This function can be called to enable evaluation of Python scripts in logic
+    programs.
+
+    By default evaluation is only enabled in the clingo executable but not in
+    the Python module.
+    &#34;&#34;&#34;
+    c_version = _c_call(
+        &#34;char const*&#34;, _lib.clingo_add_string, python_version().encode()
+    )
+    c_script = _ffi.new(&#34;clingo_script_t*&#34;)
+    c_script[0].execute = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_execute)
+    c_script[0].call = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_call)
+    c_script[0].callable = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_callable)
+    c_script[0].main = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_main)
+    c_script[0].free = _ffi.NULL
+    c_script[0].version = c_version
+    _handle_error(_lib.clingo_register_script(&#34;python&#34;.encode(), c_script, _ffi.NULL))</code></pre>
+</details>
+</dd>
+<dt id="clingo.script.register_script"><code class="name flex">
+<span>def <span class="ident">register_script</span></span>(<span>name: str, script: <a title="clingo.script.Script" href="#clingo.script.Script">Script</a>, version: str = '1.0.0') ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Registers a script language which can then be embedded into a logic
+program.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong></dt>
+<dd>The name of the script. This name can then be used in the script
+statement in a logic program.</dd>
+<dt><strong><code>script</code></strong></dt>
+<dd>The class to register.</dd>
+<dt><strong><code>version</code></strong></dt>
+<dd>The version of the script.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def register_script(name: str, script: Script, version: str = &#34;1.0.0&#34;) -&gt; None:
+    &#34;&#34;&#34;
+    Registers a script language which can then be embedded into a logic
+    program.
+
+    Parameters
+    ----------
+    name
+        The name of the script. This name can then be used in the script
+        statement in a logic program.
+    script
+        The class to register.
+    version
+        The version of the script.
+    &#34;&#34;&#34;
+    c_version = _c_call(&#34;char const*&#34;, _lib.clingo_add_string, version.encode())
+    c_script = _ffi.new(&#34;clingo_script_t*&#34;)
+    c_script[0].execute = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_script_execute)
+    c_script[0].call = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_script_call)
+    c_script[0].callable = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_script_callable)
+    c_script[0].main = _ffi.cast(&#34;void*&#34;, _lib.pyclingo_script_main)
+    c_script[0].free = _ffi.NULL
+    c_script[0].version = c_version
+    data = _ffi.new_handle(script)
+    _GLOBAL_SCRIPTS.append((script, data))
+    _handle_error(_lib.clingo_register_script(name.encode(), c_script, data))</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.script.Script"><code class="flex name class">
+<span>class <span class="ident">Script</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>This interface can be implemented to embed custom scripting languages into
+logic programs.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Script(metaclass=ABCMeta):
+    &#34;&#34;&#34;
+    This interface can be implemented to embed custom scripting languages into
+    logic programs.
+    &#34;&#34;&#34;
+
+    @abstractmethod
+    def execute(self, location: Location, code: str) -&gt; None:
+        &#34;&#34;&#34;
+        Execute the given source code.
+
+        Parameters
+        ----------
+        location
+            The location of the code.
+        code
+            The code to execute.
+        &#34;&#34;&#34;
+
+    @abstractmethod
+    def call(
+        self, location: Location, name: str, arguments: Iterable[Symbol]
+    ) -&gt; Union[Iterable[Symbol], Symbol]:
+        &#34;&#34;&#34;
+        Call the function with the given name and arguments.
+
+        Parameters
+        ----------
+        location
+            From where in the logic program the function was called.
+        name
+            The name of the function.
+        arguments
+            The arguments to the function.
+
+        Returns
+        -------
+        The resulting pool of symbols.
+        &#34;&#34;&#34;
+
+    @abstractmethod
+    def callable(self, name: str) -&gt; bool:
+        &#34;&#34;&#34;
+        Check there is a function with the given name.
+
+        Parameters
+        ----------
+        name
+            The name of the function.
+
+        Returns
+        -------
+        Whether the function is callable.
+        &#34;&#34;&#34;
+
+    def main(self, control: Control) -&gt; None:
+        &#34;&#34;&#34;
+        Run the main function.
+
+        This function exisits primarily for internal purposes and does not need
+        to be implemented.
+
+        Parameters
+        ----------
+        control
+            Control object to pass to the main function.
+        &#34;&#34;&#34;</code></pre>
+</details>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li>clingo.script._PythonScript</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.script.Script.call"><code class="name flex">
+<span>def <span class="ident">call</span></span>(<span>self, location: <a title="clingo.ast.Location" href="ast.html#clingo.ast.Location">Location</a>, name: str, arguments: Iterable[<a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>]) ‑> Union[Iterable[<a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>], <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Call the function with the given name and arguments.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>location</code></strong></dt>
+<dd>From where in the logic program the function was called.</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>The name of the function.</dd>
+<dt><strong><code>arguments</code></strong></dt>
+<dd>The arguments to the function.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The resulting pool of symbols.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def call(
+    self, location: Location, name: str, arguments: Iterable[Symbol]
+) -&gt; Union[Iterable[Symbol], Symbol]:
+    &#34;&#34;&#34;
+    Call the function with the given name and arguments.
+
+    Parameters
+    ----------
+    location
+        From where in the logic program the function was called.
+    name
+        The name of the function.
+    arguments
+        The arguments to the function.
+
+    Returns
+    -------
+    The resulting pool of symbols.
+    &#34;&#34;&#34;</code></pre>
+</details>
+</dd>
+<dt id="clingo.script.Script.callable"><code class="name flex">
+<span>def <span class="ident">callable</span></span>(<span>self, name: str) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check there is a function with the given name.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong></dt>
+<dd>The name of the function.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Whether the function is callable.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def callable(self, name: str) -&gt; bool:
+    &#34;&#34;&#34;
+    Check there is a function with the given name.
+
+    Parameters
+    ----------
+    name
+        The name of the function.
+
+    Returns
+    -------
+    Whether the function is callable.
+    &#34;&#34;&#34;</code></pre>
+</details>
+</dd>
+<dt id="clingo.script.Script.execute"><code class="name flex">
+<span>def <span class="ident">execute</span></span>(<span>self, location: <a title="clingo.ast.Location" href="ast.html#clingo.ast.Location">Location</a>, code: str) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Execute the given source code.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>location</code></strong></dt>
+<dd>The location of the code.</dd>
+<dt><strong><code>code</code></strong></dt>
+<dd>The code to execute.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def execute(self, location: Location, code: str) -&gt; None:
+    &#34;&#34;&#34;
+    Execute the given source code.
+
+    Parameters
+    ----------
+    location
+        The location of the code.
+    code
+        The code to execute.
+    &#34;&#34;&#34;</code></pre>
+</details>
+</dd>
+<dt id="clingo.script.Script.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>self, control: <a title="clingo.control.Control" href="control.html#clingo.control.Control">Control</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Run the main function.</p>
+<p>This function exisits primarily for internal purposes and does not need
+to be implemented.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>control</code></strong></dt>
+<dd>Control object to pass to the main function.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def main(self, control: Control) -&gt; None:
+    &#34;&#34;&#34;
+    Run the main function.
+
+    This function exisits primarily for internal purposes and does not need
+    to be implemented.
+
+    Parameters
+    ----------
+    control
+        Control object to pass to the main function.
+    &#34;&#34;&#34;</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul>
+<li><a href="#examples">Examples</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo" href="index.html">clingo</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="clingo.script.enable_python" href="#clingo.script.enable_python">enable_python</a></code></li>
+<li><code><a title="clingo.script.register_script" href="#clingo.script.register_script">register_script</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.script.Script" href="#clingo.script.Script">Script</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.script.Script.call" href="#clingo.script.Script.call">call</a></code></li>
+<li><code><a title="clingo.script.Script.callable" href="#clingo.script.Script.callable">callable</a></code></li>
+<li><code><a title="clingo.script.Script.execute" href="#clingo.script.Script.execute">execute</a></code></li>
+<li><code><a title="clingo.script.Script.main" href="#clingo.script.Script.main">main</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>

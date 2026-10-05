@@ -1,0 +1,2055 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>clingox.ast API documentation</title>
+<meta name="description" content="This module provides highlevel functions to work with clingo&#39;s AST …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<nav class="http-server-breadcrumbs">
+<a href="https://potassco.org/clingo/python-api/5.8/">All packages</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingox/">clingox</a>
+</nav>
+<h1 class="title">Module <code>clingox.ast</code></h1>
+</header>
+<section id="section-intro">
+<p>This module provides highlevel functions to work with clingo's AST.</p>
+<h2 id="theory-parsing-examples">Theory Parsing Examples</h2>
+<p>The following examples shows how to construct and use a theory parser:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from clingo.ast import TheoryAtomType, parse_string
+&gt;&gt;&gt; from clingox.ast import Arity, Associativity, TheoryParser
+&gt;&gt;&gt;
+&gt;&gt;&gt; terms = {&quot;term&quot;:
+...     {(&quot;-&quot;, Arity.Unary): (3, Associativity.NoAssociativity),
+...      (&quot;**&quot;, Arity.Binary): (2, Associativity.Right),
+...      (&quot;*&quot;, Arity.Binary): (1, Associativity.Left),
+...      (&quot;+&quot;, Arity.Binary): (0, Associativity.Left),
+...      (&quot;-&quot;, Arity.Binary): (0, Associativity.Left)}}
+&gt;&gt;&gt; atoms = {(&quot;eval&quot;, 0): (TheoryAtomType.Head, &quot;term&quot;, None)}
+&gt;&gt;&gt; parser = TheoryParser(terms, atoms)
+&gt;&gt;&gt;
+&gt;&gt;&gt; parse_string('&amp;eval{ -1 * 2 + 3 }.', print)
+#program base.
+&amp;eval { (- 1 * 2 + 3) }.
+&gt;&gt;&gt; parse_string('&amp;eval{ -1 * 2 + 3 }.', lambda x: print(parser(x)))
+#program base.
+&amp;eval { +(*(-(1),2),3) }.
+</code></pre>
+<p>The same parser can also be constructed from a theory:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from clingo.ast import parse_string, ASTType
+&gt;&gt;&gt; from clingox.ast import theory_parser_from_definition
+&gt;&gt;&gt;
+&gt;&gt;&gt; theory = &quot;&quot;&quot;\
+... #theory test {
+...     term {
+...         -  : 3, unary;
+...         ** : 2, binary, right;
+...         *  : 1, binary, left;
+...         +  : 0, binary, left;
+...         -  : 0, binary, left
+...     };
+...     &amp;eval/0 : term, head
+... }.
+... &quot;&quot;&quot;
+&gt;&gt;&gt;
+&gt;&gt;&gt; parsers = []
+&gt;&gt;&gt; def extract(stm):
+...     if stm.ast_type == ASTType.TheoryDefinition:
+...         parsers.append(theory_parser_from_definition(stm))
+...
+&gt;&gt;&gt; parse_string(theory, extract)
+&gt;&gt;&gt; parse_string('&amp;eval{ -1 * 2 + 3 }.', print)
+#program base.
+&amp;eval { (- 1 * 2 + 3) }.
+&gt;&gt;&gt; parse_string('&amp;eval{ -1 * 2 + 3 }.', lambda x: print(parsers[0](x)))
+#program base.
+&amp;eval { +(*(-(1),2),3) }.
+</code></pre>
+<h2 id="ast-to-dict-conversion-example">Ast To Dict Conversion Example</h2>
+<p>Another interesting feature is to convert ASTs to YAML:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from json import dumps
+&gt;&gt;&gt; from clingo.ast import parse_string
+&gt;&gt;&gt; from clingox.ast import ast_to_dict
+&gt;&gt;&gt;
+&gt;&gt;&gt; prg = []
+&gt;&gt;&gt; parse_string('a.', lambda x: prg.append(ast_to_dict(x)))
+&gt;&gt;&gt;
+&gt;&gt;&gt; print(dumps(prg, indent=2))
+[
+  {
+    &quot;ast_type&quot;: &quot;Program&quot;,
+    &quot;location&quot;: &quot;&lt;string&gt;:1:1&quot;,
+    &quot;name&quot;: &quot;base&quot;,
+    &quot;parameters&quot;: []
+  },
+  {
+    &quot;ast_type&quot;: &quot;Rule&quot;,
+    &quot;location&quot;: &quot;&lt;string&gt;:1:1-3&quot;,
+    &quot;head&quot;: {
+      &quot;ast_type&quot;: &quot;Literal&quot;,
+      &quot;location&quot;: &quot;&lt;string&gt;:1:1-2&quot;,
+      &quot;sign&quot;: 0,
+      &quot;atom&quot;: {
+        &quot;ast_type&quot;: &quot;SymbolicAtom&quot;,
+        &quot;symbol&quot;: {
+          &quot;ast_type&quot;: &quot;Function&quot;,
+          &quot;location&quot;: &quot;&lt;string&gt;:1:1-2&quot;,
+          &quot;name&quot;: &quot;a&quot;,
+          &quot;arguments&quot;: [],
+          &quot;external&quot;: 0
+        }
+      }
+    },
+    &quot;body&quot;: []
+  }
+]
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="clingox.ast.ast_to_dict"><code class="name flex">
+<span>def <span class="ident">ast_to_dict</span></span>(<span>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def ast_to_dict(x: AST) -&gt; dict:
+    &#34;&#34;&#34;
+    Convert the given ast node into a dictionary representation whose elements
+    only involve the data structures: `dict`, `list`, `int`, and `str`.
+
+    The resulting value can be used with other Python modules like the `yaml`
+    or `pickle` modules.
+
+    Parameters
+    ----------
+    x
+        The ast to transform.
+
+    Returns
+    -------
+    The corresponding Python representation.
+
+    See Also
+    --------
+    dict_to_ast
+    &#34;&#34;&#34;
+    ret = {&#34;ast_type&#34;: str(x.ast_type).replace(&#34;ASTType.&#34;, &#34;&#34;)}
+    for key, val in x.items():
+        if key == &#34;location&#34;:
+            assert isinstance(val, Location)
+            enc = location_to_str(val)
+        else:
+            enc = _encode(val)
+        ret[key] = enc
+    return ret</code></pre>
+</details>
+<div class="desc"><p>Convert the given ast node into a dictionary representation whose elements
+only involve the data structures: <code>dict</code>, <code>list</code>, <code>int</code>, and <code>str</code>.</p>
+<p>The resulting value can be used with other Python modules like the <code>yaml</code>
+or <code>pickle</code> modules.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The ast to transform.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The corresponding Python representation.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingox.ast.dict_to_ast" href="#clingox.ast.dict_to_ast">dict_to_ast()</a></code></p></div>
+</dd>
+<dt id="clingox.ast.clingo_literal_parser"><code class="name flex">
+<span>def <span class="ident">clingo_literal_parser</span></span>(<span>) ‑> <a title="clingox.ast.TheoryTermParser" href="#clingox.ast.TheoryTermParser">TheoryTermParser</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@lru_cache(maxsize=None)
+def clingo_literal_parser() -&gt; TheoryTermParser:
+    &#34;&#34;&#34;
+    Return a theory term parser that parses theory literals similar to clingo&#39;s
+    parser for symbolic literals.
+
+    Note that for technical reasons pools and the absolute function are not
+    supported.
+    &#34;&#34;&#34;
+    clingo_literal_table = _clingo_term_table.copy()
+    clingo_literal_table.update(
+        {
+            (&#34;-&#34;, Arity.Unary): (0, Associativity.NoAssociativity),
+            (&#34;not&#34;, Arity.Unary): (0, Associativity.NoAssociativity),
+        }
+    )
+    return TheoryTermParser(clingo_literal_table)</code></pre>
+</details>
+<div class="desc"><p>Return a theory term parser that parses theory literals similar to clingo's
+parser for symbolic literals.</p>
+<p>Note that for technical reasons pools and the absolute function are not
+supported.</p></div>
+</dd>
+<dt id="clingox.ast.clingo_term_parser"><code class="name flex">
+<span>def <span class="ident">clingo_term_parser</span></span>(<span>) ‑> <a title="clingox.ast.TheoryTermParser" href="#clingox.ast.TheoryTermParser">TheoryTermParser</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@lru_cache(maxsize=None)
+def clingo_term_parser() -&gt; TheoryTermParser:
+    &#34;&#34;&#34;
+    Return a theory term parser that parses theory terms like clingo terms.
+
+    Note that for technical reasons pools and the absolute function are not
+    supported.
+    &#34;&#34;&#34;
+    return TheoryTermParser(_clingo_term_table)</code></pre>
+</details>
+<div class="desc"><p>Return a theory term parser that parses theory terms like clingo terms.</p>
+<p>Note that for technical reasons pools and the absolute function are not
+supported.</p></div>
+</dd>
+<dt id="clingox.ast.dict_to_ast"><code class="name flex">
+<span>def <span class="ident">dict_to_ast</span></span>(<span>x: dict) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def dict_to_ast(x: dict) -&gt; AST:
+    &#34;&#34;&#34;
+    Convert the Python dict representation of an AST node into an AST node.
+
+    Parameters
+    ----------
+    x
+        The Python representation of the AST.
+
+    Returns
+    -------
+    The corresponding AST.
+
+    See Also
+    --------
+    ast_to_dict
+    &#34;&#34;&#34;
+    return getattr(ast, x[&#34;ast_type&#34;])(
+        **{key: _decode(value, key) for key, value in x.items() if key != &#34;ast_type&#34;}
+    )</code></pre>
+</details>
+<div class="desc"><p>Convert the Python dict representation of an AST node into an AST node.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The Python representation of the AST.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The corresponding AST.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingox.ast.ast_to_dict" href="#clingox.ast.ast_to_dict">ast_to_dict()</a></code></p></div>
+</dd>
+<dt id="clingox.ast.filter_body_literals"><code class="name flex">
+<span>def <span class="ident">filter_body_literals</span></span>(<span>body: Iterable[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>],<br>symbolic_atom_predicate: Callable[[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>], bool] | bool = True,<br>theory_atom_predicate: Callable[[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>], bool] | bool = True,<br>aggregate_predicate: Callable[[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>], bool] | bool = True,<br>conditional_literal_predicate: Callable[[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>], bool] | bool = True,<br>signs: Container[<a title="clingo.ast.Sign" href="../clingo/ast.html#clingo.ast.Sign">Sign</a>] = (&lt;Sign.NoSign: 0&gt;, &lt;Sign.Negation: 1&gt;, &lt;Sign.DoubleNegation: 2&gt;)) ‑> Iterable[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def filter_body_literals(
+    body: Iterable[AST],
+    symbolic_atom_predicate: ASTPredicate = True,
+    theory_atom_predicate: ASTPredicate = True,
+    aggregate_predicate: ASTPredicate = True,
+    conditional_literal_predicate: ASTPredicate = True,
+    signs: Container[Sign] = (Sign.NoSign, Sign.Negation, Sign.DoubleNegation),
+) -&gt; Iterable[AST]:
+    &#34;&#34;&#34;
+    Filters the given body literals according to the given predicates.
+
+    Parameters
+    ----------
+    body
+        An iterable of `AST`s for body literals.
+    symbolic_atom_predicate
+        Predicate to filter symbolic atoms.
+    theory_atom_predicate
+        Predicate to filter theory atoms.
+    aggregate_predicate
+        Predicate to filter aggregates.
+    conditional_literal_predicate
+        Predicate to filter conditional literals.
+    signs
+        Only include literals with the given signs.
+
+    Returns
+    -------
+    An iterarable of body literals.
+
+    Notes
+    -----
+    An `ASTPredicate` is a callable that takes an `AST` and returns a Boolean.
+    Booleans `True` and `False` are also accepted, meaning that the predicate
+    is always `True` or `False`, respectively.
+    &#34;&#34;&#34;
+    pred = partial(
+        _body_literal_predicate,
+        symbolic_atom_predicate=symbolic_atom_predicate,
+        theory_atom_predicate=theory_atom_predicate,
+        aggregate_predicate=aggregate_predicate,
+        conditional_literal_predicate=conditional_literal_predicate,
+        signs=signs,
+    )
+    return filter(pred, body)</code></pre>
+</details>
+<div class="desc"><p>Filters the given body literals according to the given predicates.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>body</code></strong></dt>
+<dd>An iterable of <code>AST</code>s for body literals.</dd>
+<dt><strong><code>symbolic_atom_predicate</code></strong></dt>
+<dd>Predicate to filter symbolic atoms.</dd>
+<dt><strong><code>theory_atom_predicate</code></strong></dt>
+<dd>Predicate to filter theory atoms.</dd>
+<dt><strong><code>aggregate_predicate</code></strong></dt>
+<dd>Predicate to filter aggregates.</dd>
+<dt><strong><code>conditional_literal_predicate</code></strong></dt>
+<dd>Predicate to filter conditional literals.</dd>
+<dt><strong><code>signs</code></strong></dt>
+<dd>Only include literals with the given signs.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>An iterarable of body literals.</p>
+<h2 id="notes">Notes</h2>
+<p>An <code>ASTPredicate</code> is a callable that takes an <code>AST</code> and returns a Boolean.
+Booleans <code>True</code> and <code>False</code> are also accepted, meaning that the predicate
+is always <code>True</code> or <code>False</code>, respectively.</p></div>
+</dd>
+<dt id="clingox.ast.location_to_str"><code class="name flex">
+<span>def <span class="ident">location_to_str</span></span>(<span>loc: <a title="clingo.ast.Location" href="../clingo/ast.html#clingo.ast.Location">Location</a>) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def location_to_str(loc: Location) -&gt; str:
+    &#34;&#34;&#34;
+    This function transfroms a loctation object into a readable string.
+
+    Colons in the location will be quoted ensuring that the resulting is
+    parsable using `str_to_location`.
+
+    Parameters
+    ----------
+    loc
+        The location to transform.
+
+    Returns
+    -------
+    The string representation of the given location.
+    &#34;&#34;&#34;
+    begin, end = loc.begin, loc.end
+    bf, ef = _quote(begin.filename), _quote(end.filename)
+    ret = f&#34;{bf}:{begin.line}:{begin.column}&#34;
+    dash, eq = True, bf == ef
+    if not eq:
+        ret += f&#34;{&#39;-&#39; if dash else &#39;:&#39;}{ef}&#34;
+        dash = False
+    eq = eq and begin.line == end.line
+    if not eq:
+        ret += f&#34;{&#39;-&#39; if dash else &#39;:&#39;}{end.line}&#34;
+        dash = False
+    eq = eq and begin.column == end.column
+    if not eq:
+        ret += f&#34;{&#39;-&#39; if dash else &#39;:&#39;}{end.column}&#34;
+        dash = False
+    return ret</code></pre>
+</details>
+<div class="desc"><p>This function transfroms a loctation object into a readable string.</p>
+<p>Colons in the location will be quoted ensuring that the resulting is
+parsable using <code><a title="clingox.ast.str_to_location" href="#clingox.ast.str_to_location">str_to_location()</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>loc</code></strong></dt>
+<dd>The location to transform.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The string representation of the given location.</p></div>
+</dd>
+<dt id="clingox.ast.negate_sign"><code class="name flex">
+<span>def <span class="ident">negate_sign</span></span>(<span>sign: <a title="clingo.ast.Sign" href="../clingo/ast.html#clingo.ast.Sign">Sign</a>) ‑> <a title="clingo.ast.Sign" href="../clingo/ast.html#clingo.ast.Sign">Sign</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def negate_sign(sign: ast.Sign) -&gt; ast.Sign:
+    &#34;&#34;&#34;
+    Negate the given sign.
+    &#34;&#34;&#34;
+    if sign == ast.Sign.Negation:
+        return ast.Sign.DoubleNegation
+    return ast.Sign.Negation</code></pre>
+</details>
+<div class="desc"><p>Negate the given sign.</p></div>
+</dd>
+<dt id="clingox.ast.normalize_symbolic_terms"><code class="name flex">
+<span>def <span class="ident">normalize_symbolic_terms</span></span>(<span>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def normalize_symbolic_terms(x: AST):
+    &#34;&#34;&#34;
+    Replaces all occurrences of objects of the class clingo.Function in an AST
+    by the corresponding object of the class ast.Function.
+
+    Parameters
+    ----------
+    x
+        The AST to rewrite.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+    return _NormalizeSymbolicTermTransformer().visit(x)</code></pre>
+</details>
+<div class="desc"><p>Replaces all occurrences of objects of the class clingo.Function in an AST
+by the corresponding object of the class ast.Function.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The AST to rewrite.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+<dt id="clingox.ast.parse_theory"><code class="name flex">
+<span>def <span class="ident">parse_theory</span></span>(<span>s: str) ‑> <a title="clingox.ast.TheoryParser" href="#clingox.ast.TheoryParser">TheoryParser</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parse_theory(s: str) -&gt; TheoryParser:
+    &#34;&#34;&#34;
+    Turn the given theory into a parser.
+    &#34;&#34;&#34;
+    parser = None
+
+    def extract(stm):
+        nonlocal parser
+        if stm.ast_type == ASTType.TheoryDefinition:
+            if parser is not None:
+                raise ValueError(&#34;multiple theory definitions&#34;)
+            parser = theory_parser_from_definition(stm)
+        else:
+            assert (
+                stm.ast_type == ASTType.Program
+                and stm.name == &#34;base&#34;
+                and not stm.parameters
+            )
+
+    parse_string(f&#34;{s}.&#34;, extract)
+    if parser is None:
+        raise ValueError(&#34;no theory definition found&#34;)
+    return cast(TheoryParser, parser)</code></pre>
+</details>
+<div class="desc"><p>Turn the given theory into a parser.</p></div>
+</dd>
+<dt id="clingox.ast.partition_body_literals"><code class="name flex">
+<span>def <span class="ident">partition_body_literals</span></span>(<span>body: Iterable[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>],<br>symbolic_atom_predicate: Callable[[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>], bool] | bool = True,<br>theory_atom_predicate: Callable[[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>], bool] | bool = True,<br>aggregate_predicate: Callable[[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>], bool] | bool = True,<br>conditional_literal_predicate: Callable[[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>], bool] | bool = True,<br>signs: Container[<a title="clingo.ast.Sign" href="../clingo/ast.html#clingo.ast.Sign">Sign</a>] = (&lt;Sign.NoSign: 0&gt;, &lt;Sign.Negation: 1&gt;, &lt;Sign.DoubleNegation: 2&gt;)) ‑> Tuple[List[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>], List[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def partition_body_literals(
+    body: Iterable[AST],
+    symbolic_atom_predicate: ASTPredicate = True,
+    theory_atom_predicate: ASTPredicate = True,
+    aggregate_predicate: ASTPredicate = True,
+    conditional_literal_predicate: ASTPredicate = True,
+    signs: Container[Sign] = (Sign.NoSign, Sign.Negation, Sign.DoubleNegation),
+) -&gt; Tuple[List[AST], List[AST]]:
+    &#34;&#34;&#34;
+    Partition the given body literals according to the given predicates.
+
+    Parameters
+    ----------
+    body
+        An iterable of `AST` that represents a body.
+    symbolic_atom_predicate
+        Predicate to partition symbolic atoms.
+    theory_atom_predicate
+        Predicate to partition theory atoms.
+    aggregate_predicate
+        Predicate to partition aggregates.
+    conditional_literal_predicate
+        Predicate to partition conditional literals.
+    signs
+        Only include literals with the given signs in the first list.
+
+    Returns
+    -------
+    A pair of lists of body literals. The first iterable yields the literals
+    that satisfy the predicate while the second one yields the ones that do
+    not.
+
+    Notes
+    -----
+    An `ASTPredicate` is a callable that takes an `AST` and returns a Boolean.
+    Booleans `True` and `False` are also accepted, meaning that the predicate
+    is always `True` or `False`, respectively.
+    &#34;&#34;&#34;
+    pred = partial(
+        _body_literal_predicate,
+        symbolic_atom_predicate=symbolic_atom_predicate,
+        theory_atom_predicate=theory_atom_predicate,
+        aggregate_predicate=aggregate_predicate,
+        conditional_literal_predicate=conditional_literal_predicate,
+        signs=signs,
+    )
+    part_a: List[AST] = []
+    part_b: List[AST] = []
+    for lit in body:
+        if pred(lit):
+            part_a.append(lit)
+        else:
+            part_b.append(lit)
+    return part_a, part_b</code></pre>
+</details>
+<div class="desc"><p>Partition the given body literals according to the given predicates.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>body</code></strong></dt>
+<dd>An iterable of <code>AST</code> that represents a body.</dd>
+<dt><strong><code>symbolic_atom_predicate</code></strong></dt>
+<dd>Predicate to partition symbolic atoms.</dd>
+<dt><strong><code>theory_atom_predicate</code></strong></dt>
+<dd>Predicate to partition theory atoms.</dd>
+<dt><strong><code>aggregate_predicate</code></strong></dt>
+<dd>Predicate to partition aggregates.</dd>
+<dt><strong><code>conditional_literal_predicate</code></strong></dt>
+<dd>Predicate to partition conditional literals.</dd>
+<dt><strong><code>signs</code></strong></dt>
+<dd>Only include literals with the given signs in the first list.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>A pair</code> of <code>lists</code> of <code>body literals. The first iterable yields the literals</code></dt>
+<dd>&nbsp;</dd>
+<dt><code>that satisfy the predicate while the second one yields the ones that do</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>not.</p>
+<h2 id="notes">Notes</h2>
+<p>An <code>ASTPredicate</code> is a callable that takes an <code>AST</code> and returns a Boolean.
+Booleans <code>True</code> and <code>False</code> are also accepted, meaning that the predicate
+is always <code>True</code> or <code>False</code>, respectively.</p></div>
+</dd>
+<dt id="clingox.ast.prefix_symbolic_atoms"><code class="name flex">
+<span>def <span class="ident">prefix_symbolic_atoms</span></span>(<span>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>,<br>prefix: str) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def prefix_symbolic_atoms(x: AST, prefix: str) -&gt; AST:
+    &#34;&#34;&#34;
+    Prefix all symbolic atoms in the given AST with the given string.
+
+    Parameters
+    ----------
+    x
+        The ast in which to prefix symbolic atom names.
+    prefix
+        The prefix to add.
+
+    Returns
+    -------
+    The rewritten AST.
+
+    See Also
+    --------
+    rename_symbolic_atoms
+    &#34;&#34;&#34;
+    return rename_symbolic_atoms(x, lambda s: prefix + s)</code></pre>
+</details>
+<div class="desc"><p>Prefix all symbolic atoms in the given AST with the given string.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The ast in which to prefix symbolic atom names.</dd>
+<dt><strong><code>prefix</code></strong></dt>
+<dd>The prefix to add.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingox.ast.rename_symbolic_atoms" href="#clingox.ast.rename_symbolic_atoms">rename_symbolic_atoms()</a></code></p></div>
+</dd>
+<dt id="clingox.ast.reify_symbolic_atoms"><code class="name flex">
+<span>def <span class="ident">reify_symbolic_atoms</span></span>(<span>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>,<br>name: str,<br>argument_extender: Callable[[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>], Sequence[<a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>]] | None = None,<br>reify_strong_negation: bool = False) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reify_symbolic_atoms(
+    x: AST,
+    name: str,
+    argument_extender: Optional[Callable[[AST], Sequence[AST]]] = None,
+    reify_strong_negation: bool = False,
+) -&gt; AST:
+    &#34;&#34;&#34;
+    Reify all symbolic atoms in the given AST node with the given name and
+    function.
+
+    Parameters
+    ----------
+    x
+        The ast in which to rename symbolic atoms.
+    name
+        A string to serve as name of the new symbolic atom.
+    argument_extender
+        A function to provide extra arguments. If not provided, no extra
+        arguments are added. The term passed as argument should be placed in
+        the correct position.
+    reify_strong_negation
+        Boolean indicating how to encode strong negation. If false, `-p(X)` is
+        reified as `-name(p(X))`. If true, then `-p(X)` is reified as
+        `name(-p(X))`. In the latter case, this means that stable models
+        containing both `name(p(a))` and `name(-p(a))` are possible. Clingo
+        style consistency can be restored by adding the constraint
+        `:- name(X), name(-X), X&lt;-X.`
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+
+    def reifier(term: AST):
+        if term.ast_type == ASTType.UnaryOperation and not reify_strong_negation:
+            return UnaryOperation(
+                term.location, term.operator_type, reifier(term.argument)
+            )
+        arguments = argument_extender(term) if argument_extender else [term]
+        return Function(term.location, name, arguments, False)
+
+    return rewrite_symbolic_atoms(x, reifier)</code></pre>
+</details>
+<div class="desc"><p>Reify all symbolic atoms in the given AST node with the given name and
+function.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The ast in which to rename symbolic atoms.</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>A string to serve as name of the new symbolic atom.</dd>
+<dt><strong><code>argument_extender</code></strong></dt>
+<dd>A function to provide extra arguments. If not provided, no extra
+arguments are added. The term passed as argument should be placed in
+the correct position.</dd>
+<dt><strong><code>reify_strong_negation</code></strong></dt>
+<dd>Boolean indicating how to encode strong negation. If false, <code>-p(X)</code> is
+reified as <code>-name(p(X))</code>. If true, then <code>-p(X)</code> is reified as
+<code>name(-p(X))</code>. In the latter case, this means that stable models
+containing both <code>name(p(a))</code> and <code>name(-p(a))</code> are possible. Clingo
+style consistency can be restored by adding the constraint
+<code>:- name(X), name(-X), X&lt;-X.</code></dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+<dt id="clingox.ast.rename_symbolic_atoms"><code class="name flex">
+<span>def <span class="ident">rename_symbolic_atoms</span></span>(<span>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>,<br>rename_function: Callable[[str], str]) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rename_symbolic_atoms(x: AST, rename_function: Callable[[str], str]) -&gt; AST:
+    &#34;&#34;&#34;
+    Rename all symbolic atoms in the given AST node with the given function.
+
+    Parameters
+    ----------
+    x
+        The ast in which to rename symbolic atoms.
+    rename_function
+        A function for renaming symbols.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+
+    def renamer(term: AST):
+        if term.ast_type == ASTType.UnaryOperation:
+            return UnaryOperation(
+                term.location, term.operator_type, renamer(term.argument)
+            )
+        if term.ast_type == ASTType.SymbolicTerm:
+            sym = term.symbol
+            new_name = rename_function(sym.name)
+            return SymbolicTerm(
+                term.location, clingo.Function(new_name, sym.arguments, sym.positive)
+            )
+        if term.ast_type == ASTType.Function:
+            return Function(
+                term.location, rename_function(term.name), term.arguments, term.external
+            )
+        return term
+
+    return rewrite_symbolic_atoms(x, renamer)</code></pre>
+</details>
+<div class="desc"><p>Rename all symbolic atoms in the given AST node with the given function.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The ast in which to rename symbolic atoms.</dd>
+<dt><strong><code>rename_function</code></strong></dt>
+<dd>A function for renaming symbols.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+<dt id="clingox.ast.str_to_location"><code class="name flex">
+<span>def <span class="ident">str_to_location</span></span>(<span>loc: str) ‑> <a title="clingo.ast.Location" href="../clingo/ast.html#clingo.ast.Location">Location</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def str_to_location(loc: str) -&gt; Location:
+    &#34;&#34;&#34;
+    This function parses a location from its string representation.
+
+    Parameters
+    ----------
+    loc
+        The string to parse.
+
+    Returns
+    -------
+    The parsed location.
+
+    See Also
+    --------
+    location_to_str
+    &#34;&#34;&#34;
+    m = fullmatch(
+        r&#34;(?P&lt;bf&gt;([^\\:]|\\\\|\\:)*):(?P&lt;bl&gt;[0-9]*):(?P&lt;bc&gt;[0-9]+)&#34;
+        r&#34;(-(((?P&lt;ef&gt;([^\\:]|\\\\|\\:)*):)?(?P&lt;el&gt;[0-9]*):)?(?P&lt;ec&gt;[0-9]+))?&#34;,
+        loc,
+    )
+    if not m:
+        raise RuntimeError(&#34;could not parse location&#34;)
+    begin = Position(_unquote(m[&#34;bf&#34;]), int(m[&#34;bl&#34;]), int(m[&#34;bc&#34;]))
+    end = Position(
+        _unquote(_s(m, &#34;bf&#34;, &#34;ef&#34;)), int(_s(m, &#34;bl&#34;, &#34;el&#34;)), int(_s(m, &#34;bc&#34;, &#34;ec&#34;))
+    )
+    return Location(begin, end)</code></pre>
+</details>
+<div class="desc"><p>This function parses a location from its string representation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>loc</code></strong></dt>
+<dd>The string to parse.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The parsed location.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingox.ast.location_to_str" href="#clingox.ast.location_to_str">location_to_str()</a></code></p></div>
+</dd>
+<dt id="clingox.ast.theory_parser_from_definition"><code class="name flex">
+<span>def <span class="ident">theory_parser_from_definition</span></span>(<span>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>) ‑> <a title="clingox.ast.TheoryParser" href="#clingox.ast.TheoryParser">TheoryParser</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def theory_parser_from_definition(x: AST) -&gt; TheoryParser:
+    &#34;&#34;&#34;
+    Turn an AST node of type TheoryDefinition into a TheoryParser.
+
+    Parameters
+    ----------
+    x
+        An AST representing a theory definition.
+
+    Returns
+    -------
+    The corresponding `TheoryParser`.
+    &#34;&#34;&#34;
+    assert x.ast_type == ASTType.TheoryDefinition
+
+    terms = {}
+    atoms = {}
+
+    for term_def in x.terms:
+        term_table = {}
+
+        for op_def in term_def.operators:
+            op_assoc: Associativity
+            if op_def.operator_type == TheoryOperatorType.BinaryLeft:
+                op_type = Arity.Binary
+                op_assoc = Associativity.Left
+            elif op_def.operator_type == TheoryOperatorType.BinaryRight:
+                op_type = Arity.Binary
+                op_assoc = Associativity.Right
+            else:
+                op_type = Arity.Unary
+                op_assoc = Associativity.NoAssociativity
+
+            term_table[(op_def.name, op_type)] = (op_def.priority, op_assoc)
+
+        terms[term_def.name] = term_table
+
+    for atom_def in x.atoms:
+        guard = None
+        if atom_def.guard is not None:
+            guard = (atom_def.guard.operators, atom_def.guard.term)
+
+        atoms[(atom_def.name, atom_def.arity)] = (
+            atom_def.atom_type,
+            atom_def.term,
+            guard,
+        )
+
+    return TheoryParser(terms, atoms)</code></pre>
+</details>
+<div class="desc"><p>Turn an AST node of type TheoryDefinition into a TheoryParser.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>An AST representing a theory definition.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The corresponding <code><a title="clingox.ast.TheoryParser" href="#clingox.ast.TheoryParser">TheoryParser</a></code>.</p></div>
+</dd>
+<dt id="clingox.ast.theory_term_to_literal"><code class="name flex">
+<span>def <span class="ident">theory_term_to_literal</span></span>(<span>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>,<br>parse: bool = True) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def theory_term_to_literal(x: AST, parse: bool = True) -&gt; AST:
+    &#34;&#34;&#34;
+    Convert the given theory term into a symbolic clingo literal.
+
+    If argument `parse` is set to true, occurences of unparsed theory terms are
+    parsed using `clingo_literal_parser()`.
+
+    Literals can use an arbitrary number of classical and default negation
+    signs. They are normalized using the following equivalences:
+
+    - `- - lit = lit`
+    - `- not lit = not not lit`
+    - `not not not lit = not lit`
+    &#34;&#34;&#34;
+    if parse:
+        x = clingo_literal_parser()(x)
+    return _theory_term_to_literal(x, True, ast.Sign.NoSign)</code></pre>
+</details>
+<div class="desc"><p>Convert the given theory term into a symbolic clingo literal.</p>
+<p>If argument <code>parse</code> is set to true, occurences of unparsed theory terms are
+parsed using <code><a title="clingox.ast.clingo_literal_parser" href="#clingox.ast.clingo_literal_parser">clingo_literal_parser()</a></code>.</p>
+<p>Literals can use an arbitrary number of classical and default negation
+signs. They are normalized using the following equivalences:</p>
+<ul>
+<li><code>- - lit = lit</code></li>
+<li><code>- not lit = not not lit</code></li>
+<li><code>not not not lit = not lit</code></li>
+</ul></div>
+</dd>
+<dt id="clingox.ast.theory_term_to_term"><code class="name flex">
+<span>def <span class="ident">theory_term_to_term</span></span>(<span>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>,<br>parse: bool = True) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def theory_term_to_term(x: AST, parse: bool = True) -&gt; AST:
+    &#34;&#34;&#34;
+    Convert the given theory term into a plain clingo term.
+
+    If argument `parse` is set to true, occurences of unparsed theory terms are
+    parsed using `clingo_term_parser()`.
+    &#34;&#34;&#34;
+    if parse:
+        x = clingo_term_parser()(x)
+    return _theory_term_to_term(x)</code></pre>
+</details>
+<div class="desc"><p>Convert the given theory term into a plain clingo term.</p>
+<p>If argument <code>parse</code> is set to true, occurences of unparsed theory terms are
+parsed using <code><a title="clingox.ast.clingo_term_parser" href="#clingox.ast.clingo_term_parser">clingo_term_parser()</a></code>.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingox.ast.Arity"><code class="flex name class">
+<span>class <span class="ident">Arity</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Arity(Enum):
+    &#34;&#34;&#34;
+    Enumeration of operator arities.
+    &#34;&#34;&#34;
+
+    # pylint:disable=invalid-name
+    Unary = 1
+    Binary = 2</code></pre>
+</details>
+<div class="desc"><p>Enumeration of operator arities.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="clingox.ast.Arity.Binary"><code class="name">var <span class="ident">Binary</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="clingox.ast.Arity.Unary"><code class="name">var <span class="ident">Unary</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingox.ast.Associativity"><code class="flex name class">
+<span>class <span class="ident">Associativity</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Associativity(Enum):
+    &#34;&#34;&#34;
+    Enumeration of operator associativities.
+    &#34;&#34;&#34;
+
+    # pylint: disable=invalid-name
+    Left = auto()
+    Right = auto()
+    NoAssociativity = auto()</code></pre>
+</details>
+<div class="desc"><p>Enumeration of operator associativities.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="clingox.ast.Associativity.Left"><code class="name">var <span class="ident">Left</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="clingox.ast.Associativity.NoAssociativity"><code class="name">var <span class="ident">NoAssociativity</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="clingox.ast.Associativity.Right"><code class="name">var <span class="ident">Right</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingox.ast.TheoryParser"><code class="flex name class">
+<span>class <span class="ident">TheoryParser</span></span>
+<span>(</span><span>terms: Mapping[str, Mapping[Tuple[str, <a title="clingox.ast.Arity" href="#clingox.ast.Arity">Arity</a>], Tuple[int, <a title="clingox.ast.Associativity" href="#clingox.ast.Associativity">Associativity</a>]] | <a title="clingox.ast.TheoryTermParser" href="#clingox.ast.TheoryTermParser">TheoryTermParser</a>],<br>atoms: Mapping[Tuple[str, int], Tuple[<a title="clingo.ast.TheoryAtomType" href="../clingo/ast.html#clingo.ast.TheoryAtomType">TheoryAtomType</a>, str, Tuple[List[str], str] | None]])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TheoryParser(Transformer):
+    &#34;&#34;&#34;
+    This class parses theory atoms in the same way as clingo&#39;s internal parser.
+
+    Parameters
+    ----------
+    terms
+        Mapping from term identifiers to `TheoryTermParser`s. If an operator
+        table is given, the `TheoryTermParser` is constructed from this table.
+
+    atoms
+        Mapping from atom name/arity pairs to tuples defining the acceptable
+        structure of the theory atom.
+    &#34;&#34;&#34;
+
+    # pylint: disable=invalid-name
+    _table: Mapping[
+        Tuple[str, int],
+        Tuple[
+            TheoryAtomType,
+            TheoryTermParser,
+            Optional[Tuple[Set[str], TheoryTermParser]],
+        ],
+    ]
+    _in_body: bool
+    _in_head: bool
+    _is_directive: bool
+
+    def __init__(
+        self,
+        terms: Mapping[str, Union[OperatorTable, TheoryTermParser]],
+        atoms: AtomTable,
+    ):
+        self._reset()
+
+        term_parsers = {}
+        for term_key, parser in terms.items():
+            if isinstance(parser, TheoryTermParser):
+                term_parsers[term_key] = parser
+            else:
+                term_parsers[term_key] = TheoryTermParser(parser)
+
+        self._table = {}
+        for atom_key, (atom_type, term_key, guard) in atoms.items():
+            guard_table = None
+            if guard is not None:
+                guard_table = (set(guard[0]), term_parsers[guard[1]])
+            self._table[atom_key] = (atom_type, term_parsers[term_key], guard_table)
+
+    def _reset(self, in_head=True, in_body=True, is_directive=True):
+        &#34;&#34;&#34;
+        Set state information about active scope.
+        &#34;&#34;&#34;
+        self._in_head = in_head
+        self._in_body = in_body
+        self._is_directive = is_directive
+
+    def _visit_body(self, x: AST) -&gt; AST:
+        try:
+            self._reset(False, True, False)
+            old = x.body
+            new = self.visit_sequence(old)
+            return x if new is old else x.update(body=new)
+        finally:
+            self._reset()
+
+    def visit_Rule(self, x: AST) -&gt; AST:
+        &#34;&#34;&#34;
+        Parse theory atoms in body and head.
+
+        Parameters
+        ----------
+        x
+            The AST to rewrite.
+
+        Returns
+        -------
+        The rewritten AST.
+        &#34;&#34;&#34;
+        ret = self._visit_body(x)
+        try:
+            self._reset(True, False, not x.body)
+            head = self(x.head)
+            if head is not x.head:
+                if ret is x:
+                    ret = copy(ret)
+                ret.head = head
+        finally:
+            self._reset()
+
+        return ret
+
+    def visit_ShowTerm(self, x: AST) -&gt; AST:
+        &#34;&#34;&#34;
+        Parse theory atoms in body.
+
+        Parameters
+        ----------
+        x
+            The AST to rewrite.
+
+        Returns
+        -------
+        The rewritten AST.
+        &#34;&#34;&#34;
+        return self._visit_body(x)
+
+    def visit_Minimize(self, x: AST) -&gt; AST:
+        &#34;&#34;&#34;
+        Parse theory atoms in body.
+
+        Parameters
+        ----------
+        x
+            The AST to rewrite.
+
+        Returns
+        -------
+        The rewritten AST.
+        &#34;&#34;&#34;
+        return self._visit_body(x)
+
+    def visit_Edge(self, x: AST) -&gt; AST:
+        &#34;&#34;&#34;
+        Parse theory atoms in body.
+
+        Parameters
+        ----------
+        x
+            The AST to rewrite.
+
+        Returns
+        -------
+        The rewritten AST.
+        &#34;&#34;&#34;
+        return self._visit_body(x)
+
+    def visit_Heuristic(self, x: AST) -&gt; AST:
+        &#34;&#34;&#34;
+        Parse theory atoms in body.
+
+        Parameters
+        ----------
+        x
+            The AST to rewrite.
+
+        Returns
+        -------
+        The rewritten AST.
+        &#34;&#34;&#34;
+        return self._visit_body(x)
+
+    def visit_ProjectAtom(self, x: AST) -&gt; AST:
+        &#34;&#34;&#34;
+        Parse theory atoms in body.
+
+        Parameters
+        ----------
+        x
+            The AST to rewrite.
+
+        Returns
+        -------
+        The rewritten AST.
+        &#34;&#34;&#34;
+        return self._visit_body(x)
+
+    def visit_TheoryAtom(self, x: AST) -&gt; AST:
+        &#34;&#34;&#34;
+        Parse the given theory atom.
+
+        Parameters
+        ----------
+        x
+            The AST to rewrite.
+
+        Returns
+        -------
+        The rewritten AST.
+        &#34;&#34;&#34;
+        name = x.term.name
+        arity = len(x.term.arguments)
+        if (name, arity) not in self._table:
+            raise RuntimeError(
+                f&#34;theory atom definiton not found: {location_to_str(x.location)}&#34;
+            )
+
+        type_, element_parser, guard_table = self._table[(name, arity)]
+        if type_ == TheoryAtomType.Head and not self._in_head:
+            raise RuntimeError(
+                f&#34;theory atom only accepted in head: {location_to_str(x.location)}&#34;
+            )
+        if type_ == TheoryAtomType.Body and not self._in_body:
+            raise RuntimeError(
+                f&#34;theory atom only accepted in body: {location_to_str(x.location)}&#34;
+            )
+        if type_ == TheoryAtomType.Directive and not (
+            self._in_head and self._is_directive
+        ):
+            raise RuntimeError(
+                f&#34;theory atom must be a directive: {location_to_str(x.location)}&#34;
+            )
+
+        x = copy(x)
+        x.term = element_parser(x.term)
+        x.elements = element_parser.visit_sequence(x.elements)
+
+        if x.guard is not None:
+            if guard_table is None:
+                raise RuntimeError(
+                    f&#34;unexpected guard in theory atom: {location_to_str(x.location)}&#34;
+                )
+
+            guards, guard_parser = guard_table
+            if x.guard.operator_name not in guards:
+                raise RuntimeError(
+                    f&#34;unexpected guard in theory atom: {location_to_str(x.location)}&#34;
+                )
+
+            x.guard = copy(x.guard)
+            x.guard.term = guard_parser(x.guard.term)
+
+        return x</code></pre>
+</details>
+<div class="desc"><p>This class parses theory atoms in the same way as clingo's internal parser.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>terms</code></strong></dt>
+<dd>Mapping from term identifiers to <code><a title="clingox.ast.TheoryTermParser" href="#clingox.ast.TheoryTermParser">TheoryTermParser</a></code>s. If an operator
+table is given, the <code><a title="clingox.ast.TheoryTermParser" href="#clingox.ast.TheoryTermParser">TheoryTermParser</a></code> is constructed from this table.</dd>
+<dt><strong><code>atoms</code></strong></dt>
+<dd>Mapping from atom name/arity pairs to tuples defining the acceptable
+structure of the theory atom.</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.ast.Transformer" href="../clingo/ast.html#clingo.ast.Transformer">Transformer</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingox.ast.TheoryParser.visit_Edge"><code class="name flex">
+<span>def <span class="ident">visit_Edge</span></span>(<span>self,<br>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def visit_Edge(self, x: AST) -&gt; AST:
+    &#34;&#34;&#34;
+    Parse theory atoms in body.
+
+    Parameters
+    ----------
+    x
+        The AST to rewrite.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+    return self._visit_body(x)</code></pre>
+</details>
+<div class="desc"><p>Parse theory atoms in body.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The AST to rewrite.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+<dt id="clingox.ast.TheoryParser.visit_Heuristic"><code class="name flex">
+<span>def <span class="ident">visit_Heuristic</span></span>(<span>self,<br>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def visit_Heuristic(self, x: AST) -&gt; AST:
+    &#34;&#34;&#34;
+    Parse theory atoms in body.
+
+    Parameters
+    ----------
+    x
+        The AST to rewrite.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+    return self._visit_body(x)</code></pre>
+</details>
+<div class="desc"><p>Parse theory atoms in body.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The AST to rewrite.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+<dt id="clingox.ast.TheoryParser.visit_Minimize"><code class="name flex">
+<span>def <span class="ident">visit_Minimize</span></span>(<span>self,<br>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def visit_Minimize(self, x: AST) -&gt; AST:
+    &#34;&#34;&#34;
+    Parse theory atoms in body.
+
+    Parameters
+    ----------
+    x
+        The AST to rewrite.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+    return self._visit_body(x)</code></pre>
+</details>
+<div class="desc"><p>Parse theory atoms in body.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The AST to rewrite.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+<dt id="clingox.ast.TheoryParser.visit_ProjectAtom"><code class="name flex">
+<span>def <span class="ident">visit_ProjectAtom</span></span>(<span>self,<br>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def visit_ProjectAtom(self, x: AST) -&gt; AST:
+    &#34;&#34;&#34;
+    Parse theory atoms in body.
+
+    Parameters
+    ----------
+    x
+        The AST to rewrite.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+    return self._visit_body(x)</code></pre>
+</details>
+<div class="desc"><p>Parse theory atoms in body.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The AST to rewrite.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+<dt id="clingox.ast.TheoryParser.visit_Rule"><code class="name flex">
+<span>def <span class="ident">visit_Rule</span></span>(<span>self,<br>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def visit_Rule(self, x: AST) -&gt; AST:
+    &#34;&#34;&#34;
+    Parse theory atoms in body and head.
+
+    Parameters
+    ----------
+    x
+        The AST to rewrite.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+    ret = self._visit_body(x)
+    try:
+        self._reset(True, False, not x.body)
+        head = self(x.head)
+        if head is not x.head:
+            if ret is x:
+                ret = copy(ret)
+            ret.head = head
+    finally:
+        self._reset()
+
+    return ret</code></pre>
+</details>
+<div class="desc"><p>Parse theory atoms in body and head.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The AST to rewrite.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+<dt id="clingox.ast.TheoryParser.visit_ShowTerm"><code class="name flex">
+<span>def <span class="ident">visit_ShowTerm</span></span>(<span>self,<br>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def visit_ShowTerm(self, x: AST) -&gt; AST:
+    &#34;&#34;&#34;
+    Parse theory atoms in body.
+
+    Parameters
+    ----------
+    x
+        The AST to rewrite.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+    return self._visit_body(x)</code></pre>
+</details>
+<div class="desc"><p>Parse theory atoms in body.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The AST to rewrite.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+<dt id="clingox.ast.TheoryParser.visit_TheoryAtom"><code class="name flex">
+<span>def <span class="ident">visit_TheoryAtom</span></span>(<span>self,<br>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def visit_TheoryAtom(self, x: AST) -&gt; AST:
+    &#34;&#34;&#34;
+    Parse the given theory atom.
+
+    Parameters
+    ----------
+    x
+        The AST to rewrite.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+    name = x.term.name
+    arity = len(x.term.arguments)
+    if (name, arity) not in self._table:
+        raise RuntimeError(
+            f&#34;theory atom definiton not found: {location_to_str(x.location)}&#34;
+        )
+
+    type_, element_parser, guard_table = self._table[(name, arity)]
+    if type_ == TheoryAtomType.Head and not self._in_head:
+        raise RuntimeError(
+            f&#34;theory atom only accepted in head: {location_to_str(x.location)}&#34;
+        )
+    if type_ == TheoryAtomType.Body and not self._in_body:
+        raise RuntimeError(
+            f&#34;theory atom only accepted in body: {location_to_str(x.location)}&#34;
+        )
+    if type_ == TheoryAtomType.Directive and not (
+        self._in_head and self._is_directive
+    ):
+        raise RuntimeError(
+            f&#34;theory atom must be a directive: {location_to_str(x.location)}&#34;
+        )
+
+    x = copy(x)
+    x.term = element_parser(x.term)
+    x.elements = element_parser.visit_sequence(x.elements)
+
+    if x.guard is not None:
+        if guard_table is None:
+            raise RuntimeError(
+                f&#34;unexpected guard in theory atom: {location_to_str(x.location)}&#34;
+            )
+
+        guards, guard_parser = guard_table
+        if x.guard.operator_name not in guards:
+            raise RuntimeError(
+                f&#34;unexpected guard in theory atom: {location_to_str(x.location)}&#34;
+            )
+
+        x.guard = copy(x.guard)
+        x.guard.term = guard_parser(x.guard.term)
+
+    return x</code></pre>
+</details>
+<div class="desc"><p>Parse the given theory atom.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The AST to rewrite.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="clingo.ast.Transformer" href="../clingo/ast.html#clingo.ast.Transformer">Transformer</a></b></code>:
+<ul class="hlist">
+<li><code><a title="clingo.ast.Transformer.visit" href="../clingo/ast.html#clingo.ast.Transformer.visit">visit</a></code></li>
+<li><code><a title="clingo.ast.Transformer.visit_children" href="../clingo/ast.html#clingo.ast.Transformer.visit_children">visit_children</a></code></li>
+<li><code><a title="clingo.ast.Transformer.visit_sequence" href="../clingo/ast.html#clingo.ast.Transformer.visit_sequence">visit_sequence</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="clingox.ast.TheoryTermParser"><code class="flex name class">
+<span>class <span class="ident">TheoryTermParser</span></span>
+<span>(</span><span>table: Mapping[Tuple[str, <a title="clingox.ast.Arity" href="#clingox.ast.Arity">Arity</a>], Tuple[int, <a title="clingox.ast.Associativity" href="#clingox.ast.Associativity">Associativity</a>]] | <a title="clingox.ast.TheoryUnparsedTermParser" href="#clingox.ast.TheoryUnparsedTermParser">TheoryUnparsedTermParser</a>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TheoryTermParser(Transformer):
+    &#34;&#34;&#34;
+    Parser for theory terms in clingo&#39;s AST that works like the inbuilt one.
+
+    This is implemented as a transformer that traverses the AST replacing all
+    terms found.
+
+    Parameters
+    ----------
+    table
+        This must either be a table of operators or a `TheoryUnparsedTermParser`.
+
+    See Also
+    --------
+    TheoryUnparsedTermParser
+    &#34;&#34;&#34;
+
+    # pylint: disable=invalid-name
+
+    def __init__(self, table: Union[OperatorTable, TheoryUnparsedTermParser]):
+        self._parser = (
+            table
+            if isinstance(table, TheoryUnparsedTermParser)
+            else TheoryUnparsedTermParser(table)
+        )
+
+    def visit_TheoryFunction(self, x) -&gt; AST:
+        &#34;&#34;&#34;
+        Parse the theory function and check if it agrees with the grammar.
+
+        Parameters
+        ----------
+        x
+            The AST to rewrite.
+
+        Returns
+        -------
+        The rewritten AST.
+        &#34;&#34;&#34;
+        arity = None
+        if len(x.arguments) == 1:
+            arity = Arity.Unary
+        if len(x.arguments) == 2:
+            arity = Arity.Binary
+        if arity is not None and is_operator(x.name):
+            self._parser.check_operator(x.name, arity, x.location)
+
+        return x.update(**self.visit_children(x))
+
+    def visit_TheoryUnparsedTerm(self, x: AST) -&gt; AST:
+        &#34;&#34;&#34;
+        Parse the given unparsed term.
+
+        Parameters
+        ----------
+        x
+            The AST to rewrite.
+
+        Returns
+        -------
+        The rewritten AST.
+        &#34;&#34;&#34;
+        return cast(AST, self(self._parser.parse(x)))</code></pre>
+</details>
+<div class="desc"><p>Parser for theory terms in clingo's AST that works like the inbuilt one.</p>
+<p>This is implemented as a transformer that traverses the AST replacing all
+terms found.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>table</code></strong></dt>
+<dd>This must either be a table of operators or a <code><a title="clingox.ast.TheoryUnparsedTermParser" href="#clingox.ast.TheoryUnparsedTermParser">TheoryUnparsedTermParser</a></code>.</dd>
+</dl>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingox.ast.TheoryUnparsedTermParser" href="#clingox.ast.TheoryUnparsedTermParser">TheoryUnparsedTermParser</a></code></p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.ast.Transformer" href="../clingo/ast.html#clingo.ast.Transformer">Transformer</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingox.ast.TheoryTermParser.visit_TheoryFunction"><code class="name flex">
+<span>def <span class="ident">visit_TheoryFunction</span></span>(<span>self, x) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def visit_TheoryFunction(self, x) -&gt; AST:
+    &#34;&#34;&#34;
+    Parse the theory function and check if it agrees with the grammar.
+
+    Parameters
+    ----------
+    x
+        The AST to rewrite.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+    arity = None
+    if len(x.arguments) == 1:
+        arity = Arity.Unary
+    if len(x.arguments) == 2:
+        arity = Arity.Binary
+    if arity is not None and is_operator(x.name):
+        self._parser.check_operator(x.name, arity, x.location)
+
+    return x.update(**self.visit_children(x))</code></pre>
+</details>
+<div class="desc"><p>Parse the theory function and check if it agrees with the grammar.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The AST to rewrite.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+<dt id="clingox.ast.TheoryTermParser.visit_TheoryUnparsedTerm"><code class="name flex">
+<span>def <span class="ident">visit_TheoryUnparsedTerm</span></span>(<span>self,<br>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def visit_TheoryUnparsedTerm(self, x: AST) -&gt; AST:
+    &#34;&#34;&#34;
+    Parse the given unparsed term.
+
+    Parameters
+    ----------
+    x
+        The AST to rewrite.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+    return cast(AST, self(self._parser.parse(x)))</code></pre>
+</details>
+<div class="desc"><p>Parse the given unparsed term.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The AST to rewrite.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="clingo.ast.Transformer" href="../clingo/ast.html#clingo.ast.Transformer">Transformer</a></b></code>:
+<ul class="hlist">
+<li><code><a title="clingo.ast.Transformer.visit" href="../clingo/ast.html#clingo.ast.Transformer.visit">visit</a></code></li>
+<li><code><a title="clingo.ast.Transformer.visit_children" href="../clingo/ast.html#clingo.ast.Transformer.visit_children">visit_children</a></code></li>
+<li><code><a title="clingo.ast.Transformer.visit_sequence" href="../clingo/ast.html#clingo.ast.Transformer.visit_sequence">visit_sequence</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="clingox.ast.TheoryUnparsedTermParser"><code class="flex name class">
+<span>class <span class="ident">TheoryUnparsedTermParser</span></span>
+<span>(</span><span>table: Mapping[Tuple[str, <a title="clingox.ast.Arity" href="#clingox.ast.Arity">Arity</a>], Tuple[int, <a title="clingox.ast.Associativity" href="#clingox.ast.Associativity">Associativity</a>]])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TheoryUnparsedTermParser:
+    &#34;&#34;&#34;
+    Parser for unparsed theory terms in clingo&#39;s AST that works like the
+    inbuilt one.
+
+    Note that associativity for unary operators is ignored and binary
+    operators must use either `Associativity.Left` or `Associativity.Right`.
+
+    Parameters
+    ----------
+    table
+        Mapping of operator/arity pairs to priority/associativity pairs.
+    &#34;&#34;&#34;
+
+    _stack: List[Tuple[str, Arity]]
+    _terms: List[AST]
+    _table: OperatorTable
+
+    def __init__(self, table: OperatorTable):
+        self._stack = []
+        self._terms = []
+        self._table = table
+
+    def _priority_and_associativity(self, operator: str) -&gt; Tuple[int, Associativity]:
+        &#34;&#34;&#34;
+        Get priority and associativity of the given binary operator.
+        &#34;&#34;&#34;
+        return self._table[(operator, Arity.Binary)]
+
+    def _priority(self, operator: str, arity: Arity) -&gt; int:
+        &#34;&#34;&#34;
+        Get priority of the given unary or binary operator.
+        &#34;&#34;&#34;
+        return self._table[(operator, arity)][0]
+
+    def _check(self, operator: str) -&gt; bool:
+        &#34;&#34;&#34;
+        Returns true if the stack has to be reduced because of the precedence
+        of the given binary operator is lower than the preceeding operator on
+        the stack.
+        &#34;&#34;&#34;
+        if not self._stack:
+            return False
+        priority, associativity = self._priority_and_associativity(operator)
+        previous_priority = self._priority(*self._stack[-1])
+        return previous_priority &gt; priority or (
+            previous_priority == priority and associativity == Associativity.Left
+        )
+
+    def _reduce(self) -&gt; None:
+        &#34;&#34;&#34;
+        Combines the last unary or binary term on the stack.
+        &#34;&#34;&#34;
+        b = self._terms.pop()
+        operator, arity = self._stack.pop()
+        if arity == Arity.Unary:
+            self._terms.append(TheoryFunction(b.location, operator, [b]))
+        else:
+            a = self._terms.pop()
+            loc = Location(a.location.begin, b.location.end)
+            self._terms.append(TheoryFunction(loc, operator, [a, b]))
+
+    def check_operator(self, operator: str, arity: Arity, location: Location) -&gt; None:
+        &#34;&#34;&#34;
+        Check if the given operator is in the parse table raising a runtime
+        error if absent.
+
+        Parameters
+        ----------
+        operator
+            The operator name.
+        arity
+            The arity of the operator.
+        location
+            Location of the operator for error reporting.
+        &#34;&#34;&#34;
+        if (operator, arity) not in self._table:
+            raise RuntimeError(
+                f&#34;cannot parse operator `{operator}`: {location_to_str(location)}&#34;
+            )
+
+    def parse(self, x: AST) -&gt; AST:
+        &#34;&#34;&#34;
+        Parses the given unparsed term, replacing it by nested theory
+        functions.
+
+        Parameters
+        ----------
+        x
+            The AST to parse.
+
+        Returns
+        -------
+        The rewritten AST.
+        &#34;&#34;&#34;
+        del self._stack[:]
+        del self._terms[:]
+
+        arity = Arity.Unary
+
+        for element in x.elements:
+            for operator in element.operators:
+                self.check_operator(operator, arity, x.location)
+
+                while arity == Arity.Binary and self._check(operator):
+                    self._reduce()
+
+                self._stack.append((operator, arity))
+                arity = Arity.Unary
+
+            self._terms.append(element.term)
+            arity = Arity.Binary
+
+        while self._stack:
+            self._reduce()
+
+        return self._terms[0]</code></pre>
+</details>
+<div class="desc"><p>Parser for unparsed theory terms in clingo's AST that works like the
+inbuilt one.</p>
+<p>Note that associativity for unary operators is ignored and binary
+operators must use either <code><a title="clingox.ast.Associativity.Left" href="#clingox.ast.Associativity.Left">Associativity.Left</a></code> or <code><a title="clingox.ast.Associativity.Right" href="#clingox.ast.Associativity.Right">Associativity.Right</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>table</code></strong></dt>
+<dd>Mapping of operator/arity pairs to priority/associativity pairs.</dd>
+</dl></div>
+<h3>Methods</h3>
+<dl>
+<dt id="clingox.ast.TheoryUnparsedTermParser.check_operator"><code class="name flex">
+<span>def <span class="ident">check_operator</span></span>(<span>self,<br>operator: str,<br>arity: <a title="clingox.ast.Arity" href="#clingox.ast.Arity">Arity</a>,<br>location: <a title="clingo.ast.Location" href="../clingo/ast.html#clingo.ast.Location">Location</a>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def check_operator(self, operator: str, arity: Arity, location: Location) -&gt; None:
+    &#34;&#34;&#34;
+    Check if the given operator is in the parse table raising a runtime
+    error if absent.
+
+    Parameters
+    ----------
+    operator
+        The operator name.
+    arity
+        The arity of the operator.
+    location
+        Location of the operator for error reporting.
+    &#34;&#34;&#34;
+    if (operator, arity) not in self._table:
+        raise RuntimeError(
+            f&#34;cannot parse operator `{operator}`: {location_to_str(location)}&#34;
+        )</code></pre>
+</details>
+<div class="desc"><p>Check if the given operator is in the parse table raising a runtime
+error if absent.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>operator</code></strong></dt>
+<dd>The operator name.</dd>
+<dt><strong><code>arity</code></strong></dt>
+<dd>The arity of the operator.</dd>
+<dt><strong><code>location</code></strong></dt>
+<dd>Location of the operator for error reporting.</dd>
+</dl></div>
+</dd>
+<dt id="clingox.ast.TheoryUnparsedTermParser.parse"><code class="name flex">
+<span>def <span class="ident">parse</span></span>(<span>self,<br>x: <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a>) ‑> <a title="clingo.ast.AST" href="../clingo/ast.html#clingo.ast.AST">AST</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parse(self, x: AST) -&gt; AST:
+    &#34;&#34;&#34;
+    Parses the given unparsed term, replacing it by nested theory
+    functions.
+
+    Parameters
+    ----------
+    x
+        The AST to parse.
+
+    Returns
+    -------
+    The rewritten AST.
+    &#34;&#34;&#34;
+    del self._stack[:]
+    del self._terms[:]
+
+    arity = Arity.Unary
+
+    for element in x.elements:
+        for operator in element.operators:
+            self.check_operator(operator, arity, x.location)
+
+            while arity == Arity.Binary and self._check(operator):
+                self._reduce()
+
+            self._stack.append((operator, arity))
+            arity = Arity.Unary
+
+        self._terms.append(element.term)
+        arity = Arity.Binary
+
+    while self._stack:
+        self._reduce()
+
+    return self._terms[0]</code></pre>
+</details>
+<div class="desc"><p>Parses the given unparsed term, replacing it by nested theory
+functions.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong></dt>
+<dd>The AST to parse.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The rewritten AST.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#theory-parsing-examples">Theory Parsing Examples</a></li>
+<li><a href="#ast-to-dict-conversion-example">AST to dict Conversion Example</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingox" href="index.html">clingox</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="clingox.ast.ast_to_dict" href="#clingox.ast.ast_to_dict">ast_to_dict</a></code></li>
+<li><code><a title="clingox.ast.clingo_literal_parser" href="#clingox.ast.clingo_literal_parser">clingo_literal_parser</a></code></li>
+<li><code><a title="clingox.ast.clingo_term_parser" href="#clingox.ast.clingo_term_parser">clingo_term_parser</a></code></li>
+<li><code><a title="clingox.ast.dict_to_ast" href="#clingox.ast.dict_to_ast">dict_to_ast</a></code></li>
+<li><code><a title="clingox.ast.filter_body_literals" href="#clingox.ast.filter_body_literals">filter_body_literals</a></code></li>
+<li><code><a title="clingox.ast.location_to_str" href="#clingox.ast.location_to_str">location_to_str</a></code></li>
+<li><code><a title="clingox.ast.negate_sign" href="#clingox.ast.negate_sign">negate_sign</a></code></li>
+<li><code><a title="clingox.ast.normalize_symbolic_terms" href="#clingox.ast.normalize_symbolic_terms">normalize_symbolic_terms</a></code></li>
+<li><code><a title="clingox.ast.parse_theory" href="#clingox.ast.parse_theory">parse_theory</a></code></li>
+<li><code><a title="clingox.ast.partition_body_literals" href="#clingox.ast.partition_body_literals">partition_body_literals</a></code></li>
+<li><code><a title="clingox.ast.prefix_symbolic_atoms" href="#clingox.ast.prefix_symbolic_atoms">prefix_symbolic_atoms</a></code></li>
+<li><code><a title="clingox.ast.reify_symbolic_atoms" href="#clingox.ast.reify_symbolic_atoms">reify_symbolic_atoms</a></code></li>
+<li><code><a title="clingox.ast.rename_symbolic_atoms" href="#clingox.ast.rename_symbolic_atoms">rename_symbolic_atoms</a></code></li>
+<li><code><a title="clingox.ast.str_to_location" href="#clingox.ast.str_to_location">str_to_location</a></code></li>
+<li><code><a title="clingox.ast.theory_parser_from_definition" href="#clingox.ast.theory_parser_from_definition">theory_parser_from_definition</a></code></li>
+<li><code><a title="clingox.ast.theory_term_to_literal" href="#clingox.ast.theory_term_to_literal">theory_term_to_literal</a></code></li>
+<li><code><a title="clingox.ast.theory_term_to_term" href="#clingox.ast.theory_term_to_term">theory_term_to_term</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingox.ast.Arity" href="#clingox.ast.Arity">Arity</a></code></h4>
+<ul class="">
+<li><code><a title="clingox.ast.Arity.Binary" href="#clingox.ast.Arity.Binary">Binary</a></code></li>
+<li><code><a title="clingox.ast.Arity.Unary" href="#clingox.ast.Arity.Unary">Unary</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingox.ast.Associativity" href="#clingox.ast.Associativity">Associativity</a></code></h4>
+<ul class="">
+<li><code><a title="clingox.ast.Associativity.Left" href="#clingox.ast.Associativity.Left">Left</a></code></li>
+<li><code><a title="clingox.ast.Associativity.NoAssociativity" href="#clingox.ast.Associativity.NoAssociativity">NoAssociativity</a></code></li>
+<li><code><a title="clingox.ast.Associativity.Right" href="#clingox.ast.Associativity.Right">Right</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingox.ast.TheoryParser" href="#clingox.ast.TheoryParser">TheoryParser</a></code></h4>
+<ul class="two-column">
+<li><code><a title="clingox.ast.TheoryParser.visit_Edge" href="#clingox.ast.TheoryParser.visit_Edge">visit_Edge</a></code></li>
+<li><code><a title="clingox.ast.TheoryParser.visit_Heuristic" href="#clingox.ast.TheoryParser.visit_Heuristic">visit_Heuristic</a></code></li>
+<li><code><a title="clingox.ast.TheoryParser.visit_Minimize" href="#clingox.ast.TheoryParser.visit_Minimize">visit_Minimize</a></code></li>
+<li><code><a title="clingox.ast.TheoryParser.visit_ProjectAtom" href="#clingox.ast.TheoryParser.visit_ProjectAtom">visit_ProjectAtom</a></code></li>
+<li><code><a title="clingox.ast.TheoryParser.visit_Rule" href="#clingox.ast.TheoryParser.visit_Rule">visit_Rule</a></code></li>
+<li><code><a title="clingox.ast.TheoryParser.visit_ShowTerm" href="#clingox.ast.TheoryParser.visit_ShowTerm">visit_ShowTerm</a></code></li>
+<li><code><a title="clingox.ast.TheoryParser.visit_TheoryAtom" href="#clingox.ast.TheoryParser.visit_TheoryAtom">visit_TheoryAtom</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingox.ast.TheoryTermParser" href="#clingox.ast.TheoryTermParser">TheoryTermParser</a></code></h4>
+<ul class="">
+<li><code><a title="clingox.ast.TheoryTermParser.visit_TheoryFunction" href="#clingox.ast.TheoryTermParser.visit_TheoryFunction">visit_TheoryFunction</a></code></li>
+<li><code><a title="clingox.ast.TheoryTermParser.visit_TheoryUnparsedTerm" href="#clingox.ast.TheoryTermParser.visit_TheoryUnparsedTerm">visit_TheoryUnparsedTerm</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingox.ast.TheoryUnparsedTermParser" href="#clingox.ast.TheoryUnparsedTermParser">TheoryUnparsedTermParser</a></code></h4>
+<ul class="">
+<li><code><a title="clingox.ast.TheoryUnparsedTermParser.check_operator" href="#clingox.ast.TheoryUnparsedTermParser.check_operator">check_operator</a></code></li>
+<li><code><a title="clingox.ast.TheoryUnparsedTermParser.parse" href="#clingox.ast.TheoryUnparsedTermParser.parse">parse</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

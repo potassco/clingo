@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>clingo.tests.test_backend API documentation</title>
+<meta name="description" content="Tests for the backend/observer.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<nav class="http-server-breadcrumbs">
+<a href="https://potassco.org/clingo/python-api/5.8/">All packages</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/">clingo</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/tests/">clingo.tests</a>
+</nav>
+<h1 class="title">Module <code>clingo.tests.test_backend</code></h1>
+</header>
+<section id="section-intro">
+<p>Tests for the backend/observer.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.tests.test_backend.TestBackend"><code class="flex name class">
+<span>class <span class="ident">TestBackend</span></span>
+<span>(</span><span>methodName='runTest')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestBackend(TestCase):
+    &#34;&#34;&#34;
+    Tests basic solving and related functions.
+    &#34;&#34;&#34;
+
+    def test_backend(self):
+        &#34;&#34;&#34;
+        Test backend via observer.
+        &#34;&#34;&#34;
+        ctl = Control()
+        obs = TestObserverBackend(self)
+        ctl.register_observer(obs)
+        with ctl.backend() as backend:
+            self.assertIn(&#34;init_program&#34;, obs.called)
+            self.assertIn(&#34;begin_step&#34;, obs.called)
+            backend.add_atom()
+            backend.add_atom(Function(&#34;a&#34;))
+            backend.add_rule([1], [2, 3], True)
+            self.assertIn(&#34;rule&#34;, obs.called)
+            backend.add_weight_rule([2], 1, [(2, 3), (4, 5)])
+            self.assertIn(&#34;weight_rule&#34;, obs.called)
+            backend.add_minimize(0, [(2, 3), (4, 5)])
+            self.assertIn(&#34;minimize&#34;, obs.called)
+            backend.add_project([2, 4])
+            self.assertIn(&#34;project&#34;, obs.called)
+            backend.add_heuristic(2, HeuristicType.Level, 5, 7, [1, 3])
+            self.assertIn(&#34;heuristic&#34;, obs.called)
+            backend.add_assume([2, 3])
+            self.assertIn(&#34;assume&#34;, obs.called)
+            backend.add_acyc_edge(1, 2, [3, 4])
+            self.assertIn(&#34;acyc_edge&#34;, obs.called)
+            backend.add_external(3, TruthValue.Release)
+            self.assertIn(&#34;external&#34;, obs.called)
+        self.assertIn(&#34;output_atom&#34;, obs.called)
+        ctl.solve()
+        self.assertIn(&#34;end_step&#34;, obs.called)
+
+    def test_theory(self):
+        &#34;&#34;&#34;
+        Test observer via grounding.
+        &#34;&#34;&#34;
+        ctl = Control()
+        obs = TestObserverTheory(self)
+        ctl.register_observer(obs)
+        ctl.add(
+            &#34;base&#34;,
+            [],
+            &#34;&#34;&#34;\
+        #theory test {
+            t { };
+            &amp;a/0 : t, head
+        }.
+        {a; b}.
+        #show t : a, b.
+        &amp;a { (1,a): a,b }.
+        &#34;&#34;&#34;,
+        )
+        ctl.ground([(&#34;base&#34;, [])])
+        self.assertIn(&#34;output_term&#34;, obs.called)
+        self.assertIn(&#34;theory_term_number&#34;, obs.called)
+        self.assertIn(&#34;theory_term_string&#34;, obs.called)
+        self.assertIn(&#34;theory_term_compound&#34;, obs.called)
+        self.assertIn(&#34;theory_element&#34;, obs.called)
+        self.assertIn(&#34;theory_atom&#34;, obs.called)
+        ctl.solve()
+
+    def test_adding_theory(self):
+        &#34;&#34;&#34;
+        Test theory related functions in backend.
+        &#34;&#34;&#34;
+        ctl = Control()
+        with ctl.backend() as backend:
+            num_one = backend.add_theory_term_number(1)
+            num_two = backend.add_theory_term_number(2)
+            str_x = backend.add_theory_term_string(&#34;x&#34;)
+            fun = backend.add_theory_term_function(&#34;f&#34;, [num_one, num_two, str_x])
+            seq = backend.add_theory_term_sequence(
+                TheorySequenceType.Set, [num_one, num_two, str_x]
+            )
+            lst = backend.add_theory_term_sequence(
+                TheorySequenceType.List, [num_one, num_two]
+            )
+            tup = backend.add_theory_term_sequence(
+                TheorySequenceType.Tuple, [num_one, num_two]
+            )
+            fseq = backend.add_theory_term_function(&#34;f&#34;, [seq])
+
+            self.assertEqual(num_one, backend.add_theory_term_number(1))
+            self.assertEqual(num_two, backend.add_theory_term_number(2))
+            self.assertEqual(str_x, backend.add_theory_term_string(&#34;x&#34;))
+            self.assertEqual(num_one, backend.add_theory_term_symbol(parse_term(&#34;1&#34;)))
+            self.assertEqual(num_two, backend.add_theory_term_symbol(parse_term(&#34;2&#34;)))
+            self.assertEqual(
+                fun, backend.add_theory_term_symbol(parse_term(&#34;f(1,2,x)&#34;))
+            )
+
+            elem = backend.add_theory_element(
+                [num_one, num_two, seq, fun, lst, tup], [1, -2, 3]
+            )
+
+            # Tests with guards and elements
+            backend.add_theory_atom(fun, [], 0)
+            backend.add_theory_atom_with_guard(fun, [], &#34;=&#34;, num_one, 0)
+            backend.add_theory_atom(
+                backend.add_theory_term_symbol(parse_term(&#34;g(1,2)&#34;)), [], 0
+            )
+            backend.add_theory_atom(fseq, [elem], 0)
+
+        atoms = list(ctl.theory_atoms)
+        self.assertListEqual(
+            [str(atom) for atom in atoms],
+            [
+                &#34;&amp;f(1,2,x){}&#34;,
+                &#34;&amp;f(1,2,x){}=1&#34;,
+                &#34;&amp;g(1,2){}&#34;,
+                &#34;&amp;f({1,2,x}){1,2,{1,2,x},f(1,2,x),[1,2],(1,2): #aux(1),not #aux(2),#aux(3)}&#34;,
+            ],
+        )
+        self.assertEqual(atoms[-1].elements[-1].condition, [1, -2, 3])
+
+    def test_theory_with_guard(self):
+        &#34;&#34;&#34;
+        Test observer via grounding.
+        &#34;&#34;&#34;
+        ctl = Control()
+        obs = TestObserverTheoryWithGuard(self)
+        ctl.register_observer(obs)
+        ctl.add(
+            &#34;base&#34;,
+            [],
+            &#34;&#34;&#34;\
+        #theory test {
+            t { };
+            &amp;a/0 : t, {=}, t, head
+        }.
+        &amp;a { } = a.
+        &#34;&#34;&#34;,
+        )
+        ctl.ground([(&#34;base&#34;, [])])
+        self.assertIn(&#34;theory_term_string: a&#34;, obs.called)
+        self.assertIn(&#34;theory_term_string: =&#34;, obs.called)
+        self.assertIn(&#34;theory_atom_with_guard&#34;, obs.called)
+        ctl.solve()</code></pre>
+</details>
+<div class="desc"><p>Tests basic solving and related functions.</p>
+<p>Create an instance of the class that will use the named test
+method when executed. Raises a ValueError if the instance does
+not have a method with the specified name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>unittest.case.TestCase</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.tests.test_backend.TestBackend.test_adding_theory"><code class="name flex">
+<span>def <span class="ident">test_adding_theory</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_adding_theory(self):
+    &#34;&#34;&#34;
+    Test theory related functions in backend.
+    &#34;&#34;&#34;
+    ctl = Control()
+    with ctl.backend() as backend:
+        num_one = backend.add_theory_term_number(1)
+        num_two = backend.add_theory_term_number(2)
+        str_x = backend.add_theory_term_string(&#34;x&#34;)
+        fun = backend.add_theory_term_function(&#34;f&#34;, [num_one, num_two, str_x])
+        seq = backend.add_theory_term_sequence(
+            TheorySequenceType.Set, [num_one, num_two, str_x]
+        )
+        lst = backend.add_theory_term_sequence(
+            TheorySequenceType.List, [num_one, num_two]
+        )
+        tup = backend.add_theory_term_sequence(
+            TheorySequenceType.Tuple, [num_one, num_two]
+        )
+        fseq = backend.add_theory_term_function(&#34;f&#34;, [seq])
+
+        self.assertEqual(num_one, backend.add_theory_term_number(1))
+        self.assertEqual(num_two, backend.add_theory_term_number(2))
+        self.assertEqual(str_x, backend.add_theory_term_string(&#34;x&#34;))
+        self.assertEqual(num_one, backend.add_theory_term_symbol(parse_term(&#34;1&#34;)))
+        self.assertEqual(num_two, backend.add_theory_term_symbol(parse_term(&#34;2&#34;)))
+        self.assertEqual(
+            fun, backend.add_theory_term_symbol(parse_term(&#34;f(1,2,x)&#34;))
+        )
+
+        elem = backend.add_theory_element(
+            [num_one, num_two, seq, fun, lst, tup], [1, -2, 3]
+        )
+
+        # Tests with guards and elements
+        backend.add_theory_atom(fun, [], 0)
+        backend.add_theory_atom_with_guard(fun, [], &#34;=&#34;, num_one, 0)
+        backend.add_theory_atom(
+            backend.add_theory_term_symbol(parse_term(&#34;g(1,2)&#34;)), [], 0
+        )
+        backend.add_theory_atom(fseq, [elem], 0)
+
+    atoms = list(ctl.theory_atoms)
+    self.assertListEqual(
+        [str(atom) for atom in atoms],
+        [
+            &#34;&amp;f(1,2,x){}&#34;,
+            &#34;&amp;f(1,2,x){}=1&#34;,
+            &#34;&amp;g(1,2){}&#34;,
+            &#34;&amp;f({1,2,x}){1,2,{1,2,x},f(1,2,x),[1,2],(1,2): #aux(1),not #aux(2),#aux(3)}&#34;,
+        ],
+    )
+    self.assertEqual(atoms[-1].elements[-1].condition, [1, -2, 3])</code></pre>
+</details>
+<div class="desc"><p>Test theory related functions in backend.</p></div>
+</dd>
+<dt id="clingo.tests.test_backend.TestBackend.test_backend"><code class="name flex">
+<span>def <span class="ident">test_backend</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_backend(self):
+    &#34;&#34;&#34;
+    Test backend via observer.
+    &#34;&#34;&#34;
+    ctl = Control()
+    obs = TestObserverBackend(self)
+    ctl.register_observer(obs)
+    with ctl.backend() as backend:
+        self.assertIn(&#34;init_program&#34;, obs.called)
+        self.assertIn(&#34;begin_step&#34;, obs.called)
+        backend.add_atom()
+        backend.add_atom(Function(&#34;a&#34;))
+        backend.add_rule([1], [2, 3], True)
+        self.assertIn(&#34;rule&#34;, obs.called)
+        backend.add_weight_rule([2], 1, [(2, 3), (4, 5)])
+        self.assertIn(&#34;weight_rule&#34;, obs.called)
+        backend.add_minimize(0, [(2, 3), (4, 5)])
+        self.assertIn(&#34;minimize&#34;, obs.called)
+        backend.add_project([2, 4])
+        self.assertIn(&#34;project&#34;, obs.called)
+        backend.add_heuristic(2, HeuristicType.Level, 5, 7, [1, 3])
+        self.assertIn(&#34;heuristic&#34;, obs.called)
+        backend.add_assume([2, 3])
+        self.assertIn(&#34;assume&#34;, obs.called)
+        backend.add_acyc_edge(1, 2, [3, 4])
+        self.assertIn(&#34;acyc_edge&#34;, obs.called)
+        backend.add_external(3, TruthValue.Release)
+        self.assertIn(&#34;external&#34;, obs.called)
+    self.assertIn(&#34;output_atom&#34;, obs.called)
+    ctl.solve()
+    self.assertIn(&#34;end_step&#34;, obs.called)</code></pre>
+</details>
+<div class="desc"><p>Test backend via observer.</p></div>
+</dd>
+<dt id="clingo.tests.test_backend.TestBackend.test_theory"><code class="name flex">
+<span>def <span class="ident">test_theory</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_theory(self):
+    &#34;&#34;&#34;
+    Test observer via grounding.
+    &#34;&#34;&#34;
+    ctl = Control()
+    obs = TestObserverTheory(self)
+    ctl.register_observer(obs)
+    ctl.add(
+        &#34;base&#34;,
+        [],
+        &#34;&#34;&#34;\
+    #theory test {
+        t { };
+        &amp;a/0 : t, head
+    }.
+    {a; b}.
+    #show t : a, b.
+    &amp;a { (1,a): a,b }.
+    &#34;&#34;&#34;,
+    )
+    ctl.ground([(&#34;base&#34;, [])])
+    self.assertIn(&#34;output_term&#34;, obs.called)
+    self.assertIn(&#34;theory_term_number&#34;, obs.called)
+    self.assertIn(&#34;theory_term_string&#34;, obs.called)
+    self.assertIn(&#34;theory_term_compound&#34;, obs.called)
+    self.assertIn(&#34;theory_element&#34;, obs.called)
+    self.assertIn(&#34;theory_atom&#34;, obs.called)
+    ctl.solve()</code></pre>
+</details>
+<div class="desc"><p>Test observer via grounding.</p></div>
+</dd>
+<dt id="clingo.tests.test_backend.TestBackend.test_theory_with_guard"><code class="name flex">
+<span>def <span class="ident">test_theory_with_guard</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_theory_with_guard(self):
+    &#34;&#34;&#34;
+    Test observer via grounding.
+    &#34;&#34;&#34;
+    ctl = Control()
+    obs = TestObserverTheoryWithGuard(self)
+    ctl.register_observer(obs)
+    ctl.add(
+        &#34;base&#34;,
+        [],
+        &#34;&#34;&#34;\
+    #theory test {
+        t { };
+        &amp;a/0 : t, {=}, t, head
+    }.
+    &amp;a { } = a.
+    &#34;&#34;&#34;,
+    )
+    ctl.ground([(&#34;base&#34;, [])])
+    self.assertIn(&#34;theory_term_string: a&#34;, obs.called)
+    self.assertIn(&#34;theory_term_string: =&#34;, obs.called)
+    self.assertIn(&#34;theory_atom_with_guard&#34;, obs.called)
+    ctl.solve()</code></pre>
+</details>
+<div class="desc"><p>Test observer via grounding.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.tests.test_backend.TestObserverBackend"><code class="flex name class">
+<span>class <span class="ident">TestObserverBackend</span></span>
+<span>(</span><span>case)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestObserverBackend(Observer):
+    &#34;&#34;&#34;
+    Test Observer.
+    &#34;&#34;&#34;
+
+    def __init__(self, case):
+        self._case = case
+        self.called = set()
+
+    def init_program(self, incremental: bool) -&gt; None:
+        self.called.add(&#34;init_program&#34;)
+
+    def begin_step(self) -&gt; None:
+        self.called.add(&#34;begin_step&#34;)
+
+    def rule(self, choice: bool, head: Sequence[int], body: Sequence[int]) -&gt; None:
+        self.called.add(&#34;rule&#34;)
+        self._case.assertTrue(choice)
+        self._case.assertEqual(head, [1])
+        self._case.assertEqual(body, [2, 3])
+
+    def weight_rule(
+        self,
+        choice: bool,
+        head: Sequence[int],
+        lower_bound: int,
+        body: Sequence[Tuple[int, int]],
+    ) -&gt; None:
+        self.called.add(&#34;weight_rule&#34;)
+        self._case.assertFalse(choice)
+        self._case.assertEqual(head, [2])
+        self._case.assertEqual(lower_bound, 1)
+        self._case.assertEqual(body, [(2, 3), (4, 5)])
+
+    def minimize(self, priority: int, literals: Sequence[Tuple[int, int]]) -&gt; None:
+        self.called.add(&#34;minimize&#34;)
+        self._case.assertEqual(priority, 0)
+        self._case.assertEqual(literals, [(2, 3), (4, 5)])
+
+    def project(self, atoms: Sequence[int]) -&gt; None:
+        self.called.add(&#34;project&#34;)
+        self._case.assertEqual(atoms, [2, 4])
+
+    def output_atom(self, symbol: Symbol, atom: int) -&gt; None:
+        self.called.add(&#34;output_atom&#34;)
+        self._case.assertEqual(symbol, Function(&#34;a&#34;))
+        self._case.assertEqual(atom, 2)
+
+    def external(self, atom: int, value: TruthValue) -&gt; None:
+        self.called.add(&#34;external&#34;)
+        self._case.assertEqual(atom, 3)
+        self._case.assertEqual(value, TruthValue.Release)
+
+    def assume(self, literals: Sequence[int]) -&gt; None:
+        self.called.add(&#34;assume&#34;)
+        self._case.assertEqual(literals, [2, 3])
+
+    def heuristic(
+        self,
+        atom: int,
+        type_: HeuristicType,
+        bias: int,
+        priority: int,
+        condition: Sequence[int],
+    ) -&gt; None:
+        self.called.add(&#34;heuristic&#34;)
+        self._case.assertEqual(atom, 2)
+        self._case.assertEqual(type_, HeuristicType.Level)
+        self._case.assertEqual(bias, 5)
+        self._case.assertEqual(priority, 7)
+        self._case.assertEqual(condition, [1, 3])
+
+    def acyc_edge(self, node_u: int, node_v: int, condition: Sequence[int]) -&gt; None:
+        self.called.add(&#34;acyc_edge&#34;)
+        self._case.assertEqual(node_u, 1)
+        self._case.assertEqual(node_v, 2)
+        self._case.assertEqual(condition, [3, 4])
+
+    def end_step(self) -&gt; None:
+        self.called.add(&#34;end_step&#34;)</code></pre>
+</details>
+<div class="desc"><p>Test Observer.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.backend.Observer" href="../backend.html#clingo.backend.Observer">Observer</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="clingo.backend.Observer" href="../backend.html#clingo.backend.Observer">Observer</a></b></code>:
+<ul class="hlist">
+<li><code><a title="clingo.backend.Observer.acyc_edge" href="../backend.html#clingo.backend.Observer.acyc_edge">acyc_edge</a></code></li>
+<li><code><a title="clingo.backend.Observer.assume" href="../backend.html#clingo.backend.Observer.assume">assume</a></code></li>
+<li><code><a title="clingo.backend.Observer.begin_step" href="../backend.html#clingo.backend.Observer.begin_step">begin_step</a></code></li>
+<li><code><a title="clingo.backend.Observer.end_step" href="../backend.html#clingo.backend.Observer.end_step">end_step</a></code></li>
+<li><code><a title="clingo.backend.Observer.external" href="../backend.html#clingo.backend.Observer.external">external</a></code></li>
+<li><code><a title="clingo.backend.Observer.heuristic" href="../backend.html#clingo.backend.Observer.heuristic">heuristic</a></code></li>
+<li><code><a title="clingo.backend.Observer.init_program" href="../backend.html#clingo.backend.Observer.init_program">init_program</a></code></li>
+<li><code><a title="clingo.backend.Observer.minimize" href="../backend.html#clingo.backend.Observer.minimize">minimize</a></code></li>
+<li><code><a title="clingo.backend.Observer.output_atom" href="../backend.html#clingo.backend.Observer.output_atom">output_atom</a></code></li>
+<li><code><a title="clingo.backend.Observer.output_term" href="../backend.html#clingo.backend.Observer.output_term">output_term</a></code></li>
+<li><code><a title="clingo.backend.Observer.project" href="../backend.html#clingo.backend.Observer.project">project</a></code></li>
+<li><code><a title="clingo.backend.Observer.rule" href="../backend.html#clingo.backend.Observer.rule">rule</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_atom" href="../backend.html#clingo.backend.Observer.theory_atom">theory_atom</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_atom_with_guard" href="../backend.html#clingo.backend.Observer.theory_atom_with_guard">theory_atom_with_guard</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_element" href="../backend.html#clingo.backend.Observer.theory_element">theory_element</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_compound" href="../backend.html#clingo.backend.Observer.theory_term_compound">theory_term_compound</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_number" href="../backend.html#clingo.backend.Observer.theory_term_number">theory_term_number</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_string" href="../backend.html#clingo.backend.Observer.theory_term_string">theory_term_string</a></code></li>
+<li><code><a title="clingo.backend.Observer.weight_rule" href="../backend.html#clingo.backend.Observer.weight_rule">weight_rule</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="clingo.tests.test_backend.TestObserverTheory"><code class="flex name class">
+<span>class <span class="ident">TestObserverTheory</span></span>
+<span>(</span><span>case)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestObserverTheory(Observer):
+    &#34;&#34;&#34;
+    Test Observer.
+    &#34;&#34;&#34;
+
+    def __init__(self, case):
+        self._case = case
+        self.called = set()
+
+    def output_term(self, symbol: Symbol, condition: Sequence[int]) -&gt; None:
+        self.called.add(&#34;output_term&#34;)
+        self._case.assertEqual(symbol, Function(&#34;t&#34;))
+        self._case.assertGreaterEqual(len(condition), 1)
+
+    def theory_term_number(self, term_id: int, number: int) -&gt; None:
+        self.called.add(&#34;theory_term_number&#34;)
+        self._case.assertEqual(number, 1)
+
+    def theory_term_string(self, term_id: int, name: str) -&gt; None:
+        self.called.add(&#34;theory_term_string&#34;)
+        self._case.assertEqual(name, &#34;a&#34;)
+
+    def theory_term_compound(
+        self, term_id: int, name_id_or_type: int, arguments: Sequence[int]
+    ) -&gt; None:
+        self.called.add(&#34;theory_term_compound&#34;)
+        self._case.assertEqual(name_id_or_type, -1)
+        self._case.assertGreaterEqual(len(arguments), 2)
+
+    def theory_element(
+        self, element_id: int, terms: Sequence[int], condition: Sequence[int]
+    ) -&gt; None:
+        self.called.add(&#34;theory_element&#34;)
+        self._case.assertEqual(len(terms), 1)
+        self._case.assertEqual(len(condition), 2)
+
+    def theory_atom(
+        self, atom_id_or_zero: int, term_id: int, elements: Sequence[int]
+    ) -&gt; None:
+        self.called.add(&#34;theory_atom&#34;)
+        self._case.assertEqual(len(elements), 1)</code></pre>
+</details>
+<div class="desc"><p>Test Observer.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.backend.Observer" href="../backend.html#clingo.backend.Observer">Observer</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="clingo.backend.Observer" href="../backend.html#clingo.backend.Observer">Observer</a></b></code>:
+<ul class="hlist">
+<li><code><a title="clingo.backend.Observer.acyc_edge" href="../backend.html#clingo.backend.Observer.acyc_edge">acyc_edge</a></code></li>
+<li><code><a title="clingo.backend.Observer.assume" href="../backend.html#clingo.backend.Observer.assume">assume</a></code></li>
+<li><code><a title="clingo.backend.Observer.begin_step" href="../backend.html#clingo.backend.Observer.begin_step">begin_step</a></code></li>
+<li><code><a title="clingo.backend.Observer.end_step" href="../backend.html#clingo.backend.Observer.end_step">end_step</a></code></li>
+<li><code><a title="clingo.backend.Observer.external" href="../backend.html#clingo.backend.Observer.external">external</a></code></li>
+<li><code><a title="clingo.backend.Observer.heuristic" href="../backend.html#clingo.backend.Observer.heuristic">heuristic</a></code></li>
+<li><code><a title="clingo.backend.Observer.init_program" href="../backend.html#clingo.backend.Observer.init_program">init_program</a></code></li>
+<li><code><a title="clingo.backend.Observer.minimize" href="../backend.html#clingo.backend.Observer.minimize">minimize</a></code></li>
+<li><code><a title="clingo.backend.Observer.output_atom" href="../backend.html#clingo.backend.Observer.output_atom">output_atom</a></code></li>
+<li><code><a title="clingo.backend.Observer.output_term" href="../backend.html#clingo.backend.Observer.output_term">output_term</a></code></li>
+<li><code><a title="clingo.backend.Observer.project" href="../backend.html#clingo.backend.Observer.project">project</a></code></li>
+<li><code><a title="clingo.backend.Observer.rule" href="../backend.html#clingo.backend.Observer.rule">rule</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_atom" href="../backend.html#clingo.backend.Observer.theory_atom">theory_atom</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_atom_with_guard" href="../backend.html#clingo.backend.Observer.theory_atom_with_guard">theory_atom_with_guard</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_element" href="../backend.html#clingo.backend.Observer.theory_element">theory_element</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_compound" href="../backend.html#clingo.backend.Observer.theory_term_compound">theory_term_compound</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_number" href="../backend.html#clingo.backend.Observer.theory_term_number">theory_term_number</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_string" href="../backend.html#clingo.backend.Observer.theory_term_string">theory_term_string</a></code></li>
+<li><code><a title="clingo.backend.Observer.weight_rule" href="../backend.html#clingo.backend.Observer.weight_rule">weight_rule</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="clingo.tests.test_backend.TestObserverTheoryWithGuard"><code class="flex name class">
+<span>class <span class="ident">TestObserverTheoryWithGuard</span></span>
+<span>(</span><span>case)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestObserverTheoryWithGuard(Observer):
+    &#34;&#34;&#34;
+    Test Observer.
+    &#34;&#34;&#34;
+
+    def __init__(self, case):
+        self._case = case
+        self.called = set()
+
+    def theory_term_string(self, term_id: int, name: str) -&gt; None:
+        self.called.add(f&#34;theory_term_string: {name}&#34;)
+
+    def theory_atom_with_guard(
+        self,
+        atom_id_or_zero: int,
+        term_id: int,
+        elements: Sequence[int],
+        operator_id: int,
+        right_hand_side_id: int,
+    ) -&gt; None:
+        self.called.add(&#34;theory_atom_with_guard&#34;)
+        self._case.assertEqual(len(elements), 0)</code></pre>
+</details>
+<div class="desc"><p>Test Observer.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.backend.Observer" href="../backend.html#clingo.backend.Observer">Observer</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="clingo.backend.Observer" href="../backend.html#clingo.backend.Observer">Observer</a></b></code>:
+<ul class="hlist">
+<li><code><a title="clingo.backend.Observer.acyc_edge" href="../backend.html#clingo.backend.Observer.acyc_edge">acyc_edge</a></code></li>
+<li><code><a title="clingo.backend.Observer.assume" href="../backend.html#clingo.backend.Observer.assume">assume</a></code></li>
+<li><code><a title="clingo.backend.Observer.begin_step" href="../backend.html#clingo.backend.Observer.begin_step">begin_step</a></code></li>
+<li><code><a title="clingo.backend.Observer.end_step" href="../backend.html#clingo.backend.Observer.end_step">end_step</a></code></li>
+<li><code><a title="clingo.backend.Observer.external" href="../backend.html#clingo.backend.Observer.external">external</a></code></li>
+<li><code><a title="clingo.backend.Observer.heuristic" href="../backend.html#clingo.backend.Observer.heuristic">heuristic</a></code></li>
+<li><code><a title="clingo.backend.Observer.init_program" href="../backend.html#clingo.backend.Observer.init_program">init_program</a></code></li>
+<li><code><a title="clingo.backend.Observer.minimize" href="../backend.html#clingo.backend.Observer.minimize">minimize</a></code></li>
+<li><code><a title="clingo.backend.Observer.output_atom" href="../backend.html#clingo.backend.Observer.output_atom">output_atom</a></code></li>
+<li><code><a title="clingo.backend.Observer.output_term" href="../backend.html#clingo.backend.Observer.output_term">output_term</a></code></li>
+<li><code><a title="clingo.backend.Observer.project" href="../backend.html#clingo.backend.Observer.project">project</a></code></li>
+<li><code><a title="clingo.backend.Observer.rule" href="../backend.html#clingo.backend.Observer.rule">rule</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_atom" href="../backend.html#clingo.backend.Observer.theory_atom">theory_atom</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_atom_with_guard" href="../backend.html#clingo.backend.Observer.theory_atom_with_guard">theory_atom_with_guard</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_element" href="../backend.html#clingo.backend.Observer.theory_element">theory_element</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_compound" href="../backend.html#clingo.backend.Observer.theory_term_compound">theory_term_compound</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_number" href="../backend.html#clingo.backend.Observer.theory_term_number">theory_term_number</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_string" href="../backend.html#clingo.backend.Observer.theory_term_string">theory_term_string</a></code></li>
+<li><code><a title="clingo.backend.Observer.weight_rule" href="../backend.html#clingo.backend.Observer.weight_rule">weight_rule</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo.tests" href="index.html">clingo.tests</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.tests.test_backend.TestBackend" href="#clingo.tests.test_backend.TestBackend">TestBackend</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.tests.test_backend.TestBackend.test_adding_theory" href="#clingo.tests.test_backend.TestBackend.test_adding_theory">test_adding_theory</a></code></li>
+<li><code><a title="clingo.tests.test_backend.TestBackend.test_backend" href="#clingo.tests.test_backend.TestBackend.test_backend">test_backend</a></code></li>
+<li><code><a title="clingo.tests.test_backend.TestBackend.test_theory" href="#clingo.tests.test_backend.TestBackend.test_theory">test_theory</a></code></li>
+<li><code><a title="clingo.tests.test_backend.TestBackend.test_theory_with_guard" href="#clingo.tests.test_backend.TestBackend.test_theory_with_guard">test_theory_with_guard</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.tests.test_backend.TestObserverBackend" href="#clingo.tests.test_backend.TestObserverBackend">TestObserverBackend</a></code></h4>
+</li>
+<li>
+<h4><code><a title="clingo.tests.test_backend.TestObserverTheory" href="#clingo.tests.test_backend.TestObserverTheory">TestObserverTheory</a></code></h4>
+</li>
+<li>
+<h4><code><a title="clingo.tests.test_backend.TestObserverTheoryWithGuard" href="#clingo.tests.test_backend.TestObserverTheoryWithGuard">TestObserverTheoryWithGuard</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

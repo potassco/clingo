@@ -1,0 +1,27 @@
+var classCppClingo_1_1Symbol =
+[
+    [ "Symbol", "classCppClingo_1_1Symbol.html#a93f328ddc4a343b7062321309bc1c319", null ],
+    [ "acquire", "classCppClingo_1_1Symbol.html#a3e8c95d69d9670109449416fd9d5f011", null ],
+    [ "args", "classCppClingo_1_1Symbol.html#a60bee1ff8f442803483189ca206ee55c", null ],
+    [ "flip_classical_sign", "classCppClingo_1_1Symbol.html#a023fc78e80c7852973839c1cdcb6ce2b", null ],
+    [ "has_classical_sign", "classCppClingo_1_1Symbol.html#a0d6954c3a96394a7c886f4a7efd2a68d", null ],
+    [ "has_sign", "classCppClingo_1_1Symbol.html#a474fca9a9afb5d3d63846d485a866a68", null ],
+    [ "hash", "classCppClingo_1_1Symbol.html#a3d7a216955b65f0edfbeb6323c18b8cb", null ],
+    [ "name", "classCppClingo_1_1Symbol.html#a12aa60d72fbfffab6bd3eb630c2659b7", null ],
+    [ "num", "classCppClingo_1_1Symbol.html#a06f2f3c837559e16fe2b77c400c6a4ea", null ],
+    [ "release", "classCppClingo_1_1Symbol.html#acdba6b1957d78158e40201f28b972a7d", null ],
+    [ "signature", "classCppClingo_1_1Symbol.html#aa95f69582c2ec7e3d4f62354be59150f", null ],
+    [ "str", "classCppClingo_1_1Symbol.html#a6ba64ba2e4359b67b84b4b246a11c0bc", null ],
+    [ "type", "classCppClingo_1_1Symbol.html#adb2a7ba71f309f08bfeb3882f30f9e21", null ],
+    [ "compare", "classCppClingo_1_1Symbol.html#a4d63b455ff3b28352f2952d36b26a4f8", null ],
+    [ "compare", "classCppClingo_1_1Symbol.html#a9031bcdc3f213cd063c4c09125846137", null ],
+    [ "compare", "classCppClingo_1_1Symbol.html#ac370392215a560460b09255c0ef5fbba", null ],
+    [ "operator<<", "classCppClingo_1_1Symbol.html#a1b52c552728a7d2a1fca0e97fa7ea07c", null ],
+    [ "operator<<", "classCppClingo_1_1Symbol.html#aaa52feb7ff13f9d83e219cf8647b406d", null ],
+    [ "operator<=>", "classCppClingo_1_1Symbol.html#a52420ae1e2aaa73906729ed05e2cb19d", null ],
+    [ "operator<=>", "classCppClingo_1_1Symbol.html#a71e7d901f61a2d863e3e8b61dc67ede0", null ],
+    [ "operator<=>", "classCppClingo_1_1Symbol.html#a017f2e50ffe6fdfad20cd9f4854bdd5f", null ],
+    [ "operator==", "classCppClingo_1_1Symbol.html#aa105518391416641a314647acc6c02b0", null ],
+    [ "operator==", "classCppClingo_1_1Symbol.html#ae592e7c9115b9d0f59e6fc072b113f9a", null ],
+    [ "operator==", "classCppClingo_1_1Symbol.html#aca614cb4a4c57b4cb61ae8608370ea27", null ]
+];

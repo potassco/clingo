@@ -1,0 +1,953 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>clingo.tests.test_solving API documentation</title>
+<meta name="description" content="Tests for solving.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<nav class="http-server-breadcrumbs">
+<a href="https://potassco.org/clingo/python-api/5.8/">All packages</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/">clingo</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/tests/">clingo.tests</a>
+</nav>
+<h1 class="title">Module <code>clingo.tests.test_solving</code></h1>
+</header>
+<section id="section-intro">
+<p>Tests for solving.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.tests.test_solving.TestSolving"><code class="flex name class">
+<span>class <span class="ident">TestSolving</span></span>
+<span>(</span><span>methodName='runTest')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestSolving(TestCase):
+    &#34;&#34;&#34;
+    Tests basic solving and related functions.
+    &#34;&#34;&#34;
+
+    def setUp(self):
+        self.mcb = _MCB()
+        self.mit = _MCB()
+        self.ctl = Control([&#34;0&#34;])
+
+    def tearDown(self):
+        self.mcb = None
+        self.mit = None
+        self.ctl = None
+
+    def test_solve_result_str(self):
+        &#34;&#34;&#34;
+        Test string representation of solve results.
+        &#34;&#34;&#34;
+        ret = self.ctl.solve()
+        self.assertEqual(str(ret), &#34;SAT&#34;)
+        self.assertRegex(repr(ret), &#34;SolveResult(.*)&#34;)
+
+    def test_model_str(self):
+        &#34;&#34;&#34;
+        Test string representation of models.
+        &#34;&#34;&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;a.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        with cast(SolveHandle, self.ctl.solve(yield_=True)) as hnd:
+            for mdl in hnd:
+                self.assertEqual(str(mdl), &#34;a&#34;)
+                self.assertRegex(repr(mdl), &#34;Model(.*)&#34;)
+
+    def test_solve_cb(self):
+        &#34;&#34;&#34;
+        Test solving using callback.
+        &#34;&#34;&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        _check_sat(
+            self,
+            cast(
+                SolveResult,
+                self.ctl.solve(
+                    on_model=self.mcb.on_model,
+                    on_last=self.mcb.on_last,
+                    yield_=False,
+                    async_=False,
+                ),
+            ),
+        )
+        self.assertEqual(self.mcb.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))
+        self.assertEqual(self.mcb.last[0], ModelType.StableModel)
+        self.assertEqual(self.mcb.last, self.mcb.final)
+
+    def test_solve_async(self):
+        &#34;&#34;&#34;
+        Test asynchronous solving.
+        &#34;&#34;&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        with cast(
+            SolveHandle,
+            self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=True),
+        ) as hnd:
+            _check_sat(self, hnd.get())
+            self.assertEqual(self.mcb.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))
+            self.mit.on_last(hnd.last())
+            self.assertEqual(self.mcb.last, self.mit.final)
+
+    def test_solve_yield(self):
+        &#34;&#34;&#34;
+        Test solving yielding models.
+        &#34;&#34;&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        with cast(
+            SolveHandle,
+            self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=False),
+        ) as hnd:
+            for m in hnd:
+                self.mit.on_model(m)
+                self.assertEqual(hnd.last(), None)  # Not yet finished
+            _check_sat(self, hnd.get())
+            self.mit.on_last(hnd.last())
+            self.assertEqual(self.mcb.last, self.mit.final)
+            self.assertEqual(self.mcb.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))
+            self.assertEqual(self.mit.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))
+
+    def test_solve_async_yield(self):
+        &#34;&#34;&#34;
+        Test solving yielding models asynchronously.
+        &#34;&#34;&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        with cast(
+            SolveHandle,
+            self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=True),
+        ) as hnd:
+            while True:
+                hnd.resume()
+                _ = hnd.wait()
+                m = hnd.model()
+                if m is None:
+                    break
+                self.mit.on_model(m)
+                self.assertEqual(hnd.last(), None)  # Not yet finished
+            _check_sat(self, hnd.get())
+            self.mit.on_last(hnd.last())
+            self.assertEqual(self.mcb.last, self.mit.final)
+            self.assertEqual(self.mcb.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))
+            self.assertEqual(self.mit.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))
+
+    def test_solve_interrupt(self):
+        &#34;&#34;&#34;
+        Test interrupting solving.
+        &#34;&#34;&#34;
+        self.ctl.add(
+            &#34;base&#34;,
+            [],
+            &#34;1 { p(P,H): H=1..99 } 1 :- P=1..100.\n1 { p(P,H): P=1..100 } 1 :- H=1..99.&#34;,
+        )
+        self.ctl.ground([(&#34;base&#34;, [])])
+        with cast(SolveHandle, self.ctl.solve(async_=True)) as hnd:
+            hnd.resume()
+            hnd.cancel()
+            ret = hnd.get()
+            self.assertTrue(ret.interrupted)
+
+        with cast(SolveHandle, self.ctl.solve(async_=True)) as hnd:
+            hnd.resume()
+            self.ctl.interrupt()
+            ret = hnd.get()
+            self.assertTrue(ret.interrupted)
+
+    def test_solve_core(self):
+        &#34;&#34;&#34;
+        Test core retrieval.
+        &#34;&#34;&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;3 { p(1..10) } 3.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        ass = []
+        for atom in self.ctl.symbolic_atoms.by_signature(&#34;p&#34;, 1):
+            ass.append(-atom.literal)
+        ret = cast(
+            SolveResult, self.ctl.solve(on_core=self.mcb.on_core, assumptions=ass)
+        )
+        self.assertTrue(ret.unsatisfiable)
+        self.assertTrue(len(self.mcb.core) &gt; 7)
+
+    def test_enum(self):
+        &#34;&#34;&#34;
+        Test core retrieval.
+        &#34;&#34;&#34;
+        self.ctl = Control([&#34;0&#34;, &#34;-e&#34;, &#34;cautious&#34;])
+        self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        self.ctl.solve(on_model=self.mcb.on_model, on_last=self.mcb.on_last)
+        self.assertEqual(self.mcb.last[0], ModelType.CautiousConsequences)
+        self.assertEqual([self.mcb.last[1]], _p([&#34;c&#34;]))
+        self.assertEqual(self.mcb.last, self.mcb.final)
+
+        self.mcb.final = None
+        self.ctl = Control([&#34;0&#34;, &#34;-e&#34;, &#34;brave&#34;])
+        self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        self.ctl.solve(on_model=self.mcb.on_model, on_last=self.mcb.on_last)
+        self.assertEqual(self.mcb.last[0], ModelType.BraveConsequences)
+        self.assertEqual([self.mcb.last[1]], _p([&#34;a&#34;, &#34;b&#34;, &#34;c&#34;]))
+        self.assertEqual(self.mcb.last, self.mcb.final)
+
+    def test_model(self):
+        &#34;&#34;&#34;
+        Test functions of model.
+        &#34;&#34;&#34;
+
+        def on_model(m: Model, last: bool):
+            self.assertTrue(m.contains(Function(&#34;a&#34;)))
+            self.assertTrue(
+                m.is_true(
+                    cast(SymbolicAtom, m.context.symbolic_atoms[Function(&#34;a&#34;)]).literal
+                )
+            )
+            self.assertFalse(m.is_true(1000))
+            self.assertEqual(m.thread_id, 0)
+            self.assertEqual(m.number, 1)
+            self.assertEqual(m.optimality_proven, last)
+            self.assertEqual(m.cost, [3])
+            self.assertEqual(m.priority, [5])
+            if not last:
+                m.extend([Function(&#34;e&#34;)])
+            self.assertSequenceEqual(m.symbols(theory=True), [Function(&#34;e&#34;)])
+
+        self.ctl.add(&#34;base&#34;, [], &#34;a. b. c. #minimize { 1@5,a:a; 1@5,b:b; 1@5,c:c }.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        self.ctl.solve(
+            on_model=lambda m: on_model(m, False), on_last=lambda m: on_model(m, True)
+        )
+
+    def test_remove_minimize(self):
+        self.ctl.add(&#34;base&#34;, [], &#34;a. #minimize { 1,t : a }.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+
+        self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, [1]))
+
+        self.ctl.add(&#34;s1&#34;, [], &#34;b. #minimize { 1,t : b }.&#34;)
+        self.ctl.ground([(&#34;s1&#34;, [])])
+        self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, [1]))
+
+        self.ctl.remove_minimize()
+        self.ctl.add(&#34;s2&#34;, [], &#34;c. #minimize { 1,x : c ; 1,t : c}.&#34;)
+        self.ctl.ground([(&#34;s2&#34;, [])])
+        self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, [2]))
+
+        self.ctl.remove_minimize()
+        self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, []))
+
+    def test_cautious_consequences(self):
+        &#34;&#34;&#34;
+        Test is_consequence function of model.
+        &#34;&#34;&#34;
+
+        def lookup(m: Model, name: str):
+            return cast(SymbolicAtom, m.context.symbolic_atoms[Function(name)]).literal
+
+        def on_model(m: Model):
+            a = lookup(m, &#34;a&#34;)
+            b = lookup(m, &#34;b&#34;)
+            c = lookup(m, &#34;c&#34;)
+            ca = m.is_consequence(a)
+            cb = m.is_consequence(b)
+            cc = m.is_consequence(c)
+            nca = m.is_consequence(-a)
+            ncb = m.is_consequence(-b)
+            ncc = m.is_consequence(-c)
+            self.assertTrue(ca is True)
+            self.assertTrue(nca is False)
+            self.assertTrue(ncb is False)
+            self.assertTrue(ncc is False)
+            if m.number == 1:
+                self.assertTrue(ncb is None or ncb is False)
+                self.assertTrue(ncc is None or ncc is False)
+                self.assertTrue(cb is None or cb is False)
+                self.assertTrue(cc is None or cc is False)
+                self.assertTrue(cb != cc)
+            if m.number == 2:
+                self.assertTrue(cb is False)
+                self.assertTrue(cc is False)
+
+        self.ctl.configuration.solve.enum_mode = &#34;cautious&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;a. b | c.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        self.ctl.solve(on_model=on_model)
+
+    def test_update_projection(self):
+        self.ctl.configuration.solve.project = &#34;auto&#34;
+        self.ctl.configuration.solve.models = &#34;0&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;{a;b;c;d}. #project a/0. #project b/0.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        self.ctl.solve(on_model=self.mcb.on_model)
+        self.assertEqual(self.mcb.models, _p([], [&#34;a&#34;], [&#34;a&#34;, &#34;b&#34;], [&#34;b&#34;]))
+
+        pro = []
+        for atom in self.ctl.symbolic_atoms.by_signature(&#34;c&#34;, 0):
+            pro.append(atom.literal)
+        pro.append(Function(&#34;d&#34;))
+
+        self.ctl.replace_project(pro)
+        self.mcb = _MCB()
+        self.ctl.solve(on_model=self.mcb.on_model)
+        self.assertEqual(self.mcb.models, _p([], [&#34;c&#34;], [&#34;c&#34;, &#34;d&#34;], [&#34;d&#34;]))
+
+        self.mcb = _MCB()
+        pro = [Function(&#34;a&#34;)]
+        self.ctl.add_project(pro)
+        self.ctl.solve(on_model=self.mcb.on_model)
+        self.assertEqual(
+            self.mcb.models,
+            _p(
+                [],
+                [&#34;a&#34;],
+                [&#34;a&#34;, &#34;c&#34;],
+                [&#34;a&#34;, &#34;c&#34;, &#34;d&#34;],
+                [&#34;a&#34;, &#34;d&#34;],
+                [&#34;c&#34;],
+                [&#34;c&#34;, &#34;d&#34;],
+                [&#34;d&#34;],
+            ),
+        )
+
+    def test_control_clause(self):
+        &#34;&#34;&#34;
+        Test adding clauses while solving.
+        &#34;&#34;&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b; c} 1.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        with cast(
+            SolveHandle,
+            self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=False),
+        ) as hnd:
+            for m in hnd:
+                clause = []
+                if m.contains(Function(&#34;a&#34;)):
+                    clause.append((Function(&#34;b&#34;), False))
+                else:
+                    clause.append((Function(&#34;a&#34;), False))
+                m.context.add_clause(clause)
+
+            _check_sat(self, hnd.get())
+            self.assertEqual(len(self.mcb.models), 2)
+
+    def test_control_nogood(self):
+        &#34;&#34;&#34;
+        Test adding nogoods while solving.
+        &#34;&#34;&#34;
+        self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b; c} 1.&#34;)
+        self.ctl.ground([(&#34;base&#34;, [])])
+        with cast(
+            SolveHandle,
+            self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=False),
+        ) as hnd:
+            for m in hnd:
+                clause = []
+                if m.contains(Function(&#34;a&#34;)):
+                    clause.append((Function(&#34;b&#34;), True))
+                else:
+                    clause.append((Function(&#34;a&#34;), True))
+                m.context.add_nogood(clause)
+
+            _check_sat(self, hnd.get())
+            self.assertEqual(len(self.mcb.models), 2)</code></pre>
+</details>
+<div class="desc"><p>Tests basic solving and related functions.</p>
+<p>Create an instance of the class that will use the named test
+method when executed. Raises a ValueError if the instance does
+not have a method with the specified name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>unittest.case.TestCase</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.tests.test_solving.TestSolving.setUp"><code class="name flex">
+<span>def <span class="ident">setUp</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def setUp(self):
+    self.mcb = _MCB()
+    self.mit = _MCB()
+    self.ctl = Control([&#34;0&#34;])</code></pre>
+</details>
+<div class="desc"><p>Hook method for setting up the test fixture before exercising it.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.tearDown"><code class="name flex">
+<span>def <span class="ident">tearDown</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def tearDown(self):
+    self.mcb = None
+    self.mit = None
+    self.ctl = None</code></pre>
+</details>
+<div class="desc"><p>Hook method for deconstructing the test fixture after testing it.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_cautious_consequences"><code class="name flex">
+<span>def <span class="ident">test_cautious_consequences</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_cautious_consequences(self):
+    &#34;&#34;&#34;
+    Test is_consequence function of model.
+    &#34;&#34;&#34;
+
+    def lookup(m: Model, name: str):
+        return cast(SymbolicAtom, m.context.symbolic_atoms[Function(name)]).literal
+
+    def on_model(m: Model):
+        a = lookup(m, &#34;a&#34;)
+        b = lookup(m, &#34;b&#34;)
+        c = lookup(m, &#34;c&#34;)
+        ca = m.is_consequence(a)
+        cb = m.is_consequence(b)
+        cc = m.is_consequence(c)
+        nca = m.is_consequence(-a)
+        ncb = m.is_consequence(-b)
+        ncc = m.is_consequence(-c)
+        self.assertTrue(ca is True)
+        self.assertTrue(nca is False)
+        self.assertTrue(ncb is False)
+        self.assertTrue(ncc is False)
+        if m.number == 1:
+            self.assertTrue(ncb is None or ncb is False)
+            self.assertTrue(ncc is None or ncc is False)
+            self.assertTrue(cb is None or cb is False)
+            self.assertTrue(cc is None or cc is False)
+            self.assertTrue(cb != cc)
+        if m.number == 2:
+            self.assertTrue(cb is False)
+            self.assertTrue(cc is False)
+
+    self.ctl.configuration.solve.enum_mode = &#34;cautious&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;a. b | c.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    self.ctl.solve(on_model=on_model)</code></pre>
+</details>
+<div class="desc"><p>Test is_consequence function of model.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_control_clause"><code class="name flex">
+<span>def <span class="ident">test_control_clause</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_control_clause(self):
+    &#34;&#34;&#34;
+    Test adding clauses while solving.
+    &#34;&#34;&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b; c} 1.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    with cast(
+        SolveHandle,
+        self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=False),
+    ) as hnd:
+        for m in hnd:
+            clause = []
+            if m.contains(Function(&#34;a&#34;)):
+                clause.append((Function(&#34;b&#34;), False))
+            else:
+                clause.append((Function(&#34;a&#34;), False))
+            m.context.add_clause(clause)
+
+        _check_sat(self, hnd.get())
+        self.assertEqual(len(self.mcb.models), 2)</code></pre>
+</details>
+<div class="desc"><p>Test adding clauses while solving.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_control_nogood"><code class="name flex">
+<span>def <span class="ident">test_control_nogood</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_control_nogood(self):
+    &#34;&#34;&#34;
+    Test adding nogoods while solving.
+    &#34;&#34;&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b; c} 1.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    with cast(
+        SolveHandle,
+        self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=False),
+    ) as hnd:
+        for m in hnd:
+            clause = []
+            if m.contains(Function(&#34;a&#34;)):
+                clause.append((Function(&#34;b&#34;), True))
+            else:
+                clause.append((Function(&#34;a&#34;), True))
+            m.context.add_nogood(clause)
+
+        _check_sat(self, hnd.get())
+        self.assertEqual(len(self.mcb.models), 2)</code></pre>
+</details>
+<div class="desc"><p>Test adding nogoods while solving.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_enum"><code class="name flex">
+<span>def <span class="ident">test_enum</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_enum(self):
+    &#34;&#34;&#34;
+    Test core retrieval.
+    &#34;&#34;&#34;
+    self.ctl = Control([&#34;0&#34;, &#34;-e&#34;, &#34;cautious&#34;])
+    self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    self.ctl.solve(on_model=self.mcb.on_model, on_last=self.mcb.on_last)
+    self.assertEqual(self.mcb.last[0], ModelType.CautiousConsequences)
+    self.assertEqual([self.mcb.last[1]], _p([&#34;c&#34;]))
+    self.assertEqual(self.mcb.last, self.mcb.final)
+
+    self.mcb.final = None
+    self.ctl = Control([&#34;0&#34;, &#34;-e&#34;, &#34;brave&#34;])
+    self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    self.ctl.solve(on_model=self.mcb.on_model, on_last=self.mcb.on_last)
+    self.assertEqual(self.mcb.last[0], ModelType.BraveConsequences)
+    self.assertEqual([self.mcb.last[1]], _p([&#34;a&#34;, &#34;b&#34;, &#34;c&#34;]))
+    self.assertEqual(self.mcb.last, self.mcb.final)</code></pre>
+</details>
+<div class="desc"><p>Test core retrieval.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_model"><code class="name flex">
+<span>def <span class="ident">test_model</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_model(self):
+    &#34;&#34;&#34;
+    Test functions of model.
+    &#34;&#34;&#34;
+
+    def on_model(m: Model, last: bool):
+        self.assertTrue(m.contains(Function(&#34;a&#34;)))
+        self.assertTrue(
+            m.is_true(
+                cast(SymbolicAtom, m.context.symbolic_atoms[Function(&#34;a&#34;)]).literal
+            )
+        )
+        self.assertFalse(m.is_true(1000))
+        self.assertEqual(m.thread_id, 0)
+        self.assertEqual(m.number, 1)
+        self.assertEqual(m.optimality_proven, last)
+        self.assertEqual(m.cost, [3])
+        self.assertEqual(m.priority, [5])
+        if not last:
+            m.extend([Function(&#34;e&#34;)])
+        self.assertSequenceEqual(m.symbols(theory=True), [Function(&#34;e&#34;)])
+
+    self.ctl.add(&#34;base&#34;, [], &#34;a. b. c. #minimize { 1@5,a:a; 1@5,b:b; 1@5,c:c }.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    self.ctl.solve(
+        on_model=lambda m: on_model(m, False), on_last=lambda m: on_model(m, True)
+    )</code></pre>
+</details>
+<div class="desc"><p>Test functions of model.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_model_str"><code class="name flex">
+<span>def <span class="ident">test_model_str</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_model_str(self):
+    &#34;&#34;&#34;
+    Test string representation of models.
+    &#34;&#34;&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;a.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    with cast(SolveHandle, self.ctl.solve(yield_=True)) as hnd:
+        for mdl in hnd:
+            self.assertEqual(str(mdl), &#34;a&#34;)
+            self.assertRegex(repr(mdl), &#34;Model(.*)&#34;)</code></pre>
+</details>
+<div class="desc"><p>Test string representation of models.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_remove_minimize"><code class="name flex">
+<span>def <span class="ident">test_remove_minimize</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_remove_minimize(self):
+    self.ctl.add(&#34;base&#34;, [], &#34;a. #minimize { 1,t : a }.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+
+    self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, [1]))
+
+    self.ctl.add(&#34;s1&#34;, [], &#34;b. #minimize { 1,t : b }.&#34;)
+    self.ctl.ground([(&#34;s1&#34;, [])])
+    self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, [1]))
+
+    self.ctl.remove_minimize()
+    self.ctl.add(&#34;s2&#34;, [], &#34;c. #minimize { 1,x : c ; 1,t : c}.&#34;)
+    self.ctl.ground([(&#34;s2&#34;, [])])
+    self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, [2]))
+
+    self.ctl.remove_minimize()
+    self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, []))</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_solve_async"><code class="name flex">
+<span>def <span class="ident">test_solve_async</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_solve_async(self):
+    &#34;&#34;&#34;
+    Test asynchronous solving.
+    &#34;&#34;&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    with cast(
+        SolveHandle,
+        self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=True),
+    ) as hnd:
+        _check_sat(self, hnd.get())
+        self.assertEqual(self.mcb.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))
+        self.mit.on_last(hnd.last())
+        self.assertEqual(self.mcb.last, self.mit.final)</code></pre>
+</details>
+<div class="desc"><p>Test asynchronous solving.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_solve_async_yield"><code class="name flex">
+<span>def <span class="ident">test_solve_async_yield</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_solve_async_yield(self):
+    &#34;&#34;&#34;
+    Test solving yielding models asynchronously.
+    &#34;&#34;&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    with cast(
+        SolveHandle,
+        self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=True),
+    ) as hnd:
+        while True:
+            hnd.resume()
+            _ = hnd.wait()
+            m = hnd.model()
+            if m is None:
+                break
+            self.mit.on_model(m)
+            self.assertEqual(hnd.last(), None)  # Not yet finished
+        _check_sat(self, hnd.get())
+        self.mit.on_last(hnd.last())
+        self.assertEqual(self.mcb.last, self.mit.final)
+        self.assertEqual(self.mcb.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))
+        self.assertEqual(self.mit.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))</code></pre>
+</details>
+<div class="desc"><p>Test solving yielding models asynchronously.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_solve_cb"><code class="name flex">
+<span>def <span class="ident">test_solve_cb</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_solve_cb(self):
+    &#34;&#34;&#34;
+    Test solving using callback.
+    &#34;&#34;&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    _check_sat(
+        self,
+        cast(
+            SolveResult,
+            self.ctl.solve(
+                on_model=self.mcb.on_model,
+                on_last=self.mcb.on_last,
+                yield_=False,
+                async_=False,
+            ),
+        ),
+    )
+    self.assertEqual(self.mcb.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))
+    self.assertEqual(self.mcb.last[0], ModelType.StableModel)
+    self.assertEqual(self.mcb.last, self.mcb.final)</code></pre>
+</details>
+<div class="desc"><p>Test solving using callback.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_solve_core"><code class="name flex">
+<span>def <span class="ident">test_solve_core</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_solve_core(self):
+    &#34;&#34;&#34;
+    Test core retrieval.
+    &#34;&#34;&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;3 { p(1..10) } 3.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    ass = []
+    for atom in self.ctl.symbolic_atoms.by_signature(&#34;p&#34;, 1):
+        ass.append(-atom.literal)
+    ret = cast(
+        SolveResult, self.ctl.solve(on_core=self.mcb.on_core, assumptions=ass)
+    )
+    self.assertTrue(ret.unsatisfiable)
+    self.assertTrue(len(self.mcb.core) &gt; 7)</code></pre>
+</details>
+<div class="desc"><p>Test core retrieval.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_solve_interrupt"><code class="name flex">
+<span>def <span class="ident">test_solve_interrupt</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_solve_interrupt(self):
+    &#34;&#34;&#34;
+    Test interrupting solving.
+    &#34;&#34;&#34;
+    self.ctl.add(
+        &#34;base&#34;,
+        [],
+        &#34;1 { p(P,H): H=1..99 } 1 :- P=1..100.\n1 { p(P,H): P=1..100 } 1 :- H=1..99.&#34;,
+    )
+    self.ctl.ground([(&#34;base&#34;, [])])
+    with cast(SolveHandle, self.ctl.solve(async_=True)) as hnd:
+        hnd.resume()
+        hnd.cancel()
+        ret = hnd.get()
+        self.assertTrue(ret.interrupted)
+
+    with cast(SolveHandle, self.ctl.solve(async_=True)) as hnd:
+        hnd.resume()
+        self.ctl.interrupt()
+        ret = hnd.get()
+        self.assertTrue(ret.interrupted)</code></pre>
+</details>
+<div class="desc"><p>Test interrupting solving.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_solve_result_str"><code class="name flex">
+<span>def <span class="ident">test_solve_result_str</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_solve_result_str(self):
+    &#34;&#34;&#34;
+    Test string representation of solve results.
+    &#34;&#34;&#34;
+    ret = self.ctl.solve()
+    self.assertEqual(str(ret), &#34;SAT&#34;)
+    self.assertRegex(repr(ret), &#34;SolveResult(.*)&#34;)</code></pre>
+</details>
+<div class="desc"><p>Test string representation of solve results.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_solve_yield"><code class="name flex">
+<span>def <span class="ident">test_solve_yield</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_solve_yield(self):
+    &#34;&#34;&#34;
+    Test solving yielding models.
+    &#34;&#34;&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;1 {a; b} 1. c.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    with cast(
+        SolveHandle,
+        self.ctl.solve(on_model=self.mcb.on_model, yield_=True, async_=False),
+    ) as hnd:
+        for m in hnd:
+            self.mit.on_model(m)
+            self.assertEqual(hnd.last(), None)  # Not yet finished
+        _check_sat(self, hnd.get())
+        self.mit.on_last(hnd.last())
+        self.assertEqual(self.mcb.last, self.mit.final)
+        self.assertEqual(self.mcb.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))
+        self.assertEqual(self.mit.models, _p([&#34;a&#34;, &#34;c&#34;], [&#34;b&#34;, &#34;c&#34;]))</code></pre>
+</details>
+<div class="desc"><p>Test solving yielding models.</p></div>
+</dd>
+<dt id="clingo.tests.test_solving.TestSolving.test_update_projection"><code class="name flex">
+<span>def <span class="ident">test_update_projection</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_update_projection(self):
+    self.ctl.configuration.solve.project = &#34;auto&#34;
+    self.ctl.configuration.solve.models = &#34;0&#34;
+    self.ctl.add(&#34;base&#34;, [], &#34;{a;b;c;d}. #project a/0. #project b/0.&#34;)
+    self.ctl.ground([(&#34;base&#34;, [])])
+    self.ctl.solve(on_model=self.mcb.on_model)
+    self.assertEqual(self.mcb.models, _p([], [&#34;a&#34;], [&#34;a&#34;, &#34;b&#34;], [&#34;b&#34;]))
+
+    pro = []
+    for atom in self.ctl.symbolic_atoms.by_signature(&#34;c&#34;, 0):
+        pro.append(atom.literal)
+    pro.append(Function(&#34;d&#34;))
+
+    self.ctl.replace_project(pro)
+    self.mcb = _MCB()
+    self.ctl.solve(on_model=self.mcb.on_model)
+    self.assertEqual(self.mcb.models, _p([], [&#34;c&#34;], [&#34;c&#34;, &#34;d&#34;], [&#34;d&#34;]))
+
+    self.mcb = _MCB()
+    pro = [Function(&#34;a&#34;)]
+    self.ctl.add_project(pro)
+    self.ctl.solve(on_model=self.mcb.on_model)
+    self.assertEqual(
+        self.mcb.models,
+        _p(
+            [],
+            [&#34;a&#34;],
+            [&#34;a&#34;, &#34;c&#34;],
+            [&#34;a&#34;, &#34;c&#34;, &#34;d&#34;],
+            [&#34;a&#34;, &#34;d&#34;],
+            [&#34;c&#34;],
+            [&#34;c&#34;, &#34;d&#34;],
+            [&#34;d&#34;],
+        ),
+    )</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo.tests" href="index.html">clingo.tests</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.tests.test_solving.TestSolving" href="#clingo.tests.test_solving.TestSolving">TestSolving</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.tests.test_solving.TestSolving.setUp" href="#clingo.tests.test_solving.TestSolving.setUp">setUp</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.tearDown" href="#clingo.tests.test_solving.TestSolving.tearDown">tearDown</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_cautious_consequences" href="#clingo.tests.test_solving.TestSolving.test_cautious_consequences">test_cautious_consequences</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_control_clause" href="#clingo.tests.test_solving.TestSolving.test_control_clause">test_control_clause</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_control_nogood" href="#clingo.tests.test_solving.TestSolving.test_control_nogood">test_control_nogood</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_enum" href="#clingo.tests.test_solving.TestSolving.test_enum">test_enum</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_model" href="#clingo.tests.test_solving.TestSolving.test_model">test_model</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_model_str" href="#clingo.tests.test_solving.TestSolving.test_model_str">test_model_str</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_remove_minimize" href="#clingo.tests.test_solving.TestSolving.test_remove_minimize">test_remove_minimize</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_solve_async" href="#clingo.tests.test_solving.TestSolving.test_solve_async">test_solve_async</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_solve_async_yield" href="#clingo.tests.test_solving.TestSolving.test_solve_async_yield">test_solve_async_yield</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_solve_cb" href="#clingo.tests.test_solving.TestSolving.test_solve_cb">test_solve_cb</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_solve_core" href="#clingo.tests.test_solving.TestSolving.test_solve_core">test_solve_core</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_solve_interrupt" href="#clingo.tests.test_solving.TestSolving.test_solve_interrupt">test_solve_interrupt</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_solve_result_str" href="#clingo.tests.test_solving.TestSolving.test_solve_result_str">test_solve_result_str</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_solve_yield" href="#clingo.tests.test_solving.TestSolving.test_solve_yield">test_solve_yield</a></code></li>
+<li><code><a title="clingo.tests.test_solving.TestSolving.test_update_projection" href="#clingo.tests.test_solving.TestSolving.test_update_projection">test_update_projection</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,3549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>clingo.propagator API documentation</title>
+<meta name="description" content="Functions and classes to implement custom propagators …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>clingo.propagator</code></h1>
+</header>
+<section id="section-intro">
+<p>Functions and classes to implement custom propagators.</p>
+<pre><code class="language-python">&gt;&gt;&gt; from clingo.symbol import Function
+&gt;&gt;&gt; from clingo.propagator import Propagator
+&gt;&gt;&gt; from clingo.control import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; class AIFFB(Propagator):
+...     # add watches for atoms `a` and `b`
+...     def init(self, init):
+...         # get program literals for atoms `a` and `b`
+...         plit_a = init.symbolic_atoms[Function(&quot;a&quot;)].literal
+...         plit_b = init.symbolic_atoms[Function(&quot;b&quot;)].literal
+...         # get solver literals for program literals `a` and `b`
+...         self.slit_a = init.solver_literal(plit_a)
+...         self.slit_b = init.solver_literal(plit_b)
+...         # add watches for solver literals `a` and `b`
+...         init.add_watch(self.slit_a)
+...         init.add_watch(self.slit_b)
+...     # propagate solver literals `a` and `b`
+...     def propagate(self, ctl, changes):
+...         # if `a` is true imply `b`
+...         if self.slit_a in changes:
+...             ctl.add_clause([-self.slit_a, self.slit_b])
+...         # if `b` is true imply `a`
+...         if self.slit_b in changes:
+...             ctl.add_clause([-self.slit_b, self.slit_a])
+...
+&gt;&gt;&gt; ctl = Control([&quot;0&quot;])
+&gt;&gt;&gt; ctl.register_propagator(AIFFB())
+&gt;&gt;&gt; ctl.add(&quot;base&quot;, [], &quot;1 { a; b }.&quot;)
+&gt;&gt;&gt; ctl.ground([(&quot;base&quot;, [])])
+&gt;&gt;&gt; print(ctl.solve(on_model=print))
+a b
+SAT
+</code></pre>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;
+Functions and classes to implement custom propagators.
+
+```python
+&gt;&gt;&gt; from clingo.symbol import Function
+&gt;&gt;&gt; from clingo.propagator import Propagator
+&gt;&gt;&gt; from clingo.control import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; class AIFFB(Propagator):
+...     # add watches for atoms `a` and `b`
+...     def init(self, init):
+...         # get program literals for atoms `a` and `b`
+...         plit_a = init.symbolic_atoms[Function(&#34;a&#34;)].literal
+...         plit_b = init.symbolic_atoms[Function(&#34;b&#34;)].literal
+...         # get solver literals for program literals `a` and `b`
+...         self.slit_a = init.solver_literal(plit_a)
+...         self.slit_b = init.solver_literal(plit_b)
+...         # add watches for solver literals `a` and `b`
+...         init.add_watch(self.slit_a)
+...         init.add_watch(self.slit_b)
+...     # propagate solver literals `a` and `b`
+...     def propagate(self, ctl, changes):
+...         # if `a` is true imply `b`
+...         if self.slit_a in changes:
+...             ctl.add_clause([-self.slit_a, self.slit_b])
+...         # if `b` is true imply `a`
+...         if self.slit_b in changes:
+...             ctl.add_clause([-self.slit_b, self.slit_a])
+...
+&gt;&gt;&gt; ctl = Control([&#34;0&#34;])
+&gt;&gt;&gt; ctl.register_propagator(AIFFB())
+&gt;&gt;&gt; ctl.add(&#34;base&#34;, [], &#34;1 { a; b }.&#34;)
+&gt;&gt;&gt; ctl.ground([(&#34;base&#34;, [])])
+&gt;&gt;&gt; print(ctl.solve(on_model=print))
+a b
+SAT
+```
+&#34;&#34;&#34;
+
+from typing import Iterable, Iterator, Optional, Sequence, Tuple
+from abc import ABCMeta
+
+from ._internal import _cb_error_handler, _c_call, _ffi, _handle_error, _lib
+from .core import OrderedEnum
+from .util import Slice, SlicedSequence
+from .symbolic_atoms import SymbolicAtoms
+from .theory_atoms import TheoryAtom
+
+__all__ = [
+    &#34;Assignment&#34;,
+    &#34;PropagateControl&#34;,
+    &#34;PropagateInit&#34;,
+    &#34;Propagator&#34;,
+    &#34;PropagatorCheckMode&#34;,
+    &#34;PropagatorUndoMode&#34;,
+    &#34;Trail&#34;,
+]
+
+
+class Trail(Sequence[int]):
+    &#34;&#34;&#34;
+    Class to access literals assigned by the solver in chronological order.
+
+    Literals in the trail are ordered by decision levels, where the first
+    literal with a larger level than the previous literals is a decision; the
+    following literals with same level are implied by this decision literal.
+    Each decision level up to and including the current decision level has a
+    valid offset in the trail.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep):
+        self._rep = rep
+
+    def __len__(self):
+        return _c_call(&#34;uint32_t&#34;, _lib.clingo_assignment_trail_size, self._rep)
+
+    def __getitem__(self, slc):
+        if isinstance(slc, slice):
+            return SlicedSequence(self, Slice(slc))
+        if slc &lt; 0:
+            slc += len(self)
+        if slc &lt; 0 or slc &gt;= len(self):
+            raise IndexError(&#34;invalid index&#34;)
+        return _c_call(
+            &#34;clingo_literal_t&#34;, _lib.clingo_assignment_trail_at, self._rep, slc
+        )
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield _c_call(
+                &#34;clingo_literal_t&#34;, _lib.clingo_assignment_trail_at, self._rep, i
+            )
+
+    def begin(self, level: int) -&gt; int:
+        &#34;&#34;&#34;
+        Returns the offset of the decision literal with the given decision
+        level in the trail.
+
+        Parameters
+        ----------
+        level
+            The decision level.
+        &#34;&#34;&#34;
+        return _c_call(&#34;uint32_t&#34;, _lib.clingo_assignment_trail_begin, self._rep, level)
+
+    def end(self, level: int) -&gt; int:
+        &#34;&#34;&#34;
+        Returns the offset following the last literal with the given decision
+        literal in the trail.
+
+        Parameters
+        ----------
+        level
+            The decision level.
+        &#34;&#34;&#34;
+        return _c_call(&#34;uint32_t&#34;, _lib.clingo_assignment_trail_end, self._rep, level)
+
+
+class Assignment(Sequence[int]):
+    &#34;&#34;&#34;
+    Class to inspect the (parital) assignment of an associated solver.
+
+    Assigns truth values to solver literals.  Each solver literal is either
+    true, false, or undefined, represented by the Python constants `True`,
+    `False`, or `None`, respectively.
+
+    This class implements `Sequence[int]` to access the (positive)
+    literals in the assignment.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep):
+        self._rep = rep
+
+    def __len__(self):
+        return _lib.clingo_assignment_size(self._rep)
+
+    def __getitem__(self, slc):
+        if isinstance(slc, slice):
+            return SlicedSequence(self, Slice(slc))
+        if slc &lt; 0:
+            slc += len(self)
+        if slc &lt; 0 or slc &gt;= len(self):
+            raise IndexError(&#34;invalid index&#34;)
+        return _c_call(&#34;clingo_literal_t&#34;, _lib.clingo_assignment_at, self._rep, slc)
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield _c_call(&#34;clingo_literal_t&#34;, _lib.clingo_assignment_at, self._rep, i)
+
+    def decision(self, level: int) -&gt; int:
+        &#34;&#34;&#34;
+        Return the decision literal of the given level.
+
+        Parameters
+        ----------
+        level
+            The decision level.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_literal_t&#34;, _lib.clingo_assignment_decision, self._rep, level
+        )
+
+    def has_literal(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the given literal is valid in this solver.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        return _lib.clingo_assignment_has_literal(self._rep, literal)
+
+    def is_false(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the literal is false.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_assignment_is_false, self._rep, literal)
+
+    def is_fixed(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the literal is assigned on the top level.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_assignment_is_fixed, self._rep, literal)
+
+    def is_true(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the literal is true.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_assignment_is_true, self._rep, literal)
+
+    def is_free(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the literal is free.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        value = _c_call(
+            &#34;clingo_truth_value_t&#34;,
+            _lib.clingo_assignment_truth_value,
+            self._rep,
+            literal,
+        )
+        return value == _lib.clingo_truth_value_free
+
+    def level(self, literal: int) -&gt; int:
+        &#34;&#34;&#34;
+        The decision level of the given literal.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+
+        Notes
+        -----
+        Note that the returned value is only meaningful if the literal is
+        assigned - i.e., `value(lit) is not None`.
+        &#34;&#34;&#34;
+        return _c_call(&#34;uint32_t&#34;, _lib.clingo_assignment_level, self._rep, literal)
+
+    def value(self, literal) -&gt; Optional[bool]:
+        &#34;&#34;&#34;
+        Get the truth value of the given literal or `None` if it has none.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        value = _c_call(
+            &#34;clingo_truth_value_t&#34;,
+            _lib.clingo_assignment_truth_value,
+            self._rep,
+            literal,
+        )
+        if value == _lib.clingo_truth_value_true:
+            return True
+        if value == _lib.clingo_truth_value_false:
+            return False
+        assert value == _lib.clingo_truth_value_free
+        return None
+
+    @property
+    def decision_level(self) -&gt; int:
+        &#34;&#34;&#34;
+        The current decision level.
+        &#34;&#34;&#34;
+        return _lib.clingo_assignment_decision_level(self._rep)
+
+    @property
+    def has_conflict(self) -&gt; bool:
+        &#34;&#34;&#34;
+        True if the assignment is conflicting.
+        &#34;&#34;&#34;
+        return _lib.clingo_assignment_has_conflict(self._rep)
+
+    @property
+    def is_total(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Whether the assignment is total.
+        &#34;&#34;&#34;
+        return _lib.clingo_assignment_is_total(self._rep)
+
+    @property
+    def root_level(self) -&gt; int:
+        &#34;&#34;&#34;
+        The current root level.
+        &#34;&#34;&#34;
+        return _lib.clingo_assignment_root_level(self._rep)
+
+    @property
+    def trail(self) -&gt; Trail:
+        &#34;&#34;&#34;
+        The trail of assigned literals.
+        &#34;&#34;&#34;
+        return Trail(self._rep)
+
+
+class PropagatorCheckMode(OrderedEnum):
+    &#34;&#34;&#34;
+    Enumeration of supported check modes for propagators.
+
+    Note that total checks are subject to the lock when a model is found. This
+    means that information from previously found models can be used to discard
+    assignments in check calls.
+    &#34;&#34;&#34;
+
+    Both = _lib.clingo_propagator_check_mode_both
+    &#34;&#34;&#34;
+    Call `Propagator.check` on propagation fixpoints and total assignments.
+    &#34;&#34;&#34;
+    Fixpoint = _lib.clingo_propagator_check_mode_fixpoint
+    &#34;&#34;&#34;
+    Call `Propagator.check` on propagation fixpoints.
+    &#34;&#34;&#34;
+    Off = _lib.clingo_propagator_check_mode_none
+    &#34;&#34;&#34;
+    Do not call `Propagator.check` at all.
+    &#34;&#34;&#34;
+    Total = _lib.clingo_propagator_check_mode_total
+    &#34;&#34;&#34;
+    Call `Propagator.check` on total assignments.
+    &#34;&#34;&#34;
+
+
+class PropagatorUndoMode(OrderedEnum):
+    &#34;&#34;&#34;
+    Enumeration of supported check modes for propagators.
+
+    Note that total checks are subject to the lock when a model is found. This
+    means that information from previously found models can be used to discard
+    assignments in check calls.
+    &#34;&#34;&#34;
+
+    Default = _lib.clingo_propagator_undo_mode_default
+    &#34;&#34;&#34;
+    Call `Propagator.undo` for decision levels with non-emty changes.
+    &#34;&#34;&#34;
+    Always = _lib.clingo_propagator_undo_mode_always
+    &#34;&#34;&#34;
+    Also call `Propagator.undo` when check has been called.
+    &#34;&#34;&#34;
+
+
+class PropagateInit:
+    &#34;&#34;&#34;
+    Object that is used to initialize a propagator before each solving step.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep):
+        self._rep = rep
+
+    def add_clause(self, clause: Sequence[int]) -&gt; bool:
+        &#34;&#34;&#34;
+        Statically adds the given clause to the problem.
+
+        Parameters
+        ----------
+        clause
+            The clause over solver literals to add.
+
+        Returns
+        -------
+        Returns false if the program becomes unsatisfiable.
+
+        Notes
+        -----
+        If this function returns false, initialization should be stopped and no
+        further functions of the `PropagateInit` and related objects should be
+        called.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;bool&#34;,
+            _lib.clingo_propagate_init_add_clause,
+            self._rep,
+            clause,
+            len(clause),
+        )
+
+    def add_literal(self, freeze: bool = True) -&gt; int:
+        &#34;&#34;&#34;
+        Statically adds a literal to the solver.
+
+        To be able to use the variable in clauses during propagation or add
+        watches to it, it has to be frozen. Otherwise, it might be removed
+        during preprocessing.
+
+        Parameters
+        ----------
+        freeze
+            Whether to freeze the variable.
+
+        Returns
+        -------
+        Returns the added literal.
+
+        Notes
+        -----
+        If literals are added to the solver, subsequent calls to `add_clause` and
+        `propagate` are expensive. It is best to add literals in batches.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_literal_t&#34;,
+            _lib.clingo_propagate_init_add_literal,
+            self._rep,
+            freeze,
+        )
+
+    def add_minimize(self, literal: int, weight: int, priority: int = 0) -&gt; None:
+        &#34;&#34;&#34;
+        Extends the solver&#39;s minimize constraint with the given weighted
+        literal.
+
+        Parameters
+        ----------
+        literal
+            The literal to add.
+        weight
+            The weight of the literal.
+        priority
+            The priority of the literal.
+        &#34;&#34;&#34;
+        _handle_error(
+            _lib.clingo_propagate_init_add_minimize(
+                self._rep, literal, weight, priority
+            )
+        )
+
+    def add_watch(self, literal: int, thread_id: Optional[int] = None) -&gt; None:
+        &#34;&#34;&#34;
+        Add a watch for the solver literal in the given phase.
+
+        Parameters
+        ----------
+        literal
+            The solver literal to watch.
+        thread_id
+            The id of the thread to watch the literal. If the is `None` then
+            all active threads will watch the literal.
+        &#34;&#34;&#34;
+        if thread_id is None:
+            _handle_error(_lib.clingo_propagate_init_add_watch(self._rep, literal))
+        else:
+            _handle_error(
+                _lib.clingo_propagate_init_add_watch_to_thread(
+                    self._rep, literal, thread_id
+                )
+            )
+
+    def remove_watch(self, literal: int, thread_id: Optional[int] = None) -&gt; None:
+        &#34;&#34;&#34;
+        Remove the watch for the solver literal in the given phase.
+
+        Parameters
+        ----------
+        literal
+            The solver literal to remove the watch from.
+        thread_id
+            The id of the thread from which to remove the watch. If the is `None`, then
+            the watch is removed from all active threads.
+        &#34;&#34;&#34;
+        if thread_id is None:
+            _handle_error(_lib.clingo_propagate_init_remove_watch(self._rep, literal))
+        else:
+            _handle_error(
+                _lib.clingo_propagate_init_remove_watch_from_thread(
+                    self._rep, literal, thread_id
+                )
+            )
+
+    def freeze_literal(self, literal: int) -&gt; None:
+        &#34;&#34;&#34;
+        Freeze the given solver literal.
+
+        Any solver literal that is not frozen is subject to simplification and
+        might be removed in a preprocessing step after propagator
+        initialization. A propagator should freeze all literals over which it
+        might add clauses during propagation. Note that any watched literal is
+        automatically frozen and that it does not matter which phase of the
+        literal is frozen.
+
+        Parameters
+        ----------
+        literal
+            The solver literal to freeze.
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_propagate_init_freeze_literal(self._rep, literal))
+
+    def add_weight_constraint(
+        self,
+        literal: int,
+        literals: Sequence[Tuple[int, int]],
+        bound: int,
+        type_: int = 0,
+        compare_equal: bool = False,
+    ) -&gt; bool:
+        &#34;&#34;&#34;
+        Statically adds a constraint of form
+
+            literal &lt;=&gt; { l=w | (l, w) in literals } &gt;= bound
+
+        to the solver.
+
+        - If `type_ &lt; 0`, then `&lt;=&gt;` is a left implication.
+        - If `type_ &gt; 0`, then `&lt;=&gt;` is a right implication.
+        - Otherwise, `&lt;=&gt;` is an equivalence.
+
+        Parameters
+        ----------
+        literal
+            The literal associated with the constraint.
+        literals
+            The weighted literals of the constraint.
+        bound
+            The bound of the constraint.
+        type_
+            Add a weight constraint of the given type_.
+        compare_equal
+            A Boolean indicating whether to compare equal or less than equal.
+
+        Returns
+        -------
+        Returns false if the program became unsatisfiable.
+
+        Notes
+        -----
+        If this function returns false, initialization should be stopped and no further
+        functions of the `PropagateInit` and related objects should be called.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;bool&#34;,
+            _lib.clingo_propagate_init_add_weight_constraint,
+            self._rep,
+            literal,
+            literals,
+            len(literals),
+            bound,
+            type_,
+            compare_equal,
+        )
+
+    def propagate(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Propagates consequences of the underlying problem excluding registered
+        propagators.
+
+        Returns
+        -------
+        Returns false if the program becomes unsatisfiable.
+
+        Notes
+        -----
+        This function has no effect if SAT-preprocessing is enabled.
+
+        If this function returns false, initialization should be stopped and no
+        further functions of the `PropagateInit` and related objects should be
+        called.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_propagate_init_propagate, self._rep)
+
+    def solver_literal(self, literal: int) -&gt; int:
+        &#34;&#34;&#34;
+        Maps the given program literal or condition id to its solver literal.
+
+        Parameters
+        ----------
+        literal
+            A program literal or condition id.
+
+        Returns
+        -------
+        A solver literal.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_literal_t&#34;,
+            _lib.clingo_propagate_init_solver_literal,
+            self._rep,
+            literal,
+        )
+
+    @property
+    def assignment(self) -&gt; Assignment:
+        &#34;&#34;&#34;
+        `Assignment` object capturing the top level assignment.
+        &#34;&#34;&#34;
+        return Assignment(_lib.clingo_propagate_init_assignment(self._rep))
+
+    @property
+    def check_mode(self) -&gt; PropagatorCheckMode:
+        &#34;&#34;&#34;
+        `PropagatorCheckMode` controlling when to call `Propagator.check`.
+        &#34;&#34;&#34;
+        return PropagatorCheckMode(_lib.clingo_propagate_init_get_check_mode(self._rep))
+
+    @check_mode.setter
+    def check_mode(self, mode: PropagatorCheckMode) -&gt; None:
+        _lib.clingo_propagate_init_set_check_mode(self._rep, mode.value)
+
+    @property
+    def undo_mode(self) -&gt; PropagatorUndoMode:
+        &#34;&#34;&#34;
+        `PropagatorUndoMode` controlling when to call `Propagator.undo`.
+        &#34;&#34;&#34;
+        return PropagatorUndoMode(_lib.clingo_propagate_init_get_undo_mode(self._rep))
+
+    @undo_mode.setter
+    def undo_mode(self, mode: PropagatorUndoMode) -&gt; None:
+        _lib.clingo_propagate_init_set_undo_mode(self._rep, mode.value)
+
+    @property
+    def number_of_threads(self) -&gt; int:
+        &#34;&#34;&#34;
+        The number of solver threads used in the corresponding solve call.
+        &#34;&#34;&#34;
+        return _lib.clingo_propagate_init_number_of_threads(self._rep)
+
+    @property
+    def symbolic_atoms(self) -&gt; SymbolicAtoms:
+        &#34;&#34;&#34;
+        The symbolic atoms captured by a `SymbolicAtoms` object.
+        &#34;&#34;&#34;
+        atoms = _c_call(
+            &#34;clingo_symbolic_atoms_t*&#34;,
+            _lib.clingo_propagate_init_symbolic_atoms,
+            self._rep,
+        )
+        return SymbolicAtoms(atoms)
+
+    @property
+    def theory_atoms(self) -&gt; Iterator[TheoryAtom]:
+        &#34;&#34;&#34;
+        An iterator over all theory atoms.
+        &#34;&#34;&#34;
+        atoms = _c_call(
+            &#34;clingo_theory_atoms_t*&#34;, _lib.clingo_propagate_init_theory_atoms, self._rep
+        )
+        size = _c_call(&#34;size_t&#34;, _lib.clingo_theory_atoms_size, atoms)
+
+        for idx in range(size):
+            yield TheoryAtom(atoms, idx)
+
+
+class PropagateControl:
+    &#34;&#34;&#34;
+    This object can be used to add clauses and to propagate them.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep):
+        self._rep = rep
+
+    def add_clause(
+        self, clause: Sequence[int], tag: bool = False, lock: bool = False
+    ) -&gt; bool:
+        &#34;&#34;&#34;
+        Add the given clause to the solver.
+
+        Parameters
+        ----------
+        clause
+            List of solver literals forming the clause.
+        tag
+            If true, the clause applies only in the current solving step.
+        lock
+            If true, exclude clause from the solver&#39;s regular clause deletion
+            policy.
+
+        Returns
+        -------
+        This method returns false if the current propagation must be stopped.
+        &#34;&#34;&#34;
+        type_ = 0
+        if tag:
+            type_ |= _lib.clingo_clause_type_volatile
+        if lock:
+            type_ |= _lib.clingo_clause_type_static
+        return _c_call(
+            &#34;bool&#34;,
+            _lib.clingo_propagate_control_add_clause,
+            self._rep,
+            clause,
+            len(clause),
+            type_,
+        )
+
+    def add_literal(self) -&gt; int:
+        &#34;&#34;&#34;
+        Adds a new positive volatile literal to the underlying solver thread.
+
+        The literal is only valid within the current solving step and solver
+        thread. All volatile literals and clauses involving a volatile literal
+        are deleted after the current search.
+
+        Returns
+        -------
+        The added solver literal.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_literal_t&#34;, _lib.clingo_propagate_control_add_literal, self._rep
+        )
+
+    def add_nogood(
+        self, clause: Iterable[int], tag: bool = False, lock: bool = False
+    ) -&gt; bool:
+        &#34;&#34;&#34;
+        Equivalent to `self.add_clause([-lit for lit in clause], tag, lock)`.
+        &#34;&#34;&#34;
+        return self.add_clause([-lit for lit in clause], tag, lock)
+
+    def add_watch(self, literal: int) -&gt; None:
+        &#34;&#34;&#34;
+        Add a watch for the solver literal in the given phase.
+
+        Parameters
+        ----------
+        literal
+            The target solver literal.
+
+        Notes
+        -----
+        Unlike `PropagateInit.add_watch` this does not add a watch to all
+        solver threads but just the current one.
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_propagate_control_add_watch(self._rep, literal))
+
+    def has_watch(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Check whether a literal is watched in the current solver thread.
+
+        Parameters
+        ----------
+        literal
+            The target solver literal.
+
+        Returns
+        -------
+        Whether the literal is watched.
+        &#34;&#34;&#34;
+        return _lib.clingo_propagate_control_has_watch(self._rep, literal)
+
+    def propagate(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Propagate literals implied by added clauses.
+
+        Returns
+        -------
+        This method returns false if the current propagation must be stopped.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_propagate_control_propagate, self._rep)
+
+    def remove_watch(self, literal: int) -&gt; None:
+        &#34;&#34;&#34;
+        Removes the watch (if any) for the given solver literal.
+
+        Parameters
+        ----------
+        literal
+            The target solver literal.
+        &#34;&#34;&#34;
+        _lib.clingo_propagate_control_remove_watch(self._rep, literal)
+
+    @property
+    def assignment(self) -&gt; Assignment:
+        &#34;&#34;&#34;
+        `Assignment` object capturing the partial assignment of the current solver thread.
+        &#34;&#34;&#34;
+        return Assignment(_lib.clingo_propagate_control_assignment(self._rep))
+
+    @property
+    def thread_id(self) -&gt; int:
+        &#34;&#34;&#34;
+        The numeric id of the current solver thread.
+        &#34;&#34;&#34;
+        return _lib.clingo_propagate_control_thread_id(self._rep)
+
+
+class Propagator(metaclass=ABCMeta):
+    &#34;&#34;&#34;
+    Propagator interface for custom constraints.
+
+    See Also
+    --------
+    clingo.control.Control.register_propagator
+
+    Notes
+    -----
+    Not all functions of the `Propagator` interface have to be implemented and
+    can be omitted if not needed.
+    &#34;&#34;&#34;
+
+    def init(self, init: PropagateInit) -&gt; None:
+        &#34;&#34;&#34;
+        This function is called once before each solving step.
+
+        It is used to map relevant program literals to solver literals, add
+        watches for solver literals, and initialize the data structures used
+        during propagation.
+
+        Parameters
+        ----------
+        init
+            Object to initialize the propagator.
+
+        Notes
+        -----
+        This is the last point to access theory atoms.  Once the search has
+        started, they are no longer accessible.
+        &#34;&#34;&#34;
+
+    def propagate(self, control: PropagateControl, changes: Sequence[int]) -&gt; None:
+        &#34;&#34;&#34;
+        Can be used to propagate solver literals given a partial assignment.
+
+        Parameters
+        ----------
+        control
+            Object to control propagation.
+        changes
+            List of watched solver literals assigned to true.
+
+        Notes
+        -----
+        Called during propagation with a non-empty list of watched solver
+        literals that have been assigned to true since the last call to either
+        propagate, undo, (or the start of the search) - the change set. Only
+        watched solver literals are contained in the change set. Each literal
+        in the change set is true w.r.t. the current Assignment.
+        `PropagateControl.add_clause` can be used to add clauses. If a clause
+        is unit resulting, it can be propagated using
+        `PropagateControl.propagate`. If either of the two methods returns
+        False, the propagate function must return immediately.
+
+            c = ...
+            if not control.add_clause(c) or not control.propagate(c):
+                return
+
+        Note that this function can be called from different solving threads.
+        Each thread has its own assignment and id, which can be obtained using
+        `PropagateControl.thread_id`.
+        &#34;&#34;&#34;
+
+    def undo(
+        self, thread_id: int, assignment: Assignment, changes: Sequence[int]
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Called whenever a solver with the given id undos assignments to watched
+        solver literals.
+
+        Parameters
+        ----------
+        thread_id
+            The solver thread id.
+        assignment
+            Object for inspecting the partial assignment of the solver.
+        changes
+            The list of watched solver literals whose assignment is undone.
+
+        Notes
+        -----
+        This function is meant to update assignment dependent state in a
+        propagator but not to modify the current state of the solver.
+        Furthermore, errors raised in the function lead to program termination.
+        &#34;&#34;&#34;
+
+    def check(self, control: PropagateControl) -&gt; None:
+        &#34;&#34;&#34;
+        This function is similar to propagate but is called without a change
+        set on propagation fixpoints.
+
+        When exactly this function is called, can be configured using the @ref
+        PropagateInit.check_mode property.
+
+        Parameters
+        ----------
+        control
+            Object to control propagation.
+
+        Notes
+        -----
+        This function is called even if no watches have been added.
+        &#34;&#34;&#34;
+
+    def decide(self, thread_id: int, assignment: Assignment, fallback: int) -&gt; int:
+        &#34;&#34;&#34;
+        This function allows a propagator to implement domain-specific
+        heuristics.
+
+        It is called whenever propagation reaches a fixed point.
+
+        Parameters
+        ----------
+        thread_id
+            The solver thread id.
+        assignment
+            Object for inspecting the partial assignment of the solver.
+        fallback
+            The literal choosen by the solver&#39;s heuristic.
+
+        Returns
+        -------
+        Тhe next solver literal to make true.
+
+        Notes
+        -----
+        This function should return a free solver literal that is to be
+        assigned true. In case multiple propagators are registered, this
+        function can return 0 to let a propagator registered later make a
+        decision. If all propagators return 0, then the fallback literal is
+        used.
+        &#34;&#34;&#34;
+        # pylint: disable=unused-argument
+        return fallback
+
+
+@_ffi.def_extern(onerror=_cb_error_handler(&#34;data&#34;), name=&#34;pyclingo_propagator_init&#34;)
+def _pyclingo_propagator_init(init, data):
+    propagator = _ffi.from_handle(data).data
+    propagator.init(PropagateInit(init))
+    return True
+
+
+@_ffi.def_extern(
+    onerror=_cb_error_handler(&#34;data&#34;), name=&#34;pyclingo_propagator_propagate&#34;
+)
+def _pyclingo_propagator_propagate(control, changes, size, data):
+    propagator = _ffi.from_handle(data).data
+    py_changes = [changes[i] for i in range(size)]
+    propagator.propagate(PropagateControl(control), py_changes)
+    return True
+
+
+@_ffi.def_extern(onerror=_cb_error_handler(&#34;data&#34;), name=&#34;pyclingo_propagator_undo&#34;)
+def _pyclingo_propagator_undo(control, changes, size, data):
+    propagator = _ffi.from_handle(data).data
+    py_changes = [changes[i] for i in range(size)]
+    ctl = PropagateControl(control)
+    propagator.undo(ctl.thread_id, ctl.assignment, py_changes)
+
+
+@_ffi.def_extern(onerror=_cb_error_handler(&#34;data&#34;), name=&#34;pyclingo_propagator_check&#34;)
+def _pyclingo_propagator_check(control, data):
+    propagator = _ffi.from_handle(data).data
+    propagator.check(PropagateControl(control))
+    return True
+
+
+@_ffi.def_extern(onerror=_cb_error_handler(&#34;data&#34;), name=&#34;pyclingo_propagator_decide&#34;)
+def _pyclingo_propagator_decide(thread_id, assignment, fallback, data, decision):
+    propagator = _ffi.from_handle(data).data
+    decision[0] = propagator.decide(thread_id, Assignment(assignment), fallback)
+    return True</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.propagator.Assignment"><code class="flex name class">
+<span>class <span class="ident">Assignment</span></span>
+<span>(</span><span>rep)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Class to inspect the (parital) assignment of an associated solver.</p>
+<p>Assigns truth values to solver literals.
+Each solver literal is either
+true, false, or undefined, represented by the Python constants <code>True</code>,
+<code>False</code>, or <code>None</code>, respectively.</p>
+<p>This class implements <code>Sequence[int]</code> to access the (positive)
+literals in the assignment.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Assignment(Sequence[int]):
+    &#34;&#34;&#34;
+    Class to inspect the (parital) assignment of an associated solver.
+
+    Assigns truth values to solver literals.  Each solver literal is either
+    true, false, or undefined, represented by the Python constants `True`,
+    `False`, or `None`, respectively.
+
+    This class implements `Sequence[int]` to access the (positive)
+    literals in the assignment.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep):
+        self._rep = rep
+
+    def __len__(self):
+        return _lib.clingo_assignment_size(self._rep)
+
+    def __getitem__(self, slc):
+        if isinstance(slc, slice):
+            return SlicedSequence(self, Slice(slc))
+        if slc &lt; 0:
+            slc += len(self)
+        if slc &lt; 0 or slc &gt;= len(self):
+            raise IndexError(&#34;invalid index&#34;)
+        return _c_call(&#34;clingo_literal_t&#34;, _lib.clingo_assignment_at, self._rep, slc)
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield _c_call(&#34;clingo_literal_t&#34;, _lib.clingo_assignment_at, self._rep, i)
+
+    def decision(self, level: int) -&gt; int:
+        &#34;&#34;&#34;
+        Return the decision literal of the given level.
+
+        Parameters
+        ----------
+        level
+            The decision level.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_literal_t&#34;, _lib.clingo_assignment_decision, self._rep, level
+        )
+
+    def has_literal(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the given literal is valid in this solver.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        return _lib.clingo_assignment_has_literal(self._rep, literal)
+
+    def is_false(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the literal is false.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_assignment_is_false, self._rep, literal)
+
+    def is_fixed(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the literal is assigned on the top level.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_assignment_is_fixed, self._rep, literal)
+
+    def is_true(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the literal is true.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_assignment_is_true, self._rep, literal)
+
+    def is_free(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Determine if the literal is free.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        value = _c_call(
+            &#34;clingo_truth_value_t&#34;,
+            _lib.clingo_assignment_truth_value,
+            self._rep,
+            literal,
+        )
+        return value == _lib.clingo_truth_value_free
+
+    def level(self, literal: int) -&gt; int:
+        &#34;&#34;&#34;
+        The decision level of the given literal.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+
+        Notes
+        -----
+        Note that the returned value is only meaningful if the literal is
+        assigned - i.e., `value(lit) is not None`.
+        &#34;&#34;&#34;
+        return _c_call(&#34;uint32_t&#34;, _lib.clingo_assignment_level, self._rep, literal)
+
+    def value(self, literal) -&gt; Optional[bool]:
+        &#34;&#34;&#34;
+        Get the truth value of the given literal or `None` if it has none.
+
+        Parameters
+        ----------
+        literal
+            The solver literal.
+        &#34;&#34;&#34;
+        value = _c_call(
+            &#34;clingo_truth_value_t&#34;,
+            _lib.clingo_assignment_truth_value,
+            self._rep,
+            literal,
+        )
+        if value == _lib.clingo_truth_value_true:
+            return True
+        if value == _lib.clingo_truth_value_false:
+            return False
+        assert value == _lib.clingo_truth_value_free
+        return None
+
+    @property
+    def decision_level(self) -&gt; int:
+        &#34;&#34;&#34;
+        The current decision level.
+        &#34;&#34;&#34;
+        return _lib.clingo_assignment_decision_level(self._rep)
+
+    @property
+    def has_conflict(self) -&gt; bool:
+        &#34;&#34;&#34;
+        True if the assignment is conflicting.
+        &#34;&#34;&#34;
+        return _lib.clingo_assignment_has_conflict(self._rep)
+
+    @property
+    def is_total(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Whether the assignment is total.
+        &#34;&#34;&#34;
+        return _lib.clingo_assignment_is_total(self._rep)
+
+    @property
+    def root_level(self) -&gt; int:
+        &#34;&#34;&#34;
+        The current root level.
+        &#34;&#34;&#34;
+        return _lib.clingo_assignment_root_level(self._rep)
+
+    @property
+    def trail(self) -&gt; Trail:
+        &#34;&#34;&#34;
+        The trail of assigned literals.
+        &#34;&#34;&#34;
+        return Trail(self._rep)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>collections.abc.Sequence</li>
+<li>collections.abc.Reversible</li>
+<li>collections.abc.Collection</li>
+<li>collections.abc.Sized</li>
+<li>collections.abc.Iterable</li>
+<li>collections.abc.Container</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="clingo.propagator.Assignment.decision_level"><code class="name">var <span class="ident">decision_level</span> : int</code></dt>
+<dd>
+<div class="desc"><p>The current decision level.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def decision_level(self) -&gt; int:
+    &#34;&#34;&#34;
+    The current decision level.
+    &#34;&#34;&#34;
+    return _lib.clingo_assignment_decision_level(self._rep)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Assignment.has_conflict"><code class="name">var <span class="ident">has_conflict</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>True if the assignment is conflicting.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def has_conflict(self) -&gt; bool:
+    &#34;&#34;&#34;
+    True if the assignment is conflicting.
+    &#34;&#34;&#34;
+    return _lib.clingo_assignment_has_conflict(self._rep)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Assignment.is_total"><code class="name">var <span class="ident">is_total</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether the assignment is total.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def is_total(self) -&gt; bool:
+    &#34;&#34;&#34;
+    Whether the assignment is total.
+    &#34;&#34;&#34;
+    return _lib.clingo_assignment_is_total(self._rep)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Assignment.root_level"><code class="name">var <span class="ident">root_level</span> : int</code></dt>
+<dd>
+<div class="desc"><p>The current root level.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def root_level(self) -&gt; int:
+    &#34;&#34;&#34;
+    The current root level.
+    &#34;&#34;&#34;
+    return _lib.clingo_assignment_root_level(self._rep)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Assignment.trail"><code class="name">var <span class="ident">trail</span> : <a title="clingo.propagator.Trail" href="#clingo.propagator.Trail">Trail</a></code></dt>
+<dd>
+<div class="desc"><p>The trail of assigned literals.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def trail(self) -&gt; Trail:
+    &#34;&#34;&#34;
+    The trail of assigned literals.
+    &#34;&#34;&#34;
+    return Trail(self._rep)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.propagator.Assignment.decision"><code class="name flex">
+<span>def <span class="ident">decision</span></span>(<span>self, level: int) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return the decision literal of the given level.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>level</code></strong></dt>
+<dd>The decision level.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def decision(self, level: int) -&gt; int:
+    &#34;&#34;&#34;
+    Return the decision literal of the given level.
+
+    Parameters
+    ----------
+    level
+        The decision level.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;clingo_literal_t&#34;, _lib.clingo_assignment_decision, self._rep, level
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Assignment.has_literal"><code class="name flex">
+<span>def <span class="ident">has_literal</span></span>(<span>self, literal: int) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Determine if the given literal is valid in this solver.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The solver literal.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def has_literal(self, literal: int) -&gt; bool:
+    &#34;&#34;&#34;
+    Determine if the given literal is valid in this solver.
+
+    Parameters
+    ----------
+    literal
+        The solver literal.
+    &#34;&#34;&#34;
+    return _lib.clingo_assignment_has_literal(self._rep, literal)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Assignment.is_false"><code class="name flex">
+<span>def <span class="ident">is_false</span></span>(<span>self, literal: int) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Determine if the literal is false.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The solver literal.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_false(self, literal: int) -&gt; bool:
+    &#34;&#34;&#34;
+    Determine if the literal is false.
+
+    Parameters
+    ----------
+    literal
+        The solver literal.
+    &#34;&#34;&#34;
+    return _c_call(&#34;bool&#34;, _lib.clingo_assignment_is_false, self._rep, literal)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Assignment.is_fixed"><code class="name flex">
+<span>def <span class="ident">is_fixed</span></span>(<span>self, literal: int) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Determine if the literal is assigned on the top level.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The solver literal.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_fixed(self, literal: int) -&gt; bool:
+    &#34;&#34;&#34;
+    Determine if the literal is assigned on the top level.
+
+    Parameters
+    ----------
+    literal
+        The solver literal.
+    &#34;&#34;&#34;
+    return _c_call(&#34;bool&#34;, _lib.clingo_assignment_is_fixed, self._rep, literal)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Assignment.is_free"><code class="name flex">
+<span>def <span class="ident">is_free</span></span>(<span>self, literal: int) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Determine if the literal is free.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The solver literal.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_free(self, literal: int) -&gt; bool:
+    &#34;&#34;&#34;
+    Determine if the literal is free.
+
+    Parameters
+    ----------
+    literal
+        The solver literal.
+    &#34;&#34;&#34;
+    value = _c_call(
+        &#34;clingo_truth_value_t&#34;,
+        _lib.clingo_assignment_truth_value,
+        self._rep,
+        literal,
+    )
+    return value == _lib.clingo_truth_value_free</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Assignment.is_true"><code class="name flex">
+<span>def <span class="ident">is_true</span></span>(<span>self, literal: int) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Determine if the literal is true.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The solver literal.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_true(self, literal: int) -&gt; bool:
+    &#34;&#34;&#34;
+    Determine if the literal is true.
+
+    Parameters
+    ----------
+    literal
+        The solver literal.
+    &#34;&#34;&#34;
+    return _c_call(&#34;bool&#34;, _lib.clingo_assignment_is_true, self._rep, literal)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Assignment.level"><code class="name flex">
+<span>def <span class="ident">level</span></span>(<span>self, literal: int) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The decision level of the given literal.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The solver literal.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>Note that the returned value is only meaningful if the literal is
+assigned - i.e., <code>value(lit) is not None</code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def level(self, literal: int) -&gt; int:
+    &#34;&#34;&#34;
+    The decision level of the given literal.
+
+    Parameters
+    ----------
+    literal
+        The solver literal.
+
+    Notes
+    -----
+    Note that the returned value is only meaningful if the literal is
+    assigned - i.e., `value(lit) is not None`.
+    &#34;&#34;&#34;
+    return _c_call(&#34;uint32_t&#34;, _lib.clingo_assignment_level, self._rep, literal)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Assignment.value"><code class="name flex">
+<span>def <span class="ident">value</span></span>(<span>self, literal) ‑> Optional[bool]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get the truth value of the given literal or <code>None</code> if it has none.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The solver literal.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def value(self, literal) -&gt; Optional[bool]:
+    &#34;&#34;&#34;
+    Get the truth value of the given literal or `None` if it has none.
+
+    Parameters
+    ----------
+    literal
+        The solver literal.
+    &#34;&#34;&#34;
+    value = _c_call(
+        &#34;clingo_truth_value_t&#34;,
+        _lib.clingo_assignment_truth_value,
+        self._rep,
+        literal,
+    )
+    if value == _lib.clingo_truth_value_true:
+        return True
+    if value == _lib.clingo_truth_value_false:
+        return False
+    assert value == _lib.clingo_truth_value_free
+    return None</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.propagator.PropagateControl"><code class="flex name class">
+<span>class <span class="ident">PropagateControl</span></span>
+<span>(</span><span>rep)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This object can be used to add clauses and to propagate them.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PropagateControl:
+    &#34;&#34;&#34;
+    This object can be used to add clauses and to propagate them.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep):
+        self._rep = rep
+
+    def add_clause(
+        self, clause: Sequence[int], tag: bool = False, lock: bool = False
+    ) -&gt; bool:
+        &#34;&#34;&#34;
+        Add the given clause to the solver.
+
+        Parameters
+        ----------
+        clause
+            List of solver literals forming the clause.
+        tag
+            If true, the clause applies only in the current solving step.
+        lock
+            If true, exclude clause from the solver&#39;s regular clause deletion
+            policy.
+
+        Returns
+        -------
+        This method returns false if the current propagation must be stopped.
+        &#34;&#34;&#34;
+        type_ = 0
+        if tag:
+            type_ |= _lib.clingo_clause_type_volatile
+        if lock:
+            type_ |= _lib.clingo_clause_type_static
+        return _c_call(
+            &#34;bool&#34;,
+            _lib.clingo_propagate_control_add_clause,
+            self._rep,
+            clause,
+            len(clause),
+            type_,
+        )
+
+    def add_literal(self) -&gt; int:
+        &#34;&#34;&#34;
+        Adds a new positive volatile literal to the underlying solver thread.
+
+        The literal is only valid within the current solving step and solver
+        thread. All volatile literals and clauses involving a volatile literal
+        are deleted after the current search.
+
+        Returns
+        -------
+        The added solver literal.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_literal_t&#34;, _lib.clingo_propagate_control_add_literal, self._rep
+        )
+
+    def add_nogood(
+        self, clause: Iterable[int], tag: bool = False, lock: bool = False
+    ) -&gt; bool:
+        &#34;&#34;&#34;
+        Equivalent to `self.add_clause([-lit for lit in clause], tag, lock)`.
+        &#34;&#34;&#34;
+        return self.add_clause([-lit for lit in clause], tag, lock)
+
+    def add_watch(self, literal: int) -&gt; None:
+        &#34;&#34;&#34;
+        Add a watch for the solver literal in the given phase.
+
+        Parameters
+        ----------
+        literal
+            The target solver literal.
+
+        Notes
+        -----
+        Unlike `PropagateInit.add_watch` this does not add a watch to all
+        solver threads but just the current one.
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_propagate_control_add_watch(self._rep, literal))
+
+    def has_watch(self, literal: int) -&gt; bool:
+        &#34;&#34;&#34;
+        Check whether a literal is watched in the current solver thread.
+
+        Parameters
+        ----------
+        literal
+            The target solver literal.
+
+        Returns
+        -------
+        Whether the literal is watched.
+        &#34;&#34;&#34;
+        return _lib.clingo_propagate_control_has_watch(self._rep, literal)
+
+    def propagate(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Propagate literals implied by added clauses.
+
+        Returns
+        -------
+        This method returns false if the current propagation must be stopped.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_propagate_control_propagate, self._rep)
+
+    def remove_watch(self, literal: int) -&gt; None:
+        &#34;&#34;&#34;
+        Removes the watch (if any) for the given solver literal.
+
+        Parameters
+        ----------
+        literal
+            The target solver literal.
+        &#34;&#34;&#34;
+        _lib.clingo_propagate_control_remove_watch(self._rep, literal)
+
+    @property
+    def assignment(self) -&gt; Assignment:
+        &#34;&#34;&#34;
+        `Assignment` object capturing the partial assignment of the current solver thread.
+        &#34;&#34;&#34;
+        return Assignment(_lib.clingo_propagate_control_assignment(self._rep))
+
+    @property
+    def thread_id(self) -&gt; int:
+        &#34;&#34;&#34;
+        The numeric id of the current solver thread.
+        &#34;&#34;&#34;
+        return _lib.clingo_propagate_control_thread_id(self._rep)</code></pre>
+</details>
+<h3>Instance variables</h3>
+<dl>
+<dt id="clingo.propagator.PropagateControl.assignment"><code class="name">var <span class="ident">assignment</span> : <a title="clingo.propagator.Assignment" href="#clingo.propagator.Assignment">Assignment</a></code></dt>
+<dd>
+<div class="desc"><p><code><a title="clingo.propagator.Assignment" href="#clingo.propagator.Assignment">Assignment</a></code> object capturing the partial assignment of the current solver thread.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def assignment(self) -&gt; Assignment:
+    &#34;&#34;&#34;
+    `Assignment` object capturing the partial assignment of the current solver thread.
+    &#34;&#34;&#34;
+    return Assignment(_lib.clingo_propagate_control_assignment(self._rep))</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateControl.thread_id"><code class="name">var <span class="ident">thread_id</span> : int</code></dt>
+<dd>
+<div class="desc"><p>The numeric id of the current solver thread.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def thread_id(self) -&gt; int:
+    &#34;&#34;&#34;
+    The numeric id of the current solver thread.
+    &#34;&#34;&#34;
+    return _lib.clingo_propagate_control_thread_id(self._rep)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.propagator.PropagateControl.add_clause"><code class="name flex">
+<span>def <span class="ident">add_clause</span></span>(<span>self, clause: Sequence[int], tag: bool = False, lock: bool = False) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add the given clause to the solver.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>clause</code></strong></dt>
+<dd>List of solver literals forming the clause.</dd>
+<dt><strong><code>tag</code></strong></dt>
+<dd>If true, the clause applies only in the current solving step.</dd>
+<dt><strong><code>lock</code></strong></dt>
+<dd>If true, exclude clause from the solver's regular clause deletion
+policy.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>This method returns false if the current propagation must be stopped.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_clause(
+    self, clause: Sequence[int], tag: bool = False, lock: bool = False
+) -&gt; bool:
+    &#34;&#34;&#34;
+    Add the given clause to the solver.
+
+    Parameters
+    ----------
+    clause
+        List of solver literals forming the clause.
+    tag
+        If true, the clause applies only in the current solving step.
+    lock
+        If true, exclude clause from the solver&#39;s regular clause deletion
+        policy.
+
+    Returns
+    -------
+    This method returns false if the current propagation must be stopped.
+    &#34;&#34;&#34;
+    type_ = 0
+    if tag:
+        type_ |= _lib.clingo_clause_type_volatile
+    if lock:
+        type_ |= _lib.clingo_clause_type_static
+    return _c_call(
+        &#34;bool&#34;,
+        _lib.clingo_propagate_control_add_clause,
+        self._rep,
+        clause,
+        len(clause),
+        type_,
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateControl.add_literal"><code class="name flex">
+<span>def <span class="ident">add_literal</span></span>(<span>self) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Adds a new positive volatile literal to the underlying solver thread.</p>
+<p>The literal is only valid within the current solving step and solver
+thread. All volatile literals and clauses involving a volatile literal
+are deleted after the current search.</p>
+<h2 id="returns">Returns</h2>
+<p>The added solver literal.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_literal(self) -&gt; int:
+    &#34;&#34;&#34;
+    Adds a new positive volatile literal to the underlying solver thread.
+
+    The literal is only valid within the current solving step and solver
+    thread. All volatile literals and clauses involving a volatile literal
+    are deleted after the current search.
+
+    Returns
+    -------
+    The added solver literal.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;clingo_literal_t&#34;, _lib.clingo_propagate_control_add_literal, self._rep
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateControl.add_nogood"><code class="name flex">
+<span>def <span class="ident">add_nogood</span></span>(<span>self, clause: Iterable[int], tag: bool = False, lock: bool = False) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Equivalent to <code>self.add_clause([-lit for lit in clause], tag, lock)</code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_nogood(
+    self, clause: Iterable[int], tag: bool = False, lock: bool = False
+) -&gt; bool:
+    &#34;&#34;&#34;
+    Equivalent to `self.add_clause([-lit for lit in clause], tag, lock)`.
+    &#34;&#34;&#34;
+    return self.add_clause([-lit for lit in clause], tag, lock)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateControl.add_watch"><code class="name flex">
+<span>def <span class="ident">add_watch</span></span>(<span>self, literal: int) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add a watch for the solver literal in the given phase.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The target solver literal.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>Unlike <code><a title="clingo.propagator.PropagateInit.add_watch" href="#clingo.propagator.PropagateInit.add_watch">PropagateInit.add_watch()</a></code> this does not add a watch to all
+solver threads but just the current one.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_watch(self, literal: int) -&gt; None:
+    &#34;&#34;&#34;
+    Add a watch for the solver literal in the given phase.
+
+    Parameters
+    ----------
+    literal
+        The target solver literal.
+
+    Notes
+    -----
+    Unlike `PropagateInit.add_watch` this does not add a watch to all
+    solver threads but just the current one.
+    &#34;&#34;&#34;
+    _handle_error(_lib.clingo_propagate_control_add_watch(self._rep, literal))</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateControl.has_watch"><code class="name flex">
+<span>def <span class="ident">has_watch</span></span>(<span>self, literal: int) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check whether a literal is watched in the current solver thread.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The target solver literal.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Whether the literal is watched.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def has_watch(self, literal: int) -&gt; bool:
+    &#34;&#34;&#34;
+    Check whether a literal is watched in the current solver thread.
+
+    Parameters
+    ----------
+    literal
+        The target solver literal.
+
+    Returns
+    -------
+    Whether the literal is watched.
+    &#34;&#34;&#34;
+    return _lib.clingo_propagate_control_has_watch(self._rep, literal)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateControl.propagate"><code class="name flex">
+<span>def <span class="ident">propagate</span></span>(<span>self) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Propagate literals implied by added clauses.</p>
+<h2 id="returns">Returns</h2>
+<p>This method returns false if the current propagation must be stopped.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def propagate(self) -&gt; bool:
+    &#34;&#34;&#34;
+    Propagate literals implied by added clauses.
+
+    Returns
+    -------
+    This method returns false if the current propagation must be stopped.
+    &#34;&#34;&#34;
+    return _c_call(&#34;bool&#34;, _lib.clingo_propagate_control_propagate, self._rep)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateControl.remove_watch"><code class="name flex">
+<span>def <span class="ident">remove_watch</span></span>(<span>self, literal: int) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Removes the watch (if any) for the given solver literal.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The target solver literal.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_watch(self, literal: int) -&gt; None:
+    &#34;&#34;&#34;
+    Removes the watch (if any) for the given solver literal.
+
+    Parameters
+    ----------
+    literal
+        The target solver literal.
+    &#34;&#34;&#34;
+    _lib.clingo_propagate_control_remove_watch(self._rep, literal)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.propagator.PropagateInit"><code class="flex name class">
+<span>class <span class="ident">PropagateInit</span></span>
+<span>(</span><span>rep)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Object that is used to initialize a propagator before each solving step.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PropagateInit:
+    &#34;&#34;&#34;
+    Object that is used to initialize a propagator before each solving step.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep):
+        self._rep = rep
+
+    def add_clause(self, clause: Sequence[int]) -&gt; bool:
+        &#34;&#34;&#34;
+        Statically adds the given clause to the problem.
+
+        Parameters
+        ----------
+        clause
+            The clause over solver literals to add.
+
+        Returns
+        -------
+        Returns false if the program becomes unsatisfiable.
+
+        Notes
+        -----
+        If this function returns false, initialization should be stopped and no
+        further functions of the `PropagateInit` and related objects should be
+        called.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;bool&#34;,
+            _lib.clingo_propagate_init_add_clause,
+            self._rep,
+            clause,
+            len(clause),
+        )
+
+    def add_literal(self, freeze: bool = True) -&gt; int:
+        &#34;&#34;&#34;
+        Statically adds a literal to the solver.
+
+        To be able to use the variable in clauses during propagation or add
+        watches to it, it has to be frozen. Otherwise, it might be removed
+        during preprocessing.
+
+        Parameters
+        ----------
+        freeze
+            Whether to freeze the variable.
+
+        Returns
+        -------
+        Returns the added literal.
+
+        Notes
+        -----
+        If literals are added to the solver, subsequent calls to `add_clause` and
+        `propagate` are expensive. It is best to add literals in batches.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_literal_t&#34;,
+            _lib.clingo_propagate_init_add_literal,
+            self._rep,
+            freeze,
+        )
+
+    def add_minimize(self, literal: int, weight: int, priority: int = 0) -&gt; None:
+        &#34;&#34;&#34;
+        Extends the solver&#39;s minimize constraint with the given weighted
+        literal.
+
+        Parameters
+        ----------
+        literal
+            The literal to add.
+        weight
+            The weight of the literal.
+        priority
+            The priority of the literal.
+        &#34;&#34;&#34;
+        _handle_error(
+            _lib.clingo_propagate_init_add_minimize(
+                self._rep, literal, weight, priority
+            )
+        )
+
+    def add_watch(self, literal: int, thread_id: Optional[int] = None) -&gt; None:
+        &#34;&#34;&#34;
+        Add a watch for the solver literal in the given phase.
+
+        Parameters
+        ----------
+        literal
+            The solver literal to watch.
+        thread_id
+            The id of the thread to watch the literal. If the is `None` then
+            all active threads will watch the literal.
+        &#34;&#34;&#34;
+        if thread_id is None:
+            _handle_error(_lib.clingo_propagate_init_add_watch(self._rep, literal))
+        else:
+            _handle_error(
+                _lib.clingo_propagate_init_add_watch_to_thread(
+                    self._rep, literal, thread_id
+                )
+            )
+
+    def remove_watch(self, literal: int, thread_id: Optional[int] = None) -&gt; None:
+        &#34;&#34;&#34;
+        Remove the watch for the solver literal in the given phase.
+
+        Parameters
+        ----------
+        literal
+            The solver literal to remove the watch from.
+        thread_id
+            The id of the thread from which to remove the watch. If the is `None`, then
+            the watch is removed from all active threads.
+        &#34;&#34;&#34;
+        if thread_id is None:
+            _handle_error(_lib.clingo_propagate_init_remove_watch(self._rep, literal))
+        else:
+            _handle_error(
+                _lib.clingo_propagate_init_remove_watch_from_thread(
+                    self._rep, literal, thread_id
+                )
+            )
+
+    def freeze_literal(self, literal: int) -&gt; None:
+        &#34;&#34;&#34;
+        Freeze the given solver literal.
+
+        Any solver literal that is not frozen is subject to simplification and
+        might be removed in a preprocessing step after propagator
+        initialization. A propagator should freeze all literals over which it
+        might add clauses during propagation. Note that any watched literal is
+        automatically frozen and that it does not matter which phase of the
+        literal is frozen.
+
+        Parameters
+        ----------
+        literal
+            The solver literal to freeze.
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_propagate_init_freeze_literal(self._rep, literal))
+
+    def add_weight_constraint(
+        self,
+        literal: int,
+        literals: Sequence[Tuple[int, int]],
+        bound: int,
+        type_: int = 0,
+        compare_equal: bool = False,
+    ) -&gt; bool:
+        &#34;&#34;&#34;
+        Statically adds a constraint of form
+
+            literal &lt;=&gt; { l=w | (l, w) in literals } &gt;= bound
+
+        to the solver.
+
+        - If `type_ &lt; 0`, then `&lt;=&gt;` is a left implication.
+        - If `type_ &gt; 0`, then `&lt;=&gt;` is a right implication.
+        - Otherwise, `&lt;=&gt;` is an equivalence.
+
+        Parameters
+        ----------
+        literal
+            The literal associated with the constraint.
+        literals
+            The weighted literals of the constraint.
+        bound
+            The bound of the constraint.
+        type_
+            Add a weight constraint of the given type_.
+        compare_equal
+            A Boolean indicating whether to compare equal or less than equal.
+
+        Returns
+        -------
+        Returns false if the program became unsatisfiable.
+
+        Notes
+        -----
+        If this function returns false, initialization should be stopped and no further
+        functions of the `PropagateInit` and related objects should be called.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;bool&#34;,
+            _lib.clingo_propagate_init_add_weight_constraint,
+            self._rep,
+            literal,
+            literals,
+            len(literals),
+            bound,
+            type_,
+            compare_equal,
+        )
+
+    def propagate(self) -&gt; bool:
+        &#34;&#34;&#34;
+        Propagates consequences of the underlying problem excluding registered
+        propagators.
+
+        Returns
+        -------
+        Returns false if the program becomes unsatisfiable.
+
+        Notes
+        -----
+        This function has no effect if SAT-preprocessing is enabled.
+
+        If this function returns false, initialization should be stopped and no
+        further functions of the `PropagateInit` and related objects should be
+        called.
+        &#34;&#34;&#34;
+        return _c_call(&#34;bool&#34;, _lib.clingo_propagate_init_propagate, self._rep)
+
+    def solver_literal(self, literal: int) -&gt; int:
+        &#34;&#34;&#34;
+        Maps the given program literal or condition id to its solver literal.
+
+        Parameters
+        ----------
+        literal
+            A program literal or condition id.
+
+        Returns
+        -------
+        A solver literal.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_literal_t&#34;,
+            _lib.clingo_propagate_init_solver_literal,
+            self._rep,
+            literal,
+        )
+
+    @property
+    def assignment(self) -&gt; Assignment:
+        &#34;&#34;&#34;
+        `Assignment` object capturing the top level assignment.
+        &#34;&#34;&#34;
+        return Assignment(_lib.clingo_propagate_init_assignment(self._rep))
+
+    @property
+    def check_mode(self) -&gt; PropagatorCheckMode:
+        &#34;&#34;&#34;
+        `PropagatorCheckMode` controlling when to call `Propagator.check`.
+        &#34;&#34;&#34;
+        return PropagatorCheckMode(_lib.clingo_propagate_init_get_check_mode(self._rep))
+
+    @check_mode.setter
+    def check_mode(self, mode: PropagatorCheckMode) -&gt; None:
+        _lib.clingo_propagate_init_set_check_mode(self._rep, mode.value)
+
+    @property
+    def undo_mode(self) -&gt; PropagatorUndoMode:
+        &#34;&#34;&#34;
+        `PropagatorUndoMode` controlling when to call `Propagator.undo`.
+        &#34;&#34;&#34;
+        return PropagatorUndoMode(_lib.clingo_propagate_init_get_undo_mode(self._rep))
+
+    @undo_mode.setter
+    def undo_mode(self, mode: PropagatorUndoMode) -&gt; None:
+        _lib.clingo_propagate_init_set_undo_mode(self._rep, mode.value)
+
+    @property
+    def number_of_threads(self) -&gt; int:
+        &#34;&#34;&#34;
+        The number of solver threads used in the corresponding solve call.
+        &#34;&#34;&#34;
+        return _lib.clingo_propagate_init_number_of_threads(self._rep)
+
+    @property
+    def symbolic_atoms(self) -&gt; SymbolicAtoms:
+        &#34;&#34;&#34;
+        The symbolic atoms captured by a `SymbolicAtoms` object.
+        &#34;&#34;&#34;
+        atoms = _c_call(
+            &#34;clingo_symbolic_atoms_t*&#34;,
+            _lib.clingo_propagate_init_symbolic_atoms,
+            self._rep,
+        )
+        return SymbolicAtoms(atoms)
+
+    @property
+    def theory_atoms(self) -&gt; Iterator[TheoryAtom]:
+        &#34;&#34;&#34;
+        An iterator over all theory atoms.
+        &#34;&#34;&#34;
+        atoms = _c_call(
+            &#34;clingo_theory_atoms_t*&#34;, _lib.clingo_propagate_init_theory_atoms, self._rep
+        )
+        size = _c_call(&#34;size_t&#34;, _lib.clingo_theory_atoms_size, atoms)
+
+        for idx in range(size):
+            yield TheoryAtom(atoms, idx)</code></pre>
+</details>
+<h3>Instance variables</h3>
+<dl>
+<dt id="clingo.propagator.PropagateInit.assignment"><code class="name">var <span class="ident">assignment</span> : <a title="clingo.propagator.Assignment" href="#clingo.propagator.Assignment">Assignment</a></code></dt>
+<dd>
+<div class="desc"><p><code><a title="clingo.propagator.Assignment" href="#clingo.propagator.Assignment">Assignment</a></code> object capturing the top level assignment.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def assignment(self) -&gt; Assignment:
+    &#34;&#34;&#34;
+    `Assignment` object capturing the top level assignment.
+    &#34;&#34;&#34;
+    return Assignment(_lib.clingo_propagate_init_assignment(self._rep))</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.check_mode"><code class="name">var <span class="ident">check_mode</span> : <a title="clingo.propagator.PropagatorCheckMode" href="#clingo.propagator.PropagatorCheckMode">PropagatorCheckMode</a></code></dt>
+<dd>
+<div class="desc"><p><code><a title="clingo.propagator.PropagatorCheckMode" href="#clingo.propagator.PropagatorCheckMode">PropagatorCheckMode</a></code> controlling when to call <code><a title="clingo.propagator.Propagator.check" href="#clingo.propagator.Propagator.check">Propagator.check()</a></code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def check_mode(self) -&gt; PropagatorCheckMode:
+    &#34;&#34;&#34;
+    `PropagatorCheckMode` controlling when to call `Propagator.check`.
+    &#34;&#34;&#34;
+    return PropagatorCheckMode(_lib.clingo_propagate_init_get_check_mode(self._rep))</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.number_of_threads"><code class="name">var <span class="ident">number_of_threads</span> : int</code></dt>
+<dd>
+<div class="desc"><p>The number of solver threads used in the corresponding solve call.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def number_of_threads(self) -&gt; int:
+    &#34;&#34;&#34;
+    The number of solver threads used in the corresponding solve call.
+    &#34;&#34;&#34;
+    return _lib.clingo_propagate_init_number_of_threads(self._rep)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.symbolic_atoms"><code class="name">var <span class="ident">symbolic_atoms</span> : <a title="clingo.symbolic_atoms.SymbolicAtoms" href="symbolic_atoms.html#clingo.symbolic_atoms.SymbolicAtoms">SymbolicAtoms</a></code></dt>
+<dd>
+<div class="desc"><p>The symbolic atoms captured by a <code>SymbolicAtoms</code> object.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def symbolic_atoms(self) -&gt; SymbolicAtoms:
+    &#34;&#34;&#34;
+    The symbolic atoms captured by a `SymbolicAtoms` object.
+    &#34;&#34;&#34;
+    atoms = _c_call(
+        &#34;clingo_symbolic_atoms_t*&#34;,
+        _lib.clingo_propagate_init_symbolic_atoms,
+        self._rep,
+    )
+    return SymbolicAtoms(atoms)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.theory_atoms"><code class="name">var <span class="ident">theory_atoms</span> : Iterator[<a title="clingo.theory_atoms.TheoryAtom" href="theory_atoms.html#clingo.theory_atoms.TheoryAtom">TheoryAtom</a>]</code></dt>
+<dd>
+<div class="desc"><p>An iterator over all theory atoms.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def theory_atoms(self) -&gt; Iterator[TheoryAtom]:
+    &#34;&#34;&#34;
+    An iterator over all theory atoms.
+    &#34;&#34;&#34;
+    atoms = _c_call(
+        &#34;clingo_theory_atoms_t*&#34;, _lib.clingo_propagate_init_theory_atoms, self._rep
+    )
+    size = _c_call(&#34;size_t&#34;, _lib.clingo_theory_atoms_size, atoms)
+
+    for idx in range(size):
+        yield TheoryAtom(atoms, idx)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.undo_mode"><code class="name">var <span class="ident">undo_mode</span> : <a title="clingo.propagator.PropagatorUndoMode" href="#clingo.propagator.PropagatorUndoMode">PropagatorUndoMode</a></code></dt>
+<dd>
+<div class="desc"><p><code><a title="clingo.propagator.PropagatorUndoMode" href="#clingo.propagator.PropagatorUndoMode">PropagatorUndoMode</a></code> controlling when to call <code><a title="clingo.propagator.Propagator.undo" href="#clingo.propagator.Propagator.undo">Propagator.undo()</a></code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def undo_mode(self) -&gt; PropagatorUndoMode:
+    &#34;&#34;&#34;
+    `PropagatorUndoMode` controlling when to call `Propagator.undo`.
+    &#34;&#34;&#34;
+    return PropagatorUndoMode(_lib.clingo_propagate_init_get_undo_mode(self._rep))</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.propagator.PropagateInit.add_clause"><code class="name flex">
+<span>def <span class="ident">add_clause</span></span>(<span>self, clause: Sequence[int]) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Statically adds the given clause to the problem.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>clause</code></strong></dt>
+<dd>The clause over solver literals to add.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Returns false if the program becomes unsatisfiable.</p>
+<h2 id="notes">Notes</h2>
+<p>If this function returns false, initialization should be stopped and no
+further functions of the <code><a title="clingo.propagator.PropagateInit" href="#clingo.propagator.PropagateInit">PropagateInit</a></code> and related objects should be
+called.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_clause(self, clause: Sequence[int]) -&gt; bool:
+    &#34;&#34;&#34;
+    Statically adds the given clause to the problem.
+
+    Parameters
+    ----------
+    clause
+        The clause over solver literals to add.
+
+    Returns
+    -------
+    Returns false if the program becomes unsatisfiable.
+
+    Notes
+    -----
+    If this function returns false, initialization should be stopped and no
+    further functions of the `PropagateInit` and related objects should be
+    called.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;bool&#34;,
+        _lib.clingo_propagate_init_add_clause,
+        self._rep,
+        clause,
+        len(clause),
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.add_literal"><code class="name flex">
+<span>def <span class="ident">add_literal</span></span>(<span>self, freeze: bool = True) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Statically adds a literal to the solver.</p>
+<p>To be able to use the variable in clauses during propagation or add
+watches to it, it has to be frozen. Otherwise, it might be removed
+during preprocessing.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>freeze</code></strong></dt>
+<dd>Whether to freeze the variable.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Returns the added literal.</p>
+<h2 id="notes">Notes</h2>
+<p>If literals are added to the solver, subsequent calls to <code>add_clause</code> and
+<code>propagate</code> are expensive. It is best to add literals in batches.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_literal(self, freeze: bool = True) -&gt; int:
+    &#34;&#34;&#34;
+    Statically adds a literal to the solver.
+
+    To be able to use the variable in clauses during propagation or add
+    watches to it, it has to be frozen. Otherwise, it might be removed
+    during preprocessing.
+
+    Parameters
+    ----------
+    freeze
+        Whether to freeze the variable.
+
+    Returns
+    -------
+    Returns the added literal.
+
+    Notes
+    -----
+    If literals are added to the solver, subsequent calls to `add_clause` and
+    `propagate` are expensive. It is best to add literals in batches.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;clingo_literal_t&#34;,
+        _lib.clingo_propagate_init_add_literal,
+        self._rep,
+        freeze,
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.add_minimize"><code class="name flex">
+<span>def <span class="ident">add_minimize</span></span>(<span>self, literal: int, weight: int, priority: int = 0) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Extends the solver's minimize constraint with the given weighted
+literal.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The literal to add.</dd>
+<dt><strong><code>weight</code></strong></dt>
+<dd>The weight of the literal.</dd>
+<dt><strong><code>priority</code></strong></dt>
+<dd>The priority of the literal.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_minimize(self, literal: int, weight: int, priority: int = 0) -&gt; None:
+    &#34;&#34;&#34;
+    Extends the solver&#39;s minimize constraint with the given weighted
+    literal.
+
+    Parameters
+    ----------
+    literal
+        The literal to add.
+    weight
+        The weight of the literal.
+    priority
+        The priority of the literal.
+    &#34;&#34;&#34;
+    _handle_error(
+        _lib.clingo_propagate_init_add_minimize(
+            self._rep, literal, weight, priority
+        )
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.add_watch"><code class="name flex">
+<span>def <span class="ident">add_watch</span></span>(<span>self, literal: int, thread_id: Optional[int] = None) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add a watch for the solver literal in the given phase.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The solver literal to watch.</dd>
+<dt><strong><code>thread_id</code></strong></dt>
+<dd>The id of the thread to watch the literal. If the is <code>None</code> then
+all active threads will watch the literal.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_watch(self, literal: int, thread_id: Optional[int] = None) -&gt; None:
+    &#34;&#34;&#34;
+    Add a watch for the solver literal in the given phase.
+
+    Parameters
+    ----------
+    literal
+        The solver literal to watch.
+    thread_id
+        The id of the thread to watch the literal. If the is `None` then
+        all active threads will watch the literal.
+    &#34;&#34;&#34;
+    if thread_id is None:
+        _handle_error(_lib.clingo_propagate_init_add_watch(self._rep, literal))
+    else:
+        _handle_error(
+            _lib.clingo_propagate_init_add_watch_to_thread(
+                self._rep, literal, thread_id
+            )
+        )</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.add_weight_constraint"><code class="name flex">
+<span>def <span class="ident">add_weight_constraint</span></span>(<span>self, literal: int, literals: Sequence[Tuple[int, int]], bound: int, type_: int = 0, compare_equal: bool = False) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Statically adds a constraint of form</p>
+<pre><code>literal &lt;=&gt; { l=w | (l, w) in literals } &gt;= bound
+</code></pre>
+<p>to the solver.</p>
+<ul>
+<li>If <code>type_ &lt; 0</code>, then <code>&lt;=&gt;</code> is a left implication.</li>
+<li>If <code>type_ &gt; 0</code>, then <code>&lt;=&gt;</code> is a right implication.</li>
+<li>Otherwise, <code>&lt;=&gt;</code> is an equivalence.</li>
+</ul>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The literal associated with the constraint.</dd>
+<dt><strong><code>literals</code></strong></dt>
+<dd>The weighted literals of the constraint.</dd>
+<dt><strong><code>bound</code></strong></dt>
+<dd>The bound of the constraint.</dd>
+<dt><strong><code>type_</code></strong></dt>
+<dd>Add a weight constraint of the given type_.</dd>
+<dt><strong><code>compare_equal</code></strong></dt>
+<dd>A Boolean indicating whether to compare equal or less than equal.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Returns false if the program became unsatisfiable.</p>
+<h2 id="notes">Notes</h2>
+<p>If this function returns false, initialization should be stopped and no further
+functions of the <code><a title="clingo.propagator.PropagateInit" href="#clingo.propagator.PropagateInit">PropagateInit</a></code> and related objects should be called.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_weight_constraint(
+    self,
+    literal: int,
+    literals: Sequence[Tuple[int, int]],
+    bound: int,
+    type_: int = 0,
+    compare_equal: bool = False,
+) -&gt; bool:
+    &#34;&#34;&#34;
+    Statically adds a constraint of form
+
+        literal &lt;=&gt; { l=w | (l, w) in literals } &gt;= bound
+
+    to the solver.
+
+    - If `type_ &lt; 0`, then `&lt;=&gt;` is a left implication.
+    - If `type_ &gt; 0`, then `&lt;=&gt;` is a right implication.
+    - Otherwise, `&lt;=&gt;` is an equivalence.
+
+    Parameters
+    ----------
+    literal
+        The literal associated with the constraint.
+    literals
+        The weighted literals of the constraint.
+    bound
+        The bound of the constraint.
+    type_
+        Add a weight constraint of the given type_.
+    compare_equal
+        A Boolean indicating whether to compare equal or less than equal.
+
+    Returns
+    -------
+    Returns false if the program became unsatisfiable.
+
+    Notes
+    -----
+    If this function returns false, initialization should be stopped and no further
+    functions of the `PropagateInit` and related objects should be called.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;bool&#34;,
+        _lib.clingo_propagate_init_add_weight_constraint,
+        self._rep,
+        literal,
+        literals,
+        len(literals),
+        bound,
+        type_,
+        compare_equal,
+    )</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.freeze_literal"><code class="name flex">
+<span>def <span class="ident">freeze_literal</span></span>(<span>self, literal: int) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Freeze the given solver literal.</p>
+<p>Any solver literal that is not frozen is subject to simplification and
+might be removed in a preprocessing step after propagator
+initialization. A propagator should freeze all literals over which it
+might add clauses during propagation. Note that any watched literal is
+automatically frozen and that it does not matter which phase of the
+literal is frozen.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The solver literal to freeze.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def freeze_literal(self, literal: int) -&gt; None:
+    &#34;&#34;&#34;
+    Freeze the given solver literal.
+
+    Any solver literal that is not frozen is subject to simplification and
+    might be removed in a preprocessing step after propagator
+    initialization. A propagator should freeze all literals over which it
+    might add clauses during propagation. Note that any watched literal is
+    automatically frozen and that it does not matter which phase of the
+    literal is frozen.
+
+    Parameters
+    ----------
+    literal
+        The solver literal to freeze.
+    &#34;&#34;&#34;
+    _handle_error(_lib.clingo_propagate_init_freeze_literal(self._rep, literal))</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.propagate"><code class="name flex">
+<span>def <span class="ident">propagate</span></span>(<span>self) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Propagates consequences of the underlying problem excluding registered
+propagators.</p>
+<h2 id="returns">Returns</h2>
+<p>Returns false if the program becomes unsatisfiable.</p>
+<h2 id="notes">Notes</h2>
+<p>This function has no effect if SAT-preprocessing is enabled.</p>
+<p>If this function returns false, initialization should be stopped and no
+further functions of the <code><a title="clingo.propagator.PropagateInit" href="#clingo.propagator.PropagateInit">PropagateInit</a></code> and related objects should be
+called.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def propagate(self) -&gt; bool:
+    &#34;&#34;&#34;
+    Propagates consequences of the underlying problem excluding registered
+    propagators.
+
+    Returns
+    -------
+    Returns false if the program becomes unsatisfiable.
+
+    Notes
+    -----
+    This function has no effect if SAT-preprocessing is enabled.
+
+    If this function returns false, initialization should be stopped and no
+    further functions of the `PropagateInit` and related objects should be
+    called.
+    &#34;&#34;&#34;
+    return _c_call(&#34;bool&#34;, _lib.clingo_propagate_init_propagate, self._rep)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.remove_watch"><code class="name flex">
+<span>def <span class="ident">remove_watch</span></span>(<span>self, literal: int, thread_id: Optional[int] = None) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Remove the watch for the solver literal in the given phase.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>The solver literal to remove the watch from.</dd>
+<dt><strong><code>thread_id</code></strong></dt>
+<dd>The id of the thread from which to remove the watch. If the is <code>None</code>, then
+the watch is removed from all active threads.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_watch(self, literal: int, thread_id: Optional[int] = None) -&gt; None:
+    &#34;&#34;&#34;
+    Remove the watch for the solver literal in the given phase.
+
+    Parameters
+    ----------
+    literal
+        The solver literal to remove the watch from.
+    thread_id
+        The id of the thread from which to remove the watch. If the is `None`, then
+        the watch is removed from all active threads.
+    &#34;&#34;&#34;
+    if thread_id is None:
+        _handle_error(_lib.clingo_propagate_init_remove_watch(self._rep, literal))
+    else:
+        _handle_error(
+            _lib.clingo_propagate_init_remove_watch_from_thread(
+                self._rep, literal, thread_id
+            )
+        )</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.PropagateInit.solver_literal"><code class="name flex">
+<span>def <span class="ident">solver_literal</span></span>(<span>self, literal: int) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Maps the given program literal or condition id to its solver literal.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literal</code></strong></dt>
+<dd>A program literal or condition id.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A solver literal.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def solver_literal(self, literal: int) -&gt; int:
+    &#34;&#34;&#34;
+    Maps the given program literal or condition id to its solver literal.
+
+    Parameters
+    ----------
+    literal
+        A program literal or condition id.
+
+    Returns
+    -------
+    A solver literal.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;clingo_literal_t&#34;,
+        _lib.clingo_propagate_init_solver_literal,
+        self._rep,
+        literal,
+    )</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.propagator.Propagator"><code class="flex name class">
+<span>class <span class="ident">Propagator</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Propagator interface for custom constraints.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.control.Control.register_propagator" href="control.html#clingo.control.Control.register_propagator">Control.register_propagator()</a></code></p>
+<h2 id="notes">Notes</h2>
+<p>Not all functions of the <code><a title="clingo.propagator.Propagator" href="#clingo.propagator.Propagator">Propagator</a></code> interface have to be implemented and
+can be omitted if not needed.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Propagator(metaclass=ABCMeta):
+    &#34;&#34;&#34;
+    Propagator interface for custom constraints.
+
+    See Also
+    --------
+    clingo.control.Control.register_propagator
+
+    Notes
+    -----
+    Not all functions of the `Propagator` interface have to be implemented and
+    can be omitted if not needed.
+    &#34;&#34;&#34;
+
+    def init(self, init: PropagateInit) -&gt; None:
+        &#34;&#34;&#34;
+        This function is called once before each solving step.
+
+        It is used to map relevant program literals to solver literals, add
+        watches for solver literals, and initialize the data structures used
+        during propagation.
+
+        Parameters
+        ----------
+        init
+            Object to initialize the propagator.
+
+        Notes
+        -----
+        This is the last point to access theory atoms.  Once the search has
+        started, they are no longer accessible.
+        &#34;&#34;&#34;
+
+    def propagate(self, control: PropagateControl, changes: Sequence[int]) -&gt; None:
+        &#34;&#34;&#34;
+        Can be used to propagate solver literals given a partial assignment.
+
+        Parameters
+        ----------
+        control
+            Object to control propagation.
+        changes
+            List of watched solver literals assigned to true.
+
+        Notes
+        -----
+        Called during propagation with a non-empty list of watched solver
+        literals that have been assigned to true since the last call to either
+        propagate, undo, (or the start of the search) - the change set. Only
+        watched solver literals are contained in the change set. Each literal
+        in the change set is true w.r.t. the current Assignment.
+        `PropagateControl.add_clause` can be used to add clauses. If a clause
+        is unit resulting, it can be propagated using
+        `PropagateControl.propagate`. If either of the two methods returns
+        False, the propagate function must return immediately.
+
+            c = ...
+            if not control.add_clause(c) or not control.propagate(c):
+                return
+
+        Note that this function can be called from different solving threads.
+        Each thread has its own assignment and id, which can be obtained using
+        `PropagateControl.thread_id`.
+        &#34;&#34;&#34;
+
+    def undo(
+        self, thread_id: int, assignment: Assignment, changes: Sequence[int]
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Called whenever a solver with the given id undos assignments to watched
+        solver literals.
+
+        Parameters
+        ----------
+        thread_id
+            The solver thread id.
+        assignment
+            Object for inspecting the partial assignment of the solver.
+        changes
+            The list of watched solver literals whose assignment is undone.
+
+        Notes
+        -----
+        This function is meant to update assignment dependent state in a
+        propagator but not to modify the current state of the solver.
+        Furthermore, errors raised in the function lead to program termination.
+        &#34;&#34;&#34;
+
+    def check(self, control: PropagateControl) -&gt; None:
+        &#34;&#34;&#34;
+        This function is similar to propagate but is called without a change
+        set on propagation fixpoints.
+
+        When exactly this function is called, can be configured using the @ref
+        PropagateInit.check_mode property.
+
+        Parameters
+        ----------
+        control
+            Object to control propagation.
+
+        Notes
+        -----
+        This function is called even if no watches have been added.
+        &#34;&#34;&#34;
+
+    def decide(self, thread_id: int, assignment: Assignment, fallback: int) -&gt; int:
+        &#34;&#34;&#34;
+        This function allows a propagator to implement domain-specific
+        heuristics.
+
+        It is called whenever propagation reaches a fixed point.
+
+        Parameters
+        ----------
+        thread_id
+            The solver thread id.
+        assignment
+            Object for inspecting the partial assignment of the solver.
+        fallback
+            The literal choosen by the solver&#39;s heuristic.
+
+        Returns
+        -------
+        Тhe next solver literal to make true.
+
+        Notes
+        -----
+        This function should return a free solver literal that is to be
+        assigned true. In case multiple propagators are registered, this
+        function can return 0 to let a propagator registered later make a
+        decision. If all propagators return 0, then the fallback literal is
+        used.
+        &#34;&#34;&#34;
+        # pylint: disable=unused-argument
+        return fallback</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.propagator.Propagator.check"><code class="name flex">
+<span>def <span class="ident">check</span></span>(<span>self, control: <a title="clingo.propagator.PropagateControl" href="#clingo.propagator.PropagateControl">PropagateControl</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function is similar to propagate but is called without a change
+set on propagation fixpoints.</p>
+<p>When exactly this function is called, can be configured using the @ref
+PropagateInit.check_mode property.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>control</code></strong></dt>
+<dd>Object to control propagation.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>This function is called even if no watches have been added.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def check(self, control: PropagateControl) -&gt; None:
+    &#34;&#34;&#34;
+    This function is similar to propagate but is called without a change
+    set on propagation fixpoints.
+
+    When exactly this function is called, can be configured using the @ref
+    PropagateInit.check_mode property.
+
+    Parameters
+    ----------
+    control
+        Object to control propagation.
+
+    Notes
+    -----
+    This function is called even if no watches have been added.
+    &#34;&#34;&#34;</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Propagator.decide"><code class="name flex">
+<span>def <span class="ident">decide</span></span>(<span>self, thread_id: int, assignment: <a title="clingo.propagator.Assignment" href="#clingo.propagator.Assignment">Assignment</a>, fallback: int) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function allows a propagator to implement domain-specific
+heuristics.</p>
+<p>It is called whenever propagation reaches a fixed point.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>thread_id</code></strong></dt>
+<dd>The solver thread id.</dd>
+<dt><strong><code>assignment</code></strong></dt>
+<dd>Object for inspecting the partial assignment of the solver.</dd>
+<dt><strong><code>fallback</code></strong></dt>
+<dd>The literal choosen by the solver's heuristic.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Тhe next solver literal to make true.</p>
+<h2 id="notes">Notes</h2>
+<p>This function should return a free solver literal that is to be
+assigned true. In case multiple propagators are registered, this
+function can return 0 to let a propagator registered later make a
+decision. If all propagators return 0, then the fallback literal is
+used.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def decide(self, thread_id: int, assignment: Assignment, fallback: int) -&gt; int:
+    &#34;&#34;&#34;
+    This function allows a propagator to implement domain-specific
+    heuristics.
+
+    It is called whenever propagation reaches a fixed point.
+
+    Parameters
+    ----------
+    thread_id
+        The solver thread id.
+    assignment
+        Object for inspecting the partial assignment of the solver.
+    fallback
+        The literal choosen by the solver&#39;s heuristic.
+
+    Returns
+    -------
+    Тhe next solver literal to make true.
+
+    Notes
+    -----
+    This function should return a free solver literal that is to be
+    assigned true. In case multiple propagators are registered, this
+    function can return 0 to let a propagator registered later make a
+    decision. If all propagators return 0, then the fallback literal is
+    used.
+    &#34;&#34;&#34;
+    # pylint: disable=unused-argument
+    return fallback</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Propagator.init"><code class="name flex">
+<span>def <span class="ident">init</span></span>(<span>self, init: <a title="clingo.propagator.PropagateInit" href="#clingo.propagator.PropagateInit">PropagateInit</a>) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function is called once before each solving step.</p>
+<p>It is used to map relevant program literals to solver literals, add
+watches for solver literals, and initialize the data structures used
+during propagation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>init</code></strong></dt>
+<dd>Object to initialize the propagator.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>This is the last point to access theory atoms.
+Once the search has
+started, they are no longer accessible.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def init(self, init: PropagateInit) -&gt; None:
+    &#34;&#34;&#34;
+    This function is called once before each solving step.
+
+    It is used to map relevant program literals to solver literals, add
+    watches for solver literals, and initialize the data structures used
+    during propagation.
+
+    Parameters
+    ----------
+    init
+        Object to initialize the propagator.
+
+    Notes
+    -----
+    This is the last point to access theory atoms.  Once the search has
+    started, they are no longer accessible.
+    &#34;&#34;&#34;</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Propagator.propagate"><code class="name flex">
+<span>def <span class="ident">propagate</span></span>(<span>self, control: <a title="clingo.propagator.PropagateControl" href="#clingo.propagator.PropagateControl">PropagateControl</a>, changes: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Can be used to propagate solver literals given a partial assignment.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>control</code></strong></dt>
+<dd>Object to control propagation.</dd>
+<dt><strong><code>changes</code></strong></dt>
+<dd>List of watched solver literals assigned to true.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>Called during propagation with a non-empty list of watched solver
+literals that have been assigned to true since the last call to either
+propagate, undo, (or the start of the search) - the change set. Only
+watched solver literals are contained in the change set. Each literal
+in the change set is true w.r.t. the current Assignment.
+<code><a title="clingo.propagator.PropagateControl.add_clause" href="#clingo.propagator.PropagateControl.add_clause">PropagateControl.add_clause()</a></code> can be used to add clauses. If a clause
+is unit resulting, it can be propagated using
+<code><a title="clingo.propagator.PropagateControl.propagate" href="#clingo.propagator.PropagateControl.propagate">PropagateControl.propagate()</a></code>. If either of the two methods returns
+False, the propagate function must return immediately.</p>
+<pre><code>c = ...
+if not control.add_clause(c) or not control.propagate(c):
+    return
+</code></pre>
+<p>Note that this function can be called from different solving threads.
+Each thread has its own assignment and id, which can be obtained using
+<code><a title="clingo.propagator.PropagateControl.thread_id" href="#clingo.propagator.PropagateControl.thread_id">PropagateControl.thread_id</a></code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def propagate(self, control: PropagateControl, changes: Sequence[int]) -&gt; None:
+    &#34;&#34;&#34;
+    Can be used to propagate solver literals given a partial assignment.
+
+    Parameters
+    ----------
+    control
+        Object to control propagation.
+    changes
+        List of watched solver literals assigned to true.
+
+    Notes
+    -----
+    Called during propagation with a non-empty list of watched solver
+    literals that have been assigned to true since the last call to either
+    propagate, undo, (or the start of the search) - the change set. Only
+    watched solver literals are contained in the change set. Each literal
+    in the change set is true w.r.t. the current Assignment.
+    `PropagateControl.add_clause` can be used to add clauses. If a clause
+    is unit resulting, it can be propagated using
+    `PropagateControl.propagate`. If either of the two methods returns
+    False, the propagate function must return immediately.
+
+        c = ...
+        if not control.add_clause(c) or not control.propagate(c):
+            return
+
+    Note that this function can be called from different solving threads.
+    Each thread has its own assignment and id, which can be obtained using
+    `PropagateControl.thread_id`.
+    &#34;&#34;&#34;</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Propagator.undo"><code class="name flex">
+<span>def <span class="ident">undo</span></span>(<span>self, thread_id: int, assignment: <a title="clingo.propagator.Assignment" href="#clingo.propagator.Assignment">Assignment</a>, changes: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Called whenever a solver with the given id undos assignments to watched
+solver literals.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>thread_id</code></strong></dt>
+<dd>The solver thread id.</dd>
+<dt><strong><code>assignment</code></strong></dt>
+<dd>Object for inspecting the partial assignment of the solver.</dd>
+<dt><strong><code>changes</code></strong></dt>
+<dd>The list of watched solver literals whose assignment is undone.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>This function is meant to update assignment dependent state in a
+propagator but not to modify the current state of the solver.
+Furthermore, errors raised in the function lead to program termination.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def undo(
+    self, thread_id: int, assignment: Assignment, changes: Sequence[int]
+) -&gt; None:
+    &#34;&#34;&#34;
+    Called whenever a solver with the given id undos assignments to watched
+    solver literals.
+
+    Parameters
+    ----------
+    thread_id
+        The solver thread id.
+    assignment
+        Object for inspecting the partial assignment of the solver.
+    changes
+        The list of watched solver literals whose assignment is undone.
+
+    Notes
+    -----
+    This function is meant to update assignment dependent state in a
+    propagator but not to modify the current state of the solver.
+    Furthermore, errors raised in the function lead to program termination.
+    &#34;&#34;&#34;</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.propagator.PropagatorCheckMode"><code class="flex name class">
+<span>class <span class="ident">PropagatorCheckMode</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Enumeration of supported check modes for propagators.</p>
+<p>Note that total checks are subject to the lock when a model is found. This
+means that information from previously found models can be used to discard
+assignments in check calls.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PropagatorCheckMode(OrderedEnum):
+    &#34;&#34;&#34;
+    Enumeration of supported check modes for propagators.
+
+    Note that total checks are subject to the lock when a model is found. This
+    means that information from previously found models can be used to discard
+    assignments in check calls.
+    &#34;&#34;&#34;
+
+    Both = _lib.clingo_propagator_check_mode_both
+    &#34;&#34;&#34;
+    Call `Propagator.check` on propagation fixpoints and total assignments.
+    &#34;&#34;&#34;
+    Fixpoint = _lib.clingo_propagator_check_mode_fixpoint
+    &#34;&#34;&#34;
+    Call `Propagator.check` on propagation fixpoints.
+    &#34;&#34;&#34;
+    Off = _lib.clingo_propagator_check_mode_none
+    &#34;&#34;&#34;
+    Do not call `Propagator.check` at all.
+    &#34;&#34;&#34;
+    Total = _lib.clingo_propagator_check_mode_total
+    &#34;&#34;&#34;
+    Call `Propagator.check` on total assignments.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.core.OrderedEnum" href="core.html#clingo.core.OrderedEnum">OrderedEnum</a></li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="clingo.propagator.PropagatorCheckMode.Both"><code class="name">var <span class="ident">Both</span></code></dt>
+<dd>
+<div class="desc"><p>Call <code><a title="clingo.propagator.Propagator.check" href="#clingo.propagator.Propagator.check">Propagator.check()</a></code> on propagation fixpoints and total assignments.</p></div>
+</dd>
+<dt id="clingo.propagator.PropagatorCheckMode.Fixpoint"><code class="name">var <span class="ident">Fixpoint</span></code></dt>
+<dd>
+<div class="desc"><p>Call <code><a title="clingo.propagator.Propagator.check" href="#clingo.propagator.Propagator.check">Propagator.check()</a></code> on propagation fixpoints.</p></div>
+</dd>
+<dt id="clingo.propagator.PropagatorCheckMode.Off"><code class="name">var <span class="ident">Off</span></code></dt>
+<dd>
+<div class="desc"><p>Do not call <code><a title="clingo.propagator.Propagator.check" href="#clingo.propagator.Propagator.check">Propagator.check()</a></code> at all.</p></div>
+</dd>
+<dt id="clingo.propagator.PropagatorCheckMode.Total"><code class="name">var <span class="ident">Total</span></code></dt>
+<dd>
+<div class="desc"><p>Call <code><a title="clingo.propagator.Propagator.check" href="#clingo.propagator.Propagator.check">Propagator.check()</a></code> on total assignments.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.propagator.PropagatorUndoMode"><code class="flex name class">
+<span>class <span class="ident">PropagatorUndoMode</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Enumeration of supported check modes for propagators.</p>
+<p>Note that total checks are subject to the lock when a model is found. This
+means that information from previously found models can be used to discard
+assignments in check calls.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PropagatorUndoMode(OrderedEnum):
+    &#34;&#34;&#34;
+    Enumeration of supported check modes for propagators.
+
+    Note that total checks are subject to the lock when a model is found. This
+    means that information from previously found models can be used to discard
+    assignments in check calls.
+    &#34;&#34;&#34;
+
+    Default = _lib.clingo_propagator_undo_mode_default
+    &#34;&#34;&#34;
+    Call `Propagator.undo` for decision levels with non-emty changes.
+    &#34;&#34;&#34;
+    Always = _lib.clingo_propagator_undo_mode_always
+    &#34;&#34;&#34;
+    Also call `Propagator.undo` when check has been called.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.core.OrderedEnum" href="core.html#clingo.core.OrderedEnum">OrderedEnum</a></li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="clingo.propagator.PropagatorUndoMode.Always"><code class="name">var <span class="ident">Always</span></code></dt>
+<dd>
+<div class="desc"><p>Also call <code><a title="clingo.propagator.Propagator.undo" href="#clingo.propagator.Propagator.undo">Propagator.undo()</a></code> when check has been called.</p></div>
+</dd>
+<dt id="clingo.propagator.PropagatorUndoMode.Default"><code class="name">var <span class="ident">Default</span></code></dt>
+<dd>
+<div class="desc"><p>Call <code><a title="clingo.propagator.Propagator.undo" href="#clingo.propagator.Propagator.undo">Propagator.undo()</a></code> for decision levels with non-emty changes.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.propagator.Trail"><code class="flex name class">
+<span>class <span class="ident">Trail</span></span>
+<span>(</span><span>rep)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Class to access literals assigned by the solver in chronological order.</p>
+<p>Literals in the trail are ordered by decision levels, where the first
+literal with a larger level than the previous literals is a decision; the
+following literals with same level are implied by this decision literal.
+Each decision level up to and including the current decision level has a
+valid offset in the trail.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Trail(Sequence[int]):
+    &#34;&#34;&#34;
+    Class to access literals assigned by the solver in chronological order.
+
+    Literals in the trail are ordered by decision levels, where the first
+    literal with a larger level than the previous literals is a decision; the
+    following literals with same level are implied by this decision literal.
+    Each decision level up to and including the current decision level has a
+    valid offset in the trail.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep):
+        self._rep = rep
+
+    def __len__(self):
+        return _c_call(&#34;uint32_t&#34;, _lib.clingo_assignment_trail_size, self._rep)
+
+    def __getitem__(self, slc):
+        if isinstance(slc, slice):
+            return SlicedSequence(self, Slice(slc))
+        if slc &lt; 0:
+            slc += len(self)
+        if slc &lt; 0 or slc &gt;= len(self):
+            raise IndexError(&#34;invalid index&#34;)
+        return _c_call(
+            &#34;clingo_literal_t&#34;, _lib.clingo_assignment_trail_at, self._rep, slc
+        )
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield _c_call(
+                &#34;clingo_literal_t&#34;, _lib.clingo_assignment_trail_at, self._rep, i
+            )
+
+    def begin(self, level: int) -&gt; int:
+        &#34;&#34;&#34;
+        Returns the offset of the decision literal with the given decision
+        level in the trail.
+
+        Parameters
+        ----------
+        level
+            The decision level.
+        &#34;&#34;&#34;
+        return _c_call(&#34;uint32_t&#34;, _lib.clingo_assignment_trail_begin, self._rep, level)
+
+    def end(self, level: int) -&gt; int:
+        &#34;&#34;&#34;
+        Returns the offset following the last literal with the given decision
+        literal in the trail.
+
+        Parameters
+        ----------
+        level
+            The decision level.
+        &#34;&#34;&#34;
+        return _c_call(&#34;uint32_t&#34;, _lib.clingo_assignment_trail_end, self._rep, level)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>collections.abc.Sequence</li>
+<li>collections.abc.Reversible</li>
+<li>collections.abc.Collection</li>
+<li>collections.abc.Sized</li>
+<li>collections.abc.Iterable</li>
+<li>collections.abc.Container</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.propagator.Trail.begin"><code class="name flex">
+<span>def <span class="ident">begin</span></span>(<span>self, level: int) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns the offset of the decision literal with the given decision
+level in the trail.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>level</code></strong></dt>
+<dd>The decision level.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def begin(self, level: int) -&gt; int:
+    &#34;&#34;&#34;
+    Returns the offset of the decision literal with the given decision
+    level in the trail.
+
+    Parameters
+    ----------
+    level
+        The decision level.
+    &#34;&#34;&#34;
+    return _c_call(&#34;uint32_t&#34;, _lib.clingo_assignment_trail_begin, self._rep, level)</code></pre>
+</details>
+</dd>
+<dt id="clingo.propagator.Trail.end"><code class="name flex">
+<span>def <span class="ident">end</span></span>(<span>self, level: int) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns the offset following the last literal with the given decision
+literal in the trail.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>level</code></strong></dt>
+<dd>The decision level.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def end(self, level: int) -&gt; int:
+    &#34;&#34;&#34;
+    Returns the offset following the last literal with the given decision
+    literal in the trail.
+
+    Parameters
+    ----------
+    level
+        The decision level.
+    &#34;&#34;&#34;
+    return _c_call(&#34;uint32_t&#34;, _lib.clingo_assignment_trail_end, self._rep, level)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo" href="index.html">clingo</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.propagator.Assignment" href="#clingo.propagator.Assignment">Assignment</a></code></h4>
+<ul class="two-column">
+<li><code><a title="clingo.propagator.Assignment.decision" href="#clingo.propagator.Assignment.decision">decision</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.decision_level" href="#clingo.propagator.Assignment.decision_level">decision_level</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.has_conflict" href="#clingo.propagator.Assignment.has_conflict">has_conflict</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.has_literal" href="#clingo.propagator.Assignment.has_literal">has_literal</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.is_false" href="#clingo.propagator.Assignment.is_false">is_false</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.is_fixed" href="#clingo.propagator.Assignment.is_fixed">is_fixed</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.is_free" href="#clingo.propagator.Assignment.is_free">is_free</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.is_total" href="#clingo.propagator.Assignment.is_total">is_total</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.is_true" href="#clingo.propagator.Assignment.is_true">is_true</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.level" href="#clingo.propagator.Assignment.level">level</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.root_level" href="#clingo.propagator.Assignment.root_level">root_level</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.trail" href="#clingo.propagator.Assignment.trail">trail</a></code></li>
+<li><code><a title="clingo.propagator.Assignment.value" href="#clingo.propagator.Assignment.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.propagator.PropagateControl" href="#clingo.propagator.PropagateControl">PropagateControl</a></code></h4>
+<ul class="two-column">
+<li><code><a title="clingo.propagator.PropagateControl.add_clause" href="#clingo.propagator.PropagateControl.add_clause">add_clause</a></code></li>
+<li><code><a title="clingo.propagator.PropagateControl.add_literal" href="#clingo.propagator.PropagateControl.add_literal">add_literal</a></code></li>
+<li><code><a title="clingo.propagator.PropagateControl.add_nogood" href="#clingo.propagator.PropagateControl.add_nogood">add_nogood</a></code></li>
+<li><code><a title="clingo.propagator.PropagateControl.add_watch" href="#clingo.propagator.PropagateControl.add_watch">add_watch</a></code></li>
+<li><code><a title="clingo.propagator.PropagateControl.assignment" href="#clingo.propagator.PropagateControl.assignment">assignment</a></code></li>
+<li><code><a title="clingo.propagator.PropagateControl.has_watch" href="#clingo.propagator.PropagateControl.has_watch">has_watch</a></code></li>
+<li><code><a title="clingo.propagator.PropagateControl.propagate" href="#clingo.propagator.PropagateControl.propagate">propagate</a></code></li>
+<li><code><a title="clingo.propagator.PropagateControl.remove_watch" href="#clingo.propagator.PropagateControl.remove_watch">remove_watch</a></code></li>
+<li><code><a title="clingo.propagator.PropagateControl.thread_id" href="#clingo.propagator.PropagateControl.thread_id">thread_id</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.propagator.PropagateInit" href="#clingo.propagator.PropagateInit">PropagateInit</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.propagator.PropagateInit.add_clause" href="#clingo.propagator.PropagateInit.add_clause">add_clause</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.add_literal" href="#clingo.propagator.PropagateInit.add_literal">add_literal</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.add_minimize" href="#clingo.propagator.PropagateInit.add_minimize">add_minimize</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.add_watch" href="#clingo.propagator.PropagateInit.add_watch">add_watch</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.add_weight_constraint" href="#clingo.propagator.PropagateInit.add_weight_constraint">add_weight_constraint</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.assignment" href="#clingo.propagator.PropagateInit.assignment">assignment</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.check_mode" href="#clingo.propagator.PropagateInit.check_mode">check_mode</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.freeze_literal" href="#clingo.propagator.PropagateInit.freeze_literal">freeze_literal</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.number_of_threads" href="#clingo.propagator.PropagateInit.number_of_threads">number_of_threads</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.propagate" href="#clingo.propagator.PropagateInit.propagate">propagate</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.remove_watch" href="#clingo.propagator.PropagateInit.remove_watch">remove_watch</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.solver_literal" href="#clingo.propagator.PropagateInit.solver_literal">solver_literal</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.symbolic_atoms" href="#clingo.propagator.PropagateInit.symbolic_atoms">symbolic_atoms</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.theory_atoms" href="#clingo.propagator.PropagateInit.theory_atoms">theory_atoms</a></code></li>
+<li><code><a title="clingo.propagator.PropagateInit.undo_mode" href="#clingo.propagator.PropagateInit.undo_mode">undo_mode</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.propagator.Propagator" href="#clingo.propagator.Propagator">Propagator</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.propagator.Propagator.check" href="#clingo.propagator.Propagator.check">check</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.decide" href="#clingo.propagator.Propagator.decide">decide</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.init" href="#clingo.propagator.Propagator.init">init</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.propagate" href="#clingo.propagator.Propagator.propagate">propagate</a></code></li>
+<li><code><a title="clingo.propagator.Propagator.undo" href="#clingo.propagator.Propagator.undo">undo</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.propagator.PropagatorCheckMode" href="#clingo.propagator.PropagatorCheckMode">PropagatorCheckMode</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.propagator.PropagatorCheckMode.Both" href="#clingo.propagator.PropagatorCheckMode.Both">Both</a></code></li>
+<li><code><a title="clingo.propagator.PropagatorCheckMode.Fixpoint" href="#clingo.propagator.PropagatorCheckMode.Fixpoint">Fixpoint</a></code></li>
+<li><code><a title="clingo.propagator.PropagatorCheckMode.Off" href="#clingo.propagator.PropagatorCheckMode.Off">Off</a></code></li>
+<li><code><a title="clingo.propagator.PropagatorCheckMode.Total" href="#clingo.propagator.PropagatorCheckMode.Total">Total</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.propagator.PropagatorUndoMode" href="#clingo.propagator.PropagatorUndoMode">PropagatorUndoMode</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.propagator.PropagatorUndoMode.Always" href="#clingo.propagator.PropagatorUndoMode.Always">Always</a></code></li>
+<li><code><a title="clingo.propagator.PropagatorUndoMode.Default" href="#clingo.propagator.PropagatorUndoMode.Default">Default</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.propagator.Trail" href="#clingo.propagator.Trail">Trail</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.propagator.Trail.begin" href="#clingo.propagator.Trail.begin">begin</a></code></li>
+<li><code><a title="clingo.propagator.Trail.end" href="#clingo.propagator.Trail.end">end</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>

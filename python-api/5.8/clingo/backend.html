@@ -1,0 +1,2435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>clingo.backend API documentation</title>
+<meta name="description" content="Functions and classes to observe or add ground statements …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<nav class="http-server-breadcrumbs">
+<a href="https://potassco.org/clingo/python-api/5.8/">All packages</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/">clingo</a>
+</nav>
+<h1 class="title">Module <code>clingo.backend</code></h1>
+</header>
+<section id="section-intro">
+<p>Functions and classes to observe or add ground statements.</p>
+<h2 id="examples">Examples</h2>
+<p>The following example shows how to add a fact to a program via the backend and
+observe the corresponding rule passed to the backend:</p>
+<pre><code>&gt;&gt;&gt; from clingo.symbol import Function
+&gt;&gt;&gt; from clingo.control import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; class Observer:
+...     def rule(self, choice, head, body):
+...         print("rule:", choice, head, body)
+...
+&gt;&gt;&gt; ctl = Control()
+&gt;&gt;&gt; ctl.register_observer(Observer())
+&gt;&gt;&gt;
+&gt;&gt;&gt; sym_a = Function("a")
+&gt;&gt;&gt; with ctl.backend() as backend:
+...     atm_a = backend.add_atom(sym_a)
+...     backend.add_rule([atm_a])
+...
+rule: False [1] []
+&gt;&gt;&gt; ctl.symbolic_atoms[sym_a].is_fact
+True
+&gt;&gt;&gt;
+&gt;&gt;&gt; print(ctl.solve(on_model=print))
+a
+SAT
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.backend.Backend"><code class="flex name class">
+<span>class <span class="ident">Backend</span></span>
+<span>(</span><span>rep, error)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Backend(ContextManager[&#34;Backend&#34;]):
+    &#34;&#34;&#34;
+    Backend object providing a low level interface to extend a logic program.
+
+    This class allows for adding statements in ASPIF format.
+
+    See Also
+    --------
+    clingo.control.Control.backend
+
+    Notes
+    -----
+    The `Backend` is a context manager and must be used with Python&#39;s `with`
+    statement.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep, error):
+        self._rep = rep
+        self._error = error
+
+    def __enter__(self):
+        self._error.clear()
+        _handle_error(_lib.clingo_backend_begin(self._rep), handler=self._error)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._error.clear()
+        _handle_error(_lib.clingo_backend_end(self._rep), handler=self._error)
+        return False
+
+    def add_acyc_edge(self, node_u: int, node_v: int, condition: Sequence[int]) -&gt; None:
+        &#34;&#34;&#34;
+        Add an edge directive to the program.
+
+        Parameters
+        ----------
+        node_u
+            The start node represented as an unsigned integer.
+        node_v
+            The end node represented as an unsigned integer.
+        condition
+            List of program literals.
+        &#34;&#34;&#34;
+        _handle_error(
+            _lib.clingo_backend_acyc_edge(
+                self._rep, node_u, node_v, condition, len(condition)
+            )
+        )
+
+    def add_assume(self, literals: Sequence[int]) -&gt; None:
+        &#34;&#34;&#34;
+        Add assumptions to the program.
+
+        Parameters
+        ----------
+        literals
+            The list of literals to assume true.
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_backend_assume(self._rep, literals, len(literals)))
+
+    def add_atom(self, symbol: Optional[Symbol] = None) -&gt; int:
+        &#34;&#34;&#34;
+        Return a fresh program atom or the atom associated with the given symbol.
+
+        If the given symbol does not exist in the atom base, it is added first. Such
+        atoms will be used in subequents calls to ground for instantiation.
+
+        Parameters
+        ----------
+        symbol
+            The symbol associated with the atom.
+        Returns
+        -------
+        The program atom representing the atom.
+        &#34;&#34;&#34;
+        # pylint: disable=protected-access
+        if symbol is None:
+            p_sym = _ffi.NULL
+        else:
+            p_sym = _ffi.new(&#34;clingo_symbol_t*&#34;, symbol._rep)
+
+        self._error.clear()
+        return _c_call(
+            &#34;clingo_atom_t&#34;,
+            _lib.clingo_backend_add_atom,
+            self._rep,
+            p_sym,
+            handler=self._error,
+        )
+
+    def add_external(self, atom: int, value: TruthValue = TruthValue.False_) -&gt; None:
+        &#34;&#34;&#34;
+        Mark a program atom as external optionally fixing its truth value.
+
+        Parameters
+        ----------
+        atom
+            The program atom to mark as external.
+        value
+            Optional truth value.
+
+        Notes
+        -----
+        Can also be used to release an external atom using `TruthValue.Release`.
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_backend_external(self._rep, atom, value.value))
+
+    def add_heuristic(
+        self,
+        atom: int,
+        type_: HeuristicType,
+        bias: int,
+        priority: int,
+        condition: Sequence[int],
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Add a heuristic directive to the program.
+
+        Parameters
+        ----------
+        atom
+            Program atom to heuristically modify.
+        type_
+            The type of modification.
+        bias
+            A signed integer.
+        priority
+            An unsigned integer.
+        condition
+            List of program literals.
+        &#34;&#34;&#34;
+        _handle_error(
+            _lib.clingo_backend_heuristic(
+                self._rep, atom, type_.value, bias, priority, condition, len(condition)
+            )
+        )
+
+    def add_minimize(self, priority: int, literals: Sequence[Tuple[int, int]]) -&gt; None:
+        &#34;&#34;&#34;
+        Add a minimize constraint to the program.
+
+        Parameters
+        ----------
+        priority
+            Integer for the priority.
+        literals
+            List of pairs of program literals and weights.
+        &#34;&#34;&#34;
+        _handle_error(
+            _lib.clingo_backend_minimize(self._rep, priority, literals, len(literals))
+        )
+
+    def add_project(self, atoms: Sequence[int]) -&gt; None:
+        &#34;&#34;&#34;
+        Add a project statement to the program.
+
+        Parameters
+        ----------
+        atoms
+            List of program atoms to project on.
+        &#34;&#34;&#34;
+        _handle_error(_lib.clingo_backend_project(self._rep, atoms, len(atoms)))
+
+    def add_rule(
+        self, head: Sequence[int], body: Sequence[int] = [], choice: bool = False
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Add a disjuntive or choice rule to the program.
+
+        Parameters
+        ----------
+        head
+            The program atoms forming the rule head.
+        body
+            The program literals forming the rule body.
+        choice
+            Whether to add a disjunctive or choice rule.
+
+        Notes
+        -----
+        Integrity constraints and normal rules can be added by using an empty or
+        singleton head list, respectively.
+        &#34;&#34;&#34;
+        # pylint: disable=dangerous-default-value
+        _handle_error(
+            _lib.clingo_backend_rule(
+                self._rep, choice, head, len(head), body, len(body)
+            )
+        )
+
+    def add_weight_rule(
+        self,
+        head: Sequence[int],
+        lower: int,
+        body: Sequence[Tuple[int, int]],
+        choice: bool = False,
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Add a disjuntive or choice rule with one weight constraint with a lower bound
+        in the body to the program.
+
+        Parameters
+        ----------
+        head
+            The program atoms forming the rule head.
+        lower
+            The lower bound.
+        body
+            The pairs of program literals and weights forming the elements of the
+            weight constraint.
+        choice
+            Whether to add a disjunctive or choice rule.
+        &#34;&#34;&#34;
+        _handle_error(
+            _lib.clingo_backend_weight_rule(
+                self._rep, choice, head, len(head), lower, body, len(body)
+            )
+        )
+
+    def add_theory_term_number(self, number: int) -&gt; int:
+        &#34;&#34;&#34;
+        Add a numeric theory term.
+
+        Parameters
+        ----------
+        number
+            The value of the term.
+
+        Returns
+        -------
+        The id of the added term.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_id_t&#34;,
+            _lib.clingo_backend_theory_term_number,
+            self._rep,
+            number,
+            handler=self._error,
+        )
+
+    def add_theory_term_string(self, string: str) -&gt; int:
+        &#34;&#34;&#34;
+        Add a theory term representing a string.
+
+        Parameters
+        ----------
+        string
+            The value of the term.
+
+        Returns
+        -------
+        The id of the added term.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_id_t&#34;,
+            _lib.clingo_backend_theory_term_string,
+            self._rep,
+            string.encode(),
+            handler=self._error,
+        )
+
+    def add_theory_term_function(self, name: str, arguments: Sequence[int]) -&gt; int:
+        &#34;&#34;&#34;
+        Add a theory term representing a function.
+
+        Parameters
+        ----------
+        name
+            The name of the function.
+        arguments
+            Sequence of term ids for the function arguments.
+
+        Returns
+        -------
+        The id of the added term.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_id_t&#34;,
+            _lib.clingo_backend_theory_term_function,
+            self._rep,
+            name.encode(),
+            arguments,
+            len(arguments),
+            handler=self._error,
+        )
+
+    def add_theory_term_sequence(
+        self, sequence_type: TheorySequenceType, arguments: Sequence[int]
+    ) -&gt; int:
+        &#34;&#34;&#34;
+        Add a theory term representing a sequence of theory terms.
+
+        Parameters
+        ----------
+        sequence_type
+            The type of the sequence
+        arguments
+            Sequence of term ids for the function arguments.
+
+        Returns
+        -------
+        The id of the added term.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_id_t&#34;,
+            _lib.clingo_backend_theory_term_sequence,
+            self._rep,
+            sequence_type.value,
+            arguments,
+            len(arguments),
+            handler=self._error,
+        )
+
+    def add_theory_term_symbol(self, symbol: Symbol) -&gt; int:
+        &#34;&#34;&#34;
+        Create a theory term from a symbol.
+
+        Parameters
+        ----------
+        symbol
+            The symbol to convert.
+
+        Returns
+        -------
+        The id of the added term.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_id_t&#34;,
+            _lib.clingo_backend_theory_term_symbol,
+            self._rep,
+            symbol._rep,
+            handler=self._error,
+        )
+
+    def add_theory_element(self, terms: Sequence[int], condition: Sequence[int]) -&gt; int:
+        &#34;&#34;&#34;
+        Create a theory atom element.
+
+        Parameters
+        ----------
+        terms
+            A sequence of term ids.
+        condition
+            A sequence of program literals.
+
+        Returns
+        -------
+        The id of the added element.
+        &#34;&#34;&#34;
+        return _c_call(
+            &#34;clingo_id_t&#34;,
+            _lib.clingo_backend_theory_element,
+            self._rep,
+            terms,
+            len(terms),
+            condition,
+            len(condition),
+            handler=self._error,
+        )
+
+    def add_theory_atom(
+        self,
+        term_id: int,
+        elements: Sequence[int],
+        atom_id_or_zero: Optional[int] = None,
+    ) -&gt; int:
+        &#34;&#34;&#34;
+        Add a theory atom without a guard.
+
+        If no atom_id is given, a fresh atom id is assigned.
+
+        In case an atom id is given and an equivalent theory atom already
+        exists, the given atom id is ignored.
+
+        To declare a defined theory atom, a rule defining the program atom
+        should be added. Otherwise, the theory atom is considered an external
+        body occurrence.
+
+        Parameters
+        ----------
+        term_id
+            The id of the term associated with the theory atom.
+        elements
+            A sequence of ids of theory atom elements.
+        atom_id_or_zero
+            An optional program atom or zero for theory directives.
+        &#34;&#34;&#34;
+        if atom_id_or_zero is None:
+            atom_id_or_zero = 0xFFFFFFFF
+        return _c_call(
+            &#34;clingo_atom_t&#34;,
+            _lib.clingo_backend_theory_atom,
+            self._rep,
+            atom_id_or_zero,
+            term_id,
+            elements,
+            len(elements),
+            handler=self._error,
+        )
+
+    def add_theory_atom_with_guard(
+        self,
+        term_id: int,
+        elements: Sequence[int],
+        operator: str,
+        right_hand_side_id: int,
+        atom_id_or_zero: Optional[int] = None,
+    ) -&gt; int:
+        &#34;&#34;&#34;
+        Add a theory atom with a guard.
+
+        Parameters
+        ----------
+        term_id
+            The id of the term associated with the theory atom.
+        elements
+            A sequence of ids of theory atom elements.
+        operator
+            String representing a theory operator.
+        right_hand_side_id
+            Term id for the term on the right hand side.
+        atom_id_or_zero
+            A optional program atom or zero for theory directives.
+
+        See Also
+        --------
+        Backend.add_theory_atom
+        &#34;&#34;&#34;
+        if atom_id_or_zero is None:
+            atom_id_or_zero = 0xFFFFFFFF
+        return _c_call(
+            &#34;clingo_atom_t&#34;,
+            _lib.clingo_backend_theory_atom_with_guard,
+            self._rep,
+            atom_id_or_zero,
+            term_id,
+            elements,
+            len(elements),
+            operator.encode(),
+            right_hand_side_id,
+            handler=self._error,
+        )</code></pre>
+</details>
+<div class="desc"><p>Backend object providing a low level interface to extend a logic program.</p>
+<p>This class allows for adding statements in ASPIF format.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.control.Control.backend" href="control.html#clingo.control.Control.backend">Control.backend()</a></code></p>
+<h2 id="notes">Notes</h2>
+<p>The <code><a title="clingo.backend.Backend" href="#clingo.backend.Backend">Backend</a></code> is a context manager and must be used with Python's <code>with</code>
+statement.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>contextlib.AbstractContextManager</li>
+<li>abc.ABC</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.backend.Backend.add_acyc_edge"><code class="name flex">
+<span>def <span class="ident">add_acyc_edge</span></span>(<span>self, node_u: int, node_v: int, condition: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_acyc_edge(self, node_u: int, node_v: int, condition: Sequence[int]) -&gt; None:
+    &#34;&#34;&#34;
+    Add an edge directive to the program.
+
+    Parameters
+    ----------
+    node_u
+        The start node represented as an unsigned integer.
+    node_v
+        The end node represented as an unsigned integer.
+    condition
+        List of program literals.
+    &#34;&#34;&#34;
+    _handle_error(
+        _lib.clingo_backend_acyc_edge(
+            self._rep, node_u, node_v, condition, len(condition)
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Add an edge directive to the program.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>node_u</code></strong></dt>
+<dd>The start node represented as an unsigned integer.</dd>
+<dt><strong><code>node_v</code></strong></dt>
+<dd>The end node represented as an unsigned integer.</dd>
+<dt><strong><code>condition</code></strong></dt>
+<dd>List of program literals.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Backend.add_assume"><code class="name flex">
+<span>def <span class="ident">add_assume</span></span>(<span>self, literals: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_assume(self, literals: Sequence[int]) -&gt; None:
+    &#34;&#34;&#34;
+    Add assumptions to the program.
+
+    Parameters
+    ----------
+    literals
+        The list of literals to assume true.
+    &#34;&#34;&#34;
+    _handle_error(_lib.clingo_backend_assume(self._rep, literals, len(literals)))</code></pre>
+</details>
+<div class="desc"><p>Add assumptions to the program.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literals</code></strong></dt>
+<dd>The list of literals to assume true.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Backend.add_atom"><code class="name flex">
+<span>def <span class="ident">add_atom</span></span>(<span>self,<br>symbol: <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a> | None = None) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_atom(self, symbol: Optional[Symbol] = None) -&gt; int:
+    &#34;&#34;&#34;
+    Return a fresh program atom or the atom associated with the given symbol.
+
+    If the given symbol does not exist in the atom base, it is added first. Such
+    atoms will be used in subequents calls to ground for instantiation.
+
+    Parameters
+    ----------
+    symbol
+        The symbol associated with the atom.
+    Returns
+    -------
+    The program atom representing the atom.
+    &#34;&#34;&#34;
+    # pylint: disable=protected-access
+    if symbol is None:
+        p_sym = _ffi.NULL
+    else:
+        p_sym = _ffi.new(&#34;clingo_symbol_t*&#34;, symbol._rep)
+
+    self._error.clear()
+    return _c_call(
+        &#34;clingo_atom_t&#34;,
+        _lib.clingo_backend_add_atom,
+        self._rep,
+        p_sym,
+        handler=self._error,
+    )</code></pre>
+</details>
+<div class="desc"><p>Return a fresh program atom or the atom associated with the given symbol.</p>
+<p>If the given symbol does not exist in the atom base, it is added first. Such
+atoms will be used in subequents calls to ground for instantiation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>symbol</code></strong></dt>
+<dd>The symbol associated with the atom.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The program atom representing the atom.</p></div>
+</dd>
+<dt id="clingo.backend.Backend.add_external"><code class="name flex">
+<span>def <span class="ident">add_external</span></span>(<span>self,<br>atom: int,<br>value: <a title="clingo.core.TruthValue" href="core.html#clingo.core.TruthValue">TruthValue</a> = TruthValue.False_) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_external(self, atom: int, value: TruthValue = TruthValue.False_) -&gt; None:
+    &#34;&#34;&#34;
+    Mark a program atom as external optionally fixing its truth value.
+
+    Parameters
+    ----------
+    atom
+        The program atom to mark as external.
+    value
+        Optional truth value.
+
+    Notes
+    -----
+    Can also be used to release an external atom using `TruthValue.Release`.
+    &#34;&#34;&#34;
+    _handle_error(_lib.clingo_backend_external(self._rep, atom, value.value))</code></pre>
+</details>
+<div class="desc"><p>Mark a program atom as external optionally fixing its truth value.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atom</code></strong></dt>
+<dd>The program atom to mark as external.</dd>
+<dt><strong><code>value</code></strong></dt>
+<dd>Optional truth value.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>Can also be used to release an external atom using <code>TruthValue.Release</code>.</p></div>
+</dd>
+<dt id="clingo.backend.Backend.add_heuristic"><code class="name flex">
+<span>def <span class="ident">add_heuristic</span></span>(<span>self,<br>atom: int,<br>type_: <a title="clingo.backend.HeuristicType" href="#clingo.backend.HeuristicType">HeuristicType</a>,<br>bias: int,<br>priority: int,<br>condition: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_heuristic(
+    self,
+    atom: int,
+    type_: HeuristicType,
+    bias: int,
+    priority: int,
+    condition: Sequence[int],
+) -&gt; None:
+    &#34;&#34;&#34;
+    Add a heuristic directive to the program.
+
+    Parameters
+    ----------
+    atom
+        Program atom to heuristically modify.
+    type_
+        The type of modification.
+    bias
+        A signed integer.
+    priority
+        An unsigned integer.
+    condition
+        List of program literals.
+    &#34;&#34;&#34;
+    _handle_error(
+        _lib.clingo_backend_heuristic(
+            self._rep, atom, type_.value, bias, priority, condition, len(condition)
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a heuristic directive to the program.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atom</code></strong></dt>
+<dd>Program atom to heuristically modify.</dd>
+<dt><strong><code>type_</code></strong></dt>
+<dd>The type of modification.</dd>
+<dt><strong><code>bias</code></strong></dt>
+<dd>A signed integer.</dd>
+<dt><strong><code>priority</code></strong></dt>
+<dd>An unsigned integer.</dd>
+<dt><strong><code>condition</code></strong></dt>
+<dd>List of program literals.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Backend.add_minimize"><code class="name flex">
+<span>def <span class="ident">add_minimize</span></span>(<span>self, priority: int, literals: Sequence[Tuple[int, int]]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_minimize(self, priority: int, literals: Sequence[Tuple[int, int]]) -&gt; None:
+    &#34;&#34;&#34;
+    Add a minimize constraint to the program.
+
+    Parameters
+    ----------
+    priority
+        Integer for the priority.
+    literals
+        List of pairs of program literals and weights.
+    &#34;&#34;&#34;
+    _handle_error(
+        _lib.clingo_backend_minimize(self._rep, priority, literals, len(literals))
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a minimize constraint to the program.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>priority</code></strong></dt>
+<dd>Integer for the priority.</dd>
+<dt><strong><code>literals</code></strong></dt>
+<dd>List of pairs of program literals and weights.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Backend.add_project"><code class="name flex">
+<span>def <span class="ident">add_project</span></span>(<span>self, atoms: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_project(self, atoms: Sequence[int]) -&gt; None:
+    &#34;&#34;&#34;
+    Add a project statement to the program.
+
+    Parameters
+    ----------
+    atoms
+        List of program atoms to project on.
+    &#34;&#34;&#34;
+    _handle_error(_lib.clingo_backend_project(self._rep, atoms, len(atoms)))</code></pre>
+</details>
+<div class="desc"><p>Add a project statement to the program.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atoms</code></strong></dt>
+<dd>List of program atoms to project on.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Backend.add_rule"><code class="name flex">
+<span>def <span class="ident">add_rule</span></span>(<span>self, head: Sequence[int], body: Sequence[int] = [], choice: bool = False) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_rule(
+    self, head: Sequence[int], body: Sequence[int] = [], choice: bool = False
+) -&gt; None:
+    &#34;&#34;&#34;
+    Add a disjuntive or choice rule to the program.
+
+    Parameters
+    ----------
+    head
+        The program atoms forming the rule head.
+    body
+        The program literals forming the rule body.
+    choice
+        Whether to add a disjunctive or choice rule.
+
+    Notes
+    -----
+    Integrity constraints and normal rules can be added by using an empty or
+    singleton head list, respectively.
+    &#34;&#34;&#34;
+    # pylint: disable=dangerous-default-value
+    _handle_error(
+        _lib.clingo_backend_rule(
+            self._rep, choice, head, len(head), body, len(body)
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a disjuntive or choice rule to the program.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>head</code></strong></dt>
+<dd>The program atoms forming the rule head.</dd>
+<dt><strong><code>body</code></strong></dt>
+<dd>The program literals forming the rule body.</dd>
+<dt><strong><code>choice</code></strong></dt>
+<dd>Whether to add a disjunctive or choice rule.</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>Integrity constraints and normal rules can be added by using an empty or
+singleton head list, respectively.</p></div>
+</dd>
+<dt id="clingo.backend.Backend.add_theory_atom"><code class="name flex">
+<span>def <span class="ident">add_theory_atom</span></span>(<span>self, term_id: int, elements: Sequence[int], atom_id_or_zero: int | None = None) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_theory_atom(
+    self,
+    term_id: int,
+    elements: Sequence[int],
+    atom_id_or_zero: Optional[int] = None,
+) -&gt; int:
+    &#34;&#34;&#34;
+    Add a theory atom without a guard.
+
+    If no atom_id is given, a fresh atom id is assigned.
+
+    In case an atom id is given and an equivalent theory atom already
+    exists, the given atom id is ignored.
+
+    To declare a defined theory atom, a rule defining the program atom
+    should be added. Otherwise, the theory atom is considered an external
+    body occurrence.
+
+    Parameters
+    ----------
+    term_id
+        The id of the term associated with the theory atom.
+    elements
+        A sequence of ids of theory atom elements.
+    atom_id_or_zero
+        An optional program atom or zero for theory directives.
+    &#34;&#34;&#34;
+    if atom_id_or_zero is None:
+        atom_id_or_zero = 0xFFFFFFFF
+    return _c_call(
+        &#34;clingo_atom_t&#34;,
+        _lib.clingo_backend_theory_atom,
+        self._rep,
+        atom_id_or_zero,
+        term_id,
+        elements,
+        len(elements),
+        handler=self._error,
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a theory atom without a guard.</p>
+<p>If no atom_id is given, a fresh atom id is assigned.</p>
+<p>In case an atom id is given and an equivalent theory atom already
+exists, the given atom id is ignored.</p>
+<p>To declare a defined theory atom, a rule defining the program atom
+should be added. Otherwise, the theory atom is considered an external
+body occurrence.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>term_id</code></strong></dt>
+<dd>The id of the term associated with the theory atom.</dd>
+<dt><strong><code>elements</code></strong></dt>
+<dd>A sequence of ids of theory atom elements.</dd>
+<dt><strong><code>atom_id_or_zero</code></strong></dt>
+<dd>An optional program atom or zero for theory directives.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Backend.add_theory_atom_with_guard"><code class="name flex">
+<span>def <span class="ident">add_theory_atom_with_guard</span></span>(<span>self,<br>term_id: int,<br>elements: Sequence[int],<br>operator: str,<br>right_hand_side_id: int,<br>atom_id_or_zero: int | None = None) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_theory_atom_with_guard(
+    self,
+    term_id: int,
+    elements: Sequence[int],
+    operator: str,
+    right_hand_side_id: int,
+    atom_id_or_zero: Optional[int] = None,
+) -&gt; int:
+    &#34;&#34;&#34;
+    Add a theory atom with a guard.
+
+    Parameters
+    ----------
+    term_id
+        The id of the term associated with the theory atom.
+    elements
+        A sequence of ids of theory atom elements.
+    operator
+        String representing a theory operator.
+    right_hand_side_id
+        Term id for the term on the right hand side.
+    atom_id_or_zero
+        A optional program atom or zero for theory directives.
+
+    See Also
+    --------
+    Backend.add_theory_atom
+    &#34;&#34;&#34;
+    if atom_id_or_zero is None:
+        atom_id_or_zero = 0xFFFFFFFF
+    return _c_call(
+        &#34;clingo_atom_t&#34;,
+        _lib.clingo_backend_theory_atom_with_guard,
+        self._rep,
+        atom_id_or_zero,
+        term_id,
+        elements,
+        len(elements),
+        operator.encode(),
+        right_hand_side_id,
+        handler=self._error,
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a theory atom with a guard.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>term_id</code></strong></dt>
+<dd>The id of the term associated with the theory atom.</dd>
+<dt><strong><code>elements</code></strong></dt>
+<dd>A sequence of ids of theory atom elements.</dd>
+<dt><strong><code>operator</code></strong></dt>
+<dd>String representing a theory operator.</dd>
+<dt><strong><code>right_hand_side_id</code></strong></dt>
+<dd>Term id for the term on the right hand side.</dd>
+<dt><strong><code>atom_id_or_zero</code></strong></dt>
+<dd>A optional program atom or zero for theory directives.</dd>
+</dl>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.backend.Backend.add_theory_atom" href="#clingo.backend.Backend.add_theory_atom">Backend.add_theory_atom()</a></code></p></div>
+</dd>
+<dt id="clingo.backend.Backend.add_theory_element"><code class="name flex">
+<span>def <span class="ident">add_theory_element</span></span>(<span>self, terms: Sequence[int], condition: Sequence[int]) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_theory_element(self, terms: Sequence[int], condition: Sequence[int]) -&gt; int:
+    &#34;&#34;&#34;
+    Create a theory atom element.
+
+    Parameters
+    ----------
+    terms
+        A sequence of term ids.
+    condition
+        A sequence of program literals.
+
+    Returns
+    -------
+    The id of the added element.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;clingo_id_t&#34;,
+        _lib.clingo_backend_theory_element,
+        self._rep,
+        terms,
+        len(terms),
+        condition,
+        len(condition),
+        handler=self._error,
+    )</code></pre>
+</details>
+<div class="desc"><p>Create a theory atom element.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>terms</code></strong></dt>
+<dd>A sequence of term ids.</dd>
+<dt><strong><code>condition</code></strong></dt>
+<dd>A sequence of program literals.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The id of the added element.</p></div>
+</dd>
+<dt id="clingo.backend.Backend.add_theory_term_function"><code class="name flex">
+<span>def <span class="ident">add_theory_term_function</span></span>(<span>self, name: str, arguments: Sequence[int]) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_theory_term_function(self, name: str, arguments: Sequence[int]) -&gt; int:
+    &#34;&#34;&#34;
+    Add a theory term representing a function.
+
+    Parameters
+    ----------
+    name
+        The name of the function.
+    arguments
+        Sequence of term ids for the function arguments.
+
+    Returns
+    -------
+    The id of the added term.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;clingo_id_t&#34;,
+        _lib.clingo_backend_theory_term_function,
+        self._rep,
+        name.encode(),
+        arguments,
+        len(arguments),
+        handler=self._error,
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a theory term representing a function.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong></dt>
+<dd>The name of the function.</dd>
+<dt><strong><code>arguments</code></strong></dt>
+<dd>Sequence of term ids for the function arguments.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The id of the added term.</p></div>
+</dd>
+<dt id="clingo.backend.Backend.add_theory_term_number"><code class="name flex">
+<span>def <span class="ident">add_theory_term_number</span></span>(<span>self, number: int) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_theory_term_number(self, number: int) -&gt; int:
+    &#34;&#34;&#34;
+    Add a numeric theory term.
+
+    Parameters
+    ----------
+    number
+        The value of the term.
+
+    Returns
+    -------
+    The id of the added term.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;clingo_id_t&#34;,
+        _lib.clingo_backend_theory_term_number,
+        self._rep,
+        number,
+        handler=self._error,
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a numeric theory term.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>number</code></strong></dt>
+<dd>The value of the term.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The id of the added term.</p></div>
+</dd>
+<dt id="clingo.backend.Backend.add_theory_term_sequence"><code class="name flex">
+<span>def <span class="ident">add_theory_term_sequence</span></span>(<span>self,<br>sequence_type: <a title="clingo.backend.TheorySequenceType" href="#clingo.backend.TheorySequenceType">TheorySequenceType</a>,<br>arguments: Sequence[int]) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_theory_term_sequence(
+    self, sequence_type: TheorySequenceType, arguments: Sequence[int]
+) -&gt; int:
+    &#34;&#34;&#34;
+    Add a theory term representing a sequence of theory terms.
+
+    Parameters
+    ----------
+    sequence_type
+        The type of the sequence
+    arguments
+        Sequence of term ids for the function arguments.
+
+    Returns
+    -------
+    The id of the added term.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;clingo_id_t&#34;,
+        _lib.clingo_backend_theory_term_sequence,
+        self._rep,
+        sequence_type.value,
+        arguments,
+        len(arguments),
+        handler=self._error,
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a theory term representing a sequence of theory terms.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>sequence_type</code></strong></dt>
+<dd>The type of the sequence</dd>
+<dt><strong><code>arguments</code></strong></dt>
+<dd>Sequence of term ids for the function arguments.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The id of the added term.</p></div>
+</dd>
+<dt id="clingo.backend.Backend.add_theory_term_string"><code class="name flex">
+<span>def <span class="ident">add_theory_term_string</span></span>(<span>self, string: str) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_theory_term_string(self, string: str) -&gt; int:
+    &#34;&#34;&#34;
+    Add a theory term representing a string.
+
+    Parameters
+    ----------
+    string
+        The value of the term.
+
+    Returns
+    -------
+    The id of the added term.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;clingo_id_t&#34;,
+        _lib.clingo_backend_theory_term_string,
+        self._rep,
+        string.encode(),
+        handler=self._error,
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a theory term representing a string.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>string</code></strong></dt>
+<dd>The value of the term.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The id of the added term.</p></div>
+</dd>
+<dt id="clingo.backend.Backend.add_theory_term_symbol"><code class="name flex">
+<span>def <span class="ident">add_theory_term_symbol</span></span>(<span>self,<br>symbol: <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_theory_term_symbol(self, symbol: Symbol) -&gt; int:
+    &#34;&#34;&#34;
+    Create a theory term from a symbol.
+
+    Parameters
+    ----------
+    symbol
+        The symbol to convert.
+
+    Returns
+    -------
+    The id of the added term.
+    &#34;&#34;&#34;
+    return _c_call(
+        &#34;clingo_id_t&#34;,
+        _lib.clingo_backend_theory_term_symbol,
+        self._rep,
+        symbol._rep,
+        handler=self._error,
+    )</code></pre>
+</details>
+<div class="desc"><p>Create a theory term from a symbol.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>symbol</code></strong></dt>
+<dd>The symbol to convert.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The id of the added term.</p></div>
+</dd>
+<dt id="clingo.backend.Backend.add_weight_rule"><code class="name flex">
+<span>def <span class="ident">add_weight_rule</span></span>(<span>self,<br>head: Sequence[int],<br>lower: int,<br>body: Sequence[Tuple[int, int]],<br>choice: bool = False) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_weight_rule(
+    self,
+    head: Sequence[int],
+    lower: int,
+    body: Sequence[Tuple[int, int]],
+    choice: bool = False,
+) -&gt; None:
+    &#34;&#34;&#34;
+    Add a disjuntive or choice rule with one weight constraint with a lower bound
+    in the body to the program.
+
+    Parameters
+    ----------
+    head
+        The program atoms forming the rule head.
+    lower
+        The lower bound.
+    body
+        The pairs of program literals and weights forming the elements of the
+        weight constraint.
+    choice
+        Whether to add a disjunctive or choice rule.
+    &#34;&#34;&#34;
+    _handle_error(
+        _lib.clingo_backend_weight_rule(
+            self._rep, choice, head, len(head), lower, body, len(body)
+        )
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a disjuntive or choice rule with one weight constraint with a lower bound
+in the body to the program.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>head</code></strong></dt>
+<dd>The program atoms forming the rule head.</dd>
+<dt><strong><code>lower</code></strong></dt>
+<dd>The lower bound.</dd>
+<dt><strong><code>body</code></strong></dt>
+<dd>The pairs of program literals and weights forming the elements of the
+weight constraint.</dd>
+<dt><strong><code>choice</code></strong></dt>
+<dd>Whether to add a disjunctive or choice rule.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.backend.HeuristicType"><code class="flex name class">
+<span>class <span class="ident">HeuristicType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class HeuristicType(OrderedEnum):
+    &#34;&#34;&#34;
+    Enumeration of the different heuristic types.
+    &#34;&#34;&#34;
+
+    Factor = _lib.clingo_heuristic_type_factor
+    &#34;&#34;&#34;
+    Heuristic modification to set the decaying factor of an atom.
+    &#34;&#34;&#34;
+    False_ = _lib.clingo_heuristic_type_false
+    &#34;&#34;&#34;
+    Heuristic modification to make an atom false.
+    &#34;&#34;&#34;
+    Init = _lib.clingo_heuristic_type_init
+    &#34;&#34;&#34;
+    Heuristic modification to set the inital score of an atom.
+    &#34;&#34;&#34;
+    Level = _lib.clingo_heuristic_type_level
+    &#34;&#34;&#34;
+    Heuristic modification to set the level of an atom.
+    &#34;&#34;&#34;
+    Sign = _lib.clingo_heuristic_type_sign
+    &#34;&#34;&#34;
+    Heuristic modification to set the sign of an atom.
+    &#34;&#34;&#34;
+    True_ = _lib.clingo_heuristic_type_true
+    &#34;&#34;&#34;
+    Heuristic modification to make an atom true.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Enumeration of the different heuristic types.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.core.OrderedEnum" href="core.html#clingo.core.OrderedEnum">OrderedEnum</a></li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="clingo.backend.HeuristicType.Factor"><code class="name">var <span class="ident">Factor</span></code></dt>
+<dd>
+<div class="desc"><p>Heuristic modification to set the decaying factor of an atom.</p></div>
+</dd>
+<dt id="clingo.backend.HeuristicType.False_"><code class="name">var <span class="ident">False_</span></code></dt>
+<dd>
+<div class="desc"><p>Heuristic modification to make an atom false.</p></div>
+</dd>
+<dt id="clingo.backend.HeuristicType.Init"><code class="name">var <span class="ident">Init</span></code></dt>
+<dd>
+<div class="desc"><p>Heuristic modification to set the inital score of an atom.</p></div>
+</dd>
+<dt id="clingo.backend.HeuristicType.Level"><code class="name">var <span class="ident">Level</span></code></dt>
+<dd>
+<div class="desc"><p>Heuristic modification to set the level of an atom.</p></div>
+</dd>
+<dt id="clingo.backend.HeuristicType.Sign"><code class="name">var <span class="ident">Sign</span></code></dt>
+<dd>
+<div class="desc"><p>Heuristic modification to set the sign of an atom.</p></div>
+</dd>
+<dt id="clingo.backend.HeuristicType.True_"><code class="name">var <span class="ident">True_</span></code></dt>
+<dd>
+<div class="desc"><p>Heuristic modification to make an atom true.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.backend.Observer"><code class="flex name class">
+<span>class <span class="ident">Observer</span></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Observer(metaclass=ABCMeta):
+    &#34;&#34;&#34;
+    Interface that has to be implemented to inspect rules produced during
+    grounding.
+
+    See Also
+    --------
+    clingo.control.Control.register_observer
+
+    Notes
+    -----
+    Not all functions the `Observer` interface have to be implemented and can
+    be omitted if not needed.
+    &#34;&#34;&#34;
+
+    def init_program(self, incremental: bool) -&gt; None:
+        &#34;&#34;&#34;
+        Called once in the beginning.
+
+        Parameters
+        ----------
+        incremental
+            Whether the program is incremental. If the incremental flag is
+            true, there can be multiple calls to `clingo.control.Control.solve`.
+        &#34;&#34;&#34;
+
+    def begin_step(self) -&gt; None:
+        &#34;&#34;&#34;
+        Marks the beginning of a block of directives passed to the solver.
+        &#34;&#34;&#34;
+
+    def rule(self, choice: bool, head: Sequence[int], body: Sequence[int]) -&gt; None:
+        &#34;&#34;&#34;
+        Observe rules passed to the solver.
+
+        Parameters
+        ----------
+        choice
+            Determines if the head is a choice or a disjunction.
+        head
+            List of program atoms forming the rule head.
+        body
+            List of program literals forming the rule body.
+        &#34;&#34;&#34;
+
+    def weight_rule(
+        self,
+        choice: bool,
+        head: Sequence[int],
+        lower_bound: int,
+        body: Sequence[Tuple[int, int]],
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Observe rules with one weight constraint in the body passed to the
+        solver.
+
+        Parameters
+        ----------
+        choice
+            Determines if the head is a choice or a disjunction.
+        head
+            List of program atoms forming the head of the rule.
+        lower_bound
+            The lower bound of the weight constraint in the rule body.
+        body
+            List of weighted literals (pairs of literal and weight) forming the
+            elements of the weight constraint.
+        &#34;&#34;&#34;
+
+    def minimize(self, priority: int, literals: Sequence[Tuple[int, int]]) -&gt; None:
+        &#34;&#34;&#34;
+        Observe minimize directives (or weak constraints) passed to the
+        solver.
+
+        Parameters
+        ----------
+        priority
+            The priority of the directive.
+        literals
+            List of weighted literals whose sum to minimize (pairs of literal
+            and weight).
+        &#34;&#34;&#34;
+
+    def project(self, atoms: Sequence[int]) -&gt; None:
+        &#34;&#34;&#34;
+        Observe projection directives passed to the solver.
+
+        Parameters
+        ----------
+        atoms
+            The program atoms to project on.
+        &#34;&#34;&#34;
+
+    def output_atom(self, symbol: Symbol, atom: int) -&gt; None:
+        &#34;&#34;&#34;
+        Observe shown atoms passed to the solver.  Facts do not have an
+        associated program atom. The value of the atom is set to zero.
+
+        Parameters
+        ----------
+        symbol
+            The symbolic representation of the atom.
+        atom
+            The associated program atom (`0` for facts).
+        &#34;&#34;&#34;
+
+    def output_term(self, symbol: Symbol, condition: Sequence[int]) -&gt; None:
+        &#34;&#34;&#34;
+        Observe shown terms passed to the solver.
+
+        Parameters
+        ----------
+        symbol
+            The symbolic representation of the term.
+        condition
+            List of program literals forming the condition when to show the
+            term.
+        &#34;&#34;&#34;
+
+    def external(self, atom: int, value: TruthValue) -&gt; None:
+        &#34;&#34;&#34;
+        Observe external statements passed to the solver.
+
+        Parameters
+        ----------
+        atom
+            The external atom in form of a program literal.
+        value
+            The truth value of the external statement.
+        &#34;&#34;&#34;
+
+    def assume(self, literals: Sequence[int]) -&gt; None:
+        &#34;&#34;&#34;
+        Observe assumption directives passed to the solver.
+
+        Parameters
+        ----------
+        literals
+            The program literals to assume (positive literals are true and
+            negative literals false for the next solve call).
+        &#34;&#34;&#34;
+
+    def heuristic(
+        self,
+        atom: int,
+        type_: HeuristicType,
+        bias: int,
+        priority: int,
+        condition: Sequence[int],
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Observe heuristic directives passed to the solver.
+
+        Parameters
+        ----------
+        atom
+            The program atom heuristically modified.
+        type_
+            The type of the modification.
+        bias
+            A signed integer.
+        priority
+            An unsigned integer.
+        condition
+            List of program literals.
+        &#34;&#34;&#34;
+
+    def acyc_edge(self, node_u: int, node_v: int, condition: Sequence[int]) -&gt; None:
+        &#34;&#34;&#34;
+        Observe edge directives passed to the solver.
+
+        Parameters
+        ----------
+        node_u
+            The start vertex of the edge (in form of an integer).
+        node_v
+            Тhe end vertex of the edge (in form of an integer).
+        condition
+            The list of program literals forming th condition under which to
+            add the edge.
+        &#34;&#34;&#34;
+
+    def theory_term_number(self, term_id: int, number: int) -&gt; None:
+        &#34;&#34;&#34;
+        Observe numeric theory terms.
+
+        Parameters
+        ----------
+        term_id
+            The id of the term.
+        number
+            The value of the term.
+        &#34;&#34;&#34;
+
+    def theory_term_string(self, term_id: int, name: str) -&gt; None:
+        &#34;&#34;&#34;
+        Observe string theory terms.
+
+        Parameters
+        ----------
+        term_id
+            The id of the term.
+        name
+            The string value of the term.
+        &#34;&#34;&#34;
+
+    def theory_term_compound(
+        self, term_id: int, name_id_or_type: int, arguments: Sequence[int]
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Observe compound theory terms.
+
+        Parameters
+        ----------
+        term_id
+            The id of the term.
+        name_id_or_type
+            The name id or type of the term where the value `-1` stands for
+            tuples, `-2` for sets, `-3` for lists, or otherwise for the id of
+            the name (in form of a string term).
+        arguments
+            The arguments of the term in form of a list of term ids.
+        &#34;&#34;&#34;
+
+    def theory_element(
+        self, element_id: int, terms: Sequence[int], condition: Sequence[int]
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Observe theory elements.
+
+        Parameters
+        ----------
+        element_id
+            The id of the element.
+        terms
+            The term tuple of the element in form of a list of term ids.
+        condition
+            The list of program literals forming the condition.
+        &#34;&#34;&#34;
+
+    def theory_atom(
+        self, atom_id_or_zero: int, term_id: int, elements: Sequence[int]
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Observe theory atoms without guard.
+
+        Parameters
+        ----------
+        atom_id_or_zero
+            The id of the atom or zero for directives.
+        term_id
+            The term associated with the atom.
+        elements
+            The elements of the atom in form of a list of element ids.
+        &#34;&#34;&#34;
+
+    def theory_atom_with_guard(
+        self,
+        atom_id_or_zero: int,
+        term_id: int,
+        elements: Sequence[int],
+        operator_id: int,
+        right_hand_side_id: int,
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Observe theory atoms with guard.
+
+        Parameters
+        ----------
+        atom_id_or_zero
+            The id of the atom or zero for directives.
+        term_id : int
+            The term associated with the atom.
+        elements
+            The elements of the atom in form of a list of element ids.
+        operator_id
+            The id of the operator (a string term).
+        right_hand_side_id
+            The id of the term on the right hand side of the atom.
+        &#34;&#34;&#34;
+
+    def end_step(self) -&gt; None:
+        &#34;&#34;&#34;
+        Marks the end of a block of directives passed to the solver.
+
+        This function is called right before solving starts.
+        &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Interface that has to be implemented to inspect rules produced during
+grounding.</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="clingo.control.Control.register_observer" href="control.html#clingo.control.Control.register_observer">Control.register_observer()</a></code></p>
+<h2 id="notes">Notes</h2>
+<p>Not all functions the <code><a title="clingo.backend.Observer" href="#clingo.backend.Observer">Observer</a></code> interface have to be implemented and can
+be omitted if not needed.</p></div>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="clingo.tests.test_backend.TestObserverBackend" href="tests/test_backend.html#clingo.tests.test_backend.TestObserverBackend">TestObserverBackend</a></li>
+<li><a title="clingo.tests.test_backend.TestObserverTheory" href="tests/test_backend.html#clingo.tests.test_backend.TestObserverTheory">TestObserverTheory</a></li>
+<li><a title="clingo.tests.test_backend.TestObserverTheoryWithGuard" href="tests/test_backend.html#clingo.tests.test_backend.TestObserverTheoryWithGuard">TestObserverTheoryWithGuard</a></li>
+<li><a title="clingox.program.ProgramObserver" href="../clingox/program.html#clingox.program.ProgramObserver">ProgramObserver</a></li>
+<li><a title="clingox.reify.Reifier" href="../clingox/reify.html#clingox.reify.Reifier">Reifier</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.backend.Observer.acyc_edge"><code class="name flex">
+<span>def <span class="ident">acyc_edge</span></span>(<span>self, node_u: int, node_v: int, condition: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def acyc_edge(self, node_u: int, node_v: int, condition: Sequence[int]) -&gt; None:
+    &#34;&#34;&#34;
+    Observe edge directives passed to the solver.
+
+    Parameters
+    ----------
+    node_u
+        The start vertex of the edge (in form of an integer).
+    node_v
+        Тhe end vertex of the edge (in form of an integer).
+    condition
+        The list of program literals forming th condition under which to
+        add the edge.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe edge directives passed to the solver.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>node_u</code></strong></dt>
+<dd>The start vertex of the edge (in form of an integer).</dd>
+<dt><strong><code>node_v</code></strong></dt>
+<dd>Тhe end vertex of the edge (in form of an integer).</dd>
+<dt><strong><code>condition</code></strong></dt>
+<dd>The list of program literals forming th condition under which to
+add the edge.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.assume"><code class="name flex">
+<span>def <span class="ident">assume</span></span>(<span>self, literals: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def assume(self, literals: Sequence[int]) -&gt; None:
+    &#34;&#34;&#34;
+    Observe assumption directives passed to the solver.
+
+    Parameters
+    ----------
+    literals
+        The program literals to assume (positive literals are true and
+        negative literals false for the next solve call).
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe assumption directives passed to the solver.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>literals</code></strong></dt>
+<dd>The program literals to assume (positive literals are true and
+negative literals false for the next solve call).</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.begin_step"><code class="name flex">
+<span>def <span class="ident">begin_step</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def begin_step(self) -&gt; None:
+    &#34;&#34;&#34;
+    Marks the beginning of a block of directives passed to the solver.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Marks the beginning of a block of directives passed to the solver.</p></div>
+</dd>
+<dt id="clingo.backend.Observer.end_step"><code class="name flex">
+<span>def <span class="ident">end_step</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def end_step(self) -&gt; None:
+    &#34;&#34;&#34;
+    Marks the end of a block of directives passed to the solver.
+
+    This function is called right before solving starts.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Marks the end of a block of directives passed to the solver.</p>
+<p>This function is called right before solving starts.</p></div>
+</dd>
+<dt id="clingo.backend.Observer.external"><code class="name flex">
+<span>def <span class="ident">external</span></span>(<span>self,<br>atom: int,<br>value: <a title="clingo.core.TruthValue" href="core.html#clingo.core.TruthValue">TruthValue</a>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def external(self, atom: int, value: TruthValue) -&gt; None:
+    &#34;&#34;&#34;
+    Observe external statements passed to the solver.
+
+    Parameters
+    ----------
+    atom
+        The external atom in form of a program literal.
+    value
+        The truth value of the external statement.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe external statements passed to the solver.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atom</code></strong></dt>
+<dd>The external atom in form of a program literal.</dd>
+<dt><strong><code>value</code></strong></dt>
+<dd>The truth value of the external statement.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.heuristic"><code class="name flex">
+<span>def <span class="ident">heuristic</span></span>(<span>self,<br>atom: int,<br>type_: <a title="clingo.backend.HeuristicType" href="#clingo.backend.HeuristicType">HeuristicType</a>,<br>bias: int,<br>priority: int,<br>condition: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def heuristic(
+    self,
+    atom: int,
+    type_: HeuristicType,
+    bias: int,
+    priority: int,
+    condition: Sequence[int],
+) -&gt; None:
+    &#34;&#34;&#34;
+    Observe heuristic directives passed to the solver.
+
+    Parameters
+    ----------
+    atom
+        The program atom heuristically modified.
+    type_
+        The type of the modification.
+    bias
+        A signed integer.
+    priority
+        An unsigned integer.
+    condition
+        List of program literals.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe heuristic directives passed to the solver.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atom</code></strong></dt>
+<dd>The program atom heuristically modified.</dd>
+<dt><strong><code>type_</code></strong></dt>
+<dd>The type of the modification.</dd>
+<dt><strong><code>bias</code></strong></dt>
+<dd>A signed integer.</dd>
+<dt><strong><code>priority</code></strong></dt>
+<dd>An unsigned integer.</dd>
+<dt><strong><code>condition</code></strong></dt>
+<dd>List of program literals.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.init_program"><code class="name flex">
+<span>def <span class="ident">init_program</span></span>(<span>self, incremental: bool) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def init_program(self, incremental: bool) -&gt; None:
+    &#34;&#34;&#34;
+    Called once in the beginning.
+
+    Parameters
+    ----------
+    incremental
+        Whether the program is incremental. If the incremental flag is
+        true, there can be multiple calls to `clingo.control.Control.solve`.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Called once in the beginning.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>incremental</code></strong></dt>
+<dd>Whether the program is incremental. If the incremental flag is
+true, there can be multiple calls to <code><a title="clingo.control.Control.solve" href="control.html#clingo.control.Control.solve">Control.solve()</a></code>.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.minimize"><code class="name flex">
+<span>def <span class="ident">minimize</span></span>(<span>self, priority: int, literals: Sequence[Tuple[int, int]]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def minimize(self, priority: int, literals: Sequence[Tuple[int, int]]) -&gt; None:
+    &#34;&#34;&#34;
+    Observe minimize directives (or weak constraints) passed to the
+    solver.
+
+    Parameters
+    ----------
+    priority
+        The priority of the directive.
+    literals
+        List of weighted literals whose sum to minimize (pairs of literal
+        and weight).
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe minimize directives (or weak constraints) passed to the
+solver.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>priority</code></strong></dt>
+<dd>The priority of the directive.</dd>
+<dt><strong><code>literals</code></strong></dt>
+<dd>List of weighted literals whose sum to minimize (pairs of literal
+and weight).</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.output_atom"><code class="name flex">
+<span>def <span class="ident">output_atom</span></span>(<span>self,<br>symbol: <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>,<br>atom: int) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def output_atom(self, symbol: Symbol, atom: int) -&gt; None:
+    &#34;&#34;&#34;
+    Observe shown atoms passed to the solver.  Facts do not have an
+    associated program atom. The value of the atom is set to zero.
+
+    Parameters
+    ----------
+    symbol
+        The symbolic representation of the atom.
+    atom
+        The associated program atom (`0` for facts).
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe shown atoms passed to the solver.
+Facts do not have an
+associated program atom. The value of the atom is set to zero.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>symbol</code></strong></dt>
+<dd>The symbolic representation of the atom.</dd>
+<dt><strong><code>atom</code></strong></dt>
+<dd>The associated program atom (<code>0</code> for facts).</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.output_term"><code class="name flex">
+<span>def <span class="ident">output_term</span></span>(<span>self,<br>symbol: <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a>,<br>condition: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def output_term(self, symbol: Symbol, condition: Sequence[int]) -&gt; None:
+    &#34;&#34;&#34;
+    Observe shown terms passed to the solver.
+
+    Parameters
+    ----------
+    symbol
+        The symbolic representation of the term.
+    condition
+        List of program literals forming the condition when to show the
+        term.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe shown terms passed to the solver.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>symbol</code></strong></dt>
+<dd>The symbolic representation of the term.</dd>
+<dt><strong><code>condition</code></strong></dt>
+<dd>List of program literals forming the condition when to show the
+term.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.project"><code class="name flex">
+<span>def <span class="ident">project</span></span>(<span>self, atoms: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def project(self, atoms: Sequence[int]) -&gt; None:
+    &#34;&#34;&#34;
+    Observe projection directives passed to the solver.
+
+    Parameters
+    ----------
+    atoms
+        The program atoms to project on.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe projection directives passed to the solver.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atoms</code></strong></dt>
+<dd>The program atoms to project on.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.rule"><code class="name flex">
+<span>def <span class="ident">rule</span></span>(<span>self, choice: bool, head: Sequence[int], body: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rule(self, choice: bool, head: Sequence[int], body: Sequence[int]) -&gt; None:
+    &#34;&#34;&#34;
+    Observe rules passed to the solver.
+
+    Parameters
+    ----------
+    choice
+        Determines if the head is a choice or a disjunction.
+    head
+        List of program atoms forming the rule head.
+    body
+        List of program literals forming the rule body.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe rules passed to the solver.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>choice</code></strong></dt>
+<dd>Determines if the head is a choice or a disjunction.</dd>
+<dt><strong><code>head</code></strong></dt>
+<dd>List of program atoms forming the rule head.</dd>
+<dt><strong><code>body</code></strong></dt>
+<dd>List of program literals forming the rule body.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.theory_atom"><code class="name flex">
+<span>def <span class="ident">theory_atom</span></span>(<span>self, atom_id_or_zero: int, term_id: int, elements: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def theory_atom(
+    self, atom_id_or_zero: int, term_id: int, elements: Sequence[int]
+) -&gt; None:
+    &#34;&#34;&#34;
+    Observe theory atoms without guard.
+
+    Parameters
+    ----------
+    atom_id_or_zero
+        The id of the atom or zero for directives.
+    term_id
+        The term associated with the atom.
+    elements
+        The elements of the atom in form of a list of element ids.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe theory atoms without guard.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atom_id_or_zero</code></strong></dt>
+<dd>The id of the atom or zero for directives.</dd>
+<dt><strong><code>term_id</code></strong></dt>
+<dd>The term associated with the atom.</dd>
+<dt><strong><code>elements</code></strong></dt>
+<dd>The elements of the atom in form of a list of element ids.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.theory_atom_with_guard"><code class="name flex">
+<span>def <span class="ident">theory_atom_with_guard</span></span>(<span>self,<br>atom_id_or_zero: int,<br>term_id: int,<br>elements: Sequence[int],<br>operator_id: int,<br>right_hand_side_id: int) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def theory_atom_with_guard(
+    self,
+    atom_id_or_zero: int,
+    term_id: int,
+    elements: Sequence[int],
+    operator_id: int,
+    right_hand_side_id: int,
+) -&gt; None:
+    &#34;&#34;&#34;
+    Observe theory atoms with guard.
+
+    Parameters
+    ----------
+    atom_id_or_zero
+        The id of the atom or zero for directives.
+    term_id : int
+        The term associated with the atom.
+    elements
+        The elements of the atom in form of a list of element ids.
+    operator_id
+        The id of the operator (a string term).
+    right_hand_side_id
+        The id of the term on the right hand side of the atom.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe theory atoms with guard.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>atom_id_or_zero</code></strong></dt>
+<dd>The id of the atom or zero for directives.</dd>
+<dt><strong><code>term_id</code></strong> :&ensp;<code>int</code></dt>
+<dd>The term associated with the atom.</dd>
+<dt><strong><code>elements</code></strong></dt>
+<dd>The elements of the atom in form of a list of element ids.</dd>
+<dt><strong><code>operator_id</code></strong></dt>
+<dd>The id of the operator (a string term).</dd>
+<dt><strong><code>right_hand_side_id</code></strong></dt>
+<dd>The id of the term on the right hand side of the atom.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.theory_element"><code class="name flex">
+<span>def <span class="ident">theory_element</span></span>(<span>self, element_id: int, terms: Sequence[int], condition: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def theory_element(
+    self, element_id: int, terms: Sequence[int], condition: Sequence[int]
+) -&gt; None:
+    &#34;&#34;&#34;
+    Observe theory elements.
+
+    Parameters
+    ----------
+    element_id
+        The id of the element.
+    terms
+        The term tuple of the element in form of a list of term ids.
+    condition
+        The list of program literals forming the condition.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe theory elements.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>element_id</code></strong></dt>
+<dd>The id of the element.</dd>
+<dt><strong><code>terms</code></strong></dt>
+<dd>The term tuple of the element in form of a list of term ids.</dd>
+<dt><strong><code>condition</code></strong></dt>
+<dd>The list of program literals forming the condition.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.theory_term_compound"><code class="name flex">
+<span>def <span class="ident">theory_term_compound</span></span>(<span>self, term_id: int, name_id_or_type: int, arguments: Sequence[int]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def theory_term_compound(
+    self, term_id: int, name_id_or_type: int, arguments: Sequence[int]
+) -&gt; None:
+    &#34;&#34;&#34;
+    Observe compound theory terms.
+
+    Parameters
+    ----------
+    term_id
+        The id of the term.
+    name_id_or_type
+        The name id or type of the term where the value `-1` stands for
+        tuples, `-2` for sets, `-3` for lists, or otherwise for the id of
+        the name (in form of a string term).
+    arguments
+        The arguments of the term in form of a list of term ids.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe compound theory terms.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>term_id</code></strong></dt>
+<dd>The id of the term.</dd>
+<dt><strong><code>name_id_or_type</code></strong></dt>
+<dd>The name id or type of the term where the value <code>-1</code> stands for
+tuples, <code>-2</code> for sets, <code>-3</code> for lists, or otherwise for the id of
+the name (in form of a string term).</dd>
+<dt><strong><code>arguments</code></strong></dt>
+<dd>The arguments of the term in form of a list of term ids.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.theory_term_number"><code class="name flex">
+<span>def <span class="ident">theory_term_number</span></span>(<span>self, term_id: int, number: int) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def theory_term_number(self, term_id: int, number: int) -&gt; None:
+    &#34;&#34;&#34;
+    Observe numeric theory terms.
+
+    Parameters
+    ----------
+    term_id
+        The id of the term.
+    number
+        The value of the term.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe numeric theory terms.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>term_id</code></strong></dt>
+<dd>The id of the term.</dd>
+<dt><strong><code>number</code></strong></dt>
+<dd>The value of the term.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.theory_term_string"><code class="name flex">
+<span>def <span class="ident">theory_term_string</span></span>(<span>self, term_id: int, name: str) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def theory_term_string(self, term_id: int, name: str) -&gt; None:
+    &#34;&#34;&#34;
+    Observe string theory terms.
+
+    Parameters
+    ----------
+    term_id
+        The id of the term.
+    name
+        The string value of the term.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe string theory terms.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>term_id</code></strong></dt>
+<dd>The id of the term.</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>The string value of the term.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.backend.Observer.weight_rule"><code class="name flex">
+<span>def <span class="ident">weight_rule</span></span>(<span>self,<br>choice: bool,<br>head: Sequence[int],<br>lower_bound: int,<br>body: Sequence[Tuple[int, int]]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def weight_rule(
+    self,
+    choice: bool,
+    head: Sequence[int],
+    lower_bound: int,
+    body: Sequence[Tuple[int, int]],
+) -&gt; None:
+    &#34;&#34;&#34;
+    Observe rules with one weight constraint in the body passed to the
+    solver.
+
+    Parameters
+    ----------
+    choice
+        Determines if the head is a choice or a disjunction.
+    head
+        List of program atoms forming the head of the rule.
+    lower_bound
+        The lower bound of the weight constraint in the rule body.
+    body
+        List of weighted literals (pairs of literal and weight) forming the
+        elements of the weight constraint.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Observe rules with one weight constraint in the body passed to the
+solver.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>choice</code></strong></dt>
+<dd>Determines if the head is a choice or a disjunction.</dd>
+<dt><strong><code>head</code></strong></dt>
+<dd>List of program atoms forming the head of the rule.</dd>
+<dt><strong><code>lower_bound</code></strong></dt>
+<dd>The lower bound of the weight constraint in the rule body.</dd>
+<dt><strong><code>body</code></strong></dt>
+<dd>List of weighted literals (pairs of literal and weight) forming the
+elements of the weight constraint.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.backend.TheorySequenceType"><code class="flex name class">
+<span>class <span class="ident">TheorySequenceType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TheorySequenceType(OrderedEnum):
+    &#34;&#34;&#34;
+    Enumeration of the different heuristic types.
+    &#34;&#34;&#34;
+
+    Tuple = _lib.clingo_theory_sequence_type_tuple
+    &#34;&#34;&#34;
+    Type for tuples.
+    &#34;&#34;&#34;
+    List = _lib.clingo_theory_sequence_type_list
+    &#34;&#34;&#34;
+    Type for lists.
+    &#34;&#34;&#34;
+    Set = _lib.clingo_theory_sequence_type_set
+    &#34;&#34;&#34;
+    Type fo sets.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Enumeration of the different heuristic types.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="clingo.core.OrderedEnum" href="core.html#clingo.core.OrderedEnum">OrderedEnum</a></li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="clingo.backend.TheorySequenceType.List"><code class="name">var <span class="ident">List</span></code></dt>
+<dd>
+<div class="desc"><p>Type for lists.</p></div>
+</dd>
+<dt id="clingo.backend.TheorySequenceType.Set"><code class="name">var <span class="ident">Set</span></code></dt>
+<dd>
+<div class="desc"><p>Type fo sets.</p></div>
+</dd>
+<dt id="clingo.backend.TheorySequenceType.Tuple"><code class="name">var <span class="ident">Tuple</span></code></dt>
+<dd>
+<div class="desc"><p>Type for tuples.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#examples">Examples</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo" href="index.html">clingo</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.backend.Backend" href="#clingo.backend.Backend">Backend</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.backend.Backend.add_acyc_edge" href="#clingo.backend.Backend.add_acyc_edge">add_acyc_edge</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_assume" href="#clingo.backend.Backend.add_assume">add_assume</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_atom" href="#clingo.backend.Backend.add_atom">add_atom</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_external" href="#clingo.backend.Backend.add_external">add_external</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_heuristic" href="#clingo.backend.Backend.add_heuristic">add_heuristic</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_minimize" href="#clingo.backend.Backend.add_minimize">add_minimize</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_project" href="#clingo.backend.Backend.add_project">add_project</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_rule" href="#clingo.backend.Backend.add_rule">add_rule</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_theory_atom" href="#clingo.backend.Backend.add_theory_atom">add_theory_atom</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_theory_atom_with_guard" href="#clingo.backend.Backend.add_theory_atom_with_guard">add_theory_atom_with_guard</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_theory_element" href="#clingo.backend.Backend.add_theory_element">add_theory_element</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_theory_term_function" href="#clingo.backend.Backend.add_theory_term_function">add_theory_term_function</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_theory_term_number" href="#clingo.backend.Backend.add_theory_term_number">add_theory_term_number</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_theory_term_sequence" href="#clingo.backend.Backend.add_theory_term_sequence">add_theory_term_sequence</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_theory_term_string" href="#clingo.backend.Backend.add_theory_term_string">add_theory_term_string</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_theory_term_symbol" href="#clingo.backend.Backend.add_theory_term_symbol">add_theory_term_symbol</a></code></li>
+<li><code><a title="clingo.backend.Backend.add_weight_rule" href="#clingo.backend.Backend.add_weight_rule">add_weight_rule</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.backend.HeuristicType" href="#clingo.backend.HeuristicType">HeuristicType</a></code></h4>
+<ul class="two-column">
+<li><code><a title="clingo.backend.HeuristicType.Factor" href="#clingo.backend.HeuristicType.Factor">Factor</a></code></li>
+<li><code><a title="clingo.backend.HeuristicType.False_" href="#clingo.backend.HeuristicType.False_">False_</a></code></li>
+<li><code><a title="clingo.backend.HeuristicType.Init" href="#clingo.backend.HeuristicType.Init">Init</a></code></li>
+<li><code><a title="clingo.backend.HeuristicType.Level" href="#clingo.backend.HeuristicType.Level">Level</a></code></li>
+<li><code><a title="clingo.backend.HeuristicType.Sign" href="#clingo.backend.HeuristicType.Sign">Sign</a></code></li>
+<li><code><a title="clingo.backend.HeuristicType.True_" href="#clingo.backend.HeuristicType.True_">True_</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.backend.Observer" href="#clingo.backend.Observer">Observer</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.backend.Observer.acyc_edge" href="#clingo.backend.Observer.acyc_edge">acyc_edge</a></code></li>
+<li><code><a title="clingo.backend.Observer.assume" href="#clingo.backend.Observer.assume">assume</a></code></li>
+<li><code><a title="clingo.backend.Observer.begin_step" href="#clingo.backend.Observer.begin_step">begin_step</a></code></li>
+<li><code><a title="clingo.backend.Observer.end_step" href="#clingo.backend.Observer.end_step">end_step</a></code></li>
+<li><code><a title="clingo.backend.Observer.external" href="#clingo.backend.Observer.external">external</a></code></li>
+<li><code><a title="clingo.backend.Observer.heuristic" href="#clingo.backend.Observer.heuristic">heuristic</a></code></li>
+<li><code><a title="clingo.backend.Observer.init_program" href="#clingo.backend.Observer.init_program">init_program</a></code></li>
+<li><code><a title="clingo.backend.Observer.minimize" href="#clingo.backend.Observer.minimize">minimize</a></code></li>
+<li><code><a title="clingo.backend.Observer.output_atom" href="#clingo.backend.Observer.output_atom">output_atom</a></code></li>
+<li><code><a title="clingo.backend.Observer.output_term" href="#clingo.backend.Observer.output_term">output_term</a></code></li>
+<li><code><a title="clingo.backend.Observer.project" href="#clingo.backend.Observer.project">project</a></code></li>
+<li><code><a title="clingo.backend.Observer.rule" href="#clingo.backend.Observer.rule">rule</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_atom" href="#clingo.backend.Observer.theory_atom">theory_atom</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_atom_with_guard" href="#clingo.backend.Observer.theory_atom_with_guard">theory_atom_with_guard</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_element" href="#clingo.backend.Observer.theory_element">theory_element</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_compound" href="#clingo.backend.Observer.theory_term_compound">theory_term_compound</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_number" href="#clingo.backend.Observer.theory_term_number">theory_term_number</a></code></li>
+<li><code><a title="clingo.backend.Observer.theory_term_string" href="#clingo.backend.Observer.theory_term_string">theory_term_string</a></code></li>
+<li><code><a title="clingo.backend.Observer.weight_rule" href="#clingo.backend.Observer.weight_rule">weight_rule</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.backend.TheorySequenceType" href="#clingo.backend.TheorySequenceType">TheorySequenceType</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.backend.TheorySequenceType.List" href="#clingo.backend.TheorySequenceType.List">List</a></code></li>
+<li><code><a title="clingo.backend.TheorySequenceType.Set" href="#clingo.backend.TheorySequenceType.Set">Set</a></code></li>
+<li><code><a title="clingo.backend.TheorySequenceType.Tuple" href="#clingo.backend.TheorySequenceType.Tuple">Tuple</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

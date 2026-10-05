@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>clingo.statistics API documentation</title>
+<meta name="description" content="Functions and classes related to statistics …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<nav class="http-server-breadcrumbs">
+<a href="https://potassco.org/clingo/python-api/5.8/">All packages</a>
+:: <a href="https://potassco.org/clingo/python-api/5.8/clingo/">clingo</a>
+</nav>
+<h1 class="title">Module <code>clingo.statistics</code></h1>
+</header>
+<section id="section-intro">
+<p>Functions and classes related to statistics.</p>
+<h2 id="examples">Examples</h2>
+<p>The following example shows how to add custom statistics and dump the
+statistics in json format:</p>
+<pre><code>&gt;&gt;&gt; from json import dumps
+&gt;&gt;&gt; from clingo.control import Control
+&gt;&gt;&gt;
+&gt;&gt;&gt; def on_statistics(step, accu):
+...     accu["example"] = 42
+...
+&gt;&gt;&gt; ctl = Control(['--stats'])
+&gt;&gt;&gt; ctl.add("base", [], "{a}.")
+&gt;&gt;&gt; ctl.ground([("base", [])])
+&gt;&gt;&gt; print(ctl.solve(on_statistics=on_statistics))
+SAT
+&gt;&gt;&gt; print(dumps(ctl.statistics['user_accu'], sort_keys=True,
+...             indent=4, separators=(',', ': ')))
+{
+    "example": 42.0
+}
+&gt;&gt;&gt; print(dumps(ctl.statistics['summary']['times'], sort_keys=True,
+...             indent=4, separators=(',', ': ')))
+{
+    "cpu": 0.000785999999999995,
+    "sat": 7.867813110351562e-06,
+    "solve": 2.288818359375e-05,
+    "total": 0.0007848739624023438,
+    "unsat": 0.0
+}
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="clingo.statistics.StatisticsArray"><code class="flex name class">
+<span>class <span class="ident">StatisticsArray</span></span>
+<span>(</span><span>rep, key)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class StatisticsArray(MutableSequence[StatisticsValue]):
+    &#34;&#34;&#34;
+    Class to modify statistics stored in an array.
+
+    Notes
+    -----
+    Only inplace concatenation and no deletion is supported.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep, key):
+        self._rep = rep
+        self._key = key
+
+    def __len__(self):
+        return _c_call(
+            &#34;size_t&#34;, _lib.clingo_statistics_array_size, self._rep, self._key
+        )
+
+    def __getitem__(self, index):
+        if index &lt; 0 or index &gt;= len(self):
+            raise IndexError(&#34;invalid index&#34;)
+        key = _c_call(
+            &#34;uint64_t&#34;, _lib.clingo_statistics_array_at, self._rep, self._key, index
+        )
+        return _mutable_statistics_get(self._rep, key)
+
+    def __setitem__(self, index, value):
+        key = _c_call(
+            &#34;uint64_t&#34;, _lib.clingo_statistics_array_at, self._rep, self._key, index
+        )
+        type_ = _statistics_type(self._rep, key)
+        _mutable_statistics_set(self._rep, key, type_, value, True)
+
+    def insert(self, index, value):
+        &#34;&#34;&#34;
+        This method is not supported.
+        &#34;&#34;&#34;
+        raise NotImplementedError(&#34;insertion is not supported&#34;)
+
+    def __delitem__(self, index):
+        raise NotImplementedError(&#34;deletion is not supported&#34;)
+
+    def __add__(self, other):
+        raise NotImplementedError(&#34;only inplace concatenation is supported&#34;)
+
+    def __iadd__(self, other):
+        for x in other:
+            self.append(x)
+        return self
+
+    def append(self, value: Any) -&gt; None:
+        &#34;&#34;&#34;
+        Append a value.
+
+        Parameters
+        ----------
+        value
+            A nested structure composed of floats, sequences, and mappings.
+        &#34;&#34;&#34;
+        type_ = _mutable_statistics_value_type(value)
+        key = _c_call(
+            &#34;uint64_t&#34;, _lib.clingo_statistics_array_push, self._rep, self._key, type_
+        )
+        _mutable_statistics_set(self._rep, key, type_, value, False)
+
+    def extend(self, values: Iterable[Any]) -&gt; None:
+        &#34;&#34;&#34;
+        Extend the statistics array with the given values.
+
+        Paremeters
+        ----------
+        values
+            A sequence of nested structures composed of floats, sequences, and
+            mappings.
+        &#34;&#34;&#34;
+        self += values
+
+    def update(self, values: Sequence[Any]) -&gt; None:
+        &#34;&#34;&#34;
+        Update a statistics array.
+
+        Parameters
+        ----------
+        values
+            A sequence of nested structures composed of floats, callable,
+            sequences, and mappings. A callable can be used to update an
+            existing value, it receives the previous numeric value (or None if
+            absent) as argument and must return an updated numeric value.
+        &#34;&#34;&#34;
+        n = len(self)
+        for idx, val in enumerate(values):
+            if idx &lt; n:
+                self[idx] = val
+            else:
+                self.append(val)</code></pre>
+</details>
+<div class="desc"><p>Class to modify statistics stored in an array.</p>
+<h2 id="notes">Notes</h2>
+<p>Only inplace concatenation and no deletion is supported.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>collections.abc.MutableSequence</li>
+<li>collections.abc.Sequence</li>
+<li>collections.abc.Reversible</li>
+<li>collections.abc.Collection</li>
+<li>collections.abc.Sized</li>
+<li>collections.abc.Iterable</li>
+<li>collections.abc.Container</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.statistics.StatisticsArray.append"><code class="name flex">
+<span>def <span class="ident">append</span></span>(<span>self, value: Any) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def append(self, value: Any) -&gt; None:
+    &#34;&#34;&#34;
+    Append a value.
+
+    Parameters
+    ----------
+    value
+        A nested structure composed of floats, sequences, and mappings.
+    &#34;&#34;&#34;
+    type_ = _mutable_statistics_value_type(value)
+    key = _c_call(
+        &#34;uint64_t&#34;, _lib.clingo_statistics_array_push, self._rep, self._key, type_
+    )
+    _mutable_statistics_set(self._rep, key, type_, value, False)</code></pre>
+</details>
+<div class="desc"><p>Append a value.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>value</code></strong></dt>
+<dd>A nested structure composed of floats, sequences, and mappings.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.statistics.StatisticsArray.extend"><code class="name flex">
+<span>def <span class="ident">extend</span></span>(<span>self, values: Iterable[Any]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def extend(self, values: Iterable[Any]) -&gt; None:
+    &#34;&#34;&#34;
+    Extend the statistics array with the given values.
+
+    Paremeters
+    ----------
+    values
+        A sequence of nested structures composed of floats, sequences, and
+        mappings.
+    &#34;&#34;&#34;
+    self += values</code></pre>
+</details>
+<div class="desc"><p>Extend the statistics array with the given values.</p>
+<h2 id="paremeters">Paremeters</h2>
+<p>values
+A sequence of nested structures composed of floats, sequences, and
+mappings.</p></div>
+</dd>
+<dt id="clingo.statistics.StatisticsArray.insert"><code class="name flex">
+<span>def <span class="ident">insert</span></span>(<span>self, index, value)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def insert(self, index, value):
+    &#34;&#34;&#34;
+    This method is not supported.
+    &#34;&#34;&#34;
+    raise NotImplementedError(&#34;insertion is not supported&#34;)</code></pre>
+</details>
+<div class="desc"><p>This method is not supported.</p></div>
+</dd>
+<dt id="clingo.statistics.StatisticsArray.update"><code class="name flex">
+<span>def <span class="ident">update</span></span>(<span>self, values: Sequence[Any]) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update(self, values: Sequence[Any]) -&gt; None:
+    &#34;&#34;&#34;
+    Update a statistics array.
+
+    Parameters
+    ----------
+    values
+        A sequence of nested structures composed of floats, callable,
+        sequences, and mappings. A callable can be used to update an
+        existing value, it receives the previous numeric value (or None if
+        absent) as argument and must return an updated numeric value.
+    &#34;&#34;&#34;
+    n = len(self)
+    for idx, val in enumerate(values):
+        if idx &lt; n:
+            self[idx] = val
+        else:
+            self.append(val)</code></pre>
+</details>
+<div class="desc"><p>Update a statistics array.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>values</code></strong></dt>
+<dd>A sequence of nested structures composed of floats, callable,
+sequences, and mappings. A callable can be used to update an
+existing value, it receives the previous numeric value (or None if
+absent) as argument and must return an updated numeric value.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="clingo.statistics.StatisticsMap"><code class="flex name class">
+<span>class <span class="ident">StatisticsMap</span></span>
+<span>(</span><span>rep, key)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class StatisticsMap(MutableMapping[str, StatisticsValue]):
+    &#34;&#34;&#34;
+    Object to capture statistics stored in a map.
+
+    This class does not support item deletion.
+    &#34;&#34;&#34;
+
+    def __init__(self, rep, key):
+        self._rep = rep
+        self._key = key
+
+    def __len__(self):
+        return _c_call(&#34;size_t&#34;, _lib.clingo_statistics_map_size, self._rep, self._key)
+
+    def __getitem__(self, name: str):
+        if not name in self:
+            raise KeyError(&#34;key not found&#34;)
+        key = _c_call(
+            &#34;uint64_t&#34;,
+            _lib.clingo_statistics_map_at,
+            self._rep,
+            self._key,
+            name.encode(),
+        )
+        return _mutable_statistics_get(self._rep, key)
+
+    def __setitem__(self, name: str, value: Any):
+        has_key = name in self
+        if has_key:
+            key = _c_call(
+                &#34;uint64_t&#34;,
+                _lib.clingo_statistics_map_at,
+                self._rep,
+                self._key,
+                name.encode(),
+            )
+            type_ = _statistics_type(self._rep, key)
+        else:
+            type_ = _mutable_statistics_value_type(value)
+            key = _c_call(
+                &#34;uint64_t&#34;,
+                _lib.clingo_statistics_map_add_subkey,
+                self._rep,
+                self._key,
+                name.encode(),
+                type_,
+            )
+        _mutable_statistics_set(self._rep, key, type_, value, has_key)
+
+    def __delitem__(self, index):
+        raise NotImplementedError(&#34;deletion is not supported&#34;)
+
+    def __contains__(self, name):
+        # note: has to be done like this because of python&#39;s container model
+        if not isinstance(name, str):
+            return False
+        return _c_call(
+            &#34;bool&#34;,
+            _lib.clingo_statistics_map_has_subkey,
+            self._rep,
+            self._key,
+            name.encode(),
+        )
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def items(self) -&gt; ItemsView[str, StatisticsValue]:
+        &#34;&#34;&#34;
+        Return the items of the map.
+        &#34;&#34;&#34;
+        ret = []
+        for i in range(len(self)):
+            name = _c_call(
+                &#34;char*&#34;, _lib.clingo_statistics_map_subkey_name, self._rep, self._key, i
+            )
+            key = _c_call(
+                &#34;uint64_t&#34;, _lib.clingo_statistics_map_at, self._rep, self._key, name
+            )
+            ret.append((_to_str(name), _mutable_statistics_get(self._rep, key)))
+        # Note: to shut up the type checker; this should work fine in practice
+        return cast(ItemsView[str, StatisticsValue], ret)
+
+    def keys(self) -&gt; KeysView[str]:
+        &#34;&#34;&#34;
+        Return the keys of the map.
+        &#34;&#34;&#34;
+        ret = []
+        for i in range(len(self)):
+            ret.append(
+                _to_str(
+                    _c_call(
+                        &#34;char*&#34;,
+                        _lib.clingo_statistics_map_subkey_name,
+                        self._rep,
+                        self._key,
+                        i,
+                    )
+                )
+            )
+        # Note: to shut up the type checker; this should work fine in practice
+        return cast(KeysView[str], ret)
+
+    def update(self, values):
+        &#34;&#34;&#34;
+        Update the map with the given values.
+
+        Parameters
+        ----------
+        values
+            A mapping of nested structures composed of floats, callable,
+            sequences, and mappings. A callable can be used to update an
+            existing value, it receives the previous numeric value (or None if
+            absent) as argument and must return an updated numeric value.
+        &#34;&#34;&#34;
+        for key, value in values.items():
+            self[key] = value
+
+    def values(self) -&gt; ValuesView[StatisticsValue]:
+        &#34;&#34;&#34;
+        Return the values of the map.
+        &#34;&#34;&#34;
+        ret = []
+        for i in range(len(self)):
+            name = _c_call(
+                &#34;char*&#34;, _lib.clingo_statistics_map_subkey_name, self._rep, self._key, i
+            )
+            key = _c_call(
+                &#34;uint64_t&#34;, _lib.clingo_statistics_map_at, self._rep, self._key, name
+            )
+            ret.append(_mutable_statistics_get(self._rep, key))
+        # Note: to shut up the type checker; this should work fine in practice
+        return cast(ValuesView[StatisticsValue], ret)</code></pre>
+</details>
+<div class="desc"><p>Object to capture statistics stored in a map.</p>
+<p>This class does not support item deletion.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>collections.abc.MutableMapping</li>
+<li>collections.abc.Mapping</li>
+<li>collections.abc.Collection</li>
+<li>collections.abc.Sized</li>
+<li>collections.abc.Iterable</li>
+<li>collections.abc.Container</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="clingo.statistics.StatisticsMap.items"><code class="name flex">
+<span>def <span class="ident">items</span></span>(<span>self) ‑> ItemsView[str, <a title="clingo.statistics.StatisticsArray" href="#clingo.statistics.StatisticsArray">StatisticsArray</a> | <a title="clingo.statistics.StatisticsMap" href="#clingo.statistics.StatisticsMap">StatisticsMap</a> | float]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def items(self) -&gt; ItemsView[str, StatisticsValue]:
+    &#34;&#34;&#34;
+    Return the items of the map.
+    &#34;&#34;&#34;
+    ret = []
+    for i in range(len(self)):
+        name = _c_call(
+            &#34;char*&#34;, _lib.clingo_statistics_map_subkey_name, self._rep, self._key, i
+        )
+        key = _c_call(
+            &#34;uint64_t&#34;, _lib.clingo_statistics_map_at, self._rep, self._key, name
+        )
+        ret.append((_to_str(name), _mutable_statistics_get(self._rep, key)))
+    # Note: to shut up the type checker; this should work fine in practice
+    return cast(ItemsView[str, StatisticsValue], ret)</code></pre>
+</details>
+<div class="desc"><p>Return the items of the map.</p></div>
+</dd>
+<dt id="clingo.statistics.StatisticsMap.keys"><code class="name flex">
+<span>def <span class="ident">keys</span></span>(<span>self) ‑> KeysView[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def keys(self) -&gt; KeysView[str]:
+    &#34;&#34;&#34;
+    Return the keys of the map.
+    &#34;&#34;&#34;
+    ret = []
+    for i in range(len(self)):
+        ret.append(
+            _to_str(
+                _c_call(
+                    &#34;char*&#34;,
+                    _lib.clingo_statistics_map_subkey_name,
+                    self._rep,
+                    self._key,
+                    i,
+                )
+            )
+        )
+    # Note: to shut up the type checker; this should work fine in practice
+    return cast(KeysView[str], ret)</code></pre>
+</details>
+<div class="desc"><p>Return the keys of the map.</p></div>
+</dd>
+<dt id="clingo.statistics.StatisticsMap.update"><code class="name flex">
+<span>def <span class="ident">update</span></span>(<span>self, values)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update(self, values):
+    &#34;&#34;&#34;
+    Update the map with the given values.
+
+    Parameters
+    ----------
+    values
+        A mapping of nested structures composed of floats, callable,
+        sequences, and mappings. A callable can be used to update an
+        existing value, it receives the previous numeric value (or None if
+        absent) as argument and must return an updated numeric value.
+    &#34;&#34;&#34;
+    for key, value in values.items():
+        self[key] = value</code></pre>
+</details>
+<div class="desc"><p>Update the map with the given values.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>values</code></strong></dt>
+<dd>A mapping of nested structures composed of floats, callable,
+sequences, and mappings. A callable can be used to update an
+existing value, it receives the previous numeric value (or None if
+absent) as argument and must return an updated numeric value.</dd>
+</dl></div>
+</dd>
+<dt id="clingo.statistics.StatisticsMap.values"><code class="name flex">
+<span>def <span class="ident">values</span></span>(<span>self) ‑> ValuesView[<a title="clingo.statistics.StatisticsArray" href="#clingo.statistics.StatisticsArray">StatisticsArray</a> | <a title="clingo.statistics.StatisticsMap" href="#clingo.statistics.StatisticsMap">StatisticsMap</a> | float]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def values(self) -&gt; ValuesView[StatisticsValue]:
+    &#34;&#34;&#34;
+    Return the values of the map.
+    &#34;&#34;&#34;
+    ret = []
+    for i in range(len(self)):
+        name = _c_call(
+            &#34;char*&#34;, _lib.clingo_statistics_map_subkey_name, self._rep, self._key, i
+        )
+        key = _c_call(
+            &#34;uint64_t&#34;, _lib.clingo_statistics_map_at, self._rep, self._key, name
+        )
+        ret.append(_mutable_statistics_get(self._rep, key))
+    # Note: to shut up the type checker; this should work fine in practice
+    return cast(ValuesView[StatisticsValue], ret)</code></pre>
+</details>
+<div class="desc"><p>Return the values of the map.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#examples">Examples</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="clingo" href="index.html">clingo</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="clingo.statistics.StatisticsArray" href="#clingo.statistics.StatisticsArray">StatisticsArray</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.statistics.StatisticsArray.append" href="#clingo.statistics.StatisticsArray.append">append</a></code></li>
+<li><code><a title="clingo.statistics.StatisticsArray.extend" href="#clingo.statistics.StatisticsArray.extend">extend</a></code></li>
+<li><code><a title="clingo.statistics.StatisticsArray.insert" href="#clingo.statistics.StatisticsArray.insert">insert</a></code></li>
+<li><code><a title="clingo.statistics.StatisticsArray.update" href="#clingo.statistics.StatisticsArray.update">update</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="clingo.statistics.StatisticsMap" href="#clingo.statistics.StatisticsMap">StatisticsMap</a></code></h4>
+<ul class="">
+<li><code><a title="clingo.statistics.StatisticsMap.items" href="#clingo.statistics.StatisticsMap.items">items</a></code></li>
+<li><code><a title="clingo.statistics.StatisticsMap.keys" href="#clingo.statistics.StatisticsMap.keys">keys</a></code></li>
+<li><code><a title="clingo.statistics.StatisticsMap.update" href="#clingo.statistics.StatisticsMap.update">update</a></code></li>
+<li><code><a title="clingo.statistics.StatisticsMap.values" href="#clingo.statistics.StatisticsMap.values">values</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>
