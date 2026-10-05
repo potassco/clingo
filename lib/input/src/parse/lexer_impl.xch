@@ -21,7 +21,7 @@ namespace CppClingo::Input::Parse {
     POS        = [0]|([1-9][0-9]*);
     DEC        = POS|([1-9][0-9]{0,2}(['][0-9]{3})+);
     HEX        = "0x"([0-9A-Fa-f]+);
-    OCT        = "0o"([1-7]+);
+    OCT        = "0o"([0-7]+);
     BIN        = "0b"([0-1]+);
     NUMBER     = DEC | HEX | OCT | BIN;
     WS         = [\t\r\n ]*;

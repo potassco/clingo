@@ -20,6 +20,8 @@ TEST_CASE("parsev2") {
             return to_str(parser.parse_symbol());
         };
         REQUIRE(parse("1") == "1");
+        REQUIRE(parse("0o0") == "0");
+        REQUIRE(parse("0o102") == "66");
         REQUIRE(parse("|-1|") == "1");
         REQUIRE(parse("|x|") == "<failed>");
         REQUIRE(parse("a") == "a");
