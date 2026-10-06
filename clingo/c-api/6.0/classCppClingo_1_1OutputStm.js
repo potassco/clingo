@@ -9,7 +9,7 @@ var classCppClingo_1_1OutputStm =
     [ "DisjElemSpan", "classCppClingo_1_1OutputStm.html#a4a94deae1bc0a6e8a744973a3ede4e60", null ],
     [ "Guard", "classCppClingo_1_1OutputStm.html#a6d4ba69c00b7afcbd707360b14db2e04", null ],
     [ "GuardSpan", "classCppClingo_1_1OutputStm.html#ab70e767d25d6b12b99c3fb47b67068b0", null ],
-    [ "HdElem", "classCppClingo_1_1OutputStm.html#a70a7908c9081ac575f5c3e3a88ec259d", null ],
+    [ "HdElem", "classCppClingo_1_1OutputStm.html#a19f91616bf8fa9931f78a207f7c6c625", null ],
     [ "HdElemSpan", "classCppClingo_1_1OutputStm.html#a8e74260575b118aa464792ee343e53c1", null ],
     [ "~OutputStm", "classCppClingo_1_1OutputStm.html#a6a40f92221b6299d783fda31d7a59e4b", null ],
     [ "aggr_rule", "classCppClingo_1_1OutputStm.html#a285139d55124970605701ab33b16d9a3", null ],

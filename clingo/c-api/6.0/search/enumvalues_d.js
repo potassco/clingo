@@ -1,7 +1,7 @@
 var searchData=
 [
   ['parse_0',['parse',['../group__control.html#gga542a6445871beb19ed9da9253925d615a2e88eca8ada4443dd53a1261d68b5abd',1,'parseCppClingo::Control'],['../group__cpp__control.html#gga702af514f321bd741ddeb074bc8f7107a2e88eca8ada4443dd53a1261d68b5abd',1,'parseClingo']]],
-  ['plus_1',['plus',['../structCppClingo_1_1FormatSpec.html#a9a9726f9cb5f6f8b4e9780625dfccff3ad7d18cfb3a0d8293e2f5d94ea30e04d2',1,'CppClingo::FormatSpec::plus'],['../group__input__term.html#gga777262b0d68c4ea17b24fb154820b5e2ad7d18cfb3a0d8293e2f5d94ea30e04d2',1,'plusCppClingo::Input'],['../group__ground__term.html#gga309c43a0dac8a738555420b48369582dad7d18cfb3a0d8293e2f5d94ea30e04d2',1,'plusCppClingo::Ground']]],
+  ['plus_1',['plus',['../group__input__term.html#gga777262b0d68c4ea17b24fb154820b5e2ad7d18cfb3a0d8293e2f5d94ea30e04d2',1,'plusCppClingo::Input'],['../group__ground__term.html#gga309c43a0dac8a738555420b48369582dad7d18cfb3a0d8293e2f5d94ea30e04d2',1,'plusCppClingo::Ground'],['../structCppClingo_1_1FormatSpec.html#a9a9726f9cb5f6f8b4e9780625dfccff3ad7d18cfb3a0d8293e2f5d94ea30e04d2',1,'CppClingo::FormatSpec::plus']]],
   ['pos_5fnumber_2',['pos_number',['../group__input__analyze.html#gga20b704ed5b50300ad4ed6fe99d927de5a7b16f9471e16470d4d67f9ff189e05c3',1,'CppClingo::Input']]],
   ['positive_3',['positive',['../group__input__program.html#gga0f7c9c32244ca3f4bec475f3f4fbd284a82082716189f80fd070b89ac716570ba',1,'CppClingo::Input']]],
   ['pow_4',['pow',['../group__input__term.html#gga777262b0d68c4ea17b24fb154820b5e2a30d7e0494351def45591fccb21d3510b',1,'powCppClingo::Input'],['../group__ground__term.html#gga309c43a0dac8a738555420b48369582da30d7e0494351def45591fccb21d3510b',1,'powCppClingo::Ground']]],

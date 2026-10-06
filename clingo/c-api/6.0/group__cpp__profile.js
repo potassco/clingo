@@ -14,7 +14,7 @@ var group__cpp__profile =
       [ "key", "structClingo_1_1ProfileNodeInternal.html#a308755e499c23bf4c12776f3dcb0359e", null ],
       [ "nested", "structClingo_1_1ProfileNodeInternal.html#a003a31a1bee875afc12d39e48f610423", null ]
     ] ],
-    [ "Clingo::ProfileNode", "group__cpp__profile.html#ga05989a83c24ac02ea01924c99d6cfd0d", null ],
+    [ "Clingo::ProfileNode", "group__cpp__profile.html#gad77e93c2dd72bbe1b91b99a155652b2c", null ],
     [ "Clingo::ProfileType", "group__cpp__profile.html#ga84232f849ebaea181e7c6a185f3470ab", [
       [ "Clingo::ProfileType::step", "group__cpp__profile.html#gga84232f849ebaea181e7c6a185f3470aba2764ca9d34e90313978d044f27ae433b", null ],
       [ "Clingo::ProfileType::accu", "group__cpp__profile.html#gga84232f849ebaea181e7c6a185f3470aba076602efe3af5d4fa2b47d8d3f8c8c1c", null ]

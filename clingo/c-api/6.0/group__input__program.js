@@ -49,10 +49,10 @@ var group__input__program =
       [ "theory_directives", "classCppClingo_1_1Input_1_1Program.html#addff8a90f5782ca001fcb2224b956745", null ],
       [ "visit_stms", "classCppClingo_1_1Input_1_1Program.html#ae96740cbe1e58d76439d5359b0b7b71c", null ]
     ] ],
-    [ "CppClingo::Input::Components", "group__input__program.html#ga30df5a4c659a40a07a2d542cfc83b69a", null ],
-    [ "CppClingo::Input::ConstMap", "group__input__program.html#ga2b973d8132bbd5cf26bdee6e5e22977c", null ],
-    [ "CppClingo::Input::ParamUnmap", "group__input__program.html#ga50936dcae487c45830597f753ec369e7", null ],
-    [ "CppClingo::Input::ProgramPartVec", "group__input__program.html#gaac280c678801645d39e6e79af8f62687", null ],
+    [ "CppClingo::Input::Components", "group__input__program.html#ga771af9d457c82eb52ce1a277346b8087", null ],
+    [ "CppClingo::Input::ConstMap", "group__input__program.html#gac11254b6e15eed5cde4f19e1717d9beb", null ],
+    [ "CppClingo::Input::ParamUnmap", "group__input__program.html#gab8707b1749214f5ea750f286eeaad1f7", null ],
+    [ "CppClingo::Input::ProgramPartVec", "group__input__program.html#ga704030a4ab3695f1c436d9c05f43acc2", null ],
     [ "CppClingo::Input::ComponentType", "group__input__program.html#ga0f7c9c32244ca3f4bec475f3f4fbd284", [
       [ "CppClingo::Input::ComponentType::positive", "group__input__program.html#gga0f7c9c32244ca3f4bec475f3f4fbd284a82082716189f80fd070b89ac716570ba", null ],
       [ "CppClingo::Input::ComponentType::single_pass", "group__input__program.html#gga0f7c9c32244ca3f4bec475f3f4fbd284ab9b5ff3d522a1398ce9dfc98029de04e", null ]

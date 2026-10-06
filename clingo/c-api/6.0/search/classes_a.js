@@ -8,5 +8,5 @@ var searchData=
   ['matchhdaggr_5',['MatchHdAggr',['../classCppClingo_1_1Ground_1_1MatchHdAggr.html',1,'CppClingo::Ground']]],
   ['matchsortaggr_6',['MatchSortAggr',['../classCppClingo_1_1Ground_1_1MatchSortAggr.html',1,'CppClingo::Ground']]],
   ['matchtheory_7',['MatchTheory',['../classCppClingo_1_1Ground_1_1MatchTheory.html',1,'CppClingo::Ground']]],
-  ['model_8',['Model',['../classClingo_1_1Model.html',1,'Clingo::Model'],['../classCppClingo_1_1Control_1_1Model.html',1,'CppClingo::Control::Model']]]
+  ['model_8',['model',['../classClingo_1_1Model.html',1,'Clingo::Model'],['../classCppClingo_1_1Control_1_1Model.html',1,'CppClingo::Control::Model']]]
 ];

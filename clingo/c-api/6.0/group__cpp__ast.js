@@ -37,8 +37,8 @@ var group__cpp__ast =
       [ "add", "classClingo_1_1AST_1_1Program.html#a5f1e81e800b2e27a7f7f4847b4ee1c20", null ],
       [ "c_cast", "classClingo_1_1AST_1_1Program.html#aa4f30a2922a3739b78877be1a88f41bd", null ]
     ] ],
-    [ "Clingo::AST::Transformer", "group__cpp__ast.html#ga485a14b16fea9cef3b41ceabe6bc1c68", null ],
-    [ "Clingo::AST::Visitor", "group__cpp__ast.html#ga3ea2b7f07be5f039f5c0ce3efb3388dc", null ],
+    [ "Clingo::AST::Transformer", "group__cpp__ast.html#ga773e42fedac88f9d0bd6a9bc8e9054f3", null ],
+    [ "Clingo::AST::Visitor", "group__cpp__ast.html#ga885ed2ab0dc7342d05c42f3ebc3e063e", null ],
     [ "Clingo::AST::Attribute", "group__cpp__ast.html#ga27eaa5977fd09449c416572a1f334b32", null ],
     [ "Clingo::AST::NodeType", "group__cpp__ast.html#gaceb3fb295f91d3d152732a09f5806909", null ],
     [ "Clingo::AST::ParseType", "group__cpp__ast.html#ga92fda7a179b8c7d80b9146e409e1bd8b", [

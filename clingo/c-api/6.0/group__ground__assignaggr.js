@@ -1,7 +1,7 @@
 var group__ground__assignaggr =
 [
     [ "CppClingo::Ground::AtomAssignAggr", "classCppClingo_1_1Ground_1_1AtomAssignAggr.html", [
-      [ "Values", "classCppClingo_1_1Ground_1_1AtomAssignAggr.html#ab406987955fb7c16c9fee4f4b9bc6ad6", null ],
+      [ "Values", "classCppClingo_1_1Ground_1_1AtomAssignAggr.html#a893aede51d60810630137cc95b5bc473", null ],
       [ "AtomAssignAggr", "classCppClingo_1_1Ground_1_1AtomAssignAggr.html#a5ef80360fb50a04e44276e9171d562ce", null ],
       [ "accumulate", "classCppClingo_1_1Ground_1_1AtomAssignAggr.html#a9fc9d6dbf42d49312d81e8f6dc04dad4", null ],
       [ "add_elem", "classCppClingo_1_1Ground_1_1AtomAssignAggr.html#a56528cf7f08aad717d0e82100b19d91c", null ],
@@ -38,7 +38,7 @@ var group__ground__assignaggr =
         [ "operator==", "classCppClingo_1_1Ground_1_1StateAssignAggr_1_1ElementKey.html#a22148b8ba138ce878b0da81aadf90397", null ]
       ] ],
       [ "AtomMap", "classCppClingo_1_1Ground_1_1StateAssignAggr.html#af5770c21db330546dc8bfbcdb6e207cf", null ],
-      [ "ElementMap", "classCppClingo_1_1Ground_1_1StateAssignAggr.html#adf050cffc75e14046a33be62bf30c31c", null ],
+      [ "ElementMap", "classCppClingo_1_1Ground_1_1StateAssignAggr.html#a52be3be0ed9fdc006b1b71493c4cf15a", null ],
       [ "StateAssignAggr", "classCppClingo_1_1Ground_1_1StateAssignAggr.html#a966fabd816de10be6ec1629787a4e451", null ],
       [ "atom_index", "classCppClingo_1_1Ground_1_1StateAssignAggr.html#a04b83bfebc96d2d4e6a46f752387ae7e", null ],
       [ "base", "classCppClingo_1_1Ground_1_1StateAssignAggr.html#ab43db94bb223e253be9072b09ed7ae80", null ],
@@ -116,7 +116,7 @@ var group__ground__assignaggr =
     [ "CppClingo::Ground::StateSortAggr", "classCppClingo_1_1Ground_1_1StateSortAggr.html", [
       [ "AtomMap", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a9f6de82f88997dc02ba34f306c571775", null ],
       [ "ElementKey", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a38365bd0cc4ddf5db69cd3decbb54c97", null ],
-      [ "ElementMap", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a5ffe808e2c180725fabfa974fb2f124d", null ],
+      [ "ElementMap", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a682c4837ae3bf43218a08ad513e1a678", null ],
       [ "StateSortAggr", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a027dc4d66ee81124e1ce37a3b215b7c2", null ],
       [ "atom_index", "classCppClingo_1_1Ground_1_1StateSortAggr.html#ac80b15516199fb6cd912ac345d736961", null ],
       [ "base", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a6828c29cdb23ca2903a415b8157e0083", null ],

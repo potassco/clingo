@@ -4,7 +4,7 @@ var classClingo_1_1TheoryAssignment_1_1iterator =
     [ "iterator_category", "classClingo_1_1TheoryAssignment_1_1iterator.html#a8ca5e5202521fee36ada3d6a4cbdfa6b", null ],
     [ "pointer", "classClingo_1_1TheoryAssignment_1_1iterator.html#ad4b037c98630dd1f6fe3f641115d5e16", null ],
     [ "reference", "classClingo_1_1TheoryAssignment_1_1iterator.html#a989254c62516fd0ac3e92ebc28822cc2", null ],
-    [ "value_type", "classClingo_1_1TheoryAssignment_1_1iterator.html#aa656b11e04bd47fc2742001040908b37", null ],
+    [ "value_type", "classClingo_1_1TheoryAssignment_1_1iterator.html#a01bad0480a72d77fb34b260aad190e4e", null ],
     [ "iterator", "classClingo_1_1TheoryAssignment_1_1iterator.html#aad3359fe271cc63a3416d489dff7476f", null ],
     [ "iterator", "classClingo_1_1TheoryAssignment_1_1iterator.html#a1345adf4e68442ea4c2688360d895cdb", null ],
     [ "operator*", "classClingo_1_1TheoryAssignment_1_1iterator.html#a34e68786fb3aab57350cf65b11e4eb50", null ],

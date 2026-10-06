@@ -20,9 +20,9 @@ var group__cpp__ground =
       [ "wait", "classClingo_1_1GroundHandle.html#a90dad0bd20d99e9c27208a8db1c0ae15", null ],
       [ "c_cast", "classClingo_1_1GroundHandle.html#aabbcafef18cda84a906d01a57e87739f", null ]
     ] ],
-    [ "Clingo::PartList", "group__cpp__ground.html#ga08e125d73e4e294fd00b73e1d49a5065", null ],
-    [ "Clingo::PartSpan", "group__cpp__ground.html#ga9cbdf3204444ae397dde26e4a10ee280", null ],
-    [ "Clingo::PartVector", "group__cpp__ground.html#ga3dffa3a84b5e121013dcb54c4b7d5629", null ],
+    [ "Clingo::PartList", "group__cpp__ground.html#gad5976e07379569aa656c286f6743ffec", null ],
+    [ "Clingo::PartSpan", "group__cpp__ground.html#gaafd17355813e7e29662188ee37ebb078", null ],
+    [ "Clingo::PartVector", "group__cpp__ground.html#ga580361fedbd416b2a794e462715875b9", null ],
     [ "Clingo::GroundResult", "group__cpp__ground.html#gad33c7afdc7b0979efca028e8ddc00733", [
       [ "Clingo::GroundResult::ok", "group__cpp__ground.html#ggad33c7afdc7b0979efca028e8ddc00733a444bcb3a3fcf8389296c49467f27e1d6", null ],
       [ "Clingo::GroundResult::unsatisfiable", "group__cpp__ground.html#ggad33c7afdc7b0979efca028e8ddc00733ac96c3b9644f1609709c073a02cce0f7c", null ],

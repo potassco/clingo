@@ -75,13 +75,13 @@ var group__input__rewrite =
       [ "set_error", "classCppClingo_1_1Input_1_1RewriteContext.html#a79a488a6d0465693fdd7be4b019268d5", null ],
       [ "store", "classCppClingo_1_1Input_1_1RewriteContext.html#a00611a85f1d12dc93b64f49e4b090dec", null ]
     ] ],
-    [ "CppClingo::Input::AuxTermVec", "group__input__rewrite.html#gae6a3be7d1f97bd68f3a34eb3faa54b18", null ],
-    [ "CppClingo::Input::IEDomain", "group__input__rewrite.html#ga42f7f9d0327424903cccc47e810f9957", null ],
-    [ "CppClingo::Input::IETermVec", "group__input__rewrite.html#gac9d982eeaaf40214c95eec9f01dc532d", null ],
-    [ "CppClingo::Input::IEVec", "group__input__rewrite.html#gab7fe30fd18987cd36bb611524605dfbf", null ],
-    [ "CppClingo::Input::ParamMap", "group__input__rewrite.html#ga852481d26eb22be0af0a4a2175d9c710", null ],
-    [ "CppClingo::Input::SimplifyResult", "group__input__rewrite.html#ga651781bb1b216862e974132076a07ce4", null ],
-    [ "CppClingo::Input::SimplifyTermResult", "group__input__rewrite.html#ga869de6945cefb5949d74a9a0b3175533", null ],
+    [ "CppClingo::Input::AuxTermVec", "group__input__rewrite.html#gab71e2de978f9599c2f5d9644773789b7", null ],
+    [ "CppClingo::Input::IEDomain", "group__input__rewrite.html#gab9c2d675bcb3658065c2919b1d53060c", null ],
+    [ "CppClingo::Input::IETermVec", "group__input__rewrite.html#ga8dc4f7ac1211bf70b862dbb967d1ab53", null ],
+    [ "CppClingo::Input::IEVec", "group__input__rewrite.html#ga4b546b367622b2b54dc337cd57a108f3", null ],
+    [ "CppClingo::Input::ParamMap", "group__input__rewrite.html#ga6f5abd10bcc8174dfe7548f173e39a9a", null ],
+    [ "CppClingo::Input::SimplifyResult", "group__input__rewrite.html#ga4d27779e217e0fedb64cee0adb06094a", null ],
+    [ "CppClingo::Input::SimplifyTermResult", "group__input__rewrite.html#ga67bd5abf2d4c316cc6caf1558fbd4bfa", null ],
     [ "CppClingo::Input::Arity", "group__input__rewrite.html#ga77d3487b22e60759ffdb4c6ebf2dd2b0", [
       [ "CppClingo::Input::Arity::unary", "group__input__rewrite.html#gga77d3487b22e60759ffdb4c6ebf2dd2b0a94a69b2994dec7f49a12bb036c3d2ac8", null ],
       [ "CppClingo::Input::Arity::binary", "group__input__rewrite.html#gga77d3487b22e60759ffdb4c6ebf2dd2b0a9d7183f16acce70658f686ae7f1a4d20", null ]

@@ -27,9 +27,9 @@ var group__input__head =
       [ "loc", "classCppClingo_1_1Input_1_1HdLitAggregate.html#a0a397b53a6d2f139b1dfb6c8fbf96392", null ],
       [ "rhs", "classCppClingo_1_1Input_1_1HdLitAggregate.html#ac063963f069ed8161749331306ff5aed", null ]
     ] ],
-    [ "CppClingo::Input::HdLit", "group__input__head.html#ga74054d3197ef2d0648b8fe575117c370", null ],
-    [ "CppClingo::Input::HdLitAggregateElementArray", "group__input__head.html#ga727dd5f5e202c64975e7671cad176a56", null ],
-    [ "CppClingo::Input::HdLitArray", "group__input__head.html#ga1c87bba80420299089ec6f7b63e7be63", null ],
-    [ "CppClingo::Input::HdLitDisjunctionElement", "group__input__head.html#gaa682c0ca26f53b0656cf735c5f35a725", null ],
-    [ "CppClingo::Input::HdLitDisjunctionElementArray", "group__input__head.html#ga9f6e2fe36d7072224d1623f1daf937d1", null ]
+    [ "CppClingo::Input::HdLit", "group__input__head.html#ga3d7a50ab606237c85f3759bf2b0290eb", null ],
+    [ "CppClingo::Input::HdLitAggregateElementArray", "group__input__head.html#ga1dc28b643cd91b4a0626f5880e04eb5c", null ],
+    [ "CppClingo::Input::HdLitArray", "group__input__head.html#ga99b532784d05a541acc10ab937a86fa8", null ],
+    [ "CppClingo::Input::HdLitDisjunctionElement", "group__input__head.html#ga3bfcdc89beb5a63e00447c470d9fd75f", null ],
+    [ "CppClingo::Input::HdLitDisjunctionElementArray", "group__input__head.html#gad5ac0dd9b6a60d48f5525f761ffbc1ae", null ]
 ];

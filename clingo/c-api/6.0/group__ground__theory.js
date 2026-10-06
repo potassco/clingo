@@ -31,7 +31,7 @@ var group__ground__theory =
         [ "operator==", "classCppClingo_1_1Ground_1_1StateTheory_1_1ElementKey.html#a22148b8ba138ce878b0da81aadf90397", null ]
       ] ],
       [ "AtomMap", "classCppClingo_1_1Ground_1_1StateTheory.html#a5e6882ec2ca32a8667bee964fa089b16", null ],
-      [ "ElementMap", "classCppClingo_1_1Ground_1_1StateTheory.html#a845060dcd021946f378173593f892560", null ],
+      [ "ElementMap", "classCppClingo_1_1Ground_1_1StateTheory.html#a289d12982f3242ef825cabcf7a3541bd", null ],
       [ "StateTheory", "classCppClingo_1_1Ground_1_1StateTheory.html#af1791326709d101632789c35dacffbb4", null ],
       [ "base", "classCppClingo_1_1Ground_1_1StateTheory.html#a953e45cb299257c3d08a8cb1adeb3172", null ],
       [ "elems", "classCppClingo_1_1Ground_1_1StateTheory.html#a29b410168b7ddc6a1d162977636466a5", null ],
@@ -89,7 +89,7 @@ var group__ground__theory =
     [ "CppClingo::Ground::TheoryTermFunction", "classCppClingo_1_1Ground_1_1TheoryTermFunction.html", [
       [ "TheoryTermFunction", "classCppClingo_1_1Ground_1_1TheoryTermFunction.html#a65e318aa5a8054c34f078c59c6adc703", null ]
     ] ],
-    [ "CppClingo::Ground::TheoryRGuard", "group__ground__theory.html#ga93886d188a3ee9bb4765efff4f4432b4", null ],
-    [ "CppClingo::Ground::UTheoryTerm", "group__ground__theory.html#ga744561d9372bca4a7cc1b5921d712c02", null ],
-    [ "CppClingo::Ground::UTheoryTermVec", "group__ground__theory.html#ga641a5a54dfce749af08c6b2ff9567396", null ]
+    [ "CppClingo::Ground::TheoryRGuard", "group__ground__theory.html#gac793674979859de80802756e742cdf8c", null ],
+    [ "CppClingo::Ground::UTheoryTerm", "group__ground__theory.html#ga6e9b58bdf4058f559913513d2350bcf6", null ],
+    [ "CppClingo::Ground::UTheoryTermVec", "group__ground__theory.html#ga00bdab004bd866b706834ac4195f956d", null ]
 ];

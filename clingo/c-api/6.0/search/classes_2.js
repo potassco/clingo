@@ -19,7 +19,7 @@ var searchData=
   ['clingo_5ftheory_5fvalue_16',['clingo_theory_value',['../structclingo__theory__value.html',1,'']]],
   ['clingo_5fweighted_5fliteral_17',['clingo_weighted_literal',['../structclingo__weighted__literal.html',1,'']]],
   ['clingoconfig_18',['ClingoConfig',['../classCppClingo_1_1Control_1_1ClingoConfig.html',1,'CppClingo::Control']]],
-  ['component_19',['Component',['../classCppClingo_1_1Ground_1_1Component.html',1,'CppClingo::Ground::Component'],['../structCppClingo_1_1Input_1_1Component.html',1,'CppClingo::Input::Component']]],
+  ['component_19',['component',['../classCppClingo_1_1Ground_1_1Component.html',1,'CppClingo::Ground::Component'],['../structCppClingo_1_1Input_1_1Component.html',1,'CppClingo::Input::Component']]],
   ['condlit_20',['CondLit',['../classCppClingo_1_1Input_1_1CondLit.html',1,'CppClingo::Input']]],
   ['config_21',['Config',['../classClingo_1_1Config.html',1,'Clingo']]],
   ['configarray_22',['ConfigArray',['../classClingo_1_1ConfigArray.html',1,'Clingo']]],

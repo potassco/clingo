@@ -53,8 +53,8 @@ var group__core =
       [ "type", "structCppClingo_1_1FormatSpec.html#a50cfc858ff40df7f6ad2edbbf1ad8776", null ],
       [ "width", "structCppClingo_1_1FormatSpec.html#a0a38881245e499297f471511eeb8c1c8", null ]
     ] ],
-    [ "CppClingo::TheorySig", "group__core.html#gafab4396c91b21990c048d8f951d90402", null ],
-    [ "CppClingo::TheorySigVec", "group__core.html#gab50e1c7e043fad4a958c0adc244d4dfa", null ],
+    [ "CppClingo::TheorySig", "group__core.html#ga2b265d4d4eff93698423197c995d5766", null ],
+    [ "CppClingo::TheorySigVec", "group__core.html#gadb97a4f96be26299ba1f974cc73b189f", null ],
     [ "CppClingo::AggregateFunction", "group__core.html#gaecaa8b35eff7e55a148b48f1ffb9569b", [
       [ "CppClingo::AggregateFunction::sum", "group__core.html#ggaecaa8b35eff7e55a148b48f1ffb9569ba1d623b89683f9ce4e074de1676d12416", null ],
       [ "CppClingo::AggregateFunction::sump", "group__core.html#ggaecaa8b35eff7e55a148b48f1ffb9569baf50bea1c7f31f95979bb1d222e70a50c", null ],

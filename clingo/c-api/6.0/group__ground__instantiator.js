@@ -66,7 +66,7 @@ var group__ground__instantiator =
       [ "time_propagate", "structCppClingo_1_1Ground_1_1ProfileStats.html#ae105792085715267740955856a336f72", null ]
     ] ],
     [ "CppClingo::Ground::ProfileNode", "classCppClingo_1_1Ground_1_1ProfileNode.html", [
-      [ "Visitor", "classCppClingo_1_1Ground_1_1ProfileNode.html#a5e0d6623f8eacf6e50e4f4b522bd45f5", null ],
+      [ "Visitor", "classCppClingo_1_1Ground_1_1ProfileNode.html#a824fb0cb4c1c0e924b38c1e9e1591249", null ],
       [ "ProfileNode", "classCppClingo_1_1Ground_1_1ProfileNode.html#a147c7111809b94242fbedc46d2c169e8", null ],
       [ "ProfileNode", "classCppClingo_1_1Ground_1_1ProfileNode.html#a8cbe4e5ea9043f3b9b39d97e4076f0d1", null ],
       [ "~ProfileNode", "classCppClingo_1_1Ground_1_1ProfileNode.html#a94488edf3dfe9f5023dd160bc0da6bbd", null ],
@@ -88,9 +88,9 @@ var group__ground__instantiator =
     [ "CppClingo::Ground::ProfileData", "classCppClingo_1_1Ground_1_1ProfileData.html", [
       [ "ProfileData", "classCppClingo_1_1Ground_1_1ProfileData.html#afabc6920a3eed65a8d1769e35d445961", null ]
     ] ],
-    [ "CppClingo::Ground::InstantiatorVec", "group__ground__instantiator.html#ga4c549941f0d2a5972ad183f281906eed", null ],
-    [ "CppClingo::Ground::UMatcher", "group__ground__instantiator.html#gafed90ab601b0281e7680688ad9278668", null ],
-    [ "CppClingo::Ground::UMatcherVec", "group__ground__instantiator.html#ga51b1dceecac6a8beb88e9f7fad69d83f", null ],
+    [ "CppClingo::Ground::InstantiatorVec", "group__ground__instantiator.html#ga47698d2b9bdb1a13cbcf6d04df8ebd5f", null ],
+    [ "CppClingo::Ground::UMatcher", "group__ground__instantiator.html#ga77b447b18de1c1e381ff197a3bf6a144", null ],
+    [ "CppClingo::Ground::UMatcherVec", "group__ground__instantiator.html#ga12cc29cdcc8902f1d26d9f1db6be5b0e", null ],
     [ "CppClingo::Ground::MatcherType", "group__ground__instantiator.html#ga5c4db6a3049cc6d139c8bef5a9fa6c93", [
       [ "CppClingo::Ground::MatcherType::old_atoms", "group__ground__instantiator.html#gga5c4db6a3049cc6d139c8bef5a9fa6c93a9042f9499ab63897c9ec69fac599e4cf", null ],
       [ "CppClingo::Ground::MatcherType::all_atoms", "group__ground__instantiator.html#gga5c4db6a3049cc6d139c8bef5a9fa6c93a4823bf8cad059e5cd9da97fc596886b9", null ]

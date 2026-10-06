@@ -26,9 +26,9 @@ var group__cpp__symbol =
       [ "operator<=>", "classClingo_1_1Symbol.html#a94692df96d0bae0acbf9bce63d400fd3", null ],
       [ "operator==", "classClingo_1_1Symbol.html#ad6f83d4f13256776d601a38dda82456d", null ]
     ] ],
-    [ "Clingo::SymbolList", "group__cpp__symbol.html#gacd91d2302c58db5fd94bd6180e76416b", null ],
-    [ "Clingo::SymbolSpan", "group__cpp__symbol.html#gaba1fced0a2629994c4b2ac81f461e229", null ],
-    [ "Clingo::SymbolVector", "group__cpp__symbol.html#gaa24e4dc998cd57c6dba3a9a2551c8f12", null ],
+    [ "Clingo::SymbolList", "group__cpp__symbol.html#gabe1b87a944f776103bb2a105f52587e5", null ],
+    [ "Clingo::SymbolSpan", "group__cpp__symbol.html#ga632241d62b364b3f931d65c0b07bf67d", null ],
+    [ "Clingo::SymbolVector", "group__cpp__symbol.html#ga0e8b78c479313c8a3d1858ead5a169af", null ],
     [ "Clingo::SymbolType", "group__cpp__symbol.html#gacd72cb64fde6890c67281376f8458b3a", [
       [ "Clingo::SymbolType::infimum", "group__cpp__symbol.html#ggacd72cb64fde6890c67281376f8458b3aad101749de0c2d776e206d9d5251ee630", null ],
       [ "Clingo::SymbolType::number", "group__cpp__symbol.html#ggacd72cb64fde6890c67281376f8458b3aab1bc248a7ff2b2e95569f56de68615df", null ],

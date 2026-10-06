@@ -10,9 +10,9 @@ var searchData=
   ['litbdaggr_7',['LitBdAggr',['../classCppClingo_1_1Ground_1_1LitBdAggr.html',1,'CppClingo::Ground']]],
   ['litbdaggrstrat_8',['LitBdAggrStrat',['../classCppClingo_1_1Ground_1_1LitBdAggrStrat.html',1,'CppClingo::Ground']]],
   ['litbdtheory_9',['LitBdTheory',['../classCppClingo_1_1Ground_1_1LitBdTheory.html',1,'CppClingo::Ground']]],
-  ['litbool_10',['LitBool',['../classCppClingo_1_1Ground_1_1LitBool.html',1,'CppClingo::Ground::LitBool'],['../classCppClingo_1_1Input_1_1LitBool.html',1,'CppClingo::Input::LitBool']]],
+  ['litbool_10',['litbool',['../classCppClingo_1_1Ground_1_1LitBool.html',1,'CppClingo::Ground::LitBool'],['../classCppClingo_1_1Input_1_1LitBool.html',1,'CppClingo::Input::LitBool']]],
   ['litcheck_11',['LitCheck',['../classCppClingo_1_1Ground_1_1LitCheck.html',1,'CppClingo::Ground']]],
-  ['litcomparison_12',['LitComparison',['../classCppClingo_1_1Ground_1_1LitComparison.html',1,'CppClingo::Ground::LitComparison'],['../classCppClingo_1_1Input_1_1LitComparison.html',1,'CppClingo::Input::LitComparison']]],
+  ['litcomparison_12',['litcomparison',['../classCppClingo_1_1Ground_1_1LitComparison.html',1,'CppClingo::Ground::LitComparison'],['../classCppClingo_1_1Input_1_1LitComparison.html',1,'CppClingo::Input::LitComparison']]],
   ['litcondlit_13',['LitCondLit',['../classCppClingo_1_1Ground_1_1LitCondLit.html',1,'CppClingo::Ground']]],
   ['litcondlitstrat_14',['LitCondLitStrat',['../classCppClingo_1_1Ground_1_1LitCondLitStrat.html',1,'CppClingo::Ground']]],
   ['litdisjunction_15',['LitDisjunction',['../classCppClingo_1_1Ground_1_1LitDisjunction.html',1,'CppClingo::Ground']]],
@@ -26,8 +26,8 @@ var searchData=
   ['litsimpleaggr_23',['LitSimpleAggr',['../classCppClingo_1_1Ground_1_1LitSimpleAggr.html',1,'CppClingo::Ground']]],
   ['litsortaggr_24',['LitSortAggr',['../classCppClingo_1_1Ground_1_1LitSortAggr.html',1,'CppClingo::Ground']]],
   ['litsortaggrstrat_25',['LitSortAggrStrat',['../classCppClingo_1_1Ground_1_1LitSortAggrStrat.html',1,'CppClingo::Ground']]],
-  ['litsymbolic_26',['LitSymbolic',['../classCppClingo_1_1Ground_1_1LitSymbolic.html',1,'CppClingo::Ground::LitSymbolic'],['../classCppClingo_1_1Input_1_1LitSymbolic.html',1,'CppClingo::Input::LitSymbolic']]],
+  ['litsymbolic_26',['litsymbolic',['../classCppClingo_1_1Ground_1_1LitSymbolic.html',1,'CppClingo::Ground::LitSymbolic'],['../classCppClingo_1_1Input_1_1LitSymbolic.html',1,'CppClingo::Input::LitSymbolic']]],
   ['littuple_27',['LitTuple',['../classCppClingo_1_1Ground_1_1LitTuple.html',1,'CppClingo::Ground']]],
-  ['location_28',['Location',['../classClingo_1_1Location.html',1,'Clingo::Location'],['../classCppClingo_1_1Location.html',1,'CppClingo::Location']]],
+  ['location_28',['location',['../classClingo_1_1Location.html',1,'Clingo::Location'],['../classCppClingo_1_1Location.html',1,'CppClingo::Location']]],
   ['logger_29',['Logger',['../classCppClingo_1_1Logger.html',1,'CppClingo']]]
 ];

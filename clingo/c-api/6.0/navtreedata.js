@@ -60,7 +60,7 @@ var NAVTREEINDEX =
 "classCppClingo_1_1Util_1_1immutable__array.html#abb5c203b531a052fde79c36f37689527",
 "group__c__ast.html#ga52a902f02dc2fc7bea505615ffb168e5",
 "group__c__ground.html#gad5ac1d6e794e26fc189aa1471fa2b395",
-"group__control.html#ga435f05e0701f6918bfaa38a92221809c",
+"group__control.html#ga4a02eb1843409dc74026a62469d64e11",
 "group__cpp__config.html#ga14b7804c314db5fccda3492d7fad52f2",
 "group__ground__script.html",
 "group__input__print.html#gab1660af106c9eff650f913ff9e97003e",

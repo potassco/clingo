@@ -7,7 +7,7 @@ var searchData=
   ['assignment_4',['Assignment',['../classClingo_1_1Assignment.html',1,'Clingo']]],
   ['atom_5',['Atom',['../classClingo_1_1Atom.html',1,'Clingo']]],
   ['atomassignaggr_6',['AtomAssignAggr',['../classCppClingo_1_1Ground_1_1AtomAssignAggr.html',1,'CppClingo::Ground']]],
-  ['atombase_7',['AtomBase',['../classClingo_1_1AtomBase.html',1,'Clingo::AtomBase'],['../classCppClingo_1_1Ground_1_1AtomBase.html',1,'CppClingo::Ground::AtomBase']]],
+  ['atombase_7',['atombase',['../classCppClingo_1_1Ground_1_1AtomBase.html',1,'CppClingo::Ground::AtomBase'],['../classClingo_1_1AtomBase.html',1,'Clingo::AtomBase']]],
   ['atombdaggr_8',['AtomBdAggr',['../classCppClingo_1_1Ground_1_1AtomBdAggr.html',1,'CppClingo::Ground']]],
   ['atomdisjunction_9',['AtomDisjunction',['../classCppClingo_1_1Ground_1_1AtomDisjunction.html',1,'CppClingo::Ground']]],
   ['atomhdaggr_10',['AtomHdAggr',['../classCppClingo_1_1Ground_1_1AtomHdAggr.html',1,'CppClingo::Ground']]],

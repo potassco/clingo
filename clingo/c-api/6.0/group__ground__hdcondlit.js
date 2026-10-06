@@ -25,7 +25,7 @@ var group__ground__hdcondlit =
     [ "CppClingo::Ground::StateDisjunction", "classCppClingo_1_1Ground_1_1StateDisjunction.html", [
       [ "AtomMap", "classCppClingo_1_1Ground_1_1StateDisjunction.html#a04bb93eda8ec8cc8a6f74151c143f261", null ],
       [ "ElementKey", "classCppClingo_1_1Ground_1_1StateDisjunction.html#ab76e4f78a17af97332629e3884b8fcbf", null ],
-      [ "ElementMap", "classCppClingo_1_1Ground_1_1StateDisjunction.html#a955ec692db13d4340212c1dd30ef1abe", null ],
+      [ "ElementMap", "classCppClingo_1_1Ground_1_1StateDisjunction.html#af5d4da05d721b0009a416d2e207e1f86", null ],
       [ "StateDisjunction", "classCppClingo_1_1Ground_1_1StateDisjunction.html#a3a74a5dcd5b4dd26adbd19af10adb49c", null ],
       [ "base", "classCppClingo_1_1Ground_1_1StateDisjunction.html#a3ce6005a2c79e05fde50170cde1fabc1", null ],
       [ "enqueue", "classCppClingo_1_1Ground_1_1StateDisjunction.html#a7ec16069df8b88daa9ec86815023ce7f", null ],
@@ -59,5 +59,5 @@ var group__ground__hdcondlit =
     [ "CppClingo::Ground::LitDisjunction", "classCppClingo_1_1Ground_1_1LitDisjunction.html", [
       [ "LitDisjunction", "classCppClingo_1_1Ground_1_1LitDisjunction.html#a0c85a94ba8d21bf5e7c10bc6c6acda14", null ]
     ] ],
-    [ "CppClingo::Ground::DisjunctionBaseVec", "group__ground__hdcondlit.html#gace14d562794e219520243b45e1685fe6", null ]
+    [ "CppClingo::Ground::DisjunctionBaseVec", "group__ground__hdcondlit.html#gaef6f5ebe6f201c3d1687cdb0a3f67ffe", null ]
 ];

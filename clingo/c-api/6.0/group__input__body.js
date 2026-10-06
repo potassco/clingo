@@ -31,7 +31,7 @@ var group__input__body =
       [ "lhs", "classCppClingo_1_1Input_1_1BdLitSort.html#ab7d51742f626249fad1ba0c38268d363", null ],
       [ "loc", "classCppClingo_1_1Input_1_1BdLitSort.html#af9ae4f31ba1e1d45b75c52f03911945b", null ]
     ] ],
-    [ "CppClingo::Input::BdLit", "group__input__body.html#ga853c8b967e8ee2566b670ccc9f4fb4d0", null ],
-    [ "CppClingo::Input::BdLitAggregateElementArray", "group__input__body.html#gaa1867b9754a203c5dde0958c926e63bd", null ],
-    [ "CppClingo::Input::BdLitArray", "group__input__body.html#ga28a31d503fb14e3fca5a7b6a6d4df1ff", null ]
+    [ "CppClingo::Input::BdLit", "group__input__body.html#ga287c4b9857e3f24f42dfc2c7c0de6065", null ],
+    [ "CppClingo::Input::BdLitAggregateElementArray", "group__input__body.html#ga38eca1e03b0d7dbadf6d038fe06bbcc3", null ],
+    [ "CppClingo::Input::BdLitArray", "group__input__body.html#ga72bdeaa1806570f4f364f8e4595f4c25", null ]
 ];

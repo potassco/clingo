@@ -1,6 +1,6 @@
 var group__input__visit__variables =
 [
-    [ "CppClingo::Input::VarVisitFun", "group__input__visit__variables.html#ga61b0a034b07b5c30ee8283a6be872160", null ],
+    [ "CppClingo::Input::VarVisitFun", "group__input__visit__variables.html#ga663736ec4fbe70fa969bc15173f04816", null ],
     [ "CppClingo::Input::VariableContext", "group__input__visit__variables.html#ga649c0a8d0a3d658042deef23b03a7053", [
       [ "CppClingo::Input::VariableContext::global", "group__input__visit__variables.html#gga649c0a8d0a3d658042deef23b03a7053a9c70933aff6b2a6d08c687a6cbb6b765", null ],
       [ "CppClingo::Input::VariableContext::all", "group__input__visit__variables.html#gga649c0a8d0a3d658042deef23b03a7053aa181a603769c1f98ad927e7367c7aa51", null ]

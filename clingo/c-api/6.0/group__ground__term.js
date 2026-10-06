@@ -45,11 +45,11 @@ var group__ground__term =
     [ "CppClingo::Ground::TermFunction", "classCppClingo_1_1Ground_1_1TermFunction.html", [
       [ "TermFunction", "classCppClingo_1_1Ground_1_1TermFunction.html#a56df8a0207ef707fb2f6a276d394e193", null ]
     ] ],
-    [ "CppClingo::Ground::FormatField", "group__ground__term.html#ga41e087e8e999ef4e83624138531977a0", null ],
-    [ "CppClingo::Ground::FormatFieldVec", "group__ground__term.html#ga075d51abd42ac9314df4e88f7b0d8dae", null ],
-    [ "CppClingo::Ground::GuardVec", "group__ground__term.html#gab40ff74c88b753f33289b51cee353f93", null ],
-    [ "CppClingo::Ground::UTerm", "group__ground__term.html#gaf6830f7332d0708680ece8eddce5504b", null ],
-    [ "CppClingo::Ground::UTermVec", "group__ground__term.html#ga7c080fe8be7f362793fd5639ec37f032", null ],
+    [ "CppClingo::Ground::FormatField", "group__ground__term.html#ga88cea3472e387c2ead9ce03c0a4b252f", null ],
+    [ "CppClingo::Ground::FormatFieldVec", "group__ground__term.html#ga06af75b60a921fc137b24e411ba6ac7c", null ],
+    [ "CppClingo::Ground::GuardVec", "group__ground__term.html#ga1b18f1edd8811d1dbc5a9bea8640f8cc", null ],
+    [ "CppClingo::Ground::UTerm", "group__ground__term.html#ga318ae223e66d9f04f129fcc7d83e07e1", null ],
+    [ "CppClingo::Ground::UTermVec", "group__ground__term.html#gae5eb3e9da096c2e37baa4ea5225eee5f", null ],
     [ "CppClingo::Ground::BinaryOperator", "group__ground__term.html#ga309c43a0dac8a738555420b48369582d", [
       [ "CppClingo::Ground::BinaryOperator::and_", "group__ground__term.html#gga309c43a0dac8a738555420b48369582daa195f8c413b580691c2daa246c1b16ce", null ],
       [ "CppClingo::Ground::BinaryOperator::div", "group__ground__term.html#gga309c43a0dac8a738555420b48369582da38696558dc98494c08d951c052900a2a", null ],

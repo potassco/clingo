@@ -15,7 +15,7 @@ var searchData=
   ['resultstate_12',['ResultState',['../structCppClingo_1_1Util_1_1ResultState.html',1,'CppClingo::Util']]],
   ['resultvec_13',['ResultVec',['../classCppClingo_1_1Util_1_1ResultVec.html',1,'CppClingo::Util']]],
   ['rewrite_5ferror_14',['rewrite_error',['../classCppClingo_1_1rewrite__error.html',1,'CppClingo']]],
-  ['rewritecontext_15',['RewriteContext',['../classClingo_1_1AST_1_1RewriteContext.html',1,'Clingo::AST::RewriteContext'],['../classCppClingo_1_1Input_1_1RewriteContext.html',1,'CppClingo::Input::RewriteContext']]],
+  ['rewritecontext_15',['rewritecontext',['../classClingo_1_1AST_1_1RewriteContext.html',1,'Clingo::AST::RewriteContext'],['../classCppClingo_1_1Input_1_1RewriteContext.html',1,'CppClingo::Input::RewriteContext']]],
   ['rewriteoptions_16',['RewriteOptions',['../structCppClingo_1_1Input_1_1RewriteOptions.html',1,'CppClingo::Input']]],
   ['right_5fbound_17',['right_bound',['../structCppClingo_1_1Util_1_1interval__set_1_1right__bound.html',1,'CppClingo::Util::interval_set']]]
 ];

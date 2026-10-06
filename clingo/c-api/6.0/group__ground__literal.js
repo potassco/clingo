@@ -46,10 +46,10 @@ var group__ground__literal =
     [ "CppClingo::Ground::LitSimpleAggr", "classCppClingo_1_1Ground_1_1LitSimpleAggr.html", [
       [ "LitSimpleAggr", "classCppClingo_1_1Ground_1_1LitSimpleAggr.html#ac555c345fc20a4b28f3c572814e2c843", null ]
     ] ],
-    [ "CppClingo::Ground::AtomSimple", "group__ground__literal.html#ga72f22b09f283d733b91046c5c0ea13ef", null ],
-    [ "CppClingo::Ground::BaseVec", "group__ground__literal.html#gaaa15d1388b1b6296307add17f7948c5c", null ],
-    [ "CppClingo::Ground::ULit", "group__ground__literal.html#gacf5f67084cbddc51a2eeb63765767051", null ],
-    [ "CppClingo::Ground::ULitVec", "group__ground__literal.html#gaf73af7c4c6b30da934e89f5f3c7ff528", null ],
+    [ "CppClingo::Ground::AtomSimple", "group__ground__literal.html#ga72cc97036be19da6ef09fe92cb9efa54", null ],
+    [ "CppClingo::Ground::BaseVec", "group__ground__literal.html#ga9fe89fd8bc559e3866ee79332d5244dc", null ],
+    [ "CppClingo::Ground::ULit", "group__ground__literal.html#ga3c42fa3246b647ab2d79f4e2be4f5fa2", null ],
+    [ "CppClingo::Ground::ULitVec", "group__ground__literal.html#gab13e513b82152af04bdbdec627669e39", null ],
     [ "CppClingo::Ground::VarSelectMode", "group__ground__literal.html#ga842b483899342d97dcda5733b663eccd", [
       [ "CppClingo::Ground::VarSelectMode::depend", "group__ground__literal.html#gga842b483899342d97dcda5733b663eccda6334ae0f062c466145cf2dc022e0359a", null ],
       [ "CppClingo::Ground::VarSelectMode::provide", "group__ground__literal.html#gga842b483899342d97dcda5733b663eccdaa4f550dea5eb250a72b6ca8e8d94e7d9", null ],

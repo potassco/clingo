@@ -123,8 +123,8 @@ var group__cpp__base =
       [ "terms", "classClingo_1_1Base.html#a15eae347022c7f5f5118996215c6a194", null ],
       [ "theory", "classClingo_1_1Base.html#a2e6a3530d6820cfa01fe7a4fd0c060d7", null ]
     ] ],
-    [ "Clingo::TheoryElementVector", "group__cpp__base.html#ga273e1d7395d2bd326ccb37cb7400edbc", null ],
-    [ "Clingo::TheoryTermVector", "group__cpp__base.html#ga90ddec23798f7c66e423fb8e943d0ea8", null ],
+    [ "Clingo::TheoryElementVector", "group__cpp__base.html#ga57cf3ebf60cdea2f3bc0d7b067496d48", null ],
+    [ "Clingo::TheoryTermVector", "group__cpp__base.html#ga24ade624e450fec4c6031cbead341a51", null ],
     [ "Clingo::TheoryTermType", "group__cpp__base.html#ga77490795fab59524ca5534916b4428fa", [
       [ "Clingo::TheoryTermType::tuple", "group__cpp__base.html#gga77490795fab59524ca5534916b4428faa0636f7c1e41a18679ab958368587c630", null ],
       [ "Clingo::TheoryTermType::list", "group__cpp__base.html#gga77490795fab59524ca5534916b4428faa10ae9fc7d453b0dd525d0edf2ede7961", null ],

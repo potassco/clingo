@@ -123,8 +123,8 @@ var group__util__container =
       [ "resize", "classCppClingo_1_1Util_1_1small__vector.html#a2d901e5116634ec589f1f32f219d0334", null ],
       [ "size", "classCppClingo_1_1Util_1_1small__vector.html#af6391b67eeafba592fa9d8025491ec9d", null ]
     ] ],
-    [ "CppClingo::Util::ordered_map", "group__util__container.html#gaf13cb0a7cb61aa1204c9ec7f895cc190", null ],
-    [ "CppClingo::Util::ordered_set", "group__util__container.html#ga6ae711523ad7e546069a1281a48b240d", null ],
-    [ "CppClingo::Util::unordered_map", "group__util__container.html#gaa1a30797c9ef34ae5c4757dd84a39a62", null ],
-    [ "CppClingo::Util::unordered_set", "group__util__container.html#ga7ceb788380ceb352a8850104041d8b0b", null ]
+    [ "CppClingo::Util::ordered_map", "group__util__container.html#ga8b882c38d82c3c3019ce4aee06b90faf", null ],
+    [ "CppClingo::Util::ordered_set", "group__util__container.html#ga6fedffbc0e2e918fc7c523f524b90e88", null ],
+    [ "CppClingo::Util::unordered_map", "group__util__container.html#gaa47f6dbf125b7e9ec84c1e7fc0549cab", null ],
+    [ "CppClingo::Util::unordered_set", "group__util__container.html#ga6ffd22b1a5d357688e62e76f4828b63b", null ]
 ];

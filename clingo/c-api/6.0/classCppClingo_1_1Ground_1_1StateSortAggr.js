@@ -2,7 +2,7 @@ var classCppClingo_1_1Ground_1_1StateSortAggr =
 [
     [ "AtomMap", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a9f6de82f88997dc02ba34f306c571775", null ],
     [ "ElementKey", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a38365bd0cc4ddf5db69cd3decbb54c97", null ],
-    [ "ElementMap", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a5ffe808e2c180725fabfa974fb2f124d", null ],
+    [ "ElementMap", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a682c4837ae3bf43218a08ad513e1a678", null ],
     [ "StateSortAggr", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a027dc4d66ee81124e1ce37a3b215b7c2", null ],
     [ "atom_index", "classCppClingo_1_1Ground_1_1StateSortAggr.html#ac80b15516199fb6cd912ac345d736961", null ],
     [ "base", "classCppClingo_1_1Ground_1_1StateSortAggr.html#a6828c29cdb23ca2903a415b8157e0083", null ],

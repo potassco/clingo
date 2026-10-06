@@ -1,6 +1,6 @@
 var classCppClingo_1_1OutputTheory =
 [
-    [ "OptGuard", "classCppClingo_1_1OutputTheory.html#ad768cfeee665644a15231789632d7eb2", null ],
+    [ "OptGuard", "classCppClingo_1_1OutputTheory.html#a1fef8d31cbfea984f4cdb6a1d8fbd63c", null ],
     [ "AtomType", "classCppClingo_1_1OutputTheory.html#ab5eb13c054f180d37873c83dfc1d66e7", [
       [ "head", "classCppClingo_1_1OutputTheory.html#ab5eb13c054f180d37873c83dfc1d66e7a96e89a298e0a9f469b9ae458d6afae9f", null ],
       [ "body", "classCppClingo_1_1OutputTheory.html#ab5eb13c054f180d37873c83dfc1d66e7a841a2d689ad86bd1611447453c22c6fc", null ],

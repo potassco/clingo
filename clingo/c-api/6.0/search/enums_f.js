@@ -8,5 +8,5 @@ var searchData=
   ['theorytermtype_5',['TheoryTermType',['../group__cpp__base.html#ga77490795fab59524ca5534916b4428fa',1,'Clingo']]],
   ['truthconclusion_6',['TruthConclusion',['../group__ground__bdcondlit.html#gafcd19e21aee24540766c0c647ac8e1ba',1,'CppClingo::Ground']]],
   ['truthvalue_7',['TruthValue',['../group__core.html#gae7c470a020a842223b684dc6fb5f1a54',1,'CppClingo']]],
-  ['type_8',['Type',['../structCppClingo_1_1FormatSpec.html#aa0d31ced1bb6cc19448c362d1fdd9c0c',1,'CppClingo::FormatSpec::Type'],['../classCppClingo_1_1Input_1_1IEInterval.html#addef08f1f73c15b73e38ee55885875ed',1,'CppClingo::Input::IEInterval::Type']]]
+  ['type_8',['type',['../structCppClingo_1_1FormatSpec.html#aa0d31ced1bb6cc19448c362d1fdd9c0c',1,'CppClingo::FormatSpec::Type'],['../classCppClingo_1_1Input_1_1IEInterval.html#addef08f1f73c15b73e38ee55885875ed',1,'CppClingo::Input::IEInterval::Type']]]
 ];

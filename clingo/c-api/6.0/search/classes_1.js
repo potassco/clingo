@@ -1,7 +1,7 @@
 var searchData=
 [
   ['backendhandle_0',['BackendHandle',['../classCppClingo_1_1Control_1_1BackendHandle.html',1,'CppClingo::Control']]],
-  ['base_1',['Base',['../classClingo_1_1Base.html',1,'Clingo::Base'],['../classCppClingo_1_1Util_1_1Record_1_1Base.html',1,'CppClingo::Util::Record::Base&lt; Rec &gt;']]],
+  ['base_1',['base',['../classClingo_1_1Base.html',1,'Clingo::Base'],['../classCppClingo_1_1Util_1_1Record_1_1Base.html',1,'CppClingo::Util::Record::Base&lt; Rec &gt;']]],
   ['base_3c_20argumenttuple_20_3e_2',['Base&lt; ArgumentTuple &gt;',['../classCppClingo_1_1Util_1_1Record_1_1Base.html',1,'CppClingo::Util::Record']]],
   ['base_3c_20bdlitaggregate_20_3e_3',['Base&lt; BdLitAggregate &gt;',['../classCppClingo_1_1Util_1_1Record_1_1Base.html',1,'CppClingo::Util::Record']]],
   ['base_3c_20bdlitaggregateelement_20_3e_4',['Base&lt; BdLitAggregateElement &gt;',['../classCppClingo_1_1Util_1_1Record_1_1Base.html',1,'CppClingo::Util::Record']]],

@@ -37,8 +37,8 @@ var group__ground__stm =
     [ "CppClingo::Ground::StmProject", "classCppClingo_1_1Ground_1_1StmProject.html", [
       [ "StmProject", "classCppClingo_1_1Ground_1_1StmProject.html#a3ad89055a169ec00e49b4094a3b6411d", null ]
     ] ],
-    [ "CppClingo::Ground::UStm", "group__ground__stm.html#gacf2961aaf5955d0e753a38561ef918f8", null ],
-    [ "CppClingo::Ground::UStmVec", "group__ground__stm.html#ga0a15abb9c78ca843168186abf9e80437", null ],
+    [ "CppClingo::Ground::UStm", "group__ground__stm.html#ga973163ed0a8af43146c5ddac672efff0", null ],
+    [ "CppClingo::Ground::UStmVec", "group__ground__stm.html#ga24db6b56392b21845977cc8f913447c0", null ],
     [ "CppClingo::Ground::RuleType", "group__ground__stm.html#gaaf4e717e8f373c7e9e4c60f704ad4b63", [
       [ "CppClingo::Ground::RuleType::normal", "group__ground__stm.html#ggaaf4e717e8f373c7e9e4c60f704ad4b63afea087517c26fadd409bd4b9dc642555", null ],
       [ "CppClingo::Ground::RuleType::choice", "group__ground__stm.html#ggaaf4e717e8f373c7e9e4c60f704ad4b63a0162cefc4952304026cb1f5dab2419d2", null ]

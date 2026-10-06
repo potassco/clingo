@@ -23,321 +23,260 @@ var hierarchy =
     [ "CppClingo::Util::Record::AttributeValue< T, C, V >", "structCppClingo_1_1Util_1_1Record_1_1AttributeValue.html", null ],
     [ "CppClingo::Control::BackendHandle", "classCppClingo_1_1Control_1_1BackendHandle.html", null ],
     [ "Clingo::Base", "classClingo_1_1Base.html", null ],
-    [ "CppClingo::Util::Record::Base< Rec >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
-    [ "CppClingo::Util::Record::Base< ArgumentTuple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
-      [ "CppClingo::Input::RecursiveExpression< ArgumentTuple >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
-        [ "CppClingo::Input::ArgumentTuple", "classCppClingo_1_1Input_1_1ArgumentTuple.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< BdLitAggregate >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+    [ "CppClingo::Util::Record::Base< Rec >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
       [ "CppClingo::Input::Expression< BdLitAggregate >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::BdLitAggregate", "classCppClingo_1_1Input_1_1BdLitAggregate.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< BdLitAggregateElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< BdLitAggregateElement >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::BdLitAggregateElement", "classCppClingo_1_1Input_1_1BdLitAggregateElement.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< BdLitConjunction >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< BdLitConjunction >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::BdLitConjunction", "classCppClingo_1_1Input_1_1BdLitConjunction.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< BdLitSimple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< BdLitSimple >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::BdLitSimple", "classCppClingo_1_1Input_1_1BdLitSimple.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< BdLitSort >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< BdLitSort >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::BdLitSort", "classCppClingo_1_1Input_1_1BdLitSort.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< CondLit >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< CondLit >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::CondLit", "classCppClingo_1_1Input_1_1CondLit.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< Edge >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< Edge >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::Edge", "classCppClingo_1_1Input_1_1Edge.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< FormatFieldExpression >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
-      [ "CppClingo::Input::RecursiveExpression< FormatFieldExpression >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
-        [ "CppClingo::Input::FormatFieldExpression", "classCppClingo_1_1Input_1_1FormatFieldExpression.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< FormatFieldLiteral >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< FormatFieldLiteral >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::FormatFieldLiteral", "classCppClingo_1_1Input_1_1FormatFieldLiteral.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< HdLitAggregate >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< HdLitAggregate >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::HdLitAggregate", "classCppClingo_1_1Input_1_1HdLitAggregate.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< HdLitAggregateElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< HdLitAggregateElement >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::HdLitAggregateElement", "classCppClingo_1_1Input_1_1HdLitAggregateElement.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< HdLitDisjunction >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< HdLitDisjunction >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::HdLitDisjunction", "classCppClingo_1_1Input_1_1HdLitDisjunction.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< HdLitSimple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< HdLitSimple >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::HdLitSimple", "classCppClingo_1_1Input_1_1HdLitSimple.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< LitBool >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< LitBool >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::LitBool", "classCppClingo_1_1Input_1_1LitBool.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< LitComparison >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< LitComparison >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::LitComparison", "classCppClingo_1_1Input_1_1LitComparison.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< LitSymbolic >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< LitSymbolic >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::LitSymbolic", "classCppClingo_1_1Input_1_1LitSymbolic.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< OptimizeElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< OptimizeElement >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::OptimizeElement", "classCppClingo_1_1Input_1_1OptimizeElement.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< OptimizeTuple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< OptimizeTuple >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::OptimizeTuple", "classCppClingo_1_1Input_1_1OptimizeTuple.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< Projection >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< Projection >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::Projection", "classCppClingo_1_1Input_1_1Projection.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< SetAggregate< HasSign > >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< SetAggregate< HasSign > >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::SetAggregate< HasSign >", "classCppClingo_1_1Input_1_1SetAggregate.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< SetAggregateElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< SetAggregateElement >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::SetAggregateElement", "classCppClingo_1_1Input_1_1SetAggregateElement.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmComment >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmComment >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmComment", "classCppClingo_1_1Input_1_1StmComment.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmConst >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmConst >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmConst", "classCppClingo_1_1Input_1_1StmConst.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmDefined >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmDefined >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmDefined", "classCppClingo_1_1Input_1_1StmDefined.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmEdge >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmEdge >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmEdge", "classCppClingo_1_1Input_1_1StmEdge.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmExternal >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmExternal >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmExternal", "classCppClingo_1_1Input_1_1StmExternal.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmHeuristic >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmHeuristic >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmHeuristic", "classCppClingo_1_1Input_1_1StmHeuristic.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmInclude >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmInclude >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmInclude", "classCppClingo_1_1Input_1_1StmInclude.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmOptimize >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmOptimize >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmOptimize", "classCppClingo_1_1Input_1_1StmOptimize.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmParts >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmParts >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmParts", "classCppClingo_1_1Input_1_1StmParts.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmProgram >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmProgram >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmProgram", "classCppClingo_1_1Input_1_1StmProgram.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmProject >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmProject >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmProject", "classCppClingo_1_1Input_1_1StmProject.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmProjectSig >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmProjectSig >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmProjectSig", "classCppClingo_1_1Input_1_1StmProjectSig.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmRule >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmRule >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmRule", "classCppClingo_1_1Input_1_1StmRule.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmScript >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmScript >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmScript", "classCppClingo_1_1Input_1_1StmScript.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmShow >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmShow >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmShow", "classCppClingo_1_1Input_1_1StmShow.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmShowNothing >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmShowNothing >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmShowNothing", "classCppClingo_1_1Input_1_1StmShowNothing.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmShowSig >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmShowSig >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmShowSig", "classCppClingo_1_1Input_1_1StmShowSig.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmTheory >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmTheory >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmTheory", "classCppClingo_1_1Input_1_1StmTheory.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< StmWeakConstraint >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< StmWeakConstraint >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::StmWeakConstraint", "classCppClingo_1_1Input_1_1StmWeakConstraint.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< T >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
-      [ "CppClingo::Input::Expression< T >", "classCppClingo_1_1Input_1_1Expression.html", null ],
-      [ "CppClingo::Input::RecursiveExpression< T >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", null ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TermAbs >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
-      [ "CppClingo::Input::RecursiveExpression< TermAbs >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
-        [ "CppClingo::Input::TermAbs", "classCppClingo_1_1Input_1_1TermAbs.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TermBinary >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
-      [ "CppClingo::Input::RecursiveExpression< TermBinary >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
-        [ "CppClingo::Input::TermBinary", "classCppClingo_1_1Input_1_1TermBinary.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TermFormatString >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< TermFormatString >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::TermFormatString", "classCppClingo_1_1Input_1_1TermFormatString.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TermFunction >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
-      [ "CppClingo::Input::RecursiveExpression< TermFunction >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
-        [ "CppClingo::Input::TermFunction", "classCppClingo_1_1Input_1_1TermFunction.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TermSymbol >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< TermSymbol >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::TermSymbol", "classCppClingo_1_1Input_1_1TermSymbol.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TermTuple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
-      [ "CppClingo::Input::RecursiveExpression< TermTuple >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
-        [ "CppClingo::Input::TermTuple", "classCppClingo_1_1Input_1_1TermTuple.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TermUnary >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
-      [ "CppClingo::Input::RecursiveExpression< TermUnary >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
-        [ "CppClingo::Input::TermUnary", "classCppClingo_1_1Input_1_1TermUnary.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TermVariable >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< TermVariable >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::TermVariable", "classCppClingo_1_1Input_1_1TermVariable.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TheoryAtom< HasSign > >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< TheoryAtom< HasSign > >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::TheoryAtom< HasSign >", "classCppClingo_1_1Input_1_1TheoryAtom.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TheoryAtomDefinition >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< TheoryAtomDefinition >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::TheoryAtomDefinition", "classCppClingo_1_1Input_1_1TheoryAtomDefinition.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TheoryElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< TheoryElement >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::TheoryElement", "classCppClingo_1_1Input_1_1TheoryElement.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TheoryOpDefinition >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< TheoryOpDefinition >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::TheoryOpDefinition", "classCppClingo_1_1Input_1_1TheoryOpDefinition.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TheoryRGuard >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< TheoryRGuard >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::TheoryRGuard", "classCppClingo_1_1Input_1_1TheoryRGuard.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TheoryRGuardDefinition >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< TheoryRGuardDefinition >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::TheoryRGuardDefinition", "classCppClingo_1_1Input_1_1TheoryRGuardDefinition.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TheoryTermDefinition >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< TheoryTermDefinition >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::TheoryTermDefinition", "classCppClingo_1_1Input_1_1TheoryTermDefinition.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TheoryTermFunction >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
-      [ "CppClingo::Input::RecursiveExpression< TheoryTermFunction >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
-        [ "CppClingo::Input::TheoryTermFunction", "classCppClingo_1_1Input_1_1TheoryTermFunction.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TheoryTermSymbol >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::Expression< TheoryTermSymbol >", "classCppClingo_1_1Input_1_1Expression.html", [
         [ "CppClingo::Input::TheoryTermSymbol", "classCppClingo_1_1Input_1_1TheoryTermSymbol.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TheoryTermTuple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
+      [ "CppClingo::Input::Expression< TheoryTermVariable >", "classCppClingo_1_1Input_1_1Expression.html", [
+        [ "CppClingo::Input::TheoryTermVariable", "classCppClingo_1_1Input_1_1TheoryTermVariable.html", null ]
+      ] ],
+      [ "CppClingo::Input::Expression< UnparsedElement >", "classCppClingo_1_1Input_1_1Expression.html", [
+        [ "CppClingo::Input::UnparsedElement", "classCppClingo_1_1Input_1_1UnparsedElement.html", null ]
+      ] ],
+      [ "CppClingo::Input::RecursiveExpression< ArgumentTuple >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
+        [ "CppClingo::Input::ArgumentTuple", "classCppClingo_1_1Input_1_1ArgumentTuple.html", null ]
+      ] ],
+      [ "CppClingo::Input::RecursiveExpression< FormatFieldExpression >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
+        [ "CppClingo::Input::FormatFieldExpression", "classCppClingo_1_1Input_1_1FormatFieldExpression.html", null ]
+      ] ],
+      [ "CppClingo::Input::RecursiveExpression< TermAbs >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
+        [ "CppClingo::Input::TermAbs", "classCppClingo_1_1Input_1_1TermAbs.html", null ]
+      ] ],
+      [ "CppClingo::Input::RecursiveExpression< TermBinary >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
+        [ "CppClingo::Input::TermBinary", "classCppClingo_1_1Input_1_1TermBinary.html", null ]
+      ] ],
+      [ "CppClingo::Input::RecursiveExpression< TermFunction >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
+        [ "CppClingo::Input::TermFunction", "classCppClingo_1_1Input_1_1TermFunction.html", null ]
+      ] ],
+      [ "CppClingo::Input::RecursiveExpression< TermTuple >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
+        [ "CppClingo::Input::TermTuple", "classCppClingo_1_1Input_1_1TermTuple.html", null ]
+      ] ],
+      [ "CppClingo::Input::RecursiveExpression< TermUnary >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
+        [ "CppClingo::Input::TermUnary", "classCppClingo_1_1Input_1_1TermUnary.html", null ]
+      ] ],
+      [ "CppClingo::Input::RecursiveExpression< TheoryTermFunction >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
+        [ "CppClingo::Input::TheoryTermFunction", "classCppClingo_1_1Input_1_1TheoryTermFunction.html", null ]
+      ] ],
       [ "CppClingo::Input::RecursiveExpression< TheoryTermTuple >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
         [ "CppClingo::Input::TheoryTermTuple", "classCppClingo_1_1Input_1_1TheoryTermTuple.html", null ]
-      ] ]
-    ] ],
-    [ "CppClingo::Util::Record::Base< TheoryTermUnparsed >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      ] ],
       [ "CppClingo::Input::RecursiveExpression< TheoryTermUnparsed >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", [
         [ "CppClingo::Input::TheoryTermUnparsed", "classCppClingo_1_1Input_1_1TheoryTermUnparsed.html", null ]
       ] ]
     ] ],
-    [ "CppClingo::Util::Record::Base< TheoryTermVariable >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
-      [ "CppClingo::Input::Expression< TheoryTermVariable >", "classCppClingo_1_1Input_1_1Expression.html", [
-        [ "CppClingo::Input::TheoryTermVariable", "classCppClingo_1_1Input_1_1TheoryTermVariable.html", null ]
-      ] ]
+    [ "CppClingo::Util::Record::Base< ArgumentTuple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< BdLitAggregate >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< BdLitAggregateElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< BdLitConjunction >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< BdLitSimple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< BdLitSort >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< CondLit >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< Edge >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< FormatFieldExpression >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< FormatFieldLiteral >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< HdLitAggregate >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< HdLitAggregateElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< HdLitDisjunction >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< HdLitSimple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< LitBool >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< LitComparison >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< LitSymbolic >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< OptimizeElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< OptimizeTuple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< Projection >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< SetAggregate< HasSign > >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< SetAggregateElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmComment >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmConst >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmDefined >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmEdge >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmExternal >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmHeuristic >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmInclude >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmOptimize >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmParts >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmProgram >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmProject >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmProjectSig >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmRule >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmScript >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmShow >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmShowNothing >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmShowSig >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmTheory >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< StmWeakConstraint >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< T >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
+      [ "CppClingo::Input::Expression< T >", "classCppClingo_1_1Input_1_1Expression.html", null ],
+      [ "CppClingo::Input::RecursiveExpression< T >", "classCppClingo_1_1Input_1_1RecursiveExpression.html", null ]
     ] ],
-    [ "CppClingo::Util::Record::Base< UnparsedElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", [
-      [ "CppClingo::Input::Expression< UnparsedElement >", "classCppClingo_1_1Input_1_1Expression.html", [
-        [ "CppClingo::Input::UnparsedElement", "classCppClingo_1_1Input_1_1UnparsedElement.html", null ]
-      ] ]
-    ] ],
+    [ "CppClingo::Util::Record::Base< TermAbs >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TermBinary >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TermFormatString >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TermFunction >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TermSymbol >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TermTuple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TermUnary >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TermVariable >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryAtom< HasSign > >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryAtomDefinition >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryOpDefinition >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryRGuard >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryRGuardDefinition >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryTermDefinition >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryTermFunction >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryTermSymbol >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryTermTuple >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryTermUnparsed >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< TheoryTermVariable >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
+    [ "CppClingo::Util::Record::Base< UnparsedElement >", "classCppClingo_1_1Util_1_1Record_1_1Base.html", null ],
     [ "CppClingo::Ground::BaseContext", "classCppClingo_1_1Ground_1_1BaseContext.html", null ],
     [ "CppClingo::Ground::BaseImpl< KeyType, BaseType >", "classCppClingo_1_1Ground_1_1BaseImpl.html", null ],
     [ "CppClingo::Ground::BaseImpl< std::pair< size_t, Symbol >, BaseAssignAggr >", "classCppClingo_1_1Ground_1_1BaseImpl.html", [
@@ -436,13 +375,6 @@ var hierarchy =
     [ "Clingo::GroundHandle", "classClingo_1_1GroundHandle.html", null ],
     [ "CppClingo::Control::GroundHandle", "classCppClingo_1_1Control_1_1GroundHandle.html", null ],
     [ "CppClingo::Control::GroundOptions", "structCppClingo_1_1Control_1_1GroundOptions.html", null ],
-    [ "std::hash< Clingo::AST::Node >", "structstd_1_1hash_3_01Clingo_1_1AST_1_1Node_01_4.html", null ],
-    [ "std::hash< Clingo::Atom >", "structstd_1_1hash_3_01Clingo_1_1Atom_01_4.html", null ],
-    [ "std::hash< Clingo::Symbol >", "structstd_1_1hash_3_01Clingo_1_1Symbol_01_4.html", null ],
-    [ "std::hash< Clingo::Term >", "structstd_1_1hash_3_01Clingo_1_1Term_01_4.html", null ],
-    [ "std::hash< Clingo::TheoryAtom >", "structstd_1_1hash_3_01Clingo_1_1TheoryAtom_01_4.html", null ],
-    [ "std::hash< Clingo::TheoryElement >", "structstd_1_1hash_3_01Clingo_1_1TheoryElement_01_4.html", null ],
-    [ "std::hash< Clingo::TheoryTerm >", "structstd_1_1hash_3_01Clingo_1_1TheoryTerm_01_4.html", null ],
     [ "CppClingo::Input::IE", "structCppClingo_1_1Input_1_1IE.html", null ],
     [ "CppClingo::Input::IEInterval", "classCppClingo_1_1Input_1_1IEInterval.html", null ],
     [ "CppClingo::Input::IESolver", "classCppClingo_1_1Input_1_1IESolver.html", null ],

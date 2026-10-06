@@ -2,7 +2,7 @@ var searchData=
 [
   ['sat_0',['sat',['../group__control.html#gga435f05e0701f6918bfaa38a92221809ca53e8254b3222a33f42b5a6b3d156056c',1,'CppClingo::Control']]],
   ['satisfiable_1',['satisfiable',['../group__control.html#ggaa0093c6cf15fb4085eaf65e2a9e4908da57ca29f73c8be442863a1bd199e5ab0c',1,'CppClingo::Control']]],
-  ['set_2',['set',['../classCppClingo_1_1Control_1_1ClingoConfig.html#a4000fa9c8b4d408755ba1ecaa16a0408acdaeeeba9b4a4c5ebf042c0215a7bb0e',1,'CppClingo::Control::ClingoConfig::set'],['../group__cpp__backend.html#gga04e6df2ac5df1d1a43f5a6a110c1c0c3acdaeeeba9b4a4c5ebf042c0215a7bb0e',1,'setClingo'],['../group__cpp__base.html#gga77490795fab59524ca5534916b4428faacdaeeeba9b4a4c5ebf042c0215a7bb0e',1,'setClingo']]],
+  ['set_2',['set',['../classCppClingo_1_1Control_1_1ClingoConfig.html#a4000fa9c8b4d408755ba1ecaa16a0408acdaeeeba9b4a4c5ebf042c0215a7bb0e',1,'CppClingo::Control::ClingoConfig::set'],['../group__cpp__base.html#gga77490795fab59524ca5534916b4428faacdaeeeba9b4a4c5ebf042c0215a7bb0e',1,'setClingo'],['../group__cpp__backend.html#gga04e6df2ac5df1d1a43f5a6a110c1c0c3acdaeeeba9b4a4c5ebf042c0215a7bb0e',1,'setClingo']]],
   ['shared_3',['shared',['../group__cpp__core.html#gga3d4f2b051f3b971dc020db53091f6da4a9e81e7b963c71363e2fb3eefcfecfc0e',1,'Clingo']]],
   ['shown_4',['shown',['../group__control.html#gga4eff488dacd0394bbdbd1f4b15f38343a3fdec1ddf038c12af81ea185ed8c8083',1,'shownCppClingo::Control'],['../group__cpp__solve.html#gga8d1dafece2032624dfa6085594de9d34a3fdec1ddf038c12af81ea185ed8c8083',1,'shownClingo']]],
   ['sig_5',['sig',['../group__input__analyze.html#gga20b704ed5b50300ad4ed6fe99d927de5a3311842a74c4736836a29eefbc1ea464',1,'CppClingo::Input']]],

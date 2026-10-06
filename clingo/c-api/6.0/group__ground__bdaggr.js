@@ -1,7 +1,7 @@
 var group__ground__bdaggr =
 [
     [ "CppClingo::Ground::AtomBdAggr", "classCppClingo_1_1Ground_1_1AtomBdAggr.html", [
-      [ "Bound", "classCppClingo_1_1Ground_1_1AtomBdAggr.html#a0cb784b7ad54e0bd7004a775db4c17c4", null ],
+      [ "Bound", "classCppClingo_1_1Ground_1_1AtomBdAggr.html#a3f69ef68dd37cc07bfda8cab14d1776b", null ],
       [ "AtomBdAggr", "classCppClingo_1_1Ground_1_1AtomBdAggr.html#a2a0c250bbd2dc65f623560a17225b798", null ],
       [ "accumulate", "classCppClingo_1_1Ground_1_1AtomBdAggr.html#a58814758b7fb859604c9a52bc27665ec", null ],
       [ "add_elem", "classCppClingo_1_1Ground_1_1AtomBdAggr.html#afc5cec7c144256f8c504a609a90d7067", null ],
@@ -38,7 +38,7 @@ var group__ground__bdaggr =
         [ "operator==", "classCppClingo_1_1Ground_1_1StateBdAggr_1_1ElementKey.html#a22148b8ba138ce878b0da81aadf90397", null ]
       ] ],
       [ "AtomMap", "classCppClingo_1_1Ground_1_1StateBdAggr.html#aa7a30aaf68cbff301c9b1b5510592e24", null ],
-      [ "ElementMap", "classCppClingo_1_1Ground_1_1StateBdAggr.html#adf1138b657418e75cbaf5932f226b952", null ],
+      [ "ElementMap", "classCppClingo_1_1Ground_1_1StateBdAggr.html#afc19f37f6ee6d4617464f9163252a643", null ],
       [ "StateBdAggr", "classCppClingo_1_1Ground_1_1StateBdAggr.html#a43363f75d6f4a91ce88ae2b1bfbb4ecf", null ],
       [ "base", "classCppClingo_1_1Ground_1_1StateBdAggr.html#a8eae0088bd7eb60bc56ae1f761d05b82", null ],
       [ "domain", "classCppClingo_1_1Ground_1_1StateBdAggr.html#aae0c2a468de9819aaaccb184a689afa5", null ],

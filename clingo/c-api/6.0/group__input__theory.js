@@ -55,10 +55,10 @@ var group__input__theory =
       [ "name", "classCppClingo_1_1Input_1_1TheoryAtom.html#ad5180b1acf0a7937dc6891e9867462ff", null ],
       [ "rhs", "classCppClingo_1_1Input_1_1TheoryAtom.html#a39bd11e28627ddfd2805fd8a85d0a557", null ]
     ] ],
-    [ "CppClingo::Input::BdLitTheoryAtom", "group__input__theory.html#gaaef73c8719f27373b18c11d3b2e69d90", null ],
-    [ "CppClingo::Input::HdLitTheoryAtom", "group__input__theory.html#ga4ffe638c0ffa5c664525acc3c86b182d", null ],
-    [ "CppClingo::Input::TheoryElementArray", "group__input__theory.html#gabaa80434a8dd336ed70ef56ced9ba6d7", null ],
-    [ "CppClingo::Input::TheoryTerm", "group__input__theory.html#ga8a6bded1e1b0dd39f77761836f2dbd63", null ],
-    [ "CppClingo::Input::TheoryTermArray", "group__input__theory.html#ga434f64067ba7ad36a8914f1e2f7d4e99", null ],
-    [ "CppClingo::Input::UnparsedElementArray", "group__input__theory.html#ga2c8f4ba4a93b17937314487cbd69f097", null ]
+    [ "CppClingo::Input::BdLitTheoryAtom", "group__input__theory.html#ga23ce2c986458982469caf51e124bbd84", null ],
+    [ "CppClingo::Input::HdLitTheoryAtom", "group__input__theory.html#ga824f36c1ceaeebec16da42266f974407", null ],
+    [ "CppClingo::Input::TheoryElementArray", "group__input__theory.html#gaecd2d2da81875fd414bc900b3445fa85", null ],
+    [ "CppClingo::Input::TheoryTerm", "group__input__theory.html#ga2c08a28d86e9b7b88777783ceb5306bb", null ],
+    [ "CppClingo::Input::TheoryTermArray", "group__input__theory.html#ga442f46595a7a1e2ef8cc2abc972bd9c1", null ],
+    [ "CppClingo::Input::UnparsedElementArray", "group__input__theory.html#ga236ae44f45ffb4d5a95eb80dce0a5728", null ]
 ];

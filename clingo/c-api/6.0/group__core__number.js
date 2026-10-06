@@ -85,7 +85,7 @@ var group__core__number =
       [ "pow", "classCppClingo_1_1Number.html#a3e6e6bf99bb7daa44b0c44fecbaf978b", null ],
       [ "pow", "classCppClingo_1_1Number.html#a1e0d06a70fb2cce611e78948bfea5419", null ]
     ] ],
-    [ "CppClingo::NumberSpan", "group__core__number.html#ga37bb918cce63cd6d986b8d694d5d1252", null ],
+    [ "CppClingo::NumberSpan", "group__core__number.html#gae1e266f5f47b7ea79b6a05220ffee2ed", null ],
     [ "CppClingo::Base", "group__core__number.html#ga6d834c1a2d71d2df5ca761b67fb24ca2", [
       [ "CppClingo::Base::dec", "group__core__number.html#gga6d834c1a2d71d2df5ca761b67fb24ca2a1feea25ecb958229287f885aebe7c49b", null ],
       [ "CppClingo::Base::hex", "group__core__number.html#gga6d834c1a2d71d2df5ca761b67fb24ca2ab8d1b43eae73587ba56baef574709ecb", null ],

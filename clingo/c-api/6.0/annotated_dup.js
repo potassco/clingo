@@ -338,15 +338,6 @@ var annotated_dup =
       [ "SymbolStore", "classCppClingo_1_1SymbolStore.html", "classCppClingo_1_1SymbolStore" ],
       [ "TheoryBackend", "classCppClingo_1_1TheoryBackend.html", "classCppClingo_1_1TheoryBackend" ]
     ] ],
-    [ "std", null, [
-      [ "hash< Clingo::AST::Node >", "structstd_1_1hash_3_01Clingo_1_1AST_1_1Node_01_4.html", "structstd_1_1hash_3_01Clingo_1_1AST_1_1Node_01_4" ],
-      [ "hash< Clingo::Atom >", "structstd_1_1hash_3_01Clingo_1_1Atom_01_4.html", "structstd_1_1hash_3_01Clingo_1_1Atom_01_4" ],
-      [ "hash< Clingo::Symbol >", "structstd_1_1hash_3_01Clingo_1_1Symbol_01_4.html", "structstd_1_1hash_3_01Clingo_1_1Symbol_01_4" ],
-      [ "hash< Clingo::Term >", "structstd_1_1hash_3_01Clingo_1_1Term_01_4.html", "structstd_1_1hash_3_01Clingo_1_1Term_01_4" ],
-      [ "hash< Clingo::TheoryAtom >", "structstd_1_1hash_3_01Clingo_1_1TheoryAtom_01_4.html", "structstd_1_1hash_3_01Clingo_1_1TheoryAtom_01_4" ],
-      [ "hash< Clingo::TheoryElement >", "structstd_1_1hash_3_01Clingo_1_1TheoryElement_01_4.html", "structstd_1_1hash_3_01Clingo_1_1TheoryElement_01_4" ],
-      [ "hash< Clingo::TheoryTerm >", "structstd_1_1hash_3_01Clingo_1_1TheoryTerm_01_4.html", "structstd_1_1hash_3_01Clingo_1_1TheoryTerm_01_4" ]
-    ] ],
     [ "clingo_application", "structclingo__application.html", "structclingo__application" ],
     [ "clingo_config_entry", "structclingo__config__entry.html", "structclingo__config__entry" ],
     [ "clingo_ground_event_handler", "structclingo__ground__event__handler.html", "structclingo__ground__event__handler" ],
