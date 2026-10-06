@@ -1,0 +1,181 @@
+/* ============================================================
+   Brand colors
+   ============================================================ */
+
+:root {
+    --md-primary-fg-color: #6495ED;
+}
+
+[data-md-color-scheme="default"] .md-header,
+[data-md-color-scheme="default"] .md-tabs,
+[data-md-color-scheme="slate"] .md-header,
+[data-md-color-scheme="slate"] .md-tabs {
+    --md-primary-fg-color: #2E3360;
+}
+
+[data-md-color-scheme="default"] .md-nav--primary .md-nav__title,
+[data-md-color-scheme="slate"] .md-nav--primary .md-nav__title {
+    background-color: #2E3360;
+}
+
+
+[data-md-color-scheme="default"] {
+    --md-footer-bg-color: #00000005;
+    --md-footer-bg-color--dark: #00000005;
+    --md-footer-fg-color--lighter: #000000;
+    --md-footer-fg-color--light: #000000;
+    /* --md-footer-fg-color: #000000; */
+}
+
+
+[data-md-color-scheme="slate"] {
+    --md-footer-bg-color: #00000060;
+    --md-footer-bg-color--dark: #00000060;
+    --md-footer-fg-color--lighter: #FFFFFF;
+    --md-footer-fg-color--light: #FFFFFF90;
+}
+
+/* ============================================================
+   Code highlight colors
+   ============================================================ */
+
+[data-md-color-scheme="default"] {
+    --md-code-hl-number-color: hsl(11, 80%, 40%);
+    --md-code-hl-special-color: hsl(340, 75%, 45%);
+    --md-code-hl-function-color: hsl(271, 55%, 45%);
+    --md-code-hl-constant-color: hsl(220, 70%, 45%);
+    --md-code-hl-keyword-color: var(--md-primary-fg-color);
+    --md-code-hl-string-color: hsl(160, 50%, 30%);
+    --md-code-hl-name-color: hsl(43, 90%, 32%);
+    --md-code-hl-operator-color: hsl(0, 0%, 30%);
+    --md-code-hl-punctuation-color: hsl(271, 45%, 45%);
+    --md-code-hl-comment-color: hsl(210, 15%, 50%);
+    --md-code-hl-generic-color: hsl(210, 15%, 45%);
+    --md-code-hl-variable-color: hsl(24, 70%, 38%);
+}
+
+[data-md-color-scheme="slate"] {
+    --md-code-hl-number-color: hsl(11, 85%, 68%);
+    --md-code-hl-special-color: hsl(340, 82%, 72%);
+    --md-code-hl-function-color: hsl(271, 70%, 78%);
+    --md-code-hl-constant-color: hsl(220, 80%, 75%);
+    --md-code-hl-keyword-color: #6fa3f7;
+    --md-code-hl-string-color: hsl(160, 55%, 60%);
+    --md-code-hl-name-color: hsl(43, 100%, 65%);
+    --md-code-hl-operator-color: hsl(0, 0%, 72%);
+    --md-code-hl-punctuation-color: hsl(271, 60%, 78%);
+    --md-code-hl-comment-color: hsl(210, 15%, 55%);
+    --md-code-hl-generic-color: hsl(210, 15%, 62%);
+    --md-code-hl-variable-color: hsl(24, 80%, 68%);
+}
+
+
+/* ============================================================
+   Layout
+   ============================================================ */
+
+.md-grid {
+    max-width: 1350px;
+}
+
+
+/* ============================================================
+   Header
+   ============================================================ */
+
+.md-header__title {
+    font-size: 1.2rem;
+    height: 2.5rem;
+    line-height: 2.5rem;
+    margin-left: 0 !important;
+}
+
+.md-header__button.md-logo {
+    padding-bottom: 0.8rem;
+}
+
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+    height: 1.5rem;
+    width: 1.5rem;
+}
+
+
+/* ============================================================
+   Admonitions
+   ============================================================ */
+
+.md-typeset .admonition,
+.md-typeset details {
+    border-width: 0;
+    border-left-width: 3px;
+}
+
+/* info / note / abstract / tip — primary color */
+.md-typeset .info>.admonition-title,
+.md-typeset .info>summary,
+.md-typeset .note>.admonition-title,
+.md-typeset .note>summary,
+.md-typeset .abstract>.admonition-title,
+.md-typeset .abstract>summary,
+.md-typeset .tip>.admonition-title,
+.md-typeset .tip>summary {
+    border-color: var(--md-primary-fg-color);
+    background-color: color-mix(in srgb, var(--md-primary-fg-color) 10%, transparent);
+}
+
+.md-typeset .admonition.info,
+.md-typeset details.info,
+.md-typeset .admonition.note,
+.md-typeset details.note,
+.md-typeset .admonition.abstract,
+.md-typeset details.abstract,
+.md-typeset .admonition.tip,
+.md-typeset details.tip {
+    border-color: var(--md-primary-fg-color);
+}
+
+.md-typeset .info>.admonition-title::before,
+.md-typeset .info>summary::before,
+.md-typeset .note>.admonition-title::before,
+.md-typeset .note>summary::before,
+.md-typeset .abstract>.admonition-title::before,
+.md-typeset .abstract>summary::before,
+.md-typeset .tip>.admonition-title::before,
+.md-typeset .tip>summary::before {
+    background-color: var(--md-primary-fg-color);
+}
+
+/* question — yellow */
+.md-typeset .question>.admonition-title,
+.md-typeset .question>summary {
+    border-color: #A8AD00;
+    background-color: color-mix(in srgb, #A8AD00 10%, transparent);
+}
+
+.md-typeset .admonition.question,
+.md-typeset details.question {
+    border-color: #A8AD00;
+}
+
+.md-typeset .question>.admonition-title::before,
+.md-typeset .question>summary::before {
+    background-color: #A8AD00;
+}
+
+/* success — green */
+.md-typeset .success>.admonition-title,
+.md-typeset .success>summary {
+    border-color: #A8AD00;
+    background-color: color-mix(in srgb, #A8AD00 10%, transparent);
+}
+
+.md-typeset .admonition.success,
+.md-typeset details.success {
+    border-color: #A8AD00;
+}
+
+.md-typeset .success>.admonition-title::before,
+.md-typeset .success>summary::before {
+    background-color: #A8AD00;
+}
