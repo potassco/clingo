@@ -38,6 +38,6 @@ Description: A solver for logic programs
 Package: libclingo-dev
 Section: libdevel
 Architecture: any
-Depends: ${misc:Depends}, clingo, python3-clingo, libclingo (= ${binary:Version})
+Depends: ${misc:Depends}, python3-clingo, clingo, libclingo (= ${binary:Version})
 Description: A solver for logic programs
  This package contains the development files.
