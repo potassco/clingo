@@ -1,3 +1,1 @@
-# clingo
-
 ::: clingo
