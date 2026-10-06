@@ -6,11 +6,7 @@ import argparse
 import re
 from pathlib import Path
 
-# Matches:
-#   ``clingo.Symbol``
-#   ``clingo.ast.AST``
-#   ``clingo.Control.solve``
-REFERENCE_RE = re.compile(r"`(?P<name>clingo(?:\.[A-Za-z_][A-Za-z0-9_]*)+)`")
+REFERENCE_RE = re.compile(r"`(?P<name>clingo(?:\.[A-Za-z_][A-Za-z0-9_]*)*)`")
 
 
 def transform(text: str) -> str:
