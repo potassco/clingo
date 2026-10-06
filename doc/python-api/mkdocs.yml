@@ -16,7 +16,7 @@ theme:
     - content.code.copy
     - search.highlight
   logo: assets/images/potassco-logo.svg
-  custom_dir: custom/overrides
+  custom_dir: custom
   favicon: assets/images/potassco-logo.svg
   icon:
     repo: fontawesome/brands/github
@@ -77,7 +77,7 @@ markdown_extensions:
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
       options:
         custom_icons:
-          - custom/overrides/.icons
+          - custom/.icons
   - attr_list
   - md_in_html
   - pymdownx.blocks.caption
