@@ -351,7 +351,7 @@ class Control:
             Blocking methods on `SolveHandle` release the GIL but are not thread-safe.
 
         See Also:
-            clingo.solve: Contains examples on using this function.
+            `clingo.solve`
         """
 
     def write_aspif(

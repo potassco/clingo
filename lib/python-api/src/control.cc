@@ -655,7 +655,7 @@ Notes:
 	Blocking methods on `SolveHandle` release the GIL but are not thread-safe.
 
 See Also:
-    clingo.solve: Contains examples on using this function.
+    `clingo.solve`
 )"_d)
         .def("main", &Control::main, R"(
 Ground and solve a logic program based on the current control mode.
