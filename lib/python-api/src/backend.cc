@@ -426,7 +426,7 @@ specify heuristics, define optimization statements, and extend the underlying
 theory. It allows for low-level manipulation of logic programs.
 
 See Also:
-	clingo.control.Control.backend
+	`clingo.control.Control.backend`
 )"_d)
         .def("atom", &Backend::atom, py::arg("symbol") = std::nullopt, R"(
 Return a fresh program atom or the atom associated with the given symbol.

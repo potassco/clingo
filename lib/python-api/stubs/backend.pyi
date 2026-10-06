@@ -245,7 +245,7 @@ class Backend:
     theory. It allows for low-level manipulation of logic programs.
 
     See Also:
-        clingo.control.Control.backend
+        `clingo.control.Control.backend`
     """
 
     def assume(self, literals: typing.Sequence[int]) -> None:
@@ -528,7 +528,7 @@ class BackendManager:
 
     def __enter__(self) -> Backend:
         """
-        Initialize backend the backend.
+        Initialize the backend.
         """
 
     def __exit__(

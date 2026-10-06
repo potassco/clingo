@@ -1,4 +1,12 @@
 site_name: clingo API reference
+site_url: https://potassco.org/clingo/
+site_description: ""
+repo_name: potassco/clingo
+repo_url: https://github.com/potassco/clingo
+copyright: Copyright &copy; 2026 Potassco
+
+extra_css:
+  - _custom/css/extra.css
 
 theme:
   name: material
@@ -7,26 +15,78 @@ theme:
     - navigation.expand
     - content.code.copy
     - search.highlight
-
+  logo: assets/images/potassco-logo.svg
+  custom_dir: docs/_custom/overrides
+  favicon: assets/images/potassco-logo.svg
+  icon:
+    repo: fontawesome/brands/github
+    admonition:
+      quote: material/file-code-outline
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
       toggle:
-        icon: material/weather-sunny
+        icon: material/brightness-7
         name: Switch to dark mode
+      primary: custom
+      accent: indigo
 
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
+      primary: custom
+      accent: indigo
       toggle:
-        icon: material/weather-night
+        icon: material/brightness-4
         name: Switch to light mode
 
+extra:
+  social:
+    - icon: potassco-logo
+      link: https://potassco.org
+    - icon: fontawesome/brands/github
+      link: https://github.com/potassco
+    - icon: fontawesome/brands/x-twitter
+      link: https://x.com/potassco
+    - icon: fontawesome/brands/facebook
+      link: https://www.facebook.com/potassco
+    - icon: fontawesome/brands/youtube
+      link: https://www.youtube.com/@Potassco-live
+  generator: false
+
 markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.keys
   - pymdownx.highlight:
+      use_pygments: true
       anchor_linenums: true
       pygments_lang_class: true
       default_lang: python
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+        - name: lp
+          class: lp
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      options:
+        custom_icons:
+          - _custom/overrides/.icons
+  - attr_list
+  - md_in_html
+  - pymdownx.blocks.caption
+  - pymdownx.snippets
+  - pymdownx.arithmatex:
+      generic: true
+  - toc:
+      permalink: true
+  - footnotes
 
 plugins:
   - search
@@ -35,10 +95,13 @@ plugins:
         python:
           paths:
             - stubs
+          inventories:
+            - https://docs.python.org/3/objects.inv
           options:
+            heading_level: 1
             show_source: false
-            show_root_heading: false
-            show_root_full_path: false
+            show_root_heading: true
+            show_root_full_path: true
             members_order: source
             docstring_section_style: table
             separate_signature: true
