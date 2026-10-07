@@ -52,16 +52,6 @@ jobs:
               CIBW_ARCHS_LINUX: x86_64
               CIBW_BUILD: "*-musllinux*"
           - os: ubuntu-latest
-            name: "*-manylinux_i686"
-            env:
-              CIBW_ARCHS_LINUX: i686
-              CIBW_BUILD: "*-manylinux*"
-          - os: ubuntu-latest
-            name: "*-musllinux-i686"
-            env:
-              CIBW_ARCHS_LINUX: i686
-              CIBW_BUILD: "*-musllinux*"
-          - os: ubuntu-latest
             name: "cp*-manylinux-aarch64"
             env:
               CIBW_ARCHS_LINUX: aarch64
