@@ -30,6 +30,7 @@
 #include <cassert>
 #include <clingo.h>
 #include <cstring>
+#include <exception>
 #include <forward_list>
 #include <functional>
 #include <limits>
