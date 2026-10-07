@@ -33,6 +33,7 @@
 #include <exception>
 #include <forward_list>
 #include <functional>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <ostream>
