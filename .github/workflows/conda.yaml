@@ -17,43 +17,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.12", "3.13", "3.14"]
+        arch: [x86_64, arm64]
+        exclude:
           - os: ubuntu-latest
-            python-version: "3.12"
-            arch: x86_64
-          - os: ubuntu-latest
-            python-version: "3.13"
-            arch: x86_64
-          - os: ubuntu-latest
-            python-version: "3.14"
-            arch: x86_64
-          - os: macos-latest
-            python-version: "3.12"
             arch: arm64
-          - os: macos-latest
-            python-version: "3.13"
+          - os: windows-latest
             arch: arm64
-          - os: macos-latest
-            python-version: "3.14"
-            arch: arm64
-          - os: macos-latest
-            python-version: "3.12"
-            arch: x86_64
-          - os: macos-latest
-            python-version: "3.13"
-            arch: x86_64
-          - os: macos-latest
-            python-version: "3.14"
-            arch: x86_64
-          - os: windows-latest
-            python-version: "3.12"
-            arch: x86_64
-          - os: windows-latest
-            python-version: "3.13"
-            arch: x86_64
-          - os: windows-latest
-            python-version: "3.14"
-            arch: x86_64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -139,7 +110,7 @@ jobs:
       - build
     runs-on: ubuntu-latest
     steps:
-      - name: Dowload
+      - name: Download
         uses: actions/download-artifact@v8
         with:
           path: artifacts
