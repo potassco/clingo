@@ -1,18 +1,16 @@
 [project]
 name = "clingo"
-version = "6.0.0"
-description="Python bindings to the clingo solver."
-readme = {file = "README.md", content-type = "text/markdown"}
-authors = [
-  { name = "Roland Kaminski", email = "kaminski@cs.uni-potsdam.de" }
-]
+dynamic = ["version"]
+description = "Python bindings to the clingo solver."
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [{ name = "Roland Kaminski", email = "kaminski@cs.uni-potsdam.de" }]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Topic :: Software Development :: Libraries",
-  "Topic :: Scientific/Engineering :: Artificial Intelligence"
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 keywords = [
   "artificial intelligence",
@@ -24,7 +22,7 @@ keywords = [
   "SAT",
   "Potassco",
   "clingo",
-  "solver"
+  "solver",
 ]
 
 [project.urls]
@@ -36,23 +34,18 @@ Documentation = "https://github.com/potassco/guide"
 pyclingo = "clingo.app:_pyclingo"
 
 [build-system]
-requires = ["scikit-build-core", "pybind11", "re2c"]
+requires = ["scikit-build-core>=1.0", "pybind11", "re2c"]
 build-backend = "scikit_build_core.build"
 
-[tool.scikit-build.sdist]
-include = ["lib/*", "third_party/*", "app/*", "CMakeLists.txt"]
-exclude = ["*.pyc"]
+[[tool.dynamic-metadata]]
+provider = { path = "scripts", module = "pyversion" }
 
 [tool.scikit-build.wheel]
 # TODO: install components are the cleaner way to implement this
 exclude = ["include/amc/*", "bin/*", "share/*"]
 
 [tool.pytest.ini_options]
-addopts = [
-    "--ignore=third_party",
-    "--ignore=doc",
-    "--ignore=.git",
-]
+addopts = ["--ignore=third_party", "--ignore=doc", "--ignore=.git"]
 testpaths = ["lib"]
 
 [tool.ruff]

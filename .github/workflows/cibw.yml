@@ -27,22 +27,21 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Get build number and hash
+      - name: Prepare build environment
         shell: bash -l {0}
-        run: |
-          if [ "${{ inputs.build_number }}" == "auto" ]; then
-            echo "BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
-          else
-            echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
-          fi
-          echo "GIT_HASH=${GITHUB_SHA:0:7}" >> $GITHUB_ENV
         env:
-          GITHUB_SHA: ${{ github.sha }}
-
-      - name: Adjust version
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
-          pip install toml
-          python .github/adjust_version.py --build-number ${BUILD_NUMBER} --git-hash ${GIT_HASH}
+          number="${BUILD_NUMBER}"
+          if [[ "${number}" == "auto" ]]; then
+            number="${RUN_NUMBER}"
+          fi
+          if ! [[ "${number}" =~ ^[0-9]+$ ]]; then
+            echo "build_number must be 'auto' or a number" >&2
+            exit 1
+          fi
+          echo "BUILD_NUMBER=${number}" >> "$GITHUB_ENV"
 
       - name: Build sdist
         run: pipx run build --sdist
@@ -54,100 +53,63 @@ jobs:
 
   build_wheels:
     needs: [build_sdist]
-    name: Build ${{ matrix.build }} wheels
-    runs-on: ${{ matrix.os }}
+    name: Build ${{ matrix.python }}-${{ matrix.target.tag }}
+    runs-on: ${{ matrix.target.os }}
     strategy:
       matrix:
+        python: [cp312, cp313, cp314]
+        target:
+          - { tag: manylinux_x86_64, os: ubuntu-latest }
+          - { tag: manylinux_aarch64, os: ubuntu-latest }
+          - { tag: manylinux_ppc64le, os: ubuntu-latest }
+          - { tag: win_amd64, os: windows-latest }
+          - { tag: macosx_arm64, os: macos-latest }
+          - { tag: macosx_x86_64, os: macos-latest }
         include:
-          - build: "cp312-manylinux_x86_64"
-            os: ubuntu-latest
-          - build: "cp313-manylinux_x86_64"
-            os: ubuntu-latest
-          - build: "cp314-manylinux_x86_64"
-            os: ubuntu-latest
+          - python: pp311
+            target: { tag: manylinux_x86_64, os: ubuntu-latest }
 
-          - build: "cp312-manylinux_aarch64"
-            os: ubuntu-latest
-          - build: "cp313-manylinux_aarch64"
-            os: ubuntu-latest
-          - build: "cp314-manylinux_aarch64"
-            os: ubuntu-latest
-
-          # NOTE: pyodid wheels cannot be published on pypi
-          # - build: "cp313-pyodide_wasm32"
-          #   os: ubuntu-latest
-
-          - build: "cp312-manylinux_ppc64le"
-            os: ubuntu-latest
-          - build: "cp313-manylinux_ppc64le"
-            os: ubuntu-latest
-          - build: "cp314-manylinux_ppc64le"
-            os: ubuntu-latest
-
-          # NOTE: pp312 is not available yet
-          # it should be replaced as soon as it becomes available
-          - build: "pp311-manylinux_x86_64"
-            os: ubuntu-latest
-
-          - build: "cp312-win_amd64"
-            os: windows-latest
-          - build: "cp313-win_amd64"
-            os: windows-latest
-          - build: "cp314-win_amd64"
-            os: windows-latest
-
-          - build: "cp312-macosx_arm64"
-            os: macos-latest
-          - build: "cp313-macosx_arm64"
-            os: macos-latest
-          - build: "cp314-macosx_arm64"
-            os: macos-latest
-
-          - build: "cp312-macosx_x86_64"
-            os: macos-latest
-          - build: "cp313-macosx_x86_64"
-            os: macos-latest
-          - build: "cp314-macosx_x86_64"
-            os: macos-latest
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Set up QEMU
-        if: endsWith(matrix.build, 'linux_ppc64le') || endsWith(matrix.build, 'linux_aarch64')
+        if: endsWith(matrix.target.tag, 'linux_ppc64le') || endsWith(matrix.target.tag, 'linux_aarch64')
         uses: docker/setup-qemu-action@v4
         with:
           platforms: all
 
-      - name: Get build number and hash
+      - name: Prepare build environment
         shell: bash -l {0}
-        run: |
-          if [ "${{ inputs.build_number }}" == "auto" ]; then
-            echo "BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
-          else
-            echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
-          fi
-          echo "GIT_HASH=${GITHUB_SHA:0:7}" >> $GITHUB_ENV
         env:
-          GITHUB_SHA: ${{ github.sha }}
-
-      - name: Adjust version
-        shell: bash -l {0}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          RUN_NUMBER: ${{ github.run_number }}
+          INDEX: ${{ inputs.index }}
         run: |
-          pip install toml
-          python .github/adjust_version.py --build-number ${BUILD_NUMBER} --git-hash ${GIT_HASH}
+          number="${BUILD_NUMBER}"
+          if [[ "${number}" == "auto" ]]; then
+            number="${RUN_NUMBER}"
+          fi
+          if ! [[ "${number}" =~ ^[0-9]+$ ]]; then
+            echo "build_number must be 'auto' or a number" >&2
+            exit 1
+          fi
+          cibw_environment="MACOSX_DEPLOYMENT_TARGET=14.0"
+          cibw_environment+=" BUILD_NUMBER=${number}"
+          if [[ "${INDEX}" == "testpypi" ]]; then
+            cibw_environment+=" PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple"
+          fi
+          echo "CIBW_ENVIRONMENT=${cibw_environment}" >> "$GITHUB_ENV"
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.4.1
         env:
-          CIBW_BUILD: ${{ matrix.build }}
-          CIBW_ENVIRONMENT: "MACOSX_DEPLOYMENT_TARGET=14.0 ${{ inputs.index == 'testpypi' && 'PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple' || '' }}"
-          CIBW_PLATFORM: ${{ contains(matrix.build, 'pyodide') && 'pyodide' || 'auto' }}
+          CIBW_BUILD: ${{ matrix.python }}-${{ matrix.target.tag }}
 
       - uses: actions/upload-artifact@v7
         with:
-          name: cibw-${{ matrix.build }}
+          name: cibw-${{ matrix.python }}-${{ matrix.target.tag }}
           path: ./wheelhouse/*.whl
 
   upload_pypi:
