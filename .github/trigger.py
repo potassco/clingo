@@ -1,21 +1,39 @@
 #!/usr/bin/env python3
 """Simple script to dispatch workflows."""
 
-import urllib.request
-import urllib.error
+import argparse
 import json
 import os
 import sys
-import argparse
+import urllib.error
+import urllib.request
 
 REPO = "clingo"
 OWNER = "potassco"
 API_URL = f"https://api.github.com/repos/{OWNER}/{REPO}"
 TOKEN_FILE = os.path.expanduser("~/.tokens")
-WORKFLOW_ID_CONDA = "165237057"
-WORKFLOW_ID_PYPI = "189686367"
-WORKFLOW_ID_PPA = "190109021"
-WORKFLOW_ID_CLOUDSMITH = "191817760"
+
+WORKFLOW_IDS = {
+    "conda": "165237057",
+    "pypi": "189686367",
+    "ppa": "190109021",
+    "cloudsmith": "191817760",
+}
+
+WORKFLOW_INPUTS = {
+    "release": {
+        "conda": {"label": "main"},
+        "pypi": {"index": "pypi"},
+        "ppa": {"type": "stable"},
+        "cloudsmith": {"type": "stable"},
+    },
+    "dev": {
+        "conda": {"label": "dev-20"},
+        "pypi": {"index": "testpypi"},
+        "ppa": {"type": "wip-20"},
+        "cloudsmith": {"type": "wip-20"},
+    },
+}
 
 
 def get_token():
@@ -25,7 +43,7 @@ def get_token():
             lines = f.readlines()
         idx = lines.index("workflow_dispatch\n")
         return lines[idx + 1].strip()
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except (FileNotFoundError, IndexError, ValueError, OSError) as e:
         print(f"Failed to read token: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -54,7 +72,7 @@ def make_request(url, method="GET", data=None):
 
 
 def list_workflows():
-    """List all github workflows"""
+    """List all github workflows."""
     url = f"{API_URL}/actions/workflows"
     resp = make_request(url)
     data = json.loads(resp)
@@ -63,19 +81,50 @@ def list_workflows():
 
 
 def dispatch_workflow(workflow_id: str, ref: str, inputs: dict):
-    """Dispatch a workflow event"""
+    """Dispatch a workflow event."""
     url = f"{API_URL}/actions/workflows/{workflow_id}/dispatches"
     payload = {"ref": ref, "inputs": inputs}
     make_request(url, method="POST", data=payload)
     print(f"Workflow dispatched: https://github.com/{OWNER}/{REPO}/actions")
 
 
+def trigger_workflows(
+    command: str, branch: str, build_number: str, workflows: list[str]
+):
+    """Trigger selected workflows for a command type."""
+    for workflow in workflows:
+        inputs = {"build_number": build_number, **WORKFLOW_INPUTS[command][workflow]}
+        dispatch_workflow(WORKFLOW_IDS[workflow], branch, inputs)
+
+
+def parse_workflows(value: str) -> list[str]:
+    """Parse comma-separated workflow names."""
+    selected = list(
+        dict.fromkeys(item.strip() for item in value.split(",") if item.strip())
+    )
+    if not selected:
+        raise argparse.ArgumentTypeError(
+            f"At least one workflow is required. Valid: {', '.join(sorted(WORKFLOW_IDS))}"
+        )
+    invalid = [w for w in selected if w not in WORKFLOW_IDS]
+    if invalid:
+        raise argparse.ArgumentTypeError(
+            f"Invalid workflow(s): {', '.join(invalid)}. "
+            f"Valid: {', '.join(sorted(WORKFLOW_IDS))}"
+        )
+    return selected
+
+
 def main():
-    """
-    Run the script.
-    """
+    """Run the script."""
     parser = argparse.ArgumentParser(
         description="Trigger GitHub Actions workflows for clingo."
+    )
+    parser.add_argument(
+        "--workflows",
+        type=parse_workflows,
+        default=list(WORKFLOW_IDS),
+        help="Comma-separated workflows (default: conda,pypi,ppa,cloudsmith)",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -92,48 +141,9 @@ def main():
 
     if args.command == "list":
         list_workflows()
-    elif args.command == "release":
-        dispatch_workflow(
-            WORKFLOW_ID_CONDA,
-            args.branch,
-            {"build_number": args.build_number, "label": "main"},
-        )
-        dispatch_workflow(
-            WORKFLOW_ID_PYPI,
-            args.branch,
-            {"build_number": args.build_number, "index": "pypi"},
-        )
-        dispatch_workflow(
-            WORKFLOW_ID_PPA,
-            args.branch,
-            {"build_number": args.build_number, "type": "stable"},
-        )
-        dispatch_workflow(
-            WORKFLOW_ID_CLOUDSMITH,
-            args.branch,
-            {"build_number": args.build_number, "type": "stable"},
-        )
-    elif args.command == "dev":
-        dispatch_workflow(
-            WORKFLOW_ID_CONDA,
-            args.branch,
-            {"build_number": "auto", "label": "dev-20"},
-        )
-        dispatch_workflow(
-            WORKFLOW_ID_PYPI,
-            args.branch,
-            {"build_number": "auto", "index": "testpypi"},
-        )
-        dispatch_workflow(
-            WORKFLOW_ID_PPA,
-            args.branch,
-            {"build_number": "auto", "type": "wip-20"},
-        )
-        dispatch_workflow(
-            WORKFLOW_ID_CLOUDSMITH,
-            args.branch,
-            {"build_number": "auto", "type": "wip-20"},
-        )
+    elif args.command in {"release", "dev"}:
+        build_number = args.build_number if args.command == "release" else "auto"
+        trigger_workflows(args.command, args.branch, build_number, args.workflows)
     else:
         parser.print_help()
         sys.exit(1)
