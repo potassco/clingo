@@ -32,20 +32,23 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Version
-        shell: bash -l {0}
+      - name: Prepare build environment
+        shell: bash -e -o pipefail -l {0}
+        env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
+          number="${BUILD_NUMBER}"
+          if [[ "${number}" == "auto" ]]; then
+            number="${RUN_NUMBER}"
+          fi
+          if ! [[ "${number}" =~ ^[0-9]+$ ]]; then
+            echo "build_number must be 'auto' or a number" >&2
+            exit 1
+          fi
           VERSION=$(python -c "import re; print(next(re.finditer(r'CLINGO_VERSION \"([0-9.]+)\"', open('lib/c-api/include/clingo/core.h').read())).group(1))")
           echo "VERSION_NUMBER=$VERSION" >> $GITHUB_ENV
-
-      - name: Build number
-        shell: bash -l {0}
-        run: |
-          if [ "${{ inputs.build_number }}" == "auto" ]; then
-            echo "BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
-          else
-            echo "BUILD_NUMBER=${{ inputs.build_number }}" >> $GITHUB_ENV
-          fi
+          echo "BUILD_NUMBER=${number}" >> "$GITHUB_ENV"
 
       - name: Conda
         if: ${{ runner.os != 'linux' }}
@@ -72,11 +75,12 @@ jobs:
               source ~/miniforge3/etc/profile.d/conda.sh && \
               conda activate base && \
               conda install -y tree conda-build && \
-              conda-build /work/.github/conda --output-folder artifacts --python ${{ matrix.python-version }} && \
-              find artifacts -type f -name '*.conda' -exec cp {} /artifacts/ \;
+              conda-build /work/.github/conda --output-folder /artifacts --python ${{ matrix.python-version }} &&
+              find /artifacts -mindepth 1 -exec chmod a+rwX {} +
             "
+
       - name: Build (macos_x86_64)
-        shell: bash -l {0}
+        shell: bash -e -o pipefail -l {0}
         if: ${{ runner.os == 'macos' && matrix.arch == 'x86_64' }}
         run: |
           set -x
@@ -84,11 +88,9 @@ jobs:
           conda run -n build --no-capture-output arch -x86_64 conda-build .github/conda \
             --output-folder ./artifacts \
             --python "${{ matrix.python-version }}"
-          find artifacts -type f ! -name "*.conda" -delete
-          find artifacts -type d -empty -delete
 
       - name: Build (windows/macos_arm64)
-        shell: bash -l {0}
+        shell: bash -e -o pipefail -l {0}
         if: ${{ runner.os != 'linux' && (runner.os != 'macos' || matrix.arch != 'x86_64') }}
         run: |
           set -x
@@ -96,8 +98,13 @@ jobs:
           conda run -n build --no-capture-output conda-build .github/conda \
             --output-folder ./artifacts \
             --python "${{ matrix.python-version }}"
+
+      - name: Cleanup artifacts
+        shell: bash -e -o pipefail -l {0}
+        run: |
           find artifacts -type f ! -name "*.conda" -delete
           find artifacts -type d -empty -delete
+          find artifacts -type f -name "*.conda" -print -quit | grep -q . || { echo "No .conda artifacts found in artifacts/"; exit 1; }
 
       - name: Upload
         uses: actions/upload-artifact@v7
@@ -125,12 +132,12 @@ jobs:
           auto-update-conda: true
 
       - name: Install
-        shell: bash -l {0}
+        shell: bash -e -o pipefail -l {0}
         run: |
           conda install anaconda-client
 
       - name: Upload
-        shell: bash -l {0}
+        shell: bash -e -o pipefail -l {0}
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
