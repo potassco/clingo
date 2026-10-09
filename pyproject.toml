@@ -1,2 +1,45 @@
 [build-system]
-requires = ["setuptools", "wheel", "scikit-build", "cmake", "ninja"]
+requires = ["scikit-build-core>=1.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "clingo"
+dynamic = ["version"]
+description = "CFFI-based bindings to the clingo solver."
+readme = { text = """
+This package provides CFFI-based bindings to the clingo solver.
+
+Clingo is part of the [Potassco](https://potassco.org) project for *Answer Set
+Programming* (ASP). ASP offers a simple and powerful modeling language to
+describe combinatorial problems as *logic programs*. The *clingo* system then
+takes such a logic program and computes *answer sets* representing solutions to
+the given problem. To get an idea, check our
+[Getting Started](https://potassco.org/guide/)
+page and the
+[online version](https://potassco.org/clingo/run/)
+of clingo.
+
+Please check the
+[API documentation](https://docs.potassco.org/clingo/python-api/current/clingo/)
+on how to use this module.
+""", content-type = "text/markdown" }
+authors = [{ name = "Roland Kaminski", email = "kaminski@cs.uni-potsdam.de" }]
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = ["cffi"]
+
+[project.urls]
+Homepage = "https://github.com/potassco/clingo"
+
+[[tool.dynamic-metadata]]
+provider = { path = "libpyclingo", module = "version" }
+
+[tool.scikit-build]
+cmake.version = ">=3.18"
+cmake.args = [
+    "-DCLINGO_MANAGE_RPATH=OFF",
+    "-DCLINGO_BUILD_APPS=OFF",
+    "-DCLINGO_BUILD_WITH_PYTHON=pip",
+    "-DCLINGO_BUILD_WITH_LUA=OFF",
+    "-DPYCLINGO_INSTALL_DIR=.",
+]
