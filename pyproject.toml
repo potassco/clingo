@@ -35,10 +35,11 @@ Homepage = "https://github.com/potassco/clingo"
 provider = { path = "libpyclingo", module = "version" }
 
 [tool.scikit-build]
+cmake.version = ">=3.18"
 cmake.args = [
-  "-DCLINGO_MANAGE_RPATH=OFF",
-  "-DCLINGO_BUILD_APPS=OFF",
-  "-DCLINGO_BUILD_WITH_PYTHON=pip",
-  "-DCLINGO_BUILD_WITH_LUA=OFF",
-  "-DPYCLINGO_INSTALL_DIR=.",
+    "-DCLINGO_MANAGE_RPATH=OFF",
+    "-DCLINGO_BUILD_APPS=OFF",
+    "-DCLINGO_BUILD_WITH_PYTHON=pip",
+    "-DCLINGO_BUILD_WITH_LUA=OFF",
+    "-DPYCLINGO_INSTALL_DIR=.",
 ]

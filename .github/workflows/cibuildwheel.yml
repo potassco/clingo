@@ -40,6 +40,7 @@ jobs:
           - { tag: manylinux_x86_64, os: ubuntu-latest }
           - { tag: manylinux_aarch64, os: ubuntu-latest }
           - { tag: manylinux_ppc64le, os: ubuntu-latest }
+          - { tag: musllinux_x86_64, os: ubuntu-latest }
           - { tag: win_amd64, os: windows-latest }
           - { tag: macosx_arm64, os: macos-latest }
           - { tag: macosx_x86_64, os: macos-latest }
