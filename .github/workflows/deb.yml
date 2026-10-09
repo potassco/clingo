@@ -43,13 +43,12 @@ jobs:
           fi
           cd .github/ppa
           ./build.sh --type cloudsmith --build-number "${BUILD_NUMBER}" "${{ inputs.type }}" "${{ matrix.codename }}" create sync changes build
-          rm -f *dbgsym*.deb
 
       - name: Upload built package artifact for ${{ matrix.codename }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.distro }}-${{ matrix.codename }}
-          path: .github/ppa/*.deb
+          path: .github/ppa/${{ matrix.codename }}/*.deb
 
   publish:
     runs-on: ubuntu-latest

@@ -145,14 +145,14 @@ EOF
             VERSION="$(head -n 1 "${rep}/debian/changelog" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\(-[a-z0-9]\+\)\?')"
             (
                 cd "${rep}"
-                pdebuild --buildresult .. --auto-debsign --debsign-k 744d959e10f5ad73f9cf17cc1d150536980033d5 -- --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz" --source-only-changes
-                sed -i '/\.buildinfo$/d' "../clingo_${VERSION}_source.changes"
-                debsign --re-sign -k744d959e10f5ad73f9cf17cc1d150536980033d5 "../clingo_${VERSION}_source.changes"
+                pdebuild --buildresult . -- --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz"
             )
+            debsign -S -k744d959e10f5ad73f9cf17cc1d150536980033d5 "clingo_${VERSION}_source.changes"
         else
             (
                 cd "${rep}"
-                pdebuild --buildresult .. -- --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz" --source-only-changes
+                pdebuild --buildresult . -- --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz"
+                rm -f ./*dbgsym*.deb
             )
         fi
         ;;
@@ -161,31 +161,9 @@ EOF
         dput "ppa:potassco/${ref}" "clingo_${VERSION}_source.changes"
         ;;
     clean)
-        rm -rf \
-            "${rep}"/app \
-            "${rep}"/cmake \
-            "${rep}"/clasp \
-            "${rep}"/lib* \
-            "${rep}"/third_party \
-            "${rep}"/CMakeLists.txt \
-            "${rep}"/debian/files \
-            "${rep}"/debian/.debhelper \
-            "${rep}"/debian/clingo.debhelper.log \
-            "${rep}"/debian/clingo.substvars \
-            "${rep}"/debian/clingo \
-            "${rep}"/debian/debhelper-build-stamp \
-            "${rep}"/debian/tmp \
-            "${rep}"/obj-x86_64-linux-gnu \
-            ./*.md \
-            ./*.build \
-            ./*.deb \
-            ./*.dsc \
-            ./*.buildinfo \
-            ./*.changes \
-            ./*.ddeb \
-            ./*.tar.xz \
-            ./*.upload
-        git checkout "${rep}/debian/changelog" "${rep}/debian/rules"
+        rm -f ./*.{dsc,xz,build,changes}
+        git clean -ffdx -- "${rep}"
+        git restore -- "${rep}/debian/changelog" "${rep}/debian/rules"
         ;;
     *)
         usage
