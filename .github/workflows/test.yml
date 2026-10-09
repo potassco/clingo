@@ -17,10 +17,13 @@ jobs:
         include:
           - os: ubuntu-latest
             generator: "Ninja Multi-Config"
+            environment-file: .github/test-environment.yml
           - os: macos-latest
             generator: "Ninja Multi-Config"
+            environment-file: .github/test-environment.yml
           - os: windows-latest
             generator: "Visual Studio 18 2026"
+            environment-file: .github/test-environment.yml
     defaults:
       run:
         shell: bash -l {0}
@@ -31,19 +34,14 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Miniconda
-        uses: conda-incubator/setup-miniconda@v4
+      - uses: mamba-org/setup-micromamba@v3
         with:
-          miniforge-version: latest
-          channels: conda-forge
-          channel-priority: strict
-          activate-environment: build-env
-          auto-update-conda: true
-
-      - name: Dependencies
-        run: |
-          pkgs=(cmake ninja pytest python c-compiler cxx-compiler re2c)
-          conda install "${pkgs[@]}"
+          environment-file: ${{ matrix.environment-file }}
+          condarc: |
+            channel_priority: strict
+            channels:
+              - potassco/label/dev-20
+              - conda-forge
 
       - name: Configure
         run: |

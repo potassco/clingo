@@ -1,0 +1,9 @@
+name: test-env
+dependencies:
+  - python=3.12
+  - cmake
+  - ninja
+  - pytest
+  - c-compiler
+  - cxx-compiler
+  - re2c
