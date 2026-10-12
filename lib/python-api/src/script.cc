@@ -21,8 +21,11 @@ class Scope {
     Scope() {
         if (Py_IsInitialized() == 0) {
 #ifdef CLINGO_PYTHON_EMBED
-            // make sure that the python interpreter is finalized after the main code
-            static auto si = std::make_unique<py::scoped_interpreter>();
+            // In embedded mode there will be one main library object that is
+            // destroyed at the end of the program. Th scoped interprete can be
+            // destrayed along with the library object. In non-embedded mode
+            // the interpreter is managed by the python runtime.
+            si_ = std::make_unique<py::scoped_interpreter>();
 #endif
             py::module::import("clingo");
         }
@@ -47,6 +50,7 @@ class Scope {
     auto version() -> std::string_view { return version_; }
 
   private:
+    std::unique_ptr<py::scoped_interpreter> si_;
     py::object scope_;
     py::object callable_;
     std::string version_;

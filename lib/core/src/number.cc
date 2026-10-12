@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <memory>
+#include <utility>
 
 namespace CppClingo {
 
@@ -281,12 +282,12 @@ class mp_int_ptr {
 
 // TODO: make a pull request and implement this directly on the representation of the number
 
-auto to_binary(mp_int z, int len, int limit) -> std::unique_ptr<unsigned char[]> {
+auto to_binary(mp_int z, mp_size len, mp_size limit) -> std::unique_ptr<unsigned char[]> {
     auto msb = limit - len;
     auto buf = std::make_unique<unsigned char[]>(limit);
-    mp_int_to_binary(z, buf.get() + msb, len);
+    mp_int_to_binary(z, buf.get() + msb, static_cast<int>(len));
     if (len < limit && (buf[msb] & 128) == 128) {
-        for (int i = 0; i < msb; ++i) {
+        for (int i = 0; std::cmp_less(i, msb); ++i) {
             buf[i] = 255;
         }
     }
@@ -302,7 +303,7 @@ template <char op> auto mp_int_binop(mp_int a, mp_int b, mp_int c) -> mp_result 
         auto limit = std::max(len_a, len_b);
         auto buf_a = to_binary(a, len_a, limit);
         auto buf_b = to_binary(b, len_b, limit);
-        for (int i = 0; i < limit; ++i) {
+        for (int i = 0; std::cmp_less(i, limit); ++i) {
             if constexpr (op == '&') {
                 buf_a[i] = buf_a[i] & buf_b[i];
             }
@@ -313,7 +314,7 @@ template <char op> auto mp_int_binop(mp_int a, mp_int b, mp_int c) -> mp_result 
                 buf_a[i] = buf_a[i] ^ buf_b[i];
             }
         }
-        return mp_int_read_binary(c, buf_a.get(), limit);
+        return mp_int_read_binary(c, buf_a.get(), static_cast<int>(limit));
     } catch (std::bad_alloc const &) {
         return MP_MEMORY;
     }
@@ -322,11 +323,11 @@ template <char op> auto mp_int_binop(mp_int a, mp_int b, mp_int c) -> mp_result 
 template <char op> auto mp_int_binop_value(mp_int a, mp_small b, mp_int c) -> mp_result {
     try {
         auto len_a = mp_int_binary_len(a);
-        auto len_b = static_cast<mp_result>(sizeof(mp_small));
+        auto len_b = static_cast<mp_size>(sizeof(mp_small));
         auto limit = std::max(len_a, len_b);
         auto buf_a = to_binary(a, len_a, limit);
         auto *buf_b = reinterpret_cast<unsigned char *>(&b);
-        for (int i = 0; i < limit; ++i) {
+        for (int i = 0; std::cmp_less(i, limit); ++i) {
             auto j = limit - i - 1;
             unsigned char char_b = 0;
             if (j < len_b) {
@@ -344,7 +345,7 @@ template <char op> auto mp_int_binop_value(mp_int a, mp_small b, mp_int c) -> mp
                 buf_a[i] = buf_a[i] ^ char_b;
             }
         }
-        return mp_int_read_binary(c, buf_a.get(), limit);
+        return mp_int_read_binary(c, buf_a.get(), static_cast<int>(limit));
     } catch (std::bad_alloc const &) {
         return MP_MEMORY;
     }
@@ -654,7 +655,7 @@ Number::~Number() noexcept {
     auto *z = repr_to_bigint(repr_);
     auto len = mp_int_string_len(&z->num, BASE);
     ret.resize(len, '\0');
-    handle_error(mp_int_to_string(&z->num, BASE, ret.data(), len));
+    handle_error(mp_int_to_string(&z->num, BASE, ret.data(), static_cast<int>(len)));
     // NOTE: The mp_int library sometimes reports too large length for numbers,
     // which requires the while loop below.
     while (!ret.empty() && ret.back() == '\0') {
@@ -1074,7 +1075,7 @@ auto operator<<(Util::OutputBuffer &out, Number const &num) -> Util::OutputBuffe
         auto *z = repr_to_bigint(num.repr_);
         auto len = mp_int_string_len(&z->num, BASE);
         auto target = out.reserve(len);
-        handle_error(mp_int_to_string(&z->num, BASE, target.data(), len));
+        handle_error(mp_int_to_string(&z->num, BASE, target.data(), static_cast<int>(len)));
         out.trim_zero(len);
     }
     return out;
@@ -1087,7 +1088,7 @@ void append(Util::OutputBuffer &out, Number const &num, int base) {
         auto *z = repr_to_bigint(num.repr_);
         auto len = mp_int_string_len(&z->num, base);
         auto target = out.reserve(len);
-        handle_error(mp_int_to_string(&z->num, base, target.data(), len));
+        handle_error(mp_int_to_string(&z->num, base, target.data(), static_cast<int>(len)));
         out.trim_zero(len);
     }
 }
