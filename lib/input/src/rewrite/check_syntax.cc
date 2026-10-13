@@ -58,7 +58,7 @@ struct CheckSyntax {
     }
 
     auto operator()(TermFormatString const &term, SyntaxCheck check) const -> bool {
-        check -= check = SyntaxCheck::project | SyntaxCheck::project_tuple;
+        check &= ~(SyntaxCheck::project | SyntaxCheck::project_tuple);
         return std::ranges::all_of(term.elems(), [this, check](auto const &elem) {
             return std::visit(*this, elem, std::variant<SyntaxCheck>{check});
         });
@@ -165,8 +165,7 @@ struct CheckSyntax {
         });
     }
 
-    auto operator()(CondLit const &lit, SyntaxCheck check = SyntaxCheck::project | SyntaxCheck::project_tuple) const
-        -> bool {
+    auto operator()(CondLit const &lit, SyntaxCheck check = SyntaxCheck::none) const -> bool {
         return this->operator()(lit.lit(), check) && operator()(lit.cond());
     }
 
@@ -183,10 +182,16 @@ struct CheckSyntax {
     template <bool HasSign> auto operator()(SetAggregate<HasSign> const &lit) const -> bool {
         return std::ranges::all_of(lit.elems(),
                                    [this](auto const &elem) {
-                                       return this->operator()(elem.lit(), HasSign ? SyntaxCheck::project |
-                                                                                         SyntaxCheck::project_tuple
-                                                                                   : SyntaxCheck::none) &&
-                                              operator()(elem.cond());
+                                       bool res = true;
+                                       // NOTE: we do not support projection in
+                                       // negated symbolic literals in set
+                                       // aggregates
+                                       if (auto *sym = std::get_if<LitSymbolic>(&elem.lit())) {
+                                           res = operator()(sym->term(), SyntaxCheck::none);
+                                       } else {
+                                           res = this->operator()(elem.lit(), SyntaxCheck::none);
+                                       }
+                                       return res && operator()(elem.cond());
                                    }) &&
                operator()(lit.lhs()) && operator()(lit.rhs());
     }
@@ -227,7 +232,9 @@ struct CheckSyntax {
         return operator()(lit.lit(), SyntaxCheck::project | SyntaxCheck::project_tuple);
     }
 
-    auto operator()(BdLitConjunction const &lit) const -> bool { return operator()(lit.lit()); }
+    auto operator()(BdLitConjunction const &lit) const -> bool {
+        return operator()(lit.lit(), SyntaxCheck::project | SyntaxCheck::project_tuple);
+    }
 
     auto operator()(BdLitAggregate const &lit) const -> bool {
         return std::ranges::all_of(

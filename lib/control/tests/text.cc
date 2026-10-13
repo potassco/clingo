@@ -338,6 +338,21 @@ TEST_CASE("grounder_text") {
                                   "reach(e).\n"
                                   "#show.\n");
         }
+        SECTION("bd_aggr_dom") {
+            auto param_a = Input::ProgramParamVec{{store->string("a"), {}}};
+            auto param_b = Input::ProgramParamVec{{store->string("b"), {}}};
+            grd.parse(R"(
+                #program a.
+                { a }.
+                #program b.
+                b :- { a } >= 1.
+                #show.)");
+            REQUIRE(grd.ground(param_a) == GroundResult::ok);
+            REQUIRE(grd.ground(param_b) == GroundResult::ok);
+            REQUIRE(buf.view() == "{ a }.\n"
+                                  "#show.\n"
+                                  "b :- #sum+ { 1,0,a: a } >= 1.\n");
+        }
         SECTION("rec") {
             grd.parse(R"(
                 #show.

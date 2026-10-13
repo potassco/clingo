@@ -239,9 +239,10 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit, Ground::P
         cond.reserve(elem.cond().size());
         for (auto const &lit : elem.cond()) {
             sp_elems = sp_elems && ctx.single_pass(lit);
-            build_lit(ctx, lit, [&cond, &elem_vars]<class Lit>(Lit &&glit) {
+            build_lit(ctx, lit, [&cond, &elem_vars, &dom]<class Lit>(Lit &&glit) {
                 glit->vars(elem_vars, Ground::VarSelectMode::all);
                 cond.emplace_back(std::forward<Lit>(glit));
+                dom = dom && cond.back()->domain();
             });
         }
         dom = dom && std::ranges::all_of(cond, [](auto const &glit) { return glit->domain(); });

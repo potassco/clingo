@@ -400,7 +400,7 @@ auto LitSymbolic::do_copy() const -> ULit {
 }
 
 auto LitSymbolic::do_domain() const -> bool {
-    return domain_ || (index_ == stratified_index && base_->domain());
+    return (domain_ || index_ == stratified_index) && base_->domain();
 }
 
 auto LitSymbolic::do_single_pass() const -> bool {
@@ -499,7 +499,7 @@ auto LitProject::do_copy() const -> ULit {
 }
 
 auto LitProject::do_domain() const -> bool {
-    return domain_ || (index_ == stratified_index && state_->base().domain());
+    return (domain_ || index_ == stratified_index) && state_->base().domain();
 }
 
 auto LitProject::do_single_pass() const -> bool {

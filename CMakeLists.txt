@@ -54,9 +54,9 @@ if(CLINGO_BUILD_WEB)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    check_cxx_compiler_flag("-Wno-counter-extension" HAS_WCOUNTER_EXTENSION)
-    if(HAS_WCOUNTER_EXTENSION)
-        add_compile_options(-Wno-counter-extension)
+    check_cxx_compiler_flag("-Wc2y-extensions" HAS_WC2Y_EXTENSIONS)
+    if(HAS_WC2Y_EXTENSIONS)
+        add_compile_options(-Wno-c2y-extensions)
     endif()
 endif()
 

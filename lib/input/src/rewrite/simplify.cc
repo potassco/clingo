@@ -1152,60 +1152,6 @@ class SimplifyLiteral {
     RewriteContext *ctx_; //!< Context used during simplification.
 };
 
-class LiteralToTuple {
-  public:
-    LiteralToTuple() = default;
-    LiteralToTuple(LiteralToTuple const &) = delete;
-    auto operator=(LiteralToTuple const &) -> LiteralToTuple & = delete;
-
-    auto operator()(Lit const &lit) -> TermArray { return std::visit(*this, lit); }
-
-    auto operator()(LitBool const &lit) -> TermArray {
-        ++n_;
-        return Util::make_vec<Term>(TermSymbol{lit.loc(), CppClingo::SymbolStore::num_ref(n_)});
-    }
-
-    auto operator()(LitComparison const &lit) -> TermArray {
-        ++n_;
-        auto var_set = select_variables(lit);
-        auto var_vec = VariableVec(var_set.begin(), var_set.end());
-        std::ranges::sort(var_vec);
-        std::vector<Term> res;
-        res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{lit.loc(), CppClingo::SymbolStore::num_ref(n_)});
-        for (auto const &var : var_vec) {
-            res.emplace_back(TermVariable{lit.loc(), var});
-        }
-        return res;
-    }
-
-    auto operator()(LitSymbolic const &lit) -> TermArray {
-        std::vector<Term> res;
-        res.reserve(2);
-        int i = 0;
-        switch (lit.sign()) {
-            case Sign::none: {
-                i = 0;
-                break;
-            }
-            case Sign::once: {
-                i = 1;
-                break;
-            }
-            case Sign::twice: {
-                i = 2;
-                break;
-            }
-        }
-        res.emplace_back(TermSymbol{lit.loc(), CppClingo::SymbolStore::num_ref(i)});
-        res.emplace_back(lit.term());
-        return res;
-    }
-
-  private:
-    int n_ = 2;
-};
-
 //! Simplify a conjunction of literals.
 //!
 //! In the conjunctive case empty pools evaluate disjunctively, and the result is bot.
