@@ -50,7 +50,9 @@ class Scope {
     auto version() -> std::string_view { return version_; }
 
   private:
+#ifdef CLINGO_PYTHON_EMBED
     std::unique_ptr<py::scoped_interpreter> si_;
+#endif
     py::object scope_;
     py::object callable_;
     std::string version_;
