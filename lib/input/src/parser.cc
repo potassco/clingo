@@ -94,26 +94,28 @@ auto Parser::scan() -> std::pair<std::optional<Stm>, bool> {
             return {std::nullopt, parse_aspif(*impl_)};
         }
     }
-    if (impl_->has_stms()) {
-        return {impl_->pop_stm(), true};
-    }
-    auto [stm, res] = scan_statement(*impl_);
-    while (true) {
-        // ensure stored statements are reported
+    for (bool res = true;;) {
+        // report stored statements first
+        if (impl_->has_stms()) {
+            return {impl_->pop_stm(), res};
+        }
+        // scan next statement
+        auto [stm, res_scan] = scan_statement(*impl_);
+        res = res && res_scan;
+        // ensure additional statements are reported first
         if (!stm) {
             impl_->mark_stms();
             return {impl_->pop_stm(), res};
         }
         // discard illformed statements
         if (!check_statement(impl_->log(), *stm)) {
-            std::tie(stm, std::ignore) = scan_statement(*impl_);
             res = false;
             continue;
         }
         // report stored statements first
         if (impl_->has_stms()) {
             impl_->push_stm(*std::move(stm));
-            return {impl_->pop_stm(), res};
+            continue;
         }
         // report statement just parsed
         return {std::move(stm), res};
