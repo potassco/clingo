@@ -33,8 +33,9 @@ TEST_CASE("rewrite_anonymous_head") {
     REQUIRE(rewrite_statement("#false:#true.") == "#false: #true.");
     // set aggregates
     REQUIRE(rewrite_statement("{ p(X,_) : q(X,_) } != f(X,_).") == "{ p(X,__A_0): q(X,__A_1) } != f(X,__A_2).");
-    REQUIRE(rewrite_statement("{ not p(X,_,*) : not q(X,_) } != f(X,_).") ==
-            "{ not p(X,__A_0,*): not q(X,__A_1) } != f(X,__A_2).");
+    REQUIRE(rewrite_statement("{ not p(X,_) : not q(X,_) } != f(X,_).") ==
+            "{ not p(X,__A_0): not q(X,__A_1) } != f(X,__A_2).");
+    REQUIRE(rewrite_statement("{ not p(X,_,*) : not q(X,_) } != f(X,_).") == "<failed>");
     // aggregates
     REQUIRE(rewrite_statement("#count { f(X,_): p(X,_) : q(X,_) } != f(X,_).") ==
             "#count { f(X,__A_0): p(X,__A_1): q(X,__A_2) } != f(X,__A_3).");
@@ -53,12 +54,14 @@ TEST_CASE("rewrite_anonymous_body") {
     REQUIRE(rewrite_statement(":- f(X,_)<g(X,_).") == " :- f(X,__A_0)<g(X,__A_1).");
     REQUIRE(rewrite_statement(":- #false:#true.") == " :- #false: #true.");
     // set aggregates
-    REQUIRE(rewrite_statement(":- { p(X,_,*) : q(X,_) } != f(X,_).") ==
-            " :- { p(X,__A_0,*): q(X,__A_1) } != f(X,__A_2).");
-    REQUIRE(rewrite_statement(":- { not p(X,_,*) : not q(X,_) } != f(X,_).") ==
-            " :- { not p(X,__A_0,*): not q(X,__A_1) } != f(X,__A_2).");
-    REQUIRE(rewrite_statement(":- not { not p(X,_,*) : not q(X,_) } != f(X,_).") ==
-            " :- not { not p(X,__A_0,*): not q(X,__A_1) } != f(X,__A_2).");
+    REQUIRE(rewrite_statement(":- { p(X,_) : q(X,_) } != f(X,_).") == " :- { p(X,__A_0): q(X,__A_1) } != f(X,__A_2).");
+    REQUIRE(rewrite_statement(":- { p(X,_,*) : q(X,_) } != f(X,_).") == "<failed>");
+    REQUIRE(rewrite_statement(":- { not p(X,_) : not q(X,_) } != f(X,_).") ==
+            " :- { not p(X,__A_0): not q(X,__A_1) } != f(X,__A_2).");
+    REQUIRE(rewrite_statement(":- { not p(X,_,*) : not q(X,_) } != f(X,_).") == "<failed>");
+    REQUIRE(rewrite_statement(":- not { not p(X,_) : not q(X,_) } != f(X,_).") ==
+            " :- not { not p(X,__A_0): not q(X,__A_1) } != f(X,__A_2).");
+    REQUIRE(rewrite_statement(":- not { not p(X,_,*) : not q(X,_) } != f(X,_).") == "<failed>");
     // aggregates
     REQUIRE(rewrite_statement(":- #count { f(X,_) : q(X,_) } != f(X,_).") ==
             " :- #count { f(X,__A_0): q(X,__A_1) } != f(X,__A_2).");

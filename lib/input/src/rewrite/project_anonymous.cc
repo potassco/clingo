@@ -85,6 +85,10 @@ class ProjectAnonymous : public Transformer<ProjectAnonymous> {
         return rewrite(elem, a_lit, a_cond);
     }
 
+    [[nodiscard]] auto accept(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
+        return rewrite(elem, a_cond);
+    }
+
     // head literal
 
     template <class T>

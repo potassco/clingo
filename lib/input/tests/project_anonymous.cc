@@ -27,16 +27,19 @@ TEST_CASE("project_anonymous_head") {
     // disjunctions
     // Note: in the head it should be okay to automatically project in conditions
     REQUIRE(project_statement("p(X,_): q(X,_,*).") == "p(X,_): q(X,_,*).");
+    REQUIRE(project_statement("not p(X,_): not r(X,_,*).") == "not p(X,*): not r(X,*,*).");
     REQUIRE(project_statement("not p(X,_,*): not r(X,_,*).") == "not p(X,*,*): not r(X,*,*).");
     REQUIRE(project_statement("f(X,_)<g(X,_).") == "f(X,_)<g(X,_).");
     REQUIRE(project_statement("#false:#true.") == "#false: #true.");
     // set aggregates
     REQUIRE(project_statement("{ p(X,_) : q(X,_) } != f(X,_).") == "{ p(X,_): q(X,_) } != f(X,_).");
-    REQUIRE(project_statement("{ not p(X,_,*) : not q(X,_,*) } != f(X,_).") ==
-            "{ not p(X,*,*): not q(X,*,*) } != f(X,_).");
+    REQUIRE(project_statement("{ not p(X,_) : not q(X,_,*) } != f(X,_).") == "{ not p(X,_): not q(X,*,*) } != f(X,_).");
+    REQUIRE(project_statement("{ not p(X,_,*) : not q(X,_,*) } != f(X,_).") == "<failed>");
     // aggregates
     REQUIRE(project_statement("#count { f(X,_): p(X,_) : q(X,_,*) } != f(X,_).") ==
             "#count { f(X,_): p(X,_): q(X,_,*) } != f(X,_).");
+    REQUIRE(project_statement("#count { f(X,_): not p(X,_) : not q(X,_,*) } != f(X,_).") ==
+            "#count { f(X,_): not p(X,*): not q(X,*,*) } != f(X,_).");
     REQUIRE(project_statement("#count { f(X,_): not p(X,_,*) : not q(X,_,*) } != f(X,_).") ==
             "#count { f(X,_): not p(X,*,*): not q(X,*,*) } != f(X,_).");
     // theory
@@ -52,11 +55,13 @@ TEST_CASE("project_anonymous_body") {
     REQUIRE(project_statement(":- f(X,_)<g(X,_).") == " :- f(X,_)<g(X,_).");
     REQUIRE(project_statement(":- #false:#true.") == " :- #false: #true.");
     // set aggregates
-    REQUIRE(project_statement(":- { p(X,_,*) : q(X,_,*) } != f(X,_).") == " :- { p(X,_,*): q(X,_,*) } != f(X,_).");
-    REQUIRE(project_statement(":- { not p(X,_,*) : not q(X,_,*) } != f(X,_).") ==
-            " :- { not p(X,*,*): not q(X,*,*) } != f(X,_).");
-    REQUIRE(project_statement(":- not { not p(X,_,*) : not q(X,_,*) } != f(X,_).") ==
-            " :- not { not p(X,*,*): not q(X,*,*) } != f(X,_).");
+    REQUIRE(project_statement(":- { p(X,_) : q(X,_,*) } != f(X,_).") == " :- { p(X,_): q(X,_,*) } != f(X,_).");
+    REQUIRE(project_statement(":- { p(X,_,*) : q(X,_,*) } != f(X,_).") == "<failed>");
+    REQUIRE(project_statement(":- { not p(X,_,*) : not q(X,_,*) } != f(X,_).") == "<failed>");
+    REQUIRE(project_statement(":- { not p(X,_) : not q(X,_,*) } != f(X,_).") ==
+            " :- { not p(X,_): not q(X,*,*) } != f(X,_).");
+    REQUIRE(project_statement(":- not { not p(X) : not q(X,_,*) } != f(X,_).") ==
+            " :- not { not p(X): not q(X,*,*) } != f(X,_).");
     // aggregates
     REQUIRE(project_statement(":- #count { f(X,_) : q(X,_,*) } != f(X,_).") ==
             " :- #count { f(X,_): q(X,_,*) } != f(X,_).");
