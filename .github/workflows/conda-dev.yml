@@ -19,8 +19,8 @@ jobs:
       - id: compute
         run: |
           LABEL=${{ inputs.wip && 'dev' || 'main' }}
-          VERSION_NUMBER=$(python ./scratch/version.py libclingo/clingo.h CLINGO_VERSION)
-          BUILD_NUMBER=$(python ./scratch/conda-build-number.py clingo "${VERSION_NUMBER}" "${LABEL}")
+          VERSION_NUMBER=$(python ./scratch/version.py)
+          BUILD_NUMBER=$(python ./scratch/conda-build-number.py "${LABEL}")
           echo "version-number=${VERSION_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "build-number=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
 
@@ -54,7 +54,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v4
         with:
           python-version: ${{ matrix.python-version }}
-          channels: conda-forge
+          channels: ${{ inputs.wip && 'potassco/label/dev' || 'potassco' }},conda-forge
           channel-priority: strict
           auto-update-conda: true
 
@@ -84,6 +84,7 @@ jobs:
               bash miniconda.sh -b && \
               source ~/miniforge3/etc/profile.d/conda.sh && \
               conda activate base && \
+              conda config --prepend channels ${{ inputs.wip && 'potassco/label/dev' || 'potassco' }} && \
               conda install -y tree conda-build && \
               conda-build /work/.github/conda --output-folder /artifacts --python ${{ matrix.python-version }} &&
               find /artifacts -mindepth 1 -exec chmod a+rwX {} +

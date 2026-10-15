@@ -24,6 +24,10 @@ esac
 rep="${1}"
 shift
 
+PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+PROJECT_NAME="$("${PROJECT_ROOT}/scratch/get_config.py" ppa name)"
+ADD_PPA="$("${PROJECT_ROOT}/scratch/get_config.py" ppa add_ppa no)"
+
 case "${rep}" in
 resolute | noble | jammy | focal | bionic)
     ;;
@@ -38,7 +42,9 @@ for act in "${@}"; do
     case "${act}" in
     _ppa)
         apt-get install -y software-properties-common
-        add-apt-repository -y "ppa:potassco/${ref}"
+        if [[ "${ADD_PPA}" == "yes" ]]; then
+            add-apt-repository -y "ppa:potassco/${ref}"
+        fi
         apt-get update
         apt-get install -y tree debhelper
         ;;
@@ -47,32 +53,17 @@ for act in "${@}"; do
         sudo pbuilder execute --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz" --save-after-exec -- build.sh "${ref}" "${rep}" _ppa
         ;;
     sync)
-        rsync -aq \
-            --exclude __pycache__ \
-            --exclude .mypy_cache \
-            --exclude '*,cover' \
-            --exclude '*.egg-info' \
-            --exclude dist \
-            --exclude build \
-            --exclude third_party/catch \
-            ../../app \
-            ../../cmake \
-            ../../clasp \
-            ../../lib* \
-            ../../third_party \
-            ../../CMakeLists.txt \
-            ../../README.md \
-            ../../INSTALL.md \
-            ../../LICENSE.md \
-            ../../CHANGES.md \
-            "$rep/"
-        sed -i "s/export CLINGO_BUILD_REVISION =.*/export CLINGO_BUILD_REVISION = $(git rev-parse --short HEAD)/" "${rep}/debian/rules"
+        SYNC=$(./scratch/get_config.py ppa sync)
+        mapfile -t SYNC < <(script)
+        rsync -aq "${SYNC[@]}" "$rep/"
+        PROJECT_NAME_UPPER="${PROJECT_NAME^^})"
+        sed -i "s/export ${PROJECT_NAME_UPPER//-/}_BUILD_REVISION =.*/export ${PROJECT_NAME_UPPER//-/}_BUILD_REVISION = $(git rev-parse --short HEAD)/" "${rep}/debian/rules"
         ;;
     changes)
-        VERSION="$(python ../../scratch/version.py ../../libclingo/clingo.h CLINGO_VERSION)"
-        BUILD=$(curl -sL "http://ppa.launchpad.net/potassco/${ref}/ubuntu/pool/main/c/clingo/" | sed -n "/${VERSION//./\\.}-${rep}[0-9]\+\.dsc/s/.*${rep}\([0-9]\+\).*/\1/p" | sort -rn | head -1)
+        VERSION="$(python ../../scratch/version.py)"
+        BUILD=$(curl -sL "http://ppa.launchpad.net/potassco/${ref}/ubuntu/pool/main/c/${PROJECT_NAME}/" | sed -n "/${VERSION//./\\.}-${rep}[0-9]\+\.dsc/s/.*${rep}\([0-9]\+\).*/\1/p" | sort -rn | head -1)
         cat >"${rep}/debian/changelog" <<EOF
-clingo (${VERSION}-${rep}$((BUILD + 1))) ${rep}; urgency=medium
+${PROJECT_NAME} (${VERSION}-${rep}$((BUILD + 1))) ${rep}; urgency=medium
 
   * build for git revision $(git rev-parse HEAD)
 
@@ -85,41 +76,17 @@ EOF
             cd "${rep}"
             pdebuild --buildresult . -- --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz"
         )
-        debsign --re-sign -k744d959e10f5ad73f9cf17cc1d150536980033d5 "clingo_${VERSION}_source.changes"
+        KEY="$(./scratch/get_config.py ppa key)"
+        debsign --re-sign -k"${KEY}" "${PROJECT_NAME}_${VERSION}_source.changes"
         ;;
     put)
         VERSION="$(head -n 1 "${rep}/debian/changelog" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\(-[a-z0-9]\+\)\?')"
-        dput "ppa:potassco/${ref}" "clingo_${VERSION}_source.changes"
+        dput "ppa:potassco/${ref}" "${PROJECT_NAME}_${VERSION}_source.changes"
         ;;
     clean)
-        rm -rf \
-            "${rep}"/app \
-            "${rep}"/cmake \
-            "${rep}"/clasp \
-            "${rep}"/lib* \
-            "${rep}"/third_party \
-            "${rep}"/CMakeLists.txt \
-            "${rep}"/README.md \
-            "${rep}"/INSTALL.md \
-            "${rep}"/LICENSE.md \
-            "${rep}"/CHANGES.md \
-            "${rep}"/debian/files \
-            "${rep}"/debian/.debhelper \
-            "${rep}"/debian/clingo.debhelper.log \
-            "${rep}"/debian/clingo.substvars \
-            "${rep}"/debian/clingo \
-            "${rep}"/debian/debhelper-build-stamp \
-            "${rep}"/debian/tmp \
-            "${rep}"/obj-x86_64-linux-gnu \
-            ./*.build \
-            ./*.deb \
-            ./*.dsc \
-            ./*.buildinfo \
-            ./*.changes \
-            ./*.ddeb \
-            ./*.tar.xz \
-            ./*.upload
-        git checkout "${rep}/debian/changelog" "${rep}/debian/rules"
+        rm -f ./*.{dsc,xz,build,changes}
+        git clean -ffdx -- "${rep}"
+        git restore -- "${rep}/debian/changelog" "${rep}/debian/rules"
         ;;
     *)
         usage

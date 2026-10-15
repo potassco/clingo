@@ -32,7 +32,7 @@ dependencies = ["cffi"]
 Homepage = "https://github.com/potassco/clingo"
 
 [[tool.dynamic-metadata]]
-provider = { path = "libpyclingo", module = "version" }
+provider = { path = "scratch", module = "meta" }
 
 [tool.scikit-build]
 cmake.version = ">=3.18"
