@@ -18,7 +18,7 @@ requirements:
   - {{ compiler('c') }}
   - {{ compiler('cxx') }}
 {% if dev %}
-  - win_flex_bison [win]
+  - winflexbison [win]
   - bison [not win]
   - m4 [not win]
   - re2c
