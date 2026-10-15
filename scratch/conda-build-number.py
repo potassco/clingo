@@ -42,7 +42,7 @@ def next_build_number(owner: str, package: str, version: str, label: str) -> int
         raise RuntimeError(f"could not retrieve package files: {exc}") from exc
 
     # non-main packages always get a fresh build number
-    # main packages can override dev packages
+    # main packages can override non-main packages
     build_numbers = [
         entry["attrs"]["build_number"]
         for entry in files
