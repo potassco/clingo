@@ -5,8 +5,8 @@ on:
     inputs:
       wip:
         description: "Publish work in progress package."
-        required: false
-        default: "true"
+        type: boolean
+        default: true
 
 jobs:
   build_sdist:
@@ -21,7 +21,7 @@ jobs:
         run: pipx run build --sdist
         env:
           BUILD_NUMBER: auto
-          PIP_EXTRA_INDEX_URL: ${{ inputs.wip == 'true' && 'https://test.pypi.org/simple/' || '' }}
+          PIP_EXTRA_INDEX_URL: ${{ inputs.wip && 'https://test.pypi.org/simple/' || '' }}
 
       - uses: actions/upload-artifact@v7
         with:
@@ -71,7 +71,7 @@ jobs:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.target.tag }}
           CIBW_ENABLE: all
           CIBW_ARCHS: all
-          CIBW_ENVIRONMENT: "BUILD_NUMBER=auto PIP_EXTRA_INDEX_URL=${{ inputs.wip == 'true' && 'https://test.pypi.org/simple/' || '' }}"
+          CIBW_ENVIRONMENT: "BUILD_NUMBER=auto PIP_EXTRA_INDEX_URL=${{ inputs.wip && 'https://test.pypi.org/simple/' || '' }}"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -93,4 +93,4 @@ jobs:
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository-url: ${{ inputs.wip == 'true' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}
+          repository-url: ${{ inputs.wip && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}

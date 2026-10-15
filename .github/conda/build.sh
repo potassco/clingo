@@ -1,15 +1,13 @@
 #!/bin/bash
 
-mkdir build
-cd build
+M4="$(command -v m4)"
+export M4
 
-export M4="$(command -v m4)"
-
-if [ -z "${PYTHON}" ]; then
-    PYTHON="$(which python)"
+if [ -z "${PYTHON:-}" ]; then
+    PYTHON="$(command -v python)"
 fi
 
-cmake .. \
+cmake -G Ninja -S . -B build \
     -DCMAKE_CXX_COMPILER="${CXX}" \
     -DCMAKE_C_COMPILER="${CC}" \
     -DPython_ROOT_DIR="${PREFIX}" \
@@ -22,5 +20,5 @@ cmake .. \
     -DCMAKE_INSTALL_LIBDIR="lib" \
     -DCMAKE_BUILD_TYPE=Release
 
-make -j${CPU_COUNT}
-make install
+cmake --build build
+cmake --build build --target install

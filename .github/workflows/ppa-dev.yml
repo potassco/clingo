@@ -1,12 +1,12 @@
-name: Deploy ppa package (wip)
+name: Deploy ppa package
 
 on:
   workflow_dispatch:
     inputs:
       wip:
         description: "Publish work in progress package."
-        required: false
-        default: "true"
+        type: boolean
+        default: true
 
 jobs:
   build_packages:
@@ -21,11 +21,6 @@ jobs:
       distribution: ${{ matrix.distribution }}
 
     steps:
-      - name: Install prerequisites
-        run: |
-          sudo apt-get update
-          sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dh-make dput dh-python dh-lua
-
       - name: Checkout repo
         uses: actions/checkout@v3
         with:
@@ -37,14 +32,7 @@ jobs:
         env:
           POTASSCO_PPA_GPGKEY: ${{ secrets.POTASSCO_PPA_GPGKEY }}
 
-      - name: Build deb and source package (wip)
-        if: ${{ github.event.inputs.wip == 'true' }}
+      - name: Build deb and source package
         run: |
           cd .github/ppa-wip
-          ./build.sh wip "$distribution" create sync changes build put
-
-      - name: Build deb and source package (release)
-        if: ${{ github.event.inputs.wip == 'false' }}
-        run: |
-          cd .github/ppa-wip
-          ./build.sh stable "$distribution" create sync changes build put
+          ./build.sh ${{ inputs.wip && 'wip' || 'stable'}} "$distribution" prepare create sync changes build put

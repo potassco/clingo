@@ -17,7 +17,7 @@ function dispatch() {
         -X POST \
         -H "Accept: application/vnd.github.v3+json" \
         "https://api.github.com/repos/potassco/${repo}/actions/workflows/$1/dispatches" \
-        -d "{\"ref\":\"$3\",\"inputs\":{\"wip\":\"$2\"${4:+,$4}}}"
+        -d "{\"ref\":\"$3\",\"inputs\":{\"wip\":$2${4:+,$4}}}"
 }
 
 function usage() {
