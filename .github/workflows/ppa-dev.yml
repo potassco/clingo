@@ -40,4 +40,4 @@ jobs:
       - name: Build deb and source package
         run: |
           cd .github/ppa-wip
-          ./build.sh ${{ inputs.wip && "wip" || "stable"}} "$distribution" create sync changes build put
+          ./build.sh ${{ inputs.wip && 'wip' || 'stable'}} "$distribution" create sync changes build put

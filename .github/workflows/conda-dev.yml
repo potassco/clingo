@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v6
       - id: compute
         run: |
-          LABEL=${{ inputs.wip && "dev" || "main" }}
+          LABEL=${{ inputs.wip && 'dev' || 'main' }}
           VERSION_NUMBER=$(python ./scripts/version.py libclingo/clingo.h CLINGO_VERSION)
           BUILD_NUMBER=$(python ./scripts/conda-build-number.py clingo "${VERSION_NUMBER}" "${LABEL}")
           echo "version-number=${VERSION_NUMBER}" >> "$GITHUB_OUTPUT"
@@ -42,7 +42,7 @@ jobs:
       BUILD_NUMBER: ${{ needs.meta.outputs.build-number }}
       VERSION_NUMBER: ${{ needs.meta.outputs.version-number }}
       GITHUB_SHA: ${{ github.sha }}
-      BUILD_RELEASE: ${{ inputs.wip && "false" || "true" }}
+      BUILD_RELEASE: ${{ inputs.wip && 'false' || 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -152,4 +152,4 @@ jobs:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
           files=( $(find artifacts -type f -name "*.conda") )
-          anaconda upload -l "${{ inputs.wip && "dev" || "main" }}" -u potassco --force "${files[@]}"
+          anaconda upload -l "${{ inputs.wip && 'dev' || 'main' }}" -u potassco --force "${files[@]}"
