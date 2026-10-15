@@ -1989,15 +1989,6 @@ the watch is removed from all active threads.</dd>
 <h2 id="notes">Notes</h2>
 <p>Not all functions of the <code><a title="clingo.propagator.Propagator" href="#clingo.propagator.Propagator">Propagator</a></code> interface have to be implemented and
 can be omitted if not needed.</p></div>
-<h3>Subclasses</h3>
-<ul class="hlist">
-<li><a title="clingo.tests.test_propagator.TestAddAssertingClause.Prop" href="tests/test_propagator.html#clingo.tests.test_propagator.TestAddAssertingClause.Prop">TestAddAssertingClause.Prop</a></li>
-<li><a title="clingo.tests.test_propagator.TestHeuristic" href="tests/test_propagator.html#clingo.tests.test_propagator.TestHeuristic">TestHeuristic</a></li>
-<li><a title="clingo.tests.test_propagator.TestPropagator" href="tests/test_propagator.html#clingo.tests.test_propagator.TestPropagator">TestPropagator</a></li>
-<li><a title="clingo.tests.test_propagator.TestPropagatorControl" href="tests/test_propagator.html#clingo.tests.test_propagator.TestPropagatorControl">TestPropagatorControl</a></li>
-<li><a title="clingo.tests.test_propagator.TestPropagatorInit" href="tests/test_propagator.html#clingo.tests.test_propagator.TestPropagatorInit">TestPropagatorInit</a></li>
-<li><a title="clingo.tests.test_propagator.TestPropagatorMode" href="tests/test_propagator.html#clingo.tests.test_propagator.TestPropagatorMode">TestPropagatorMode</a></li>
-</ul>
 <h3>Methods</h3>
 <dl>
 <dt id="clingo.propagator.Propagator.check"><code class="name flex">
@@ -2256,7 +2247,7 @@ Furthermore, errors raised in the function lead to program termination.</p></div
 </dd>
 <dt id="clingo.propagator.PropagatorCheckMode"><code class="flex name class">
 <span>class <span class="ident">PropagatorCheckMode</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2320,7 +2311,7 @@ assignments in check calls.</p></div>
 </dd>
 <dt id="clingo.propagator.PropagatorUndoMode"><code class="flex name class">
 <span>class <span class="ident">PropagatorUndoMode</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">

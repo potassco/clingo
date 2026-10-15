@@ -747,7 +747,7 @@ value.</p></div>
 </dd>
 <dt id="clingo.solving.ModelType"><code class="flex name class">
 <span>class <span class="ident">ModelType</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -826,22 +826,25 @@ value.</p></div>
         This function can only be called in a model callback or while iterating
         when using a `SolveHandle`.
         &#34;&#34;&#34;
-        atoms = self.symbolic_atoms
+        atoms = None
+        n_lits = 0
         p_lits = _ffi.new(&#34;clingo_literal_t[]&#34;, len(literals))
-        for i, lit in enumerate(literals):
+        for lit in literals:
             if isinstance(lit, int):
-                p_lits[i] = lit
+                p_lits[n_lits] = lit
+                n_lits += 1
             else:
+                if atoms is None:
+                    atoms = self.symbolic_atoms
                 atom = atoms[lit[0]]
                 if atom is not None:
                     slit = atom.literal
-                else:
-                    slit = -1
-                p_lits[i] = slit if lit[1] else -slit
+                    p_lits[n_lits] = slit if lit[1] else -slit
+                    n_lits += 1
+                elif not lit[1]:
+                    return
 
-        _handle_error(
-            _lib.clingo_solve_control_add_clause(self._rep, p_lits, len(literals))
-        )
+        _handle_error(_lib.clingo_solve_control_add_clause(self._rep, p_lits, n_lits))
 
     def _invert(
         self, lit: Union[Tuple[Symbol, bool], int]
@@ -917,22 +920,25 @@ def symbolic_atoms(self) -&gt; SymbolicAtoms:
     This function can only be called in a model callback or while iterating
     when using a `SolveHandle`.
     &#34;&#34;&#34;
-    atoms = self.symbolic_atoms
+    atoms = None
+    n_lits = 0
     p_lits = _ffi.new(&#34;clingo_literal_t[]&#34;, len(literals))
-    for i, lit in enumerate(literals):
+    for lit in literals:
         if isinstance(lit, int):
-            p_lits[i] = lit
+            p_lits[n_lits] = lit
+            n_lits += 1
         else:
+            if atoms is None:
+                atoms = self.symbolic_atoms
             atom = atoms[lit[0]]
             if atom is not None:
                 slit = atom.literal
-            else:
-                slit = -1
-            p_lits[i] = slit if lit[1] else -slit
+                p_lits[n_lits] = slit if lit[1] else -slit
+                n_lits += 1
+            elif not lit[1]:
+                return
 
-    _handle_error(
-        _lib.clingo_solve_control_add_clause(self._rep, p_lits, len(literals))
-    )</code></pre>
+    _handle_error(_lib.clingo_solve_control_add_clause(self._rep, p_lits, n_lits))</code></pre>
 </details>
 <div class="desc"><p>Add a clause that applies to the current solving step during the search.</p>
 <h2 id="parameters">Parameters</h2>

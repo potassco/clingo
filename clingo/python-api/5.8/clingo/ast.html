@@ -1877,8 +1877,10 @@ class AST:
     possible to construct ASTs that are not parsable, though.
     &#34;&#34;&#34;
 
+    __slots__ = (&#34;_rep&#34;,)
+
     def __init__(self, rep):
-        super().__setattr__(&#34;_rep&#34;, rep)
+        object.__setattr__(self, &#34;_rep&#34;, rep)
 
     def __eq__(self, other):
         if not isinstance(other, AST):
@@ -1894,7 +1896,9 @@ class AST:
         return _lib.clingo_ast_hash(self._rep)
 
     def __del__(self):
-        _lib.clingo_ast_release(self._rep)
+        if self._rep is not None:
+            _lib.clingo_ast_release(self._rep)
+            object.__setattr__(self, &#34;_rep&#34;, None)
 
     def __getattr__(self, name):
         attr_id = _attribute_names.get(name)
@@ -2273,7 +2277,7 @@ literals.</dd>
 </dl></div>
 </dd>
 <dt id="clingo.ast.AST.update"><code class="name flex">
-<span>def <span class="ident">update</span></span>(<span>self,<br>**kwargs: str | int | <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a> | <a title="clingo.ast.Location" href="#clingo.ast.Location">Location</a> | ForwardRef('<a title="clingo.ast.AST" href="#clingo.ast.AST">AST</a>') | Sequence[str] | Sequence[ForwardRef('<a title="clingo.ast.AST" href="#clingo.ast.AST">AST</a>')] | None) ‑> <a title="clingo.ast.AST" href="#clingo.ast.AST">AST</a></span>
+<span>def <span class="ident">update</span></span>(<span>self,<br>**kwargs: str | int | <a title="clingo.symbol.Symbol" href="symbol.html#clingo.symbol.Symbol">Symbol</a> | <a title="clingo.ast.Location" href="#clingo.ast.Location">Location</a> | <a title="clingo.ast.AST" href="#clingo.ast.AST">AST</a> | Sequence[str] | Sequence[ForwardRef('<a title="clingo.ast.AST" href="#clingo.ast.AST">AST</a>')] | None) ‑> <a title="clingo.ast.AST" href="#clingo.ast.AST">AST</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2355,7 +2359,9 @@ given.</p></div>
         return hash(tuple(self))
 
     def __del__(self):
-        _lib.clingo_ast_release(self._rep)
+        if self._rep is not None:
+            _lib.clingo_ast_release(self._rep)
+            self._rep = None
 
     def __len__(self) -&gt; int:
         return _c_call(
@@ -2490,7 +2496,7 @@ keys.</p></div>
 </dd>
 <dt id="clingo.ast.ASTType"><code class="flex name class">
 <span>class <span class="ident">ASTType</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2745,7 +2751,7 @@ keys.</p></div>
 </dd>
 <dt id="clingo.ast.AggregateFunction"><code class="flex name class">
 <span>class <span class="ident">AggregateFunction</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2812,7 +2818,7 @@ keys.</p></div>
 </dd>
 <dt id="clingo.ast.BinaryOperator"><code class="flex name class">
 <span>class <span class="ident">BinaryOperator</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2911,7 +2917,7 @@ keys.</p></div>
 </dd>
 <dt id="clingo.ast.CommentType"><code class="flex name class">
 <span>class <span class="ident">CommentType</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2955,7 +2961,7 @@ keys.</p></div>
 </dd>
 <dt id="clingo.ast.ComparisonOperator"><code class="flex name class">
 <span>class <span class="ident">ComparisonOperator</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -3319,7 +3325,7 @@ statement.</p></div>
 </dd>
 <dt id="clingo.ast.Sign"><code class="flex name class">
 <span>class <span class="ident">Sign</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -3388,7 +3394,9 @@ statement.</p></div>
         _lib.clingo_ast_acquire(self._rep)
 
     def __del__(self):
-        _lib.clingo_ast_release(self._rep)
+        if self._rep is not None:
+            _lib.clingo_ast_release(self._rep)
+            self._rep = None
 
     def __len__(self) -&gt; int:
         return _c_call(
@@ -3522,7 +3530,7 @@ statement.</p></div>
 </dd>
 <dt id="clingo.ast.TheoryAtomType"><code class="flex name class">
 <span>class <span class="ident">TheoryAtomType</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -3581,7 +3589,7 @@ statement.</p></div>
 </dd>
 <dt id="clingo.ast.TheoryOperatorType"><code class="flex name class">
 <span>class <span class="ident">TheoryOperatorType</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -3632,7 +3640,7 @@ statement.</p></div>
 </dd>
 <dt id="clingo.ast.TheorySequenceType"><code class="flex name class">
 <span>class <span class="ident">TheorySequenceType</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -3780,7 +3788,6 @@ only self references are returned from such functions.</p>
 <p>Any extra arguments passed to the visit method are passed on to child ASTs.</p></div>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="clingo.tests.test_ast.VariableRenamer" href="tests/test_ast.html#clingo.tests.test_ast.VariableRenamer">VariableRenamer</a></li>
 <li><a title="clingox.ast.TheoryParser" href="../clingox/ast.html#clingox.ast.TheoryParser">TheoryParser</a></li>
 <li><a title="clingox.ast.TheoryTermParser" href="../clingox/ast.html#clingox.ast.TheoryTermParser">TheoryTermParser</a></li>
 <li>clingox.ast._NormalizeSymbolicTermTransformer</li>
@@ -3871,7 +3878,7 @@ changes or a list of ASTs otherwise.</p></div>
 </dd>
 <dt id="clingo.ast.UnaryOperator"><code class="flex name class">
 <span>class <span class="ident">UnaryOperator</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<span>(</span><span>*values)</span>
 </code></dt>
 <dd>
 <details class="source">
