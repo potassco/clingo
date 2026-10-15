@@ -86,7 +86,7 @@ for act in "${@}"; do
         rsync -aq "${args[@]}" "$rep/"
 
         name="$(project_name)"
-        name="${name^^})"
+        name="${name^^}"
         name="${name//-/}"
         sed -i "s/export ${name}_BUILD_REVISION =.*/export ${name}_BUILD_REVISION = $(git rev-parse --short HEAD)/" "${rep}/debian/rules"
         ;;
