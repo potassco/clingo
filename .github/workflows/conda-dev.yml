@@ -19,8 +19,8 @@ jobs:
       - id: compute
         run: |
           LABEL=${{ inputs.wip && 'dev' || 'main' }}
-          VERSION_NUMBER=$(python ./scripts/version.py libclingo/clingo.h CLINGO_VERSION)
-          BUILD_NUMBER=$(python ./scripts/conda-build-number.py clingo "${VERSION_NUMBER}" "${LABEL}")
+          VERSION_NUMBER=$(python ./scratch/version.py libclingo/clingo.h CLINGO_VERSION)
+          BUILD_NUMBER=$(python ./scratch/conda-build-number.py clingo "${VERSION_NUMBER}" "${LABEL}")
           echo "version-number=${VERSION_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "build-number=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
 
