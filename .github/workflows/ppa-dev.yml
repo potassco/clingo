@@ -21,11 +21,6 @@ jobs:
       distribution: ${{ matrix.distribution }}
 
     steps:
-      - name: Install prerequisites
-        run: |
-          sudo apt-get update
-          sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dput dh-make dh-python dh-lua
-
       - name: Checkout repo
         uses: actions/checkout@v3
         with:
@@ -40,4 +35,4 @@ jobs:
       - name: Build deb and source package
         run: |
           cd .github/ppa-wip
-          ./build.sh ${{ inputs.wip && 'wip' || 'stable'}} "$distribution" create sync changes build put
+          ./build.sh ${{ inputs.wip && 'wip' || 'stable'}} "$distribution" prepare create sync changes build put

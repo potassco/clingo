@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage {
-    echo "./$(basename "$0") {stable,wip} {resolute,noble,jammy,focal,bionic} {create,sync,changes,build,put,clean}*"
+    echo "./$(basename "$0") {stable,wip} {resolute,noble,jammy,focal,bionic} {prepare,create,sync,changes,build,put,clean}*"
 }
 
 if [[ $# -lt 1 ]]; then
@@ -53,7 +53,7 @@ esac
 
 if [[ $# -gt 1 && "$1" == "_ppa" ]]; then
     if [[ $# -ne 2 ]]; then
-        usage
+        echo "action _ppa is reserved for internal use only"
         exit 1
     fi
     apt-get install -y software-properties-common
@@ -68,6 +68,12 @@ fi
 for act in "${@}"; do
     echo "${act}"
     case "${act}" in
+    prepare)
+        mapfile -t deps < <(get_config extra_depends "")
+        sudo apt-get update
+        sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dput dh-make "${deps[@]}"
+        ;;
+
     create)
         sudo pbuilder create --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz" --distribution "${rep}" --debootstrapopts --variant=buildd
         sudo pbuilder execute --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz" --save-after-exec -- build.sh "${ref}" "${rep}" _ppa "$(get_config add_ppa no)"
