@@ -42,7 +42,7 @@ jobs:
       BUILD_NUMBER: ${{ needs.meta.outputs.build-number }}
       VERSION_NUMBER: ${{ needs.meta.outputs.version-number }}
       GITHUB_SHA: ${{ github.sha }}
-      BUILD_RELEASE: ${{ inputs.wip && 'false' || 'true' }}
+      BUILD_RELEASE: ${{ inputs.wip && '1' || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
