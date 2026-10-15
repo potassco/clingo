@@ -41,11 +41,13 @@ def next_build_number(owner: str, package: str, version: str, label: str) -> int
     except (urllib.error.URLError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"could not retrieve package files: {exc}") from exc
 
+    # non-main packages always get a fresh build number
+    # main packages can override dev packages
     build_numbers = [
         entry["attrs"]["build_number"]
         for entry in files
         if entry.get("version") == version
-        and label in entry.get("labels", [])
+        and (label != "main" or "main" in entry.get("labels", []))
         and isinstance(entry.get("attrs", {}).get("build_number"), int)
     ]
 
