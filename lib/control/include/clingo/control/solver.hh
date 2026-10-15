@@ -611,7 +611,7 @@ class Grounded : public Clasp::Event {
   public:
     //! Construct a grounded event.
     explicit Grounded(Input::ProgramParamVec const &params)
-        : Event(this, subsystem_load, verbosity_quiet), params(params) {}
+        : Event(this, subsystem_load, verbosity_quiet, exit), params(params) {}
     //! The program parts that have been grounded.
     std::span<Input::ProgramParamVec::value_type const> params;
 };
