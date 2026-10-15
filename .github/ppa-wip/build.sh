@@ -69,7 +69,7 @@ for act in "${@}"; do
         sed -i "s/export CLINGO_BUILD_REVISION =.*/export CLINGO_BUILD_REVISION = $(git rev-parse --short HEAD)/" "${rep}/debian/rules"
         ;;
     changes)
-        VERSION="$(python ../../scripts/version.py ../../libclingo/clingo.h CLINGO_VERSION)"
+        VERSION="$(python ../../scratch/version.py ../../libclingo/clingo.h CLINGO_VERSION)"
         BUILD=$(curl -sL "http://ppa.launchpad.net/potassco/${ref}/ubuntu/pool/main/c/clingo/" | sed -n "/${VERSION//./\\.}-${rep}[0-9]\+\.dsc/s/.*${rep}\([0-9]\+\).*/\1/p" | sort -rn | head -1)
         cat >"${rep}/debian/changelog" <<EOF
 clingo (${VERSION}-${rep}$((BUILD + 1))) ${rep}; urgency=medium
