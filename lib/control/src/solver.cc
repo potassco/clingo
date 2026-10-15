@@ -507,9 +507,8 @@ class ModelImpl : public Model, private SolveControl {
     }
 
     [[nodiscard]] auto do_priorities() const -> std::span<prg_weight_t const> override {
-        assert(mdl_ != nullptr && mdl_->ctx != nullptr);
-        auto const *m = mdl_->ctx->minimizer();
-        return m != nullptr ? m->prios : std::span<prg_weight_t const>{};
+        assert(mdl_ != nullptr);
+        return mdl_->priorities;
     }
 
     [[nodiscard]] auto do_optimality_proven() const -> bool override {
@@ -625,12 +624,9 @@ class SolveEventHandlerAdapter : public Clasp::EventHandler {
 
     //! Report lower bounds.
     auto onUnsat([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
-        if (auto const *ctx = mdl.ctx; eh_ && ctx != nullptr && ctx->optimize() && ctx->lowerBound().active()) {
-            auto lower = ctx->lowerBound();
-            assert(lower.level <= mdl.costs.size());
-            bound_.reserve(ctx->minimizer()->numRules());
-            bound_.assign(mdl.costs.begin(), mdl.costs.begin() + lower.level);
-            bound_.push_back(lower.bound);
+        if (mdl.lower.active()) {
+            auto lower = mdl.lowerBound();
+            bound_.assign(std::begin(lower), std::end(lower));
             auto guard = std::scoped_lock{*lock_};
             eh_->on_unsat(bound_);
         }
