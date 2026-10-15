@@ -6,6 +6,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import urlopen
 
+from version import get_version
+
 
 def pkg_version():
     pkg_info = Path("PKG-INFO")
@@ -60,17 +62,7 @@ def dynamic_metadata(_settings, _project):
     if version is not None:
         return {"version": version}
 
-    header = Path("libclingo/clingo.h")
-    if not header.is_file():
-        raise ValueError(f"Version header not found: {header}")
-    text = header.read_text(encoding="utf-8")
-
-    match = re.search(
-        r'^\s*#define\s+CLINGO_VERSION\s+"([0-9]+(?:\.[0-9]+)*)"', text, re.MULTILINE
-    )
-    if match is None:
-        raise ValueError(f"Could not find CLINGO_VERSION in {header}")
-    base = match.group(1)
+    base = get_version()
 
     build = os.getenv("BUILD_NUMBER", "").strip()
     if build == "auto":
