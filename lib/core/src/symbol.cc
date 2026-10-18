@@ -81,11 +81,6 @@ class SimpleAlloc {
 //! This allocator should hopefully speed up allocation of symbols.
 class SlottedAlloc {
   public:
-    struct LargeNode {
-        LargeNode *prev;
-        LargeNode *next;
-        Sized sized;
-    };
     struct Node {
         uint64_t size : 63;
         uint64_t tag : 1;
@@ -95,10 +90,20 @@ class SlottedAlloc {
         Node *node = nullptr;
         size_t use_count = 0;
     };
+    struct SmallBlock {
+        SmallBlock *prev;
+        SmallBlock *next;
+    };
+    struct LargeNode {
+        LargeNode *prev;
+        LargeNode *next;
+        Sized sized;
+    };
 
     static constexpr size_t ptr_size = sizeof(Node *);
     static constexpr size_t max_slot = 256;
     static constexpr size_t max_alloc = 4096;
+    static constexpr size_t page_size = 4096;
 
     SlottedAlloc() = default;
     SlottedAlloc(SlottedAlloc &&) = delete;
@@ -107,7 +112,13 @@ class SlottedAlloc {
 
     void release() noexcept {
         for (auto &head : free_list_) {
-            free_head_(head);
+            head.node = nullptr;
+            head.use_count = 0;
+        }
+        while (small_head_ != nullptr) {
+            auto *next = small_head_->next;
+            ::operator delete[](small_head_);
+            small_head_ = next;
         }
         while (large_head_ != nullptr) {
             auto *next = large_head_->next;
@@ -126,8 +137,19 @@ class SlottedAlloc {
             if (node == nullptr) {
                 // use limited exponential growth scheme for allocation
                 size_t m = (head.use_count < max_alloc ? head.use_count + 1 : max_alloc) * k;
+                auto total = sizeof(SmallBlock) + m;
+                if (auto rem = total % page_size; rem != 0) {
+                    m += page_size - rem;
+                }
                 static_assert(alignof(Node *) <= alignof(uint64_t));
-                node = reinterpret_cast<Node *>(::operator new[](m));
+                auto *block = reinterpret_cast<SmallBlock *>(::operator new[](sizeof(SmallBlock) + m));
+                block->prev = nullptr;
+                block->next = small_head_;
+                if (small_head_ != nullptr) {
+                    small_head_->prev = block;
+                }
+                small_head_ = block;
+                node = reinterpret_cast<Node *>(block + 1);
                 // tag the beginning of the memory block
                 new (node) Node{m, 1, nullptr};
             }
@@ -201,10 +223,11 @@ class SlottedAlloc {
         return l + sizeof(Sized);
     }
 
-    static void free_head_(Head &head) {
+    void free_head_(Head &head) {
         Node *node = head.node;
         head.node = nullptr;
-        // filter allocated nodes
+        head.use_count = 0;
+        // filter allocated block starts
         Node *begin = nullptr;
         while (node != nullptr) {
             auto *next = node->next;
@@ -214,15 +237,25 @@ class SlottedAlloc {
             }
             node = next;
         }
-        // delete allocated nodes
+        // delete allocated blocks
         while (begin != nullptr) {
             auto *next = begin->next;
-            ::operator delete[](begin);
+            auto *block = reinterpret_cast<SmallBlock *>(reinterpret_cast<char *>(begin) - sizeof(SmallBlock));
+            if (block->prev != nullptr) {
+                block->prev->next = block->next;
+            } else {
+                small_head_ = block->next;
+            }
+            if (block->next != nullptr) {
+                block->next->prev = block->prev;
+            }
+            ::operator delete[](block);
             begin = next;
         }
     }
 
     std::array<Head, max_slot> free_list_;
+    SmallBlock *small_head_ = nullptr;
     LargeNode *large_head_ = nullptr;
 };
 
