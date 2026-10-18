@@ -270,6 +270,31 @@ auto held_ref(std::atomic_size_t const &ref) noexcept -> bool {
     return (ref.load(std::memory_order::relaxed) & ~(dec_bit | mark_bit)) != 0;
 }
 
+enum class State { Free, MaybeFree, Held };
+
+auto free_ref(std::atomic_size_t const &ref) noexcept -> bool {
+    auto val = ref.load(std::memory_order::relaxed);
+    return (val & ~(dec_bit | mark_bit)) == 0 && (val & dec_bit) == 0;
+}
+
+auto check_ref(std::atomic_size_t &ref) noexcept -> State {
+    auto val = ref.load(std::memory_order::relaxed);
+    if ((val & ~(dec_bit | mark_bit)) == 0 && (val & dec_bit) == 0) {
+        return State::Free;
+    }
+    if ((val & ~(dec_bit | mark_bit)) != 0) {
+        return State::Held;
+    }
+
+    while ((val & ~(dec_bit | mark_bit)) == 0 && (val & dec_bit) != 0) {
+        auto desired = val & ~dec_bit;
+        if (ref.compare_exchange_weak(val, desired, std::memory_order::relaxed, std::memory_order::relaxed)) {
+            return State::MaybeFree;
+        }
+    }
+    return State::Held;
+}
+
 void inc_ref(std::atomic_size_t &ref) noexcept {
     ref.fetch_add(1, std::memory_order::relaxed);
 }
@@ -484,19 +509,42 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 
     void do_gc_del_owner(SymbolOwner const &owner) noexcept override { owners_.erase(&owner); }
 
-    //! Check if any symbol in the store is referenced.
     [[nodiscard]] auto held_() const noexcept -> bool {
-        return std::ranges::any_of(tuples_,
-                                   [](auto const &key) {
-                                       return held_ref(
-                                           SymbolArray::from_repr(KeySymbolArray::to_repr(key)).ref_count());
-                                   }) ||
-               std::ranges::any_of(strings_,
-                                   [](auto const &key) {
-                                       return held_ref(CharArray::from_repr(KeyCharArray::to_repr(key)).ref_count());
-                                   }) ||
-               std::ranges::any_of(numbers_,
-                                   [](auto const &key) { return held_ref(bigint_refcount(Number::to_repr(key))); });
+        bool needs_second_pass = false;
+
+        auto tuple_ref = [](auto const &key) -> std::atomic_size_t & {
+            return SymbolArray::from_repr(KeySymbolArray::to_repr(key)).ref_count();
+        };
+        auto string_ref = [](auto const &key) -> std::atomic_size_t & {
+            return CharArray::from_repr(KeyCharArray::to_repr(key)).ref_count();
+        };
+        auto number_ref = [](auto const &key) -> std::atomic_size_t & { return bigint_refcount(Number::to_repr(key)); };
+
+        auto pass1 = [&needs_second_pass](auto const &set, auto &&ref_fn) -> bool {
+            for (auto const &key : set) {
+                auto state = check_ref(ref_fn(key));
+                if (state == State::Held) {
+                    return true;
+                }
+                needs_second_pass = needs_second_pass || (state == State::MaybeFree);
+            }
+            return false;
+        };
+
+        auto pass2 = [](auto const &set, auto &&ref_fn) -> bool {
+            return std::ranges::any_of(set, [&ref_fn](auto const &key) { return !free_ref(ref_fn(key)); });
+        };
+
+        // We clear all dec bits of symbols with zero ref count.
+        if (pass1(tuples_, tuple_ref) || pass1(strings_, string_ref) || pass1(numbers_, number_ref)) {
+            return true;
+        }
+        if (!needs_second_pass) {
+            return false;
+        }
+        // If ref counts are zero and dec flags are unset of all symbols, no
+        // symbols are held.
+        return pass2(tuples_, tuple_ref) || pass2(strings_, string_ref) || pass2(numbers_, number_ref);
     }
 
     auto do_gc(bool shutdown) -> std::tuple<size_t, size_t, size_t> override {
