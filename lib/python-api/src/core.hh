@@ -61,8 +61,8 @@ template <auto Copy, auto Free> struct value_handle_traits {
 
 class Library : public registered_handle<Library, clingo_lib_t>, public reference_keeper<Library> {
   public:
-    Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
-            size_t default_message_limit);
+    Library(bool shared, bool slotted, bool fast_release, clingo_log_level_e level,
+            Annotation<std::optional<Logger>> cb, size_t default_message_limit);
 
     void close() noexcept;
     auto capsule() -> py::capsule;

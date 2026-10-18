@@ -266,7 +266,7 @@ class SlottedAlloc {
 constexpr auto dec_bit = static_cast<size_t>(1) << ((8 * sizeof(size_t)) - 1);
 constexpr auto mark_bit = static_cast<size_t>(1) << ((8 * sizeof(size_t)) - 2);
 
-auto held_ref(std::atomic_size_t const &ref) noexcept -> bool {
+[[maybe_unused]] auto held_ref(std::atomic_size_t const &ref) noexcept -> bool {
     return (ref.load(std::memory_order::relaxed) & ~(dec_bit | mark_bit)) != 0;
 }
 
