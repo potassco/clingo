@@ -142,6 +142,9 @@ class SlottedAlloc {
                 if (auto rem = total % page_size; rem != 0) {
                     m += page_size - rem;
                 }
+                // substract unusable bytes at the end that are too small to
+                // hold a further node
+                m -= m % k;
                 static_assert(alignof(Node *) <= alignof(uint64_t));
                 auto *block = reinterpret_cast<SmallBlock *>(::operator new[](sizeof(SmallBlock) + m));
                 block->prev = nullptr;
@@ -152,9 +155,7 @@ class SlottedAlloc {
                 small_head_ = block;
                 node = reinterpret_cast<Node *>(block + 1);
                 // tag the beginning of the memory block
-                // substract unusable bytes at the end that are too small to
-                // hold a further node
-                new (node) Node{m - (m % k), 1, nullptr};
+                new (node) Node{m, 1, nullptr};
             }
             Node *old = node;
             if (node->size == k) {
