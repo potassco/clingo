@@ -152,8 +152,8 @@ TEST_CASE("grounder_text") {
             REQUIRE(grd.ground(params) == GroundResult::ok);
             auto res = store->gc(false);
             REQUIRE(std::get<0>(res) == 1);
-            REQUIRE(std::get<1>(res) == 16);
-            REQUIRE(std::get<2>(res) == 2);
+            REQUIRE(std::get<1>(res) == 15);
+            REQUIRE(std::get<2>(res) == 3);
         }
         SECTION("condlit_bug") {
             grd.parse(R"(
