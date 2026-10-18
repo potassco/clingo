@@ -67,7 +67,7 @@ TEST_CASE("symbol_number") {
     REQUIRE(n3.has_sign());
     REQUIRE(!n4.has_sign());
 
-    REQUIRE(store->gc() == std::make_tuple(0_uz, 0_uz, 1_uz));
+    REQUIRE(store->gc(false) == std::make_tuple(0_uz, 0_uz, 1_uz));
 }
 
 TEST_CASE("symbol_constant") {
@@ -97,7 +97,7 @@ TEST_CASE("string") {
         REQUIRE(sy > sx1);
         REQUIRE(!(sx1 > sy));
 
-        REQUIRE(store.gc() == std::make_tuple(0_uz, 0_uz, 2_uz));
+        REQUIRE(store.gc(false) == std::make_tuple(0_uz, 0_uz, 2_uz));
     });
 }
 
@@ -121,7 +121,7 @@ TEST_CASE("symbol_string") {
         REQUIRE(!(sym_sy < sym_sx));
         REQUIRE(!(sym_sx > sym_sy));
 
-        REQUIRE(store.gc() == std::make_tuple(0_uz, 0_uz, 2_uz));
+        REQUIRE(store.gc(false) == std::make_tuple(0_uz, 0_uz, 2_uz));
     });
 }
 
@@ -174,7 +174,7 @@ TEST_CASE("symbol_tuple") {
         REQUIRE(t.type() == SymbolType::tuple);
         REQUIRE(t.args().size() == n);
 
-        REQUIRE(store.gc() == std::make_tuple(0_uz, 0_uz, 5_uz));
+        REQUIRE(store.gc(false) == std::make_tuple(0_uz, 0_uz, 5_uz));
     });
 }
 
@@ -258,7 +258,7 @@ TEST_CASE("symbol_function") {
         REQUIRE(t.name() == s1);
         REQUIRE(t.args().size() == n);
 
-        REQUIRE(store.gc() == std::make_tuple(0_uz, 0_uz, 8_uz));
+        REQUIRE(store.gc(false) == std::make_tuple(0_uz, 0_uz, 8_uz));
     });
 }
 
@@ -276,7 +276,7 @@ TEST_CASE("symbol_shared") {
         auto f2 = store.fun(s2, SL{n1}, false);
         [[maybe_unused]] auto f3 = store.fun_ref(s3, SL{n2}, false); // collected
 
-        REQUIRE(store.gc() == std::make_tuple(0_uz, 6_uz, 3_uz));
+        REQUIRE(store.gc(false) == std::make_tuple(0_uz, 6_uz, 3_uz));
     });
 }
 

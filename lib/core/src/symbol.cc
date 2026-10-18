@@ -81,6 +81,11 @@ class SimpleAlloc {
 //! This allocator should hopefully speed up allocation of symbols.
 class SlottedAlloc {
   public:
+    struct LargeNode {
+        LargeNode *prev;
+        LargeNode *next;
+        Sized sized;
+    };
     struct Node {
         uint64_t size : 63;
         uint64_t tag : 1;
@@ -98,9 +103,16 @@ class SlottedAlloc {
     SlottedAlloc() = default;
     SlottedAlloc(SlottedAlloc &&) = delete;
     auto operator=(SlottedAlloc &&) -> SlottedAlloc & = delete;
-    ~SlottedAlloc() noexcept {
+    ~SlottedAlloc() noexcept { release(); }
+
+    void release() noexcept {
         for (auto &head : free_list_) {
             free_head_(head);
+        }
+        while (large_head_ != nullptr) {
+            auto *next = large_head_->next;
+            ::operator delete[](large_head_);
+            large_head_ = next;
         }
     }
 
@@ -130,7 +142,15 @@ class SlottedAlloc {
             mem = reinterpret_cast<Sized *>(old) + 1;
             ++head.use_count;
         } else {
-            mem = SimpleAlloc::alloc(n);
+            auto *node = reinterpret_cast<LargeNode *>(::operator new[](sizeof(LargeNode) + n));
+            node->prev = nullptr;
+            node->next = large_head_;
+            node->sized = Sized{n, 1};
+            if (large_head_ != nullptr) {
+                large_head_->prev = node;
+            }
+            large_head_ = node;
+            mem = &node->sized + 1;
         }
         return mem;
     }
@@ -151,7 +171,18 @@ class SlottedAlloc {
                     free_head_(head);
                 }
             } else {
-                SimpleAlloc::dealloc(mem);
+                auto *sized = reinterpret_cast<Sized *>(mem) - 1;
+                auto *node =
+                    reinterpret_cast<LargeNode *>(reinterpret_cast<char *>(sized) - offsetof(LargeNode, sized));
+                if (node->prev != nullptr) {
+                    node->prev->next = node->next;
+                } else {
+                    large_head_ = node->next;
+                }
+                if (node->next != nullptr) {
+                    node->next->prev = node->prev;
+                }
+                ::operator delete[](node);
             }
         }
     }
@@ -192,19 +223,25 @@ class SlottedAlloc {
     }
 
     std::array<Head, max_slot> free_list_;
+    LargeNode *large_head_ = nullptr;
 };
 
-constexpr auto dec_bit = static_cast<size_t>(1) << (8 * sizeof(size_t) - 1);
-constexpr auto mark_bit = static_cast<size_t>(1) << (8 * sizeof(size_t) - 2);
+constexpr auto dec_bit = static_cast<size_t>(1) << ((8 * sizeof(size_t)) - 1);
+constexpr auto mark_bit = static_cast<size_t>(1) << ((8 * sizeof(size_t)) - 2);
+
+auto held_ref(std::atomic_size_t const &ref) noexcept -> bool {
+    return (ref.load(std::memory_order::relaxed) & ~(dec_bit | mark_bit)) != 0;
+}
 
 void inc_ref(std::atomic_size_t &ref) noexcept {
     ref.fetch_add(1, std::memory_order::relaxed);
 }
 void dec_ref(std::atomic_size_t &ref) noexcept {
-    assert((ref.load(std::memory_order::relaxed) & ~(dec_bit | mark_bit)) > 0);
+    assert(held_ref(ref));
     ref.fetch_or(dec_bit, std::memory_order::relaxed);
     ref.fetch_sub(1, std::memory_order::relaxed);
 }
+
 auto mark_ref(std::atomic_size_t &ref, bool only_if_referenced = false) noexcept -> bool {
     auto val = ref.load(std::memory_order::relaxed);
     if ((val & mark_bit) == 0 && (!only_if_referenced || val != 0)) {
@@ -394,8 +431,14 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 
     void clear() {
         numbers_ = NumberSet{};
-        clear_(strings_);
-        clear_(tuples_);
+        if constexpr (requires { alloc_.release(); }) {
+            strings_ = StringSet{};
+            tuples_ = TupleSet{};
+            alloc_.release();
+        } else {
+            clear_(strings_);
+            clear_(tuples_);
+        }
     }
 
     void do_gc_block([[maybe_unused]] bool block) noexcept override {}
@@ -404,10 +447,32 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 
     void do_gc_del_owner(SymbolOwner const &owner) noexcept override { owners_.erase(&owner); }
 
-    auto do_gc() -> std::tuple<size_t, size_t, size_t> override {
+    //! Check if any symbol in the store is referenced.
+    [[nodiscard]] auto held_() const noexcept -> bool {
+        return std::ranges::any_of(tuples_,
+                                   [](auto const &key) {
+                                       return held_ref(
+                                           SymbolArray::from_repr(KeySymbolArray::to_repr(key)).ref_count());
+                                   }) ||
+               std::ranges::any_of(strings_,
+                                   [](auto const &key) {
+                                       return held_ref(CharArray::from_repr(KeyCharArray::to_repr(key)).ref_count());
+                                   }) ||
+               std::ranges::any_of(numbers_,
+                                   [](auto const &key) { return held_ref(bigint_refcount(Number::to_repr(key))); });
+    }
+
+    auto do_gc(bool shutdown) -> std::tuple<size_t, size_t, size_t> override {
 #ifdef DEBUG_GC
         printf("performing gc\n");
 #endif
+        // check if we can bulk delete everything to avoid the mark and sweep
+        // below
+        if (shutdown && owners_.empty() && !held_()) {
+            auto collected = tuples_.size() + strings_.size() + numbers_.size();
+            clear();
+            return {0, 0, collected};
+        }
         SymbolCollector collector;
         // mark referenced tuples
         for (auto const &key : tuples_) {
@@ -574,11 +639,11 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
         store_.gc_del_owner(owner);
     }
 
-    auto do_gc() -> std::tuple<size_t, size_t, size_t> override {
+    auto do_gc(bool shutdown) -> std::tuple<size_t, size_t, size_t> override {
         std::unique_lock ulock{mutex_};
         cv_.wait(ulock, [this] { return blocked_ == 0; });
         std::atomic_thread_fence(std::memory_order::seq_cst);
-        return store_.gc();
+        return store_.gc(shutdown);
     }
 
     ~SharedSymbolStore() noexcept override {

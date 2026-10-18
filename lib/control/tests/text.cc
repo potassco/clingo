@@ -142,7 +142,7 @@ TEST_CASE("grounder_text") {
             REQUIRE(buf.view() == "b :- b: a.\n"
                                   "a :- a: b.\n"
                                   "#show.\n");
-            auto res = store->gc();
+            auto res = store->gc(false);
             REQUIRE(std::get<0>(res) == 1);
             REQUIRE(std::get<1>(res) == 4);
             REQUIRE(std::get<2>(res) == 0);
@@ -150,7 +150,7 @@ TEST_CASE("grounder_text") {
         SECTION("condlit_rec") {
             grd.parse("#show. p(1..3). q(3..5). r(X) :- p(X); q(X).");
             REQUIRE(grd.ground(params) == GroundResult::ok);
-            auto res = store->gc();
+            auto res = store->gc(false);
             REQUIRE(std::get<0>(res) == 1);
             REQUIRE(std::get<1>(res) == 16);
             REQUIRE(std::get<2>(res) == 2);
@@ -862,9 +862,7 @@ TEST_CASE("grounder_text") {
         }
     }
     // Note: the current implementation takes two iterations to clean up everything
-    auto res = store->gc();
-    REQUIRE(std::get<0>(res) == 0); // no owners
-    res = store->gc();
+    auto res = store->gc(true);
     REQUIRE(std::get<0>(res) == 0); // no owners
     REQUIRE(std::get<1>(res) == 0); // no symbols
 }

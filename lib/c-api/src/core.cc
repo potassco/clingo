@@ -140,7 +140,7 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
         // the store might be kept alive if it is still holding symbols
         lib->log = CppClingo::Logger{};
         lib->scripts = CppClingo::Control::Scripts{};
-        auto res = lib->store->gc();
+        auto res = lib->store->gc(true);
         if (get<0>(res) > 0 || get<1>(res) > 0) {
             auto lck = std::unique_lock(gc_mut);
             lib->next_ = lst;
@@ -156,7 +156,7 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
     auto *cur = std::exchange(lst, nullptr);
     while (cur != nullptr) {
         auto *nxt = cur->next_;
-        auto res = cur->store->gc();
+        auto res = cur->store->gc(true);
         if (get<0>(res) > 0 || get<1>(res) > 0) {
             cur->next_ = lst;
             lst = cur;
