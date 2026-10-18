@@ -138,6 +138,7 @@ class SlottedAlloc {
                 // use limited exponential growth scheme for allocation
                 size_t m = (head.use_count < max_alloc ? head.use_count + 1 : max_alloc) * k;
                 auto total = sizeof(SmallBlock) + m;
+                // fill up to a multiple of page_size to avoid fragmentation
                 if (auto rem = total % page_size; rem != 0) {
                     m += page_size - rem;
                 }
@@ -151,7 +152,9 @@ class SlottedAlloc {
                 small_head_ = block;
                 node = reinterpret_cast<Node *>(block + 1);
                 // tag the beginning of the memory block
-                new (node) Node{m, 1, nullptr};
+                // substract unusable bytes at the end that are too small to
+                // hold a further node
+                new (node) Node{m - (m % k), 1, nullptr};
             }
             Node *old = node;
             if (node->size == k) {
