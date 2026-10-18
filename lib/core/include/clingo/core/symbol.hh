@@ -530,7 +530,7 @@ class SymbolStore {
     void gc_del_owner(SymbolOwner const &owner) noexcept { do_gc_del_owner(owner); }
     //! Cleanup symbols.
     //!
-    //! If paramater shutdown is set, the collector tries to bulk delete
+    //! If parameter shutdown is set, the collector tries to bulk delete
     //! symbols.
     //!
     //! Returns the number of symbols owners, the number of symbols with

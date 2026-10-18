@@ -142,7 +142,7 @@ class SlottedAlloc {
                 if (auto rem = total % page_size; rem != 0) {
                     m += page_size - rem;
                 }
-                // substract unusable bytes at the end that are too small to
+                // subtract unusable bytes at the end that are too small to
                 // hold a further node
                 m -= m % k;
                 static_assert(alignof(Node *) <= alignof(uint64_t));
@@ -291,7 +291,7 @@ void dec_ref(std::atomic_size_t &ref) noexcept {
 auto mark_ref(std::atomic_size_t &ref, bool only_if_referenced = false) noexcept -> bool {
     // This function also considers a symbol as referenced if its dec bit is
     // set. This is important because it might have been the owner of another
-    // symbol that has been taking ownershif of by another thread unnoticed.
+    // symbol that another thread has taken ownership of unnoticed.
     auto val = ref.load(std::memory_order::relaxed);
     if ((val & mark_bit) == 0 && (!only_if_referenced || val != 0)) {
         ref.fetch_or(mark_bit, std::memory_order::relaxed);
