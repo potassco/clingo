@@ -158,6 +158,15 @@ auto create_symbol_type_enum() -> PyObject * {
         return nullptr;
     }
 
+    // NOTE: markers for pybind11-stubgen
+    auto mod = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString("clingo.symbol"));
+    if (mod == nullptr || PyObject_SetAttrString(symbol_type, "__module__", mod) < 0) {
+        throw py::error_already_set();
+    }
+    if (PyObject_SetAttrString(symbol_type.get(), "__pybind11_native_enum__", Py_True) < 0) {
+        throw py::error_already_set();
+    }
+
     auto cls_doc = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString("Enumeration of symbols types."));
     if (cls_doc == nullptr || PyObject_SetAttrString(symbol_type.get(), "__doc__", cls_doc.get()) < 0) {
         return nullptr;
@@ -854,8 +863,33 @@ auto py_symbol_methods = std::array{
         "match",
         reinterpret_cast<PyCFunction>(py_symbol_match), // NOLINT
         METH_VARARGS | METH_KEYWORDS,
-        PyDoc_STR("Check if this is a function symbol with the given signature,\n"
-                  "or a tuple symbol with the given arity."),
+        PyDoc_STR(R"(
+match(*args, **kwargs)
+Overloaded function.
+
+1. match(self: clingo.symbol.Symbol, name: str, arity: int = 0, is_positive: bool = True) -> bool
+
+Check if this is a function symbol with the given signature.
+
+Args:
+    name: The name of the function.
+    arity: The arity of the function.
+    is_positive: Whether to match positive or negative signatures.
+
+Returns:
+    Whether the function matches.
+
+
+2. match(self: clingo.symbol.Symbol, arity: int = 0) -> bool
+
+Check if this is a tuple symbol with the given arity.
+
+Args:
+    arity: The arity of the function.
+
+Returns:
+    Whether the tuple matches.
+)"_d),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
@@ -866,63 +900,93 @@ auto py_symbol_getset = std::array{
         "signature",
         py_symbol_get_signature,
         nullptr,
-        PyDoc_STR("Get the signature of function symbols."),
+        PyDoc_STR(R"(
+signature(self: clingo.symbol.Symbol) -> tuple[str, int, bool] | None
+
+Get the signature of function symbols.
+
+The Boolean in the signature is True if the associated symbol is positive.
+)"_d),
         nullptr,
     },
     PyGetSetDef{
         "type",
         py_symbol_get_type,
         nullptr,
-        PyDoc_STR("The type of the symbol."),
+        PyDoc_STR(R"(
+type(self: clingo.symbol.Symbol) -> clingo.symbol.SymbolType
+
+The type of the symbol.)"_d),
         nullptr,
     },
     PyGetSetDef{
         "number",
         py_symbol_get_number,
         nullptr,
-        PyDoc_STR("The numeric value."),
+        PyDoc_STR(R"(
+number(self: clingo.symbol.Symbol) -> int
+
+The numeric value.)"_d),
         nullptr,
     },
     PyGetSetDef{
         "string",
         py_symbol_get_string,
         nullptr,
-        PyDoc_STR("The string value."),
+        PyDoc_STR(R"(
+string(self: clingo.symbol.Symbol) -> str
+
+The string value.)"_d),
         nullptr,
     },
     PyGetSetDef{
         "name",
         py_symbol_get_name,
         nullptr,
-        PyDoc_STR("The name."),
+        PyDoc_STR(R"(
+name(self: clingo.symbol.Symbol) -> str
+
+The name.)"_d),
         nullptr,
     },
     PyGetSetDef{
         "arguments",
         py_symbol_get_arguments,
         nullptr,
-        PyDoc_STR("The list of arguments."),
+        PyDoc_STR(R"(
+arguments(self: clingo.symbol.Symbol) -> Sequence[Symbol]
+
+The list of arguments.)"_d),
         nullptr,
     },
     PyGetSetDef{
         "arity",
         py_symbol_get_arity,
         nullptr,
-        PyDoc_STR("The arity of a function or tuple."),
+        PyDoc_STR(R"(
+arity(self: clingo.symbol.Symbol) -> int
+
+The arity of a function or tuple.)"_d),
         nullptr,
     },
     PyGetSetDef{
         "is_positive",
         py_symbol_get_is_positive,
         nullptr,
-        PyDoc_STR("Whether the symbol is positive."),
+        PyDoc_STR(R"(
+is_positive(self: clingo.symbol.Symbol) -> bool
+
+Whether the symbol is positive, e.g., `1` or `p`.)"_d),
         nullptr,
     },
     PyGetSetDef{
         "is_negative",
         py_symbol_get_is_negative,
         nullptr,
-        PyDoc_STR("Whether the symbol is negative."),
+        PyDoc_STR(R"(
+is_negative(self: clingo.symbol.Symbol) -> bool
+
+Whether the symbol is negative, e.g., `-1` or `-p`.)"_d),
         nullptr,
     },
     PyGetSetDef{
@@ -1001,31 +1065,82 @@ auto symbol_module_methods = std::array{
         "Number",
         py_number,
         METH_VARARGS,
-        PyDoc_STR("Construct a numeric symbol given a number."),
+        PyDoc_STR(R"(
+Number(lib: clingo.core.Library, number: int) -> clingo.symbol.Symbol
+
+Construct a numeric symbol given a number.
+
+Args:
+    lib: A library object to store the number in.
+    number: The given number.
+)"_d),
     },
     PyMethodDef{
         "String",
         py_string,
         METH_VARARGS,
-        PyDoc_STR("Construct a string symbol given a string."),
+        PyDoc_STR(R"(
+String(lib: clingo.core.Library, string: str) -> clingo.symbol.Symbol
+
+Construct a string symbol given a string.
+
+Args:
+    lib: A library object to store the string in.
+    string: The given string.
+)"_d),
     },
     PyMethodDef{
         "Tuple_",
         py_tuple,
         METH_VARARGS,
-        PyDoc_STR("Construct a tuple symbol."),
+        PyDoc_STR(R"(
+Tuple_(lib: clingo.core.Library, arguments: Sequence[clingo.symbol.Symbol]) -> clingo.symbol.Symbol
+
+Construct a tuple symbol.
+
+This is a shortcut for `Function(lib, "", arguments)`.
+
+Args:
+    lib: A library object to store the tuple in.
+    arguments: The arguments in form of a list of symbols.
+)"_d),
     },
     PyMethodDef{
         "Function",
         reinterpret_cast<PyCFunction>(py_function), // NOLINT
         METH_VARARGS | METH_KEYWORDS,
-        PyDoc_STR("Construct a function symbol."),
+        PyDoc_STR(R"(
+Function(lib: clingo.core.Library, name: str, arguments: Sequence[clingo.symbol.Symbol] = [], is_positive: bool = True) -> clingo.symbol.Symbol
+
+Construct a function symbol.
+
+This includes constants and tuples. Constants have an empty argument list and
+tuples have an empty name. Functions can represent classically negated atoms.
+Argument `clingo.symbol.Symbol.is_positive` has to be set to `False` to
+represent such atoms.
+
+Args:
+    lib: A library object to store the function in.
+    name: The name of the function.
+    arguments: The arguments in the form of a list of symbols.
+    is_positive: Whether the function is positive.
+)"_d),
     },
     PyMethodDef{
         "parse_term",
         py_parse_term,
         METH_VARARGS,
-        PyDoc_STR("Parse the given string using clingo's term parser for ground terms."),
+        PyDoc_STR(R"(
+parse_term(lib: clingo.core.Library, string: str) -> clingo.symbol.Symbol
+
+Parse the given string using clingo's term parser for ground terms.
+
+The function also evaluates arithmetic functions.
+
+Args:
+    lib: A library object to store parsed symbols in.
+    string: The string to be parsed.
+)"_d),
     },
     PyMethodDef{
         nullptr,
@@ -1054,7 +1169,7 @@ void symbol_module_free(void *module) {
 // NOLINTNEXTLINE
 PyModuleDef symbol_def = {
     PyModuleDef_HEAD_INIT,
-    "symbol",
+    "clingo.symbol",
     PyDoc_STR(R"(
 Functions and classes for symbol manipulation.
 
@@ -1092,94 +1207,6 @@ p(3)
 } // namespace
 
 void register_symbol(pybind11::module &m) {
-    /*
-        .def("match", &Symbol::match_function, py::arg("name"), py::arg("arity") = 0, py::arg("is_positive") = true,
-             R"(
-Check if this is a function symbol with the given signature.
-
-Args:
-    name: The name of the function.
-    arity: The arity of the function.
-    is_positive: Whether to match positive or negative signatures.
-
-Returns:
-    Whether the function matches.
-)"_d)
-        .def("match", &Symbol::match_tuple, py::arg("arity") = 0, R"(
-Check if this is a tuple symbol with the given arity.
-
-Args:
-    arity: The arity of the function.
-
-Returns:
-    Whether the tuple matches.
-)"_d)
-        .def_property_readonly("signature", &Symbol::signature, R"(
-Get the signature of function symbols.
-
-The Boolean in the signature is True if the associated symbol is positive.
-)"_d)
-        .def_property_readonly("type", &Symbol::type, R"(The type of the symbol.)")
-        .def_property_readonly("number", &Symbol::number, R"(The numeric value.)")
-        .def_property_readonly("string", &Symbol::string, R"(The string value.)")
-        .def_property_readonly("name", &Symbol::name, R"(The name.)")
-        .def_property_readonly("arguments", &Symbol::args, R"(The list of arguments.)")
-        .def_property_readonly("arity", &Symbol::arity, R"(The arity of a function or tuple.)")
-        .def_property_readonly("is_positive", &Symbol::is_positive,
-                               R"(Whether the symbol is positive, e.g., `1` or `p`.)")
-        .def_property_readonly("is_negative", &Symbol::is_negative,
-                               R"(Whether the symbol is negative, e.g, `-1` or `-p`.)");
-
-    symbol.add_object("Infimum", py::cast(Infimum()));
-    symbol.add_object("Supremum", py::cast(Supremum()));
-    symbol.def("Number", &Number, py::arg("lib"), py::arg("number"), R"(
-Construct a numeric symbol given a number.
-
-Args:
-    lib: A library object to store the number in.
-    number: The given number.
-)"_d);
-    symbol.def("String", &String, py::arg("lib"), py::arg("string"), R"(
-Construct a string symbol given a string.
-
-Args:
-    lib: A library object to store the string in.
-    string: The given string.
-)"_d);
-    symbol.def("Tuple_", &Tuple, py::arg("lib"), py::arg("arguments"), R"(
-Construct a tuple symbol.
-
-This is a shortcut for `Function(lib, "", arguments)`.
-
-Args:
-    lib: A library object to store the tuple in.
-    arguments: The arguments in form of a list of symbols.
-)"_d);
-    symbol.def("Function", &Function, py::arg("lib"), py::arg("name"), py::arg("arguments") = std::span<Symbol>{},
-               py::arg("is_positive") = true, R"(
-Construct a function symbol.
-
-This includes constants and tuples. Constants have an empty argument list and
-tuples have an empty name. Functions can represent classically negated atoms.
-Argument `clingo.symbol.Symbol.is_positive` has to be set to `False` to
-represent such atoms.
-
-Args:
-    lib: A library object to store the function in.
-    name: The name of the function.
-    arguments: The arguments in the form of a list of symbols.
-    is_positive: Whether the function is positive.
-)"_d);
-    symbol.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), R"(
-Parse the given string using clingo's term parser for ground terms.
-
-The function also evaluates arithmetic functions.
-
-Args:
-    lib: A library object to store parsed symbols in.
-    string: The string to be parsed.
-)"_d);
-    */
     auto symbol = Guard<PyObject *, Py_DECREF>(PyModule_Create(&symbol_def));
     if (symbol == nullptr) {
         throw py::error_already_set();
