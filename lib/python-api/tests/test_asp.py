@@ -34,7 +34,8 @@ class TestASP:
         ctl.ground()
         ctl.solve(on_model=mcb)
         assert mcb.symbols == opt["solutions"]
-        mcb, ctl, lib = None, None, None
+        mcb, ctl = None, None
+        lib = None
 
     @pytest.mark.parametrize("file", FILES)
     def test_file(self, file):
