@@ -8,16 +8,267 @@
 
 namespace PyClingo {
 
+static constexpr int decimal_base = 10;
+
+Symbol::Symbol(clingo_symbol_t sym, bool acquire) noexcept : sym_{sym} {
+    if (acquire) {
+        clingo_symbol_acquire(sym_);
+    }
+}
+
+Symbol::Symbol(Symbol const &other) noexcept : sym_{other.sym_} {
+    clingo_symbol_acquire(sym_);
+}
+
+Symbol::Symbol(Symbol &&other) noexcept : sym_{other.sym_} {
+    clingo_symbol_acquire(sym_);
+}
+
+auto Symbol::operator=(Symbol const &other) noexcept -> Symbol & {
+    clingo_symbol_acquire(other.sym_);
+    clingo_symbol_release(sym_);
+    sym_ = other.sym_;
+    return *this;
+}
+
+auto Symbol::operator=(Symbol &&other) noexcept -> Symbol & {
+    clingo_symbol_acquire(other.sym_);
+    clingo_symbol_release(sym_);
+    sym_ = other.sym_;
+    return *this;
+}
+
+Symbol::~Symbol() noexcept {
+    clingo_symbol_release(sym_);
+}
+
+auto Symbol::type() const -> clingo_symbol_type_e {
+    return static_cast<clingo_symbol_type_e>(clingo_symbol_type(sym_));
+}
+
+auto Symbol::number() const -> py::int_ {
+    if (type() != clingo_symbol_type_number) {
+        throw std::invalid_argument("symbol is not a number");
+    }
+    int32_t num = 0;
+    if (clingo_symbol_number(sym_, &num)) {
+        return num;
+    }
+    clingo_clear_error();
+    return py::reinterpret_steal<py::int_>(PyLong_FromString(std::string{str()}.c_str(), nullptr, decimal_base));
+}
+
+auto Symbol::string() const -> py::str {
+    auto t = type();
+    if (t != clingo_symbol_type_string) {
+        throw std::invalid_argument("symbol is not a string");
+    }
+    clingo_string_t name;
+    handle_error(clingo_symbol_string(sym_, &name));
+    return {name.data, name.size};
+}
+
+auto Symbol::name() const -> std::string_view {
+    auto t = type();
+    if (t != clingo_symbol_type_function) {
+        throw std::invalid_argument("symbol is not a function");
+    }
+    clingo_string_t name;
+    handle_error(clingo_symbol_name(sym_, &name));
+    return {name.data, name.size};
+}
+
+auto Symbol::arity() const -> size_t {
+    auto t = type();
+    if (t != clingo_symbol_type_tuple && t != clingo_symbol_type_function) {
+        throw std::invalid_argument("symbol is not a tuple or function");
+    }
+    clingo_symbol_t const *args = nullptr;
+    size_t size = 0;
+    handle_error(clingo_symbol_arguments(sym_, &args, &size));
+    return size;
+}
+
+auto Symbol::args() const -> TypeHint<"Sequence[Symbol]"> {
+    auto t = type();
+    if (t != clingo_symbol_type_tuple && t != clingo_symbol_type_function) {
+        throw std::invalid_argument("symbol is not a tuple or function");
+    }
+    clingo_symbol_t const *args = nullptr;
+    size_t size = 0;
+    handle_error(clingo_symbol_arguments(sym_, &args, &size));
+    py::list ret;
+    for (size_t i = 0; i < size; ++i) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        ret.append(Symbol{args[i], true});
+    }
+    return ret;
+}
+
+auto Symbol::str() const -> std::string_view {
+    auto *bld = string_builder();
+    handle_error(clingo_symbol_to_string(sym_, bld));
+    clingo_string_t str;
+    handle_error(clingo_string_builder_string(bld, &str));
+    return {str.data, str.size};
+}
+
+auto Symbol::repr() const -> std::string {
+    std::ostringstream oss;
+    switch (type()) {
+        case clingo_symbol_type_infimum: {
+            return "Infimum";
+        }
+        case clingo_symbol_type_supremum: {
+            return "Supremum";
+        }
+        case clingo_symbol_type_number: {
+            oss << "Number(" << number() << ")";
+            break;
+        }
+        case clingo_symbol_type_string: {
+            // NOTE: clingo representation is compatible with python
+            oss << str();
+            break;
+        }
+        case clingo_symbol_type_tuple: {
+            oss << "Tuple(" << args() << ")";
+            break;
+        }
+        case clingo_symbol_type_function: {
+            oss << "Function(" << name() << ", " << args() << ", " << (is_positive() ? "True" : "False") << ")";
+            break;
+        }
+    }
+    return oss.str();
+}
+
+auto Symbol::is_positive() const -> bool {
+    auto t = type();
+    if (t != clingo_symbol_type_number && t != clingo_symbol_type_function) {
+        throw std::invalid_argument("symbol is not a number or function");
+    }
+    bool is_positive = false;
+    handle_error(clingo_symbol_is_positive(sym_, &is_positive));
+    return is_positive;
+}
+
+auto Symbol::is_negative() const -> bool {
+    return !is_positive();
+}
+
+auto Symbol::match_function(std::string_view name, size_t arity, bool is_positive) const -> bool {
+
+    return type() == clingo_symbol_type_function && this->name() == name && arity == this->arity() &&
+           is_positive == this->is_positive();
+}
+
+auto Symbol::signature() const -> std::optional<std::tuple<std::string_view, size_t, bool>> {
+    return type() == clingo_symbol_type_function
+               ? std::make_optional<std::tuple<std::string_view, size_t, bool>>(name(), arity(), is_positive())
+               : std::nullopt;
+}
+
+auto Symbol::match_tuple(size_t arity) const -> bool {
+    return type() == clingo_symbol_type_tuple && arity == this->arity();
+}
+
+auto Symbol::hash() const -> size_t {
+    return clingo_symbol_hash(sym_);
+}
+
+auto Symbol::handle() const -> clingo_symbol_t {
+    return sym_;
+}
+
+auto operator==(Symbol const &a, Symbol const &b) -> bool {
+    return clingo_symbol_equal(a.sym_, b.sym_);
+}
+
+auto operator<=>(Symbol const &a, Symbol const &b) -> std::strong_ordering {
+    return clingo_symbol_compare(a.sym_, b.sym_) <=> 0;
+}
+
+auto Infimum() -> Symbol {
+    return Symbol{clingo_symbol_create_infimum(), false};
+}
+
+auto Supremum() -> Symbol {
+    return Symbol{clingo_symbol_create_supremum(), false};
+}
+
+auto Number(Library &lib, py::int_ num) -> Symbol {
+    int overflow = 0;
+    auto val = PyLong_AsLongAndOverflow(num.ptr(), &overflow);
+    if (PyErr_Occurred() != nullptr) {
+        throw py::error_already_set();
+    }
+    if (overflow == 0 && std::numeric_limits<int32_t>::min() <= val && val <= std::numeric_limits<int32_t>::max()) {
+        return Symbol{clingo_symbol_create_number(static_cast<int32_t>(val)), false};
+    }
+    auto sym = clingo_symbol_t{0};
+    auto str = static_cast<std::string>(py::str(num));
+    handle_error(clingo_symbol_create_number_str(lib, str.c_str(), str.size(), &sym));
+    return Symbol{sym, false};
+    /*
+    try {
+        auto val = num.cast<int32_t>();
+        return Symbol{clingo_symbol_create_number(val)};
+    } catch (py::cast_error const &) {
+        auto sym = clingo_symbol_t{0};
+        auto str = static_cast<std::string>(py::str(num));
+        handle_error(clingo_symbol_create_number_str(lib, str.c_str(), &sym));
+        return Symbol{sym};
+    }
+    */
+}
+
+auto String(Library &lib, std::string const &str) -> Symbol {
+    clingo_symbol_t sym = 0;
+    handle_error(clingo_symbol_create_string(lib, str.data(), str.size(), &sym));
+    return Symbol{sym, false};
+}
+
+auto Tuple(Library &lib, std::span<Symbol> const &args) -> Symbol {
+    clingo_symbol_t sym = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
+    handle_error(clingo_symbol_create_tuple(lib, syms, args.size(), &sym));
+    return Symbol{sym, false};
+}
+
+auto Function(Library &lib, std::string const &name, std::span<Symbol> const &args, bool positive) -> Symbol {
+    clingo_symbol_t sym = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
+    handle_error(clingo_symbol_create_function(lib, name.data(), name.size(), syms, args.size(), positive, &sym));
+    return Symbol{sym, false};
+}
+
+auto parse_term(Library &lib, std::string str) -> Symbol {
+    clingo_symbol_t sym = 0;
+    handle_error(clingo_parse_term(lib, str.data(), str.size(), &sym));
+    return Symbol{sym, false};
+}
+
 namespace {
 
-constexpr int decimal_base = 10;
+constexpr size_t symbol_type_count = 6;
+constexpr const char *symbol_type_cache_name = "_symbol_type_cache";
+constexpr const char *symbol_type_capsule_name = "clingo.symbol._SymbolTypeCache";
 
 using PySymbolObject = struct {
     PyObject_HEAD clingo_symbol_t sym;
 };
 
 // NOLINTNEXTLINE
-static PyTypeObject *g_symbol2_type = nullptr;
+PyTypeObject *g_symbol_type = nullptr;
+
+struct SymbolTypeCache {
+    std::array<py::object, symbol_type_count> vals;
+};
+
+SymbolTypeCache *g_symbol_type_cache = nullptr;
 
 // ---------- helpers ----------
 
@@ -64,7 +315,7 @@ auto py_symbol_from_clingo(clingo_symbol_t sym, bool acquire) -> PyObject * {
     if (acquire) {
         clingo_symbol_acquire(sym);
     }
-    auto *obj = PyObject_New(PySymbolObject, g_symbol2_type);
+    auto *obj = PyObject_New(PySymbolObject, g_symbol_type);
     if (obj == nullptr) {
         if (acquire) {
             clingo_symbol_release(sym);
@@ -121,7 +372,7 @@ auto symbol_args_list(clingo_symbol_t sym) -> PyObject * {
 }
 
 auto require_symbol(PyObject *obj, PySymbolObject **out) -> int {
-    if (!PyObject_TypeCheck(obj, g_symbol2_type)) {
+    if (!PyObject_TypeCheck(obj, g_symbol_type)) {
         PyErr_SetString(PyExc_TypeError, "expected Symbol2");
         return 0;
     }
@@ -143,8 +394,9 @@ auto py_symbol_str(PyObject *self) -> PyObject * {
         clingo_string_builder_free(bld);
         return nullptr;
     }
+    auto *res = PyUnicode_FromStringAndSize(str.data, static_cast<Py_ssize_t>(str.size));
     clingo_string_builder_free(bld);
-    return PyUnicode_FromStringAndSize(str.data, static_cast<Py_ssize_t>(str.size));
+    return res;
 }
 
 auto py_symbol_repr(PyObject *self) -> PyObject * {
@@ -160,8 +412,8 @@ auto py_symbol_repr(PyObject *self) -> PyObject * {
             PyObject *res = nullptr;
             if (str != nullptr) {
                 res = PyUnicode_FromFormat("Number(%U)", str);
+                Py_DECREF(str);
             }
-            Py_DECREF(str);
             return res;
         }
         case clingo_symbol_type_string: {
@@ -342,9 +594,22 @@ auto py_symbol_get_signature(PyObject *self, [[maybe_unused]] void *closure) -> 
                          pos ? Py_True : Py_False);
 }
 
+void cache_destructor(PyObject *capsule) {
+    auto *cache = static_cast<SymbolTypeCache *>(PyCapsule_GetPointer(capsule, symbol_type_capsule_name));
+    delete cache;
+}
+
 auto py_symbol_get_type(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
-    auto *s = py_symbol_from_self(self);
-    return PyLong_FromLong(static_cast<long>(symbol_type(s->sym)));
+    auto idx = static_cast<size_t>(symbol_type(py_symbol_from_self(self)->sym));
+    assert(g_symbol_type_cache != nullptr && idx < g_symbol_type_cache->vals.size());
+    // NOLINTNEXTLINE
+    auto *obj = g_symbol_type_cache->vals[idx].ptr();
+    if (obj == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "symbol type cache missing");
+        return nullptr;
+    }
+    Py_INCREF(obj);
+    return obj;
 }
 
 auto py_symbol_get_number(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
@@ -705,12 +970,22 @@ auto symbol_module_methods = std::array{
 };
 
 auto register_symbol2(py::module_ &symbol) -> void {
-    PyObject *type_obj = PyType_FromSpec(&py_symbol_spec);
+    auto cache = std::make_unique<SymbolTypeCache>();
+    size_t i = 0;
+    for (auto &obj : cache->vals) {
+        obj = py::cast(static_cast<clingo_symbol_type_e>(i));
+        ++i;
+    }
+    g_symbol_type_cache = cache.get();
+    symbol.attr(symbol_type_cache_name) = py::capsule(cache.release(), symbol_type_capsule_name, cache_destructor);
+
+    PyObject *type_obj = PyType_FromModuleAndSpec(symbol.ptr(), &py_symbol_spec, nullptr);
     if (type_obj == nullptr) {
         throw py::error_already_set();
     }
+
     // NOLINTNEXTLINE
-    g_symbol2_type = reinterpret_cast<PyTypeObject *>(type_obj);
+    g_symbol_type = reinterpret_cast<PyTypeObject *>(type_obj);
 
 #if PY_VERSION_HEX >= 0x030A0000
     if (PyModule_AddObjectRef(symbol.ptr(), "Symbol2", type_obj) < 0) {
@@ -765,247 +1040,6 @@ auto register_symbol2(py::module_ &symbol) -> void {
 }
 
 } // namespace
-
-Symbol::Symbol(clingo_symbol_t sym, bool acquire) noexcept : sym_{sym} {
-    if (acquire) {
-        clingo_symbol_acquire(sym_);
-    }
-}
-
-Symbol::Symbol(Symbol const &other) noexcept : sym_{other.sym_} {
-    clingo_symbol_acquire(sym_);
-}
-
-Symbol::Symbol(Symbol &&other) noexcept : sym_{other.sym_} {
-    clingo_symbol_acquire(sym_);
-}
-
-auto Symbol::operator=(Symbol const &other) noexcept -> Symbol & {
-    clingo_symbol_acquire(other.sym_);
-    clingo_symbol_release(sym_);
-    sym_ = other.sym_;
-    return *this;
-}
-
-auto Symbol::operator=(Symbol &&other) noexcept -> Symbol & {
-    clingo_symbol_acquire(other.sym_);
-    clingo_symbol_release(sym_);
-    sym_ = other.sym_;
-    return *this;
-}
-
-Symbol::~Symbol() noexcept {
-    clingo_symbol_release(sym_);
-}
-
-auto Symbol::type() const -> clingo_symbol_type_e {
-    return static_cast<clingo_symbol_type_e>(clingo_symbol_type(sym_));
-}
-
-auto Symbol::number() const -> py::int_ {
-    if (type() != clingo_symbol_type_number) {
-        throw std::invalid_argument("symbol is not a number");
-    }
-    int32_t num = 0;
-    if (clingo_symbol_number(sym_, &num)) {
-        return num;
-    }
-    clingo_clear_error();
-    return py::reinterpret_steal<py::int_>(PyLong_FromString(std::string{str()}.c_str(), nullptr, decimal_base));
-}
-
-auto Symbol::string() const -> py::str {
-    auto t = type();
-    if (t != clingo_symbol_type_string) {
-        throw std::invalid_argument("symbol is not a string");
-    }
-    clingo_string_t name;
-    handle_error(clingo_symbol_string(sym_, &name));
-    return {name.data, name.size};
-}
-
-auto Symbol::name() const -> std::string_view {
-    auto t = type();
-    if (t != clingo_symbol_type_function) {
-        throw std::invalid_argument("symbol is not a function");
-    }
-    clingo_string_t name;
-    handle_error(clingo_symbol_name(sym_, &name));
-    return {name.data, name.size};
-}
-
-auto Symbol::arity() const -> size_t {
-    auto t = type();
-    if (t != clingo_symbol_type_tuple && t != clingo_symbol_type_function) {
-        throw std::invalid_argument("symbol is not a tuple or function");
-    }
-    clingo_symbol_t const *args = nullptr;
-    size_t size = 0;
-    handle_error(clingo_symbol_arguments(sym_, &args, &size));
-    return size;
-}
-
-auto Symbol::args() const -> TypeHint<"Sequence[Symbol]"> {
-    auto t = type();
-    if (t != clingo_symbol_type_tuple && t != clingo_symbol_type_function) {
-        throw std::invalid_argument("symbol is not a tuple or function");
-    }
-    clingo_symbol_t const *args = nullptr;
-    size_t size = 0;
-    handle_error(clingo_symbol_arguments(sym_, &args, &size));
-    py::list ret;
-    for (size_t i = 0; i < size; ++i) {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        ret.append(Symbol{args[i], true});
-    }
-    return ret;
-}
-
-auto Symbol::str() const -> std::string_view {
-    auto *bld = string_builder();
-    handle_error(clingo_symbol_to_string(sym_, bld));
-    clingo_string_t str;
-    handle_error(clingo_string_builder_string(bld, &str));
-    return {str.data, str.size};
-}
-
-auto Symbol::repr() const -> std::string {
-    std::ostringstream oss;
-    switch (type()) {
-        case clingo_symbol_type_infimum: {
-            return "Infimum";
-        }
-        case clingo_symbol_type_supremum: {
-            return "Supremum";
-        }
-        case clingo_symbol_type_number: {
-            oss << "Number(" << number() << ")";
-            break;
-        }
-        case clingo_symbol_type_string: {
-            // NOTE: clingo representation is compatible with python
-            oss << str();
-            break;
-        }
-        case clingo_symbol_type_tuple: {
-            oss << "Tuple(" << args() << ")";
-            break;
-        }
-        case clingo_symbol_type_function: {
-            oss << "Function(" << name() << ", " << args() << ", " << (is_positive() ? "True" : "False") << ")";
-            break;
-        }
-    }
-    return oss.str();
-}
-
-auto Symbol::is_positive() const -> bool {
-    auto t = type();
-    if (t != clingo_symbol_type_number && t != clingo_symbol_type_function) {
-        throw std::invalid_argument("symbol is not a number or function");
-    }
-    bool is_positive = false;
-    handle_error(clingo_symbol_is_positive(sym_, &is_positive));
-    return is_positive;
-}
-
-auto Symbol::is_negative() const -> bool {
-    return !is_positive();
-}
-
-auto Symbol::match_function(std::string_view name, size_t arity, bool is_positive) const -> bool {
-
-    return type() == clingo_symbol_type_function && this->name() == name && arity == this->arity() &&
-           is_positive == this->is_positive();
-}
-
-auto Symbol::signature() const -> std::optional<std::tuple<std::string_view, size_t, bool>> {
-    return type() == clingo_symbol_type_function
-               ? std::make_optional<std::tuple<std::string_view, size_t, bool>>(name(), arity(), is_positive())
-               : std::nullopt;
-}
-
-auto Symbol::match_tuple(size_t arity) const -> bool {
-    return type() == clingo_symbol_type_tuple && arity == this->arity();
-}
-
-auto Symbol::hash() const -> size_t {
-    return clingo_symbol_hash(sym_);
-}
-
-auto Symbol::handle() const -> clingo_symbol_t {
-    return sym_;
-}
-
-auto operator==(Symbol const &a, Symbol const &b) -> bool {
-    return clingo_symbol_equal(a.sym_, b.sym_);
-}
-
-auto operator<=>(Symbol const &a, Symbol const &b) -> std::strong_ordering {
-    return clingo_symbol_compare(a.sym_, b.sym_) <=> 0;
-}
-
-auto Infimum() -> Symbol {
-    return Symbol{clingo_symbol_create_infimum(), false};
-}
-
-auto Supremum() -> Symbol {
-    return Symbol{clingo_symbol_create_supremum(), false};
-}
-
-auto Number(Library &lib, py::int_ num) -> Symbol {
-    int overflow = 0;
-    auto val = PyLong_AsLongAndOverflow(num.ptr(), &overflow);
-    if (PyErr_Occurred() != nullptr) {
-        throw py::error_already_set();
-    }
-    if (overflow == 0 && std::numeric_limits<int32_t>::min() <= val && val <= std::numeric_limits<int32_t>::max()) {
-        return Symbol{clingo_symbol_create_number(static_cast<int32_t>(val)), false};
-    }
-    auto sym = clingo_symbol_t{0};
-    auto str = static_cast<std::string>(py::str(num));
-    handle_error(clingo_symbol_create_number_str(lib, str.c_str(), str.size(), &sym));
-    return Symbol{sym, false};
-    /*
-    try {
-        auto val = num.cast<int32_t>();
-        return Symbol{clingo_symbol_create_number(val)};
-    } catch (py::cast_error const &) {
-        auto sym = clingo_symbol_t{0};
-        auto str = static_cast<std::string>(py::str(num));
-        handle_error(clingo_symbol_create_number_str(lib, str.c_str(), &sym));
-        return Symbol{sym};
-    }
-    */
-}
-
-auto String(Library &lib, std::string const &str) -> Symbol {
-    clingo_symbol_t sym = 0;
-    handle_error(clingo_symbol_create_string(lib, str.data(), str.size(), &sym));
-    return Symbol{sym, false};
-}
-
-auto Tuple(Library &lib, std::span<Symbol> const &args) -> Symbol {
-    clingo_symbol_t sym = 0;
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
-    handle_error(clingo_symbol_create_tuple(lib, syms, args.size(), &sym));
-    return Symbol{sym, false};
-}
-
-auto Function(Library &lib, std::string const &name, std::span<Symbol> const &args, bool positive) -> Symbol {
-    clingo_symbol_t sym = 0;
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
-    handle_error(clingo_symbol_create_function(lib, name.data(), name.size(), syms, args.size(), positive, &sym));
-    return Symbol{sym, false};
-}
-
-auto parse_term(Library &lib, std::string str) -> Symbol {
-    clingo_symbol_t sym = 0;
-    handle_error(clingo_parse_term(lib, str.data(), str.size(), &sym));
-    return Symbol{sym, false};
-}
 
 void register_symbol(pybind11::module &m) {
     auto symbol = m.def_submodule("symbol", R"(
