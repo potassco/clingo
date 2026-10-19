@@ -1,4 +1,5 @@
 #define WITH_DOC_STRING
+#define PY_SSIZE_T_CLEAN
 
 #include "symbol.hh"
 
