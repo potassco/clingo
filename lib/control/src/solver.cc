@@ -799,6 +799,7 @@ class BackendHandleImpl : public BackendHandle {
 
     auto do_add_atom(Symbol atom) -> prg_lit_t override {
         if (auto sig = atom.signature(); sig && grd_ != nullptr) {
+            auto lock = GCLock{store()};
             auto &base = grd_->base().add_base(*sig);
             auto ret = base.add(atom, Ground::StateAtom::derived,
                                 [this]() { return static_cast<size_t>(backend_->next_lit()); })
