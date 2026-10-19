@@ -51,6 +51,43 @@ class Symbol {
     clingo_symbol_t sym_;
 };
 
+class Symbol2 {
+  public:
+    explicit Symbol2() noexcept = default;
+    explicit Symbol2(clingo_symbol_t sym, bool acquire) noexcept : sym_{sym} {
+        if (acquire) {
+            clingo_symbol_acquire(sym_);
+        }
+    }
+    Symbol2(Symbol2 const &other) noexcept : sym_{other.sym_} { clingo_symbol_acquire(sym_); }
+    Symbol2(Symbol2 &&other) noexcept : sym_{std::exchange(other.sym_, 0)} {}
+    auto operator=(Symbol2 const &other) noexcept -> Symbol2 & {
+        if (sym_ != other.sym_) {
+            clingo_symbol_acquire(other.sym_);
+            clingo_symbol_release(sym_);
+            sym_ = other.sym_;
+        }
+        return *this;
+    }
+    auto operator=(Symbol2 &&other) noexcept -> Symbol2 & {
+        if (sym_ != other.sym_) {
+            clingo_symbol_release(sym_);
+            sym_ = std::exchange(other.sym_, 0);
+        }
+        return *this;
+    }
+    ~Symbol2() noexcept {
+        if (sym_ != 0) {
+            clingo_symbol_release(sym_);
+        }
+    }
+
+    [[nodiscard]] auto handle() const -> clingo_symbol_t { return sym_; }
+
+  private:
+    clingo_symbol_t sym_ = 0;
+};
+
 using SymbolVec = std::vector<Symbol>;
 using SymbolSpan = std::span<Symbol const>;
 
@@ -75,3 +112,15 @@ inline auto c_cast(Symbol *sym) {
 }
 
 } // namespace PyClingo
+
+namespace pybind11::detail {
+
+template <> struct type_caster<PyClingo::Symbol2> {
+  public:
+    PYBIND11_TYPE_CASTER(PyClingo::Symbol2, _("Symbol2"));
+
+    auto load(handle src, bool noclue) -> bool;
+    static auto cast(PyClingo::Symbol2 const &src, return_value_policy policy, handle parent) -> handle;
+};
+
+} // namespace pybind11::detail

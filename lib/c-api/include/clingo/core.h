@@ -268,6 +268,13 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_copy(clingo_string_builder_
 //! @param[in] bld the builder
 CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_free(clingo_string_builder_t const *bld);
 
+//! Append the given string to the content of the builder.
+//!
+//! @param[in] bld the builder
+//! @param[in] str the string to append
+//! @param[in] n the size of the string to append
+CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_append(clingo_string_builder_t *bld, char const *str, size_t n);
+
 //! Get the (zero-terminated) string in the builder.
 //!
 //! @param[in] bld the builder
