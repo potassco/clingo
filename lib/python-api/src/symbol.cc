@@ -1077,7 +1077,7 @@ auto symbol_module_methods = std::array{
         py_number,
         METH_VARARGS,
         PyDoc_STR(R"(
-Number(lib: clingo.core.Library, number: int) -> clingo.symbol.Symbol
+Number(lib: clingo.core.Library, number: int, /) -> clingo.symbol.Symbol
 
 Construct a numeric symbol given a number.
 
@@ -1091,7 +1091,7 @@ Args:
         py_string,
         METH_VARARGS,
         PyDoc_STR(R"(
-String(lib: clingo.core.Library, string: str) -> clingo.symbol.Symbol
+String(lib: clingo.core.Library, string: str, /) -> clingo.symbol.Symbol
 
 Construct a string symbol given a string.
 
@@ -1105,7 +1105,7 @@ Args:
         py_tuple,
         METH_VARARGS,
         PyDoc_STR(R"(
-Tuple_(lib: clingo.core.Library, arguments: Sequence[clingo.symbol.Symbol]) -> clingo.symbol.Symbol
+Tuple_(lib: clingo.core.Library, arguments: Sequence[clingo.symbol.Symbol], /) -> clingo.symbol.Symbol
 
 Construct a tuple symbol.
 
@@ -1142,7 +1142,7 @@ Args:
         py_parse_term,
         METH_VARARGS,
         PyDoc_STR(R"(
-parse_term(lib: clingo.core.Library, string: str) -> clingo.symbol.Symbol
+parse_term(lib: clingo.core.Library, string: str, /) -> clingo.symbol.Symbol
 
 Parse the given string using clingo's term parser for ground terms.
 
