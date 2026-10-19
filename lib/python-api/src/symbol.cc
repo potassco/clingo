@@ -199,6 +199,7 @@ auto cache_symbol_type_values(SymbolModuleState *state, PyObject *symbol_type_en
             return false;
         }
         val = value.release();
+        ++i;
     }
     return true;
 }
@@ -206,6 +207,9 @@ auto cache_symbol_type_values(SymbolModuleState *state, PyObject *symbol_type_en
 auto py_symbol_from_clingo(clingo_symbol_t sym, PyTypeObject *symbol_type, bool acquire) -> PyObject * {
     auto *obj = PyObject_New(PySymbolObject, symbol_type);
     if (obj == nullptr) {
+        if (!acquire) {
+            clingo_symbol_release(sym);
+        }
         return nullptr;
     }
     if (acquire) {
@@ -266,7 +270,9 @@ auto check_symbol(PyObject *obj, PyTypeObject *symbol_type) -> PySymbolObject * 
 void py_symbol_dealloc(PyObject *self) {
     auto *s = cast_symbol(self);
     clingo_symbol_release(s->sym);
-    Py_TYPE(self)->tp_free(self);
+    auto *type = Py_TYPE(self);
+    type->tp_free(self);
+    Py_DECREF(type);
 }
 
 auto py_symbol_str(PyObject *self) -> PyObject * {
@@ -429,27 +435,25 @@ auto py_symbol_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
     auto *sa = cast_symbol(a);
     auto *sb = cast_symbol(b);
 
-    bool eq = clingo_symbol_equal(sa->sym, sb->sym);
-    int cmp = clingo_symbol_compare(sa->sym, sb->sym);
     bool res = false;
     switch (op) {
         case Py_EQ:
-            res = eq;
+            res = clingo_symbol_equal(sa->sym, sb->sym);
             break;
         case Py_NE:
-            res = !eq;
+            res = !clingo_symbol_equal(sa->sym, sb->sym);
             break;
         case Py_LT:
-            res = cmp < 0;
+            res = clingo_symbol_compare(sa->sym, sb->sym) < 0;
             break;
         case Py_LE:
-            res = cmp <= 0;
+            res = clingo_symbol_compare(sa->sym, sb->sym) <= 0;
             break;
         case Py_GT:
-            res = cmp > 0;
+            res = clingo_symbol_compare(sa->sym, sb->sym) > 0;
             break;
         case Py_GE:
-            res = cmp >= 0;
+            res = clingo_symbol_compare(sa->sym, sb->sym) >= 0;
             break;
         default:
             Py_RETURN_NOTIMPLEMENTED;
@@ -1062,7 +1066,8 @@ objects.
 
 // NOLINTNEXTLINE
 auto py_symbol_spec = PyType_Spec{
-    "clingo.symbol.Symbol", sizeof(PySymbolObject), 0, Py_TPFLAGS_DEFAULT, py_symbol_slots.data(),
+    "clingo.symbol.Symbol", sizeof(PySymbolObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    py_symbol_slots.data(),
 };
 
 // NOLINTNEXTLINE

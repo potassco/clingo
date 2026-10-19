@@ -118,27 +118,26 @@ auto Model::control() -> SolveControl {
 
 auto Model::str() -> std::string {
     auto symbol_callback = [](clingo_symbol_t const *symbols, size_t size, void *data) -> bool {
-        auto [bld, res] = *static_cast<std::pair<clingo_string_builder_t *, std::string *> *>(data);
-        bool comma = false;
-        for (auto const &sym : std::span{symbols, size}) {
-            if (comma) {
-                res->append(", ");
-            }
-            clingo_string_builder_clear(bld);
-            if (!clingo_symbol_to_string(sym, bld)) {
-                return false;
-            }
-            clingo_string_t str;
-            if (!clingo_string_builder_string(bld, &str)) {
-                return false;
-            }
-            CLINGO_TRY {
+        CLINGO_TRY {
+            auto [bld, res] = *static_cast<std::pair<clingo_string_builder_t *, std::string *> *>(data);
+            bool comma = false;
+            for (auto const &sym : std::span{symbols, size}) {
+                if (comma) {
+                    res->append(", ");
+                }
+                clingo_string_builder_clear(bld);
+                if (!clingo_symbol_to_string(sym, bld)) {
+                    return false;
+                }
+                clingo_string_t str;
+                if (!clingo_string_builder_string(bld, &str)) {
+                    return false;
+                }
                 res->append(str.data, str.size);
+                comma = true;
             }
-            CLINGO_CATCH;
-            comma = true;
         }
-        return true;
+        CLINGO_CATCH;
     };
     auto res = std::string{};
     auto data = std::pair{string_builder(), &res};
