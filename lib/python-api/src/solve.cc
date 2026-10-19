@@ -13,15 +13,6 @@ namespace PyClingo {
 
 namespace {
 
-auto symbol_callback(clingo_symbol_t const *symbols, size_t size, void *data) -> bool {
-    auto *res = static_cast<SymbolVec *>(data);
-    CLINGO_TRY {
-        // NOLINTNEXTLINE
-        res->assign(cpp_cast(symbols), cpp_cast(symbols) + size);
-    }
-    CLINGO_CATCH;
-}
-
 class ModelIterator {
   public:
     using iterator_category = std::forward_iterator_tag;
@@ -84,8 +75,7 @@ auto SolveControl::add_nogood(MixedLitSpan const &lits) {
     handle_error(clingo_solve_control_add_clause(ctl_, x.data(), x.size()));
 }
 
-auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVec {
-    auto res = SymbolVec{};
+auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> Sequence<Symbol> {
     clingo_show_type_bitset_t show = 0;
     if (shown) {
         show |= clingo_show_type_shown;
@@ -99,6 +89,16 @@ auto Model::symbols(bool shown, bool atoms, bool terms, bool theory) -> SymbolVe
     if (theory) {
         show |= clingo_show_type_theory;
     }
+    auto symbol_callback = [](clingo_symbol_t const *symbols, size_t size, void *data) -> bool {
+        CLINGO_TRY {
+            auto *res = static_cast<py::list *>(data);
+            for (auto const &sym : std::span{symbols, size}) {
+                res->append(*cpp_cast(&sym));
+            }
+        }
+        CLINGO_CATCH;
+    };
+    py::list res;
     handle_error(clingo_model_symbols(mdl_, show, symbol_callback, &res));
     return res;
 }
@@ -117,15 +117,34 @@ auto Model::control() -> SolveControl {
 }
 
 auto Model::str() -> std::string {
+    auto symbol_callback = [](clingo_symbol_t const *symbols, size_t size, void *data) -> bool {
+        auto [bld, res] = *static_cast<std::pair<clingo_string_builder_t *, std::string *> *>(data);
+        bool comma = false;
+        for (auto const &sym : std::span{symbols, size}) {
+            if (comma) {
+                res->append(", ");
+            }
+            clingo_string_builder_clear(bld);
+            if (!clingo_symbol_to_string(sym, bld)) {
+                return false;
+            }
+            clingo_string_t str;
+            if (!clingo_string_builder_string(bld, &str)) {
+                return false;
+            }
+            CLINGO_TRY {
+                res->append(str.data, str.size);
+            }
+            CLINGO_CATCH;
+            comma = true;
+        }
+        return true;
+    };
     auto res = std::string{};
-    auto comma = false;
-    for (auto const &sym : symbols(true, false, false, false)) {
-        res += comma ? ", " : "";
-        res += sym.str();
-        comma = true;
-    }
+    auto data = std::pair{string_builder(), &res};
+    handle_error(clingo_model_symbols(mdl_, clingo_show_type_shown, symbol_callback, &data));
     return res;
-};
+}
 
 auto Model::type() -> clingo_model_type_e {
     clingo_model_type_t type = 0;
