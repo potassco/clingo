@@ -47,6 +47,11 @@ struct SymbolModuleState {
     std::array<PyObject *, symbol_type_count> vals{};
 };
 
+template <size_t N> auto cast_kw(std::array<char const *, N> const &kwlist) -> char ** {
+    // NOLINTNEXTLINE
+    return const_cast<char **>(kwlist.data());
+}
+
 auto get_symbol_module_state(PyObject *module) -> SymbolModuleState * {
     auto *state = static_cast<SymbolModuleState *>(PyModule_GetState(module));
     if (state == nullptr) {
@@ -462,7 +467,7 @@ auto py_symbol_match(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObje
     Py_ssize_t arity = 0;
     int is_positive = 1;
 
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#|np:match", kwlist.data(), &name, &name_len, &arity,
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#|np:match", cast_kw(kwlist), &name, &name_len, &arity,
                                     &is_positive) != 0) {
         auto *s = cast_symbol(self);
         if (symbol_type(s->sym) != clingo_symbol_type_function) {
@@ -489,7 +494,7 @@ auto py_symbol_match(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObje
     {
         static constexpr auto kwlist = std::array<char const *, 2>{"arity", nullptr};
         arity = 0;
-        if (PyArg_ParseTupleAndKeywords(args, kwargs, "|n:match", kwlist.data(), &arity) == 0) {
+        if (PyArg_ParseTupleAndKeywords(args, kwargs, "|n:match", cast_kw(kwlist), &arity) == 0) {
             return nullptr;
         }
         auto *s = cast_symbol(self);
@@ -804,7 +809,7 @@ auto py_function([[maybe_unused]] PyObject *module, PyObject *args, PyObject *kw
     PyObject *args_obj = nullptr;
     int is_positive = 1;
 
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "Os#|Op:Function", kwlist.data(), &lib_obj, &name, &name_len,
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "Os#|Op:Function", cast_kw(kwlist), &lib_obj, &name, &name_len,
                                     &args_obj, &is_positive) == 0) {
         return nullptr;
     }
