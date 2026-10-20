@@ -248,7 +248,7 @@ auto symbol_args_list(clingo_symbol_t sym, PyTypeObject *symbol_type) -> PyObjec
 
 auto cast_library(PyObject *obj) -> Library * {
     try {
-        return py::cast<Library *>(py::reinterpret_borrow<py::object>(obj));
+        return &py::cast<Library &>(py::reinterpret_borrow<py::object>(obj));
     } catch (py::cast_error const &) {
         PyErr_SetString(PyExc_TypeError, "lib must be a Library");
         return nullptr;
