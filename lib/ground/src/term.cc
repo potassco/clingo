@@ -129,9 +129,6 @@ auto TermSymbol::do_rename([[maybe_unused]] SymbolStore &store, [[maybe_unused]]
     if (name != nullptr && sym_->type() == SymbolType::function) {
         return std::make_unique<TermSymbol>(store.fun_ref(*name, sym_->args(), sym_->has_classical_sign()));
     }
-    if (mode == RenameMode::rename_vars && vars != nullptr) {
-        return std::make_unique<TermVariable>((*vars)++);
-    }
     return std::make_unique<TermSymbol>(*sym_);
 }
 
