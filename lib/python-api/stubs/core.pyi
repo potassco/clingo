@@ -85,6 +85,7 @@ class Library:
         self,
         shared: bool = True,
         slotted: bool = True,
+        fast_release: bool = False,
         log_level: LogLevel = LogLevel.Info,
         logger: collections.abc.Callable[[MessageType, str], None] | None = None,
         message_limit: int = 25,
@@ -98,6 +99,8 @@ class Library:
             shared: Indicates whether symbols should be created in a thread-safe
                 manner. Setting this to false might improve performance in
                 single-threaded applications.
+            fast_release: Release stored symbols without checking for references. Leads
+                to crashes if symbols are still referenced. Use with care.
             log_level: The log level.
             logger: A logger to emit/intercept messages.
             message_limit: The maximum number of messages to emit.

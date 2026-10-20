@@ -133,43 +133,55 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
         delete lib;
         return;
     }
+
     static std::mutex gc_mut;
     static auto *lst = static_cast<clingo_lib_t *>(nullptr);
-    if (lib != nullptr) {
-        // reset logger and scripts in case they are holding symbols
-        // the store might be kept alive if it is still holding symbols
-        lib->log = CppClingo::Logger{};
-        lib->scripts = CppClingo::Control::Scripts{};
-        auto res = lib->store->gc();
-        if (get<0>(res) > 0 || get<1>(res) > 0) {
-            auto lck = std::unique_lock(gc_mut);
-            lib->next_ = lst;
-            lst = lib;
-        } else {
-            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-            delete lib;
-        }
+
+    auto *pending = static_cast<clingo_lib_t *>(nullptr);
+    {
+        auto lck = std::unique_lock(gc_mut);
+        pending = std::exchange(lst, nullptr);
     }
-    // Note that running the gc for the lib object two times is intended.
-    // The current implementation needs two passes to free all symbols.
-    auto lck = std::unique_lock(gc_mut);
-    auto *cur = std::exchange(lst, nullptr);
-    while (cur != nullptr) {
-        auto *nxt = cur->next_;
-        auto res = cur->store->gc();
+
+    auto *survivors = static_cast<clingo_lib_t *>(nullptr);
+    auto collect_or_keep = [&](clingo_lib_t *item) {
+        auto res = item->store->gc(true);
         if (get<0>(res) > 0 || get<1>(res) > 0) {
-            cur->next_ = lst;
-            lst = cur;
+            item->next_ = survivors;
+            survivors = item;
         } else {
             // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-            delete cur;
+            delete item;
         }
-        cur = nxt;
+    };
+
+    // reset logger and scripts in case they are holding symbols
+    // the store might be kept alive if it is still holding symbols
+    lib->log = CppClingo::Logger{};
+    lib->scripts = CppClingo::Control::Scripts{};
+    collect_or_keep(lib);
+
+    while (pending != nullptr) {
+        auto *nxt = pending->next_;
+        collect_or_keep(pending);
+        pending = nxt;
+    }
+
+    if (survivors != nullptr) {
+        auto lck = std::unique_lock(gc_mut);
+        auto **tail = &lst;
+        while (*tail != nullptr) {
+            tail = &(*tail)->next_;
+        }
+        *tail = survivors;
     }
 #ifdef CLINGO_DEBUG
-    if (lst != nullptr) {
-        fprintf(stderr, "warning: not all symbols have been freed before the library was deleted\n");
-        fflush(stderr);
+    {
+        auto lck = std::unique_lock(gc_mut);
+        if (lst != nullptr) {
+            fprintf(stderr, "warning: not all symbols have been freed before the library was deleted\n");
+            fflush(stderr);
+        }
     }
 #endif
 }

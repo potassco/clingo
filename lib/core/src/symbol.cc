@@ -90,17 +90,40 @@ class SlottedAlloc {
         Node *node = nullptr;
         size_t use_count = 0;
     };
+    struct SmallBlock {
+        SmallBlock *prev;
+        SmallBlock *next;
+    };
+    struct LargeNode {
+        LargeNode *prev;
+        LargeNode *next;
+        Sized sized;
+    };
 
     static constexpr size_t ptr_size = sizeof(Node *);
     static constexpr size_t max_slot = 256;
     static constexpr size_t max_alloc = 4096;
+    static constexpr size_t page_size = 4096;
 
     SlottedAlloc() = default;
     SlottedAlloc(SlottedAlloc &&) = delete;
     auto operator=(SlottedAlloc &&) -> SlottedAlloc & = delete;
-    ~SlottedAlloc() noexcept {
+    ~SlottedAlloc() noexcept { release(); }
+
+    void release() noexcept {
         for (auto &head : free_list_) {
-            free_head_(head);
+            head.node = nullptr;
+            head.use_count = 0;
+        }
+        while (small_head_ != nullptr) {
+            auto *next = small_head_->next;
+            ::operator delete[](small_head_);
+            small_head_ = next;
+        }
+        while (large_head_ != nullptr) {
+            auto *next = large_head_->next;
+            ::operator delete[](large_head_);
+            large_head_ = next;
         }
     }
 
@@ -114,8 +137,23 @@ class SlottedAlloc {
             if (node == nullptr) {
                 // use limited exponential growth scheme for allocation
                 size_t m = (head.use_count < max_alloc ? head.use_count + 1 : max_alloc) * k;
+                auto total = sizeof(SmallBlock) + m;
+                // fill up to a multiple of page_size to avoid fragmentation
+                if (auto rem = total % page_size; rem != 0) {
+                    m += page_size - rem;
+                }
+                // subtract unusable bytes at the end that are too small to
+                // hold a further node
+                m -= m % k;
                 static_assert(alignof(Node *) <= alignof(uint64_t));
-                node = reinterpret_cast<Node *>(::operator new[](m));
+                auto *block = reinterpret_cast<SmallBlock *>(::operator new[](sizeof(SmallBlock) + m));
+                block->prev = nullptr;
+                block->next = small_head_;
+                if (small_head_ != nullptr) {
+                    small_head_->prev = block;
+                }
+                small_head_ = block;
+                node = reinterpret_cast<Node *>(block + 1);
                 // tag the beginning of the memory block
                 new (node) Node{m, 1, nullptr};
             }
@@ -130,7 +168,15 @@ class SlottedAlloc {
             mem = reinterpret_cast<Sized *>(old) + 1;
             ++head.use_count;
         } else {
-            mem = SimpleAlloc::alloc(n);
+            auto *node = reinterpret_cast<LargeNode *>(::operator new[](sizeof(LargeNode) + n));
+            node->prev = nullptr;
+            node->next = large_head_;
+            node->sized = Sized{n, 1};
+            if (large_head_ != nullptr) {
+                large_head_->prev = node;
+            }
+            large_head_ = node;
+            mem = &node->sized + 1;
         }
         return mem;
     }
@@ -151,7 +197,18 @@ class SlottedAlloc {
                     free_head_(head);
                 }
             } else {
-                SimpleAlloc::dealloc(mem);
+                auto *sized = reinterpret_cast<Sized *>(mem) - 1;
+                auto *node =
+                    reinterpret_cast<LargeNode *>(reinterpret_cast<char *>(sized) - offsetof(LargeNode, sized));
+                if (node->prev != nullptr) {
+                    node->prev->next = node->next;
+                } else {
+                    large_head_ = node->next;
+                }
+                if (node->next != nullptr) {
+                    node->next->prev = node->prev;
+                }
+                ::operator delete[](node);
             }
         }
     }
@@ -170,10 +227,11 @@ class SlottedAlloc {
         return l + sizeof(Sized);
     }
 
-    static void free_head_(Head &head) {
+    void free_head_(Head &head) {
         Node *node = head.node;
         head.node = nullptr;
-        // filter allocated nodes
+        head.use_count = 0;
+        // filter allocated block starts
         Node *begin = nullptr;
         while (node != nullptr) {
             auto *next = node->next;
@@ -183,29 +241,57 @@ class SlottedAlloc {
             }
             node = next;
         }
-        // delete allocated nodes
+        // delete allocated blocks
         while (begin != nullptr) {
             auto *next = begin->next;
-            ::operator delete[](begin);
+            auto *block = reinterpret_cast<SmallBlock *>(reinterpret_cast<char *>(begin) - sizeof(SmallBlock));
+            if (block->prev != nullptr) {
+                block->prev->next = block->next;
+            } else {
+                small_head_ = block->next;
+            }
+            if (block->next != nullptr) {
+                block->next->prev = block->prev;
+            }
+            ::operator delete[](block);
             begin = next;
         }
     }
 
     std::array<Head, max_slot> free_list_;
+    SmallBlock *small_head_ = nullptr;
+    LargeNode *large_head_ = nullptr;
 };
 
-constexpr auto dec_bit = static_cast<size_t>(1) << (8 * sizeof(size_t) - 1);
-constexpr auto mark_bit = static_cast<size_t>(1) << (8 * sizeof(size_t) - 2);
+constexpr auto dec_bit = static_cast<size_t>(1) << ((8 * sizeof(size_t)) - 1);
+constexpr auto mark_bit = static_cast<size_t>(1) << ((8 * sizeof(size_t)) - 2);
+
+[[maybe_unused]] auto held_ref(std::atomic_size_t const &ref) noexcept -> bool {
+    return (ref.load(std::memory_order::relaxed) & ~(dec_bit | mark_bit)) != 0;
+}
+
+auto free_ref(std::atomic_size_t const &ref) noexcept -> bool {
+    auto val = ref.load(std::memory_order::relaxed);
+    return (val & ~(dec_bit | mark_bit)) == 0 && (val & dec_bit) == 0;
+}
+
+void clear_ref(std::atomic_size_t &ref) noexcept {
+    ref.fetch_and(~dec_bit, std::memory_order::relaxed);
+}
 
 void inc_ref(std::atomic_size_t &ref) noexcept {
     ref.fetch_add(1, std::memory_order::relaxed);
 }
 void dec_ref(std::atomic_size_t &ref) noexcept {
-    assert((ref.load(std::memory_order::relaxed) & ~(dec_bit | mark_bit)) > 0);
+    assert(held_ref(ref));
     ref.fetch_or(dec_bit, std::memory_order::relaxed);
     ref.fetch_sub(1, std::memory_order::relaxed);
 }
+
 auto mark_ref(std::atomic_size_t &ref, bool only_if_referenced = false) noexcept -> bool {
+    // This function also considers a symbol as referenced if its dec bit is
+    // set. This is important because it might have been the owner of another
+    // symbol that another thread has taken ownership of unnoticed.
     auto val = ref.load(std::memory_order::relaxed);
     if ((val & mark_bit) == 0 && (!only_if_referenced || val != 0)) {
         ref.fetch_or(mark_bit, std::memory_order::relaxed);
@@ -214,7 +300,7 @@ auto mark_ref(std::atomic_size_t &ref, bool only_if_referenced = false) noexcept
     return false;
 }
 auto unmark_ref(std::atomic_size_t &ref) noexcept -> bool {
-    return (ref.fetch_and(~(dec_bit | mark_bit), std::memory_order::relaxed) & mark_bit) != 0;
+    return (ref.fetch_and(~mark_bit, std::memory_order::relaxed) & mark_bit) != 0;
 }
 
 //! Helper to manage the reference count of a symbol.
@@ -394,8 +480,14 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 
     void clear() {
         numbers_ = NumberSet{};
-        clear_(strings_);
-        clear_(tuples_);
+        if constexpr (requires { alloc_.release(); }) {
+            strings_ = StringSet{};
+            tuples_ = TupleSet{};
+            alloc_.release();
+        } else {
+            clear_(strings_);
+            clear_(tuples_);
+        }
     }
 
     void do_gc_block([[maybe_unused]] bool block) noexcept override {}
@@ -404,10 +496,45 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 
     void do_gc_del_owner(SymbolOwner const &owner) noexcept override { owners_.erase(&owner); }
 
-    auto do_gc() -> std::tuple<size_t, size_t, size_t> override {
+    static constexpr auto tuple_ref = [](auto const &key) -> std::atomic_size_t & {
+        return SymbolArray::from_repr(KeySymbolArray::to_repr(key)).ref_count();
+    };
+    static constexpr auto string_ref = [](auto const &key) -> std::atomic_size_t & {
+        return CharArray::from_repr(KeyCharArray::to_repr(key)).ref_count();
+    };
+    static constexpr auto number_ref = [](auto const &key) -> std::atomic_size_t & {
+        return bigint_refcount(Number::to_repr(key));
+    };
+
+    void clear_dec_() {
+        auto clear = [](auto const &set, auto &&ref_fn) -> bool {
+            for (auto const &key : set) {
+                clear_ref(ref_fn(key));
+            }
+            return false;
+        };
+        clear(tuples_, tuple_ref) || clear(strings_, string_ref) || clear(numbers_, number_ref);
+    }
+
+    [[nodiscard]] auto held_() const -> bool {
+        auto check = [](auto const &set, auto &&ref_fn) -> bool {
+            return std::ranges::any_of(set, [&ref_fn](auto const &key) { return !free_ref(ref_fn(key)); });
+        };
+        return check(tuples_, tuple_ref) || check(strings_, string_ref) || check(numbers_, number_ref);
+    }
+
+    auto do_gc(bool shutdown) -> std::tuple<size_t, size_t, size_t> override {
 #ifdef DEBUG_GC
         printf("performing gc\n");
 #endif
+        // clear decremented bits
+        clear_dec_();
+        // try to avoid mark and sweep on shutdown
+        if (shutdown && owners_.empty() && !held_()) {
+            auto collected = tuples_.size() + strings_.size() + numbers_.size();
+            clear();
+            return {0, 0, collected};
+        }
         SymbolCollector collector;
         // mark referenced tuples
         for (auto const &key : tuples_) {
@@ -574,11 +701,11 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
         store_.gc_del_owner(owner);
     }
 
-    auto do_gc() -> std::tuple<size_t, size_t, size_t> override {
+    auto do_gc(bool shutdown) -> std::tuple<size_t, size_t, size_t> override {
         std::unique_lock ulock{mutex_};
         cv_.wait(ulock, [this] { return blocked_ == 0; });
         std::atomic_thread_fence(std::memory_order::seq_cst);
-        return store_.gc();
+        return store_.gc(shutdown);
     }
 
     ~SharedSymbolStore() noexcept override {

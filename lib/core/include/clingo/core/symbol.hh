@@ -530,9 +530,12 @@ class SymbolStore {
     void gc_del_owner(SymbolOwner const &owner) noexcept { do_gc_del_owner(owner); }
     //! Cleanup symbols.
     //!
+    //! If parameter shutdown is set, the collector tries to bulk delete
+    //! symbols.
+    //!
     //! Returns the number of symbols owners, the number of symbols with
     //! reference count greater 0, and the number of symbols collected.
-    auto gc() -> std::tuple<size_t, size_t, size_t> { return do_gc(); }
+    auto gc(bool shutdown) -> std::tuple<size_t, size_t, size_t> { return do_gc(shutdown); }
 
   private:
     [[nodiscard]] virtual auto do_tup(SymbolSpan args, bool referenced) -> Symbol = 0;
@@ -543,7 +546,7 @@ class SymbolStore {
     virtual void do_gc_block(bool block) noexcept = 0;
     virtual void do_gc_add_owner(SymbolOwner const &owner) = 0;
     virtual void do_gc_del_owner(SymbolOwner const &owner) noexcept = 0;
-    virtual auto do_gc() -> std::tuple<size_t, size_t, size_t> = 0;
+    virtual auto do_gc(bool shutdown) -> std::tuple<size_t, size_t, size_t> = 0;
 };
 
 //! A pointer to a symbol store.

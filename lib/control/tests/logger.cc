@@ -60,10 +60,8 @@ TEST_CASE("logger_test") {
         REQUIRE(ground("p(a). #minimize { X: p(X) }.") == V{"<string>:1:19-20: info: number expected (a)"});
         REQUIRE(ground("p(a). #minimize { 1@X: p(X) }.") == V{"<string>:1:21-22: info: number expected (a)"});
     }
-    // Note: the current implementation takes two iterations to clean up everything
-    auto res = store->gc();
-    REQUIRE(std::get<0>(res) == 0); // no owners
-    res = store->gc();
+    // test fast cleanup here
+    auto res = store->gc(true);
     REQUIRE(std::get<0>(res) == 0); // no owners
     REQUIRE(std::get<1>(res) == 0); // no symbols
 }

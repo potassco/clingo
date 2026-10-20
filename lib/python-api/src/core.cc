@@ -95,14 +95,17 @@ auto string_builder() -> clingo_string_builder_t * {
     return builder.get();
 }
 
-Library::Library(bool shared, bool slotted, clingo_log_level_e level, Annotation<std::optional<Logger>> cb,
-                 size_t default_message_limit) {
+Library::Library(bool shared, bool slotted, bool fast_release, clingo_log_level_e level,
+                 Annotation<std::optional<Logger>> cb, size_t default_message_limit) {
     clingo_lib_flags_t flags = 0;
     if (shared) {
         flags |= clingo_lib_flags_shared;
     }
     if (slotted) {
         flags |= clingo_lib_flags_slotted;
+    }
+    if (fast_release) {
+        flags |= clingo_lib_flags_fast_release;
     }
     auto logger = cb.cast<std::optional<Logger>>();
     auto *ptr = logger ? cb.ptr() : nullptr;
@@ -331,9 +334,10 @@ Functions and classes that need to create symbols require an instance of this cl
 
 This class implements the `ContextManager` interface.
 )"_d)
-        .def(py::init<bool, bool, clingo_log_level_e, Annotation<std::optional<Logger>>, size_t>(),
+        .def(py::init<bool, bool, bool, clingo_log_level_e, Annotation<std::optional<Logger>>, size_t>(),
              "Create a library object.", py::arg("shared") = true, py::arg("slotted") = true,
-             py::arg("log_level") = clingo_log_level_info, py::arg("logger") = std::nullopt,
+             py::arg("fast_release") = false, py::arg("log_level") = clingo_log_level_info,
+             py::arg("logger") = std::nullopt,
              py::arg("message_limit") = default_message_limit, // NOLINT
              R"(
 Create a library object.
@@ -344,6 +348,8 @@ Args:
     shared: Indicates whether symbols should be created in a thread-safe
         manner. Setting this to false might improve performance in
         single-threaded applications.
+    fast_release: Release stored symbols without checking for references. Leads
+        to crashes if symbols are still referenced. Use with care.
     log_level: The log level.
     logger: A logger to emit/intercept messages.
     message_limit: The maximum number of messages to emit.
