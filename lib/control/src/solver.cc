@@ -624,7 +624,7 @@ class SolveEventHandlerAdapter : public Clasp::EventHandler {
 
     //! Report lower bounds.
     auto onUnsat([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
-        if (mdl.lower.active()) {
+        if (eh_ && mdl.lower.active()) {
             auto lower = mdl.lowerBound();
             bound_.assign(std::begin(lower), std::end(lower));
             auto guard = std::scoped_lock{*lock_};
@@ -1346,12 +1346,12 @@ void Solver::join_includes(BuiltinIncludes includes) {
     includes_ |= includes;
 }
 
-void Solver::parse_with(std::function<BuiltinIncludes(ProgramBackend *, TheoryBackend *)> cb) {
+void Solver::parse_with(std::function<BuiltinIncludes(ProgramBackend *, TheoryBackend *)> const &cb) {
     if (opts_.mode == AppMode::solve) {
         auto bck = AspifBackend{*this};
-        includes_ |= std::invoke(std::move(cb), &bck, &bck);
+        includes_ |= std::invoke(cb, &bck, &bck);
     } else {
-        includes_ |= std::invoke(std::move(cb), nullptr, nullptr);
+        includes_ |= std::invoke(cb, nullptr, nullptr);
     }
 }
 
