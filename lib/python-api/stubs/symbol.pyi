@@ -65,7 +65,7 @@ def Function(
         is_positive: Whether the function is positive.
     """
 
-def Number(lib: clingo.core.Library, number: int) -> Symbol:
+def Number(lib: clingo.core.Library, number: int, /) -> Symbol:
     """
     Construct a numeric symbol given a number.
 
@@ -74,7 +74,7 @@ def Number(lib: clingo.core.Library, number: int) -> Symbol:
         number: The given number.
     """
 
-def String(lib: clingo.core.Library, string: str) -> Symbol:
+def String(lib: clingo.core.Library, string: str, /) -> Symbol:
     """
     Construct a string symbol given a string.
 
@@ -83,7 +83,7 @@ def String(lib: clingo.core.Library, string: str) -> Symbol:
         string: The given string.
     """
 
-def Tuple_(lib: clingo.core.Library, arguments: typing.Sequence[Symbol]) -> Symbol:
+def Tuple_(lib: clingo.core.Library, arguments: typing.Sequence[Symbol], /) -> Symbol:
     """
     Construct a tuple symbol.
 
@@ -94,7 +94,7 @@ def Tuple_(lib: clingo.core.Library, arguments: typing.Sequence[Symbol]) -> Symb
         arguments: The arguments in form of a list of symbols.
     """
 
-def parse_term(lib: clingo.core.Library, string: str) -> Symbol:
+def parse_term(lib: clingo.core.Library, string: str, /) -> Symbol:
     """
     Parse the given string using clingo's term parser for ground terms.
 
@@ -138,19 +138,51 @@ class Symbol:
     objects.
     """
 
-    def __eq__(self, arg0: typing.Any) -> bool: ...
-    def __ge__(self, arg0: typing.Any) -> bool: ...
-    def __gt__(self, arg0: typing.Any) -> bool: ...
-    def __hash__(self) -> int:
+    def __eq__(self, value):
         """
-        Compute a hash for the object.
+        Return self==value.
         """
 
-    def __le__(self, arg0: typing.Any) -> bool: ...
-    def __lt__(self, arg0: typing.Any) -> bool: ...
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __str__(self) -> str: ...
+    def __ge__(self, value):
+        """
+        Return self>=value.
+        """
+
+    def __gt__(self, value):
+        """
+        Return self>value.
+        """
+
+    def __hash__(self):
+        """
+        Return hash(self).
+        """
+
+    def __le__(self, value):
+        """
+        Return self<=value.
+        """
+
+    def __lt__(self, value):
+        """
+        Return self<value.
+        """
+
+    def __ne__(self, value):
+        """
+        Return self!=value.
+        """
+
+    def __repr__(self):
+        """
+        Return repr(self).
+        """
+
+    def __str__(self):
+        """
+        Return str(self).
+        """
+
     @typing.overload
     def match(self, name: str, arity: int = 0, is_positive: bool = True) -> bool:
         """
@@ -192,7 +224,7 @@ class Symbol:
     @property
     def is_negative(self) -> bool:
         """
-        Whether the symbol is negative, e.g, `-1` or `-p`.
+        Whether the symbol is negative, e.g., `-1` or `-p`.
         """
 
     @property

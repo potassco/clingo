@@ -200,6 +200,13 @@ extern "C" auto clingo_string_builder_copy(clingo_string_builder_t const *src, c
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_string_builder_append(clingo_string_builder_t *bld, char const *str, size_t n) -> bool {
+    CLINGO_TRY {
+        *cpp_cast(bld) << std::string_view{str, n};
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" void clingo_string_builder_free(clingo_string_builder_t const *bld) {
     // NOLINTNEXTLINE
     delete cpp_cast(bld);
