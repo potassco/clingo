@@ -9,7 +9,19 @@ namespace PyClingo {
 
 namespace {
 
-constexpr size_t symbol_type_count = 6;
+using IntEnumMember = std::tuple<char const *, int, char const *>;
+
+constexpr auto symbol_type_members = std::array<IntEnumMember, 6>{
+    IntEnumMember{"Number", static_cast<int>(clingo_symbol_type_number), "A numeric symbol, e.g., `1`."},
+    IntEnumMember{"Infimum", static_cast<int>(clingo_symbol_type_infimum), "The `#inf` symbol."},
+    IntEnumMember{"Supremum", static_cast<int>(clingo_symbol_type_supremum), "The `#sup` symbol."},
+    IntEnumMember{"String", static_cast<int>(clingo_symbol_type_string), "A string symbol, e.g., `\"a\"`."},
+    IntEnumMember{"Tuple", static_cast<int>(clingo_symbol_type_tuple), "A tuple symbol `(1,a)`."},
+    IntEnumMember{"Function", static_cast<int>(clingo_symbol_type_function),
+                  "A function symbol, e.g., `c`, `-c`, or `f(1,\"a\")`."},
+};
+
+constexpr size_t symbol_type_count = symbol_type_members.size();
 
 template <class T, auto Destroy> class Guard {
   public:
@@ -119,8 +131,8 @@ auto throw_error() -> std::nullptr_t {
     return nullptr;
 }
 
-auto set_enum_value_doc(PyObject *enum_type, clingo_symbol_type_e value, const char *doc) -> bool {
-    auto member = Guard<PyObject *, Py_DECREF>(PyObject_CallFunction(enum_type, "i", static_cast<int>(value)));
+auto set_enum_value_doc(PyObject *enum_type, int value, const char *doc) -> bool {
+    auto member = Guard<PyObject *, Py_DECREF>(PyObject_CallFunction(enum_type, "i", value));
     if (member == nullptr) {
         return false;
     }
@@ -133,7 +145,8 @@ auto set_enum_value_doc(PyObject *enum_type, clingo_symbol_type_e value, const c
     return PyObject_SetAttrString(member.get(), "__doc__", doc_obj.get()) == 0;
 }
 
-auto create_symbol_type_enum() -> PyObject * {
+auto create_int_enum(const char *module_name, const char *enum_name, std::span<IntEnumMember const> members,
+                     std::span<PyObject *> cache, const char *enum_doc) -> PyObject * {
     auto enum_mod = Guard<PyObject *, Py_DECREF>(PyImport_ImportModule("enum"));
     if (enum_mod == nullptr) {
         return nullptr;
@@ -144,64 +157,68 @@ auto create_symbol_type_enum() -> PyObject * {
         return nullptr;
     }
 
-    auto name = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString("SymbolType"));
+    auto name = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(enum_name));
     if (name == nullptr) {
         return nullptr;
     }
 
-    auto members = Guard<PyObject *, Py_DECREF>(Py_BuildValue(
-        "{s:i,s:i,s:i,s:i,s:i,s:i}", "Number", static_cast<int>(clingo_symbol_type_number), "Infimum",
-        static_cast<int>(clingo_symbol_type_infimum), "Supremum", static_cast<int>(clingo_symbol_type_supremum),
-        "String", static_cast<int>(clingo_symbol_type_string), "Tuple", static_cast<int>(clingo_symbol_type_tuple),
-        "Function", static_cast<int>(clingo_symbol_type_function)));
-    if (members == nullptr) {
+    auto members_dict = Guard<PyObject *, Py_DECREF>(PyDict_New());
+    if (members_dict == nullptr) {
         return nullptr;
     }
 
-    auto symbol_type =
-        Guard<PyObject *, Py_DECREF>(PyObject_CallFunctionObjArgs(int_enum.get(), name.get(), members.get(), nullptr));
-    if (symbol_type == nullptr) {
+    for (auto const &[member_name, member_value, member_doc] : members) {
+        if (member_doc == nullptr) {
+            PyErr_Format(PyExc_ValueError, "doc string for enum member '%s' is null", member_name);
+            return nullptr;
+        }
+        auto value = Guard<PyObject *, Py_DECREF>(PyLong_FromLong(member_value));
+        if (value == nullptr || PyDict_SetItemString(members_dict.get(), member_name, value.get()) < 0) {
+            return nullptr;
+        }
+    }
+
+    auto enum_obj = Guard<PyObject *, Py_DECREF>(
+        PyObject_CallFunctionObjArgs(int_enum.get(), name.get(), members_dict.get(), nullptr));
+    if (enum_obj == nullptr) {
         return nullptr;
     }
 
     // NOTE: markers for pybind11-stubgen
-    auto mod = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString("clingo.symbol"));
-    if (mod == nullptr || PyObject_SetAttrString(symbol_type, "__module__", mod) < 0) {
-        throw py::error_already_set();
+    auto mod = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(module_name));
+    if (mod == nullptr || PyObject_SetAttrString(enum_obj.get(), "__module__", mod.get()) < 0) {
+        return nullptr;
     }
-    if (PyObject_SetAttrString(symbol_type.get(), "__pybind11_native_enum__", Py_True) < 0) {
-        throw py::error_already_set();
-    }
-
-    auto cls_doc = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString("Enumeration of symbols types."));
-    if (cls_doc == nullptr || PyObject_SetAttrString(symbol_type.get(), "__doc__", cls_doc.get()) < 0) {
+    if (PyObject_SetAttrString(enum_obj.get(), "__pybind11_native_enum__", Py_True) < 0) {
         return nullptr;
     }
 
-    if (!set_enum_value_doc(symbol_type, clingo_symbol_type_number, "A numeric symbol, e.g., `1`.") ||
-        !set_enum_value_doc(symbol_type, clingo_symbol_type_infimum, "The `#inf` symbol.") ||
-        !set_enum_value_doc(symbol_type, clingo_symbol_type_supremum, "The `#sup` symbol.") ||
-        !set_enum_value_doc(symbol_type, clingo_symbol_type_string, "A string symbol, e.g., `\"a\"`.") ||
-        !set_enum_value_doc(symbol_type, clingo_symbol_type_tuple, "A tuple symbol `(1,a)`.") ||
-        !set_enum_value_doc(symbol_type, clingo_symbol_type_function,
-                            "A function symbol, e.g., `c`, `-c`, or `f(1,\"a\")`.")) {
+    auto cls_doc = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(enum_doc));
+    if (cls_doc == nullptr || PyObject_SetAttrString(enum_obj.get(), "__doc__", cls_doc.get()) < 0) {
         return nullptr;
     }
 
-    return symbol_type.release();
-}
+    if (!cache.empty()) {
+        for (auto const &[member_name, member_value, member_doc] : members) {
+            if (member_value < 0 || static_cast<size_t>(member_value) >= cache.size()) {
+                PyErr_Format(PyExc_RuntimeError, "enum value %d for '%s' is out of cache bounds", member_value,
+                             member_name);
+                return nullptr;
+            }
 
-auto cache_symbol_type_values(SymbolModuleState *state, PyObject *symbol_type_enum) -> bool {
-    int i = 0;
-    for (auto &val : state->vals) {
-        auto value = Guard<PyObject *, Py_DECREF>(PyObject_CallFunction(symbol_type_enum, "i", i));
-        if (value == nullptr) {
-            return false;
+            auto member = Guard<PyObject *, Py_DECREF>(PyObject_CallFunction(enum_obj.get(), "i", member_value));
+            if (member == nullptr || !set_enum_value_doc(enum_obj.get(), member_value, member_doc)) {
+                return nullptr;
+            }
+            auto idx = static_cast<size_t>(member_value);
+            // NOLINTNEXTLINE
+            assert(idx < cache.size() && cache[idx] == nullptr);
+            // NOLINTNEXTLINE
+            cache[idx] = member.release();
         }
-        val = value.release();
-        ++i;
     }
-    return true;
+
+    return enum_obj.release();
 }
 
 auto py_symbol_from_clingo(clingo_symbol_t sym, PyTypeObject *symbol_type, bool acquire) -> PyObject * {
@@ -1227,9 +1244,9 @@ void register_symbol(pybind11::module &m) {
         throw py::error_already_set();
     }
 
-    auto symbol_type_enum = Guard<PyObject *, Py_DECREF>(create_symbol_type_enum());
-    if (symbol_type_enum == nullptr || PyModule_AddObjectRef(symbol, "SymbolType", symbol_type_enum) < 0 ||
-        !cache_symbol_type_values(state, symbol_type_enum)) {
+    auto symbol_type_enum = Guard<PyObject *, Py_DECREF>(create_int_enum(
+        "clingo.symbol", "SymbolType", symbol_type_members, state->vals, PyDoc_STR("Enumeration of symbols types.")));
+    if (symbol_type_enum == nullptr || PyModule_AddObjectRef(symbol, "SymbolType", symbol_type_enum) < 0) {
         throw py::error_already_set();
     }
 
