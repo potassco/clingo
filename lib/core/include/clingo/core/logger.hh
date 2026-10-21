@@ -65,9 +65,9 @@ class Logger {
     //! Callback to report messages.
     using Printer = std::function<void(MessageCode, std::string_view)>;
     //! Construct a logger reporting messages to stderr.
-    Logger(size_t limit = default_message_limit) : Logger{nullptr, limit} {}
+    explicit Logger(size_t limit = default_message_limit) : Logger{nullptr, limit} {}
     //! Construct a logger reporting messages via the given callback.
-    Logger(Printer p, size_t limit = default_message_limit)
+    explicit Logger(Printer p, size_t limit = default_message_limit)
         : p_(std::move(p)), limit_{limit}, cur_limit_(limit), color_{p_ == nullptr && isatty(fileno(stderr)) == 1} {}
 
     //! Check if a message with the given code should be reported.
@@ -112,7 +112,10 @@ class Report {
         out_ << loc << ": " << log_.message_prefix(code) << ": ";
     }
     //! Destroy the reporter and output message.
-    ~Report() noexcept(false) { log_.print(code_, out_.view()); }
+    ~Report() noexcept(false) // NOLINT
+    {
+        log_.print(code_, out_.view());
+    }
     //! Get message sink.
     [[nodiscard]] auto out() -> std::ostringstream & { return out_; }
 

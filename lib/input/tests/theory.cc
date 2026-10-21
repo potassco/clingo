@@ -28,7 +28,7 @@ auto rewrite_statement(std::string const &str) -> std::string {
     ph.parser().add_theory(ph.logger(), thy);
 
     if (auto stm = ph.statement(str); stm) {
-        if (auto rev = rewrite_theory(ph, *stm); rev) {
+        if (auto rev = rewrite_theory(ph.ctx(), *stm); rev) {
             return to_str(*rev);
         }
         if (ph.parser().has_error()) {

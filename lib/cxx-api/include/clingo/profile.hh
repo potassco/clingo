@@ -15,9 +15,12 @@ namespace Clingo {
 //! @{
 
 //! Enumeration of the types of profiling data.
-enum class ProfileType : clingo_profile_type_t {
-    step = clingo_profile_type_step, //!< Indicate per step profiling data.
-    accu = clingo_profile_type_accu, //!< Indicate accumulated profiling data.
+enum class ProfileType : clingo_profile_type_t // NOLINT
+{
+    //! Indicate per step profiling data.
+    step = clingo_profile_type_step,
+    //! Indicate accumulated profiling data.
+    accu = clingo_profile_type_accu,
 };
 
 //! Class to hold profiling data for an expression in a logic program.
@@ -29,8 +32,8 @@ struct ProfileNodeLeaf {
     //! @param instances the number of instances of the expression
     //! @param time_instantiate the time spent instantiating the expression
     //! @param time_propagate the time spent propagating the expression
-    ProfileNodeLeaf(ProfileType type, uint64_t matches = 0, uint64_t instances = 0, uint64_t time_instantiate = 0,
-                    uint64_t time_propagate = 0)
+    explicit ProfileNodeLeaf(ProfileType type, uint64_t matches = 0, uint64_t instances = 0,
+                             uint64_t time_instantiate = 0, uint64_t time_propagate = 0)
         : type{type}, matches{matches}, instances{instances}, time_instantiate{time_instantiate},
           time_propagate{time_propagate} {}
 

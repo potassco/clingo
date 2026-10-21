@@ -99,27 +99,24 @@ auto check_term_sig(Term const &term) -> std::optional<std::tuple<bool, String, 
         return std::nullopt;
     };
     auto get_arity = [](Term const &x) -> std::optional<int> {
-        if (auto const *y = std::get_if<TermSymbol>(&x)) {
-            if (y->value().type() == SymbolType::number) {
-                return y->value().num().as_int();
-            }
+        if (auto const *y = std::get_if<TermSymbol>(&x); y && (y->value().type() == SymbolType::number)) {
+            return y->value().num().as_int();
         }
+
         return std::nullopt;
     };
     auto get_bin = [](Term const &x) -> TermBinary const * {
-        if (auto const *y = std::get_if<TermBinary>(&x)) {
-            if (y->op() == BinaryOperator::div) {
-                return y;
-            }
+        if (auto const *y = std::get_if<TermBinary>(&x); y && (y->op() == BinaryOperator::div)) {
+            return y;
         }
+
         return nullptr;
     };
     auto get_sign = [](Term const &x) -> Term const * {
-        if (auto const *y = std::get_if<TermUnary>(&x)) {
-            if (y->op() == UnaryOperator::minus) {
-                return &y->rhs().get();
-            }
+        if (auto const *y = std::get_if<TermUnary>(&x); y && (y->op() == UnaryOperator::minus)) {
+            return &y->rhs().get();
         }
+
         return nullptr;
     };
     if (auto const *bin = get_bin(term)) {

@@ -8,7 +8,7 @@ using MV = std::vector<std::vector<std::string>>;
 
 class MCB : public SolveEventHandler {
   public:
-    MCB(MV &models) : models_{&models} { models_->clear(); }
+    explicit MCB(MV &models) : models_{&models} { models_->clear(); }
 
     using SolveEventHandler::model;
 

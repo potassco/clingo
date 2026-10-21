@@ -164,7 +164,7 @@ class ResultAsTerm {
 //! Convert terms of form V and -V where V is a variable to linear terms.
 class VarToLinear {
   public:
-    VarToLinear(Term const &term) : term_{&term} {}
+    explicit VarToLinear(Term const &term) : term_{&term} {}
 
     //! Handle remaining term results.
     auto operator()(auto res) const -> TermResult { return res; }
@@ -242,7 +242,7 @@ auto result_as_tuple(ArgumentTuple const &tuple, TupleResultChanged args_tuple) 
 //! Simplify terms.
 class SimplifyTerm {
   public:
-    SimplifyTerm(RewriteContext &ctx) : ctx_{&ctx} {}
+    explicit SimplifyTerm(RewriteContext &ctx) : ctx_{&ctx} {}
 
     //! Helper to simplify the arguments of the tuple.
     //!
@@ -683,6 +683,7 @@ class SimplifyTerm {
         };
 
         if (term.op() == BinaryOperator::dots) {
+            // NOLINTNEXTLINE
             auto simplify = [&, this]<class L, class R>(L &&res_lhs, R &&res_rhs) -> TermResult {
                 // check arguments
                 if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
@@ -820,7 +821,7 @@ class MakeMatchableTerm {
     using Result = std::optional<Term>;
     using ResultTuple = std::optional<std::vector<Argument>>;
 
-    MakeMatchableTerm(RewriteContext &ctx) : ctx_{&ctx} {}
+    explicit MakeMatchableTerm(RewriteContext &ctx) : ctx_{&ctx} {}
 
     //! Make the arguments of the given tuple matchable.
     [[nodiscard]] auto handle_tuple(SimplifyTermFlags flags, ArgumentTuple const &tuple) const -> ResultTuple {
@@ -885,18 +886,23 @@ class MakeMatchableTerm {
     //! Make the given function term matchable.
     auto operator()(TermFunction const &term, SimplifyTermFlags flags) const -> Result {
         assert(term.pool().size() == 1);
-        return Util::transform(handle_tuple(flags, term.pool().front()), [&term]<class A>(A &&args) {
-            return term.update(a_pool = Util::make_immutable_array<ArgumentTuple>(std::forward<A>(args)));
-        });
+        return Util::transform(handle_tuple(flags, term.pool().front()),
+                               // NOLINTNEXTLINE
+                               [&term]<class A>(A &&args) {
+                                   return term.update(
+                                       a_pool = Util::make_immutable_array<ArgumentTuple>(std::forward<A>(args)));
+                               });
     }
 
     //! Make the given tuple term matchable.
     auto operator()(TermTuple const &term, SimplifyTermFlags flags) const -> Result {
         assert(term.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(term.pool().front()));
-        return Util::transform(handle_tuple(flags, std::get<ArgumentTuple>(term.pool().front())), [&term]<class A>(
-                                                                                                      A &&args) {
-            return term.update(a_pool = Util::make_immutable_array<TupleElement>(ArgumentTuple{std::forward<A>(args)}));
-        });
+        return Util::transform(handle_tuple(flags, std::get<ArgumentTuple>(term.pool().front())),
+                               // NOLINTNEXTLINE
+                               [&term]<class A>(A &&args) {
+                                   return term.update(a_pool = Util::make_immutable_array<TupleElement>(
+                                                          ArgumentTuple{std::forward<A>(args)}));
+                               });
     }
 
     //! Make the given absolute term matchable.
@@ -960,7 +966,7 @@ class MakeMatchableTerm {
 //! Does not return a value if the literal did not change.
 class SimplifyLiteral {
   public:
-    SimplifyLiteral(RewriteContext &ctx) : ctx_{&ctx} {}
+    explicit SimplifyLiteral(RewriteContext &ctx) : ctx_{&ctx} {}
 
     //! Simplify literals dispatching based on type stored in variant.
     auto operator()(Lit const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Lit> {
@@ -1249,9 +1255,11 @@ class SimplifyLiteral {
     if (guard.has_value()) {
         auto [state, res] =
             simplify(matchable ? SimplifyTermFlags::matchable : SimplifyTermFlags::none, ctx, guard->first);
-        return {state, Util::transform(std::move(res), [&guard]<class T>(T &&term) {
-                    return LGuard::value_type{std::forward<T>(term), guard->second};
-                })};
+        return {state, Util::transform(std::move(res),
+                                       // NOLINTNEXTLINE
+                                       [&guard]<class T>(T &&term) {
+                                           return LGuard::value_type{std::forward<T>(term), guard->second};
+                                       })};
     }
     return {true};
 }
@@ -1262,9 +1270,11 @@ class SimplifyLiteral {
     if (guard.has_value()) {
         auto [state, res] =
             simplify(matchable ? SimplifyTermFlags::matchable : SimplifyTermFlags::none, ctx, guard->second);
-        return {state, Util::transform(std::move(res), [&guard]<class T>(T &&term) {
-                    return RGuard::value_type{guard->first, std::forward<T>(term)};
-                })};
+        return {state, Util::transform(std::move(res),
+                                       // NOLINTNEXTLINE
+                                       [&guard]<class T>(T &&term) {
+                                           return RGuard::value_type{guard->first, std::forward<T>(term)};
+                                       })};
     }
     return {true};
 }
@@ -1532,16 +1542,19 @@ template <bool head>
         } else {
             sign = lit.sign();
         }
-        auto lhs = Term{TermSymbol{lit.loc(), std::visit(
-                                                  [&ctx]<class T>(T value) {
-                                                      if constexpr (std::is_same_v<T, Number>) {
-                                                          return ctx.store().num_ref(std::move(value));
-                                                      }
-                                                      if constexpr (std::is_same_v<T, Symbol>) {
-                                                          return value;
-                                                      }
-                                                  },
-                                                  std::move(value))}};
+        auto lhs = Term{TermSymbol{
+            lit.loc(),
+            std::visit(
+                [&ctx]<class T>(T value) {
+                    if constexpr (std::is_same_v<T, Number>) {
+                        return ctx.store().num_ref(std::move(value));
+                    }
+                    if constexpr (std::is_same_v<T, Symbol>) {
+                        return value;
+                    }
+                },
+                std::move(value)),
+        }};
         auto guards = std::vector<Guard>{};
         if (lit_lhs) {
             guards.emplace_back(lit_lhs->second, std::move(lhs));
@@ -1558,8 +1571,10 @@ template <bool head>
         auto [state_lit, res_lit] = simplify(ctx, rel_lit);
         return {state_lit, std::move(res_lit).value_or(std::move(rel_lit))};
     }
-    return {TruthValue::unknown,
-            lit.rewrite(a_lhs = std::move(res_lhs), a_elems = std::move(res_elems), a_rhs = std::move(res_rhs))};
+    return {
+        TruthValue::unknown,
+        lit.rewrite(a_lhs = std::move(res_lhs), a_elems = std::move(res_elems), a_rhs = std::move(res_rhs)),
+    };
 }
 
 //! Simplify a theory atom element.
@@ -1607,7 +1622,7 @@ auto simplify_theory_atom(RewriteContext &ctx, TheoryAtom<HasSign> const &lit) -
 //! Simplify head literals.
 class SimplifyHeadLiteral {
   public:
-    SimplifyHeadLiteral(RewriteContext &ctx) : ctx_{&ctx} {}
+    explicit SimplifyHeadLiteral(RewriteContext &ctx) : ctx_{&ctx} {}
 
     auto operator()(auto const &lit) const -> SimplifyResult<HdLit> = delete;
 
@@ -1627,7 +1642,7 @@ class SimplifyHeadLiteral {
         for (auto const &elem : lit.elems()) {
             std::visit(
                 [&, this]<class T>(T const &elem) {
-                    auto [state, res_elem] = [&, this]() {
+                    auto [state, res_elem] = [&, this] {
                         if constexpr (std::is_same_v<T, CondLit>) {
                             return simplify_condlit(*ctx_, elem, false);
                         } else {
@@ -1677,7 +1692,7 @@ class SimplifyHeadLiteral {
 //! Simplify body literals.
 class SimplifyBodyLiteral {
   public:
-    SimplifyBodyLiteral(RewriteContext &ctx) : ctx_{&ctx} {}
+    explicit SimplifyBodyLiteral(RewriteContext &ctx) : ctx_{&ctx} {}
 
     auto operator()(auto const &lit) const = delete;
 
@@ -1762,7 +1777,7 @@ class SimplifyBodyLiteral {
 //! Simplify statements.
 class SimplifyStatement {
   public:
-    SimplifyStatement(RewriteContext &ctx) : ctx_{&ctx} {}
+    explicit SimplifyStatement(RewriteContext &ctx) : ctx_{&ctx} {}
 
     auto operator()(Stm const &stm) const -> SimplifyResult<Stm> { return std::visit(*this, stm); }
 

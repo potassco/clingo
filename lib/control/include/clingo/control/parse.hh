@@ -21,8 +21,8 @@ namespace CppClingo::Control {
 
 //! Bitset of enabled builtin includes.
 enum class BuiltinIncludes : uint8_t {
-    empty = 0,  //!< The empty set.
-    incmode = 1 //!< Enable the incremental mode.
+    empty = 0,   //!< The empty set.
+    incmode = 1, //!< Enable the incremental mode.
 };
 //! Indicate that the builtin includes type is a bitset.
 CLINGO_ENABLE_BITSET_ENUM(BuiltinIncludes);
@@ -95,11 +95,10 @@ class ParseHelper {
             auto const &[parent, include] = includes_.front();
             if (include.type() == Input::IncludeType::system) {
                 auto path = std::filesystem::path(include.value().c_str());
-                if (path.is_relative() && parent != root_) {
-                    if (process_path_(parent / path, false)) {
-                        continue;
-                    }
+                if ((path.is_relative() && parent != root_) && process_path_(parent / path, false)) {
+                    continue;
                 }
+
                 process_path_(path, true);
             } else {
                 if (include.value().view() == "incmode") {

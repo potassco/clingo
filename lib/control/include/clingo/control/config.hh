@@ -93,7 +93,7 @@ class ClingoConfig {
     //! Constructor for ClingoConfig.
     //!
     //! @param config a reference to the Clasp CLI configuration object
-    ClingoConfig(Clasp::Cli::ClaspCliConfig &config) : config_{&config} {}
+    explicit ClingoConfig(Clasp::Cli::ClaspCliConfig &config) : config_{&config} {}
 
     //! The root key of the configuration.
     static auto key_root() -> KeyType { return Clasp::Cli::ClaspCliConfig::key_root; }
@@ -205,7 +205,7 @@ class ClingoConfig {
     //!
     //! This index is used to mark that an array key is not associated with a
     //! specific index.
-    static auto index_invalid() -> KeyType { return KeyType(-1); }
+    static auto index_invalid() -> KeyType { return static_cast<KeyType>(-1); }
     //! An invalid key for configuration entries.
     //!
     //! This key is used internally for error handling.

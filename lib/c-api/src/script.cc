@@ -23,7 +23,7 @@ class CScript : public CppClingo::Control::Script {
     void do_main(CppClingo::Control::Solver &slv) override {
         class main_guard {
           public:
-            main_guard(CppClingo::Control::Solver &slv) : slv_{&slv} { slv_->block_main(true); }
+            explicit main_guard(CppClingo::Control::Solver &slv) : slv_{&slv} { slv_->block_main(true); }
             ~main_guard() { slv_->block_main(false); }
 
           private:

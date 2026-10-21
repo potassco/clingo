@@ -20,7 +20,7 @@ void ProjectState::init(InstantiationContext const &ctx, size_t gen) {
         auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ctx.out(), ass_};
         if (p_body_->match(eval_ctx, atom->first)) {
             if (auto sym = p_head_->eval(eval_ctx); sym) {
-                auto [it, res] = p_base_.add(*sym, atom->second.state, [&]() {
+                auto [it, res] = p_base_.add(*sym, atom->second.state, [&] {
                     // if the atom is a fact we can simply use its uid here
                     return atom.value().state == StateAtom::fact ? atom.value().id : ctx.out().uid();
                 });

@@ -14,10 +14,14 @@ namespace Clingo {
 //! @{
 
 //! Enumeration of available theory sequence types.
-enum class TheorySequenceType : clingo_theory_sequence_type_t {
-    tuple = clingo_theory_sequence_type_tuple, //!< Theory tuples "(t1,...,tn)".
-    set = clingo_theory_sequence_type_set,     //!< Theory sets "{t1,...,tn}".
-    list = clingo_theory_sequence_type_list    //!< Theory lists "[t1,...,tn]".
+enum class TheorySequenceType : clingo_theory_sequence_type_t // NOLINT
+{
+    //! Theory tuples "(t1,...,tn)".
+    tuple = clingo_theory_sequence_type_tuple,
+    //! Theory sets "{t1,...,tn}".
+    set = clingo_theory_sequence_type_set,
+    //! Theory lists "[t1,...,tn]".
+    list = clingo_theory_sequence_type_list,
 };
 
 //! Theory backend to build theory atoms.
@@ -118,6 +122,7 @@ class TheoryBackend {
             std::swap(ptr_, other.ptr_);
             return *this;
         }
+        // NOLINTNEXTLINE
         ~Ptr() noexcept(false) {
             if (std::uncaught_exceptions() == uncaught_) {
                 close();

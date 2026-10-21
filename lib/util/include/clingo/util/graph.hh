@@ -40,7 +40,7 @@ class Graph {
   private:
     //! Node class to capture edges and state information.
     struct Node {
-        Node(size_t visited) : visited_(visited) {}
+        explicit Node(size_t visited) : visited_(visited) {}
         //! The outgoing edges of the node.
         IdVec out;
         //! An iterator pointing to the last element not yet processed.

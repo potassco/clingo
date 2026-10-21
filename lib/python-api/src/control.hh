@@ -26,7 +26,7 @@ class ConstMap {
     using mapped_type = Symbol;
     using value_type = std::pair<key_type, mapped_type>;
 
-    ConstMap(clingo_const_map_t const *map) : map_{map} {}
+    explicit ConstMap(clingo_const_map_t const *map) : map_{map} {}
     [[nodiscard]] auto contains(key_type name) const -> bool;
     [[nodiscard]] auto get(key_type name, std::optional<mapped_type> def) const -> std::optional<mapped_type>;
     [[nodiscard]] auto at(size_t index) const -> value_type;
@@ -94,7 +94,7 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
 
   private:
     using Parent = registered_handle<Control, clingo_control_t>;
-    Control(clingo_control_t *ctl) : Parent{ctl} {}
+    explicit Control(clingo_control_t *ctl) : Parent{ctl} {}
     static auto callable_([[maybe_unused]] char const *name, [[maybe_unused]] size_t name_size,
                           [[maybe_unused]] size_t arguments_size, [[maybe_unused]] void *data, bool *result) -> bool {
         CLINGO_TRY {

@@ -127,16 +127,18 @@ namespace Detail {
 
 template <IsBase Base> class FullIndex {
   public:
-    FullIndex(Base &base) : base_{&base} {}
+    explicit FullIndex(Base &base) : base_{&base} {}
     void init(size_t gen) { base_->update(gen); }
     auto match(MatcherType type) -> std::pair<size_t, size_t> {
         // select the index of the first atom of the matcher's generation
         auto cur = base_->begin(type);
         // select the first interval that contains an atom of the matcher's generation
-        return {std::distance(index_.begin(),
-                              std::ranges::upper_bound(index_, cur, std::less<>{},
-                                                       [](auto const &a) -> decltype(auto) { return a.second; })),
-                cur};
+        return {
+            std::distance(index_.begin(),
+                          std::ranges::upper_bound(index_, cur, std::less<>{},
+                                                   [](auto const &a) -> decltype(auto) { return a.second; })),
+            cur,
+        };
     }
     template <IsMatch Match>
     auto next(EvalContext const &ctx, Match const &m, VariableVec &free, MatcherType type, size_t &pos, size_t &cur,
@@ -241,7 +243,7 @@ template <IsBase Base> class SingleIndex {
     using KeyIterator = IndexMap::iterator;
     using ValIterator = SymbolVec::iterator;
 
-    SingleIndex(Base &base) : base_{&base} {}
+    explicit SingleIndex(Base &base) : base_{&base} {}
     void init(size_t gen) { base_->update(gen); }
 
     template <IsMatch Match>
@@ -539,7 +541,7 @@ template <IsBase Base, class Sig> class IndexSet : public BaseContext {
 
 template <IsBase Base, IsMatch Match> class NonFactMatcher : public OnceMatcher {
   public:
-    NonFactMatcher(Base &base, Match const &match, typename Match::Key &target)
+    NonFactMatcher(Base &base, Match const &match, Match::Key &target)
         : base_{&base}, match_{&match}, target_{&target} {}
 
   private:
@@ -555,14 +557,14 @@ template <IsBase Base, IsMatch Match> class NonFactMatcher : public OnceMatcher 
 
     Base *base_;
     Match const *match_;
-    typename Match::Key *target_;
+    Match::Key *target_;
 };
 
 //! A matcher that provides at most one match.
 template <IsMatch Match> class EvalMatcher : public OnceMatcher {
   public:
     //! Construct the matcher.
-    EvalMatcher(Match const &match, typename Match::Key &target) : match_{&match}, target_{&target} {}
+    EvalMatcher(Match const &match, Match::Key &target) : match_{&match}, target_{&target} {}
 
   private:
     //! Evaluate the matcher in the current context.
@@ -575,7 +577,7 @@ template <IsMatch Match> class EvalMatcher : public OnceMatcher {
     }
 
     Match const *match_;
-    typename Match::Key *target_;
+    Match::Key *target_;
 };
 
 } // namespace Detail

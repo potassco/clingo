@@ -450,7 +450,7 @@ struct TySeq {
 
 //! Capture a partial function term.
 struct SymFun {
-    SymFun(String name) : name{name} {}
+    explicit SymFun(String name) : name{name} {}
     std::vector<Symbol> args;
     String name;
 };

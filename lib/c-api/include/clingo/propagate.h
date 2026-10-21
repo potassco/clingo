@@ -47,9 +47,9 @@ typedef struct clingo_assignment clingo_assignment_t;
 
 //! Represents three-valued truth values.
 enum clingo_truth_value_e {
-    clingo_truth_value_free = 0, //!< no truth value
-    clingo_truth_value_true = 1, //!< true
-    clingo_truth_value_false = 2 //!< false
+    clingo_truth_value_free = 0,  //!< no truth value
+    clingo_truth_value_true = 1,  //!< true
+    clingo_truth_value_false = 2, //!< false
 };
 //! Corresponding type to ::clingo_truth_value_e.
 typedef int clingo_truth_value_t;
@@ -368,7 +368,7 @@ enum clingo_clause_type_e {
     clingo_clause_type_volatile =
         2, //!< like ::clingo_clause_type_learnt but the clause is deleted after a solving step
     clingo_clause_type_volatile_static =
-        3 //!< like ::clingo_clause_type_static but the clause is deleted after a solving step
+        3, //!< like ::clingo_clause_type_static but the clause is deleted after a solving step
 };
 //! Corresponding type to ::clingo_clause_type_e.
 typedef int clingo_clause_type_t;

@@ -22,7 +22,7 @@ class ModelIterator {
     using reference = Model &;
 
     ModelIterator() = default;
-    ModelIterator(SolveHandle *hnd) : hnd_(hnd) { operator++(); }
+    explicit ModelIterator(SolveHandle *hnd) : hnd_(hnd) { operator++(); }
 
     // NOLINTBEGIN(bugprone-unchecked-optional-access)
     auto operator*() -> reference { return mdl_.value(); }
@@ -62,7 +62,7 @@ class ModelIterator {
 auto SolveControl::base() -> Base {
     clingo_base_t const *base = nullptr;
     handle_error(clingo_solve_control_base(ctl_, &base));
-    return {base};
+    return Base{base};
 }
 
 auto SolveControl::add_clause(MixedLitSpan const &lits) {
@@ -113,7 +113,7 @@ auto Model::control() -> SolveControl {
     clingo_solve_control_t *ctl = nullptr;
     auto *mdl = const_cast<clingo_model_t *>(mdl_); // NOLINT
     handle_error(clingo_model_control(mdl, &ctl));
-    return ctl;
+    return SolveControl{ctl};
 }
 
 auto Model::str() -> std::string {
@@ -207,7 +207,7 @@ auto SolveHandle::get() -> SolveResult {
     auto release = py::gil_scoped_release{};
     clingo_solve_result_bitset_t res = 0;
     handle_error(clingo_solve_handle_get(hnd_, &res));
-    return {res};
+    return SolveResult{res};
 }
 
 void SolveHandle::cancel() {

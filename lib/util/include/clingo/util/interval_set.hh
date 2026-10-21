@@ -64,7 +64,7 @@ template <class T> class interval_set {
     //! The vector used to store intervals.
     using interval_vector = small_vector<interval>;
     //! An iterator over the intervals in the set.
-    using iterator = typename interval_vector::const_iterator;
+    using iterator = interval_vector::const_iterator;
 
     //! Left bound x is smaller than left bound y.
     friend auto operator<(left_bound const &x, left_bound const &y) -> bool {

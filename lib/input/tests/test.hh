@@ -32,7 +32,9 @@ class ParseHelper {
   public:
     ParseHelper()
         : log_{[this](MessageCode code, std::string_view str) { push_(code, str); }}, store_{default_store()},
-          prs_{log_, store_} {}
+          prs_{log_, store_} {
+        ctx_.init({}, "__A_");
+    }
 
     auto term(std::string_view str) -> std::optional<Term> {
         reset();
@@ -64,22 +66,13 @@ class ParseHelper {
         return prs_.parse_statement();
     }
 
-    auto logger() -> Logger & { return *this; }
+    auto logger() -> Logger & { return log_; }
 
-    auto store() -> SymbolStore & { return *this; }
+    auto store() -> SymbolStore & { return store_; }
 
-    auto ctx() -> RewriteContext & { return *this; }
+    auto ctx() -> RewriteContext & { return ctx_; }
 
     auto parser() -> TheoryAtomParser & { return parser_; }
-
-    operator Logger &() { return log_; }
-
-    operator SymbolStore &() { return store_; }
-
-    operator RewriteContext &() {
-        ctx_.init({}, "__A_");
-        return ctx_;
-    }
 
     auto messages() -> std::span<std::pair<MessageCode, std::string>> { return messages_; }
 

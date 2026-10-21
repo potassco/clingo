@@ -165,7 +165,7 @@ inline auto relevant_val(AggregateFunction fun, Symbol sym) -> bool {
 enum class TheoryTermTupleType : uint8_t {
     tuple, //!< A tuple of terms enclosed in parentheses.
     set,   //!< A set of terms enclosed in braces.
-    list   //!< A list of terms enclosed in brackets.
+    list,  //!< A list of terms enclosed in brackets.
 };
 
 //! Available heuristic types.

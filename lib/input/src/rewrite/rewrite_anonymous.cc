@@ -9,7 +9,7 @@ namespace {
 
 class RewriteAnonymous : public Transformer<RewriteAnonymous> {
   public:
-    RewriteAnonymous(NameGen &gen) : gen_{&gen} {}
+    explicit RewriteAnonymous(NameGen &gen) : gen_{&gen} {}
 
     // protect ourselves -> no unintended overloads
 

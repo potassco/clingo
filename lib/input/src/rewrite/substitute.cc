@@ -22,7 +22,7 @@ namespace {
 
 class MapParams : public Transformer<MapParams> {
   public:
-    MapParams(RewriteContext &ctx) : ctx_{&ctx} {}
+    explicit MapParams(RewriteContext &ctx) : ctx_{&ctx} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -138,7 +138,11 @@ class MapParams : public Transformer<MapParams> {
                             if constexpr (plain_term) {
                                 if constexpr (std::is_same_v<T, ArgumentTuple>) {
                                     auto ret = Term{TermFunction{
-                                        loc, sym.name(), Util::make_vec<ArgumentTuple>(std::move(tuple)), false}};
+                                        loc,
+                                        sym.name(),
+                                        Util::make_vec<ArgumentTuple>(std::move(tuple)),
+                                        false,
+                                    }};
                                     if (sym.has_sign()) {
                                         ret = TermUnary{loc, UnaryOperator::minus, std::move(ret)};
                                     }
@@ -329,7 +333,7 @@ class UnmapParams : public Transformer<UnmapParams> {
 
 struct Collect : public Visitor<Collect> {
   public:
-    Collect(StringSet &ids) : ids_{&ids} {}
+    explicit Collect(StringSet &ids) : ids_{&ids} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -414,7 +418,7 @@ struct Collect : public Visitor<Collect> {
 
 class AssignmentSubstituter : public Transformer<AssignmentSubstituter> {
   public:
-    AssignmentSubstituter(Util::unordered_map<String, Term> const &rep) : rep_{&rep} {}
+    explicit AssignmentSubstituter(Util::unordered_map<String, Term> const &rep) : rep_{&rep} {}
     [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
         if (auto it = rep_->find(term.name()); it != rep_->end()) {
             return it->second;
@@ -428,7 +432,7 @@ class AssignmentSubstituter : public Transformer<AssignmentSubstituter> {
 
 class AssignmentRemover : public Transformer<AssignmentRemover> {
   public:
-    AssignmentRemover(Util::unordered_map<String, Term> &rep, StringSet *blocked = nullptr)
+    explicit AssignmentRemover(Util::unordered_map<String, Term> &rep, StringSet *blocked = nullptr)
         : blocked_{blocked}, rep_{&rep} {}
 
     template <class T>
@@ -478,7 +482,7 @@ class AssignmentRemover : public Transformer<AssignmentRemover> {
 
 class BlockedTheoryVars : public Visitor<BlockedTheoryVars> {
   public:
-    BlockedTheoryVars(StringSet &vars) : vars_{&vars} {}
+    explicit BlockedTheoryVars(StringSet &vars) : vars_{&vars} {}
     template <bool HasSign> void accept(TheoryAtom<HasSign> const &atom) const {
         if (auto const &rhs = atom.rhs()) {
             visit_variables(rhs->term(),
@@ -492,7 +496,7 @@ class BlockedTheoryVars : public Visitor<BlockedTheoryVars> {
 
 class LocalRemover : public Transformer<LocalRemover> {
   public:
-    LocalRemover(StringSet &blocked) : blocked_{&blocked} {}
+    explicit LocalRemover(StringSet &blocked) : blocked_{&blocked} {}
 
     template <class T>
         requires Util::matches<T, HdLitDisjunctionElement, HdLitAggregateElement, BdLitAggregateElement,

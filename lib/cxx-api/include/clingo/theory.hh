@@ -46,7 +46,7 @@ class TheoryAssignment {
         //! Constructor for the iterator.
         //!
         //! @param assignment the theory assignment to iterate over
-        iterator(TheoryAssignment const &assignment) : assignment_{&assignment} { advance(); }
+        explicit iterator(TheoryAssignment const &assignment) : assignment_{&assignment} { advance(); }
 
         //! The default constructor for the iterator.
         //!
@@ -147,7 +147,7 @@ class TheoryAssignment {
     //! Get an iterator pointing to the first element of the theory assignment.
     //!
     //! @return an iterator to the first element
-    [[nodiscard]] auto begin() const -> iterator { return {*this}; }
+    [[nodiscard]] auto begin() const -> iterator { return iterator{*this}; }
     //! Get sentinel marking the end of the theory assignment.
     //!
     //! @return a sentinel marking the end of the theory assignment

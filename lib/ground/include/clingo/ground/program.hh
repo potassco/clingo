@@ -15,7 +15,7 @@ class Component {
     //! Construct a component.
     //!
     //! If domain is true, then the component does not contain negative edges.
-    Component(bool domain) : domain_{domain} {}
+    explicit Component(bool domain) : domain_{domain} {}
     //! Add a statement to a component.
     void add(UStm stm) { stms_.emplace_back(std::move(stm)); }
     //! Get the statements in the component.

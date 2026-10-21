@@ -99,7 +99,7 @@ class App : public reference_keeper<App> {
   private:
     template <class... Args> void no_op_([[maybe_unused]] Args const &...args) {}
 
-    auto has_override_(char const *name) const -> bool { return bool(py::get_override(this, name)); }
+    auto has_override_(char const *name) const -> bool { return static_cast<bool>(py::get_override(this, name)); }
 
     static void get_program_name_(void *data, clingo_string_t *res) {
         auto &app = *static_cast<App *>(data);
@@ -142,7 +142,7 @@ class App : public reference_keeper<App> {
             auto acquire = py::gil_scoped_acquire{};
             // NOTE: Python seems to directly write large buffers
             std::cout.flush();
-            app.print_model(Model{model}, [printer, printer_data]() { handle_error(printer(printer_data)); });
+            app.print_model(Model{model}, [printer, printer_data] { handle_error(printer(printer_data)); });
             py::module_::import("sys").attr("stdout").attr("flush")();
         }
         CLINGO_CATCH;
@@ -164,7 +164,7 @@ class App : public reference_keeper<App> {
             if (e.matches(PyExc_ValueError)) {
                 auto str = app.program_name();
                 std::string msg = py::str(e.value());
-                fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)str.size(), str.data(), msg.c_str());
+                fprintf(stderr, "*** ERROR: (%.*s): %s\n", static_cast<int>(str.size()), str.data(), msg.c_str());
             }
             return store_error();
         } catch (...) {
@@ -213,10 +213,10 @@ auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<
         handle_error_no_code(ret, code);
     } catch (py::error_already_set const &e) {
         auto name = app ? app.value()->program_name() : CLINGO_EXECUTABLE;
-        fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
+        fprintf(stderr, "*** ERROR: (%.*s): %s\n", static_cast<int>(name.size()), name.data(), e.what());
     } catch (std::exception const &e) {
         auto name = app ? app.value()->program_name() : CLINGO_EXECUTABLE;
-        fprintf(stderr, "*** ERROR: (%.*s): %s\n", (int)name.size(), name.data(), e.what());
+        fprintf(stderr, "*** ERROR: (%.*s): %s\n", static_cast<int>(name.size()), name.data(), e.what());
     }
     return code;
 }

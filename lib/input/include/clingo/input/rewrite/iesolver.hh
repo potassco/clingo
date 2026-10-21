@@ -99,7 +99,7 @@ using IEDomain = Util::ordered_map<String, IEInterval>;
 class IESolver {
   public:
     //! Construct an IESolver with an optional parent.
-    IESolver(IESolver *parent = nullptr) : parent_{parent} {}
+    explicit IESolver(IESolver *parent = nullptr) : parent_{parent} {}
     //! Add the given inequality to the solver.
     void add(IE ie);
     //! Compute the bounds of variables in added inequalities.

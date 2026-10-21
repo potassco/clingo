@@ -83,7 +83,7 @@ class BaseTheory : public BaseImpl<Symbol const *, BaseTheory> {
     using AtomMap = Util::ordered_map<Symbol const *, AtomTheory, Util::array_hash, Util::array_equal_to>;
 
     //! Construct an empty base.
-    BaseTheory(size_t size) : atoms_{0, size, size} {}
+    explicit BaseTheory(size_t size) : atoms_{0, Util::array_hash{size}, Util::array_equal_to{size}} {}
 
     //! Add an atom.
     auto add(Symbol const *sym, Symbol name, std::optional<size_t> rhs) -> std::pair<AtomMap::iterator, bool>;
@@ -206,7 +206,7 @@ class MatchTheory {
     using Key = Symbol const *;
 
     //! Construct the matcher.
-    MatchTheory(StateTheory &state) : state_{&state} { eval_.reserve(state_->global().size()); }
+    explicit MatchTheory(StateTheory &state) : state_{&state} { eval_.reserve(state_->global().size()); }
 
     //! Get the variables of the matcher.
     [[nodiscard]] auto vars() const -> VariableSet;
@@ -235,7 +235,7 @@ class MatchTheory {
 class LitMatchTheory : public Lit, private MatchTheory {
   public:
     //! Construct the matcher.
-    LitMatchTheory(StateTheory &state) : MatchTheory{state} {}
+    explicit LitMatchTheory(StateTheory &state) : MatchTheory{state} {}
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;

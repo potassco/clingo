@@ -38,7 +38,7 @@ concept IsMapping =
 
 template <typename T> class ArrowProxy {
   public:
-    constexpr ArrowProxy(T value) : value_(std::move(value)) {}
+    constexpr explicit ArrowProxy(T value) : value_(std::move(value)) {}
     constexpr auto operator->() -> T * { return &value_; }
 
   private:
@@ -50,7 +50,7 @@ template <typename T> class ArrowProxy {
 template <Detail::IsSequence Seq> class RandomAccessIterator {
   public:
     using iterator_category = std::random_access_iterator_tag;
-    using value_type = typename Seq::value_type;
+    using value_type = Seq::value_type;
     using difference_type = std::ptrdiff_t;
     using pointer = Detail::ArrowProxy<value_type>;
     using reference = value_type;

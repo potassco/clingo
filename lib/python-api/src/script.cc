@@ -65,7 +65,7 @@ class MainScript {
     //! The flag indicates whether the class has been registered on the C or
     //! python level. Scripts registered externally report errors right away
     //! and are in charge of managing library and control object.
-    MainScript(bool external) : external_{external} {
+    explicit MainScript(bool external) : external_{external} {
         // ensure python functions can be executed
         if (!external_) {
             init_();
@@ -286,9 +286,10 @@ class Script {
 
 void reg_script(Annotation<Library> const &lib, Annotation<Script> const &script) {
     auto &c_lib = py::cast<Library &>(lib);
-    auto c_script =
-        clingo_script_t{Script::c_execute, Script::c_call, Script::c_callable, Script::c_main, Script::c_name,
-                        Script::c_version, nullptr};
+    auto c_script = clingo_script_t{
+        Script::c_execute, Script::c_call, Script::c_callable, Script::c_main, Script::c_name,
+        Script::c_version, nullptr,
+    };
     c_lib.tie(script);
     handle_error(clingo_script_register(c_lib, &c_script, py::cast<Script *>(script)));
 }
@@ -296,8 +297,9 @@ void reg_script(Annotation<Library> const &lib, Annotation<Script> const &script
 void reg_python(Annotation<Library> const &lib) {
     using Script = PyClingo::MainScript;
     auto &c_lib = py::cast<Library &>(lib);
-    auto c_script = clingo_script_t{Script::c_execute, Script::c_call, Script::c_callable, Script::main, Script::c_name,
-                                    Script::c_version, nullptr};
+    auto c_script = clingo_script_t{
+        Script::c_execute, Script::c_call, Script::c_callable, Script::main, Script::c_name, Script::c_version, nullptr,
+    };
     auto py_script = py::cast(Script{false});
     c_lib.tie(py_script);
     handle_error(clingo_script_register(c_lib, &c_script, py::cast<Script *>(py_script)));
@@ -307,8 +309,10 @@ void reg_python(Annotation<Library> const &lib) {
 
 auto register_python(clingo_lib_t *lib) -> bool {
     using Script = PyClingo::MainScript;
-    auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::main,
-                                    Script::c_name,    Script::c_version, Script::c_free};
+    auto c_script = clingo_script_t{
+        Script::c_execute, Script::c_call,    Script::c_callable, Script::main,
+        Script::c_name,    Script::c_version, Script::c_free,
+    };
     auto script = std::make_unique<Script>(true);
     return clingo_script_register(lib, &c_script, script.release());
 }

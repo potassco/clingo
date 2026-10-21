@@ -44,9 +44,9 @@ typedef struct clingo_model clingo_model_t;
 
 //! Enumeration for the different model types.
 enum clingo_model_type_e {
-    clingo_model_type_stable_model = 0,         //!< The model represents a stable model.
-    clingo_model_type_brave_consequences = 1,   //!< The model represents a set of brave consequences.
-    clingo_model_type_cautious_consequences = 2 //!< The model represents a set of cautious consequences.
+    clingo_model_type_stable_model = 0,          //!< The model represents a stable model.
+    clingo_model_type_brave_consequences = 1,    //!< The model represents a set of brave consequences.
+    clingo_model_type_cautious_consequences = 2, //!< The model represents a set of cautious consequences.
 };
 //! Corresponding type to ::clingo_model_type_e.
 typedef int clingo_model_type_t;

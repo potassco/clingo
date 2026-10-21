@@ -11,11 +11,13 @@ namespace PyClingo {
 namespace py = pybind11;
 
 template <typename T> class Sequence : public py::object {
+    // NOLINTNEXTLINE
     PYBIND11_OBJECT_DEFAULT(Sequence, py::object, PyObject_Type)
     using py::object::object;
 };
 
 template <typename T> class Annotation : public py::object {
+    // NOLINTNEXTLINE
     PYBIND11_OBJECT_DEFAULT(Annotation, py::object, PyObject_Type)
     using py::object::object;
 };
@@ -28,6 +30,7 @@ template <size_t N> struct StringLiteral {
 // NOLINTEND
 
 template <StringLiteral L> class TypeHint : public py::object {
+    // NOLINTNEXTLINE
     PYBIND11_OBJECT_DEFAULT(TypeHint, py::object, PyObject_Type)
     using py::object::object;
 };
@@ -42,8 +45,10 @@ template <class T, class A = std::allocator<T>> class Iterable {
     auto operator=(Iterable const &other) -> Iterable & = default;
     auto operator=(Iterable &&other) -> Iterable & = default;
 
-    Iterable(Vector const &other) : vec_{other} {}
-    Iterable(Vector &&other) : vec_{std::move(other)} {}
+    Iterable(Vector const &other) // NOLINT
+        : vec_{other} {}
+    Iterable(Vector &&other) // NOLINT
+        : vec_{std::move(other)} {}
     auto operator=(Vector const &other) -> Iterable & {
         vec_ = other;
         return *this;

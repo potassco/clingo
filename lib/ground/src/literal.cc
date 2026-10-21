@@ -381,7 +381,7 @@ auto get_atom(AtomBase &base, OutputStm &out, Sign sign, size_t index, Symbol sy
     if (sign == Sign::once && index == stratified_index) {
         return base.find(symbol);
     }
-    return base.add(symbol, StateAtom::unknown, [&out]() { return out.uid(); }).first;
+    return base.add(symbol, StateAtom::unknown, [&out] { return out.uid(); }).first;
 }
 
 } // namespace
@@ -546,6 +546,7 @@ auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
         ProjectState *state_;
         UMatcher matcher_;
     };
+    // NOLINTNEXTLINE
     auto m = [this]<class T>(T &&matcher) {
         return std::make_unique<MatcherProject>(*state_, std::forward<T>(matcher));
     };
@@ -715,7 +716,7 @@ auto LitCheck::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &
     -> std::pair<UMatcher, std::optional<size_t>> {
     class CheckMatcher : public OnceMatcher {
       public:
-        CheckMatcher(LitCheck &lit) : lit_{&lit} {}
+        explicit CheckMatcher(LitCheck &lit) : lit_{&lit} {}
 
       private:
         auto do_once(EvalContext const &ctx) -> bool override { return lit_->do_check(ctx); }

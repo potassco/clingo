@@ -17,7 +17,7 @@ namespace {
 enum class OperatorPosition : uint8_t {
     left,  //!< The term is directly on the right-hand-side of a term.
     right, //!< The term is directly on the left-hand-side of a term.
-    none   //!< No position information.
+    none,  //!< No position information.
 };
 
 auto associativity(BinaryOperator op) {
@@ -156,7 +156,8 @@ auto right_bracket(TheoryTermTupleType type) -> char {
 
 template <class O> class Print {
   public:
-    Print(O &out, OperatorPosition pos = OperatorPosition::none, unsigned int prio = 0, bool no_leading_op = false)
+    explicit Print(O &out, OperatorPosition pos = OperatorPosition::none, unsigned int prio = 0,
+                   bool no_leading_op = false)
         : out_{&out}, pos_{pos}, prio_{prio}, no_leading_op_{no_leading_op} {}
 
     // protect ourselves -> no unintended overloads

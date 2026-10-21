@@ -72,7 +72,7 @@ TEST_CASE_METHOD(Fixture, "config extend", "[cxx][config][extend]") {
     };
     class ConfigArray {
       public:
-        ConfigArray(std::vector<std::optional<std::string>> &values) : values_{&values} {}
+        explicit ConfigArray(std::vector<std::optional<std::string>> &values) : values_{&values} {}
         [[nodiscard]] auto size() const -> size_t { return values_->size(); }
 
       private:
@@ -80,7 +80,7 @@ TEST_CASE_METHOD(Fixture, "config extend", "[cxx][config][extend]") {
     };
     class ConfigArrayValue {
       public:
-        ConfigArrayValue(std::vector<std::optional<std::string>> &values) : values_{&values} {}
+        explicit ConfigArrayValue(std::vector<std::optional<std::string>> &values) : values_{&values} {}
         [[nodiscard]] auto get(std::optional<size_t> index) const -> std::optional<std::string> {
             return values_->at(index.value_or(0));
         }

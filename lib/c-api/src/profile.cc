@@ -21,8 +21,12 @@ extern "C" auto clingo_control_profile(clingo_control_t const *control, clingo_p
                         return visit->internal(depth, x.first.data(), x.first.size(), x.second, data);
                     } else if constexpr (std::same_as<T, std::pair<CppClingo::Ground::ProfileStats const *,
                                                                    CppClingo::Ground::ProfileType>>) {
-                        auto vals = clingo_profile_data_t{x.first->matches, x.first->instances,
-                                                          x.first->time_instantiate, x.first->time_propagate};
+                        auto vals = clingo_profile_data_t{
+                            x.first->matches,
+                            x.first->instances,
+                            x.first->time_instantiate,
+                            x.first->time_propagate,
+                        };
                         return visit->leaf(depth, &vals, static_cast<clingo_profile_type_t>(x.second), data);
                     }
                 },

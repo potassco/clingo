@@ -38,6 +38,7 @@ template <class T, auto Destroy> class Guard {
         }
     }
 
+    // NOLINTNEXTLINE
     constexpr operator T &() noexcept { return value_; }
     [[nodiscard]] constexpr auto get() noexcept -> T & { return value_; }
 

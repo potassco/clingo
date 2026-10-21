@@ -29,7 +29,7 @@ class OutputBuffer {
     using value_type = char;
 
     //! Construct the buffer with an optional file handle.
-    OutputBuffer(FILE *out = nullptr) : out_{out} {}
+    explicit OutputBuffer(FILE *out = nullptr) : out_{out} {}
 
     //! Flush the buffer.
     //!
@@ -202,7 +202,7 @@ class OutputBuffer {
 class OutputStream : public std::ostream {
   public:
     //! Construct the buffer with an optional file handle.
-    OutputStream(FILE *out) : std::ostream{nullptr}, buf_{out} { rdbuf(&buf_); }
+    explicit OutputStream(FILE *out) : std::ostream{nullptr}, buf_{out} { rdbuf(&buf_); }
 
     //! Get the underlying buffer.
     auto buffer() -> OutputBuffer & { return buf_.buffer(); }
@@ -210,7 +210,7 @@ class OutputStream : public std::ostream {
   private:
     class Streambuf : public std::streambuf {
       public:
-        Streambuf(FILE *out) : buf_{out} {}
+        explicit Streambuf(FILE *out) : buf_{out} {}
         auto buffer() -> OutputBuffer & { return buf_; }
 
       protected:
@@ -338,7 +338,7 @@ class PrintQuoted {
 class fill {
   public:
     //! The constructor.
-    fill(size_t n, char c = ' ') : n_{n}, c_{c} {}
+    explicit fill(size_t n, char c = ' ') : n_{n}, c_{c} {}
     //! Operator to print the fill helper.
     friend auto operator<<(CppClingo::Util::OutputBuffer &out, fill const &x) -> CppClingo::Util::OutputBuffer & {
         std::ranges::fill(out.reserve(static_cast<std::ptrdiff_t>(x.n_)), x.c_);

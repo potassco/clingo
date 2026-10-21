@@ -14,6 +14,7 @@ namespace CppClingo::Ground {
 
 auto AtomAssignAggr::init_(AggregateFunction fun) -> Values {
     return std::visit(
+        // NOLINTNEXTLINE
         []<class T>(T &&x) -> Values {
             Util::small_vector<std::remove_cvref_t<T>> ret;
             ret.emplace_back(std::forward<T>(x));

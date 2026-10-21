@@ -18,7 +18,8 @@ class BdLitSimple : public Expression<BdLitSimple> {
     static constexpr auto attributes() { return std::tuple{a_lit = &BdLitSimple::lit_}; }
 
     //! Wrap a literal in a body literal.
-    BdLitSimple(Lit lit) : lit_{std::move(lit)} {}
+    BdLitSimple(Lit lit) // NOLINT
+        : lit_{std::move(lit)} {}
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return location(lit_); }
     //! The literal.
@@ -35,7 +36,8 @@ class BdLitConjunction : public Expression<BdLitConjunction> {
     static constexpr auto attributes() { return std::tuple{a_lit = &BdLitConjunction::lit_}; }
 
     //! Construct a conjunction.
-    BdLitConjunction(CondLit lit) : lit_{std::move(lit)} {}
+    BdLitConjunction(CondLit lit) // NOLINT
+        : lit_{std::move(lit)} {}
     //! Get the location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return lit_.loc(); }
     //! The conditional literal representing the elements of the conjunction.

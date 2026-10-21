@@ -18,7 +18,7 @@ namespace Clingo {
 //! @{
 
 //! Enumeration of symbol types.
-enum class SymbolType : clingo_symbol_type_t {
+enum class SymbolType : clingo_symbol_type_t { // NOLINT
     //! The symbol is a sentinel for the minimum value.
     infimum = clingo_symbol_type_infimum,
     //! The symbol is a number.
@@ -30,7 +30,7 @@ enum class SymbolType : clingo_symbol_type_t {
     //! The symbol is a function.
     function = clingo_symbol_type_function,
     //! The symbol is a sentinel for the maximum value.
-    supremum = clingo_symbol_type_supremum
+    supremum = clingo_symbol_type_supremum,
 };
 
 class Symbol;

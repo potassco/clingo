@@ -23,7 +23,7 @@ class AtomAssignAggr {
     using Values = std::variant<Util::small_vector<Number>, Util::small_vector<Symbol>>;
 
     //! Initialize for the given aggregate function.
-    AtomAssignAggr(AggregateFunction fun) : values_{init_(fun)} {}
+    explicit AtomAssignAggr(AggregateFunction fun) : values_{init_(fun)} {}
 
     //! Accumulate a tuple.
     void accumulate(AggregateFunction fun, SymbolSpan tup, bool fact);
@@ -68,7 +68,8 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
 
     //! Construct an empty base.
     BaseAssignAggr(size_t size, bool domain_elems, bool single_pass_elems)
-        : atoms_{0, size, size}, domain_elems_{domain_elems}, single_pass_elems_{single_pass_elems} {}
+        : atoms_{0, Util::array_hash{size}, Util::array_equal_to{size}}, domain_elems_{domain_elems},
+          single_pass_elems_{single_pass_elems} {}
 
     //! Check if the given atom is a fact.
     //!
@@ -235,7 +236,7 @@ class MatchAssignAggr {
     using Key = BaseAssignAggr::Key;
 
     //! Construct the matcher.
-    MatchAssignAggr(StateAssignAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
+    explicit MatchAssignAggr(StateAssignAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
 
     //! Get the variables of the matcher.
     [[nodiscard]] auto vars() const -> VariableSet;
@@ -265,7 +266,7 @@ class MatchAssignAggr {
 class LitAssignAggr : public Lit, private MatchAssignAggr {
   public:
     //! Construct an assignment aggregate literal.
-    LitAssignAggr(StateAssignAggr &state) : MatchAssignAggr{state} {}
+    explicit LitAssignAggr(StateAssignAggr &state) : MatchAssignAggr{state} {}
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;

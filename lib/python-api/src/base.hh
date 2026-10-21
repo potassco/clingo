@@ -33,7 +33,7 @@ class AtomBase {
     using mapped_type = Atom;
     using value_type = std::pair<key_type, mapped_type>;
 
-    AtomBase(clingo_atom_base_t const *base) : base_{base} {}
+    explicit AtomBase(clingo_atom_base_t const *base) : base_{base} {}
 
     [[nodiscard]] auto size() const -> size_t;
     [[nodiscard]] auto at(size_t index) const -> value_type;
@@ -66,7 +66,7 @@ class TermBase {
     using mapped_type = Term;
     using value_type = std::pair<key_type, mapped_type>;
 
-    TermBase(clingo_term_base_t const &base) : base_{&base} {}
+    explicit TermBase(clingo_term_base_t const &base) : base_{&base} {}
 
     [[nodiscard]] auto size() const -> size_t;
     [[nodiscard]] auto at(size_t index) const -> value_type;
@@ -138,7 +138,7 @@ class TheoryBase {
   public:
     using value_type = TheoryAtom;
 
-    TheoryBase(clingo_theory_base_t const &base) : base_{&base} {}
+    explicit TheoryBase(clingo_theory_base_t const &base) : base_{&base} {}
     [[nodiscard]] auto size() const -> size_t;
     [[nodiscard]] auto at(size_t index) const -> value_type;
 
@@ -152,7 +152,7 @@ class Base {
     using mapped_type = AtomBase;
     using value_type = std::pair<key_type, mapped_type>;
 
-    Base(clingo_base_t const *base) : base_{base} {}
+    explicit Base(clingo_base_t const *base) : base_{base} {}
 
     [[nodiscard]] auto is_external(clingo_literal_t lit) const -> bool;
     [[nodiscard]] auto is_fact(clingo_literal_t lit) const -> bool;

@@ -166,7 +166,7 @@ class BuilderTheoryTerm {
     //!
     //! The var_map dictionary is used to map variables to integers. Each name
     //! must have been assigned an integer beforehand.
-    BuilderTheoryTerm(Util::unordered_map<String, size_t> const &var_map) : var_map_{&var_map} {}
+    explicit BuilderTheoryTerm(Util::unordered_map<String, size_t> const &var_map) : var_map_{&var_map} {}
 
     //! Translate unparsed terms.
     auto operator()([[maybe_unused]] Input::TheoryTermUnparsed const &term) const -> Ground::UTheoryTerm {

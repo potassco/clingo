@@ -54,7 +54,7 @@ class Builder : public Input::DependencyBuilder {
         auto name = store_->string_ref(buf_.view());
         auto &base = bases_->add_base(std::make_tuple(name, param.second.size(), false));
         base.add(store_->fun_ref(name, as_symbol_span(param.second), false), Ground::StateAtom::fact,
-                 []() { return size_t{1}; });
+                 [] { return size_t{1}; });
     }
 
     //! Handle meta statements.
@@ -64,7 +64,7 @@ class Builder : public Input::DependencyBuilder {
     void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
             auto &base = bases_->add_base(std::make_tuple(fact.name(), fact.args().size(), fact.has_sign()));
-            auto [it, state] = base.add(fact, Ground::StateAtom::fact, [this]() { return out_->uid(true); });
+            auto [it, state] = base.add(fact, Ground::StateAtom::fact, [this] { return out_->uid(true); });
             out_->fact(fact, it->second.id);
         }
     }

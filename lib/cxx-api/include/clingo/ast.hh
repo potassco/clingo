@@ -98,7 +98,8 @@ inline constexpr int block = 1;
 } // namespace CommentType
 
 //! Enumeration of available ast attributes.
-enum class Attribute : clingo_ast_attribute_t {
+enum class Attribute : clingo_ast_attribute_t // NOLINT
+{
     anonymous = clingo_ast_attribute_anonymous,
     arguments = clingo_ast_attribute_arguments,
     arity = clingo_ast_attribute_arity,
@@ -139,13 +140,14 @@ enum class Attribute : clingo_ast_attribute_t {
     u = clingo_ast_attribute_u,
     v = clingo_ast_attribute_v,
     value = clingo_ast_attribute_value,
-    weight = clingo_ast_attribute_weight
+    weight = clingo_ast_attribute_weight,
 };
 
 //! Enumeration of available ast node types.
 //!
 //! Each note type is associated with a set of attributes.
-enum class NodeType : clingo_ast_type_t {
+enum class NodeType : clingo_ast_type_t // NOLINT
+{
     // terms
     format_field_literal = clingo_ast_type_format_field_literal,
     format_field_expression = clingo_ast_type_format_field_expression,
@@ -221,7 +223,7 @@ enum class NodeType : clingo_ast_type_t {
     statement_include = clingo_ast_type_statement_include,
     statement_const = clingo_ast_type_statement_const,
     statement_parts = clingo_ast_type_statement_parts,
-    statement_comment = clingo_ast_type_statement_comment
+    statement_comment = clingo_ast_type_statement_comment,
 };
 
 class Node;
@@ -708,7 +710,8 @@ inline auto transform(Transformer const &fun, std::vector<Node> nodes) -> std::o
 }
 
 //! Enumeration of expression types that can be parsed.
-enum class ParseType : clingo_ast_parse_type_t {
+enum class ParseType : clingo_ast_parse_type_t // NOLINT
+{
     //! Parse a term.
     term = clingo_ast_parse_type_term,
     //! Parse a theory term.
@@ -724,7 +727,8 @@ enum class ParseType : clingo_ast_parse_type_t {
 };
 
 //! The available projection modes.
-enum class ProjectionMode : clingo_projection_mode_t {
+enum class ProjectionMode : clingo_projection_mode_t // NOLINT
+{
     //! Do not project.
     disabled = clingo_projection_mode_disabled,
     //! Only project anonymous variables.
@@ -815,7 +819,7 @@ class Program {
     //! Construct an empty program.
     //!
     //! @param lib a library to store symbols
-    Program(Library const &lib) : prg_{Detail::call<clingo_program_new>(c_cast(lib))} {}
+    explicit Program(Library const &lib) : prg_{Detail::call<clingo_program_new>(c_cast(lib))} {}
 
     //! Add a statemente node to the program.
     //!

@@ -47,7 +47,7 @@ class Trail {
   public:
     using value_type = clingo_literal_t;
 
-    Trail(clingo_assignment_t const *assignment) : assignment_{assignment} {}
+    explicit Trail(clingo_assignment_t const *assignment) : assignment_{assignment} {}
 
     [[nodiscard]] auto slice(py::slice const &slc) const -> Sequence<clingo_literal_t> {
         return py::cast(TrailView{assignment_, to_rng(size(), slc)});
@@ -89,7 +89,7 @@ class Assignment {
   public:
     using value_type = clingo_literal_t;
 
-    Assignment(clingo_assignment_t const *assignment) : assignment_(assignment) {}
+    explicit Assignment(clingo_assignment_t const *assignment) : assignment_(assignment) {}
 
     [[nodiscard]] auto thread_id() const -> clingo_id_t {
         clingo_id_t id = 0;
@@ -199,8 +199,8 @@ class Assignment {
 
 class PropagateControl {
   public:
-    PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
-    PropagateControl(clingo_propagate_init_t const *init) : ctl_{nullptr} {
+    explicit PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
+    explicit PropagateControl(clingo_propagate_init_t const *init) : ctl_{nullptr} {
         handle_error(clingo_propagate_init_control(init, &ctl_));
     }
 
@@ -262,7 +262,7 @@ class PropagateControl {
 
 class PropagateInit : public PropagateControl {
   public:
-    PropagateInit(clingo_propagate_init_t *init) : PropagateControl(init), init_{init} {}
+    explicit PropagateInit(clingo_propagate_init_t *init) : PropagateControl(init), init_{init} {}
 
     auto library() -> PyLibrary {
         clingo_lib_t *lib = nullptr;
@@ -273,7 +273,7 @@ class PropagateInit : public PropagateControl {
     auto base() -> Base {
         clingo_base_t const *base = nullptr;
         handle_error(clingo_propagate_init_base(init_, &base));
-        return {base};
+        return Base{base};
     }
 
     auto get_check_mode() -> clingo_propagator_check_mode_e {

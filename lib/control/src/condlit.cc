@@ -49,10 +49,12 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit, Ground:
         if (auto const *clit = std::get_if<Input::CondLit>(&elem)) {
             cond.reserve(clit->cond().size() + 1);
             for (auto const &lit : clit->cond()) {
-                build_lit(ctx, lit, [&cond, &elem_vars]<class Lit>(Lit &&glit) {
-                    glit->vars(elem_vars, Ground::VarSelectMode::all);
-                    cond.emplace_back(std::forward<Lit>(glit));
-                });
+                build_lit(ctx, lit,
+                          // NOLINTNEXTLINE
+                          [&cond, &elem_vars]<class Lit>(Lit &&glit) {
+                              glit->vars(elem_vars, Ground::VarSelectMode::all);
+                              cond.emplace_back(std::forward<Lit>(glit));
+                          });
             }
         }
         // compute global variables
@@ -79,7 +81,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit, Ground:
         ctx.state<Ground::StateDisjunction>(ctx.mbr(), std::move(bases), vars_global.release(), index, sp_body);
 
     Ground::ProfileNodeInternal *sub_node = nullptr;
-    auto get_node = [&]() {
+    auto get_node = [&] {
         if (node != nullptr && sub_node == nullptr) {
             sub_node = &node->add_child(std::make_unique<Ground::ProfileNodeExpression<Input::HdLitDisjunction>>(lit));
         }
@@ -135,13 +137,15 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit, Ground:
     auto [has_conclusion, sp_conclusion, sp_premise, empty_index, premise_index, lit_index] = analyze(ctx, lit.lit());
     bool domain = true;
     auto add_lit = [&](auto &body, auto &vars, auto const &lit) {
-        build_lit(ctx, lit, [&body, &vars, &domain]<class Lit>(Lit &&glit) {
-            glit->vars(vars, Ground::VarSelectMode::all);
-            body.emplace_back(std::forward<Lit>(glit));
-            if (domain && !body.back()->domain()) {
-                domain = false;
-            }
-        });
+        build_lit(ctx, lit,
+                  // NOLINTNEXTLINE
+                  [&body, &vars, &domain]<class Lit>(Lit &&glit) {
+                      glit->vars(vars, Ground::VarSelectMode::all);
+                      body.emplace_back(std::forward<Lit>(glit));
+                      if (domain && !body.back()->domain()) {
+                          domain = false;
+                      }
+                  });
     };
 
     // convert conclusion and premise

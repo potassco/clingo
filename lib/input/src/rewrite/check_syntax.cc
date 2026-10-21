@@ -24,7 +24,7 @@ CLINGO_ENABLE_BITSET_ENUM(SyntaxCheck);
 
 struct CheckSyntax {
   public:
-    CheckSyntax(Logger &log) : log_{&log} {}
+    explicit CheckSyntax(Logger &log) : log_{&log} {}
 
     // expressions that can be ignored
 

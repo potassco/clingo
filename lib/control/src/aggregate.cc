@@ -66,7 +66,9 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit, Ground::P
             }
             // condition
             for (auto const &lit : elem.cond()) {
-                build_lit(ctx, lit, [&body]<class Lit>(Lit &&glit) { body.emplace_back(std::forward<Lit>(glit)); });
+                build_lit(ctx, lit,
+                          // NOLINTNEXTLINE
+                          [&body]<class Lit>(Lit &&glit) { body.emplace_back(std::forward<Lit>(glit)); });
             }
             // fail check
             if (!can_fail.empty()) {
@@ -127,10 +129,12 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit, Ground::P
         auto cond = Ground::ULitVec{};
         cond.reserve(elem.cond().size() + 1);
         for (auto const &lit : elem.cond()) {
-            build_lit(ctx, lit, [&cond, &elem_vars]<class Lit>(Lit &&glit) {
-                glit->vars(elem_vars, Ground::VarSelectMode::all);
-                cond.emplace_back(std::forward<Lit>(glit));
-            });
+            build_lit(ctx, lit,
+                      // NOLINTNEXTLINE
+                      [&cond, &elem_vars]<class Lit>(Lit &&glit) {
+                          glit->vars(elem_vars, Ground::VarSelectMode::all);
+                          cond.emplace_back(std::forward<Lit>(glit));
+                      });
         }
         // compute global variables
         for (auto const &var : elem_vars) {
@@ -239,11 +243,13 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit, Ground::P
         cond.reserve(elem.cond().size());
         for (auto const &lit : elem.cond()) {
             sp_elems = sp_elems && ctx.single_pass(lit);
-            build_lit(ctx, lit, [&cond, &elem_vars, &dom]<class Lit>(Lit &&glit) {
-                glit->vars(elem_vars, Ground::VarSelectMode::all);
-                cond.emplace_back(std::forward<Lit>(glit));
-                dom = dom && cond.back()->domain();
-            });
+            build_lit(ctx, lit,
+                      // NOLINTNEXTLINE
+                      [&cond, &elem_vars, &dom]<class Lit>(Lit &&glit) {
+                          glit->vars(elem_vars, Ground::VarSelectMode::all);
+                          cond.emplace_back(std::forward<Lit>(glit));
+                          dom = dom && cond.back()->domain();
+                      });
         }
         dom = dom && std::ranges::all_of(cond, [](auto const &glit) { return glit->domain(); });
         for (auto const &var : elem_vars) {

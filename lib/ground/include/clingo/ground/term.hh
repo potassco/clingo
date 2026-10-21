@@ -174,7 +174,7 @@ class TermProjection : public Term {
 class TermSymbol : public Term {
   public:
     //! Construct the term.
-    TermSymbol(Symbol sym) : sym_{sym} {}
+    explicit TermSymbol(Symbol sym) : sym_{sym} {}
 
     //! Get the symbol of the term.
     [[nodiscard]] auto symbol() const -> Symbol const & { return *sym_; }
@@ -207,7 +207,7 @@ using FormatFieldVec = std::vector<FormatField>;
 class TermFormatString : public Term {
   public:
     //! Construct the term.
-    TermFormatString(FormatFieldVec elems) : elems_{std::move(elems)} {}
+    explicit TermFormatString(FormatFieldVec elems) : elems_{std::move(elems)} {}
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
@@ -232,7 +232,7 @@ class TermFormatString : public Term {
 class TermVariable : public Term {
   public:
     //! Construct the term.
-    TermVariable(size_t var) : var_{var} {}
+    explicit TermVariable(size_t var) : var_{var} {}
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
@@ -360,7 +360,7 @@ class TermBinary : public Term {
 class TermTuple : public Term {
   public:
     //! Construct the term.
-    TermTuple(UTermVec args) : args_{std::move(args)} { eval_.reserve(args_.size()); }
+    explicit TermTuple(UTermVec args) : args_{std::move(args)} { eval_.reserve(args_.size()); }
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;

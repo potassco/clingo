@@ -47,7 +47,7 @@ class aspif_error : public std::exception {
 
 class AspifParser {
   public:
-    AspifParser(ParserState &state) : state_{&state} {}
+    explicit AspifParser(ParserState &state) : state_{&state} {}
 
     //! Parses a program in aspif format assuming that the lexer currently sits
     //! on the "asp" token.
@@ -416,6 +416,7 @@ class AspifParser {
         auto type = output_type_(OutputType::term_fun);
         expect_(AspifToken::space);
         auto sym_id = expect_id_();
+        // NOLINTNEXTLINE
         auto add = [this, sym_id]<class T>(T &&sym) {
             if (sym_id < symbols_.size()) {
                 symbols_[sym_id] = SharedSymbol{std::forward<T>(sym)};

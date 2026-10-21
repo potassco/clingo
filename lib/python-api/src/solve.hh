@@ -12,11 +12,12 @@ namespace PyClingo {
 
 class SolveResult {
   public:
-    SolveResult(clingo_solve_result_bitset_t res) : res_{res} {}
+    explicit SolveResult(clingo_solve_result_bitset_t res) : res_{res} {}
 
     [[nodiscard]] auto satisfiable() const -> bool { return (res_ & clingo_solve_result_satisfiable) != 0; }
     [[nodiscard]] auto unsatisfiable() const -> bool { return (res_ & clingo_solve_result_unsatisfiable) != 0; }
     [[nodiscard]] auto unknown() const -> bool {
+        // NOLINTNEXTLINE
         return (res_ & (clingo_solve_result_unsatisfiable | clingo_solve_result_satisfiable)) != 0;
     }
     [[nodiscard]] auto exhausted() const -> bool { return (res_ & clingo_solve_result_exhausted) != 0; }
@@ -37,7 +38,7 @@ class SolveResult {
 
 class SolveControl {
   public:
-    SolveControl(clingo_solve_control_t *ctl) : ctl_{ctl} {}
+    explicit SolveControl(clingo_solve_control_t *ctl) : ctl_{ctl} {}
 
     auto base() -> Base;
     auto add_clause(MixedLitSpan const &lits);
@@ -49,7 +50,7 @@ class SolveControl {
 
 class Model {
   public:
-    Model(clingo_model_t const *mdl) : mdl_{mdl} {}
+    explicit Model(clingo_model_t const *mdl) : mdl_{mdl} {}
 
     auto symbols(bool shown, bool atoms, bool terms, bool theory) -> Sequence<Symbol>;
     auto contains(Symbol atom) -> bool;
@@ -82,6 +83,7 @@ class SolveHandle : public reference_keeper<SolveHandle> {
     SolveHandle(SolveHandle &&other) noexcept = delete;
     auto operator=(SolveHandle const &other) -> SolveHandle & = delete;
     auto operator=(SolveHandle &&other) noexcept -> SolveHandle & = delete;
+    // NOLINTNEXTLINE
     ~SolveHandle() noexcept(false) { close(); }
 
     auto get() -> SolveResult;

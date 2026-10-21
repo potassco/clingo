@@ -12,7 +12,7 @@ namespace {
 
 class AssignmentAnalyzer {
   public:
-    AssignmentAnalyzer(size_t vars) : vars_{vars} {}
+    explicit AssignmentAnalyzer(size_t vars) : vars_{vars} {}
     //! Add an assignment depending on and providing the given variables.
     void add(VariableVec dep, VariableVec prv) {
         std::erase_if(dep, [this](auto var_idx) { return vars_[var_idx].bound; });
@@ -351,10 +351,9 @@ auto StmRule::do_report(EvalContext const &ctx) -> bool {
         }
     }
     if (head_ != nullptr) {
-        auto it = base_
-                      ->add(atom_, fact ? StateAtom::fact : StateAtom::derived,
-                            [&ctx, fact]() { return ctx.out().uid(fact); })
-                      .first;
+        auto it =
+            base_->add(atom_, fact ? StateAtom::fact : StateAtom::derived, [&ctx, fact] { return ctx.out().uid(fact); })
+                .first;
         ctx.out().rule(std::tuple{atom_, static_cast<size_t>(it.value().id), type_ == RuleType::choice});
     } else if (type_ == RuleType::normal) {
         ctx.out().rule(std::nullopt);
@@ -376,7 +375,7 @@ void StmRule::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]]
 void StmExternal::init_() {
     class LitExternalCheck : public LitCheck {
       public:
-        LitExternalCheck(StmExternal &stm) : stm_{&stm} {}
+        explicit LitExternalCheck(StmExternal &stm) : stm_{&stm} {}
 
       private:
         [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override {
@@ -464,7 +463,7 @@ void StmExternal::do_init(size_t gen) {
 }
 
 auto StmExternal::do_report(EvalContext const &ctx) -> bool {
-    auto it = base_->add(res_atom_, StateAtom::derived, [&ctx]() { return ctx.out().uid(); }).first;
+    auto it = base_->add(res_atom_, StateAtom::derived, [&ctx] { return ctx.out().uid(); }).first;
     ctx.out().external(res_atom_, it.value().id, res_type_);
     return true;
 }
@@ -483,7 +482,7 @@ void StmExternal::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unus
 void StmWeakConstraint::init_() {
     class LitTupleCheck : public LitCheck {
       public:
-        LitTupleCheck(StmWeakConstraint &stm) : stm_{&stm} {}
+        explicit LitTupleCheck(StmWeakConstraint &stm) : stm_{&stm} {}
 
       private:
         [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override {
@@ -599,7 +598,7 @@ void StmWeakConstraint::do_propagate([[maybe_unused]] SymbolStore &store, [[mayb
 void StmHeuristic::init_() {
     class LitHeuristicCheck : public LitCheck {
       public:
-        LitHeuristicCheck(StmHeuristic &stm) : stm_{&stm} {}
+        explicit LitHeuristicCheck(StmHeuristic &stm) : stm_{&stm} {}
 
       private:
         [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override {
@@ -665,7 +664,7 @@ void StmHeuristic::init_() {
 
     class LitAtom : public Lit {
       public:
-        LitAtom(StmHeuristic &stm) : stm_{&stm} {}
+        explicit LitAtom(StmHeuristic &stm) : stm_{&stm} {}
 
       private:
         void do_print(std::ostream &out) const override { out << *stm_->atom_; }
@@ -768,7 +767,7 @@ void StmHeuristic::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unu
 void StmEdge::init_() {
     class LitEdgeCheck : public LitCheck {
       public:
-        LitEdgeCheck(StmEdge &stm) : stm_{&stm} {}
+        explicit LitEdgeCheck(StmEdge &stm) : stm_{&stm} {}
 
       private:
         [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override {
@@ -843,7 +842,7 @@ void StmEdge::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]]
 void StmShow::init_() {
     class LitShowCheck : public LitCheck {
       public:
-        LitShowCheck(StmShow &stm) : stm_{&stm} {}
+        explicit LitShowCheck(StmShow &stm) : stm_{&stm} {}
 
       private:
         [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override {
@@ -907,7 +906,7 @@ void StmShow::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]]
 void StmProject::init_() {
     class LitProject : public Lit {
       public:
-        LitProject(StmProject &stm) : stm_{&stm} {}
+        explicit LitProject(StmProject &stm) : stm_{&stm} {}
 
       private:
         void do_print(std::ostream &out) const override { out << *stm_->atom_; }

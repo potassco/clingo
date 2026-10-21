@@ -90,7 +90,7 @@ using BoundStateMap = std::vector<BoundState>;
 //! Extract (and classify) linear terms from terms.
 class ExtractTerms {
   public:
-    ExtractTerms(IETermVec &terms, bool add = true) : terms_{&terms}, add_{add} {}
+    explicit ExtractTerms(IETermVec &terms, bool add = true) : terms_{&terms}, add_{add} {}
 
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
@@ -190,7 +190,7 @@ class ExtractTerms {
 //! Extract inequalities from relation literals.
 class ExtractInequalities {
   public:
-    ExtractInequalities(IESolver &slv) : slv_{&slv} {}
+    explicit ExtractInequalities(IESolver &slv) : slv_{&slv} {}
 
     void operator()(Lit const &lit) const { std::visit(*this, lit); }
 
@@ -299,13 +299,21 @@ class ApplyBounds {
         };
         auto make_interval = [&lit](auto var, auto loc, auto u, auto v) -> Util::ResultState<Lit> {
             if (u.value() == v.value()) {
-                return {true,
-                        lit.update(a_lhs = std::move(var), a_rhs = Util::make_vec<Guard>(Guard{Relation::equal, u}))};
+                return {
+                    true,
+                    lit.update(a_lhs = std::move(var), a_rhs = Util::make_vec<Guard>(Guard{Relation::equal, u})),
+                };
             }
-            return {true, lit.update(a_lhs = std::move(var),
-                                     a_rhs = Util::make_vec<Guard>(
-                                         Guard{Relation::equal, TermBinary{std::move(loc), std::move(u),
-                                                                           BinaryOperator::dots, std::move(v)}}))};
+            return {
+                true,
+                lit.update(a_lhs = std::move(var), a_rhs = Util::make_vec<Guard>(Guard{Relation::equal,
+                                                                                       TermBinary{
+                                                                                           std::move(loc),
+                                                                                           std::move(u),
+                                                                                           BinaryOperator::dots,
+                                                                                           std::move(v),
+                                                                                       }})),
+            };
         };
         if (is_variable(lit.lhs()) && is_interval(rhs.second)) {
             auto const *var = std::get_if<TermVariable>(&lit.lhs());
@@ -414,7 +422,7 @@ class ApplyBounds {
 
 class ComputeBounds {
   public:
-    ComputeBounds(RewriteContext &ctx) : ctx_{&ctx} {}
+    explicit ComputeBounds(RewriteContext &ctx) : ctx_{&ctx} {}
 
     //! Compute bounds given a set of literals/body literals.
     template <class Span>
@@ -494,12 +502,10 @@ class ComputeBounds {
                     res_lits.append(
                         make_relation(it->first, Relation::greater_equal, it->second.value(IEInterval::Lower)));
                 }
-            } else if (it->second.has_value(IEInterval::Upper)) {
-                if (state.upper == 0) {
-                    res_lits.append(
-                        make_relation(it->first, Relation::less_equal, it->second.value(IEInterval::Upper)));
-                }
+            } else if (it->second.has_value(IEInterval::Upper) && (state.upper == 0)) {
+                res_lits.append(make_relation(it->first, Relation::less_equal, it->second.value(IEInterval::Upper)));
             }
+
             ++it;
         }
         return {true, res_lits};

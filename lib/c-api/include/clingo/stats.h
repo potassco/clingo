@@ -50,7 +50,7 @@ typedef struct clingo_control clingo_control_t;
 enum clingo_stats_type_e {
     clingo_stats_type_value = 0, //!< the entry is a (double) value
     clingo_stats_type_array = 1, //!< the entry is an array
-    clingo_stats_type_map = 2    //!< the entry is a map
+    clingo_stats_type_map = 2,   //!< the entry is a map
 };
 //! Corresponding type to ::clingo_stats_type.
 typedef int clingo_stats_type_t;

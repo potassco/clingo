@@ -99,7 +99,7 @@ class AIFFBPropagator : public Propagator {
 
 class AssertingPropagator : public Heuristic {
   public:
-    AssertingPropagator(bool lock = false) : lock_(lock) {}
+    explicit AssertingPropagator(bool lock = false) : lock_(lock) {}
 
     void do_init([[maybe_unused]] Assignment assignment, PropagateInit init) override {
         auto lit = [&](std::string_view name) {
@@ -314,7 +314,7 @@ class ModePropagator : public Propagator {
 
 class TheoryProgagator : public Clingo::Propagator {
   public:
-    TheoryProgagator(ProgramLiteral lit) : lit_{lit} {}
+    explicit TheoryProgagator(ProgramLiteral lit) : lit_{lit} {}
     auto do_init(Assignment assign, PropagateInit init) -> void override {
         auto lit = init.solver_literal(lit_);
         REQUIRE(assign.value(lit) == false);

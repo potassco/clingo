@@ -96,14 +96,14 @@ TEST_CASE("evaluate_const") {
         stms.emplace_back(ch.const_def("#const a = b."));
         stms.emplace_back(ch.const_def("#const b = a."));
         ConstMap map;
-        REQUIRE_THROWS(evaluate_const(ch, ch, stms, map));
+        REQUIRE_THROWS(evaluate_const(ch.logger(), ch.store(), stms, map));
     }
 
     SECTION("redefinition") {
         stms.emplace_back(ch.const_def("#const a = x."));
         stms.emplace_back(ch.const_def("#const a = y."));
         ConstMap map;
-        REQUIRE_THROWS(evaluate_const(ch, ch, stms, map));
+        REQUIRE_THROWS(evaluate_const(ch.logger(), ch.store(), stms, map));
     }
 
     SECTION("depend") {
@@ -113,7 +113,7 @@ TEST_CASE("evaluate_const") {
         stms.emplace_back(ch.const_def("#const b = 2*a."));
         stms.emplace_back(ch.const_def("#const c = f(b,-g(-a*b))."));
         ConstMap map;
-        evaluate_const(ch, ch, stms, map);
+        evaluate_const(ch.logger(), ch.store(), stms, map);
         REQUIRE(map.size() == 3);
         REQUIRE(map.contains(ch.store().string_ref("a")));
         REQUIRE(map.contains(ch.store().string_ref("b")));

@@ -25,10 +25,10 @@ namespace CppClingo::Control {
 //! A map from a terms with projections associated state used during grounding.
 //!
 //! The terms represent a class of similar terms that can reuse the same projection state.
-using ProjectMap = CppClingo::Ground::ProjectMap;
+using CppClingo::Ground::ProjectMap;
 
 //! A map from signatures to atom bases.
-using BaseMap = CppClingo::Ground::BaseMap;
+using CppClingo::Ground::BaseMap;
 
 //! A map from variable names (input) to their indices (ground).
 using VarMap = Util::unordered_map<String, size_t>;

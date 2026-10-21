@@ -1,24 +1,6 @@
 ---
 InheritParentConfig: true
 Checks: >
-  bugprone-*,
-  clang-analyzer-*,
-  clang-diagnostic-*,
-  cppcoreguidelines-*,
-  modernize-*,
-  performance-*,
-  readability-*,
-  -modernize-use-designated-initializers,
-  -bugprone-chained-comparison,
-  -bugprone-easily-swappable-parameters,
-  -cppcoreguidelines-avoid-c-arrays,
-  -cppcoreguidelines-avoid-do-while,
-  -cppcoreguidelines-avoid-magic-numbers,
-  -cppcoreguidelines-pro-type-vararg,
-  -cppcoreguidelines-special-member-functions,
-  -readability-function-cognitive-complexity,
-  -readability-function-size,
-  -readability-identifier-length,
-  -readability-suspicious-call-argument,
   -cppcoreguidelines-owning-memory,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access

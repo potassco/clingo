@@ -17,13 +17,13 @@ auto rewrite_program(std::vector<char const *> const &stms) -> SV {
     UnprocessedProgram upr;
     for (auto const *str : stms) {
         if (auto stm = ph.statement(str); stm) {
-            upr.add(ph, *stm);
+            upr.add(ph.store(), *stm);
         }
     }
     Program prg{RewriteOptions{}};
-    prg.join(ph, ph, upr);
+    prg.join(ph.logger(), ph.store(), upr);
     SV ret;
-    prg.visit_stms(ph, [&ret](auto const &stm) { ret.emplace_back(to_str(stm)); });
+    prg.visit_stms(ph.store(), [&ret](auto const &stm) { ret.emplace_back(to_str(stm)); });
     return ret;
 }
 

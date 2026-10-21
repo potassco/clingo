@@ -13,31 +13,31 @@ namespace Clingo {
 //! @{
 
 //! Enumeration of propagator check modes.
-enum class PropagatorCheckMode : clingo_propagator_check_mode_t {
-    none = clingo_propagator_check_mode_none,         //!< Do not call check at all.
-    total = clingo_propagator_check_mode_total,       //!< Call check on total assignments.
-    fixpoint = clingo_propagator_check_mode_fixpoint, //!< Call check on propagation fixpoints.
-    both = clingo_propagator_check_mode_both,         //!< Call check on propagation fixpoints and total assignments.
+enum class PropagatorCheckMode : clingo_propagator_check_mode_t { // NOLINT
+    none = clingo_propagator_check_mode_none,                     //!< Do not call check at all.
+    total = clingo_propagator_check_mode_total,                   //!< Call check on total assignments.
+    fixpoint = clingo_propagator_check_mode_fixpoint,             //!< Call check on propagation fixpoints.
+    both = clingo_propagator_check_mode_both, //!< Call check on propagation fixpoints and total assignments.
 };
 
 //! Enumeration of propagator undo modes.
-enum class PropagatorUndoMode : clingo_propagator_undo_mode_t {
-    default_ = clingo_propagator_undo_mode_default, //!< Call undo for non-empty change lists.
-    always = clingo_propagator_undo_mode_always,    //!< Also call undo for empty change lists.
+enum class PropagatorUndoMode : clingo_propagator_undo_mode_t { // NOLINT
+    default_ = clingo_propagator_undo_mode_default,             //!< Call undo for non-empty change lists.
+    always = clingo_propagator_undo_mode_always,                //!< Also call undo for empty change lists.
 };
 
 //! Enumeration of weight constraint types.
-enum class WeightConstraintType : clingo_weight_constraint_type_t {
+enum class WeightConstraintType : clingo_weight_constraint_type_t {      // NOLINT
     implication_left = clingo_weight_constraint_type_implication_left,   //!< The weight constraint implies the literal.
     implication_right = clingo_weight_constraint_type_implication_right, //!< The literal implies the weight constraint.
     equivalence = clingo_weight_constraint_type_equivalence, //!< The weight constraint is equivalent to the literal.
 };
 
 //! Enumeration of clause flags.
-enum class ClauseFlags : clingo_clause_type_t {
-    none = clingo_clause_type_learnt,  //!< The empty set of flags.
-    lock = clingo_clause_type_static,  //!< Exempt the clause from deletion.
-    tag = clingo_clause_type_volatile, //!< Delete the clause at the end of the current solving step.
+enum class ClauseFlags : clingo_clause_type_t { // NOLINT
+    none = clingo_clause_type_learnt,           //!< The empty set of flags.
+    lock = clingo_clause_type_static,           //!< Exempt the clause from deletion.
+    tag = clingo_clause_type_volatile,          //!< Delete the clause at the end of the current solving step.
 };
 //! Enable bitset enumeration for ClauseFlags.
 CLINGO_ENABLE_BITSET_ENUM(ClauseFlags);

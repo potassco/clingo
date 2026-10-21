@@ -118,38 +118,57 @@ class ConstMap {
 //! Enumeration of the control modes.
 //!
 //! This controls how the main function of the control object proceeds.
-enum class ControlMode : clingo_mode_t {
-    parse = clingo_mode_parse,     //!< Parse only.
-    rewrite = clingo_mode_rewrite, //!< Parse and rewrite.
-    ground = clingo_mode_ground,   //!< Parse, rewrite, ground.
-    solve = clingo_mode_solve,     //!< Parse, rewrite, ground, and solve.
+enum class ControlMode : clingo_mode_t // NOLINT
+{
+    //! Parse only.
+    parse = clingo_mode_parse,
+    //! Parse and rewrite.
+    rewrite = clingo_mode_rewrite,
+    //! Parse, rewrite, ground.
+    ground = clingo_mode_ground,
+    //! Parse, rewrite, ground, and solve.
+    solve = clingo_mode_solve,
 };
 
 //! Enumeration of the flags for writing ASPIF files.
-enum class WriteAspifFlags : clingo_write_aspif_mode_t {
-    none = 0,                                              //!< No flags.
-    preamble = clingo_write_aspif_mode_preamble,           //!< Write preamble.
-    preamble_auto = clingo_write_aspif_mode_preamble_auto, //!< Write preamble for newly created files.
-    append = clingo_write_aspif_mode_append,               //!< Append to an existing file (or create it).
-    preprocess = clingo_write_aspif_mode_preprocess,       //!< Whether to preprocess the program before writing.
-    symbols = clingo_write_aspif_mode_symbols,             //!< Whether to write symbols in a structured format.
+enum class WriteAspifFlags : clingo_write_aspif_mode_t // NOLINT
+{
+    //! No flags.
+    none = 0,
+    //! Write preamble.
+    preamble = clingo_write_aspif_mode_preamble,
+    //! Write preamble for newly created files.
+    preamble_auto = clingo_write_aspif_mode_preamble_auto,
+    //! Append to an existing file (or create it).
+    append = clingo_write_aspif_mode_append,
+    //! Whether to preprocess the program before writing.
+    preprocess = clingo_write_aspif_mode_preprocess,
+    //! Whether to write symbols in a structured format.
+    symbols = clingo_write_aspif_mode_symbols,
 };
 //! Enable bitset operations for the WriteAspifFlags enumeration.
 CLINGO_ENABLE_BITSET_ENUM(WriteAspifFlags);
 
 //! Enumeration of the flags for solving a logic program.
-enum class SolveFlags : clingo_solve_mode_bitset_t {
-    empty = 0,                       //!< Standard event-based solving.
-    yield = clingo_solve_mode_yield, //!< Yield models as they are found.
-    async = clingo_solve_mode_async, //!< Asynchronously solve in the background.
+enum class SolveFlags : clingo_solve_mode_bitset_t // NOLINT
+{
+    //! Standard event-based solving.
+    empty = 0,
+    //! Yield models as they are found.
+    yield = clingo_solve_mode_yield,
+    //! Asynchronously solve in the background.
+    async = clingo_solve_mode_async,
 };
 //! Enable bitset operations for the SolveFlags enumeration.
 CLINGO_ENABLE_BITSET_ENUM(SolveFlags);
 
 //! Enumeration of the types of statements that can be discarded.
-enum class DiscardType {
-    minimize = clingo_discard_type_e::minimize, //!< Discard minimize statements.
-    project = clingo_discard_type_e::project,   //!< Discard project statements.
+enum class DiscardType : clingo_discard_type_t // NOLINT
+{
+    //! Discard minimize statements.
+    minimize = clingo_discard_type_e::minimize,
+    //! Discard project statements.
+    project = clingo_discard_type_e::project,
 };
 
 //! The main control class for grounding and solving logic programs.
@@ -533,8 +552,12 @@ class Control {
     void parts(std::optional<PartSpan> parts) const {
         if (parts) {
             auto cparts = Detail::transform(*parts, [](auto const &part) {
-                return clingo_part_t{part.name.data(), part.name.size(), c_cast(part.params.data()),
-                                     part.params.size()};
+                return clingo_part_t{
+                    part.name.data(),
+                    part.name.size(),
+                    c_cast(part.params.data()),
+                    part.params.size(),
+                };
             });
             Detail::handle_error(clingo_control_set_parts(ctl_.get(), cparts.data(), cparts.size(), true));
         } else {
@@ -586,7 +609,7 @@ class Control {
         }
         auto &res = *UserData::get(user_data);
 
-        static constexpr auto decide = []() {
+        static constexpr auto decide = [] {
             if constexpr (std::is_base_of_v<Heuristic, typename UserData::ValueType>) {
                 return [](clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data,
                           clingo_literal_t *decision) -> bool {

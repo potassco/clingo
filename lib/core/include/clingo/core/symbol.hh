@@ -75,7 +75,7 @@ class String {
     friend auto operator<<(Util::OutputBuffer &out, String const &str) -> Util::OutputBuffer &;
 
   private:
-    constexpr String(uintptr_t rep) noexcept : rep_{rep} {}
+    constexpr explicit String(uintptr_t rep) noexcept : rep_{rep} {}
     uintptr_t rep_ = 0;
 };
 
@@ -295,7 +295,7 @@ class Symbol {
     friend auto operator<<(Util::OutputBuffer &out, Symbol const &sym) -> Util::OutputBuffer &;
 
   private:
-    Symbol(uint64_t repr) noexcept : rep_{repr} {}
+    explicit Symbol(uint64_t repr) noexcept : rep_{repr} {}
     uint64_t rep_ = 0;
 };
 
@@ -541,7 +541,7 @@ class SymbolStore {
     [[nodiscard]] virtual auto do_tup(SymbolSpan args, bool referenced) -> Symbol = 0;
     [[nodiscard]] virtual auto do_fun(String str, SymbolSpan args, bool sign, bool referenced) -> Symbol = 0;
     [[nodiscard]] virtual auto do_string(std::string_view str, bool referenced) -> String = 0;
-    [[nodiscard]] virtual auto do_num(Number num) noexcept -> Symbol = 0;
+    [[nodiscard]] virtual auto do_num(Number num) -> Symbol = 0;
 
     virtual void do_gc_block(bool block) noexcept = 0;
     virtual void do_gc_add_owner(SymbolOwner const &owner) = 0;
@@ -556,7 +556,7 @@ using USymbolStore = std::unique_ptr<SymbolStore>;
 class GCLock {
   public:
     //! Block garbage collection.
-    GCLock(SymbolStore &store) : store_{&store} { store_->gc_block(); }
+    explicit GCLock(SymbolStore &store) : store_{&store} { store_->gc_block(); }
     //! Unblock garbage collection.
     ~GCLock() { store_->gc_unblock(); }
 

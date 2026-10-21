@@ -11,7 +11,8 @@ namespace Clingo {
 //! @{
 
 //! Enumeration of statistics types.
-enum class StatsType : clingo_stats_type_t {
+enum class StatsType : clingo_stats_type_t // NOLINT
+{
     //! The statistics entry holds a value.
     value = clingo_stats_type_value,
     //! The statistics entry holds an array.
@@ -111,6 +112,8 @@ class Stats : public StatsView {
     //! @copydoc Clingo::StatsView::c_cast()
     friend auto c_cast(Stats const &stats) -> clingo_stats_t * { return stats.stats_(); }
 
+    // NOLINTBEGIN(bugprone-derived-method-shadowing-base-method)
+
     //! @copydoc Clingo::StatsView::array()
     [[nodiscard]] auto array() const -> StatsArray;
 
@@ -128,6 +131,8 @@ class Stats : public StatsView {
 
     //! @copydoc Clingo::StatsView::get()
     [[nodiscard]] auto operator[](std::string_view name) const -> Stats { return get(name); }
+
+    // NOLINTEND(bugprone-derived-method-shadowing-base-method)
 
     using StatsView::value;
 
@@ -239,6 +244,8 @@ class StatsArray : public StatsArrayView {
     //! @copydoc Clingo::StatsArrayView::StatsArrayView()
     explicit StatsArray(clingo_stats_t *stats, uint64_t key) : StatsArrayView{stats, key} {}
 
+    // NOLINTBEGIN(bugprone-derived-method-shadowing-base-method)
+
     //! @copydoc Clingo::StatsArrayView::at()
     [[nodiscard]] auto at(size_t index) const -> Stats { return Stats{stats_(), at_(index)}; }
 
@@ -278,6 +285,8 @@ class StatsArray : public StatsArrayView {
 
     //! @copydoc Clingo::StatsArrayView::end()
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
+
+    // NOLINTEND(bugprone-derived-method-shadowing-base-method)
 
   private:
     [[nodiscard]] auto stats_() const -> clingo_stats_t * {
@@ -414,6 +423,8 @@ class StatsMap : public StatsMapView {
     //! @param key the key of the statistics entry
     explicit StatsMap(clingo_stats_t *stats, uint64_t key) : StatsMapView{stats, key} {}
 
+    // NOLINTBEGIN(bugprone-derived-method-shadowing-base-method)
+
     //! @copydoc Clingo::StatsMapView::at()
     [[nodiscard]] auto at(size_t index) const -> value_type {
         auto [name, subkey] = at_(index);
@@ -451,6 +462,8 @@ class StatsMap : public StatsMapView {
     //!
     //! @return an iterator to the end of the map
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
+
+    // NOLINTEND(bugprone-derived-method-shadowing-base-method)
 
   private:
     [[nodiscard]] auto stats_() const -> clingo_stats_t * {

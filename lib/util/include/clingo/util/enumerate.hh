@@ -69,7 +69,7 @@ template <std::forward_iterator T> class enumerate<T> {
     template <iterable U>
         requires std::is_lvalue_reference_v<U>
     // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
-    enumerate(U &&x) : enumerate{x.begin(), x.end()} {}
+    explicit enumerate(U &&x) : enumerate{x.begin(), x.end()} {}
     //! Enumerate an iterator range.
     enumerate(T begin, T end) : begin_{begin}, end_{end} {}
 
@@ -97,7 +97,7 @@ template <std::integral T> class enumerate<T> {
     //! Enumerate an integer range.
     enumerate(T begin, T end) : begin_{begin}, end_{end} {}
     //! Enumerate an integer range.
-    enumerate(T end) : begin_{}, end_{end} {}
+    explicit enumerate(T end) : begin_{}, end_{end} {}
 
     class iterator {
       public:
@@ -112,7 +112,7 @@ template <std::integral T> class enumerate<T> {
         iterator() = default;
 
         //! Construct an iterator from an integer.
-        iterator(value_type cur) : cur_{cur} {}
+        explicit iterator(value_type cur) : cur_{cur} {}
 
         //! Get the current integer.
         auto operator*() const -> value_type { return cur_; }

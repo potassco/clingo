@@ -99,20 +99,29 @@ class SolveControl {
 };
 
 //! Enumeration of the model types.
-enum class ModelType : clingo_model_type_t {
-    stable_model = clingo_model_type_stable_model,             //!< The model represents a stable model.
-    brave_consequences = clingo_model_type_brave_consequences, //!< The model represents a set of brave consequences.
-    cautious_consequences =
-        clingo_model_type_cautious_consequences //!< The model represents a set of cautious consequences.
+enum class ModelType : clingo_model_type_t // NOLINT
+{
+    //! The model represents a stable model.
+    stable_model = clingo_model_type_stable_model,
+    //! The model represents a set of brave consequences.
+    brave_consequences = clingo_model_type_brave_consequences,
+    //! The model represents a set of cautious consequences.
+    cautious_consequences = clingo_model_type_cautious_consequences,
 };
 
 //! Enumeration of bit flags to select symbols in models.
-enum class ShowFlags : clingo_show_type_bitset_t {
-    none = 0,                         //!< Show nothing.
-    shown = clingo_show_type_shown,   //!< Select shown atoms and terms.
-    atoms = clingo_show_type_atoms,   //!< Select all atoms.
-    terms = clingo_show_type_terms,   //!< Select all terms.
-    theory = clingo_show_type_theory, //!< Select symbols added by theory.
+enum class ShowFlags : clingo_show_type_bitset_t // NOLINT
+{
+    //! Show nothing.
+    none = 0,
+    //! Select shown atoms and terms.
+    shown = clingo_show_type_shown,
+    //! Select all atoms.
+    atoms = clingo_show_type_atoms,
+    //! Select all terms.
+    terms = clingo_show_type_terms,
+    //! Select symbols added by theory.
+    theory = clingo_show_type_theory,
 };
 //! Enable bitset enumeration for ShowFlags.
 CLINGO_ENABLE_BITSET_ENUM(ShowFlags);

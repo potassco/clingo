@@ -140,7 +140,9 @@ auto unpool_build(E const &expr, B build, U const &unpool, [[maybe_unused]] A...
 
 template <class T, class E, class U, class... A> auto unpool_rewrite(E const &expr, U const &unpool, A... args) {
     return unpool_build(
-        expr, [&]<class... V>(V &&...vals) -> T { return expr.update((args = std::forward<V>(vals))...); }, unpool,
+        expr,
+        // NOLINTNEXTLINE
+        [&]<class... V>(V &&...vals) -> T { return expr.update((args = std::forward<V>(vals))...); }, unpool,
         std::move(args)...);
 }
 

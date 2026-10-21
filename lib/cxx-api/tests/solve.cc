@@ -17,7 +17,7 @@ namespace {
 
 class UCB : public SolveEventHandler {
   public:
-    UCB(std::vector<std::vector<Sum>> &bounds) : bounds_{&bounds} { bounds_->clear(); }
+    explicit UCB(std::vector<std::vector<Sum>> &bounds) : bounds_{&bounds} { bounds_->clear(); }
 
   private:
     void do_unsat(SumSpan lower_bound) override { bounds_->emplace_back(lower_bound.begin(), lower_bound.end()); }
@@ -26,7 +26,7 @@ class UCB : public SolveEventHandler {
 
 class ECB : public SolveEventHandler {
   public:
-    ECB(Library &lib) : lib_{&lib} {}
+    explicit ECB(Library &lib) : lib_{&lib} {}
 
   private:
     auto do_model(Model model) -> bool override {

@@ -12,7 +12,7 @@ struct clingo_control {
     //! Construct a control object that is bound later.
     //!
     //! See bind().
-    clingo_control(clingo_lib_t *lib) : lib{lib} {
+    explicit clingo_control(clingo_lib_t *lib) : lib{lib} {
         assert(lib != nullptr);
         clingo_lib_acquire(lib);
     }
@@ -82,8 +82,11 @@ inline auto convert(clingo_control_t *control, clingo_part_t const *parts, size_
     auto make_parts = [&](auto const &part) {
         return CppClingo::Input::ProgramParam{
             control->lib->store->string({part.name, part.name_size}),
-            CppClingo::Util::to_vec(part.params, part.params + part.params_size, make_part)};
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            CppClingo::Util::to_vec(part.params, part.params + part.params_size, make_part),
+        };
     };
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return CppClingo::Util::to_vec(parts, parts + parts_size, make_parts);
 }
 

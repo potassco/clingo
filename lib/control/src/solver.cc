@@ -36,7 +36,7 @@ namespace {
 //! performance overhead should be negligible.
 class AbstractProgramBackendImpl : public ProgramBackend, public TheoryBackend {
   public:
-    AbstractProgramBackendImpl(Potassco::AbstractProgram &prg) : prg_{&prg} {}
+    explicit AbstractProgramBackendImpl(Potassco::AbstractProgram &prg) : prg_{&prg} {}
 
     //! Map a symbol to its output term id.
     auto term_id(Symbol sym) -> prg_id_t { return do_term_id(sym); }
@@ -307,7 +307,7 @@ class PotasscoBackend : public AbstractProgramBackendImpl {
     }
 
     auto do_term_id(Symbol sym) -> prg_id_t override {
-        return terms_->add(sym, [&]() {
+        return terms_->add(sym, [&] {
             if (max_term_id_ < std::numeric_limits<prg_id_t>::max()) {
                 auto ret = max_term_id_++;
                 program().outputTerm(ret, as_str(sym));
@@ -348,7 +348,7 @@ class ProgramBackendImpl : public AbstractProgramBackendImpl {
     }
 
     auto do_term_id(Symbol sym) -> prg_id_t override {
-        return terms_->add(sym, [&]() { return prg_->newShowTerm(as_str(sym)); });
+        return terms_->add(sym, [&] { return prg_->newShowTerm(as_str(sym)); });
     }
 
     void do_term_id(Symbol sym, prg_id_t id) override { terms_->add(sym, id); }
@@ -801,9 +801,9 @@ class BackendHandleImpl : public BackendHandle {
         if (auto sig = atom.signature(); sig && grd_ != nullptr) {
             auto lock = GCLock{store()};
             auto &base = grd_->base().add_base(*sig);
-            auto ret = base.add(atom, Ground::StateAtom::derived,
-                                [this]() { return static_cast<size_t>(backend_->next_lit()); })
-                           .first;
+            auto ret =
+                base.add(atom, Ground::StateAtom::derived, [this] { return static_cast<size_t>(backend_->next_lit()); })
+                    .first;
             auto lit = static_cast<prg_lit_t>(ret.value().id);
             if (ret.value().state != Ground::StateAtom::fact) {
                 added_.emplace_back(lit, ret.key());
@@ -836,7 +836,7 @@ class BackendHandleImpl : public BackendHandle {
 //! to the underlying backend of the solver later.
 class Solver::AspifBackend : public ProgramBackend, public TheoryBackend {
   public:
-    AspifBackend(Solver &solver) : solver_{&solver} {}
+    explicit AspifBackend(Solver &solver) : solver_{&solver} {}
 
   private:
     //! Prepare the program to add aspif statements.
@@ -891,7 +891,7 @@ class Solver::AspifBackend : public ProgramBackend, public TheoryBackend {
             throw std::runtime_error{"unexpected symbol for atom in aspif file"};
         }
         auto &base = solver_->grd_.base().add_base(*sig);
-        auto it = base.add(sym, Ground::StateAtom::derived, [lit]() { return lit; }).first;
+        auto it = base.add(sym, Ground::StateAtom::derived, [lit] { return lit; }).first;
         if (std::cmp_not_equal(it->second.id, lit)) {
             throw std::runtime_error{"redefinition of atom in aspif file"};
         }
@@ -979,7 +979,7 @@ class Solver::AspifBackend : public ProgramBackend, public TheoryBackend {
 
     void do_atom(prg_lit_t lit_or_zero, prg_id_t name, PrgIdSpan elems,
                  std::optional<std::pair<prg_id_t, prg_id_t>> guard) override {
-        auto lit = [lit_or_zero]() { return lit_or_zero; };
+        auto lit = [lit_or_zero] { return lit_or_zero; };
         if (guard) {
             data_->atom(lit, term_(name), elem_(elems), std::pair{term_(guard->first), term_(guard->second)});
         } else {
@@ -1216,7 +1216,7 @@ void Solver::incmode_() {
 
     size_t step = 0;
     auto ret = SolveResult::empty;
-    auto cont = [&]() {
+    auto cont = [&] {
         if (opts_.imax && step >= *opts_.imax) {
             return false;
         }
@@ -1331,7 +1331,7 @@ auto Solver::solve(USolveEventHandler handler, PrgLitSpan assumptions, SolveMode
             }
             // NOLINTNEXTLINE
             return std::make_unique<SolveHandleImpl>(lock_, grd_.log(), static_cast<ModelImpl &>(*mdl_), mode,
-                                                     std::move(handler), [this]() { simplify_(); });
+                                                     std::move(handler), [this] { simplify_(); });
         }
     }
     buf().flush();
@@ -1383,7 +1383,7 @@ class GroundHandle::Impl {
     void start(Solver &slv, Input::ProgramParamVec params, UGroundEventHandler handler) {
         assert(!future_.valid());
         future_ =
-            std::async(std::launch::async, [this, &slv, handler = std::move(handler), params = std::move(params)]() {
+            std::async(std::launch::async, [this, &slv, handler = std::move(handler), params = std::move(params)] {
                 try {
                     auto res = slv.ground(params, handler.get(), &stop_);
                     if (handler) {

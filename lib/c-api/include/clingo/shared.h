@@ -16,7 +16,7 @@ enum clingo_heuristic_type_e {
     clingo_heuristic_type_factor = 2, //!< modify VSIDS factor of an atom
     clingo_heuristic_type_init = 3,   //!< modify the initial VSIDS score of an atom
     clingo_heuristic_type_true = 4,   //!< set the level of an atom and choose a positive sign
-    clingo_heuristic_type_false = 5   //!< set the level of an atom and choose a negative sign
+    clingo_heuristic_type_false = 5,  //!< set the level of an atom and choose a negative sign
 };
 //! Corresponding type to ::clingo_heuristic_type_e.
 typedef int clingo_heuristic_type_t;

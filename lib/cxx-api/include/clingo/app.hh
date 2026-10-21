@@ -196,7 +196,7 @@ static constexpr clingo_application_t c_app = {
         auto &app_data = *static_cast<AppData *>(data);
         CLINGO_TRY {
             app_data.app->print_model(ConstModel{model},
-                                      [printer, printer_data]() { handle_error(printer(printer_data)); });
+                                      [printer, printer_data] { handle_error(printer(printer_data)); });
         }
         CLINGO_CATCH;
     },
@@ -213,7 +213,8 @@ static constexpr clingo_application_t c_app = {
             app_data.app->validate_options();
         }
         CLINGO_CATCH;
-    }};
+    },
+};
 
 } // namespace Detail
 

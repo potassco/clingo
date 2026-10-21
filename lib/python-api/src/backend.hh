@@ -32,7 +32,7 @@ class Observer {
 
 class Backend {
   public:
-    Backend(clingo_backend_t *backend) : backend_{backend} {}
+    explicit Backend(clingo_backend_t *backend) : backend_{backend} {}
     auto atom(std::optional<Symbol> symbol) -> clingo_atom_t;
     void rule(AtomSpan head, LitSpan body, bool choice);
     void weight_rule(AtomSpan head, clingo_weight_t lower, WeightLitSpan body, bool choice);
@@ -58,7 +58,7 @@ class Backend {
 
 class BackendManager {
   public:
-    BackendManager(clingo_control_t *ctl) : ctl_{ctl} {}
+    explicit BackendManager(clingo_control_t *ctl) : ctl_{ctl} {}
 
     auto enter() -> Backend;
     void exit(std::optional<pybind11::type> const &type, std::optional<pybind11::object> const &value,

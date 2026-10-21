@@ -55,10 +55,10 @@ class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
 
 //! Stop condition for incremental mode.
 enum class IStop : uint8_t {
-    none,   //!< Do not consider solve result.
-    sat,    //!< Stop when satisfiable.
-    unsat,  //!< Stop when unsat.
-    unknown //!< Stop when interrupted.
+    none,    //!< Do not consider solve result.
+    sat,     //!< Stop when satisfiable.
+    unsat,   //!< Stop when unsat.
+    unknown, //!< Stop when interrupted.
 };
 
 //! Enumeration of available application modes.
@@ -66,7 +66,7 @@ enum class AppMode : uint8_t {
     parse,   //!< Stop processing after parsing.
     rewrite, //!< Stop processing after rewriting.
     ground,  //!< Stop processing after grounding.
-    solve    //!< Stop processing after solving.
+    solve,   //!< Stop processing after solving.
 };
 
 //! Enumeration of available output formats when in solving mode.
@@ -74,13 +74,14 @@ enum class BackendType : uint8_t {
     clasp,   //!< Standard solving mode: use the normal backend (Clasp)
     aspif,   //!< Print program in ASP intermediate format
     smodels, //!< Print program in smodels format
-    reify    //!< Print program as reified facts
+    reify,   //!< Print program as reified facts
 };
 
 //! Enumeration of available options for the reification backend.
 enum class ReifyFlags : uint8_t {
-    reify_scc = 1U, //!< Compute and print SCCs
-    reify_step = 2U //!< Add step numbers
+    empty = 0,       //!< All flags are disabled
+    reify_scc = 1U,  //!< Compute and print SCCs
+    reify_step = 2U, //!< Add step numbers
 };
 //! Enable bit set operations.
 CLINGO_ENABLE_BITSET_ENUM(ReifyFlags);
@@ -96,7 +97,7 @@ struct SolverOptions {
     //! Output format to use when in solving mode.
     BackendType backend_type = BackendType::clasp;
     //! Reification flags.
-    ReifyFlags reify_flags = {};
+    ReifyFlags reify_flags = {}; // NOLINT
     //! The minimum number of incremental steps.
     size_t imin = 0;
     //! The maximum number of incremental steps.
@@ -123,16 +124,16 @@ CLINGO_ENABLE_BITSET_ENUM(SymbolSelectFlags);
 
 //! Enumeration of available model flags.
 enum class ModelType : uint8_t {
-    model = 0,                //!< The model represents a stable model.
-    brave_consequences = 1,   //!< The model represents a set of brave consequences.
-    cautious_consequences = 2 //!< The model represents a set of cautious consequences.
+    model = 0,                 //!< The model represents a stable model.
+    brave_consequences = 1,    //!< The model represents a set of brave consequences.
+    cautious_consequences = 2, //!< The model represents a set of cautious consequences.
 };
 
 //! Enumeration of available consequence types.
 enum class ConsequenceType : uint8_t {
-    false_ = 0, //!< The literal is not a consequence.
-    true_ = 1,  //!< The literal is a consequence.
-    unknown = 2 //!< The literal might or might not be a consequence.
+    false_ = 0,  //!< The literal is not a consequence.
+    true_ = 1,   //!< The literal is a consequence.
+    unknown = 2, //!< The literal might or might not be a consequence.
 };
 
 //! Map from symbols to show term ids.

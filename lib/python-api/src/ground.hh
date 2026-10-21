@@ -17,6 +17,7 @@ class GroundHandle : public reference_keeper<GroundHandle> {
     GroundHandle(GroundHandle &&other) noexcept = delete;
     auto operator=(GroundHandle const &other) -> GroundHandle & = delete;
     auto operator=(GroundHandle &&other) noexcept -> GroundHandle & = delete;
+    // NOLINTNEXTLINE
     ~GroundHandle() noexcept(false) { close(); }
 
     auto get() -> clingo_ground_result_e;

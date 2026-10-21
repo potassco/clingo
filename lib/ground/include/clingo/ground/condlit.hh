@@ -150,7 +150,7 @@ class BaseCondLitEmpty : public BaseImpl<Symbol const *, BaseCondLitEmpty> {
     //!
     //! The given atoms form the base. They are managed externally and the base
     //! just provides a view on them.
-    BaseCondLitEmpty(MapAtomCondLit &atoms) : atoms_{&atoms} {}
+    explicit BaseCondLitEmpty(MapAtomCondLit &atoms) : atoms_{&atoms} {}
 
     //! Map a key to its index in the base.
     [[nodiscard]] auto index(Key const &key) const -> size_t {
@@ -179,7 +179,7 @@ class BaseCondLitPremise : public BaseImpl<Symbol const *, BaseCondLitPremise> {
     //! The given elements form the base. They are managed externally and the
     //! base just provides a view on them. Elements must be explicitly added
     //! to the view using the add method.
-    BaseCondLitPremise(MapElemCondLit &elems) : elems_{&elems} {}
+    explicit BaseCondLitPremise(MapElemCondLit &elems) : elems_{&elems} {}
 
     //! Add a blocked element to the base.
     void add(MapElemCondLit::iterator it) {
@@ -217,7 +217,7 @@ class BaseCondLit : public BaseImpl<Symbol const *, BaseCondLit> {
     //! The given atoms form the base. They are managed externally and the
     //! base just provides a view on them. Atoms must be explicitly added
     //! to the view using the add method.
-    BaseCondLit(MapAtomCondLit &atoms) : atoms_{&atoms} {}
+    explicit BaseCondLit(MapAtomCondLit &atoms) : atoms_{&atoms} {}
 
     //! Add a propagated atom to the base.
     void add(MapAtomCondLit::iterator it) {

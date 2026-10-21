@@ -14,7 +14,7 @@ namespace CppClingo::Input {
 namespace {
 
 struct StateDep {
-    StateDep(StmConst stm) : stm{std::move(stm)} {}
+    explicit StateDep(StmConst stm) : stm{std::move(stm)} {}
     //! The const directive at hand.
     StmConst stm;
     //! The constants that depend on this directive.

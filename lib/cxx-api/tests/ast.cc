@@ -51,7 +51,7 @@ TEST_CASE("ast misc", "[cxx][ast][misc]") {
     auto loc = head.location(A::location);
     auto var_x = AST::Node::create<T::term_variable>(lib, loc, "X", false);
     REQUIRE(var_x.to_string() == "X");
-    auto var_y = var_x.update<T::term_variable>(lib, []<A attr>() {
+    auto var_y = var_x.update<T::term_variable>(lib, []<A attr> {
         if constexpr (attr == A::name) {
             return std::string_view{"Y"};
         }
@@ -68,7 +68,7 @@ TEST_CASE("ast misc", "[cxx][ast][misc]") {
 
     AST::Transformer trans = [&](AST::Node const &node) -> std::optional<AST::Node> {
         if (node.type() == T::term_variable) {
-            return node.update<T::term_variable>(lib, [&]<A attr>() {
+            return node.update<T::term_variable>(lib, [&]<A attr> {
                 if constexpr (attr == A::name) {
                     return node.string(attr) == "X" ? "Y" : "Z";
                 }
@@ -191,10 +191,12 @@ TEST_CASE_METHOD(Fixture, "ast term tuple", "[cxx][ast][term_tuple]") {
 }
 
 TEST_CASE_METHOD(Fixture, "ast term function", "[cxx][ast][term_tuple]") {
-    auto a = std::array{node<T::argument_tuple>(std::vector{parse_term("1"), parse_term("2")}),
-                        node<T::argument_tuple>(std::vector{parse_term("3"), node<T::projection>(loc)})};
+    auto a = std::array{
+        node<T::argument_tuple>(std::vector{parse_term("1"), parse_term("2")}),
+        node<T::argument_tuple>(std::vector{parse_term("3"), node<T::projection>(loc)}),
+    };
     auto p = node<T::term_function>(loc, "f", a, true);
-    auto q = node<T::term_function>(loc, "f", std::array<N, 0>{}, false);
+    auto q = node<T::term_function>(loc, "f", std::array<N, 0>(), false);
     REQUIRE((p.location(A::location) == loc));
     REQUIRE(p.string(A::name) == "f");
     REQUIRE(std::ranges::equal(p.nodes(A::pool), a));
@@ -953,7 +955,7 @@ TEST_CASE_METHOD(Fixture, "ast visit", "[cxx][ast][visit]") {
 TEST_CASE_METHOD(Fixture, "ast transform", "[cxx][ast][transform]") {
     auto var_x = AST::Node::create<T::term_variable>(lib, loc, "X", false);
     REQUIRE(var_x.to_string() == "X");
-    auto var_y = var_x.update<T::term_variable>(lib, []<A attr>() {
+    auto var_y = var_x.update<T::term_variable>(lib, []<A attr> {
         if constexpr (attr == A::name) {
             return std::string_view{"Y"};
         }
@@ -962,7 +964,7 @@ TEST_CASE_METHOD(Fixture, "ast transform", "[cxx][ast][transform]") {
 
     AST::Transformer trans = [&](AST::Node const &node) -> std::optional<AST::Node> {
         if (node.type() == T::term_variable) {
-            return node.update<T::term_variable>(lib, [&]<A attr>() {
+            return node.update<T::term_variable>(lib, [&]<A attr> {
                 if constexpr (attr == A::name) {
                     return node.string(attr) == "X" ? "Y" : "Z";
                 }

@@ -21,19 +21,19 @@ template <typename T> class immutable_array {
 
   public:
     //! The value type.
-    using value_type = typename vector_type::value_type;
+    using value_type = vector_type::value_type;
     //! The reference type.
-    using const_reference = typename vector_type::const_reference;
+    using const_reference = vector_type::const_reference;
     //! The allocator type.
-    using allocator_type = typename vector_type::allocator_type;
+    using allocator_type = vector_type::allocator_type;
     //! The unsigned size type.
-    using size_type = typename vector_type::size_type;
+    using size_type = vector_type::size_type;
     //! The signed size type.
-    using difference_type = typename vector_type::difference_type;
+    using difference_type = vector_type::difference_type;
     //! The pointer type.
-    using const_pointer = typename vector_type::const_pointer;
+    using const_pointer = vector_type::const_pointer;
     //! Theconst iterator type.
-    using const_iterator = typename vector_type::const_iterator;
+    using const_iterator = vector_type::const_iterator;
 
     //! Construct an empty array.
     constexpr immutable_array() noexcept = default;
@@ -51,15 +51,18 @@ template <typename T> class immutable_array {
     auto operator=(immutable_array &&other) noexcept -> immutable_array & = default;
 
     //! Construct array copying values from the given span.
-    immutable_array(std::span<T> span) : immutable_array{span.begin(), span.end()} {}
+    immutable_array(std::span<T> span) // NOLINT
+        : immutable_array{span.begin(), span.end()} {}
 
     //! Construct array copying values from the given span.
-    immutable_array(std::span<T const> span) : immutable_array{span.begin(), span.end()} {}
+    immutable_array(std::span<T const> span) // NOLINT
+        : immutable_array{span.begin(), span.end()} {}
 
     //! Construct array taking ownership of the given vector.
     //!
     //! Note that this might change in case the data type is implemented differently.
-    immutable_array(std::vector<T> &&vec) {
+    immutable_array(std::vector<T> &&vec) // NOLINT
+    {
         if (!vec.empty()) {
             vec.shrink_to_fit();
             vec_ = Util::make_immutable<vector_type>(std::move(vec));
@@ -67,10 +70,12 @@ template <typename T> class immutable_array {
     }
 
     //! Construct array copying from the given vector.
-    immutable_array(std::vector<T> const &vec) : immutable_array{vec.begin(), vec.end()} {}
+    immutable_array(std::vector<T> const &vec) // NOLINT
+        : immutable_array{vec.begin(), vec.end()} {}
 
     //! Construct array coping from the given initializer list.
-    immutable_array(std::initializer_list<T> init) : immutable_array(init.begin(), init.end()) {}
+    immutable_array(std::initializer_list<T> init) // NOLINT
+        : immutable_array(init.begin(), init.end()) {}
 
     //! Construct array coping from the given iterator range.
     template <class It> immutable_array(It first, It last) {

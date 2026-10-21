@@ -19,7 +19,7 @@ namespace CppClingo::Ground {
 //! Whether to process per step or accumulated profiling data.
 enum class ProfileType : uint8_t {
     step, //!< Profile data for a single step.
-    accu  //!< Profile data accumulated over all steps.
+    accu, //!< Profile data accumulated over all steps.
 };
 
 //! Whether to print profile data into a compact or detailed form.
@@ -175,7 +175,7 @@ class ProfileNodeInternal : public ProfileNode {
 template <typename T> class ProfileNodeExpression : public ProfileNodeInternal {
   public:
     //! Construct the profile node with the given expression.
-    ProfileNodeExpression(T expr, bool nested = false) : expr_{std::move(expr)}, nested_{nested} {}
+    explicit ProfileNodeExpression(T expr, bool nested = false) : expr_{std::move(expr)}, nested_{nested} {}
 
   private:
     //! Add a child profile node.

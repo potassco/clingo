@@ -12,7 +12,7 @@ struct LPData {
 
 class LPParser {
   public:
-    LPParser(std::string_view in) : input_(in) {}
+    explicit LPParser(std::string_view in) : input_(in) {}
 
     auto parse() -> LPData {
         auto data = LPData{};

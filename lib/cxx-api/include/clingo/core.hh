@@ -21,6 +21,8 @@ namespace Detail {
 
 template <typename> inline constexpr bool always_false = false;
 
+// NOLINTBEGIN
+
 #ifndef __clang_analyzer__
 #define CLINGO_ENABLE_BITSET_ENUM(E, ...)                                                                              \
     [[nodiscard]] CLINGO_ENUM_OP(~, (E a), __VA_ARGS__)->E {                                                           \
@@ -70,6 +72,8 @@ template <typename> inline constexpr bool always_false = false;
     static_assert(std::is_enum_v<E>)
 #define CLINGO_ENUM_OP(op, arg, ...) [[maybe_unused]] __VA_ARGS__ auto operator op arg noexcept
 #endif
+
+// NOLINTEND
 
 #define CLINGO_TRY try
 #define CLINGO_CATCH                                                                                                   \
@@ -179,7 +183,7 @@ template <auto F> struct Free {
 
 template <class T> struct value_handle {
   public:
-    using pointer = typename T::pointer;
+    using pointer = T::pointer;
 
     value_handle() = default;
 
@@ -224,7 +228,7 @@ template <class T> struct value_handle {
 
 template <auto Copy, auto Free> struct value_handle_traits {
     using pointer = std::remove_pointer_t<typename funptr_traits<decltype(Copy)>::template arg<1>>;
-    using const_pointer = typename funptr_traits<decltype(Copy)>::template arg<0>;
+    using const_pointer = funptr_traits<decltype(Copy)>::template arg<0>;
     static auto copy(pointer p) -> pointer {
         auto res = pointer{};
         handle_error(Copy(p, &res));
@@ -274,6 +278,7 @@ template <class T, class P> class intrusive_handle {
     intrusive_handle(intrusive_handle const &other) : intrusive_handle{other.ptr_} {}
     intrusive_handle(intrusive_handle &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {}
     ~intrusive_handle() noexcept { T::release(ptr_); }
+    // NOLINTNEXTLINE
     auto operator=(intrusive_handle const &other) -> intrusive_handle & {
         T::acquire(other.ptr_);
         T::release(ptr_);
@@ -333,7 +338,7 @@ template <> struct UserDataStorageTraits<std::nullptr_t> : UserDataStorageTypes<
 //! explicitly marked to indicate the absence of user data.
 template <typename T> struct UserDataTraits {
     using StorageTraits = UserDataStorageTraits<std::remove_cvref_t<T>>;
-    using PointerType = typename StorageTraits::PtrType;
+    using PointerType = StorageTraits::PtrType;
     using ValueType = std::remove_pointer_t<PointerType>;
     using ReferenceType = std::add_lvalue_reference_t<PointerType>;
 
@@ -399,7 +404,7 @@ concept UserData = IsUserData<std::remove_cvref_t<Value>, Base, Null>::value;
 
 template <typename T> class ArrowProxy {
   public:
-    constexpr ArrowProxy(T value) : value_(std::move(value)) {}
+    constexpr explicit ArrowProxy(T value) : value_(std::move(value)) {}
     constexpr auto operator->() -> T * { return &value_; }
 
   private:
@@ -409,11 +414,11 @@ template <typename T> class ArrowProxy {
 template <class Seq> class RandomAccessIterator {
   public:
     using iterator_category = std::random_access_iterator_tag;
-    using value_type = typename Seq::value_type;
-    using size_type = typename Seq::size_type;
-    using difference_type = typename Seq::difference_type;
-    using pointer = typename Seq::pointer;
-    using reference = typename Seq::reference;
+    using value_type = Seq::value_type;
+    using size_type = Seq::size_type;
+    using difference_type = Seq::difference_type;
+    using pointer = Seq::pointer;
+    using reference = Seq::reference;
 
     // NOTE: Added to fulfill the sentinel_for concept; should not be used.
     constexpr RandomAccessIterator() : view_{throw std::logic_error("invalid iterator")}, index_{0} {}
@@ -520,33 +525,54 @@ using StringSpan = std::span<std::string_view const>;
 using StringList = std::initializer_list<std::string_view const>;
 
 //! Enumeration of message codes.
-enum class MessageCode : clingo_message_t {
-    trace = clingo_message_trace,                             //!< a trace message
-    debug = clingo_message_debug,                             //!< a debug message
-    info = clingo_message_info,                               //!< an info message
-    operation_undefined = clingo_message_operation_undefined, //!< undefined operation in program
-    atom_undefined = clingo_message_atom_undefined,           //!< undefined atom in program
-    file_included = clingo_message_file_included,             //!< same file included multiple times
-    global_variable = clingo_message_global_variable,         //!< global variable in tuple of aggregate element
-    warn = clingo_message_warn,                               //!< a warning message
-    error = clingo_message_error, //!< to report multiple errors; a corresponding runtime error is raised later
+enum class MessageCode : clingo_message_t // NOLINT
+{
+    //! a trace message
+    trace = clingo_message_trace,
+    //! a debug message
+    debug = clingo_message_debug,
+    //! an info message
+    info = clingo_message_info,
+    //! undefined operation in program
+    operation_undefined = clingo_message_operation_undefined,
+    //! undefined atom in program
+    atom_undefined = clingo_message_atom_undefined,
+    //! same file included multiple times
+    file_included = clingo_message_file_included,
+    //! global variable in tuple of aggregate element
+    global_variable = clingo_message_global_variable,
+    //! a warning message
+    warn = clingo_message_warn,
+    //! to report multiple errors; a corresponding runtime error is raised later
+    error = clingo_message_error,
 };
 
 //! Enumeration of log levels.
-enum class LogLevel {
-    trace = clingo_log_level_trace, //!< the trace level (most verbose)
-    debug = clingo_log_level_debug, //!< the debug level
-    info = clingo_log_level_info,   //!< the info level
-    wart = clingo_log_level_warn,   //!< the warning level
-    error = clingo_log_level_error, //!< the error level (least verbose)
+enum class LogLevel // NOLINT
+{
+    //! the trace level (most verbose)
+    trace = clingo_log_level_trace,
+    //! the debug level
+    debug = clingo_log_level_debug,
+    //! the info level
+    info = clingo_log_level_info,
+    //! the warning level
+    warn = clingo_log_level_warn,
+    //! the error level (least verbose)
+    error = clingo_log_level_error,
 };
 
 //! Flags to create library objects.
-enum class LibraryFlags : clingo_lib_flags_t {
-    none = 0,                                     //!< no flags set
-    slotted = clingo_lib_flags_slotted,           //!< use custom allocator for storing symbols
-    shared = clingo_lib_flags_shared,             //!< create symbols in a thread-safe manner
-    fast_release = clingo_lib_flags_fast_release, //!< whether to enable fast release of libraries
+enum class LibraryFlags : clingo_lib_flags_t // NOLINT
+{
+    //! no flags set
+    none = 0,
+    //! use custom allocator for storing symbols
+    slotted = clingo_lib_flags_slotted,
+    //! create symbols in a thread-safe manner
+    shared = clingo_lib_flags_shared,
+    //! whether to enable fast release of libraries
+    fast_release = clingo_lib_flags_fast_release,
 };
 //! Enable bitset operations on LibraryFlags.
 CLINGO_ENABLE_BITSET_ENUM(LibraryFlags);
@@ -644,21 +670,33 @@ class StringBuilder {
 };
 
 //! Enumeration of control modes.
-enum class ExternalType : clingo_external_type_t {
-    free = clingo_external_type_free,       //!< Allow an external to be assigned freely.
-    true_ = clingo_external_type_true,      //!< Assign an external to true.
-    false_ = clingo_external_type_false,    //!< Assign an external to false.
-    release = clingo_external_type_release, //!< No longer treat an atom as external.
+enum class ExternalType : clingo_external_type_t // NOLINT
+{
+    //! Allow an external to be assigned freely.
+    free = clingo_external_type_free,
+    //! Assign an external to true.
+    true_ = clingo_external_type_true,
+    //! Assign an external to false.
+    false_ = clingo_external_type_false,
+    //! No longer treat an atom as external.
+    release = clingo_external_type_release,
 };
 
 //! Enumeration of heuristic types.
-enum class HeuristicType : clingo_heuristic_type_t {
-    level = clingo_heuristic_type_level,   //!< Set the level of an atom.
-    sign = clingo_heuristic_type_sign,     //!< Configure which sign to chose for an atom.
-    factor = clingo_heuristic_type_factor, //!< Modify VSIDS factor of an atom.
-    init = clingo_heuristic_type_init,     //!< Modify the initial VSIDS score of an atom.
-    true_ = clingo_heuristic_type_true,    //!< Set the level of an atom and choose a positive sign.
-    false_ = clingo_heuristic_type_false   //!< Set the level of an atom and choose a negative sign.
+enum class HeuristicType : clingo_heuristic_type_t // NOLINT
+{
+    //! Set the level of an atom.
+    level = clingo_heuristic_type_level,
+    //! Configure which sign to chose for an atom.
+    sign = clingo_heuristic_type_sign,
+    //! Modify VSIDS factor of an atom.
+    factor = clingo_heuristic_type_factor,
+    //! Modify the initial VSIDS score of an atom.
+    init = clingo_heuristic_type_init,
+    //! Set the level of an atom and choose a positive sign.
+    true_ = clingo_heuristic_type_true,
+    //! Set the level of an atom and choose a negative sign.
+    false_ = clingo_heuristic_type_false,
 };
 
 //! Class representing a position in a file.

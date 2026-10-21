@@ -8,7 +8,7 @@ repos:
         exclude: ^.github/
 
   - repo: https://github.com/pycqa/isort
-    rev: 9.0.2
+    rev: 10.0.0b1
     hooks:
       - id: isort
         args: ["--profile", "black"]
@@ -25,9 +25,9 @@ repos:
     hooks:
       - id: clang-format
         types_or: [c++, c]
-        args: [--style=file, --version=22]
+        args: [--style=file, --version=23]
       - id: clang-tidy
         types_or: [c++, c]
         exclude: ^(web/main\.cc)$
         args:
-          [--checks=.clang-tidy, --version=22, "-fix", "--warnings-as-errors=*"]
+          [--checks=.clang-tidy, --version=23, "-fix", "--warnings-as-errors=*"]

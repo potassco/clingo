@@ -84,7 +84,7 @@ enum clingo_theory_term_type_e {
     clingo_theory_term_type_set = 2,      //!< a set term, e.g., `{1,2,3}`
     clingo_theory_term_type_function = 3, //!< a function term, e.g., `f(1,2,3)`
     clingo_theory_term_type_number = 4,   //!< a number term, e.g., `42`
-    clingo_theory_term_type_symbol = 5    //!< a symbol term, e.g., `c`
+    clingo_theory_term_type_symbol = 5,   //!< a symbol term, e.g., `c`
 };
 //! Corresponding type to ::clingo_theory_term_type_e.
 typedef int clingo_theory_term_type_t;

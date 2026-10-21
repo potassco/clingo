@@ -25,16 +25,19 @@ template <typename T> class immutable_value {
     constexpr immutable_value() noexcept = default;
 
     //! Explicitly construct a null pointer.
-    constexpr immutable_value(std::nullptr_t) noexcept {}
+    constexpr immutable_value(std::nullptr_t) noexcept // NOLINT
+    {}
 
     //! Construct a value.
     // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     template <class U>
         requires(!std::same_as<std::remove_cvref_t<U>, immutable_value>)
-    immutable_value(U &&value) : immutable_value{std::in_place, std::forward<U>(value)} {}
+    immutable_value(U &&value) // NOLINT
+        : immutable_value{std::in_place, std::forward<U>(value)} {}
 
 #ifdef __clang_analyzer__
     template <class... Args>
+    // NOLINTNEXTLINE
     immutable_value([[maybe_unused]] std::in_place_t tag, Args &&...args)
         : data_{std::make_shared<T>(std::forward<Args>(args)...)} {}
     immutable_value(immutable_value const &other) noexcept = default;
@@ -98,7 +101,10 @@ template <typename T> class immutable_value {
     auto operator->() const noexcept -> element_type const * { return &get(); }
 
     //! Conversion operator.
-    [[nodiscard]] operator T const &() const noexcept { return get(); }
+    [[nodiscard]] operator T const &() const noexcept // NOLINT
+    {
+        return get();
+    }
 
   private:
 #ifdef __clang_analyzer__

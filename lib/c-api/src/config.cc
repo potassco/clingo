@@ -63,7 +63,7 @@ class ConfigEntry {
 
 class ConfigEntryAdapter : public CppClingo::Control::ClingoConfig::Entry {
   public:
-    ConfigEntryAdapter(ConfigEntry c_entry) : c_entry_{std::move(c_entry)} {}
+    explicit ConfigEntryAdapter(ConfigEntry c_entry) : c_entry_{std::move(c_entry)} {}
 
   private:
     using ValueFlags = CppClingo::Control::ClingoConfig::ValueFlags;

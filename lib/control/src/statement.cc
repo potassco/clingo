@@ -39,10 +39,12 @@ void build_sort(BuildContext &ctx, Input::BdLitSort const &lit, Ground::ProfileN
         cond.reserve(elem.cond().size());
         for (auto const &lit : elem.cond()) {
             sp_elems = sp_elems && ctx.single_pass(lit);
-            build_lit(ctx, lit, [&cond, &elem_vars]<class Lit>(Lit &&glit) {
-                glit->vars(elem_vars, Ground::VarSelectMode::all);
-                cond.emplace_back(std::forward<Lit>(glit));
-            });
+            build_lit(ctx, lit,
+                      // NOLINTNEXTLINE
+                      [&cond, &elem_vars]<class Lit>(Lit &&glit) {
+                          glit->vars(elem_vars, Ground::VarSelectMode::all);
+                          cond.emplace_back(std::forward<Lit>(glit));
+                      });
         }
         dom = dom && std::ranges::all_of(cond, [](auto const &glit) { return glit->domain(); });
         for (auto const &var : elem_vars) {
@@ -108,7 +110,7 @@ void build_sort(BuildContext &ctx, Input::BdLitSort const &lit, Ground::ProfileN
 //! Translator for head literals.
 class BuilderHdLit {
   public:
-    BuilderHdLit(BuildContext &ctx) : ctx_{&ctx} {}
+    explicit BuilderHdLit(BuildContext &ctx) : ctx_{&ctx} {}
 
     void operator()(Input::HdLitSetAggregate const &lit, Ground::ProfileNodeInternal *node) const {
         std::ignore = node;
@@ -136,7 +138,7 @@ class BuilderHdLit {
 //! Translator for body literals.
 class BuilderBdLit {
   public:
-    BuilderBdLit(BuildContext &ctx) : ctx_{&ctx} {}
+    explicit BuilderBdLit(BuildContext &ctx) : ctx_{&ctx} {}
     void operator()(Input::BdLitSetAggregate const &lit, Ground::ProfileNodeInternal *node) const {
         std::ignore = node;
         CLINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "unexpected set aggregate " << lit;
@@ -154,6 +156,7 @@ class BuilderBdLit {
     void operator()(Input::BdLitSimple const &lit, Ground::ProfileNodeInternal *node) const {
         std::ignore = node;
         build_lit(*ctx_, lit.lit(),
+                  // NOLINTNEXTLINE
                   [this]<class Lit>(Lit &&glit) { ctx_->body().emplace_back(std::forward<Lit>(glit)); });
     }
     void operator()(Input::BdLitConjunction const &lit, Ground::ProfileNodeInternal *node) const {
@@ -167,7 +170,7 @@ class BuilderBdLit {
 //! Translator for statements.
 class BuilderStm {
   public:
-    BuilderStm(BuildContext &ctx) : ctx_{&ctx} {}
+    explicit BuilderStm(BuildContext &ctx) : ctx_{&ctx} {}
     template <class T> void operator()(T const &stm, Ground::ProfileNode *node) const {
         static_assert(Util::matches<T, Input::StmComment, Input::StmConst, Input::StmParts, Input::StmDefined,
                                     Input::StmInclude, Input::StmOptimize, Input::StmProgram, Input::StmProjectSig,

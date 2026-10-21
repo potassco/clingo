@@ -13,11 +13,11 @@ auto unify_terms(std::string_view a, std::string_view b) -> bool {
     ParseHelper ph;
     auto simplify_term = [&ph](std::string_view str) -> Term {
         auto term = ph.term(str).value();
-        auto res = simplify(SimplifyTermFlags::none, ph, term);
+        auto res = simplify(SimplifyTermFlags::none, ph.ctx(), term);
         REQUIRE(res.state);
         return std::move(res).value.value_or(std::move(term));
     };
-    return unify(ph, simplify_term(a), simplify_term(b));
+    return unify(ph.store(), simplify_term(a), simplify_term(b));
 }
 
 } // namespace
@@ -119,7 +119,7 @@ TEST_CASE("dependency") {
         stms.emplace_back(opt_value(ph.statement("c :- not b.")));
         stms.emplace_back(opt_value(ph.statement("d :- e.")));
         stms.emplace_back(opt_value(ph.statement("e :- d, c.")));
-        auto comps = analyze(ph, stms, nullptr);
+        auto comps = analyze(ph.store(), stms, nullptr);
         REQUIRE(comps.size() == 4);
         REQUIRE(comps[0].size() == 1);
         REQUIRE(comps[0][0].stms.size() == 1);
@@ -141,7 +141,7 @@ TEST_CASE("dependency") {
         std::vector<Stm> stms;
         stms.emplace_back(opt_value(ph.statement("p(X,a) :- f(X).")));
         stms.emplace_back(opt_value(ph.statement("f(X) :- p(b,X).")));
-        REQUIRE(analyze(ph, stms, nullptr).size() == 1);
+        REQUIRE(analyze(ph.store(), stms, nullptr).size() == 1);
     }
     SECTION("analyze_program") {
         struct Builder : DependencyBuilder {
@@ -196,14 +196,14 @@ TEST_CASE("dependency") {
         auto bld = Builder{};
         auto ph = ParseHelper();
         auto uprg = UnprocessedProgram{};
-        uprg.add(ph, opt_value(ph.statement("#show p/2.")));
-        uprg.add(ph, opt_value(ph.statement("#program p(a).")));
-        uprg.add(ph, opt_value(ph.statement("p(a).")));
-        uprg.add(ph, opt_value(ph.statement("p(b).")));
-        uprg.add(ph, opt_value(ph.statement("p(X,a) :- f(X).")));
+        uprg.add(ph.store(), opt_value(ph.statement("#show p/2.")));
+        uprg.add(ph.store(), opt_value(ph.statement("#program p(a).")));
+        uprg.add(ph.store(), opt_value(ph.statement("p(a).")));
+        uprg.add(ph.store(), opt_value(ph.statement("p(b).")));
+        uprg.add(ph.store(), opt_value(ph.statement("p(X,a) :- f(X).")));
         auto prg = Program{ph.ctx().options()};
-        prg.join(ph, ph, uprg);
-        std::ignore = prg.analyze(ph, {ProgramParam{ph.store().string("p"), {ph.store().num(Number(1))}}}, bld);
+        prg.join(ph.logger(), ph.store(), uprg);
+        std::ignore = prg.analyze(ph.store(), {ProgramParam{ph.store().string("p"), {ph.store().num(Number(1))}}}, bld);
         REQUIRE(bld.res == std::vector<std::string>{"#show p/2. [true]", "p(b).", "#program_p(1).", "% component",
                                                     "% refined component", "p($0) :- #program_p($0).", "% component",
                                                     "% refined component", "p(X,$0) :- #program_p($0); f(X)."});

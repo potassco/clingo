@@ -49,8 +49,8 @@ class Library;
 using PyLibrary = Annotation<Library>;
 
 template <auto Copy, auto Free> struct value_handle_traits {
-    using pointer = typename std::remove_pointer_t<typename funptr_traits<decltype(Copy)>::template arg<1>>;
-    using const_pointer = typename funptr_traits<decltype(Copy)>::template arg<0>;
+    using pointer = std::remove_pointer_t<typename funptr_traits<decltype(Copy)>::template arg<1>>;
+    using const_pointer = funptr_traits<decltype(Copy)>::template arg<0>;
     static auto copy(pointer p) -> pointer {
         auto res = pointer{};
         handle_error(Copy(p, &res));
@@ -67,6 +67,7 @@ class Library : public registered_handle<Library, clingo_lib_t>, public referenc
     void close() noexcept;
     auto capsule() -> py::capsule;
 
+    // NOLINTNEXTLINE
     operator clingo_lib_t *() const;
 
     static auto cast(clingo_lib_t *lib, bool convert = false) -> PyLibrary;
@@ -75,7 +76,7 @@ class Library : public registered_handle<Library, clingo_lib_t>, public referenc
 
   private:
     using Parent = registered_handle<Library, clingo_lib_t>;
-    Library(clingo_lib_t *lib);
+    explicit Library(clingo_lib_t *lib);
 
     static clingo_logger_t c_logger;
 };
@@ -86,8 +87,8 @@ class StringBuilder {
   public:
     [[nodiscard]] auto str() const -> std::string_view;
 
-    operator clingo_string_builder_t *() { return bld_.get(); };
-    operator clingo_string_builder_t const *() const { return bld_.get(); };
+    explicit operator clingo_string_builder_t *() { return bld_.get(); };
+    explicit operator clingo_string_builder_t const *() const { return bld_.get(); };
 
   private:
     using Traits = value_handle_traits<clingo_string_builder_copy, clingo_string_builder_free>;
@@ -112,6 +113,7 @@ class Position {
     friend auto operator==(Position const &a, Position const &b) -> bool;
     friend auto operator<=>(Position const &a, Position const &b) -> std::strong_ordering;
 
+    // NOLINTNEXTLINE
     operator clingo_position_t const *() const { return pos_.get(); };
 
   private:
@@ -133,6 +135,7 @@ class Location {
     friend auto operator==(Location const &a, Location const &b) -> bool;
     friend auto operator<=>(Location const &a, Location const &b) -> std::strong_ordering;
 
+    // NOLINTNEXTLINE
     operator clingo_location_t const *() const { return loc_.get(); };
 
   private:

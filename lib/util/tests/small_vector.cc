@@ -11,7 +11,7 @@ namespace CppClingo::Util::Test {
 TEST_CASE("small_vector capacity", "[base]") {
     SECTION("small state: capacity is N and holds N elements without allocating") {
         small_vector<int, 4> v;
-        REQUIRE(v.size() == 0);
+        REQUIRE(v.empty());
         REQUIRE(v.capacity() == 4);
         REQUIRE(v.capacity() >= v.size());
 
@@ -30,7 +30,7 @@ TEST_CASE("small_vector capacity", "[base]") {
         v.reserve(100);
         REQUIRE(v.capacity() >= 100);
         REQUIRE(v.capacity() >= v.size());
-        REQUIRE(v.size() == 0);
+        REQUIRE(v.empty());
     }
 
     SECTION("capacity() >= size() across the small -> large crossover") {
@@ -60,7 +60,7 @@ TEST_CASE("small_vector reserve prevents reallocation", "[base]") {
     REQUIRE(v.capacity() >= count);
 
     for (std::size_t i = 0; i < count; ++i) {
-        REQUIRE(v[i] == static_cast<int>(i));
+        REQUIRE(std::cmp_equal(v[i], i));
     }
 }
 

@@ -162,7 +162,7 @@ class AddDepend {
 
 class AddProvide {
   public:
-    AddProvide(ProvideVec &provide) : provide_{&provide} {}
+    explicit AddProvide(ProvideVec &provide) : provide_{&provide} {}
 
     void operator()(LitSymbolic const &lit) const {
         // Note: could be made an assertion
@@ -216,7 +216,7 @@ using Assignment = Util::unordered_map<String, Term const *>;
 
 class Unifier {
   public:
-    Unifier(SymbolStore &store) : store_{&store} {}
+    explicit Unifier(SymbolStore &store) : store_{&store} {}
     auto unify(Term const &a, Term const &b) -> bool {
         ass_.clear();
         return unify_(a, b);
@@ -310,8 +310,7 @@ class Unifier {
                 } else if constexpr (Util::matches<T, TermSymbol>) {
                     return a == v_b.value();
                 } else if constexpr (Util::matches<T, TermTuple>) {
-                    return a.type() == SymbolType::tuple &&
-                           match_(a.args(), std::get<ArgumentTuple>(v_b.pool().at(0)).elems());
+                    return a.type() == SymbolType::tuple && match_(a.args(), std::get<ArgumentTuple>(v_b.pool().at(0)));
                 } else if constexpr (Util::matches<T, TermFunction>) {
                     return a.type() == SymbolType::function && a.name() == v_b.name() && !v_b.external() &&
                            !a.has_classical_sign() && match_(a.args(), v_b.pool().at(0));
@@ -391,9 +390,15 @@ class Unifier {
                         } else if constexpr (Util::matches<B, TermUnary, TermBinary>) {
                             terms_.emplace_back(TermBinary{
                                 v_a.loc(),
-                                TermBinary{v_a.loc(), TermSymbol{v_a.loc(), store_->num_ref(Number(1))},
-                                           BinaryOperator::times, a},
-                                BinaryOperator::plus, TermSymbol{v_a.loc(), CppClingo::SymbolStore::num_ref(0)}});
+                                TermBinary{
+                                    v_a.loc(),
+                                    TermSymbol{v_a.loc(), store_->num_ref(Number(1))},
+                                    BinaryOperator::times,
+                                    a,
+                                },
+                                BinaryOperator::plus,
+                                TermSymbol{v_a.loc(), CppClingo::SymbolStore::num_ref(0)},
+                            });
                             return unify_(terms_.back(), b);
                         } else {
                             if (a == b) {
@@ -488,10 +493,15 @@ class Unifier {
                         if (auto l_a = check_linear(v_a); l_a && v_b.op() == UnaryOperator::minus) {
                             terms_.emplace_back(TermBinary{
                                 l_a->term_mxn().loc(),
-                                TermBinary{location(l_a->term_mx()),
-                                           TermSymbol{location(l_a->term_m()), store_->num_ref(-l_a->m())},
-                                           BinaryOperator::times, l_a->term_x()},
-                                BinaryOperator::plus, TermSymbol{location(l_a->term_n()), store_->num_ref(-l_a->n())}});
+                                TermBinary{
+                                    location(l_a->term_mx()),
+                                    TermSymbol{location(l_a->term_m()), store_->num_ref(-l_a->m())},
+                                    BinaryOperator::times,
+                                    l_a->term_x(),
+                                },
+                                BinaryOperator::plus,
+                                TermSymbol{location(l_a->term_n()), store_->num_ref(-l_a->n())},
+                            });
                             // -a ~ --b
                             return unify_(terms_.back(), *v_b.rhs());
                         }

@@ -333,7 +333,7 @@ void StmTheoryElement::do_init(size_t gen) {
 auto StmTheoryElement::do_report(EvalContext const &ctx) -> bool {
     auto &ass = ctx.ass();
     auto it = state_->find_atom(ass);
-    auto get_cond = [this, &ctx]() {
+    auto get_cond = [this, &ctx] {
         // output the condition
         auto &out = ctx.out().cond();
         for (auto const &lit : body_) {

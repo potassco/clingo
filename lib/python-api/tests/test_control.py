@@ -173,8 +173,7 @@ class TestControl:
         Test running the incremental mode from python.
         """
         ctl = Control(self.lib, ["0"])
-        ctl.parse_string(
-            dedent("""\
+        ctl.parse_string(dedent("""\
                 #include <incmode>.
 
                 #program base.
@@ -189,8 +188,7 @@ class TestControl:
                 #program check(k).
 
                 :- not c(3), query(k).
-                """)
-        )
+                """))
         # NOTE: we cannot intercept models here; the incmode is more
         # interesting for clingo-based apps.
         ctl.main()

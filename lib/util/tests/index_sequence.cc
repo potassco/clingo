@@ -24,6 +24,7 @@ TEST_CASE("index sequence random", "[base]") {
         x = i;
         ++i;
     }
+    // NOLINTNEXTLINE
     auto gen = std::mt19937_64{};
     std::ranges::shuffle(vec, gen);
     auto seq = index_sequence<size_t>{};

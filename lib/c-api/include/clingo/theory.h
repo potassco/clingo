@@ -39,7 +39,7 @@ enum clingo_theory_value_type_e {
     //! A double value.
     clingo_theory_value_type_double = 1,
     //! A symbol value.
-    clingo_theory_value_type_symbol = 2
+    clingo_theory_value_type_symbol = 2,
 };
 //! Corresponding type to clingo_theory_value_type.
 typedef int clingo_theory_value_type_t;

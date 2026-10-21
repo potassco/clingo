@@ -73,10 +73,12 @@ auto build_state(BuildContext &ctx, Input::TheoryAtom<HasSign> const &lit, Groun
         // condition
         cond.reserve(elem.cond().size() + 1);
         for (auto const &slit : elem.cond()) {
-            build_stratified_lit(ctx, slit, [&cond, &vars]<class Lit>(Lit &&glit) {
-                glit->vars(vars, Ground::VarSelectMode::all);
-                cond.emplace_back(std::forward<Lit>(glit));
-            });
+            build_stratified_lit(ctx, slit,
+                                 // NOLINTNEXTLINE
+                                 [&cond, &vars]<class Lit>(Lit &&glit) {
+                                     glit->vars(vars, Ground::VarSelectMode::all);
+                                     cond.emplace_back(std::forward<Lit>(glit));
+                                 });
         }
         // global variables
         for (auto const &var : vars) {

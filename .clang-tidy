@@ -14,12 +14,14 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-type-vararg,
   -cppcoreguidelines-special-member-functions,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
   -modernize-use-designated-initializers,
   -readability-ambiguous-smartptr-reset-call,
   -readability-function-cognitive-complexity,
   -readability-function-size,
   -readability-identifier-length,
   -readability-suspicious-call-argument,
+  -bugprone-signed-bitwise
 WarningsAsErrors: ""
 HeaderFilterRegex: ""
 FormatStyle: none

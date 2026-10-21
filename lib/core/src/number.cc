@@ -99,7 +99,7 @@ class mp_int_ptr {
         return ptr;
     }
     auto release_repr(bool fast = false) -> uint64_t { return bigint_to_repr(release(), fast); }
-    operator mp_int() const { return &ptr_->num; }
+    [[nodiscard]] auto num() const -> mp_int { return &ptr_->num; }
 
   private:
     mp_int_ref ptr_;
@@ -376,27 +376,27 @@ class Number::Impl {
         // op(int, int)
         if (repr_is_int(a.repr_) && repr_is_int(b.repr_)) {
             if (auto c = op_check(repr_to_int(a.repr_), repr_to_int(b.repr_)); c) {
-                return {*c};
+                return Number{*c};
             }
             mp_int_ptr z;
-            handle_error(mp_int_init_value(z, repr_to_int(a.repr_)));
-            handle_error(op_value(z, repr_to_int(b.repr_), z));
-            return {z.release_repr(true)};
+            handle_error(mp_int_init_value(z.num(), repr_to_int(a.repr_)));
+            handle_error(op_value(z.num(), repr_to_int(b.repr_), z.num()));
+            return Number{z.release_repr(true)};
         }
         mp_int_ptr z;
         // op(int, big)
         if (repr_is_int(a.repr_)) {
-            handle_error(op_value_inv(&repr_to_bigint(b.repr_)->num, repr_to_int(a.repr_), z));
+            handle_error(op_value_inv(&repr_to_bigint(b.repr_)->num, repr_to_int(a.repr_), z.num()));
         }
         // op(big, int)
         else if (repr_is_int(b.repr_)) {
-            handle_error(op_value(&repr_to_bigint(a.repr_)->num, repr_to_int(b.repr_), z));
+            handle_error(op_value(&repr_to_bigint(a.repr_)->num, repr_to_int(b.repr_), z.num()));
         }
         // op(big, big)
         else {
-            handle_error(op(&repr_to_bigint(a.repr_)->num, &repr_to_bigint(b.repr_)->num, z));
+            handle_error(op(&repr_to_bigint(a.repr_)->num, &repr_to_bigint(b.repr_)->num, z.num()));
         }
-        return z.release_repr();
+        return Number{z.release_repr()};
     }
 
     static auto op_binary(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &&a, Number const &b)
@@ -458,14 +458,14 @@ class Number::Impl {
                     return a;
                 }
                 mp_int_ptr z;
-                handle_error(mp_int_init_value(z, repr_to_int(a.repr_)));
-                handle_error(op_value(z, repr_to_int(b.repr_), z));
+                handle_error(mp_int_init_value(z.num(), repr_to_int(a.repr_)));
+                handle_error(op_value(z.num(), repr_to_int(b.repr_), z.num()));
                 a.repr_ = z.release_repr(true);
             }
             // op(int, big)
             else if (repr_is_int(a.repr_)) {
                 mp_int_ptr z;
-                handle_error(op_value_inv(&repr_to_bigint(b.repr_)->num, repr_to_int(a.repr_), z));
+                handle_error(op_value_inv(&repr_to_bigint(b.repr_)->num, repr_to_int(a.repr_), z.num()));
                 a.repr_ = z.release_repr();
             }
         } else {
@@ -554,7 +554,7 @@ namespace {
 
 auto parse_big(char const *str, Base base) {
     mp_int_ptr z;
-    auto res = mp_int_read_string(z, static_cast<mp_size>(base), str);
+    auto res = mp_int_read_string(z.num(), static_cast<mp_size>(base), str);
     if (res != MP_OK) {
         throw std::runtime_error(mp_error_string(res));
     }
@@ -615,7 +615,7 @@ auto Number::operator=(Number const &other) -> Number & {
     // int = big
     else if (repr_is_int(repr_)) {
         mp_int_ptr z;
-        handle_error(mp_int_init_copy(z, &repr_to_bigint(other.repr_)->num));
+        handle_error(mp_int_init_copy(z.num(), &repr_to_bigint(other.repr_)->num));
         repr_ = z.release_repr();
     }
     // big = int
@@ -834,17 +834,17 @@ auto operator-(Number const &a) -> Number {
     bool is_int = repr_is_int(a.repr_);
     if (is_int) {
         if (auto res = Util::check_neg(repr_to_int(a.repr_)); res.has_value()) {
-            return {res.value()};
+            return Number{res.value()};
         }
     }
     mp_int_ptr z;
     if (is_int) {
-        handle_error(mp_int_init_value(z, repr_to_int(a.repr_)));
+        handle_error(mp_int_init_value(z.num(), repr_to_int(a.repr_)));
     } else {
-        handle_error(mp_int_init_copy(z, &repr_to_bigint(a.repr_)->num));
+        handle_error(mp_int_init_copy(z.num(), &repr_to_bigint(a.repr_)->num));
     }
-    handle_error(mp_int_neg(z, z));
-    return {z.release_repr(is_int)};
+    handle_error(mp_int_neg(z.num(), z.num()));
+    return Number{z.release_repr(is_int)};
 }
 
 auto operator-(Number &&a) -> Number {
@@ -861,18 +861,18 @@ auto operator-(Number &&a) -> Number {
 
 auto operator~(Number const &a) -> Number {
     if (repr_is_int(a.repr_)) {
-        return {~repr_to_int(a.repr_)};
+        return Number{~repr_to_int(a.repr_)};
     }
     mp_int_ptr z;
-    handle_error(mp_int_neg(&repr_to_bigint(a.repr_)->num, z));
-    handle_error(mp_int_sub_value(z, 1, z));
+    handle_error(mp_int_neg(&repr_to_bigint(a.repr_)->num, z.num()));
+    handle_error(mp_int_sub_value(z.num(), 1, z.num()));
     // Note: cannot become int32_t
-    return {z.release_repr(true)};
+    return Number{z.release_repr(true)};
 }
 
 auto operator~(Number &&a) -> Number {
     if (repr_is_int(a.repr_)) {
-        return {~repr_to_int(a.repr_)};
+        return Number{~repr_to_int(a.repr_)};
     }
     auto *z = repr_to_bigint(a.repr_);
     handle_error(mp_int_neg(&z->num, &z->num));
@@ -1003,17 +1003,17 @@ auto abs(Number const &a) -> Number {
     bool is_int = repr_is_int(a.repr_);
     if (is_int) {
         if (auto res = Util::check_abs(repr_to_int(a.repr_))) {
-            return {res.value()};
+            return Number{res.value()};
         }
     }
     mp_int_ptr z;
     if (is_int) {
-        handle_error(mp_int_init_value(z, repr_to_int(a.repr_)));
-        handle_error(mp_int_abs(z, z));
+        handle_error(mp_int_init_value(z.num(), repr_to_int(a.repr_)));
+        handle_error(mp_int_abs(z.num(), z.num()));
     } else {
-        handle_error(mp_int_abs(&repr_to_bigint(a.repr_)->num, z));
+        handle_error(mp_int_abs(&repr_to_bigint(a.repr_)->num, z.num()));
     }
-    return {z.release_repr(is_int)};
+    return Number{z.release_repr(is_int)};
 }
 
 auto abs(Number &&a) -> Number {

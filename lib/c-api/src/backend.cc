@@ -262,7 +262,8 @@ extern "C" auto clingo_backend_theory_term_function(clingo_backend_t *backend, c
             term_id == nullptr) {
             return fail_arguments();
         }
-        *term_id = get_theory(backend).fun(*get_store(backend).string(name), std::span{arguments, arguments_size});
+        *term_id = get_theory(backend).fun(*get_store(backend).string({name, name_size}),
+                                           std::span{arguments, arguments_size});
     }
     CLINGO_CATCH;
 }
@@ -294,7 +295,7 @@ extern "C" auto clingo_backend_theory_atom(clingo_backend_t *backend, clingo_sym
             guard.emplace(*op, right_hand_side_id);
         }
         *atom_out =
-            get_theory(backend).atom([&]() { return atom_in != nullptr ? *atom_in : get_program(backend).newAtom(); },
+            get_theory(backend).atom([&] { return atom_in != nullptr ? *atom_in : get_program(backend).newAtom(); },
                                      *cpp_cast(&name), std::span{elements, size}, std::move(guard));
     }
     CLINGO_CATCH;

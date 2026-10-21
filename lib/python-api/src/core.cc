@@ -129,6 +129,7 @@ auto Library::cast(clingo_lib_t *lib, bool convert) -> PyLibrary {
     throw py::cast_error("invalid Library cast");
 }
 
+// NOLINTNEXTLINE
 clingo_logger_t Library::c_logger = {
     [](clingo_message_t code, char const *message, size_t size, void *log) {
         try {

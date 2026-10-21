@@ -18,7 +18,8 @@ struct Part {
     //!
     //! @param name the name of the part
     //! @param params the parameters of the part
-    constexpr Part(std::string name, SymbolVector params = {}) : name{std::move(name)}, params(std::move(params)) {
+    constexpr Part(std::string name, SymbolVector params = {}) // NOLINT
+        : name{std::move(name)}, params(std::move(params)) {
         assert(!this->name.empty());
     }
 
@@ -35,7 +36,7 @@ using PartList = std::initializer_list<Part>;
 using PartVector = std::vector<Part>;
 
 //! Enumeration of the results of a grounding process.
-enum class GroundResult : clingo_ground_result_t {
+enum class GroundResult : clingo_ground_result_t {      // NOLINT
     ok = clingo_ground_result_ok,                       //!< Grounding completed successfully.
     unsatisfiable = clingo_ground_result_unsatisfiable, //!< An inconsistency was detected during grounding.
     interrupted = clingo_ground_result_interrupted,     //!< Grounding was interrupted.

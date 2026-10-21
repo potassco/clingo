@@ -337,7 +337,7 @@ template <class T> class RefCounted {
 
   private:
     // NOLINTNEXTLINE(modernize-use-equals-default)
-    RefCounted(bool referenced) : ref_count_{referenced ? 1U : 0U} {}
+    explicit RefCounted(bool referenced) : ref_count_{referenced ? 1U : 0U} {}
 
     std::atomic_size_t mutable ref_count_;
     size_t hash_ = 0;
@@ -356,6 +356,7 @@ class KeySymbolArray {
         static_assert(alignof(Symbol) <= alignof(uint64_t));
         size_t n = symbols.size();
         auto *data = SymbolArray::alloc(alloc, n, referenced);
+        // NOLINTNEXTLINE(clang-analyzer-security.ArrayBound)
         std::ranges::copy(symbols, data->data());
         data->compute_hash(n);
         repr_ = reinterpret_cast<uintptr_t>(data);
@@ -365,6 +366,7 @@ class KeySymbolArray {
         static_assert(alignof(Symbol) <= alignof(uint64_t));
         size_t n = symbols.size() + 1;
         auto *data = SymbolArray::alloc(alloc, n, referenced);
+        // NOLINTNEXTLINE(clang-analyzer-security.ArrayBound)
         *data->data() = name;
         std::ranges::copy(symbols, data->data() + 1);
         data->compute_hash(n);
@@ -388,7 +390,7 @@ class KeySymbolArray {
     }
 
   private:
-    KeySymbolArray(uint64_t repr) : repr_{repr} {}
+    explicit KeySymbolArray(uint64_t repr) : repr_{repr} {}
     [[nodiscard]] auto repr() const noexcept -> SymbolArray & {
         return *reinterpret_cast<SymbolArray *>(to_repr(*this));
     }
@@ -408,6 +410,7 @@ class KeyCharArray {
         static_assert(alignof(char) <= alignof(uint64_t));
         size_t n = str.size();
         auto *repr = CharArray::alloc(alloc, n, referenced);
+        // NOLINTNEXTLINE(clang-analyzer-security.ArrayBound)
         std::copy(str.begin(), str.end(), repr->data());
         std::fill_n(repr->data() + n, 1, '\0');
         repr->compute_hash(n);
@@ -428,7 +431,7 @@ class KeyCharArray {
     }
 
   private:
-    KeyCharArray(uint64_t repr) : repr_{repr} {}
+    explicit KeyCharArray(uint64_t repr) : repr_{repr} {}
     [[nodiscard]] auto repr() const noexcept -> CharArray & { return *reinterpret_cast<CharArray *>(to_repr(*this)); }
     [[nodiscard]] auto marked() const noexcept -> bool { return (repr_ & mask_) == 0; }
 
@@ -442,7 +445,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     DefaultSymbolStore(DefaultSymbolStore &&) noexcept = delete;
     ~DefaultSymbolStore() noexcept override { clear(); }
 
-    [[nodiscard]] auto do_num(Number num) noexcept -> Symbol override {
+    [[nodiscard]] auto do_num(Number num) -> Symbol override {
         auto jt = numbers_.insert(std::move(num)).first;
         return Symbol::from_rep(Number::to_repr(*jt));
     }
@@ -657,7 +660,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 //! More fine-grained locking is possible and also a shared lock is interesting.
 template <class Alloc> class SharedSymbolStore : public SymbolStore {
   public:
-    [[nodiscard]] auto do_num(Number num) noexcept -> Symbol override {
+    [[nodiscard]] auto do_num(Number num) -> Symbol override {
         std::unique_lock ulock{mutex_};
         return store_.do_num(std::move(num));
     }

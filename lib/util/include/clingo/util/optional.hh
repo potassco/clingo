@@ -13,8 +13,7 @@ namespace Detail {
 
 template <class T, class F> using transform_result = std::optional<std::remove_cv_t<std::invoke_result_t<F, T>>>;
 
-template <class T, class F>
-using and_then_result = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T>>>;
+template <class T, class F> using and_then_result = std::remove_cvref_t<std::invoke_result_t<F, T>>;
 
 template <class T, class F>
 using transform_vec_result = std::optional<std::vector<typename transform_result<T, F>::value_type>>;
@@ -64,7 +63,7 @@ template <class T, class F> constexpr auto and_then(std::optional<T> &x, F &&f) 
     if (x) {
         return std::invoke(std::forward<F>(f), *x);
     }
-    return std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T &>>>{};
+    return std::remove_cvref_t<std::invoke_result_t<F, T &>>{};
 }
 
 //! Implemenatation of std::optional<T>::and_then.
@@ -73,7 +72,7 @@ constexpr auto and_then(std::optional<T> const &x, F &&f) -> Detail::and_then_re
     if (x) {
         return std::invoke(std::forward<F>(f), *x);
     }
-    return std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T const &>>>{};
+    return std::remove_cvref_t<std::invoke_result_t<F, T const &>>{};
 }
 
 //! Implemenatation of std::optional<T>::and_then.
@@ -81,7 +80,7 @@ template <class T, class F> constexpr auto and_then(std::optional<T> &&x, F &&f)
     if (x) {
         return std::invoke(std::forward<F>(f), *std::move(x));
     }
-    return std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T>>>{};
+    return std::remove_cvref_t<std::invoke_result_t<F, T>>{};
 }
 
 //! Implemenatation of std::optional<T>::and_then.
@@ -90,7 +89,7 @@ constexpr auto and_then(std::optional<T> const &&x, F &&f) -> Detail::and_then_r
     if (x) {
         return std::invoke(std::forward<F>(f), *std::move(x));
     }
-    return std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T const>>>{};
+    return std::remove_cvref_t<std::invoke_result_t<F, T const>>{};
 }
 
 //! Map the given predicate over an optional vector.
@@ -127,13 +126,15 @@ auto transform_vec(std::optional<std::vector<T>> &&vec, F const &f) -> Detail::t
 //! together with an optional value in case the expression has changed.
 template <class E, class S = bool> struct ResultState {
     //! Construct from state and value.
-    ResultState(S state = S{}, std::optional<E> value = std::nullopt)
+    ResultState(S state = S{}, std::optional<E> value = std::nullopt) // NOLINT
         : state{std::move(state)}, value{std::move(value)} {}
     //! Construct from compatible result state.
-    template <class F> ResultState(ResultState<F, S> const &res) : state{res.state}, value{res.value} {}
+    template <class F>
+    // NOLINTNEXTLINE
+    ResultState(ResultState<F, S> const &res) : state{res.state}, value{res.value} {}
     //! Construct from compatible result state.
     template <class F>
-    // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
+    // NOLINTNEXTLINE
     ResultState(ResultState<F, S> &&res) : state{std::move(res.state)}, value{std::move(res.value)} {}
 
     //! A truth value or state.
@@ -164,7 +165,7 @@ template <class T, bool UseSpan = true> class ResultVec {
     using Result = std::conditional_t<UseSpan, Vector, Array>;
 
     //! Construct a result vec to track changes to the given source.
-    ResultVec(Source source) : source_{source}, current_{source_.begin()} {}
+    explicit ResultVec(Source source) : source_{source}, current_{source_.begin()} {}
 
     //! Get current element.
     [[nodiscard]] auto current() const -> ValueType const & { return *current_; }

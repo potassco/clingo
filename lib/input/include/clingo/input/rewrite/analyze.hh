@@ -17,7 +17,7 @@ enum class TermCheckType : uint8_t {
     sig,               //!< Check if term is a signature.
     identifier,        //!< Check if term is an identifier.
     signed_identifier, //!< Check if term is a signed identifier.
-    pos_number         //!< Check if term is a positive number.
+    pos_number,        //!< Check if term is a positive number.
 };
 
 //! Extract additional information while checking the type of a term.
@@ -58,7 +58,7 @@ class LinearTerm {
     friend auto check_linear(TermBinary const &term) -> std::optional<LinearTerm>;
 
   private:
-    LinearTerm(TermBinary const &mxn) : mxn_{&mxn} {}
+    explicit LinearTerm(TermBinary const &mxn) : mxn_{&mxn} {}
 
     TermBinary const *mxn_;
 };

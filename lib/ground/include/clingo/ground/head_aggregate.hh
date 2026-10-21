@@ -52,7 +52,7 @@ class AtomHdAggr {
     using Bound = std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>>;
 
     //! Initialize for the given aggregate function.
-    AtomHdAggr(AggregateFunction fun) : bound_{init_(fun)} {}
+    explicit AtomHdAggr(AggregateFunction fun) : bound_{init_(fun)} {}
 
     //! Accumulate a tuple.
     void accumulate(AggregateFunction fun, SymbolSpan tup, bool fact);
@@ -101,7 +101,7 @@ class BaseHdAggr : public BaseImpl<Symbol const *, BaseHdAggr> {
     using AtomMap = Util::ordered_map<Symbol const *, AtomHdAggr, Util::array_hash, Util::array_equal_to>;
 
     //! Construct an empty base.
-    BaseHdAggr(size_t size) : atoms_{0, size, size} {}
+    explicit BaseHdAggr(size_t size) : atoms_{0, Util::array_hash{size}, Util::array_equal_to{size}} {}
 
     //! Add an atom to the current generation.
     auto add(Symbol const *sym, AggregateFunction fun) -> std::pair<AtomMap::iterator, bool>;
@@ -321,7 +321,7 @@ class MatchHdAggr {
     using Key = Symbol const *;
 
     //! Construct the matcher.
-    MatchHdAggr(StateHdAggr &state) : state_{&state} {
+    explicit MatchHdAggr(StateHdAggr &state) : state_{&state} {
         eval_.reserve(state_->global().size() + state_->guards().size());
     }
 
@@ -352,7 +352,7 @@ class MatchHdAggr {
 class LitHdAggr : public Lit, private MatchHdAggr {
   public:
     //! Construct the aggregate literal.
-    LitHdAggr(StateHdAggr &state) : MatchHdAggr{state} {}
+    explicit LitHdAggr(StateHdAggr &state) : MatchHdAggr{state} {}
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;

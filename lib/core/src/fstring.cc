@@ -144,14 +144,10 @@ auto to_string(FormatSpec::Grouping x) -> std::string_view {
 }
 
 auto to_string(FormatSpec::Conversion x) -> std::string_view {
-    switch (x) {
-        case FormatSpec::Conversion::repr: {
-            return "!r";
-        }
-        default: {
-            return "";
-        }
+    if (x == FormatSpec::Conversion::repr) {
+        return "!r";
     }
+    return "";
 }
 
 template <class T> auto print_spec(T &out, FormatSpec const &spec) -> T & {

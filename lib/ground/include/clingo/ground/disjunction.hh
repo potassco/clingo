@@ -65,7 +65,7 @@ class BaseDisjunction : public BaseImpl<Symbol const *, BaseDisjunction> {
     using AtomMap = Util::ordered_map<Symbol const *, AtomDisjunction, Util::array_hash, Util::array_equal_to>;
 
     //! Construct an empty base.
-    BaseDisjunction(size_t size) : atoms_{0, size, size} {}
+    explicit BaseDisjunction(size_t size) : atoms_{0, Util::array_hash{size}, Util::array_equal_to{size}} {}
 
     //! Add an atom to the current generation.
     auto add(Symbol const *sym) -> std::pair<AtomMap::iterator, bool>;
@@ -227,7 +227,7 @@ class MatchDisjunction {
     using Key = Symbol const *;
 
     //! Construct the matcher.
-    MatchDisjunction(StateDisjunction &state) : state_{&state} { eval_.reserve(state_->global().size()); }
+    explicit MatchDisjunction(StateDisjunction &state) : state_{&state} { eval_.reserve(state_->global().size()); }
 
     //! Get the variables of the matcher.
     [[nodiscard]] auto vars() const -> VariableSet;
@@ -256,7 +256,7 @@ class MatchDisjunction {
 class LitDisjunction : public Lit, private MatchDisjunction {
   public:
     //! Construct the disjunction literal.
-    LitDisjunction(StateDisjunction &state) : MatchDisjunction{state} {}
+    explicit LitDisjunction(StateDisjunction &state) : MatchDisjunction{state} {}
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;

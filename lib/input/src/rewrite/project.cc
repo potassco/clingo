@@ -31,7 +31,7 @@ auto get_counts(ProjectionMap project, auto const &elem) {
 
 class Project : public Transformer<Project> {
   public:
-    Project(ProjectionMap project, bool in_classical_scope = true, bool project_lits = true)
+    explicit Project(ProjectionMap project, bool in_classical_scope = true, bool project_lits = true)
         : project_{project}, in_classical_scope_{in_classical_scope}, project_lits_{project_lits} {}
 
     // no unintended overloads
@@ -46,7 +46,9 @@ class Project : public Transformer<Project> {
         }
         return std::visit(
             [this](auto const &x) -> std::optional<Argument> {
-                return Util::transform(transform(x), []<class Y>(Y &&y) -> Argument { return {std::forward<Y>(y)}; });
+                return Util::transform(transform(x),
+                                       // NOLINTNEXTLINE
+                                       []<class Y>(Y &&y) -> Argument { return {std::forward<Y>(y)}; });
             },
             elem);
     };
@@ -60,7 +62,7 @@ class Project : public Transformer<Project> {
 
     template <class T>
         requires Util::is_among_v<T, TermAbs, TermBinary>
-    [[nodiscard]] auto accept([[maybe_unused]] T const &term) -> std::optional<Term> {
+    [[nodiscard, maybe_unused]] auto accept([[maybe_unused]] T const &term) -> std::optional<Term> {
         return std::nullopt;
     }
 
@@ -142,7 +144,7 @@ class Project : public Transformer<Project> {
 
     template <class T>
         requires Util::is_among_v<T, HdLitAggregate, HdLitSetAggregate>
-    [[nodiscard]] auto accept(T const &lit) const -> std::optional<HdLit> {
+    [[nodiscard, maybe_unused]] auto accept(T const &lit) const -> std::optional<HdLit> {
         // Note that we can always project in conditions. Semantic-wise a head
         // aggregate is a shortcut for a choice rule + a body aggregate in an
         // integrity constraint.
@@ -151,7 +153,7 @@ class Project : public Transformer<Project> {
 
     template <class T>
         requires Util::is_among_v<T, HdLitSimple, HdLitTheoryAtom>
-    [[nodiscard]] auto accept([[maybe_unused]] T const &lit) const -> std::optional<HdLit> {
+    [[nodiscard, maybe_unused]] auto accept([[maybe_unused]] T const &lit) const -> std::optional<HdLit> {
         return std::nullopt;
     }
 
@@ -223,7 +225,7 @@ class Project : public Transformer<Project> {
 
     template <class T>
         requires(Util::is_among_v<T, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge, StmHeuristic>)
-    [[nodiscard]] auto accept(T const &stm) const -> std::optional<Stm> {
+    [[nodiscard, maybe_unused]] auto accept(T const &stm) const -> std::optional<Stm> {
         return rewrite(stm, a_body);
     }
 

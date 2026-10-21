@@ -12,7 +12,7 @@ namespace {
 
 class SCB : public MCB {
   public:
-    SCB(MV &models) : MCB{models} {}
+    explicit SCB(MV &models) : MCB{models} {}
 
   private:
     void do_stats(Stats step, Stats accu) override {

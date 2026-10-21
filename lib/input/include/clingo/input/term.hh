@@ -77,7 +77,7 @@ class ArgumentTuple : public RecursiveExpression<ArgumentTuple> {
     static constexpr auto attributes() { return std::tuple{a_elems = &ArgumentTuple::elems_}; }
 
     //! Construct an argument tuple.
-    ArgumentTuple(ArgumentArray elems);
+    explicit ArgumentTuple(ArgumentArray elems);
 
     //! The elements of the tuple.
     [[nodiscard]] auto elems() const -> ArgumentArray const & { return elems_; }

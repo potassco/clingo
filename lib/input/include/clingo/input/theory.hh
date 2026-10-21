@@ -244,11 +244,17 @@ class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned>, public 
     //! The record attributes.
     static constexpr auto attributes() {
         if constexpr (HasSign) {
-            return std::tuple{a_loc = &TheoryAtom::loc_, a_sign = &Signed::sign, a_name = &TheoryAtom::name_,
-                              a_elems = &TheoryAtom::elems_, a_rhs = &TheoryAtom::rhs_};
+            return std::tuple{
+                a_loc = &TheoryAtom::loc_,     a_sign = &Signed::sign,    a_name = &TheoryAtom::name_,
+                a_elems = &TheoryAtom::elems_, a_rhs = &TheoryAtom::rhs_,
+            };
         } else {
-            return std::tuple{a_loc = &TheoryAtom::loc_, a_name = &TheoryAtom::name_, a_elems = &TheoryAtom::elems_,
-                              a_rhs = &TheoryAtom::rhs_};
+            return std::tuple{
+                a_loc = &TheoryAtom::loc_,
+                a_name = &TheoryAtom::name_,
+                a_elems = &TheoryAtom::elems_,
+                a_rhs = &TheoryAtom::rhs_,
+            };
         }
     }
 

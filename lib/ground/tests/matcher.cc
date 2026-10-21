@@ -68,7 +68,7 @@ TEST_CASE("ground_matcher") {
     auto out = NullOutputStm{};
     auto ctx = EvalContext{log, *store, out, ass};
     auto mbr = std::pmr::monotonic_buffer_resource{};
-    auto gen = []() { return 1; };
+    auto gen = [] { return 1; };
 
     SECTION("once") {
         auto matcher = make_once_matcher();

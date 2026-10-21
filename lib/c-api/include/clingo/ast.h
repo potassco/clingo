@@ -104,7 +104,7 @@ enum clingo_ast_type_e {
     clingo_ast_type_statement_include,
     clingo_ast_type_statement_const,
     clingo_ast_type_statement_parts,
-    clingo_ast_type_statement_comment
+    clingo_ast_type_statement_comment,
 };
 //! Corresponding type to ::clingo_ast_type_e.
 typedef int clingo_ast_type_t;

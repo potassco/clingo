@@ -198,7 +198,7 @@ auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
 auto Control::base() -> Base {
     clingo_base_t const *base = nullptr;
     clingo_control_base(get(), &base);
-    return {base};
+    return Base{base};
 }
 
 void Control::observe(Observer &obs, bool preprocess) {
@@ -266,7 +266,8 @@ auto Control::profile() -> py::list {
                 node["time_propagate"] = values->time_propagate;
             }
             CLINGO_CATCH;
-        }};
+        },
+    };
     handle_error(clingo_control_profile(get(), &visitor, &data));
     return std::move(data.res);
 }

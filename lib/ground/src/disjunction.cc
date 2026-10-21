@@ -157,7 +157,7 @@ void StateDisjunction::propagate(OutputStm &out, Queue &queue) {
                                                    [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
                 assert(jt != bases_.end());
                 elem.value().first =
-                    std::get<1>(*jt)->add(sym, StateAtom::derived, [&out]() { return out.uid(); }).first.value().id;
+                    std::get<1>(*jt)->add(sym, StateAtom::derived, [&out] { return out.uid(); }).first.value().id;
             }
 #ifdef DEBUG_AGGR
             std::cerr << "propagate: a: " << atom_idx << "\n";
@@ -324,7 +324,7 @@ auto StmDisjunctionElem::do_report(EvalContext const &ctx) -> bool {
     auto &ass = ctx.ass();
     // insert aggregate atom
     if (auto it = state_->insert_atom(ass).first; !it.value().is_fact()) {
-        auto get_cond = [this, &ctx]() {
+        auto get_cond = [this, &ctx] {
             // output the condition
             bool fact = true;
             auto &out = ctx.out().cond();

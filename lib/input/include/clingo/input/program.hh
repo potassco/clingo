@@ -53,7 +53,7 @@ using ParamUnmap = Util::ordered_map<SharedString, SharedString>;
 //! A program part.
 struct ProgramPart {
     //! Construct a program part.
-    ProgramPart(StmProgram part) : part{std::move(part)} {}
+    explicit ProgramPart(StmProgram part) : part{std::move(part)} {}
     //! The (first) program part statement that introduced the part.
     StmProgram part;
     //! The statements in the program part.
@@ -157,7 +157,7 @@ class Program {
     //! Initialize a program with a rewrite level.
     //!
     //! (The highest rewrite level has to be used for grounding.)
-    Program(RewriteOptions const &opts) : opts_{&opts} {}
+    explicit Program(RewriteOptions const &opts) : opts_{&opts} {}
     //! Join with the given unprocessed program.
     //!
     //! If fresh const statements are added, they will be merged with the previous ones.

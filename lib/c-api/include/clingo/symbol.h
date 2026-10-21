@@ -39,7 +39,7 @@ enum clingo_symbol_type_e {
     clingo_symbol_type_infimum = 2,  //!< the <tt>\#inf</tt> symbol
     clingo_symbol_type_string = 3,   //!< a string symbol, e.g., `"a"`
     clingo_symbol_type_tuple = 4,    //!< a tuple symbol, e.g., `(1, "a")``
-    clingo_symbol_type_function = 5  //!< a function symbol, e.g., `c`, `-c`, or `f(1,"a")`
+    clingo_symbol_type_function = 5, //!< a function symbol, e.g., `c`, `-c`, or `f(1,"a")`
 };
 //! Corresponding type to ::clingo_symbol_type.
 typedef int clingo_symbol_type_t;

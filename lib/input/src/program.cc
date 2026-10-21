@@ -125,6 +125,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
         for (auto const &fact : facts) {
             provide_.emplace(fact.name(), fact.args().size(), fact.has_classical_sign());
             std::visit(
+                // NOLINTNEXTLINE
                 [&part_it]<class T>(T &&x) {
                     if constexpr (Util::matches<T, Symbol>) {
                         part_it.value().facts.emplace_back(x);

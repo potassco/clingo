@@ -318,11 +318,22 @@ class Unpool {
                 unpool_elem<HasSign>(to_tuple, elem, elems);
             }
             if constexpr (HasSign) {
-                return BdLit{BdLitAggregate{aggr.loc(), aggr.sign(), std::move(lhs), AggregateFunction::count,
-                                            std::move(elems), std::move(rhs)}};
+                return BdLit{BdLitAggregate{
+                    aggr.loc(),
+                    aggr.sign(),
+                    std::move(lhs),
+                    AggregateFunction::count,
+                    std::move(elems),
+                    std::move(rhs),
+                }};
             } else {
-                return HdLit{HdLitAggregate{aggr.loc(), std::move(lhs), AggregateFunction::count, std::move(elems),
-                                            std::move(rhs)}};
+                return HdLit{HdLitAggregate{
+                    aggr.loc(),
+                    std::move(lhs),
+                    AggregateFunction::count,
+                    std::move(elems),
+                    std::move(rhs),
+                }};
             }
         };
         auto ret = unpool_build(aggr, build, *this, a_lhs, a_rhs);
@@ -605,7 +616,7 @@ auto unpool(RewriteContext &ctx, BdLit const &lit) -> std::optional<std::vector<
 
 template <class F> struct print {
   public:
-    print(F f) : f_{f} {}
+    explicit print(F f) : f_{f} {}
     friend auto operator<<(std::ostream &out, print const &p) -> std::ostream & {
         p.f_(out);
         return out;

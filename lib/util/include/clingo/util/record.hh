@@ -21,7 +21,7 @@ template <auto T, auto C, class V> struct AttributeValue {
     //! The type of the stored value.
     using Val = V;
     //! Construct a bound attribute.
-    constexpr AttributeValue(Val val) : val(std::forward<Val>(val)) {}
+    constexpr explicit AttributeValue(Val val) : val(std::forward<Val>(val)) {}
     //! The value of the attribute.
     Val val;
 };

@@ -117,7 +117,8 @@ class ShiftHead {
                         if (const auto *blit = std::get_if<LitBool>(res_lit ? &*res_lit : &x.lit()); blit != nullptr) {
                             res_elems.remove();
                             body_->append(BdLitConjunction{
-                                x.update(a_lit = NegateLiteral{}(*blit), a_cond = *std::move(res_cond))});
+                                x.update(a_lit = NegateLiteral{}(*blit), a_cond = *std::move(res_cond)),
+                            });
                         } else {
                             res_elems.update(x.rewrite(a_lit = std::move(res_lit), a_cond = std::move(res_cond)));
                         }

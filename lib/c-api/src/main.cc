@@ -147,7 +147,7 @@ class AppAdapter {
 
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
   public:
-    ClingoApp(clingo_lib_t &lib, clingo_application_t const *app = nullptr, void *data = nullptr)
+    explicit ClingoApp(clingo_lib_t &lib, clingo_application_t const *app = nullptr, void *data = nullptr)
         : ctl_{new clingo_control_t{&lib}}, app_{app, data}, opts_{ctl_->lib->log, *ctl_->lib->store} {}
 
     [[nodiscard]] auto getName() const -> std::string_view override { return app_.get_name(); }
@@ -227,7 +227,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         auto output = createTextOutput(sink, f, Clasp::Cli::Output::mode_clingo);
         output->setModelPrinter(
             [this](Clasp::Cli::TextOutput &out, const Clasp::SharedContext &ctx, const Clasp::Model &mdl) {
-                auto prt = [&]() { out.printModelValues(ctx, mdl); };
+                auto prt = [&] { out.printModelValues(ctx, mdl); };
                 // NOTE: the function can only be called while the solve handle is alive
                 auto guard = CppClingo::Control::unlock_guard{ctl_->slv->get_lock()};
                 app_.print_model(ctl_->slv->map_model(mdl), prt);

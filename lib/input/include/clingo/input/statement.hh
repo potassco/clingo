@@ -41,9 +41,9 @@ class StmRule : public Expression<StmRule> {
 //!
 //! @see TheoryOpDefinition
 enum class TheoryOpType : uint8_t {
-    unary,       //!< An unary theory operator.
-    binary_left, //!< An binary left associative theory operator.
-    binary_right //!< An binary right associative theory operator.
+    unary,        //!< An unary theory operator.
+    binary_left,  //!< An binary left associative theory operator.
+    binary_right, //!< An binary right associative theory operator.
 };
 
 //! A theory operator definition.
@@ -115,10 +115,10 @@ using TheoryTermDefinitionArray = Util::immutable_array<TheoryTermDefinition>;
 //!
 //! @see TheoryAtomDefinition
 enum class TheoryAtomType : uint8_t {
-    head,     //!< A theory atom that can appear only in the head.
-    body,     //!< A theory atom that can appear only in the body.
-    any,      //!< A theory atom that can appear only in the head and a body.
-    directive //!< A theory atom that can appear only in the head with an empty body.
+    head,      //!< A theory atom that can appear only in the head.
+    body,      //!< A theory atom that can appear only in the body.
+    any,       //!< A theory atom that can appear only in the head and a body.
+    directive, //!< A theory atom that can appear only in the head with an empty body.
 };
 
 //! An optional definition for the right-hand-side of a theory atom.
@@ -721,8 +721,8 @@ class StmProgram : public Expression<StmProgram> {
 //!
 //! @see StatementConst
 enum class Precedence : uint8_t {
-    default_, //! A statement providing default value.
-    override_ //! A statement overriding a default value.
+    default_,  //! A statement providing default value.
+    override_, //! A statement overriding a default value.
 };
 
 //! A const statement.

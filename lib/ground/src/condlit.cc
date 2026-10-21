@@ -664,19 +664,17 @@ auto StmCondLit::do_report(EvalContext const &ctx) -> bool {
 void StmCondLit::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out, Queue &queue) {
     switch (type_) {
         case StmCondLitType::empty: {
-            if (state_->base_empty().has_update()) {
-                if (index_ != stratified_index) {
-                    queue.propagate(index_);
-                }
+            if (state_->base_empty().has_update() && (index_ != stratified_index)) {
+                queue.propagate(index_);
             }
+
             break;
         }
         case StmCondLitType::premise: {
-            if (state_->base_premise().has_update()) {
-                if (index_ != stratified_index) {
-                    queue.propagate(index_);
-                }
+            if (state_->base_premise().has_update() && (index_ != stratified_index)) {
+                queue.propagate(index_);
             }
+
             // note that atoms not blocked at this point are not added to the premise base
             // thus, we have to propagate here already
             if (state_->propagate() && state_->index() != stratified_index) {
@@ -685,11 +683,10 @@ void StmCondLit::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unuse
             break;
         }
         case StmCondLitType::conclusion: {
-            if (state_->base_lit().has_update()) {
-                if (index_ != stratified_index) {
-                    queue.propagate(index_);
-                }
+            if (state_->base_lit().has_update() && (index_ != stratified_index)) {
+                queue.propagate(index_);
             }
+
             // propagate further conditional literals
             if (state_->propagate() && state_->index() != stratified_index) {
                 queue.propagate(state_->index());

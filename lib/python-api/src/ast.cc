@@ -120,7 +120,7 @@ class ASTBase {
     friend auto c_cast(ASTBase const *x) -> clingo_ast_t *;
 
   protected:
-    ASTBase(clingo_ast_t *ast) : ast_{ast} {}
+    explicit ASTBase(clingo_ast_t *ast) : ast_{ast} {}
 
     // NOLINTNEXTLINE
     clingo_ast_t *ast_ = nullptr;
@@ -135,8 +135,11 @@ auto c_cast(ASTBase const *x) -> clingo_ast_t * {
 }
 
 struct CString {
+    // NOLINTNEXTLINE
     CString(std::string_view str) : str_{str} {}
+    // NOLINTNEXTLINE
     CString(std::string &&str) : str_{std::move(str)} {}
+    // NOLINTNEXTLINE
     operator std::string_view() const {
         return std::visit(
             []<class T>(T const &x) {
@@ -300,13 +303,13 @@ class FormatFieldLiteral : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> FormatFieldLiteral;
 
     static auto construct(Library &lib, Location const &location, std::string_view value) -> FormatFieldLiteral;
-    static auto acquire(clingo_ast_t *ast) -> FormatFieldLiteral { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> FormatFieldLiteral { return FormatFieldLiteral{ast}; }
 
     friend auto operator==(FormatFieldLiteral const &a, FormatFieldLiteral const &b) -> bool = default;
     friend auto operator<=>(FormatFieldLiteral const &a, FormatFieldLiteral const &b) -> std::strong_ordering = default;
 
   private:
-    FormatFieldLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit FormatFieldLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class FormatFieldExpression : public ASTBase {
@@ -329,14 +332,14 @@ class FormatFieldExpression : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Term const &left, std::string_view right)
         -> FormatFieldExpression;
-    static auto acquire(clingo_ast_t *ast) -> FormatFieldExpression { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> FormatFieldExpression { return FormatFieldExpression{ast}; }
 
     friend auto operator==(FormatFieldExpression const &a, FormatFieldExpression const &b) -> bool = default;
     friend auto operator<=>(FormatFieldExpression const &a, FormatFieldExpression const &b)
         -> std::strong_ordering = default;
 
   private:
-    FormatFieldExpression(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit FormatFieldExpression(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class Projection : public ASTBase {
@@ -356,13 +359,13 @@ class Projection : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> Projection;
 
     static auto construct(Library &lib, Location const &location) -> Projection;
-    static auto acquire(clingo_ast_t *ast) -> Projection { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> Projection { return Projection{ast}; }
 
     friend auto operator==(Projection const &a, Projection const &b) -> bool = default;
     friend auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering = default;
 
   private:
-    Projection(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit Projection(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using TermOrProjection = std::variant<Term, Projection>;
@@ -411,13 +414,13 @@ class TermFormatString : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, FormatFieldIterable const &elements)
         -> TermFormatString;
-    static auto acquire(clingo_ast_t *ast) -> TermFormatString { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TermFormatString { return TermFormatString{ast}; }
 
     friend auto operator==(TermFormatString const &a, TermFormatString const &b) -> bool = default;
     friend auto operator<=>(TermFormatString const &a, TermFormatString const &b) -> std::strong_ordering = default;
 
   private:
-    TermFormatString(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TermFormatString(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TermVariable : public ASTBase {
@@ -440,13 +443,13 @@ class TermVariable : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view name, bool anonymous)
         -> TermVariable;
-    static auto acquire(clingo_ast_t *ast) -> TermVariable { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TermVariable { return TermVariable{ast}; }
 
     friend auto operator==(TermVariable const &a, TermVariable const &b) -> bool = default;
     friend auto operator<=>(TermVariable const &a, TermVariable const &b) -> std::strong_ordering = default;
 
   private:
-    TermVariable(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TermVariable(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TermSymbolic : public ASTBase {
@@ -467,13 +470,13 @@ class TermSymbolic : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> TermSymbolic;
 
     static auto construct(Library &lib, Location const &location, Symbol const &symbol) -> TermSymbolic;
-    static auto acquire(clingo_ast_t *ast) -> TermSymbolic { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TermSymbolic { return TermSymbolic{ast}; }
 
     friend auto operator==(TermSymbolic const &a, TermSymbolic const &b) -> bool = default;
     friend auto operator<=>(TermSymbolic const &a, TermSymbolic const &b) -> std::strong_ordering = default;
 
   private:
-    TermSymbolic(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TermSymbolic(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TermAbsolute : public ASTBase {
@@ -494,13 +497,13 @@ class TermAbsolute : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> TermAbsolute;
 
     static auto construct(Library &lib, Location const &location, TermIterable const &pool) -> TermAbsolute;
-    static auto acquire(clingo_ast_t *ast) -> TermAbsolute { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TermAbsolute { return TermAbsolute{ast}; }
 
     friend auto operator==(TermAbsolute const &a, TermAbsolute const &b) -> bool = default;
     friend auto operator<=>(TermAbsolute const &a, TermAbsolute const &b) -> std::strong_ordering = default;
 
   private:
-    TermAbsolute(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TermAbsolute(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TermUnaryOperation : public ASTBase {
@@ -523,13 +526,13 @@ class TermUnaryOperation : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, UnaryOperator const &operator_type, Term const &right)
         -> TermUnaryOperation;
-    static auto acquire(clingo_ast_t *ast) -> TermUnaryOperation { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TermUnaryOperation { return TermUnaryOperation{ast}; }
 
     friend auto operator==(TermUnaryOperation const &a, TermUnaryOperation const &b) -> bool = default;
     friend auto operator<=>(TermUnaryOperation const &a, TermUnaryOperation const &b) -> std::strong_ordering = default;
 
   private:
-    TermUnaryOperation(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TermUnaryOperation(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TermBinaryOperation : public ASTBase {
@@ -553,14 +556,14 @@ class TermBinaryOperation : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Term const &left, BinaryOperator const &operator_type,
                           Term const &right) -> TermBinaryOperation;
-    static auto acquire(clingo_ast_t *ast) -> TermBinaryOperation { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TermBinaryOperation { return TermBinaryOperation{ast}; }
 
     friend auto operator==(TermBinaryOperation const &a, TermBinaryOperation const &b) -> bool = default;
     friend auto operator<=>(TermBinaryOperation const &a, TermBinaryOperation const &b)
         -> std::strong_ordering = default;
 
   private:
-    TermBinaryOperation(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TermBinaryOperation(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TermTuple : public ASTBase {
@@ -581,13 +584,13 @@ class TermTuple : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> TermTuple;
 
     static auto construct(Library &lib, Location const &location, TermOrArgumentTupleIterable const &pool) -> TermTuple;
-    static auto acquire(clingo_ast_t *ast) -> TermTuple { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TermTuple { return TermTuple{ast}; }
 
     friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool = default;
     friend auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering = default;
 
   private:
-    TermTuple(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TermTuple(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TermFunction : public ASTBase {
@@ -611,13 +614,13 @@ class TermFunction : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view name,
                           ArgumentTupleIterable const &pool, bool external) -> TermFunction;
-    static auto acquire(clingo_ast_t *ast) -> TermFunction { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TermFunction { return TermFunction{ast}; }
 
     friend auto operator==(TermFunction const &a, TermFunction const &b) -> bool = default;
     friend auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering = default;
 
   private:
-    TermFunction(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TermFunction(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class ArgumentTuple : public ASTBase {
@@ -637,13 +640,13 @@ class ArgumentTuple : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> ArgumentTuple;
 
     static auto construct(Library &lib, TermOrProjectionIterable const &arguments) -> ArgumentTuple;
-    static auto acquire(clingo_ast_t *ast) -> ArgumentTuple { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> ArgumentTuple { return ArgumentTuple{ast}; }
 
     friend auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool = default;
     friend auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering = default;
 
   private:
-    ArgumentTuple(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit ArgumentTuple(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class LiteralBoolean;
@@ -674,13 +677,13 @@ class LeftGuard : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> LeftGuard;
 
     static auto construct(Library &lib, Term const &term, Relation const &relation) -> LeftGuard;
-    static auto acquire(clingo_ast_t *ast) -> LeftGuard { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> LeftGuard { return LeftGuard{ast}; }
 
     friend auto operator==(LeftGuard const &a, LeftGuard const &b) -> bool = default;
     friend auto operator<=>(LeftGuard const &a, LeftGuard const &b) -> std::strong_ordering = default;
 
   private:
-    LeftGuard(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit LeftGuard(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using OptionalLeftGuard = std::optional<LeftGuard>;
@@ -703,13 +706,13 @@ class RightGuard : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> RightGuard;
 
     static auto construct(Library &lib, Relation const &relation, Term const &term) -> RightGuard;
-    static auto acquire(clingo_ast_t *ast) -> RightGuard { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> RightGuard { return RightGuard{ast}; }
 
     friend auto operator==(RightGuard const &a, RightGuard const &b) -> bool = default;
     friend auto operator<=>(RightGuard const &a, RightGuard const &b) -> std::strong_ordering = default;
 
   private:
-    RightGuard(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit RightGuard(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using OptionalRightGuard = std::optional<RightGuard>;
@@ -738,13 +741,13 @@ class LiteralBoolean : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> LiteralBoolean;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, bool value) -> LiteralBoolean;
-    static auto acquire(clingo_ast_t *ast) -> LiteralBoolean { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> LiteralBoolean { return LiteralBoolean{ast}; }
 
     friend auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool = default;
     friend auto operator<=>(LiteralBoolean const &a, LiteralBoolean const &b) -> std::strong_ordering = default;
 
   private:
-    LiteralBoolean(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit LiteralBoolean(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class LiteralComparison : public ASTBase {
@@ -768,13 +771,13 @@ class LiteralComparison : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
                           RightGuardIterable const &right) -> LiteralComparison;
-    static auto acquire(clingo_ast_t *ast) -> LiteralComparison { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> LiteralComparison { return LiteralComparison{ast}; }
 
     friend auto operator==(LiteralComparison const &a, LiteralComparison const &b) -> bool = default;
     friend auto operator<=>(LiteralComparison const &a, LiteralComparison const &b) -> std::strong_ordering = default;
 
   private:
-    LiteralComparison(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit LiteralComparison(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class LiteralSymbolic : public ASTBase {
@@ -797,13 +800,13 @@ class LiteralSymbolic : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &atom)
         -> LiteralSymbolic;
-    static auto acquire(clingo_ast_t *ast) -> LiteralSymbolic { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> LiteralSymbolic { return LiteralSymbolic{ast}; }
 
     friend auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool = default;
     friend auto operator<=>(LiteralSymbolic const &a, LiteralSymbolic const &b) -> std::strong_ordering = default;
 
   private:
-    LiteralSymbolic(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit LiteralSymbolic(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TheoryTermVariable;
@@ -844,13 +847,13 @@ class UnparsedElement : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> UnparsedElement;
 
     static auto construct(Library &lib, StringIterable const &operators, TheoryTerm const &term) -> UnparsedElement;
-    static auto acquire(clingo_ast_t *ast) -> UnparsedElement { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> UnparsedElement { return UnparsedElement{ast}; }
 
     friend auto operator==(UnparsedElement const &a, UnparsedElement const &b) -> bool = default;
     friend auto operator<=>(UnparsedElement const &a, UnparsedElement const &b) -> std::strong_ordering = default;
 
   private:
-    UnparsedElement(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit UnparsedElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using UnparsedElementArray = std::vector<UnparsedElement>;
@@ -878,13 +881,13 @@ class TheoryTermVariable : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view name, bool anonymous)
         -> TheoryTermVariable;
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermVariable { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermVariable { return TheoryTermVariable{ast}; }
 
     friend auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool = default;
     friend auto operator<=>(TheoryTermVariable const &a, TheoryTermVariable const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryTermVariable(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TheoryTermVariable(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TheoryTermSymbolic : public ASTBase {
@@ -905,13 +908,13 @@ class TheoryTermSymbolic : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermSymbolic;
 
     static auto construct(Library &lib, Location const &location, Symbol const &symbol) -> TheoryTermSymbolic;
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermSymbolic { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermSymbolic { return TheoryTermSymbolic{ast}; }
 
     friend auto operator==(TheoryTermSymbolic const &a, TheoryTermSymbolic const &b) -> bool = default;
     friend auto operator<=>(TheoryTermSymbolic const &a, TheoryTermSymbolic const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryTermSymbolic(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TheoryTermSymbolic(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TheoryTermTuple : public ASTBase {
@@ -934,13 +937,13 @@ class TheoryTermTuple : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, TheoryTupleType const &tuple_type,
                           TheoryTermIterable const &arguments) -> TheoryTermTuple;
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermTuple { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermTuple { return TheoryTermTuple{ast}; }
 
     friend auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool = default;
     friend auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryTermTuple(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TheoryTermTuple(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TheoryTermFunction : public ASTBase {
@@ -963,13 +966,13 @@ class TheoryTermFunction : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view name,
                           TheoryTermIterable const &arguments) -> TheoryTermFunction;
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermFunction { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermFunction { return TheoryTermFunction{ast}; }
 
     friend auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool = default;
     friend auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryTermFunction(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TheoryTermFunction(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TheoryTermUnparsed : public ASTBase {
@@ -991,13 +994,13 @@ class TheoryTermUnparsed : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, UnparsedElementIterable const &elements)
         -> TheoryTermUnparsed;
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermUnparsed { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermUnparsed { return TheoryTermUnparsed{ast}; }
 
     friend auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool = default;
     friend auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryTermUnparsed(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TheoryTermUnparsed(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TheoryRightGuard : public ASTBase {
@@ -1018,13 +1021,13 @@ class TheoryRightGuard : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryRightGuard;
 
     static auto construct(Library &lib, std::string_view theory_operator, TheoryTerm const &term) -> TheoryRightGuard;
-    static auto acquire(clingo_ast_t *ast) -> TheoryRightGuard { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TheoryRightGuard { return TheoryRightGuard{ast}; }
 
     friend auto operator==(TheoryRightGuard const &a, TheoryRightGuard const &b) -> bool = default;
     friend auto operator<=>(TheoryRightGuard const &a, TheoryRightGuard const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryRightGuard(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TheoryRightGuard(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using OptionalTheoryRightGuard = std::optional<TheoryRightGuard>;
@@ -1054,14 +1057,14 @@ class SetAggregateElement : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
                           LiteralIterable const &condition) -> SetAggregateElement;
-    static auto acquire(clingo_ast_t *ast) -> SetAggregateElement { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> SetAggregateElement { return SetAggregateElement{ast}; }
 
     friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool = default;
     friend auto operator<=>(SetAggregateElement const &a, SetAggregateElement const &b)
         -> std::strong_ordering = default;
 
   private:
-    SetAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit SetAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using SetAggregateElementArray = std::vector<SetAggregateElement>;
@@ -1089,14 +1092,14 @@ class BodyAggregateElement : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, TermIterable const &tuple,
                           LiteralIterable const &condition) -> BodyAggregateElement;
-    static auto acquire(clingo_ast_t *ast) -> BodyAggregateElement { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> BodyAggregateElement { return BodyAggregateElement{ast}; }
 
     friend auto operator==(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool = default;
     friend auto operator<=>(BodyAggregateElement const &a, BodyAggregateElement const &b)
         -> std::strong_ordering = default;
 
   private:
-    BodyAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit BodyAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using BodyAggregateElementArray = std::vector<BodyAggregateElement>;
@@ -1124,13 +1127,13 @@ class TheoryAtomElement : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, TheoryTermIterable const &tuple,
                           LiteralIterable const &condition) -> TheoryAtomElement;
-    static auto acquire(clingo_ast_t *ast) -> TheoryAtomElement { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TheoryAtomElement { return TheoryAtomElement{ast}; }
 
     friend auto operator==(TheoryAtomElement const &a, TheoryAtomElement const &b) -> bool = default;
     friend auto operator<=>(TheoryAtomElement const &a, TheoryAtomElement const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryAtomElement(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TheoryAtomElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using TheoryAtomElementArray = std::vector<TheoryAtomElement>;
@@ -1177,13 +1180,13 @@ class BodySimpleLiteral : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> BodySimpleLiteral;
 
     static auto construct(Library &lib, Literal const &literal) -> BodySimpleLiteral;
-    static auto acquire(clingo_ast_t *ast) -> BodySimpleLiteral { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> BodySimpleLiteral { return BodySimpleLiteral{ast}; }
 
     friend auto operator==(BodySimpleLiteral const &a, BodySimpleLiteral const &b) -> bool = default;
     friend auto operator<=>(BodySimpleLiteral const &a, BodySimpleLiteral const &b) -> std::strong_ordering = default;
 
   private:
-    BodySimpleLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit BodySimpleLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class BodyAggregate : public ASTBase {
@@ -1210,13 +1213,13 @@ class BodyAggregate : public ASTBase {
     static auto construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
                           AggregateFunction const &function, BodyAggregateElementIterable const &elements,
                           OptionalRightGuard const &right) -> BodyAggregate;
-    static auto acquire(clingo_ast_t *ast) -> BodyAggregate { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> BodyAggregate { return BodyAggregate{ast}; }
 
     friend auto operator==(BodyAggregate const &a, BodyAggregate const &b) -> bool = default;
     friend auto operator<=>(BodyAggregate const &a, BodyAggregate const &b) -> std::strong_ordering = default;
 
   private:
-    BodyAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit BodyAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class BodySort : public ASTBase {
@@ -1239,13 +1242,13 @@ class BodySort : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Term const &left,
                           BodyAggregateElementIterable const &elements) -> BodySort;
-    static auto acquire(clingo_ast_t *ast) -> BodySort { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> BodySort { return BodySort{ast}; }
 
     friend auto operator==(BodySort const &a, BodySort const &b) -> bool = default;
     friend auto operator<=>(BodySort const &a, BodySort const &b) -> std::strong_ordering = default;
 
   private:
-    BodySort(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit BodySort(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class BodySetAggregate : public ASTBase {
@@ -1271,13 +1274,13 @@ class BodySetAggregate : public ASTBase {
     static auto construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
                           SetAggregateElementIterable const &elements, OptionalRightGuard const &right)
         -> BodySetAggregate;
-    static auto acquire(clingo_ast_t *ast) -> BodySetAggregate { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> BodySetAggregate { return BodySetAggregate{ast}; }
 
     friend auto operator==(BodySetAggregate const &a, BodySetAggregate const &b) -> bool = default;
     friend auto operator<=>(BodySetAggregate const &a, BodySetAggregate const &b) -> std::strong_ordering = default;
 
   private:
-    BodySetAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit BodySetAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class BodyTheoryAtom : public ASTBase {
@@ -1303,13 +1306,13 @@ class BodyTheoryAtom : public ASTBase {
     static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &name,
                           TheoryAtomElementIterable const &elements, OptionalTheoryRightGuard const &right)
         -> BodyTheoryAtom;
-    static auto acquire(clingo_ast_t *ast) -> BodyTheoryAtom { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> BodyTheoryAtom { return BodyTheoryAtom{ast}; }
 
     friend auto operator==(BodyTheoryAtom const &a, BodyTheoryAtom const &b) -> bool = default;
     friend auto operator<=>(BodyTheoryAtom const &a, BodyTheoryAtom const &b) -> std::strong_ordering = default;
 
   private:
-    BodyTheoryAtom(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit BodyTheoryAtom(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class BodyConditionalLiteral : public ASTBase {
@@ -1332,14 +1335,14 @@ class BodyConditionalLiteral : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
                           LiteralIterable const &condition) -> BodyConditionalLiteral;
-    static auto acquire(clingo_ast_t *ast) -> BodyConditionalLiteral { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> BodyConditionalLiteral { return BodyConditionalLiteral{ast}; }
 
     friend auto operator==(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b) -> bool = default;
     friend auto operator<=>(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b)
         -> std::strong_ordering = default;
 
   private:
-    BodyConditionalLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit BodyConditionalLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class HeadConditionalLiteral : public ASTBase {
@@ -1362,14 +1365,14 @@ class HeadConditionalLiteral : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
                           LiteralIterable const &condition) -> HeadConditionalLiteral;
-    static auto acquire(clingo_ast_t *ast) -> HeadConditionalLiteral { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> HeadConditionalLiteral { return HeadConditionalLiteral{ast}; }
 
     friend auto operator==(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b) -> bool = default;
     friend auto operator<=>(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b)
         -> std::strong_ordering = default;
 
   private:
-    HeadConditionalLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit HeadConditionalLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using DisjunctionElement = std::variant<Literal, HeadConditionalLiteral>;
@@ -1402,14 +1405,14 @@ class HeadAggregateElement : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, TermIterable const &tuple, Literal const &literal,
                           LiteralIterable const &condition) -> HeadAggregateElement;
-    static auto acquire(clingo_ast_t *ast) -> HeadAggregateElement { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> HeadAggregateElement { return HeadAggregateElement{ast}; }
 
     friend auto operator==(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool = default;
     friend auto operator<=>(HeadAggregateElement const &a, HeadAggregateElement const &b)
         -> std::strong_ordering = default;
 
   private:
-    HeadAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit HeadAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using HeadAggregateElementArray = std::vector<HeadAggregateElement>;
@@ -1448,13 +1451,13 @@ class HeadSimpleLiteral : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadSimpleLiteral;
 
     static auto construct(Library &lib, Literal const &literal) -> HeadSimpleLiteral;
-    static auto acquire(clingo_ast_t *ast) -> HeadSimpleLiteral { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> HeadSimpleLiteral { return HeadSimpleLiteral{ast}; }
 
     friend auto operator==(HeadSimpleLiteral const &a, HeadSimpleLiteral const &b) -> bool = default;
     friend auto operator<=>(HeadSimpleLiteral const &a, HeadSimpleLiteral const &b) -> std::strong_ordering = default;
 
   private:
-    HeadSimpleLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit HeadSimpleLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class HeadAggregate : public ASTBase {
@@ -1480,13 +1483,13 @@ class HeadAggregate : public ASTBase {
     static auto construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
                           AggregateFunction const &function, HeadAggregateElementIterable const &elements,
                           OptionalRightGuard const &right) -> HeadAggregate;
-    static auto acquire(clingo_ast_t *ast) -> HeadAggregate { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> HeadAggregate { return HeadAggregate{ast}; }
 
     friend auto operator==(HeadAggregate const &a, HeadAggregate const &b) -> bool = default;
     friend auto operator<=>(HeadAggregate const &a, HeadAggregate const &b) -> std::strong_ordering = default;
 
   private:
-    HeadAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit HeadAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class HeadSetAggregate : public ASTBase {
@@ -1511,13 +1514,13 @@ class HeadSetAggregate : public ASTBase {
     static auto construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
                           SetAggregateElementIterable const &elements, OptionalRightGuard const &right)
         -> HeadSetAggregate;
-    static auto acquire(clingo_ast_t *ast) -> HeadSetAggregate { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> HeadSetAggregate { return HeadSetAggregate{ast}; }
 
     friend auto operator==(HeadSetAggregate const &a, HeadSetAggregate const &b) -> bool = default;
     friend auto operator<=>(HeadSetAggregate const &a, HeadSetAggregate const &b) -> std::strong_ordering = default;
 
   private:
-    HeadSetAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit HeadSetAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class HeadTheoryAtom : public ASTBase {
@@ -1542,13 +1545,13 @@ class HeadTheoryAtom : public ASTBase {
     static auto construct(Library &lib, Location const &location, Term const &name,
                           TheoryAtomElementIterable const &elements, OptionalTheoryRightGuard const &right)
         -> HeadTheoryAtom;
-    static auto acquire(clingo_ast_t *ast) -> HeadTheoryAtom { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> HeadTheoryAtom { return HeadTheoryAtom{ast}; }
 
     friend auto operator==(HeadTheoryAtom const &a, HeadTheoryAtom const &b) -> bool = default;
     friend auto operator<=>(HeadTheoryAtom const &a, HeadTheoryAtom const &b) -> std::strong_ordering = default;
 
   private:
-    HeadTheoryAtom(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit HeadTheoryAtom(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class HeadDisjunction : public ASTBase {
@@ -1570,13 +1573,13 @@ class HeadDisjunction : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, DisjunctionElementIterable const &elements)
         -> HeadDisjunction;
-    static auto acquire(clingo_ast_t *ast) -> HeadDisjunction { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> HeadDisjunction { return HeadDisjunction{ast}; }
 
     friend auto operator==(HeadDisjunction const &a, HeadDisjunction const &b) -> bool = default;
     friend auto operator<=>(HeadDisjunction const &a, HeadDisjunction const &b) -> std::strong_ordering = default;
 
   private:
-    HeadDisjunction(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit HeadDisjunction(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class TheoryOperatorDefinition : public ASTBase {
@@ -1600,14 +1603,14 @@ class TheoryOperatorDefinition : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view name, int priority,
                           TheoryOperatorType const &operator_type) -> TheoryOperatorDefinition;
-    static auto acquire(clingo_ast_t *ast) -> TheoryOperatorDefinition { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TheoryOperatorDefinition { return TheoryOperatorDefinition{ast}; }
 
     friend auto operator==(TheoryOperatorDefinition const &a, TheoryOperatorDefinition const &b) -> bool = default;
     friend auto operator<=>(TheoryOperatorDefinition const &a, TheoryOperatorDefinition const &b)
         -> std::strong_ordering = default;
 
   private:
-    TheoryOperatorDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TheoryOperatorDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using TheoryOperatorDefinitionArray = std::vector<TheoryOperatorDefinition>;
@@ -1635,14 +1638,14 @@ class TheoryTermDefinition : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view name,
                           TheoryOperatorDefinitionIterable const &operators) -> TheoryTermDefinition;
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermDefinition { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermDefinition { return TheoryTermDefinition{ast}; }
 
     friend auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool = default;
     friend auto operator<=>(TheoryTermDefinition const &a, TheoryTermDefinition const &b)
         -> std::strong_ordering = default;
 
   private:
-    TheoryTermDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TheoryTermDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using TheoryTermDefinitionArray = std::vector<TheoryTermDefinition>;
@@ -1669,14 +1672,14 @@ class TheoryGuardDefinition : public ASTBase {
 
     static auto construct(Library &lib, StringIterable const &operators, std::string_view term)
         -> TheoryGuardDefinition;
-    static auto acquire(clingo_ast_t *ast) -> TheoryGuardDefinition { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TheoryGuardDefinition { return TheoryGuardDefinition{ast}; }
 
     friend auto operator==(TheoryGuardDefinition const &a, TheoryGuardDefinition const &b) -> bool = default;
     friend auto operator<=>(TheoryGuardDefinition const &a, TheoryGuardDefinition const &b)
         -> std::strong_ordering = default;
 
   private:
-    TheoryGuardDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TheoryGuardDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using OptionalTheoryGuardDefinition = std::optional<TheoryGuardDefinition>;
@@ -1705,14 +1708,14 @@ class TheoryAtomDefinition : public ASTBase {
     static auto construct(Library &lib, Location const &location, std::string_view name, int arity,
                           std::string_view term, OptionalTheoryGuardDefinition const &guard,
                           TheoryAtomType const &atom_type) -> TheoryAtomDefinition;
-    static auto acquire(clingo_ast_t *ast) -> TheoryAtomDefinition { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> TheoryAtomDefinition { return TheoryAtomDefinition{ast}; }
 
     friend auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool = default;
     friend auto operator<=>(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b)
         -> std::strong_ordering = default;
 
   private:
-    TheoryAtomDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit TheoryAtomDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using TheoryAtomDefinitionArray = std::vector<TheoryAtomDefinition>;
@@ -1740,13 +1743,13 @@ class OptimizeTuple : public ASTBase {
 
     static auto construct(Library &lib, Term const &weight, OptionalTerm const &priority, TermIterable const &terms)
         -> OptimizeTuple;
-    static auto acquire(clingo_ast_t *ast) -> OptimizeTuple { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> OptimizeTuple { return OptimizeTuple{ast}; }
 
     friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool = default;
     friend auto operator<=>(OptimizeTuple const &a, OptimizeTuple const &b) -> std::strong_ordering = default;
 
   private:
-    OptimizeTuple(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit OptimizeTuple(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class OptimizeElement : public ASTBase {
@@ -1768,13 +1771,13 @@ class OptimizeElement : public ASTBase {
 
     static auto construct(Library &lib, OptimizeTuple const &tuple, LiteralIterable const &condition)
         -> OptimizeElement;
-    static auto acquire(clingo_ast_t *ast) -> OptimizeElement { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> OptimizeElement { return OptimizeElement{ast}; }
 
     friend auto operator==(OptimizeElement const &a, OptimizeElement const &b) -> bool = default;
     friend auto operator<=>(OptimizeElement const &a, OptimizeElement const &b) -> std::strong_ordering = default;
 
   private:
-    OptimizeElement(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit OptimizeElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using OptimizeElementArray = std::vector<OptimizeElement>;
@@ -1800,13 +1803,13 @@ class Edge : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> Edge;
 
     static auto construct(Library &lib, Term const &u, Term const &v) -> Edge;
-    static auto acquire(clingo_ast_t *ast) -> Edge { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> Edge { return Edge{ast}; }
 
     friend auto operator==(Edge const &a, Edge const &b) -> bool = default;
     friend auto operator<=>(Edge const &a, Edge const &b) -> std::strong_ordering = default;
 
   private:
-    Edge(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit Edge(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using EdgeArray = std::vector<Edge>;
@@ -1832,13 +1835,13 @@ class ProgramPart : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> ProgramPart;
 
     static auto construct(Library &lib, std::string_view name, SymbolIterable const &arguments) -> ProgramPart;
-    static auto acquire(clingo_ast_t *ast) -> ProgramPart { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> ProgramPart { return ProgramPart{ast}; }
 
     friend auto operator==(ProgramPart const &a, ProgramPart const &b) -> bool = default;
     friend auto operator<=>(ProgramPart const &a, ProgramPart const &b) -> std::strong_ordering = default;
 
   private:
-    ProgramPart(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit ProgramPart(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 using ProgramPartArray = std::vector<ProgramPart>;
@@ -1912,13 +1915,13 @@ class StatementRule : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, HeadLiteral const &head,
                           BodyLiteralIterable const &body) -> StatementRule;
-    static auto acquire(clingo_ast_t *ast) -> StatementRule { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementRule { return StatementRule{ast}; }
 
     friend auto operator==(StatementRule const &a, StatementRule const &b) -> bool = default;
     friend auto operator<=>(StatementRule const &a, StatementRule const &b) -> std::strong_ordering = default;
 
   private:
-    StatementRule(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementRule(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementTheory : public ASTBase {
@@ -1943,13 +1946,13 @@ class StatementTheory : public ASTBase {
     static auto construct(Library &lib, Location const &location, std::string_view name,
                           TheoryTermDefinitionIterable const &terms, TheoryAtomDefinitionIterable const &atoms)
         -> StatementTheory;
-    static auto acquire(clingo_ast_t *ast) -> StatementTheory { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementTheory { return StatementTheory{ast}; }
 
     friend auto operator==(StatementTheory const &a, StatementTheory const &b) -> bool = default;
     friend auto operator<=>(StatementTheory const &a, StatementTheory const &b) -> std::strong_ordering = default;
 
   private:
-    StatementTheory(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementTheory(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementOptimize : public ASTBase {
@@ -1972,13 +1975,13 @@ class StatementOptimize : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, OptimizeElementIterable const &elements,
                           OptimizeType const &optimize_type) -> StatementOptimize;
-    static auto acquire(clingo_ast_t *ast) -> StatementOptimize { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementOptimize { return StatementOptimize{ast}; }
 
     friend auto operator==(StatementOptimize const &a, StatementOptimize const &b) -> bool = default;
     friend auto operator<=>(StatementOptimize const &a, StatementOptimize const &b) -> std::strong_ordering = default;
 
   private:
-    StatementOptimize(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementOptimize(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementWeakConstraint : public ASTBase {
@@ -2001,14 +2004,14 @@ class StatementWeakConstraint : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, BodyLiteralIterable const &body,
                           OptimizeTuple const &tuple) -> StatementWeakConstraint;
-    static auto acquire(clingo_ast_t *ast) -> StatementWeakConstraint { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementWeakConstraint { return StatementWeakConstraint{ast}; }
 
     friend auto operator==(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool = default;
     friend auto operator<=>(StatementWeakConstraint const &a, StatementWeakConstraint const &b)
         -> std::strong_ordering = default;
 
   private:
-    StatementWeakConstraint(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementWeakConstraint(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementShow : public ASTBase {
@@ -2031,13 +2034,13 @@ class StatementShow : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Term const &term, BodyLiteralIterable const &body)
         -> StatementShow;
-    static auto acquire(clingo_ast_t *ast) -> StatementShow { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementShow { return StatementShow{ast}; }
 
     friend auto operator==(StatementShow const &a, StatementShow const &b) -> bool = default;
     friend auto operator<=>(StatementShow const &a, StatementShow const &b) -> std::strong_ordering = default;
 
   private:
-    StatementShow(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementShow(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementShowNothing : public ASTBase {
@@ -2057,14 +2060,14 @@ class StatementShowNothing : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShowNothing;
 
     static auto construct(Library &lib, Location const &location) -> StatementShowNothing;
-    static auto acquire(clingo_ast_t *ast) -> StatementShowNothing { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementShowNothing { return StatementShowNothing{ast}; }
 
     friend auto operator==(StatementShowNothing const &a, StatementShowNothing const &b) -> bool = default;
     friend auto operator<=>(StatementShowNothing const &a, StatementShowNothing const &b)
         -> std::strong_ordering = default;
 
   private:
-    StatementShowNothing(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementShowNothing(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementShowSignature : public ASTBase {
@@ -2089,14 +2092,14 @@ class StatementShowSignature : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view name, int arity, bool sign,
                           bool value) -> StatementShowSignature;
-    static auto acquire(clingo_ast_t *ast) -> StatementShowSignature { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementShowSignature { return StatementShowSignature{ast}; }
 
     friend auto operator==(StatementShowSignature const &a, StatementShowSignature const &b) -> bool = default;
     friend auto operator<=>(StatementShowSignature const &a, StatementShowSignature const &b)
         -> std::strong_ordering = default;
 
   private:
-    StatementShowSignature(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementShowSignature(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementProject : public ASTBase {
@@ -2119,13 +2122,13 @@ class StatementProject : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralIterable const &body)
         -> StatementProject;
-    static auto acquire(clingo_ast_t *ast) -> StatementProject { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementProject { return StatementProject{ast}; }
 
     friend auto operator==(StatementProject const &a, StatementProject const &b) -> bool = default;
     friend auto operator<=>(StatementProject const &a, StatementProject const &b) -> std::strong_ordering = default;
 
   private:
-    StatementProject(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementProject(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementProjectSignature : public ASTBase {
@@ -2149,14 +2152,14 @@ class StatementProjectSignature : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view name, int arity, bool sign)
         -> StatementProjectSignature;
-    static auto acquire(clingo_ast_t *ast) -> StatementProjectSignature { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementProjectSignature { return StatementProjectSignature{ast}; }
 
     friend auto operator==(StatementProjectSignature const &a, StatementProjectSignature const &b) -> bool = default;
     friend auto operator<=>(StatementProjectSignature const &a, StatementProjectSignature const &b)
         -> std::strong_ordering = default;
 
   private:
-    StatementProjectSignature(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementProjectSignature(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementDefined : public ASTBase {
@@ -2180,13 +2183,13 @@ class StatementDefined : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view name, int arity, bool sign)
         -> StatementDefined;
-    static auto acquire(clingo_ast_t *ast) -> StatementDefined { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementDefined { return StatementDefined{ast}; }
 
     friend auto operator==(StatementDefined const &a, StatementDefined const &b) -> bool = default;
     friend auto operator<=>(StatementDefined const &a, StatementDefined const &b) -> std::strong_ordering = default;
 
   private:
-    StatementDefined(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementDefined(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementExternal : public ASTBase {
@@ -2210,13 +2213,13 @@ class StatementExternal : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralIterable const &body,
                           OptionalTerm const &external_type) -> StatementExternal;
-    static auto acquire(clingo_ast_t *ast) -> StatementExternal { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementExternal { return StatementExternal{ast}; }
 
     friend auto operator==(StatementExternal const &a, StatementExternal const &b) -> bool = default;
     friend auto operator<=>(StatementExternal const &a, StatementExternal const &b) -> std::strong_ordering = default;
 
   private:
-    StatementExternal(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementExternal(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementEdge : public ASTBase {
@@ -2239,13 +2242,13 @@ class StatementEdge : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, EdgeIterable const &pool,
                           BodyLiteralIterable const &body) -> StatementEdge;
-    static auto acquire(clingo_ast_t *ast) -> StatementEdge { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementEdge { return StatementEdge{ast}; }
 
     friend auto operator==(StatementEdge const &a, StatementEdge const &b) -> bool = default;
     friend auto operator<=>(StatementEdge const &a, StatementEdge const &b) -> std::strong_ordering = default;
 
   private:
-    StatementEdge(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementEdge(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementHeuristic : public ASTBase {
@@ -2271,13 +2274,13 @@ class StatementHeuristic : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralIterable const &body,
                           Term const &weight, Term const &modifier, OptionalTerm const &priority) -> StatementHeuristic;
-    static auto acquire(clingo_ast_t *ast) -> StatementHeuristic { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementHeuristic { return StatementHeuristic{ast}; }
 
     friend auto operator==(StatementHeuristic const &a, StatementHeuristic const &b) -> bool = default;
     friend auto operator<=>(StatementHeuristic const &a, StatementHeuristic const &b) -> std::strong_ordering = default;
 
   private:
-    StatementHeuristic(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementHeuristic(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementScript : public ASTBase {
@@ -2300,13 +2303,13 @@ class StatementScript : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view value, std::string_view script_type)
         -> StatementScript;
-    static auto acquire(clingo_ast_t *ast) -> StatementScript { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementScript { return StatementScript{ast}; }
 
     friend auto operator==(StatementScript const &a, StatementScript const &b) -> bool = default;
     friend auto operator<=>(StatementScript const &a, StatementScript const &b) -> std::strong_ordering = default;
 
   private:
-    StatementScript(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementScript(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementInclude : public ASTBase {
@@ -2329,13 +2332,13 @@ class StatementInclude : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view value,
                           IncludeType const &include_type) -> StatementInclude;
-    static auto acquire(clingo_ast_t *ast) -> StatementInclude { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementInclude { return StatementInclude{ast}; }
 
     friend auto operator==(StatementInclude const &a, StatementInclude const &b) -> bool = default;
     friend auto operator<=>(StatementInclude const &a, StatementInclude const &b) -> std::strong_ordering = default;
 
   private:
-    StatementInclude(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementInclude(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementProgram : public ASTBase {
@@ -2358,13 +2361,13 @@ class StatementProgram : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view name,
                           StringIterable const &arguments) -> StatementProgram;
-    static auto acquire(clingo_ast_t *ast) -> StatementProgram { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementProgram { return StatementProgram{ast}; }
 
     friend auto operator==(StatementProgram const &a, StatementProgram const &b) -> bool = default;
     friend auto operator<=>(StatementProgram const &a, StatementProgram const &b) -> std::strong_ordering = default;
 
   private:
-    StatementProgram(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementProgram(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementParts : public ASTBase {
@@ -2387,13 +2390,13 @@ class StatementParts : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, ProgramPartIterable const &elements,
                           Precedence const &precedence) -> StatementParts;
-    static auto acquire(clingo_ast_t *ast) -> StatementParts { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementParts { return StatementParts{ast}; }
 
     friend auto operator==(StatementParts const &a, StatementParts const &b) -> bool = default;
     friend auto operator<=>(StatementParts const &a, StatementParts const &b) -> std::strong_ordering = default;
 
   private:
-    StatementParts(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementParts(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementConst : public ASTBase {
@@ -2417,13 +2420,13 @@ class StatementConst : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view name, Term const &value,
                           Precedence const &precedence) -> StatementConst;
-    static auto acquire(clingo_ast_t *ast) -> StatementConst { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementConst { return StatementConst{ast}; }
 
     friend auto operator==(StatementConst const &a, StatementConst const &b) -> bool = default;
     friend auto operator<=>(StatementConst const &a, StatementConst const &b) -> std::strong_ordering = default;
 
   private:
-    StatementConst(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementConst(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 class StatementComment : public ASTBase {
@@ -2446,13 +2449,13 @@ class StatementComment : public ASTBase {
 
     static auto construct(Library &lib, Location const &location, std::string_view value,
                           CommentType const &comment_type) -> StatementComment;
-    static auto acquire(clingo_ast_t *ast) -> StatementComment { return {ast}; }
+    static auto acquire(clingo_ast_t *ast) -> StatementComment { return StatementComment{ast}; }
 
     friend auto operator==(StatementComment const &a, StatementComment const &b) -> bool = default;
     friend auto operator<=>(StatementComment const &a, StatementComment const &b) -> std::strong_ordering = default;
 
   private:
-    StatementComment(clingo_ast_t *ast) : ASTBase{ast} {}
+    explicit StatementComment(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
 auto construct_term(clingo_ast_t *ast) -> Term {
@@ -6635,8 +6638,8 @@ auto transform_opt_value(Value opt, py::handle transform, py::args const &args, 
 namespace {
 
 struct CString {
-    CString(std::string &&str) : str_{std::move(str)} {}
-    operator std::string_view() const { return std::string_view{str_}; }
+    explicit CString(std::string &&str) : str_{std::move(str)} {}
+    explicit operator std::string_view() const { return std::string_view{str_}; }
     std::string str_;
 };
 
@@ -6742,7 +6745,7 @@ inline void parse_files(Library const &lib, std::span<std::string_view const> fi
 
 class RewriteContext {
   public:
-    RewriteContext(Library &lib) { handle_error(clingo_ast_rewrite_context_create(lib, &ctx_)); }
+    explicit RewriteContext(Library &lib) { handle_error(clingo_ast_rewrite_context_create(lib, &ctx_)); }
     ~RewriteContext() { clingo_ast_rewrite_context_free(ctx_); }
     void set_project_mode(ProjectionMode value) {
         clingo_ast_rewrite_context_set_project_mode(ctx_, static_cast<clingo_projection_mode_t>(value));
@@ -6802,7 +6805,7 @@ template <typename Variant> struct pointer_variant;
 template <typename... Ts> struct pointer_variant<std::variant<Ts...>> {
     using type = std::variant<std::add_pointer_t<Ts>...>;
 };
-template <typename Variant> using pointer_variant_t = typename pointer_variant<Variant>::type;
+template <typename Variant> using pointer_variant_t = pointer_variant<Variant>::type;
 
 auto convert_stm(py::handle hnd) -> clingo_ast_t * {
     return c_cast(hnd.cast<pointer_variant_t<Statement>>());
@@ -9990,8 +9993,16 @@ Args:
     statement: The statement to add.)doc");
 
     add_union(ast, "Term",
-              {"TermVariable", "TermSymbolic", "TermAbsolute", "TermUnaryOperation", "TermBinaryOperation", "TermTuple",
-               "TermFunction", "TermFormatString"});
+              {
+                  "TermVariable",
+                  "TermSymbolic",
+                  "TermAbsolute",
+                  "TermUnaryOperation",
+                  "TermBinaryOperation",
+                  "TermTuple",
+                  "TermFunction",
+                  "TermFormatString",
+              });
     add_union(ast, "FormatField", {"FormatFieldLiteral", "FormatFieldExpression"});
     add_union(ast, "TermOrProjection", {"Term", "Projection"});
     add_union(ast, "TermOrArgumentTuple", {"Term", "ArgumentTuple"});
@@ -10000,16 +10011,27 @@ Args:
         ast, "TheoryTerm",
         {"TheoryTermVariable", "TheoryTermSymbolic", "TheoryTermTuple", "TheoryTermFunction", "TheoryTermUnparsed"});
     add_union(ast, "BodyLiteral",
-              {"BodySimpleLiteral", "BodyAggregate", "BodySort", "BodySetAggregate", "BodyTheoryAtom",
-               "BodyConditionalLiteral"});
+              {
+                  "BodySimpleLiteral",
+                  "BodyAggregate",
+                  "BodySort",
+                  "BodySetAggregate",
+                  "BodyTheoryAtom",
+                  "BodyConditionalLiteral",
+              });
     add_union(ast, "DisjunctionElement", {"Literal", "HeadConditionalLiteral"});
     add_union(ast, "HeadLiteral",
               {"HeadSimpleLiteral", "HeadAggregate", "HeadSetAggregate", "HeadTheoryAtom", "HeadDisjunction"});
     add_union(ast, "Statement",
-              {"StatementRule", "StatementTheory", "StatementOptimize", "StatementWeakConstraint", "StatementShow",
-               "StatementShowNothing", "StatementShowSignature", "StatementProject", "StatementProjectSignature",
-               "StatementDefined", "StatementExternal", "StatementEdge", "StatementHeuristic", "StatementScript",
-               "StatementInclude", "StatementProgram", "StatementParts", "StatementConst", "StatementComment"});
+              {
+                  "StatementRule",           "StatementTheory",   "StatementOptimize",
+                  "StatementWeakConstraint", "StatementShow",     "StatementShowNothing",
+                  "StatementShowSignature",  "StatementProject",  "StatementProjectSignature",
+                  "StatementDefined",        "StatementExternal", "StatementEdge",
+                  "StatementHeuristic",      "StatementScript",   "StatementInclude",
+                  "StatementProgram",        "StatementParts",    "StatementConst",
+                  "StatementComment",
+              });
 }
 
 } // namespace PyClingo::AST

@@ -27,11 +27,11 @@ enum class Base : uint8_t {
 class Number {
   public:
     //! Construct a number from an integer.
-    Number(int32_t value) noexcept;
+    Number(int32_t value) noexcept; // NOLINT
     //! Construct a number from a string.
-    Number(char const *str, Base base = Base::dec);
+    explicit Number(char const *str, Base base = Base::dec);
     //! Construct a number from a string.
-    Number(std::string_view str, Base base = Base::dec);
+    explicit Number(std::string_view str, Base base = Base::dec);
 
     //! Copy construct a number.
     Number(Number const &other);
@@ -257,7 +257,7 @@ class Number {
     // conversion between numbers and their representations
 
     //! Construct a number from the given representation.
-    static auto from_repr(uint64_t repr) -> Number { return {repr}; }
+    static auto from_repr(uint64_t repr) -> Number { return Number{repr}; }
 
     //! Get the internal representation of the number.
     //!
@@ -277,7 +277,7 @@ class Number {
     class Impl;
     friend class Impl;
     //! Construct a number from a representation.
-    Number(uint64_t repr);
+    explicit Number(uint64_t repr);
 
     //! The representation of the number.
     uint64_t repr_;

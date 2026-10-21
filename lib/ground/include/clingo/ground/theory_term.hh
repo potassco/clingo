@@ -62,7 +62,7 @@ class TheoryTerm {
 class TheoryTermSymbol : public TheoryTerm {
   public:
     //! Construct a theory symbol.
-    TheoryTermSymbol(Symbol sym) : sym_{sym} {}
+    explicit TheoryTermSymbol(Symbol sym) : sym_{sym} {}
 
   private:
     void do_vars(VariableSet &vars) const override;
@@ -80,7 +80,7 @@ class TheoryTermSymbol : public TheoryTerm {
 class TheoryTermVariable : public TheoryTerm {
   public:
     //! Construct a theory variable.
-    TheoryTermVariable(size_t var) : var_{var} {}
+    explicit TheoryTermVariable(size_t var) : var_{var} {}
 
   private:
     void do_vars(VariableSet &vars) const override;

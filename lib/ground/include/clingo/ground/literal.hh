@@ -341,7 +341,7 @@ class LitCheck : public Lit {
 class LitBool : public LitCheck {
   public:
     //! Construct the literal.
-    LitBool(bool value) : value_{value} {}
+    explicit LitBool(bool value) : value_{value} {}
 
   private:
     [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override;
@@ -378,7 +378,7 @@ class LitFailCheck : public LitCheck {
     //!
     //! Additionally, the first num terms are required to be numbers.
     //! The result of the evaluation is stored in the optional result vector.
-    LitFailCheck(UTermVec terms) : terms_{std::move(terms)} {}
+    explicit LitFailCheck(UTermVec terms) : terms_{std::move(terms)} {}
 
   private:
     [[nodiscard]] auto do_check(EvalContext const &ctx) -> bool override;

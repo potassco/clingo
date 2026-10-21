@@ -73,7 +73,7 @@ namespace {
 class ASTVec {
   public:
     ASTVec() = default;
-    ASTVec(size_t size) {
+    explicit ASTVec(size_t size) {
         if (size > 0) {
             // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
             data_ = new clingo_ast_t *[size] { nullptr };
@@ -534,18 +534,6 @@ template <class T> constexpr bool is_optional_v<std::optional<T>> = true;
 template <class T> constexpr bool is_immutable_v = false;
 
 template <class T> constexpr bool is_immutable_v<CppClingo::Util::immutable_value<T>> = true;
-
-template <typename T>
-    requires std::is_same_v<T, CppClingo::Input::FormatFieldLiteral>
-auto convert(clingo_ast_t const *ast) -> T {
-    return ast->cast<CppClingo::Input::FormatFieldLiteral>();
-}
-
-template <typename T>
-    requires std::is_same_v<T, CppClingo::Input::FormatFieldExpression>
-auto convert(clingo_ast_t const *ast) -> T {
-    return ast->cast<CppClingo::Input::FormatFieldExpression>();
-}
 
 template <typename T>
     requires std::is_same_v<T, CppClingo::Input::FormatField>
@@ -2780,7 +2768,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
 
 struct clingo_ast_scanner {
   public:
-    clingo_ast_scanner(clingo_lib_t *lib) : lib_{lib}, parser_{lib->log, *lib->store} {}
+    explicit clingo_ast_scanner(clingo_lib_t *lib) : lib_{lib}, parser_{lib->log, *lib->store} {}
     [[nodiscard]] auto next() -> std::unique_ptr<clingo_ast_t> {
         while (true) {
             if (active_) {
@@ -2885,7 +2873,7 @@ extern "C" auto clingo_ast_parse_files(clingo_lib_t *lib, clingo_string_t const 
 }
 
 struct clingo_ast_rewrite_context {
-    clingo_ast_rewrite_context(clingo_lib *lib) : lib{lib} {}
+    explicit clingo_ast_rewrite_context(clingo_lib *lib) : lib{lib} {}
     clingo_lib *lib;
     CppClingo::Input::TheoryAtomParser parser;
     CppClingo::Input::ParamMap param_map;

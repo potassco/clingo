@@ -11,7 +11,7 @@ namespace {
 
 class OutputBody : public OutputLit {
   public:
-    OutputBody(size_t &uids) : uids_{&uids} {}
+    explicit OutputBody(size_t &uids) : uids_{&uids} {}
 
     void start() {
         buf_.reset();
@@ -163,7 +163,7 @@ class OutputCond : public OutputLit {
 
 class OutputText : public OutputStm, OutputTheory {
   public:
-    OutputText(Util::OutputBuffer &out) : out_{&out} {};
+    explicit OutputText(Util::OutputBuffer &out) : out_{&out} {};
 
   private:
     template <class T> static void simple_head_(T &out, std::optional<std::tuple<Symbol, size_t, bool>> const &head) {

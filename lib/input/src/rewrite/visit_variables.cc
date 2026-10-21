@@ -8,7 +8,8 @@ namespace {
 
 class VisitVariables : public Visitor<VisitVariables> {
   public:
-    VisitVariables(VarVisitFun fun, VariableContext ctx = VariableContext::all) : fun{std::move(fun)}, ctx{ctx} {}
+    explicit VisitVariables(VarVisitFun fun, VariableContext ctx = VariableContext::all)
+        : fun{std::move(fun)}, ctx{ctx} {}
 
     // protect ourselves -> no unintended overloads
 

@@ -115,15 +115,11 @@ auto map_binop(TokenType token) -> std::optional<Prod> {
 
 //! Map the given token to a production of a unary operation if possible.
 auto map_unop(TokenType token) -> Prod {
-    switch (token) {
-        case TokenType::minus: {
-            return Prod::uminus;
-        }
-        default: {
-            assert(token == TokenType::tilde);
-            return Prod::bneg;
-        }
+    if (token == TokenType::minus) {
+        return Prod::uminus;
     }
+    assert(token == TokenType::tilde);
+    return Prod::bneg;
 }
 
 auto map_binop(Prod prod) -> BinaryOperator {
@@ -163,15 +159,11 @@ auto map_binop(Prod prod) -> BinaryOperator {
 }
 
 auto map_unop(Prod prod) -> UnaryOperator {
-    switch (prod) {
-        case Prod::bneg: {
-            return UnaryOperator::negate;
-        }
-        default: {
-            assert(prod == Prod::uminus);
-            return UnaryOperator::minus;
-        }
+    if (prod == Prod::bneg) {
+        return UnaryOperator::negate;
     }
+    assert(prod == Prod::uminus);
+    return UnaryOperator::minus;
 }
 
 //! Continue parsing an expression if followed by a binary operation.

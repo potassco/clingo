@@ -95,6 +95,7 @@ auto num_to_int(Number const &num) -> int32_t {
 //! Extends the symbol with a neutral value.
 class FwdSym {
   public:
+    // NOLINTNEXTLINE
     FwdSym(Symbol sym) : sym_{sym} {}
     // NOLINTNEXTLINE
     friend auto operator==(FwdSym const &a, FwdSym const &b) -> bool = default;
@@ -110,6 +111,7 @@ class FwdSym {
 //! Extends the symbol with a neutral value.
 class BwdSym {
   public:
+    // NOLINTNEXTLINE
     BwdSym(Symbol sym) : sym_{sym} {}
     // NOLINTNEXTLINE
     friend auto operator==(BwdSym const &a, BwdSym const &b) -> bool = default;
@@ -932,7 +934,7 @@ class BuilderSum {
         bounds.add(range);
         for (auto const &[rel, guard] : guards) {
             // Note: workaround for buggy clang-tidy diagnostic
-            auto adjust = [&, &g = guard]() {
+            auto adjust = [&, &g = guard] {
                 if (g.type() == SymbolType::number) {
                     return g.num() - fixed;
                 }
@@ -1325,7 +1327,7 @@ class OutputCond : public OutputLit {
     //! Construct the output.
     //!
     //! @param bld the base builder
-    OutputCond(BuilderBase &bld) : bld_{&bld} {}
+    explicit OutputCond(BuilderBase &bld) : bld_{&bld} {}
 
     //! Get the literals of the body.
     //!
@@ -1395,7 +1397,7 @@ class OutputBody : public OutputCond {
   public:
     //! Construct the output.
     //! @param bld the base builder
-    OutputBody(BuilderBase &bld) : OutputCond(bld) {}
+    explicit OutputBody(BuilderBase &bld) : OutputCond(bld) {}
 
   private:
     //! Delay building by introducing a fresh literal if necessary and adding
@@ -1663,7 +1665,7 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_atom(OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
         auto new_lit = type != OutputTheory::AtomType::directive ? static_cast<prg_lit_t>(atom_uid) : 0;
-        auto old_lit = theory_->atom([atom_uid]() { return static_cast<prg_lit_t>(atom_uid); }, name,
+        auto old_lit = theory_->atom([atom_uid] { return static_cast<prg_lit_t>(atom_uid); }, name,
                                      Util::to_vec<TheoryData::IdVec>(elems, uid_to_id),
                                      Util::transform(guard, [](auto const &guard) {
                                          return std::pair{guard.first, static_cast<prg_id_t>(guard.second)};

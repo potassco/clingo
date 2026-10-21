@@ -142,7 +142,7 @@ TEST_CASE_METHOD(Fixture, "backend minimize", "[cxx][backend][minimize]") {
     {
         class OM : public SolveEventHandler {
           public:
-            OM(std::optional<std::vector<std::string>> &model) : model_{&model} {}
+            explicit OM(std::optional<std::vector<std::string>> &model) : model_{&model} {}
 
           private:
             auto do_model(Model model) -> bool override {

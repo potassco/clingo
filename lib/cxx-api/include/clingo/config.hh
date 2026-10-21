@@ -16,7 +16,8 @@ namespace Clingo {
 //! @{
 
 //! Enumeration of configuration types.
-enum class ConfigType : clingo_config_type_bitset_t {
+enum class ConfigType : clingo_config_type_bitset_t // NOLINT
+{
     //! The configuration entry is a double value.
     value = clingo_config_type_value,
     //! The configuration entry is a array of configurations.
@@ -149,6 +150,8 @@ class Config : public ConfigView {
     //! @return the underlying C API type
     friend auto c_cast(Config const &stats) -> clingo_config_t * { return stats.cfg_(); }
 
+    // NOLINTBEGIN(bugprone-derived-method-shadowing-base-method)
+
     //! @copydoc ConfigView::array()
     [[nodiscard]] auto array() const -> ConfigArray;
     //! @copydoc ConfigView::at()
@@ -161,6 +164,9 @@ class Config : public ConfigView {
     [[nodiscard]] auto get(std::string_view name) const -> Config;
     //! @copydoc ConfigView::get()
     [[nodiscard]] auto operator[](std::string_view name) const -> Config { return get(name); }
+
+    // NOLINTEND(bugprone-derived-method-shadowing-base-method)
+
     using ConfigView::value;
     //! Set the value of the configuration entry.
     //!
@@ -377,6 +383,8 @@ class ConfigArray : public ConfigArrayView {
     //! @copydoc ConfigArrayView::ConfigArrayView()
     explicit ConfigArray(clingo_config_t *stats, ProgramId key) : ConfigArrayView{stats, key} {}
 
+    // NOLINTBEGIN(bugprone-derived-method-shadowing-base-method)
+
     //! @copydoc ConfigArrayView::at()
     [[nodiscard]] auto at(size_t index) const -> Config { return Config{cfg_(), at_(index)}; }
     //! @copydoc ConfigArrayView::at()
@@ -385,6 +393,8 @@ class ConfigArray : public ConfigArrayView {
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     //! @copydoc ConfigArrayView::begin()
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
+
+    // NOLINTEND(bugprone-derived-method-shadowing-base-method)
 
   private:
     [[nodiscard]] auto cfg_() const -> clingo_config_t * {
@@ -528,6 +538,8 @@ class ConfigMap : public ConfigMapView {
     //! @copydoc ConfigMapView::ConfigMapView()
     explicit ConfigMap(clingo_config_t *stats, ProgramId key) : ConfigMapView{stats, key} {}
 
+    // NOLINTBEGIN(bugprone-derived-method-shadowing-base-method)
+
     //! @copydoc ConfigMapView::at()
     [[nodiscard]] auto at(size_t index) const -> value_type {
         auto [name, subkey] = at_(index);
@@ -541,6 +553,8 @@ class ConfigMap : public ConfigMapView {
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
     //! @copydoc ConfigMapView::end()
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
+
+    // NOLINTEND(bugprone-derived-method-shadowing-base-method)
 
   private:
     [[nodiscard]] auto cfg_() const -> clingo_config_t * {

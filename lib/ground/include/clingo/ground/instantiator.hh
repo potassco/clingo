@@ -54,7 +54,7 @@ class EvalContext : public InstantiationContext {
 enum class MatcherType : uint8_t {
     new_atoms, //! Indicates a matcher for freshly added atoms.
     old_atoms, //! Indicates a matcher for previously added atoms.
-    all_atoms  //! Indicates a matcher for all atoms.
+    all_atoms, //! Indicates a matcher for all atoms.
 };
 
 //! Print a short indicator for the matcher type.
@@ -225,7 +225,7 @@ using InstantiatorVec = std::vector<Instantiator>;
 class Queue {
   public:
     //! Construct an empty queue.
-    Queue(Util::StopFlag *stop = nullptr) : stop_{stop} {}
+    explicit Queue(Util::StopFlag *stop = nullptr) : stop_{stop} {}
     //! Register an instantiator with the queue.
     void insert(Instantiator inst, std::optional<size_t> index);
     //! Propagate instantiators with the given index.

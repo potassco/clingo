@@ -15,7 +15,7 @@ auto cb_stm(char const *str) -> std::string {
     if (!stm) {
         return "<failed>";
     }
-    auto [state, res] = compute_bounds(ph, *stm);
+    auto [state, res] = compute_bounds(ph.ctx(), *stm);
     return to_str(std::move(res).value_or(*stm));
 }
 

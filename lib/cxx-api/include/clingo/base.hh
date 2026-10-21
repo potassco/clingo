@@ -289,13 +289,20 @@ class TermBase {
 static_assert(std::random_access_iterator<TermBase::iterator>);
 
 //! Enumeration of theory term types.
-enum class TheoryTermType {
-    tuple = clingo_theory_term_type_tuple,       //!< a tuple term, e.g., `(1,2,3)`
-    list = clingo_theory_term_type_list,         //!< a list term, e.g., `[1,2,3]`
-    set = clingo_theory_term_type_set,           //!< a set term, e.g., `{1,2,3}`
-    function = clingo_theory_term_type_function, //!< a function term, e.g., `f(1,2,3)`
-    number = clingo_theory_term_type_number,     //!< a number term, e.g., `42`
-    symbol = clingo_theory_term_type_symbol      //!< a symbol term, e.g., `c`
+enum class TheoryTermType : clingo_theory_term_type_t // NOLINT
+{
+    //! a tuple term, e.g., `(1,2,3)`
+    tuple = clingo_theory_term_type_tuple,
+    //! a list term, e.g., `[1,2,3]`
+    list = clingo_theory_term_type_list,
+    //! a set term, e.g., `{1,2,3}`
+    set = clingo_theory_term_type_set,
+    //! a function term, e.g., `f(1,2,3)`
+    function = clingo_theory_term_type_function,
+    //! a number term, e.g., `42`
+    number = clingo_theory_term_type_number,
+    //! a symbol term, e.g., `c`
+    symbol = clingo_theory_term_type_symbol,
 };
 
 class TheoryTerm;

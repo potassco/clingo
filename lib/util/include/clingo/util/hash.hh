@@ -4,6 +4,7 @@
 #include <clingo/util/immutable_value.hh>
 #include <clingo/util/small_vector.hh>
 
+#include <bit>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -157,7 +158,7 @@ struct value_equal_to {
 class array_hash {
   public:
     //! Initialize with the given size.
-    array_hash(size_t size) : size_{size} {}
+    explicit array_hash(size_t size) : size_{size} {}
     //! Get the hash of the symbol array.
     template <class T> auto operator()(T const *sym) const -> size_t { return value_hash(std::span(sym, size_)); }
 
@@ -171,7 +172,7 @@ class array_hash {
 struct array_equal_to {
   public:
     //! Initialize with the given size.
-    array_equal_to(size_t size) : size_{size} {}
+    explicit array_equal_to(size_t size) : size_{size} {}
     //! Compare two symbols arrays.
     template <class T> auto operator()(T const *a, T const *b) const -> bool {
         return value_equal_to{}(std::span(a, size_), std::span(b, size_));
@@ -194,13 +195,13 @@ inline auto hash_combine(size_t a) -> size_t {
 }
 
 inline auto hash_combine(size_t seed, size_t h) -> size_t {
-    // NOLINTBEGIN(readability-magic-numbers)
+    // NOLINTBEGIN
     if constexpr (sizeof(size_t) == sizeof(uint64_t)) {
         seed *= 0x87c37b91114253d5;
-        seed = (seed >> 31) | (seed << 33);
+        seed = std::rotr(seed, 31);
         seed *= 0x4cf5ad432745937f;
         seed ^= h;
-        seed = (seed >> 27) | (seed << 37);
+        seed = std::rotr(seed, 27);
         seed = (seed * 5) + 0x52dce729;
     } else {
         seed *= 0xcc9e2d51;
@@ -211,7 +212,7 @@ inline auto hash_combine(size_t seed, size_t h) -> size_t {
         seed = (seed * 5) + 0xe6546b64;
     }
     return seed;
-    // NOLINTEND(readability-magic-numbers)
+    // NOLINTEND
 }
 
 template <class... T> inline auto hash_combine(size_t a, size_t b, T... c) -> size_t {
@@ -221,7 +222,7 @@ template <class... T> inline auto hash_combine(size_t a, size_t b, T... c) -> si
 } // namespace Detail
 
 inline auto hash_mix(size_t h) -> size_t {
-    // NOLINTBEGIN(readability-magic-numbers)
+    // NOLINTBEGIN
     if constexpr (sizeof(size_t) == sizeof(uint64_t)) {
         h ^= h >> 33;
         h *= 0xff51afd7ed558ccd;
@@ -236,7 +237,7 @@ inline auto hash_mix(size_t h) -> size_t {
         h ^= h >> 16;
     }
     return h;
-    // NOLINTEND(readability-magic-numbers)
+    // NOLINTEND
 }
 
 template <class... T> inline auto hash_combine(T... a) -> size_t {

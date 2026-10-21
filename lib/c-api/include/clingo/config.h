@@ -37,7 +37,7 @@ typedef struct clingo_control clingo_control_t;
 enum clingo_config_type_e {
     clingo_config_type_value = 1, //!< the entry is a (string) value
     clingo_config_type_array = 2, //!< the entry is an array
-    clingo_config_type_map = 4    //!< the entry is a map
+    clingo_config_type_map = 4,   //!< the entry is a map
 };
 //! Bitset for values of type ::clingo_config_type_e.
 typedef unsigned clingo_config_type_bitset_t;

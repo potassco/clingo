@@ -18,7 +18,8 @@ class HdLitSimple : public Expression<HdLitSimple> {
     static constexpr auto attributes() { return std::tuple{a_lit = &HdLitSimple::lit_}; }
 
     //! Wrap a literal in a head literal.
-    HdLitSimple(Lit lit) : lit_{std::move(lit)} {}
+    HdLitSimple(Lit lit) // NOLINT
+        : lit_{std::move(lit)} {}
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return location(lit_); }
     //! The literal.

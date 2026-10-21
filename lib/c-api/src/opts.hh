@@ -75,11 +75,13 @@ class ClingoOptions {
             return is_id;
         };
         auto parse_level = [this](std::string_view value) {
-            if (auto lvl = LogLevel::info; values<LogLevel>({{"error", LogLevel::error},
-                                                             {"warn", LogLevel::warn},
-                                                             {"info", LogLevel::info},
-                                                             {"debug", LogLevel::debug},
-                                                             {"trace", LogLevel::trace}})(value, lvl)) {
+            if (auto lvl = LogLevel::info; values<LogLevel>({
+                    {"error", LogLevel::error},
+                    {"warn", LogLevel::warn},
+                    {"info", LogLevel::info},
+                    {"debug", LogLevel::debug},
+                    {"trace", LogLevel::trace},
+                })(value, lvl)) {
                 log_->set_level(lvl);
                 return true;
             }
@@ -120,7 +122,7 @@ class ClingoOptions {
                 }
                 size_t arity = 0;
                 const auto *begin = x[1].data();
-                const auto *end = x[1].data() + x[1].size();
+                const auto *end = x[1].data() + x[1].size(); // NOLINT
                 auto [ptr, ec] = std::from_chars(begin, end, arity);
                 if (ec != std::errc{} || ptr != end) {
                     return false;
@@ -228,10 +230,12 @@ class ClingoOptions {
             ("imax", parse(parse_imax).arg("{none|<n>}"), "Maximum number of steps for incmode") //
             ("@3,iquery", parse(parse_iquery), "The name of the query atom")                     //
             ("istop",
-             storeTo(solver_opts_.istop, values<Control::IStop>({{"none", Control::IStop::none},
-                                                                 {"sat", Control::IStop::sat},
-                                                                 {"unsat", Control::IStop::unsat},
-                                                                 {"unknown", Control::IStop::unknown}})),
+             storeTo(solver_opts_.istop, values<Control::IStop>({
+                                             {"none", Control::IStop::none},
+                                             {"sat", Control::IStop::sat},
+                                             {"unsat", Control::IStop::unsat},
+                                             {"unknown", Control::IStop::unknown},
+                                         })),
 
              "Stop when {none|sat|unsat|unknown} in incmode") //
             ("@1,projection-mode",

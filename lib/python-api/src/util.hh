@@ -47,7 +47,7 @@ template <typename R, typename... As> struct funptr_traits<R (*)(As...)> {
 
 template <class T> struct value_handle {
   public:
-    using pointer = typename T::pointer;
+    using pointer = T::pointer;
 
     value_handle() = default;
 

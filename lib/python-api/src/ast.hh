@@ -13,7 +13,8 @@ namespace py = pybind11;
 
 class Program {
   public:
-    Program(Library &lib);
+    explicit Program(Library &lib);
+    // NOLINTNEXTLINE
     operator clingo_program_t *() { return prg_.get(); }
 
   private:

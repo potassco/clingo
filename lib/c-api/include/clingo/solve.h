@@ -55,7 +55,7 @@ enum clingo_solve_result_e {
     clingo_solve_result_satisfiable = 1,   //!< The last solve call found a solution.
     clingo_solve_result_unsatisfiable = 2, //!< The last solve call did not find a solution.
     clingo_solve_result_exhausted = 4,     //!< The last solve call completely exhausted the search space.
-    clingo_solve_result_interrupted = 8    //!< The last solve call was interrupted.
+    clingo_solve_result_interrupted = 8,   //!< The last solve call was interrupted.
 };
 //! Corresponding type to ::clingo_solve_result_e.
 typedef unsigned clingo_solve_result_bitset_t;

@@ -82,7 +82,8 @@ class BaseSortAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseSortAggr> {
 
     //! Construct an empty base.
     BaseSortAggr(size_t size, bool domain_elems, bool single_pass_elems)
-        : atoms_{0, size, size}, domain_elems_{domain_elems}, single_pass_elems_{single_pass_elems} {}
+        : atoms_{0, Util::array_hash{size}, Util::array_equal_to{size}}, domain_elems_{domain_elems},
+          single_pass_elems_{single_pass_elems} {}
 
     //! Check if the given atom is a fact.
     //!
@@ -213,7 +214,7 @@ class MatchSortAggr {
     using Key = BaseSortAggr::Key;
 
     //! Construct the matcher.
-    MatchSortAggr(StateSortAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
+    explicit MatchSortAggr(StateSortAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
 
     //! Get the variables of the matcher.
     [[nodiscard]] auto vars() const -> VariableSet;
@@ -243,7 +244,7 @@ class MatchSortAggr {
 class LitSortAggr : public Lit, private MatchSortAggr {
   public:
     //! Construct a sort aggregate literal.
-    LitSortAggr(StateSortAggr &state) : MatchSortAggr{state} {}
+    explicit LitSortAggr(StateSortAggr &state) : MatchSortAggr{state} {}
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;

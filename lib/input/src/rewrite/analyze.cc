@@ -251,7 +251,7 @@ struct IsClassical {
 //! `std::nullopt`.
 class IsFact {
   public:
-    IsFact(SymbolStore &store) : store_{&store} {}
+    explicit IsFact(SymbolStore &store) : store_{&store} {}
 
     template <class T> auto operator()(T const &x) const -> bool = delete;
 
@@ -387,7 +387,7 @@ struct GetSignature {
 
 class ExtractCanFail : public Visitor<ExtractCanFail> {
   public:
-    ExtractCanFail(std::vector<Term> &result) : result{&result} {}
+    explicit ExtractCanFail(std::vector<Term> &result) : result{&result} {}
 
     void accept(TermFunction const &term) const {
         if (term.external()) {

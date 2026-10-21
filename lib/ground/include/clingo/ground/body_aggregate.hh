@@ -31,7 +31,7 @@ class AtomBdAggr {
     using Bound = std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>>;
 
     //! Initialize for the given aggregate function.
-    AtomBdAggr(AggregateFunction fun) : bound_{init_(fun)} {}
+    explicit AtomBdAggr(AggregateFunction fun) : bound_{init_(fun)} {}
 
     //! Accumulate a tuple.
     void accumulate(AggregateFunction fun, SymbolSpan tup, bool fact);
@@ -99,7 +99,7 @@ class BaseBdAggr : public BaseImpl<Symbol const *, BaseBdAggr> {
     using AtomMap = Util::ordered_map<Symbol const *, AtomBdAggr, Util::array_hash, Util::array_equal_to>;
 
     //! Construct an empty base.
-    BaseBdAggr(size_t size) : atoms_{0, size, size} {}
+    explicit BaseBdAggr(size_t size) : atoms_{0, Util::array_hash{size}, Util::array_equal_to{size}} {}
 
     //! Check if the given atom is a fact.
     //!
@@ -273,7 +273,7 @@ class MatchBdAggr {
     using Key = Symbol const *;
 
     //! Construct the matcher.
-    MatchBdAggr(StateBdAggr &state) : state_{&state} {
+    explicit MatchBdAggr(StateBdAggr &state) : state_{&state} {
         eval_.reserve(state_->global().size() + state_->guards().size());
     }
 

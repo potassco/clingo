@@ -82,11 +82,17 @@ class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned>, publi
     //! The record attributes.
     static constexpr auto attributes() {
         if constexpr (HasSign) {
-            return std::tuple{a_loc = &SetAggregate::loc_, a_sign = &Signed::sign, a_lhs = &SetAggregate::lhs_,
-                              a_elems = &SetAggregate::elems_, a_rhs = &SetAggregate::rhs_};
+            return std::tuple{
+                a_loc = &SetAggregate::loc_,     a_sign = &Signed::sign,      a_lhs = &SetAggregate::lhs_,
+                a_elems = &SetAggregate::elems_, a_rhs = &SetAggregate::rhs_,
+            };
         } else {
-            return std::tuple{a_loc = &SetAggregate::loc_, a_lhs = &SetAggregate::lhs_, a_elems = &SetAggregate::elems_,
-                              a_rhs = &SetAggregate::rhs_};
+            return std::tuple{
+                a_loc = &SetAggregate::loc_,
+                a_lhs = &SetAggregate::lhs_,
+                a_elems = &SetAggregate::elems_,
+                a_rhs = &SetAggregate::rhs_,
+            };
         }
     }
 
