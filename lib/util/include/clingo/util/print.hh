@@ -217,6 +217,7 @@ class OutputStream : public std::ostream {
         auto overflow(int ch) -> int override {
             if (ch != traits_type::eof()) {
                 buf_.push_back(static_cast<char>(ch));
+                buf_.endl();
                 return traits_type::not_eof(ch);
             }
             return traits_type::eof();
@@ -224,6 +225,7 @@ class OutputStream : public std::ostream {
 
         auto xsputn(char const *s, std::streamsize n) -> std::streamsize override {
             buf_.append(std::string_view{s, static_cast<size_t>(n)});
+            buf_.endl();
             return n;
         }
 
