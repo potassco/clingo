@@ -566,7 +566,9 @@ template <class Sym> class BuilderMinMax {
         auto bounds = Util::interval_set<Sym>{};
         auto range = typename Util::interval_set<Sym>::interval{{lower, true}, {upper, true}};
         bounds.add(range);
-        for (auto const &[rel, guard] : guards) {
+        for (auto const &[guard_rel, guard] : guards) {
+            // the relation refers to the order of symbols, which is reversed for max aggregates
+            auto rel = std::is_same_v<Sym, BwdSym> ? flip(guard_rel) : guard_rel;
             switch (rel) {
                 case Relation::greater_equal: {
                     bounds.remove({{lower, true}, {guard, false}});
