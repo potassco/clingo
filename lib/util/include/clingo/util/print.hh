@@ -214,8 +214,6 @@ class OutputStream : public std::ostream {
         auto buffer() -> OutputBuffer & { return buf_; }
 
       protected:
-        // The buffer is written once it reaches a minimum size (see
-        // OutputBuffer::endl), so that the output is not kept in memory.
         auto overflow(int ch) -> int override {
             if (ch != traits_type::eof()) {
                 buf_.push_back(static_cast<char>(ch));
