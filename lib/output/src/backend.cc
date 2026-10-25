@@ -97,6 +97,7 @@ class FwdSym {
   public:
     // NOLINTNEXTLINE
     FwdSym(Symbol sym) : sym_{sym} {}
+    static auto rel(Relation rel) -> Relation { return rel; }
     // NOLINTNEXTLINE
     friend auto operator==(FwdSym const &a, FwdSym const &b) -> bool = default;
     friend auto operator<=>(FwdSym const &a, FwdSym const &b) = default;
@@ -113,6 +114,7 @@ class BwdSym {
   public:
     // NOLINTNEXTLINE
     BwdSym(Symbol sym) : sym_{sym} {}
+    static auto rel(Relation rel) -> Relation { return flip(rel); }
     // NOLINTNEXTLINE
     friend auto operator==(BwdSym const &a, BwdSym const &b) -> bool = default;
     friend auto operator<=>(BwdSym const &a, BwdSym const &b) { return b.sym_ <=> a.sym_; }
@@ -566,7 +568,8 @@ template <class Sym> class BuilderMinMax {
         auto bounds = Util::interval_set<Sym>{};
         auto range = typename Util::interval_set<Sym>::interval{{lower, true}, {upper, true}};
         bounds.add(range);
-        for (auto const &[rel, guard] : guards) {
+        for (auto const &[guard_rel, guard] : guards) {
+            auto rel = Sym::rel(guard_rel);
             switch (rel) {
                 case Relation::greater_equal: {
                     bounds.remove({{lower, true}, {guard, false}});
