@@ -663,7 +663,7 @@ template <class Sym> class BuilderMinMax {
                         bld.mark(clit, EQType::equivalence);
                         auto nlit = bld.next_lit();
                         bld.backend().rule(std::array{nlit}, std::array{bld.negate(clit)}, false);
-                        bld.backend().rule(std::array{nlit}, std::array{bld.negate(lit)}, false);
+                        bld.backend().rule(std::array{nlit}, std::array{lit}, false);
                         bld.backend().rule(std::array{nlit, clit}, std::array{bld.negate(bld.negate(lit))}, false);
                         tr_lits_.emplace_back(nlit);
                     } else {
