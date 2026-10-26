@@ -256,15 +256,15 @@ class BuilderBase {
                 }
                 if (li.type == EQType::equivalence) {
                     hd.clear();
-                    hd.emplace_back(lit);
                     bd.clear();
+                    bd.emplace_back(lit);
                     for (auto const &clit : lits) {
                         if (clit < 0) {
                             bd.emplace_back(negate(clit));
                         } else if (in_cycle(clit, lit)) {
-                            bd.emplace_back(-clit);
-                        } else {
                             hd.emplace_back(clit);
+                        } else {
+                            bd.emplace_back(-clit);
                         }
                     }
                     backend_->rule(hd, bd, false);
@@ -758,6 +758,24 @@ class BuilderSum {
         auto flits = SumElemVec{};
 
         for (auto &[lit, elems, range, bounds] : delayed_) {
+#ifdef CLINGO_DEBUG_AGGREGATES
+            std::cerr << "x_" << lit << " :- #sum { ";
+            bool comma = false;
+            for (auto const &[num, clit] : elems) {
+                if (comma) {
+                    std::cerr << "; ";
+                }
+                std::cerr << num << ":" << clit;
+                comma = true;
+            }
+            std::cerr << " } in ";
+            for (auto const &[left, right] : bounds) {
+                std::cerr << (left.inclusive ? "[" : "(") << left.bound << "," << right.bound
+                          << (right.inclusive ? "]" : ")");
+            }
+            std::cerr << std::endl;
+
+#endif
             assert(lit > 0);
             // check which kind of literals are cyclic
             auto is_recursive = [lit, &bld](prg_lit_t clit) { return bld.in_cycle(lit, clit); };
