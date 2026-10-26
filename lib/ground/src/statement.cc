@@ -699,7 +699,7 @@ void StmHeuristic::init_() {
 
         [[nodiscard]] auto do_domain_size([[maybe_unused]] EstimateSelector sel) const
             -> std::optional<double> override {
-            return stm_->base_->size();
+            return static_cast<double>(stm_->base_->size());
         }
 
         [[nodiscard]] auto do_hash() const -> size_t override { return std::hash<LitAtom const *>{}(this); }
