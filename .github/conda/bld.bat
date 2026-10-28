@@ -1,12 +1,16 @@
-cmake -S . -B build -G "Visual Studio 18 2026" ^
-    -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
-    -DCMAKE_INSTALL_LIBDIR="lib" ^
-    -DPython_ROOT_DIR="%PREFIX%" ^
-    -DPython_EXECUTABLE="%PYTHON%" ^
+cmake -S . -B build -G Ninja ^
+    -DCMAKE_CXX_COMPILER="%CXX%" ^
+    -DCMAKE_C_COMPILER="%CC%" ^
+    -DCMAKE_BUILD_TYPE=Release ^
     -DCLINGO_MANAGE_RPATH=OFF ^
     -DCLINGO_BUILD_TESTS=ON ^
-    -DPYCLINGO_INSTALL_DIR="%SP_DIR%"
+    -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
+    -DCMAKE_INSTALL_LIBDIR="lib" ^
+    -DPYCLINGO_INSTALL_DIR="%SP_DIR%" ^
+    -DPython_FIND_STRATEGY="LOCATION" ^
+    -DPython_ROOT_DIR="%PREFIX%" ^
+    -DPython_EXECUTABLE="%PYTHON%" || exit /b 1
 
-cmake --build build --config Release
-ctest --test-dir build -C Release
-cmake --build build --target install --config Release
+cmake --build build || exit /b 1
+ctest --output-on-failure --test-dir build || exit /b 1
+cmake --build build --target install || exit /b 1

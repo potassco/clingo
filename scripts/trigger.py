@@ -21,12 +21,10 @@ WORKFLOWS = [
 
 WORKFLOW_INPUTS = {
     "release": {
-        "conda": {"label": "main"},
         "ppa": {"type": "stable"},
         "cloudsmith": {"type": "stable"},
     },
     "dev": {
-        "conda": {"label": "dev-20"},
         "ppa": {"type": "wip-20"},
         "cloudsmith": {"type": "wip-20"},
     },
