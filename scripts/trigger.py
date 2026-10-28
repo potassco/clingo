@@ -15,20 +15,8 @@ TOKEN_FILE = os.path.expanduser("~/.tokens")
 WORKFLOWS = [
     "conda",
     "pypi",
-    "ppa",
-    "cloudsmith",
+    "deb",
 ]
-
-WORKFLOW_INPUTS = {
-    "release": {
-        "ppa": {"type": "stable"},
-        "cloudsmith": {"type": "stable"},
-    },
-    "dev": {
-        "ppa": {"type": "wip-20"},
-        "cloudsmith": {"type": "wip-20"},
-    },
-}
 
 
 class Trigger:
@@ -98,10 +86,7 @@ class Trigger:
     def trigger_workflows(self, command: str, branch: str, workflows: list[str]):
         """Trigger selected workflows for a command type."""
         for workflow in workflows:
-            inputs = {
-                "wip": command == "dev",
-                **WORKFLOW_INPUTS[command].get(workflow, {}),
-            }
+            inputs = {"wip": command == "dev"}
             self.dispatch_workflow(self.workflow_ids[workflow], branch, inputs)
 
     def parse_workflows(self, value: str) -> list[str]:
@@ -130,7 +115,7 @@ class Trigger:
             "--workflows",
             type=self.parse_workflows,
             default=WORKFLOWS,
-            help="Comma-separated workflows (default: conda,pypi,ppa,cloudsmith)",
+            help="Comma-separated workflows (default: conda,pypi,deb)",
         )
         subparsers = parser.add_subparsers(dest="command", required=True)
 

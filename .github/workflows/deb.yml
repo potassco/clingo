@@ -1,18 +1,12 @@
-name: Cloudsmith
+name: PPA/Cloudsmith
 
 on:
   workflow_dispatch:
     inputs:
-      build_number:
-        description: "The build number."
-        required: true
-        type: string
-      type:
-        description: "Type: wip-20"
-        required: true
-        type: choice
-        options:
-          - wip-20
+      wip:
+        description: "Publish work in progress package."
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -20,12 +14,16 @@ jobs:
     strategy:
       matrix:
         include:
-          - distro: ubuntu
+          - target: cloudsmith
             codename: noble
-          - distro: ubuntu
+          - target: cloudsmith
             codename: resolute
-          - distro: debian
+          - target: cloudsmith
             codename: trixie
+          - target: ppa
+            codename: noble
+          - target: ppa
+            codename: resolute
 
     steps:
       - name: Checkout repository
@@ -33,41 +31,103 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Deploy package
+      - name: Setup gpg
+        if: matrix.target == 'ppa'
         run: |
-          shopt -s nullglob
-          if [[ "${{ inputs.build_number }}" == "auto" ]]; then
-            BUILD_NUMBER="${{ github.run_number }}"
-          else
-            BUILD_NUMBER="${{ inputs.build_number }}"
-          fi
-          cd .github/ppa
-          ./build.sh --type cloudsmith --build-number "${BUILD_NUMBER}" "${{ inputs.type }}" "${{ matrix.codename }}" create sync changes build
+          echo "$POTASSCO_PPA_GPGKEY" | base64 --decode | gpg --batch --import
+        env:
+          POTASSCO_PPA_GPGKEY: ${{ secrets.POTASSCO_PPA_GPGKEY }}
+
+      - name: Install Cloudsmith CLI
+        if: matrix.target == 'cloudsmith'
+        uses: cloudsmith-io/cloudsmith-cli-action@master
+        with:
+          api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
+
+      - name: Write git hash
+        run: python scripts/config.py write-git-hash
+
+      - name: Build package
+        run: |
+          python scripts/debbuild.py ${{ matrix.target }} "${{ inputs.wip && 'wip-20' || 'stable' }}" "${{ matrix.codename }}" prepare create sync changes build
+
+      - name: Stage artifacts
+        if: matrix.target == 'ppa'
+        run: |
+          mkdir artifacts
+          cp --parents \
+            build/${{ matrix.codename }}/*.{changes,dsc} \
+            build/${{ matrix.codename }}/*.tar.* \
+            artifacts/
+
+      - name: Stage artifacts
+        if: matrix.target == 'cloudsmith'
+        run: |
+          mkdir artifacts
+          rm build/${{ matrix.codename }}/binary/*-dbgsym_*.*
+          cp --parents \
+            build/${{ matrix.codename }}/binary/*.deb \
+            artifacts/
 
       - name: Upload built package artifact for ${{ matrix.codename }}
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.distro }}-${{ matrix.codename }}
-          path: .github/ppa/${{ matrix.codename }}/*.deb
+          name: ${{ matrix.target }}-${{ matrix.codename }}
+          path: artifacts
 
-  publish:
+  publish-cloudsmith:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Download all artifacts
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
-          path: ./deb-packages
-          merge-multiple: false
+          path: .
+          pattern: cloudsmith-*
+          merge-multiple: true
 
       - name: Install Cloudsmith CLI
         uses: cloudsmith-io/cloudsmith-cli-action@master
         with:
           api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
 
-      - name: Publish all .deb packages to Cloudsmith
+      - name: Publish packages
         run: |
-          find ./deb-packages -type f -name '*.deb' -print0 | while IFS= read -r -d '' debfile; do
-            distro=$(basename "$(dirname "$debfile")")
-            cloudsmith push deb "potassco/${{ inputs.type }}/${distro/-//}" "$debfile"
+          for x in build/*; do
+            codename="$(basename "$x")"
+            python ./scripts/debbuild.py cloudsmith "${{ inputs.wip && 'wip-20' || 'stable' }}" "${codename}" put
+          done
+
+  publish-ppa:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: .
+          pattern: ppa-*
+          merge-multiple: true
+
+      - name: Install dput
+        run: sudo apt install dput
+
+      - name: Setup gpg
+        run: |
+          echo "$POTASSCO_PPA_GPGKEY" | base64 --decode | gpg --batch --import
+        env:
+          POTASSCO_PPA_GPGKEY: ${{ secrets.POTASSCO_PPA_GPGKEY }}
+
+      - name: Publish packages
+        run: |
+          for x in build/*; do
+            codename="$(basename "$x")"
+            sleep 1
+            python ./scripts/debbuild.py ppa "${{ inputs.wip && 'wip-20' || 'stable' }}" "${codename}" put
           done
