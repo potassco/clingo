@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import subprocess
 import sys
@@ -230,8 +231,8 @@ class Config:
         """
         Compute the version of the package from the configured header file.
         """
-        field = self.get_value("version", "macro_field", None)
-        header_raw = self.get_value("version", "header_path", None)
+        field = self.get_value("project", "macro_field", None)
+        header_raw = self.get_value("project", "header_path", None)
         header_path = Path(header_raw)
         if not header_path.is_absolute():
             header_path = (self.root / header_path).resolve()
@@ -250,6 +251,42 @@ class Config:
             raise RuntimeError(f"cannot read header file {header_path}: {exc}") from exc
 
         raise RuntimeError(f"{field} not found in {header_path}")
+
+    def write_git_hash(self):
+        """
+        Write a git hash file using GITHUB_SHA or git rev-parse HEAD.
+        """
+        git_hash = os.environ.get("GITHUB_SHA", "").strip()
+        if git_hash:
+            if not re.fullmatch(r"[0-9a-fA-F]{7,}", git_hash):
+                raise RuntimeError(f"invalid GITHUB_SHA: {git_hash!r}")
+            git_hash = git_hash[:7]
+        else:
+            try:
+                result = subprocess.run(
+                    ["git", "-C", str(self.root), "rev-parse", "--short", "HEAD"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                git_hash = result.stdout.strip()
+            except (subprocess.CalledProcessError, OSError) as exc:
+                raise RuntimeError(
+                    "cannot determine git hash from GITHUB_SHA or git"
+                ) from exc
+
+        if not re.fullmatch(r"[0-9a-fA-F]{7,40}", git_hash):
+            raise RuntimeError(f"invalid git hash: {git_hash!r}")
+
+        output_path = (self.root / Path(".git_hash")).resolve()
+        try:
+            output_path.write_text(f"{git_hash}\n", encoding="utf-8")
+        except OSError as exc:
+            raise RuntimeError(
+                f"cannot write git hash file {output_path}: {exc}"
+            ) from exc
+
+        print(f"Wrote git hash {git_hash} to '{output_path.relative_to(self.root)}'.")
 
     def main(self) -> int:
         """
@@ -298,6 +335,11 @@ class Config:
 
         subparsers.add_parser("get-version", help="Read version from configured header")
 
+        subparsers.add_parser(
+            "write-git-hash",
+            help="Write git hash file from GITHUB_SHA or git rev-parse",
+        )
+
         try:
             args = parser.parse_args()
 
@@ -314,6 +356,8 @@ class Config:
                 print(self.get_value(args.section, args.entry, args.default))
             elif args.command == "get-version":
                 print(self.get_version())
+            elif args.command == "write-git-hash":
+                self.write_git_hash()
 
             return 0
         except RuntimeError as exc:

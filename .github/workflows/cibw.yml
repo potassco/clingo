@@ -3,20 +3,10 @@ name: PyPI
 on:
   workflow_dispatch:
     inputs:
-      build_number:
-        description: "The build number."
-        required: true
-        type: string
-      index:
-        description: "Target index: pypi or testpypi"
-        required: true
-        type: choice
-        options:
-          - pypi
-          - testpypi
-
-permissions:
-  id-token: write
+      wip:
+        description: "Publish work in progress package."
+        type: boolean
+        default: true
 
 jobs:
   build_sdist:
@@ -27,24 +17,13 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Prepare build environment
-        shell: bash -l {0}
-        env:
-          BUILD_NUMBER: ${{ inputs.build_number }}
-          RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          number="${BUILD_NUMBER}"
-          if [[ "${number}" == "auto" ]]; then
-            number="${RUN_NUMBER}"
-          fi
-          if ! [[ "${number}" =~ ^[0-9]+$ ]]; then
-            echo "build_number must be 'auto' or a number" >&2
-            exit 1
-          fi
-          echo "BUILD_NUMBER=${number}" >> "$GITHUB_ENV"
+      - name: Write git hash
+        run: python scripts/config.py write-git-hash
 
       - name: Build sdist
         run: pipx run build --sdist
+        env:
+          PIP_EXTRA_INDEX_URL: ${{ inputs.wip && 'https://test.pypi.org/simple/' || '' }}
 
       - uses: actions/upload-artifact@v7
         with:
@@ -56,23 +35,41 @@ jobs:
     name: Build ${{ matrix.python }}-${{ matrix.target.tag }}
     runs-on: ${{ matrix.target.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python: [cp312, cp313, cp314]
+        python: [cp312, cp313, cp314, cp315]
         target:
           - { tag: manylinux_x86_64, os: ubuntu-latest }
           - { tag: manylinux_aarch64, os: ubuntu-latest }
           - { tag: manylinux_ppc64le, os: ubuntu-latest }
+          - { tag: musllinux_x86_64, os: ubuntu-latest }
           - { tag: win_amd64, os: windows-latest }
           - { tag: macosx_arm64, os: macos-latest }
           - { tag: macosx_x86_64, os: macos-latest }
         include:
           - python: pp311
             target: { tag: manylinux_x86_64, os: ubuntu-latest }
+          - python: pp312
+            target: { tag: manylinux_x86_64, os: ubuntu-latest }
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Download sdist
+        uses: actions/download-artifact@v8
         with:
-          submodules: recursive
+          name: cibw-sdist
+          path: dist
+
+      - name: Find sdist
+        id: sdist
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(dist/*.tar.gz)
+          if (( ${#files[@]} != 1 )); then
+            echo "Expected one sdist; found ${#files[@]}" >&2
+            exit 1
+          fi
+          echo "path=${files[0]}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         if: endsWith(matrix.target.tag, 'linux_ppc64le') || endsWith(matrix.target.tag, 'linux_aarch64')
@@ -80,32 +77,16 @@ jobs:
         with:
           platforms: all
 
-      - name: Prepare build environment
-        shell: bash -l {0}
-        env:
-          BUILD_NUMBER: ${{ inputs.build_number }}
-          RUN_NUMBER: ${{ github.run_number }}
-          INDEX: ${{ inputs.index }}
-        run: |
-          number="${BUILD_NUMBER}"
-          if [[ "${number}" == "auto" ]]; then
-            number="${RUN_NUMBER}"
-          fi
-          if ! [[ "${number}" =~ ^[0-9]+$ ]]; then
-            echo "build_number must be 'auto' or a number" >&2
-            exit 1
-          fi
-          cibw_environment="MACOSX_DEPLOYMENT_TARGET=14.0"
-          cibw_environment+=" BUILD_NUMBER=${number}"
-          if [[ "${INDEX}" == "testpypi" ]]; then
-            cibw_environment+=" PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple"
-          fi
-          echo "CIBW_ENVIRONMENT=${cibw_environment}" >> "$GITHUB_ENV"
-
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4.1
+        uses: pypa/cibuildwheel@v4.3.0
+        with:
+          package-dir: ${{ steps.sdist.outputs.path }}
         env:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.target.tag }}
+          CIBW_ENABLE: all
+          CIBW_ARCHS: all
+          CIBW_ENVIRONMENT: "PIP_EXTRA_INDEX_URL=${{ inputs.wip && 'https://test.pypi.org/simple/' || '' }}"
+          CIBW_INHERIT: "environment: append"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -113,6 +94,8 @@ jobs:
           path: ./wheelhouse/*.whl
 
   upload_pypi:
+    permissions:
+      id-token: write
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
     steps:
@@ -125,4 +108,4 @@ jobs:
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository-url: ${{ inputs.index == 'pypi' && 'https://upload.pypi.org/legacy/' || 'https://test.pypi.org/legacy/' }}
+          repository-url: ${{ inputs.wip && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}

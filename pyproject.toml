@@ -40,8 +40,10 @@ build-backend = "scikit_build_core.build"
 [[tool.dynamic-metadata]]
 provider = { path = "scripts", module = "meta" }
 
+[tool.scikit-build.sdist]
+include = [".git_hash"]
+
 [tool.scikit-build.wheel]
-# TODO: install components are the cleaner way to implement this
 exclude = ["include/amc/*", "bin/*", "share/*"]
 
 [tool.pytest.ini_options]

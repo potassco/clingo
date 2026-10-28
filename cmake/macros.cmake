@@ -86,6 +86,9 @@ function(clingo_git_hash target)
     set(header_file
         "${header_directory}/clingo_git_hash.h"
     )
+    set(git_hash_file
+        "${PROJECT_SOURCE_DIR}/.git_hash"
+    )
 
     file(MAKE_DIRECTORY "${header_directory}")
     if(DEFINED CLINGO_GIT_HASH AND NOT "${CLINGO_GIT_HASH}" STREQUAL "")
@@ -94,6 +97,18 @@ function(clingo_git_hash target)
 
 #define CLINGO_GIT_HASH ${CLINGO_GIT_HASH}
 ")
+    elseif(EXISTS "${git_hash_file}")
+        file(READ "${git_hash_file}" git_hash_from_file)
+        string(STRIP "${git_hash_from_file}" git_hash_from_file)
+        if(NOT "${git_hash_from_file}" STREQUAL "")
+            file(WRITE "${header_file}"
+"#pragma once
+
+#define CLINGO_GIT_HASH ${git_hash_from_file}
+")
+        else()
+            file(WRITE "${header_file}" "#pragma once\n")
+        endif()
     elseif(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
         add_custom_target("${target}_git_hash" ALL
             COMMAND "${CMAKE_COMMAND}"
