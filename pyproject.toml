@@ -69,5 +69,7 @@ manylinux-aarch64-image = "manylinux_2_34"
 manylinux-ppc64le-image = "manylinux_2_34"
 
 [tool.cibuildwheel.macos]
-archs = ["arm64", "x86_64"]
 environment = { MACOSX_DEPLOYMENT_TARGET = "14.0" }
+
+[tool.cibuildwheel.windows]
+repair-wheel-command = "delvewheel repair --ignore-existing -v -w {dest_dir} {wheel}"
