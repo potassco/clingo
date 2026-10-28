@@ -21,6 +21,7 @@ requirements:
   - pytest
   - python
   run:
+  - libpython
   - python
 
 build:
