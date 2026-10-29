@@ -87,7 +87,7 @@ jobs:
               conda activate base && \
               conda config --prepend channels potassco/label/${{ needs.meta.outputs.channel-label }} && \
               conda install -y tree conda-build && \
-              conda-build /work/.github/conda --output-folder /artifacts --python ${{ matrix.python-version }} &&
+              conda-build /work/scripts/conda --output-folder /artifacts --python ${{ matrix.python-version }} &&
               find /artifacts -mindepth 1 -exec chmod a+rwX {} +
             "
 
@@ -97,7 +97,7 @@ jobs:
         run: |
           set -x
           conda create --platform osx-64 -n build conda-build
-          conda run -n build --no-capture-output arch -x86_64 conda-build .github/conda \
+          conda run -n build --no-capture-output arch -x86_64 conda-build scripts/conda \
             --output-folder ./artifacts \
             --python "${{ matrix.python-version }}"
 
@@ -107,7 +107,7 @@ jobs:
         run: |
           set -x
           conda create -n build conda-build
-          conda run -n build --no-capture-output conda-build .github/conda \
+          conda run -n build --no-capture-output conda-build scripts/conda \
             --output-folder ./artifacts \
             --python "${{ matrix.python-version }}"
 

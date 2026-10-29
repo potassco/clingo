@@ -17,13 +17,13 @@ jobs:
         include:
           - os: ubuntu-latest
             generator: "Ninja Multi-Config"
-            environment-file: .github/test-environment.yml
+            environment-file: scripts/test-environment.yml
           - os: macos-latest
             generator: "Ninja Multi-Config"
-            environment-file: .github/test-environment.yml
+            environment-file: scripts/test-environment.yml
           - os: windows-latest
             generator: "Visual Studio 18 2026"
-            environment-file: .github/test-environment.yml
+            environment-file: scripts/test-environment.yml
     defaults:
       run:
         shell: bash -l {0}
