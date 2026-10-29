@@ -14,9 +14,9 @@ To get started, check out our [Getting Started][quickstart] page or try the
 
 ## 📝 Resources
 
-- Online Demo: <https://docs.potassco.org/clingo-preview/>
-- Python API Documentation: <https://docs.potassco.org/clingo-preview/python-api/>
-- C/C++ API Documentation: <https://docs.potassco.org/clingo-preview/c-api/>
+- Online Demo: <https://potassco.org/clingo/run/>
+- Python API Documentation: <https://docs.potassco.org/clingo/python-api/6.0/>
+- C/C++ API Documentation: <https://docs.potassco.org/clingo/c-api/6.0/>
 
 ## 📦 Binary Packages
 
@@ -35,9 +35,6 @@ Packages have to be installed on top of the conda-forge channel. The Miniforge
 distribution ships a conda version configured to use this channel by default
 (see Miniforge [installation instructions][conda]).
 
-- Supported platforms: `linux_x86_64`, `macosx_14_0_{arm64,x86_64}`, `win_amd64`.
-- Supported Python versions: `cp312`, `cp313`, `cp314`.
-
 ### 🐍 PyPI
 
 Python packages are available from [PyPI]:
@@ -52,38 +49,32 @@ pip install --extra-index-url https://test.pypi.org/simple clingo
 Development packages are available on the separate package index at
 [Test PyPI].
 
-- Supported platforms: `manylinux_2_34_{x86_64,ppc64le,aarch64}`,
-  `macosx_14_0_{arm64,x86_64}`, `win_amd64`.
-- Supported Python versions: `cp312`, `cp313`, `pp311` (`manylinux_2_34_x86_64`
-  only).
-
 ### ☁️ Cloudsmith
 
 Packages for Debian and Ubuntu are available on [Cloudsmith]:
 
 ```sh
 # stable
-curl -1sLf 'https://dl.cloudsmith.io/public/potassco/wip-20/setup.deb.sh' | sudo -E bash
+curl -1sLf 'https://dl.cloudsmith.io/public/potassco/stable/setup.deb.sh' | sudo -E bash
 sudo apt update
 sudo apt install clingo python3-clingo
 # development
-curl -1sLf 'https://dl.cloudsmith.io/public/potassco/stable/setup.deb.sh' | sudo -E bash
+curl -1sLf 'https://dl.cloudsmith.io/public/potassco/wip-20/setup.deb.sh' | sudo -E bash
 sudo apt update
 sudo apt install clingo python3-clingo
 ```
 
-Note that only Ubuntu 24.04 (Noble Numbat) and Debian 13 (Trixie) development
-versions are supported at the moment. Newer distributions or additional
-architectures might be added later if there is demand.
-
-- Supported architectures: `x86_64`.
+Note that only Ubuntu 24.04 and 26.04, and Debian 13 are supported at the
+moment. For these distributions, only development (wip-20) packages are
+available at the moment. Newer distributions or additional architectures might
+be added later if there is demand.
 
 ### 🐧 Ubuntu PPA
 
 For Ubuntu users, a [PPA] is available for easy installation and updates:
 
 ```sh
-# development
+# stable
 sudo add-apt-repository ppa:potassco/stable
 sudo apt update
 sudo apt install clingo python3-clingo
@@ -93,11 +84,9 @@ sudo apt update
 sudo apt install clingo python3-clingo
 ```
 
-Note that only Ubuntu 24.04 (Noble Numbat) development versions are supported
-for now. The packages are more or less the same as the ones for Cloudsmith but
-build and shipped via Ubuntu's Launchpad.
-
-- Supported architectures: `x86_64`.
+Note that only Ubuntu 24.04 and 26.04 development versions are supported for
+now. The packages are more or less the same as the ones for Cloudsmith but
+built and shipped via Ubuntu's Launchpad.
 
 ## 🛠️ Building the Application
 
@@ -173,7 +162,7 @@ After building, install the generated wheel file from the `dist` folder:
 pip install dist/clingo*.whl
 ```
 
-[demo]: https://docs.potassco.org/clingo-preview/
+[demo]: https://potassco.org/clingo/run/
 [install]: https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html
 [Anaconda]: https://anaconda.org/potassco/clingo/
 [conda]: https://github.com/conda-forge/miniforge#install
