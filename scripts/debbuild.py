@@ -156,11 +156,7 @@ class DebBuilder:
         else:
             build = self.config.cloudsmith_build_number(self.repository)
 
-        suffix = (
-            f"-{self.codename}{build}"
-            if self.codename in UBUNTU_CODENAMES
-            else f".{build}"
-        )
+        suffix = f"+{self.codename}{build}"
 
         changelog = (
             Path(self.root)

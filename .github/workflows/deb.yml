@@ -104,6 +104,12 @@ jobs:
   publish-ppa:
     runs-on: ubuntu-latest
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        codename:
+          - noble
+          - resolute
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -112,7 +118,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: .
-          pattern: ppa-*
+          pattern: ppa-${{ matrix.codename }}
           merge-multiple: true
 
       - name: Install dput
@@ -124,10 +130,5 @@ jobs:
         env:
           POTASSCO_PPA_GPGKEY: ${{ secrets.POTASSCO_PPA_GPGKEY }}
 
-      - name: Publish packages
-        run: |
-          for x in build/*; do
-            codename="$(basename "$x")"
-            sleep 1
-            python ./scripts/debbuild.py ppa "${{ inputs.wip && 'wip-20' || 'stable' }}" "${codename}" put
-          done
+      - name: Publish package
+        run: python ./scripts/debbuild.py ppa "${{ inputs.wip && 'wip-20' || 'stable' }}" "${{ matrix.codename }}" put

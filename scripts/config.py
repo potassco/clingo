@@ -169,7 +169,7 @@ class Config:
             html = r.read().decode("utf-8", errors="replace")
 
         version = self.get_version()
-        pattern = re.compile(rf"{re.escape(version)}-[a-z]+(\d+)\.dsc")
+        pattern = re.compile(rf"{re.escape(version)}[-+][a-z]+(\d+)\.dsc")
         nums = [int(m.group(1)) for m in pattern.finditer(html)]
         current = max(nums) if nums else None
 
@@ -212,7 +212,7 @@ class Config:
         if not isinstance(packages, list):
             raise TypeError("unexpected cloudsmith JSON format")
 
-        pattern = re.compile(rf"^{re.escape(version)}(?:-[a-z]+|[.])(\d+)$")
+        pattern = re.compile(rf"^{re.escape(version)}(?:[-+][a-z]+|[.])(\d+)$")
 
         nums = []
         for p in packages:
