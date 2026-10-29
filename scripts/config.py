@@ -88,7 +88,6 @@ class Config:
                 data = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as err:
             if err.code == 404:
-                print("pypi!")
                 return 0
             raise RuntimeError(
                 f"failed to fetch release metadata from {url}: {err}"
@@ -191,6 +190,7 @@ class Config:
             "cloudsmith",
             "list",
             "packages",
+            "--show-all",
             f"{owner}/{repository}",
             "--output-format",
             "json",

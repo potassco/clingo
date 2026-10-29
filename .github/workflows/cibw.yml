@@ -23,6 +23,7 @@ jobs:
       - name: Build sdist
         run: pipx run build --sdist
         env:
+          BUILD_NUMBER: auto
           PIP_EXTRA_INDEX_URL: ${{ inputs.wip && 'https://test.pypi.org/simple/' || '' }}
 
       - uses: actions/upload-artifact@v7

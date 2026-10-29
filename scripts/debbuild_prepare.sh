@@ -1,3 +1,5 @@
+#!/bin/bash
+
 type=$1
 repo=$2
 

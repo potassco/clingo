@@ -46,8 +46,16 @@ def dynamic_metadata(_settings, _project):
 
     cfg = Config()
     base = cfg.get_version()
-    index = pypi_index()
-    num = cfg.pypi_build_number(index)
+
+    env_num = os.getenv("BUILD_NUMBER")
+    if env_num is None:
+        num = 0
+    elif env_num == "auto":
+        index = pypi_index()
+        num = cfg.pypi_build_number(index)
+    else:
+        num = int(env_num)
+
     build = f".post{num}" if num > 0 else ""
 
     return {"version": f"{base}{build}"}
