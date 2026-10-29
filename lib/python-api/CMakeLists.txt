@@ -117,7 +117,9 @@ endif()
 if(CLINGO_BUILD_TESTS)
     pytest_discover_tests(
         test_pyclingo
-        PYTHON_PATH_PREPEND $<TARGET_FILE_DIR:pyclingo>
+        PYTHON_PATH_PREPEND
+            $<TARGET_FILE_DIR:pyclingo>
+            "${CLINGO_SOURCE_DIR}/third_party/pytest-cmake/src"
         LIBRARY_PATH_PREPEND $<TARGET_FILE_DIR:clingo>
         DEPENDS pyclingo)
 endif()

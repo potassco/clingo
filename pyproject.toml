@@ -5,24 +5,24 @@ description = "Python bindings to the clingo solver."
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [{ name = "Roland Kaminski", email = "kaminski@cs.uni-potsdam.de" }]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
-  "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3",
-  "Topic :: Software Development :: Libraries",
-  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 keywords = [
-  "artificial intelligence",
-  "logic programming",
-  "answer set programming",
-  "constraint solving",
-  "AI",
-  "ASP",
-  "SAT",
-  "Potassco",
-  "clingo",
-  "solver",
+    "artificial intelligence",
+    "logic programming",
+    "answer set programming",
+    "constraint solving",
+    "AI",
+    "ASP",
+    "SAT",
+    "Potassco",
+    "clingo",
+    "solver",
 ]
 
 [project.urls]
@@ -38,10 +38,12 @@ requires = ["scikit-build-core>=1.0", "pybind11", "re2c"]
 build-backend = "scikit_build_core.build"
 
 [[tool.dynamic-metadata]]
-provider = { path = "scripts", module = "pyversion" }
+provider = { path = "scripts", module = "meta" }
+
+[tool.scikit-build.sdist]
+include = [".git_hash"]
 
 [tool.scikit-build.wheel]
-# TODO: install components are the cleaner way to implement this
 exclude = ["include/amc/*", "bin/*", "share/*"]
 
 [tool.pytest.ini_options]
@@ -67,5 +69,7 @@ manylinux-aarch64-image = "manylinux_2_34"
 manylinux-ppc64le-image = "manylinux_2_34"
 
 [tool.cibuildwheel.macos]
-archs = ["arm64", "x86_64"]
 environment = { MACOSX_DEPLOYMENT_TARGET = "14.0" }
+
+[tool.cibuildwheel.windows]
+repair-wheel-command = "delvewheel repair --ignore-existing -v -w {dest_dir} {wheel}"

@@ -1,6 +1,7 @@
 .cache
 .gdb_history
 .nfs*
+.git_hash
 /*.aspif
 /*.lp
 /*.prof

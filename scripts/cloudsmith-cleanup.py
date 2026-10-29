@@ -45,7 +45,7 @@ def group_by_name(packages_data):
 
 
 def convert_version(version_str: str):
-    return re.sub(r"-([a-z]+)(\d+)", r".\2", version_str)
+    return re.sub(r"[-+]([a-z]+)(\d+)", r".\2", version_str)
 
 
 def sort_versions(version_list):

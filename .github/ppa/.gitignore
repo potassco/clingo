@@ -1,9 +1,0 @@
-*.ddeb
-*.deb
-clingo_*.dsc
-clingo_*.tar.xz
-clingo_*.build
-clingo_*.buildinfo
-clingo_*.changes
-clingo_*.deb
-clingo_*.changes

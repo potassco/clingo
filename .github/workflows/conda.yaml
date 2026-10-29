@@ -1,24 +1,38 @@
-name: Conda
+name: Deploy conda packages
 
 on:
   workflow_dispatch:
     inputs:
-      label:
-        description: "Anaconda label"
-        required: true
-        type: string
-      build_number:
-        description: "Build number"
-        required: true
-        type: string
+      wip:
+        description: "Publish work in progress package."
+        type: boolean
+        default: true
 
 jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version-number: ${{ steps.compute.outputs.version-number }}
+      build-number: ${{ steps.compute.outputs.build-number }}
+      channel-label: ${{ steps.compute.outputs.channel-label }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: compute
+        run: |
+          LABEL=${{ inputs.wip && 'dev-20' || 'main' }}
+          VERSION_NUMBER=$(python ./scripts/config.py get-version)
+          BUILD_NUMBER=$(python ./scripts/config.py build-number conda "${LABEL}")
+          echo "channel-label=${LABEL}" >> "$GITHUB_OUTPUT"
+          echo "version-number=${VERSION_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "build-number=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: meta
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.12", "3.13", "3.14"]
+        python-version: ["3.12", "3.13", "3.14", "3.15"]
         arch: [x86_64, arm64]
         exclude:
           - os: ubuntu-latest
@@ -26,38 +40,35 @@ jobs:
           - os: windows-latest
             arch: arm64
     runs-on: ${{ matrix.os }}
+    env:
+      BUILD_NUMBER: ${{ needs.meta.outputs.build-number }}
+      VERSION_NUMBER: ${{ needs.meta.outputs.version-number }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - name: Prepare build environment
-        shell: bash -e -o pipefail -l {0}
-        env:
-          BUILD_NUMBER: ${{ inputs.build_number }}
-          RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          number="${BUILD_NUMBER}"
-          if [[ "${number}" == "auto" ]]; then
-            number="${RUN_NUMBER}"
-          fi
-          if ! [[ "${number}" =~ ^[0-9]+$ ]]; then
-            echo "build_number must be 'auto' or a number" >&2
-            exit 1
-          fi
-          VERSION=$(python -c "import re; print(next(re.finditer(r'CLINGO_VERSION \"([0-9.]+)\"', open('lib/c-api/include/clingo/core.h').read())).group(1))")
-          echo "VERSION_NUMBER=$VERSION" >> $GITHUB_ENV
-          echo "BUILD_NUMBER=${number}" >> "$GITHUB_ENV"
-
       - name: Conda
         if: ${{ runner.os != 'linux' }}
         uses: conda-incubator/setup-miniconda@v4
         with:
           python-version: ${{ matrix.python-version }}
-          channels: conda-forge
+          channels: potassco/label/${{ needs.meta.outputs.channel-label }},conda-forge
           channel-priority: strict
           auto-update-conda: true
+
+      - name: Install macos SDK
+        if: ${{ matrix.os == 'macos-latest' }}
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri 'https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX10.9.sdk.tar.xz' -OutFile 'MacOSX10.9.sdk.tar.xz'
+          sudo tar xf MacOSX10.9.sdk.tar.xz -C /opt
+          Invoke-WebRequest -Uri 'https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz' -OutFile 'MacOSX11.3.sdk.tar.xz'
+          sudo tar xf MacOSX11.3.sdk.tar.xz -C /opt
+
+      - name: Write git hash
+        run: python scripts/config.py write-git-hash
 
       - name: Build (linux)
         if: ${{ runner.os == 'linux' }}
@@ -74,8 +85,9 @@ jobs:
               bash miniconda.sh -b && \
               source ~/miniforge3/etc/profile.d/conda.sh && \
               conda activate base && \
+              conda config --prepend channels potassco/label/${{ needs.meta.outputs.channel-label }} && \
               conda install -y tree conda-build && \
-              conda-build /work/.github/conda --output-folder /artifacts --python ${{ matrix.python-version }} &&
+              conda-build /work/scripts/conda --output-folder /artifacts --python ${{ matrix.python-version }} &&
               find /artifacts -mindepth 1 -exec chmod a+rwX {} +
             "
 
@@ -85,7 +97,7 @@ jobs:
         run: |
           set -x
           conda create --platform osx-64 -n build conda-build
-          conda run -n build --no-capture-output arch -x86_64 conda-build .github/conda \
+          conda run -n build --no-capture-output arch -x86_64 conda-build scripts/conda \
             --output-folder ./artifacts \
             --python "${{ matrix.python-version }}"
 
@@ -95,7 +107,7 @@ jobs:
         run: |
           set -x
           conda create -n build conda-build
-          conda run -n build --no-capture-output conda-build .github/conda \
+          conda run -n build --no-capture-output conda-build scripts/conda \
             --output-folder ./artifacts \
             --python "${{ matrix.python-version }}"
 
@@ -115,6 +127,7 @@ jobs:
   upload:
     needs:
       - build
+      - meta
     runs-on: ubuntu-latest
     steps:
       - name: Download
@@ -142,4 +155,4 @@ jobs:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
           files=( $(find artifacts -type f -name "*.conda") )
-          anaconda upload -l "${{ inputs.label }}" -u potassco --force "${files[@]}"
+          anaconda upload -l ${{ needs.meta.outputs.channel-label }} -u potassco --force "${files[@]}"
