@@ -87,7 +87,8 @@ static bool run(clingo_control_t *ctl, clingo_string_t const *files, size_t size
 int main(int argc, char *argv[]) {
     app_data_t app = {NULL, 0};
     clingo_lib_t *lib = NULL;
-    clingo_application_t application = {program_name, version, run, print_model, register_options, validate_options};
+    clingo_application_t application = {program_name,     version,         NULL, run, print_model,
+                                        register_options, validate_options,};
     clingo_lib_flags_t flags = clingo_lib_flags_fast_release | clingo_lib_flags_slotted;
     clingo_log_level_t level = clingo_log_level_info;
     int code = EXIT_FAILURE;

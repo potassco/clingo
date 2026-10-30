@@ -107,7 +107,7 @@ class Theory {
         int major = 0;
         int minor = 0;
         int revision = 0;
-        handle_error(theory_.info(theory_.self, nullptr, &major, &minor, &revision));
+        handle_error(theory_.info(theory_.self, nullptr, &major, &minor, &revision, nullptr));
         return std::make_tuple(major, minor, revision);
     }
 
@@ -117,8 +117,18 @@ class Theory {
             throw py::error_already_set();
         }
         clingo_string_t name;
-        handle_error(theory_.info(theory_.self, &name, nullptr, nullptr, nullptr));
+        handle_error(theory_.info(theory_.self, &name, nullptr, nullptr, nullptr, nullptr));
         return {name.data, name.size};
+    }
+
+    [[nodiscard]] auto commit_hash() const -> std::string_view {
+        if (theory_.info == nullptr) {
+            PyErr_SetString(PyExc_NotImplementedError, "info not implemented");
+            throw py::error_already_set();
+        }
+        clingo_string_t hash;
+        handle_error(theory_.info(theory_.self, nullptr, nullptr, nullptr, nullptr, &hash));
+        return {hash.data, hash.size};
     }
 
     void register_theory(Control &ctl) const {
@@ -421,6 +431,7 @@ Returns:
 )"_d)
         .def_property_readonly("version", &Theory::version, "Get the version of the theory (major, minor, revision).")
         .def_property_readonly("name", &Theory::name, "Get the name of the theory.")
+        .def_property_readonly("commit_hash", &Theory::commit_hash, "Get the commit hash of the theory.")
         .def_property_readonly("has_assignment", &Theory::has_assignment,
                                "Check whether the theory supports symbol value assigments.");
 }

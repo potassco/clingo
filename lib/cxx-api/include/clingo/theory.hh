@@ -186,6 +186,35 @@ class Theory {
         }
     }
 
+    //! Get the name of the theory.
+    //!
+    //! @return the name of the theory
+    [[nodiscard]] auto name() const -> std::string_view {
+        clingo_string_t name{};
+        Detail::handle_error(theory_.info(theory_.self, &name, nullptr, nullptr, nullptr, nullptr));
+        return std::string_view{name.data, name.size};
+    }
+
+    //! Get the version of the theory.
+    //!
+    //! @return the version of the theory as a tuple of (major, minor, revision)
+    [[nodiscard]] auto version() const -> std::tuple<int, int, int> {
+        int major = 0;
+        int minor = 0;
+        int revision = 0;
+        Detail::handle_error(theory_.info(theory_.self, nullptr, &major, &minor, &revision, nullptr));
+        return {major, minor, revision};
+    }
+
+    //! Get the commit hash of the theory.
+    //!
+    //! @return the commit hash of the theory
+    [[nodiscard]] auto commit_hash() const -> std::string_view {
+        clingo_string_t hash{};
+        Detail::handle_error(theory_.info(theory_.self, nullptr, nullptr, nullptr, nullptr, &hash));
+        return std::string_view{hash.data, hash.size};
+    }
+
     //! Prepare the theory for solving.
     //!
     //! Must be called before solve calls.

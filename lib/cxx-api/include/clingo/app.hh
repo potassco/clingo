@@ -124,6 +124,13 @@ class App {
     //! @return the version
     auto program_version() noexcept -> std::string_view { return do_version(); }
 
+    //! Get the commit hash of the application.
+    //!
+    //! Returns an empty string by default.
+    //!
+    //! @return the commit hash
+    auto commit_hash() noexcept -> std::string_view { return do_commit_hash(); }
+
     //! Run the main control flow.
     //!
     //! Does nothing by default.
@@ -160,6 +167,7 @@ class App {
     virtual void do_validate_options() {}
     virtual auto do_program_name() noexcept -> std::string_view { return CLINGO_EXECUTABLE; }
     virtual auto do_version() noexcept -> std::string_view { return CLINGO_VERSION; }
+    virtual auto do_commit_hash() noexcept -> std::string_view { return ""; }
 };
 
 namespace Detail {
@@ -179,6 +187,12 @@ static constexpr clingo_application_t c_app = {
     [](void *data, clingo_string_t *version) -> void {
         auto &app_data = *static_cast<AppData *>(data);
         auto str = app_data.app->program_version();
+        version->data = str.data();
+        version->size = str.size();
+    },
+    [](void *data, clingo_string_t *version) -> void {
+        auto &app_data = *static_cast<AppData *>(data);
+        auto str = app_data.app->commit_hash();
         version->data = str.data();
         version->size = str.size();
     },

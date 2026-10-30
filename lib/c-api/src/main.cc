@@ -90,44 +90,27 @@ class AppAdapter {
         }
         return CLINGO_EXECUTABLE;
     }
-    [[nodiscard]] auto get_version(clingo_control_t *ctl) const -> std::string_view {
-        try {
-            static thread_local std::string version;
-            if (!version.empty()) {
-                return version;
-            }
-            if (app_ != nullptr && app_->version != nullptr) {
-                clingo_string_t str;
-                app_->version(data_, &str);
-                version.assign(str.data, str.size);
-            } else {
-                version = CLINGO_VERSION;
-            }
-            bool not_empty = false;
-            version.append(" (");
-#ifdef CLINGO_GIT_HASH
-            version.append("hash: " CLINGO_STRINGIFY(CLINGO_GIT_HASH));
-            not_empty = true;
-#endif
-            not_empty = ctl->lib->scripts.extend_version(version, not_empty) > 0 || not_empty;
-            if (not_empty) {
-                version.append(")");
-            } else {
-                version.resize(version.size() - 2);
-            }
-            return version;
-        } catch (...) {
-            if (app_ != nullptr && app_->version != nullptr) {
-                clingo_string_t str;
-                app_->version(data_, &str);
+    [[nodiscard]] auto get_version() const -> std::string_view {
+        if (app_ != nullptr && app_->version != nullptr) {
+            clingo_string_t str;
+            app_->version(data_, &str);
+            return {str.data, str.size};
+        }
+        return CLINGO_VERSION;
+    }
+
+    [[nodiscard]] auto get_commit_hash() const -> std::string_view {
+        if (app_ != nullptr && app_->commit_hash != nullptr) {
+            clingo_string_t str;
+            app_->commit_hash(data_, &str);
+            if (str.size > 0) {
                 return {str.data, str.size};
             }
-#ifdef CLINGO_GIT_HASH
-            return CLINGO_VERSION " (" CLINGO_STRINGIFY(CLINGO_GIT_HASH) ")";
-#else
-            return CLINGO_VERSION;
-#endif
         }
+#ifdef CLINGO_GIT_HASH
+        return CLINGO_STRINGIFY(CLINGO_GIT_HASH);
+#endif
+        return {};
     }
 
     void register_options(Potassco::ProgramOptions::OptionContext &root) {
@@ -178,7 +161,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         : ctl_{new clingo_control_t{&lib}}, app_{app, data}, opts_{ctl_->lib->log, *ctl_->lib->store} {}
 
     [[nodiscard]] auto getName() const -> std::string_view override { return app_.get_name(); }
-    [[nodiscard]] auto getVersion() const -> std::string_view override { return app_.get_version(ctl_.get()); }
+    [[nodiscard]] auto getVersion() const -> std::string_view override { return app_.get_version(); }
     [[nodiscard]] auto getUsage() const -> std::string_view override { return "[number] [options] [files]"; }
 
   private:
@@ -190,6 +173,26 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 
     auto getProblemType() -> ProblemType override {
         return clasp_mode_ ? detectProblemType() : Clasp::ProblemType::asp;
+    }
+
+    void onVersion(std::string const &info) override {
+        try {
+            std::string clingo_info = info;
+            auto commit = app_.get_commit_hash();
+            if (!commit.empty()) {
+                clingo_info.append("\nCommit hash: ").append(commit);
+            }
+            clingo_info.append("\nlibclingo version " CLINGO_VERSION);
+            clingo_info.append(" (");
+            if (ctl_->lib->scripts.extend_version(clingo_info, false) > 0) {
+                clingo_info.append(")");
+            } else {
+                clingo_info.resize(clingo_info.size() - 3);
+            }
+            Clasp::Cli::ClaspAppBase::onVersion(clingo_info);
+        } catch (...) {
+            Clasp::Cli::ClaspAppBase::onVersion(info);
+        }
     }
 
     auto onEvent(const Clasp::Event &ev) -> void override {

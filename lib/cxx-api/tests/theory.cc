@@ -19,13 +19,15 @@ struct Data {
 };
 
 struct TestTheory {
-    static auto info([[maybe_unused]] void *self, clingo_string_t *name, int *major, int *minor, int *revision)
-        -> bool {
+    static auto info([[maybe_unused]] void *self, clingo_string_t *name, int *major, int *minor, int *revision,
+                     clingo_string_t *hash) -> bool {
         name->data = "TestTheory";
         name->size = std::strlen(name->data);
         *major = 1;
         *minor = 0;
         *revision = 0;
+        hash->data = "deadbeef";
+        hash->size = std::strlen(hash->data);
         return true;
     }
     static void destroy(void *self) { std::ignore = std::unique_ptr<Data>{static_cast<Data *>(self)}; }

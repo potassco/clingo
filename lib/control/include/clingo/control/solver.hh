@@ -56,7 +56,7 @@ class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
             } else {
                 leading_comma = true;
             }
-            str.append(name).append(": ").append(script->version());
+            str.append(name).append(" version ").append(script->version());
             ++count;
         }
         return count;

@@ -69,8 +69,9 @@ typedef struct clingo_theory {
     //! @param[out] major the major version component (optional)
     //! @param[out] minor the minor version component (optional)
     //! @param[out] revision the revision version component (optional)
+    //! @param[out] hash the commit hash of the theory (optional)
     //! @return whether the call was successful
-    bool (*info)(void *self, clingo_string_t *name, int *major, int *minor, int *revision);
+    bool (*info)(void *self, clingo_string_t *name, int *major, int *minor, int *revision, clingo_string_t *hash);
     //! Destroy the theory.
     //!
     //! @param[in] self the self pointer

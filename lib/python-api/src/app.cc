@@ -57,8 +57,9 @@ class Options {
 
 class App : public reference_keeper<App> {
   public:
-    App(std::optional<std::string> program_name, std::optional<std::string> version)
-        : program_name_{std::move(program_name)}, version_{std::move(version)} {}
+    App(std::optional<std::string> program_name, std::optional<std::string> version,
+        std::optional<std::string> commit_hash)
+        : program_name_{std::move(program_name)}, version_{std::move(version)}, commit_hash_{std::move(commit_hash)} {}
     App(App const &other) = delete;
     App(App &&other) = delete;
     auto operator=(App const &other) -> App & = delete;
@@ -85,10 +86,16 @@ class App : public reference_keeper<App> {
         return *version_;
     }
 
+    auto commit_hash() -> std::string_view {
+        assert(commit_hash_);
+        return *commit_hash_;
+    }
+
     auto prepare() -> clingo_application_t {
         return {
             program_name_ ? get_program_name_ : nullptr,
             version_ ? get_version_ : nullptr,
+            commit_hash_ ? get_commit_hash_ : nullptr,
             has_override_("main") ? &main_ : nullptr,
             has_override_("print_model") ? print_model_ : nullptr,
             has_override_("register_options") ? register_options_ : nullptr,
@@ -117,6 +124,18 @@ class App : public reference_keeper<App> {
         auto &app = *static_cast<App *>(data);
         try {
             auto str = app.version();
+            res->data = str.data();
+            res->size = str.size();
+        } catch (std::exception const &e) {
+            fprintf(stderr, "panic: %s\n", e.what());
+            std::terminate();
+        }
+    }
+
+    static void get_commit_hash_(void *data, clingo_string_t *res) {
+        auto &app = *static_cast<App *>(data);
+        try {
+            auto str = app.commit_hash();
             res->data = str.data();
             res->size = str.size();
         } catch (std::exception const &e) {
@@ -177,6 +196,8 @@ class App : public reference_keeper<App> {
     std::optional<std::string> program_name_;
     //! The applications version.
     std::optional<std::string> version_;
+    //! The applications commit hash.
+    std::optional<std::string> commit_hash_;
 };
 
 auto pyentry() -> int {
@@ -373,8 +394,9 @@ This class encapsulates the main execution flow of a Clingo-based application.
 It provides methods for executing the program, printing models, registering
 application options, and validating the configuration.
 )"_d)
-        .def(py::init<std::optional<std::string>, std::optional<std::string>>(), py::arg("program_name") = std::nullopt,
-             py::arg("version") = std::nullopt, R"(
+        .def(py::init<std::optional<std::string>, std::optional<std::string>, std::optional<std::string>>(),
+             py::arg("program_name") = std::nullopt, py::arg("version") = std::nullopt,
+             py::arg("commit_hash") = std::nullopt, R"(
 Initializes the application with a program name and its version.
 
 If no name is given, `"clingo"` is used. If no version is given, the current
@@ -385,6 +407,9 @@ Args:
         The name of the application.
     version:
         The version string of the application.
+    commit_hash:
+        The version control commit hash of the application.
+
 )"_d)
         .def("register_options", &App::register_options, py::arg("options"), R"(
 Register command-line options for the application.

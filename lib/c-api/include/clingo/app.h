@@ -75,6 +75,7 @@ typedef bool (*clingo_model_printer_t)(clingo_model_t const *model, clingo_defau
 typedef struct clingo_application {
     void (*program_name)(void *data, clingo_string_t *string);       //!< callback to obtain program name
     void (*version)(void *data, clingo_string_t *string);            //!< callback to obtain version information
+    void (*commit_hash)(void *data, clingo_string_t *string);        //!< callback to obtain the commit hash
     clingo_main_function_t main;                                     //!< callback to override clingo's main function
     clingo_model_printer_t print_model;                              //!< callback to override default model printing
     bool (*register_options)(clingo_options_t *options, void *data); //!< callback to register options
