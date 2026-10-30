@@ -81,11 +81,12 @@ class DebBuilder:
 
     def action_create(self) -> None:
         base = f"/var/cache/pbuilder/{self.repository}-{self.codename}.tgz"
-        mirror = (
-            "http://deb.debian.org/debian"
-            if self.codename in DEBIAN_CODENAMES
-            else "http://archive.ubuntu.com/ubuntu"
-        )
+        if self.codename in DEBIAN_CODENAMES:
+            mirror = "http://deb.debian.org/debian"
+            components = "main"
+        else:
+            mirror = "http://archive.ubuntu.com/ubuntu"
+            components = "main universe"
         self.run(
             [
                 "sudo",
@@ -95,6 +96,8 @@ class DebBuilder:
                 base,
                 "--mirror",
                 mirror,
+                "--components",
+                components,
                 "--distribution",
                 self.codename,
                 "--debootstrapopts",
@@ -105,6 +108,7 @@ class DebBuilder:
         if self.config.get_value("deb", "add_repository", "no") == "yes":
             repository = f"{self.owner}/{self.repository}"
 
+        print(self.target, repository)
         self.run(
             [
                 "sudo",

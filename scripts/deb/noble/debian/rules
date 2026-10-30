@@ -1,14 +1,11 @@
 #!/usr/bin/make -f
 
-export CLINGO_GIT_HASH =
-
 %:
 	dh $@ --with python3
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
 	  -DCMAKE_LIBRARY_PATH=$(DEB_HOST_MULTIARCH) \
-	  -DCLINGO_GIT_HASH=$(CLINGO_GIT_HASH) \
 	  -DCLINGO_BUILD_TESTS=Off \
 	  -DCLINGO_MANAGE_RPATH=Off \
 	  -DCLINGO_BUILD_EXAMPLES=Off
