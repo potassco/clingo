@@ -187,7 +187,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             if (ctl_->lib->scripts.extend_version(clingo_info, false) > 0) {
                 clingo_info.append(")");
             } else {
-                clingo_info.resize(clingo_info.size() - 3);
+                clingo_info.resize(clingo_info.size() - 2);
             }
             Clasp::Cli::ClaspAppBase::onVersion(clingo_info);
         } catch (...) {
