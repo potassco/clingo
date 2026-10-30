@@ -39,6 +39,12 @@ class CScript : public CppClingo::Control::Script {
         return res;
     }
 
+    auto do_version() -> std::string_view override {
+        clingo_string_t version;
+        script_.version(data_, &version);
+        return {version.data, version.size};
+    }
+
     using CBData = std::pair<CScript *, CppClingo::SymbolVec &>;
 
     static auto cb(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> bool {

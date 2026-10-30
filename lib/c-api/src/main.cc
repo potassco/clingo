@@ -90,17 +90,44 @@ class AppAdapter {
         }
         return CLINGO_EXECUTABLE;
     }
-    [[nodiscard]] auto get_version() const -> std::string_view {
-        if (app_ != nullptr && app_->version != nullptr) {
-            clingo_string_t str;
-            app_->version(data_, &str);
-            return {str.data, str.size};
-        }
+    [[nodiscard]] auto get_version(clingo_control_t *ctl) const -> std::string_view {
+        try {
+            static thread_local std::string version;
+            if (!version.empty()) {
+                return version;
+            }
+            if (app_ != nullptr && app_->version != nullptr) {
+                clingo_string_t str;
+                app_->version(data_, &str);
+                version.assign(str.data, str.size);
+            } else {
+                version = CLINGO_VERSION;
+            }
+            bool not_empty = false;
+            version.append(" (");
 #ifdef CLINGO_GIT_HASH
-        return CLINGO_VERSION " (" CLINGO_STRINGIFY(CLINGO_GIT_HASH) ")";
-#else
-        return CLINGO_VERSION;
+            version.append("hash: " CLINGO_STRINGIFY(CLINGO_GIT_HASH));
+            not_empty = true;
 #endif
+            not_empty = ctl->lib->scripts.extend_version(version, not_empty) > 0 || not_empty;
+            if (not_empty) {
+                version.append(")");
+            } else {
+                version.resize(version.size() - 2);
+            }
+            return version;
+        } catch (...) {
+            if (app_ != nullptr && app_->version != nullptr) {
+                clingo_string_t str;
+                app_->version(data_, &str);
+                return {str.data, str.size};
+            }
+#ifdef CLINGO_GIT_HASH
+            return CLINGO_VERSION " (" CLINGO_STRINGIFY(CLINGO_GIT_HASH) ")";
+#else
+            return CLINGO_VERSION;
+#endif
+        }
     }
 
     void register_options(Potassco::ProgramOptions::OptionContext &root) {
@@ -151,7 +178,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         : ctl_{new clingo_control_t{&lib}}, app_{app, data}, opts_{ctl_->lib->log, *ctl_->lib->store} {}
 
     [[nodiscard]] auto getName() const -> std::string_view override { return app_.get_name(); }
-    [[nodiscard]] auto getVersion() const -> std::string_view override { return app_.get_version(); }
+    [[nodiscard]] auto getVersion() const -> std::string_view override { return app_.get_version(ctl_.get()); }
     [[nodiscard]] auto getUsage() const -> std::string_view override { return "[number] [options] [files]"; }
 
   private:

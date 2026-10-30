@@ -26,10 +26,13 @@ class Script : public Ground::ScriptCallback {
     void main(Solver &slv) { do_main(slv); }
     //! Execute the given code.
     void exec(std::string_view code) { do_exec(code); }
+    //! Get the script version.
+    [[nodiscard]] auto version() -> std::string_view { return do_version(); }
 
   private:
     virtual void do_exec(std::string_view code) = 0;
     virtual void do_main(Solver &slv) = 0;
+    [[nodiscard]] virtual auto do_version() -> std::string_view = 0;
 };
 //! A unique pointer to a script.
 using UScript = std::unique_ptr<Script>;
@@ -44,6 +47,20 @@ class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
     void register_script(std::string_view name, UScript script);
     //! Run the main function.
     void main(Solver &slv);
+    //! Get the version of the registered scripts.
+    auto extend_version(std::string &str, bool leading_comma = false) -> size_t {
+        size_t count = 0;
+        for (auto const &[name, script] : scripts_) {
+            if (leading_comma) {
+                str.append(", ");
+            } else {
+                leading_comma = true;
+            }
+            str.append(name).append(": ").append(script->version());
+            ++count;
+        }
+        return count;
+    }
 
   private:
     void do_exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) override;
