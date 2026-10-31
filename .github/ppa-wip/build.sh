@@ -99,9 +99,9 @@ for act in "${@}"; do
     changes)
         version="$(project_version)"
         name="$(project_name)"
-        build=$(curl -sL "http://ppa.launchpad.net/potassco/${ref}/ubuntu/pool/main/c/${name}/" | sed -n "/${version//./\\.}-${rep}[0-9]\+\.dsc/s/.*${rep}\([0-9]\+\).*/\1/p" | sort -rn | head -1)
+        build=$(curl -sL "http://ppa.launchpad.net/potassco/${ref}/ubuntu/pool/main/c/${name}/" | sed -n "/${version//./\\.}[-+]${rep}[0-9]\+\.dsc/s/.*${rep}\([0-9]\+\).*/\1/p" | sort -rn | head -1)
         cat >"${rep}/debian/changelog" <<EOF
-${name} (${version}-${rep}$((build + 1))) ${rep}; urgency=medium
+${name} (${version}+${rep}$((build + 1))) ${rep}; urgency=medium
 
   * build for git revision $(git rev-parse HEAD)
 
@@ -109,7 +109,7 @@ ${name} (${version}-${rep}$((build + 1))) ${rep}; urgency=medium
 EOF
         ;;
     build)
-        version="$(head -n 1 ${rep}/debian/changelog | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\(-[a-z0-9]\+\)\?')"
+        version="$(head -n 1 ${rep}/debian/changelog | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\([-+][a-z0-9]\+\)\?')"
         (
             cd "${rep}"
             pdebuild --buildresult . -- --basetgz "/var/cache/pbuilder/${ref}-${rep}.tgz"
@@ -119,7 +119,7 @@ EOF
         debsign --re-sign -k"${key}" "${name}_${version}_source.changes"
         ;;
     put)
-        version="$(head -n 1 "${rep}/debian/changelog" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\(-[a-z0-9]\+\)\?')"
+        version="$(head -n 1 "${rep}/debian/changelog" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\([-+][a-z0-9]\+\)\?')"
         name="$(project_name)"
         dput "ppa:potassco/${ref}" "${name}_${version}_source.changes"
         ;;
