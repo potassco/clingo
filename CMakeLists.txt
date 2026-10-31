@@ -224,6 +224,7 @@ if(Python_Development_FOUND AND Python_VERSION_MAJOR LESS 3)
 endif()
 
 add_library(clingo_python_config INTERFACE)
+target_compile_definitions(clingo_python_config INTERFACE _CFFI_NO_LIMITED_API)
 if(MSVC)
     target_compile_definitions(clingo_python_config INTERFACE Py_NO_LINK_LIB)
 endif()
