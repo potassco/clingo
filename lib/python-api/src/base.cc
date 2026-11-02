@@ -239,7 +239,7 @@ auto Base::is_shown(clingo_literal_t literal) const -> bool {
 
 auto Base::is_projected(clingo_literal_t literal) const -> bool {
     auto projected = false;
-    handle_error(clingo_base_is_fact(base_, literal, &projected));
+    handle_error(clingo_base_is_projected(base_, literal, &projected));
     return projected;
 }
 
