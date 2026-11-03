@@ -1,5 +1,7 @@
 # Changes
 
+## clingo 5.8.4
+
 ## clingo 5.8.3
 
 - fix compilation issues on Windows (#654)
