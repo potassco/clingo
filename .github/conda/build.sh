@@ -1,8 +1,5 @@
 #!/bin/bash
 
-M4="$(command -v m4)"
-export M4
-
 if [ -z "${PYTHON:-}" ]; then
     PYTHON="$(command -v python)"
 fi
