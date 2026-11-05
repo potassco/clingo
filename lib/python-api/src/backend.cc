@@ -20,7 +20,7 @@ void Observer::begin_step() {
     PYBIND11_OVERRIDE_NAME(void, Observer, "begin_step", no_op);
 }
 
-void Observer::end_step(Base base) {
+void Observer::end_step(TypeHint<"Base"> base) {
     PYBIND11_OVERRIDE_NAME(void, Observer, "end_step", no_op, base);
 }
 
@@ -73,7 +73,8 @@ void Observer::observe(clingo_control_t *ctl, bool preprocess) {
         },
         [](clingo_base_t const *base, void *data) -> bool {
             CLINGO_TRY {
-                static_cast<Observer *>(data)->end_step(Base{base});
+                static_cast<Observer *>(data)->end_step(
+                    py::reinterpret_steal<TypeHint<"Base">>(py_base_from_clingo_object(base)));
             }
             CLINGO_CATCH;
         },

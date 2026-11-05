@@ -438,4 +438,42 @@ auto make_comparable_base(pybind11::class_<T, O...> cls) -> pybind11::class_<T, 
     return make_comparable<T>(std::move(cls));
 }
 
+template <class T, auto Destroy> class Guard {
+  public:
+    constexpr explicit Guard(T v = {}) noexcept : value_{v} {}
+
+    Guard(Guard const &other) = delete;
+    auto operator=(Guard const &other) -> Guard & = delete;
+    constexpr Guard(Guard &&other) noexcept = delete;
+    constexpr auto operator=(Guard &&other) noexcept = delete;
+
+    ~Guard() noexcept {
+        if (value_ != T{}) {
+            Destroy(value_);
+        }
+    }
+
+    // NOLINTNEXTLINE
+    constexpr operator T &() noexcept { return value_; }
+    [[nodiscard]] constexpr auto get() noexcept -> T & { return value_; }
+
+    auto release() noexcept -> T {
+        auto v = value_;
+        value_ = T{};
+        return v;
+    }
+
+  private:
+    T value_{};
+};
+
+template <size_t N> auto cast_kw(std::array<char const *, N> const &kwlist) -> char ** {
+    // NOLINTNEXTLINE
+    return const_cast<char **>(kwlist.data());
+}
+
+inline auto py_c_function_cast(PyCFunctionWithKeywords fun) noexcept -> PyCFunction {
+    return reinterpret_cast<PyCFunction>(reinterpret_cast<void *>(fun)); // NOLINT
+}
+
 } // namespace PyClingo

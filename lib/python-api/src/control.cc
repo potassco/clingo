@@ -1,6 +1,7 @@
 #include "control.hh"
 #include "ast.hh"
 #include "core.hh"
+#include "iterator.hh"
 #include "stats.hh"
 #include "util.hh"
 
@@ -195,10 +196,10 @@ auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
     return res;
 }
 
-auto Control::base() -> Base {
+auto Control::base() -> TypeHint<"Base"> {
     clingo_base_t const *base = nullptr;
     clingo_control_base(get(), &base);
-    return Base{base};
+    return py::reinterpret_steal<TypeHint<"Base">>(py_base_from_clingo_object(base));
 }
 
 void Control::observe(Observer &obs, bool preprocess) {

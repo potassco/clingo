@@ -38,6 +38,8 @@ inline void handle_error(bool res) {
     }
 }
 
+auto py_handle_error() -> std::nullptr_t;
+
 // Similar to handle_error but also reraises if the code is succsess.
 void handle_error_no_code(bool res, int code);
 
