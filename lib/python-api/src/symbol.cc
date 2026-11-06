@@ -877,6 +877,18 @@ auto symbol_module_methods = std::array{
     },
 };
 
+auto symbol_module_traverse(PyObject *module, visitproc visit, void *arg) -> int {
+    auto *state = static_cast<SymbolModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        return 0;
+    }
+    for (auto &obj : state->vals) {
+        Py_VISIT(obj);
+    }
+    Py_VISIT(state->symbol_type);
+    return 0;
+}
+
 auto symbol_module_clear(PyObject *module) -> int {
     auto *state = static_cast<SymbolModuleState *>(PyModule_GetState(module));
     if (state == nullptr) {
@@ -885,7 +897,7 @@ auto symbol_module_clear(PyObject *module) -> int {
     for (auto &obj : state->vals) {
         Py_CLEAR(obj);
     }
-    state->symbol_type = nullptr;
+    Py_CLEAR(state->symbol_type);
     return 0;
 }
 
@@ -900,7 +912,7 @@ PyModuleDef symbol_def = {
     static_cast<Py_ssize_t>(sizeof(SymbolModuleState)),
     symbol_module_methods.data(),
     nullptr,
-    nullptr,
+    symbol_module_traverse,
     symbol_module_clear,
     symbol_module_free,
 };
@@ -918,7 +930,7 @@ void register_symbol(pybind11::module &m) {
     }
 
     auto symbol_type_enum =
-        Guard<PyObject *, Py_DECREF>(create_int_enum("SymbolType", symbol_type_members, state->vals));
+        Guard<PyObject *, Py_DECREF>(create_int_enum("clingo.symbol", "SymbolType", symbol_type_members, state->vals));
     if (symbol_type_enum == nullptr || PyModule_AddObjectRef(symbol, "SymbolType", symbol_type_enum) < 0) {
         throw py::error_already_set();
     }

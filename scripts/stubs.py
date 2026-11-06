@@ -255,25 +255,24 @@ class Rewriter:
         args = ["pybind11-stubgen"]
         extension = ".pyi"
         libpath = sysconfig.get_path("purelib")
-        clingo_stubs = os.path.join(libpath, "clingo-stubs")
-        args.extend(["--root-suffix=-stubs"])
-
-        args.extend(
-            [
-                "--print-value-comments",
-                "--enum-class-locations",
-                "WeightConstraintType:clingo.propagate",
-                "--enum-class-locations",
-                "LogLevel:clingo.core",
-                "-o",
-                libpath,
-                "clingo",
-            ]
-        )
         env = os.environ.copy()
         env["PYTHONPATH"] = "./build/debug/bin/python"
 
         with tempfile.TemporaryDirectory() as tmpdir:
+            args.extend(["--root-suffix=-stubs"])
+
+            args.extend(
+                [
+                    "--print-value-comments",
+                    "--enum-class-locations",
+                    "WeightConstraintType:clingo.propagate",
+                    "--enum-class-locations",
+                    "LogLevel:clingo.core",
+                    "-o",
+                    tmpdir,
+                    "clingo",
+                ]
+            )
             subprocess.check_call(args, env=env)
 
             for root, dirs, files in os.walk(tmpdir):
@@ -281,9 +280,8 @@ class Rewriter:
                 for file in files:
                     path = os.path.join(root, file)
                     gen_path = os.path.join("lib", "python-api", "stubs", file)
-                    target_path = os.path.join(
-                        clingo_stubs, Path(path).relative_to(tmpdir)
-                    )
+                    target_path = os.path.join(libpath, Path(path).relative_to(tmpdir))
+
                     # NOTE: stubs will be written manually in the future
                     if file == "base.pyi" or file == "symbol.pyi":
                         with (

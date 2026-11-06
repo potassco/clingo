@@ -392,7 +392,7 @@ class TheoryBase:
     """
     A class providing information about theory atoms.
 
-    Implements `Sequence[TheoryAtom]`.
+    Implements a sequence of theory atoms.
     """
 
     def __contains__(self, value: TheoryAtom) -> bool:
@@ -413,21 +413,6 @@ class TheoryBase:
     def __len__(self) -> int:
         """
         Get the size of the sequence.
-        """
-
-    def __reversed__(self) -> Iterator[TheoryAtom]:
-        """
-        Get a reverse iterator for the sequence.
-        """
-
-    def count(self, value: TheoryAtom) -> int:
-        """
-        Count how often the given value occurs in the sequence.
-        """
-
-    def index(self, value: TheoryAtom) -> int:
-        """
-        Get the index of the given value in the sequence.
         """
 
 class Base:

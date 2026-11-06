@@ -335,7 +335,7 @@ The parameter `incremental` indicates whether the program can consist of more
 than one step.
 
 Args:
-	incremental: Whether the program is incremental.
+    incremental: Whether the program is incremental.
 )"_d)
         .def("begin_step", &Observer::begin_step, R"(
 Called at the beginning of a step.
@@ -349,9 +349,9 @@ Called for rules in the program.
 See also `clingo.backend.Backend.rule`.
 
 Args:
-	head: Sequence of literals in the rule head.
-	body: Sequence of literals in the rule body (default: []).
-	choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
+    head: Sequence of literals in the rule head.
+    body: Sequence of literals in the rule body (default: []).
+    choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
 )"_d)
         .def("weight_rule", &Observer::weight_rule, py::arg("head"), py::arg("lower_bound"), py::arg("body"),
              py::arg("choice"), R"(
@@ -360,10 +360,10 @@ Called for weight rules in the program.
 See also `clingo.backend.Backend.weight_rule`.
 
 Args:
-	head: Sequence of literals in the rule head.
-	lower_bound: The lower bound of the weight constraint.
-	body: Sequence of (literal, weight) tuples forming the weight constraint.
-	choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
+    head: Sequence of literals in the rule head.
+    lower_bound: The lower bound of the weight constraint.
+    body: Sequence of (literal, weight) tuples forming the weight constraint.
+    choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
 )"_d)
         .def("assume", &Observer::assume, py::arg("literals"), R"(
 Called for assumptions in the solver.
@@ -399,11 +399,11 @@ Called for heuristic directives in the program.
 See also `clingo.backend.Backend.heuristic`.
 
 Args:
-	atom: The atom to which the heuristic applies.
-	type: The type of the heuristic.
-	weight: The weight of the heuristic.
-	priority: The priority of the heuristic (default: 0).
-	condition: Sequence of literals representing the condition (default: []).
+    atom: The atom to which the heuristic applies.
+    type: The type of the heuristic.
+    weight: The weight of the heuristic.
+    priority: The priority of the heuristic (default: 0).
+    condition: Sequence of literals representing the condition (default: []).
 )"_d)
         .def("minimize", &Observer::minimize, py::arg("literals"), py::arg("priority"), R"(
 Called for minimize constraints in the program.
@@ -411,8 +411,8 @@ Called for minimize constraints in the program.
 See also `clingo.backend.Backend.minimize`.
 
 Args:
-	literals: Sequence of (literal, weight) tuples to minimize.
-	priority: Priority of the constraint (default: 0).
+    literals: Sequence of (literal, weight) tuples to minimize.
+    priority: Priority of the constraint (default: 0).
 )"_d)
         .def("project", &Observer::project, py::arg("atoms"), R"(
 Called for projection directives in the program.
@@ -420,7 +420,7 @@ Called for projection directives in the program.
 See also `clingo.backend.Backend.project`.
 
 Args:
-	atoms: Sequence of atoms to project on.
+    atoms: Sequence of atoms to project on.
 )"_d);
 
     py::class_<Backend>(backend, "Backend", R"(
@@ -431,7 +431,7 @@ specify heuristics, define optimization statements, and extend the underlying
 theory. It allows for low-level manipulation of logic programs.
 
 See Also:
-	`clingo.control.Control.backend`
+    `clingo.control.Control.backend`
 )"_d)
         .def("atom", &Backend::atom, py::arg("symbol") = std::nullopt, R"(
 Return a fresh program atom or the atom associated with the given symbol.
@@ -440,10 +440,10 @@ If the given symbol does not exist in the atom base, it is added first. These
 atoms will be used in subsequent calls to ground for instantiation.
 
 Args:
-	symbol: The symbol associated with the atom.
+    symbol: The symbol associated with the atom.
 
 Returns:
-	The program atom representing the atom.
+    The program atom representing the atom.
 )"_d)
         .def("rule", &Backend::rule, py::arg("head"), py::arg("body") = LitSpan{}, py::arg("choice") = false, R"(
 Add a rule to the program.
@@ -457,9 +457,9 @@ Rule types based on head length (when choice is False):
 - Multiple literals head: Disjunctive rule
 
 Args:
-	head: Sequence of literals in the rule head.
-	body: Sequence of literals in the rule body (default: []).
-	choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
+    head: Sequence of literals in the rule head.
+    body: Sequence of literals in the rule body (default: []).
+    choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
 )"_d)
         .def("weight_rule", &Backend::weight_rule, py::arg("head"), py::arg("lower_bound"), py::arg("body"),
              py::arg("choice") = false, R"(
@@ -472,10 +472,10 @@ A weight constraint is satisfied if the sum of weights of the true literals
 meets or exceeds the lower bound.
 
 Args:
-	head: Sequence of literals in the rule head.
-	lower_bound: The lower bound of the weight constraint.
-	body: Sequence of (literal, weight) tuples forming the weight constraint.
-	choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
+    head: Sequence of literals in the rule head.
+    lower_bound: The lower bound of the weight constraint.
+    body: Sequence of (literal, weight) tuples forming the weight constraint.
+    choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
 )"_d)
         .def("assume", &Backend::assume, py::arg("literals"), R"(
 Add an assumption directive to the solver.
@@ -519,11 +519,11 @@ process. The directive's effect depends on its type, weight, and priority. The
 condition, if provided, determines when the heuristic should be applied.
 
 Args:
-	atom: The atom to which the heuristic applies.
-	type: The type of the heuristic.
-	weight: The weight of the heuristic.
-	priority: The priority of the heuristic (default: 0).
-	condition: Sequence of literals representing the condition (default: []).
+    atom: The atom to which the heuristic applies.
+    type: The type of the heuristic.
+    weight: The weight of the heuristic.
+    priority: The priority of the heuristic (default: 0).
+    condition: Sequence of literals representing the condition (default: []).
 )"_d)
         .def("minimize", &Backend::minimize, py::arg("literals"), py::arg("priority") = 0, R"(
 Add a minimize constraint to the program.
@@ -534,8 +534,8 @@ with different priorities can be added, with lower priority values considered
 more important.
 
 Args:
-	literals: Sequence of (literal, weight) tuples to minimize.
-	priority: Priority of the constraint (default: 0).
+    literals: Sequence of (literal, weight) tuples to minimize.
+    priority: Priority of the constraint (default: 0).
 )"_d)
         .def("project", &Backend::project, py::arg("atoms"), R"(
 Add a projection directive to the program.
@@ -545,7 +545,7 @@ is used, stable models are treated as equivalent if they agree on the truth
 values of projected atoms, regardless of other atoms in the model.
 
 Args:
-	atoms: Sequence of atoms to project on.
+    atoms: Sequence of atoms to project on.
 )"_d)
         .def("theory_number", &Backend::theory_number, py::arg("number"), R"(
 Create a numeric theory term.
@@ -558,7 +558,7 @@ Args:
     number: The numeric value of the theory term to create.
 
 Returns:
-	The unique id of the created theory term.
+    The unique id of the created theory term.
 )"_d)
         .def("theory_string", &Backend::theory_string, py::arg("string"), R"(
 Create a string theory term.
@@ -568,10 +568,10 @@ unique identifier. This id can be used in other theory-related methods to
 reference this term.
 
 Args:
-	string: The string value of the theory term to create.
+    string: The string value of the theory term to create.
 
 Returns:
-	The unique id of the created string theory term.
+    The unique id of the created string theory term.
 )"_d)
         .def("theory_symbol", &Backend::theory_symbol, py::arg("symbol"), R"(
 Convert a symbol into a theory term.
@@ -581,10 +581,10 @@ identifier. This id can be used in other theory-related methods to reference
 this term.
 
 Args:
-	symbol: The symbol to create the theory term from.
+    symbol: The symbol to create the theory term from.
 
 Returns:
-	The unique id of the created theory term.
+    The unique id of the created theory term.
 )"_d)
         .def("theory_sequence", &Backend::theory_sequence, py::arg("type"), py::arg("elements"), R"(
 Create a sequence theory term.
@@ -594,11 +594,11 @@ given elements, and returns its unique identifier. This id can be used in other
 theory-related methods to reference this term.
 
 Args:
-	type: The type of the sequence (e.g., tuple, list, set).
-	elements: A sequence of ids representing theory terms.
+    type: The type of the sequence (e.g., tuple, list, set).
+    elements: A sequence of ids representing theory terms.
 
 Returns:
-	The unique id of the created sequence theory term.
+    The unique id of the created sequence theory term.
 )"_d)
         .def("theory_function", &Backend::theory_function, py::arg("name"), py::arg("arguments"), R"(
 Create a function theory term.
@@ -608,11 +608,11 @@ and returns its unique identifier. This id can be used in other theory-related
 methods to reference this term.
 
 Args:
-	name: The name of the function.
-	arguments: A sequence of ids of theory terms.
+    name: The name of the function.
+    arguments: A sequence of ids of theory terms.
 
 Returns:
-	The unique id of the created function theory term.
+    The unique id of the created function theory term.
 )"_d)
         .def("theory_element", &Backend::theory_element, py::arg("tuple"), py::arg("condition"), R"(
 Create a theory element.
@@ -622,11 +622,11 @@ returns its unique identifier. This id can be used in other theory-related
 methods to reference this element.
 
 Args:
-	tuple: A sequence of ids representing theory terms.
-	condition: A sequence of program literals.
+    tuple: A sequence of ids representing theory terms.
+    condition: A sequence of program literals.
 
 Returns:
-	The unique id of the created theory element.
+    The unique id of the created theory element.
 )"_d)
         .def("theory_atom", &Backend::theory_atom, py::arg("atom"), py::arg("name"), py::arg("elements"),
              py::arg("guard") = std::nullopt, R"(
@@ -639,13 +639,13 @@ on these rules:
 - For program directives, value zero is used.
 
 Args:
-	atom: The program atom to assign, or None to assign a fresh one.
-	name: The name of the theory atom.
-	elements: A sequence of ids representing theory elements.
-	guard: A tuple containing the guard operator and the id of the guard term, or None if there is no guard.
+    atom: The program atom to assign, or None to assign a fresh one.
+    name: The name of the theory atom.
+    elements: A sequence of ids representing theory elements.
+    guard: A tuple containing the guard operator and the id of the guard term, or None if there is no guard.
 
 Returns:
-	The program atom associated with the created theory atom.
+    The program atom associated with the created theory atom.
 )"_d);
 
     py::class_<BackendManager>(backend, "BackendManager", R"(

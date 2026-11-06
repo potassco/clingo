@@ -2,8 +2,8 @@
 
 namespace PyClingo {
 
-auto create_int_enum(const char *enum_name, std::span<IntEnumMember const> members, std::span<PyObject *> cache)
-    -> PyObject * {
+auto create_int_enum(char const *module_name, char const *enum_name, std::span<IntEnumMember const> members,
+                     std::span<PyObject *> cache) -> PyObject * {
     auto enum_mod = Guard<PyObject *, Py_DECREF>(PyImport_ImportModule("enum"));
     if (enum_mod == nullptr) {
         return nullptr;
@@ -37,6 +37,11 @@ auto create_int_enum(const char *enum_name, std::span<IntEnumMember const> membe
         return nullptr;
     }
 
+    auto mod = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(module_name));
+    if (mod == nullptr || PyObject_SetAttrString(enum_obj.get(), "__module__", mod.get()) < 0) {
+        return nullptr;
+    }
+
     if (!cache.empty()) {
         for (auto const &[member_name, member_value] : members) {
             if (member_value < 0 || static_cast<size_t>(member_value) >= cache.size()) {
@@ -46,10 +51,11 @@ auto create_int_enum(const char *enum_name, std::span<IntEnumMember const> membe
             }
 
             auto member = Guard<PyObject *, Py_DECREF>(PyObject_CallFunction(enum_obj.get(), "i", member_value));
+            if (member == nullptr) {
+                return nullptr;
+            }
             auto idx = static_cast<size_t>(member_value);
-            // NOLINTNEXTLINE
             assert(idx < cache.size() && cache[idx] == nullptr);
-            // NOLINTNEXTLINE
             cache[idx] = member.release();
         }
     }

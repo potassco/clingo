@@ -248,6 +248,12 @@ class Theory:
         """
 
     @property
+    def commit_hash(self) -> str:
+        """
+        Get the commit hash of the theory.
+        """
+
+    @property
     def has_assignment(self) -> bool:
         """
         Check whether the theory supports symbol value assigments.

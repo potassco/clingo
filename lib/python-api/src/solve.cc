@@ -421,7 +421,7 @@ This only has an effect if there is an underlying clingo application, which
 will print the added symbols.
 
 Args:
-	symbols: The symbols to add to the model.
+    symbols: The symbols to add to the model.
 )")
         .def("__str__", &Model::str, "Get a string representation of the model.")
         .def_property_readonly("control", &Model::control, "Get the associated solve control object.")
