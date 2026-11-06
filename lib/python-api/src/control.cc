@@ -227,8 +227,15 @@ auto Control::stats() -> StatsView {
     handle_error(clingo_control_stats(get(), &stats));
     uint64_t key = 0;
     handle_error(clingo_stats_root(stats, &key));
-    // NOLINTNEXTLINE
-    return StatsView{const_cast<clingo_stats_t *>(stats), key};
+    auto *type = py_stats_view_type();
+    if (type == nullptr) {
+        throw py::error_already_set();
+    }
+    auto *res = py_stats_new(type, const_cast<clingo_stats_t *>(stats), key);
+    if (res == nullptr) {
+        throw py::error_already_set();
+    }
+    return py::reinterpret_steal<StatsView>(res);
 }
 
 auto Control::profile() -> py::list {
@@ -346,7 +353,10 @@ auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optio
                 uint64_t accu = 0;
                 handle_error(clingo_stats_map_add_subkey(stats, root, clingo_user_stats_accu.data, clingo_user_stats_accu.size,
                                                          clingo_stats_type_map, &accu));
-                (*hnd->stats_)(Stats{stats, step}, Stats{stats, accu});
+                auto *type = py_stats_type();
+                auto step_stats = py::reinterpret_steal<StatsView>(py_stats_new(type, stats, step));
+                auto accu_stats = py::reinterpret_steal<StatsView>(py_stats_new(type, stats, accu));
+                (*hnd->stats_)(step_stats, accu_stats);
             }
             CLINGO_CATCH;
         } : nullptr,
