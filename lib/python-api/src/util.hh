@@ -481,4 +481,6 @@ using IntEnumMember = std::tuple<char const *, int>;
 auto create_int_enum(char const *module_name, const char *enum_name, std::span<IntEnumMember const> members,
                      std::span<PyObject *> cache = {}) -> PyObject *;
 
+auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **store) -> bool;
+
 } // namespace PyClingo

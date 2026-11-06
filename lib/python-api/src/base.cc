@@ -1285,7 +1285,7 @@ auto py_theory_base_spec = PyType_Spec{
     "clingo.base.TheoryBase",
     sizeof(PyTheoryBaseObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING | Py_TPFLAGS_SEQUENCE,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_SEQUENCE,
     py_theory_base_slots.data(),
 };
 
@@ -1740,52 +1740,6 @@ constexpr auto theory_term_members = std::array<IntEnumMember, 6>{
     IntEnumMember{"Function", static_cast<int>(clingo_theory_term_type_function)},
 };
 
-auto base_module_clear(PyObject *module) -> int {
-    auto *state = static_cast<BaseModuleState *>(PyModule_GetState(module));
-    if (state == nullptr) {
-        return 0;
-    }
-    Py_CLEAR(state->atom_type);
-    Py_CLEAR(state->atom_base_type);
-    Py_CLEAR(state->atom_base_iter_type);
-    Py_CLEAR(state->term_type);
-    Py_CLEAR(state->term_base_type);
-    Py_CLEAR(state->term_base_iter_type);
-    Py_CLEAR(state->theory_term_type);
-    Py_CLEAR(state->theory_element_type);
-    Py_CLEAR(state->theory_atom_type);
-    Py_CLEAR(state->theory_base_type);
-    Py_CLEAR(state->base_type);
-    Py_CLEAR(state->base_iter_type);
-    Py_CLEAR(state->theory_term_type_enum);
-    return 0;
-}
-
-auto base_module_traverse(PyObject *module, visitproc visit, void *arg) -> int {
-    auto *state = static_cast<BaseModuleState *>(PyModule_GetState(module));
-    if (state == nullptr) {
-        return 0;
-    }
-    Py_VISIT(state->atom_type);
-    Py_VISIT(state->atom_base_type);
-    Py_VISIT(state->atom_base_iter_type);
-    Py_VISIT(state->term_type);
-    Py_VISIT(state->term_base_type);
-    Py_VISIT(state->term_base_iter_type);
-    Py_VISIT(state->theory_term_type);
-    Py_VISIT(state->theory_element_type);
-    Py_VISIT(state->theory_atom_type);
-    Py_VISIT(state->theory_base_type);
-    Py_VISIT(state->base_type);
-    Py_VISIT(state->base_iter_type);
-    Py_VISIT(state->theory_term_type_enum);
-    return 0;
-}
-
-void base_module_free(void *module) {
-    base_module_clear(static_cast<PyObject *>(module));
-}
-
 PyModuleDef base_def = {
     PyModuleDef_HEAD_INIT,
     "clingo.base",
@@ -1793,19 +1747,10 @@ PyModuleDef base_def = {
     static_cast<Py_ssize_t>(sizeof(BaseModuleState)),
     nullptr,
     nullptr,
-    base_module_traverse,
-    base_module_clear,
-    base_module_free,
+    nullptr,
+    nullptr,
+    nullptr,
 };
-
-auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **store) -> bool {
-    auto obj = Guard<PyObject *, Py_DECREF>(PyType_FromModuleAndSpec(module, spec, nullptr));
-    if (obj.get() == nullptr || PyModule_AddObjectRef(module, name, obj.get()) < 0) {
-        return false;
-    }
-    *store = obj.release();
-    return true;
-}
 
 } // namespace
 

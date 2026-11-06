@@ -63,4 +63,13 @@ auto create_int_enum(char const *module_name, char const *enum_name, std::span<I
     return enum_obj.release();
 }
 
+auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **store) -> bool {
+    auto obj = Guard<PyObject *, Py_DECREF>(PyType_FromModuleAndSpec(module, spec, nullptr));
+    if (obj.get() == nullptr || PyModule_AddObjectRef(module, name, obj.get()) < 0) {
+        return false;
+    }
+    *store = obj.get();
+    return true;
+}
+
 } // namespace PyClingo

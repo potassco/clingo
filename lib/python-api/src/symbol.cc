@@ -885,7 +885,6 @@ auto symbol_module_traverse(PyObject *module, visitproc visit, void *arg) -> int
     for (auto &obj : state->vals) {
         Py_VISIT(obj);
     }
-    Py_VISIT(state->symbol_type);
     return 0;
 }
 
@@ -897,7 +896,7 @@ auto symbol_module_clear(PyObject *module) -> int {
     for (auto &obj : state->vals) {
         Py_CLEAR(obj);
     }
-    Py_CLEAR(state->symbol_type);
+    state->symbol_type = nullptr;
     return 0;
 }
 
@@ -935,11 +934,9 @@ void register_symbol(pybind11::module &m) {
         throw py::error_already_set();
     }
 
-    auto type_obj = Guard<PyObject *, Py_DECREF>(PyType_FromModuleAndSpec(symbol, &py_symbol_spec, nullptr));
-    if (type_obj == nullptr || PyModule_AddObjectRef(symbol, "Symbol", type_obj) < 0) {
+    if (!add_type(symbol, "Symbol", &py_symbol_spec, &state->symbol_type)) {
         throw py::error_already_set();
     }
-    state->symbol_type = type_obj;
 
     auto inf = Guard<PyObject *, Py_DECREF>(
         py_symbol_from_clingo(clingo_symbol_create_infimum(), get_symbol_type(state), false));
