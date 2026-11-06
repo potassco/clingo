@@ -25,6 +25,7 @@ using PySymbolObject = struct {
 
 struct SymbolModuleState {
     PyObject *symbol_type{nullptr};
+    PyObject *symbol_type_enum{nullptr};
     std::array<PyObject *, symbol_type_count> vals{};
 };
 
@@ -885,6 +886,8 @@ auto symbol_module_traverse(PyObject *module, visitproc visit, void *arg) -> int
     for (auto &obj : state->vals) {
         Py_VISIT(obj);
     }
+    Py_VISIT(state->symbol_type);
+    Py_VISIT(state->symbol_type_enum);
     return 0;
 }
 
@@ -896,7 +899,8 @@ auto symbol_module_clear(PyObject *module) -> int {
     for (auto &obj : state->vals) {
         Py_CLEAR(obj);
     }
-    state->symbol_type = nullptr;
+    Py_CLEAR(state->symbol_type);
+    Py_CLEAR(state->symbol_type_enum);
     return 0;
 }
 
@@ -928,9 +932,8 @@ void register_symbol(pybind11::module &m) {
         throw py::error_already_set();
     }
 
-    auto symbol_type_enum =
-        Guard<PyObject *, Py_DECREF>(create_int_enum("clingo.symbol", "SymbolType", symbol_type_members, state->vals));
-    if (symbol_type_enum == nullptr || PyModule_AddObjectRef(symbol, "SymbolType", symbol_type_enum) < 0) {
+    if (!add_int_enum("clingo.symbol", "SymbolType", symbol_type_members, symbol, &state->symbol_type_enum,
+                      state->vals)) {
         throw py::error_already_set();
     }
 

@@ -15,6 +15,15 @@ namespace PyClingo {
 
 namespace {
 
+constexpr auto theory_term_members = std::array<IntEnumMember, 6>{
+    IntEnumMember{"Number", static_cast<int>(clingo_theory_term_type_number)},
+    IntEnumMember{"Symbol", static_cast<int>(clingo_theory_term_type_symbol)},
+    IntEnumMember{"Tuple", static_cast<int>(clingo_theory_term_type_tuple)},
+    IntEnumMember{"List", static_cast<int>(clingo_theory_term_type_list)},
+    IntEnumMember{"Set", static_cast<int>(clingo_theory_term_type_set)},
+    IntEnumMember{"Function", static_cast<int>(clingo_theory_term_type_function)},
+};
+
 using PyAtomObject = struct {
     PyObject_HEAD const clingo_atom_base_t *base;
     size_t index;
@@ -1729,16 +1738,51 @@ auto py_base_spec = PyType_Spec{
     py_base_slots.data(),
 };
 
-// TheoryTermType enum
+auto base_module_traverse(PyObject *module, visitproc visit, void *arg) -> int {
+    auto *state = static_cast<BaseModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        return 0;
+    }
+    Py_VISIT(state->atom_type);
+    Py_VISIT(state->atom_base_type);
+    Py_VISIT(state->atom_base_iter_type);
+    Py_VISIT(state->term_type);
+    Py_VISIT(state->term_base_type);
+    Py_VISIT(state->term_base_iter_type);
+    Py_VISIT(state->theory_term_type);
+    Py_VISIT(state->theory_element_type);
+    Py_VISIT(state->theory_atom_type);
+    Py_VISIT(state->theory_base_type);
+    Py_VISIT(state->base_type);
+    Py_VISIT(state->base_iter_type);
+    Py_VISIT(state->theory_term_type_enum);
+    return 0;
+}
 
-constexpr auto theory_term_members = std::array<IntEnumMember, 6>{
-    IntEnumMember{"Number", static_cast<int>(clingo_theory_term_type_number)},
-    IntEnumMember{"Symbol", static_cast<int>(clingo_theory_term_type_symbol)},
-    IntEnumMember{"Tuple", static_cast<int>(clingo_theory_term_type_tuple)},
-    IntEnumMember{"List", static_cast<int>(clingo_theory_term_type_list)},
-    IntEnumMember{"Set", static_cast<int>(clingo_theory_term_type_set)},
-    IntEnumMember{"Function", static_cast<int>(clingo_theory_term_type_function)},
-};
+auto base_module_clear(PyObject *module) -> int {
+    auto *state = static_cast<BaseModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        return 0;
+    }
+    Py_CLEAR(state->atom_type);
+    Py_CLEAR(state->atom_base_type);
+    Py_CLEAR(state->atom_base_iter_type);
+    Py_CLEAR(state->term_type);
+    Py_CLEAR(state->term_base_type);
+    Py_CLEAR(state->term_base_iter_type);
+    Py_CLEAR(state->theory_term_type);
+    Py_CLEAR(state->theory_element_type);
+    Py_CLEAR(state->theory_atom_type);
+    Py_CLEAR(state->theory_base_type);
+    Py_CLEAR(state->base_type);
+    Py_CLEAR(state->base_iter_type);
+    Py_CLEAR(state->theory_term_type_enum);
+    return 0;
+}
+
+void base_module_free(void *module) {
+    base_module_clear(static_cast<PyObject *>(module));
+}
 
 PyModuleDef base_def = {
     PyModuleDef_HEAD_INIT,
@@ -1747,9 +1791,9 @@ PyModuleDef base_def = {
     static_cast<Py_ssize_t>(sizeof(BaseModuleState)),
     nullptr,
     nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
+    base_module_traverse,
+    base_module_clear,
+    base_module_free,
 };
 
 } // namespace
@@ -1765,12 +1809,10 @@ void register_base(py::module &m) {
         throw py::error_already_set();
     }
 
-    auto enum_obj =
-        Guard<PyObject *, Py_DECREF>(create_int_enum("clingo.base", "TheoryTermType", theory_term_members, {}));
-    if (enum_obj.get() == nullptr || PyModule_AddObjectRef(base_mod.get(), "TheoryTermType", enum_obj.get()) < 0) {
+    if (!add_int_enum("clingo.base", "TheoryTermType", theory_term_members, base_mod, &state->theory_term_type_enum,
+                      {})) {
         throw py::error_already_set();
     }
-    state->theory_term_type_enum = enum_obj.release();
 
     if (!add_type(base_mod.get(), "Atom", &py_atom_spec, &state->atom_type) ||
         !add_type(base_mod.get(), "_AtomBaseIter", &py_atom_base_iter_spec, &state->atom_base_iter_type) ||
