@@ -103,25 +103,21 @@ using SymbolSpan = std::span<Symbol const>;
 void register_symbol(pybind11::module &m);
 
 auto py_symbol_type() -> PyObject *;
-auto py_symbol_from_clingo(PyObject *type, clingo_symbol_t sym, bool acquire) -> PyObject *;
-auto py_symbol_to_clingo(PyObject *type, PyObject *obj, clingo_symbol_t *sym) -> bool;
-auto py_symbol_to_clingo_check(PyObject *type, PyObject *obj, clingo_symbol_t *sym) -> int;
+auto py_symbol_new(PyObject *type, clingo_symbol_t sym, bool acquire) -> PyObject *;
+auto py_symbol_get(PyObject *type, PyObject *obj, clingo_symbol_t *sym) -> bool;
+auto py_symbol_check(PyObject *type, PyObject *obj, clingo_symbol_t *sym) -> int;
 
 inline auto cpp_cast(clingo_symbol_t const *sym) {
-    // NOLINTNEXTLINE
     return reinterpret_cast<Symbol const *>(sym);
 }
 inline auto cpp_cast(clingo_symbol_t *sym) {
-    // NOLINTNEXTLINE
     return reinterpret_cast<Symbol *>(sym);
 }
 
 inline auto c_cast(Symbol const *sym) {
-    // NOLINTNEXTLINE
     return reinterpret_cast<clingo_symbol_t const *>(sym);
 }
 inline auto c_cast(Symbol *sym) {
-    // NOLINTNEXTLINE
     return reinterpret_cast<clingo_symbol_t *>(sym);
 }
 

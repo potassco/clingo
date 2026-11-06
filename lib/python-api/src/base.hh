@@ -11,8 +11,9 @@ namespace py = pybind11;
 
 void register_base(py::module &m);
 
-auto py_base_type() -> PyTypeObject *;
-auto py_base_new(PyTypeObject *type, const clingo_base_t *base) -> PyObject *;
+auto py_base_type() -> PyObject *;
+auto py_base_new(PyObject *type, clingo_base_t const *base) -> PyObject *;
+auto py_base_get(PyObject *type, PyObject *obj) -> clingo_base_t const *;
 
 class Base;
 

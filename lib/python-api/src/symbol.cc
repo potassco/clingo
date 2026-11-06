@@ -65,7 +65,7 @@ auto symbol_args_list(PyObject *type, clingo_symbol_t sym) -> PyObject * {
     }
     size_t i = 0;
     for (clingo_symbol_t arg : std::span{args, size}) {
-        PyObject *it = py_symbol_from_clingo(type, arg, true);
+        PyObject *it = py_symbol_new(type, arg, true);
         if (it == nullptr) {
             return nullptr;
         }
@@ -527,7 +527,7 @@ auto py_number([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * 
         }
     }
 
-    return py_symbol_from_clingo(state->symbol_type, sym, false);
+    return py_symbol_new(state->symbol_type, sym, false);
 }
 
 auto py_string([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * {
@@ -552,7 +552,7 @@ auto py_string([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * 
     if (!clingo_symbol_create_string(*lib, s, static_cast<size_t>(n), &sym)) {
         return py_handle_error();
     }
-    return py_symbol_from_clingo(state->symbol_type, sym, false);
+    return py_symbol_new(state->symbol_type, sym, false);
 }
 
 struct SymbolSeq {
@@ -628,7 +628,7 @@ auto py_tuple([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * {
     if (!clingo_symbol_create_tuple(*lib, syms.data, syms.size, &sym)) {
         return py_handle_error();
     }
-    return py_symbol_from_clingo(state->symbol_type, sym, false);
+    return py_symbol_new(state->symbol_type, sym, false);
 }
 
 auto py_function([[maybe_unused]] PyObject *module, PyObject *args, PyObject *kwargs) -> PyObject * {
@@ -665,7 +665,7 @@ auto py_function([[maybe_unused]] PyObject *module, PyObject *args, PyObject *kw
                                        is_positive != 0, &sym)) {
         return py_handle_error();
     }
-    return py_symbol_from_clingo(state->symbol_type, sym, false);
+    return py_symbol_new(state->symbol_type, sym, false);
 }
 
 auto py_parse_term([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * {
@@ -690,7 +690,7 @@ auto py_parse_term([[maybe_unused]] PyObject *module, PyObject *args) -> PyObjec
     if (!clingo_parse_term(*lib, s, static_cast<size_t>(n), &sym)) {
         return py_handle_error();
     }
-    return py_symbol_from_clingo(state->symbol_type, sym, false);
+    return py_symbol_new(state->symbol_type, sym, false);
 }
 
 auto py_symbol_methods = std::array{
@@ -923,13 +923,11 @@ void register_symbol(pybind11::module &m) {
         throw py::error_already_set();
     }
 
-    auto inf =
-        Guard<PyObject *, Py_DECREF>(py_symbol_from_clingo(state->symbol_type, clingo_symbol_create_infimum(), false));
+    auto inf = Guard<PyObject *, Py_DECREF>(py_symbol_new(state->symbol_type, clingo_symbol_create_infimum(), false));
     if (inf == nullptr || PyModule_AddObjectRef(symbol, "Infimum", inf) < 0) {
         throw py::error_already_set();
     }
-    auto sup =
-        Guard<PyObject *, Py_DECREF>(py_symbol_from_clingo(state->symbol_type, clingo_symbol_create_supremum(), false));
+    auto sup = Guard<PyObject *, Py_DECREF>(py_symbol_new(state->symbol_type, clingo_symbol_create_supremum(), false));
     if (sup == nullptr || PyModule_AddObjectRef(symbol, "Supremum", sup) < 0) {
         throw py::error_already_set();
     }
@@ -947,7 +945,7 @@ auto py_symbol_type() -> PyObject * {
     return state->symbol_type;
 }
 
-auto py_symbol_from_clingo(PyObject *type, clingo_symbol_t sym, bool acquire) -> PyObject * {
+auto py_symbol_new(PyObject *type, clingo_symbol_t sym, bool acquire) -> PyObject * {
     auto *obj = PyObject_New(PySymbolObject, reinterpret_cast<PyTypeObject *>(type));
     if (obj == nullptr) {
         if (!acquire) {
@@ -962,7 +960,7 @@ auto py_symbol_from_clingo(PyObject *type, clingo_symbol_t sym, bool acquire) ->
     return reinterpret_cast<PyObject *>(obj);
 }
 
-auto py_symbol_to_clingo(PyObject *type, PyObject *obj, clingo_symbol_t *sym) -> bool {
+auto py_symbol_get(PyObject *type, PyObject *obj, clingo_symbol_t *sym) -> bool {
     assert(type != nullptr && obj != nullptr && sym != nullptr);
     auto *s = check_symbol(obj, type);
     if (s == nullptr) {
@@ -973,7 +971,7 @@ auto py_symbol_to_clingo(PyObject *type, PyObject *obj, clingo_symbol_t *sym) ->
     return true;
 }
 
-auto py_symbol_to_clingo_check(PyObject *type, PyObject *obj, clingo_symbol_t *sym) -> int {
+auto py_symbol_check(PyObject *type, PyObject *obj, clingo_symbol_t *sym) -> int {
     assert(sym != nullptr && type != nullptr && obj != nullptr);
     auto *s = check_symbol(obj, type);
     if (s == nullptr) {
@@ -1009,7 +1007,7 @@ auto type_caster<PyClingo::Symbol>::load(handle src, [[maybe_unused]] bool noclu
 
 auto type_caster<PyClingo::Symbol>::cast(PyClingo::Symbol const &src, [[maybe_unused]] return_value_policy policy,
                                          [[maybe_unused]] handle parent) -> handle {
-    PyObject *obj = PyClingo::py_symbol_from_clingo(get_symbol_type(), src.handle(), true);
+    PyObject *obj = PyClingo::py_symbol_new(get_symbol_type(), src.handle(), true);
     if (obj == nullptr) {
         throw error_already_set();
     }

@@ -181,7 +181,7 @@ auto py_atom_get_symbol(PyObject *self, [[maybe_unused]] void *arg) -> PyObject 
     if (!clingo_atom_base_symbol(a->base, a->index, &sym)) {
         return py_handle_error();
     }
-    return py_symbol_from_clingo(state->symbol_type, sym, true);
+    return py_symbol_new(state->symbol_type, sym, true);
 }
 
 auto py_atom_getset = std::array{
@@ -253,7 +253,7 @@ auto py_atom_base_iter_next(PyObject *self) -> PyObject * {
         if (!clingo_atom_base_symbol(it->base, idx, &sym)) {
             return py_handle_error();
         }
-        return py_symbol_from_clingo(state->symbol_type, sym, true);
+        return py_symbol_new(state->symbol_type, sym, true);
     }
 
     if (it->kind == IterType::values) {
@@ -264,7 +264,7 @@ auto py_atom_base_iter_next(PyObject *self) -> PyObject * {
     if (!clingo_atom_base_symbol(it->base, idx, &sym)) {
         return py_handle_error();
     }
-    auto key = Guard<PyObject *, Py_DECREF>(py_symbol_from_clingo(state->symbol_type, sym, true));
+    auto key = Guard<PyObject *, Py_DECREF>(py_symbol_new(state->symbol_type, sym, true));
     auto val =
         Guard<PyObject *, Py_DECREF>(py_atom_new(reinterpret_cast<PyTypeObject *>(state->atom_type), it->base, idx));
     if (key.get() == nullptr || val.get() == nullptr) {
@@ -318,7 +318,7 @@ auto atom_base_lookup(PyObject *self, PyObject *key, size_t *idx, clingo_symbol_
     }
     clingo_symbol_t sym = 0;
     size_t index = 0;
-    if (auto res = py_symbol_to_clingo_check(state->symbol_type, key, &sym); res != 1) {
+    if (auto res = py_symbol_check(state->symbol_type, key, &sym); res != 1) {
         return res;
     }
     auto *a = reinterpret_cast<PyAtomBaseObject *>(self);
@@ -498,7 +498,7 @@ auto py_term_get_symbol(PyObject *self, [[maybe_unused]] void *arg) -> PyObject 
     if (!clingo_term_base_symbol(t->base, t->index, &sym)) {
         return py_handle_error();
     }
-    return py_symbol_from_clingo(state->symbol_type, sym, true);
+    return py_symbol_new(state->symbol_type, sym, true);
 }
 
 auto py_term_get_condition(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
@@ -601,7 +601,7 @@ auto py_term_base_iter_next(PyObject *self) -> PyObject * {
         if (!clingo_term_base_symbol(it->base, idx, &sym)) {
             return py_handle_error();
         }
-        return py_symbol_from_clingo(state->symbol_type, sym, true);
+        return py_symbol_new(state->symbol_type, sym, true);
     }
 
     if (it->kind == IterType::values) {
@@ -612,7 +612,7 @@ auto py_term_base_iter_next(PyObject *self) -> PyObject * {
     if (!clingo_term_base_symbol(it->base, idx, &sym)) {
         return py_handle_error();
     }
-    auto key = Guard<PyObject *, Py_DECREF>(py_symbol_from_clingo(state->symbol_type, sym, true));
+    auto key = Guard<PyObject *, Py_DECREF>(py_symbol_new(state->symbol_type, sym, true));
     auto val =
         Guard<PyObject *, Py_DECREF>(py_term_new(reinterpret_cast<PyTypeObject *>(state->term_type), it->base, idx));
     if (key.get() == nullptr || val.get() == nullptr) {
@@ -652,7 +652,7 @@ auto py_term_base_len(PyObject *self) -> Py_ssize_t {
         py_handle_error();
         return -1;
     }
-    if (n > static_cast<size_t>(std::numeric_limits<Py_ssize_t>::max())) {
+    if (std::cmp_greater(n, std::numeric_limits<Py_ssize_t>::max())) {
         PyErr_SetString(PyExc_OverflowError, "size does not fit in Py_ssize_t");
         return -1;
     }
@@ -665,7 +665,7 @@ auto term_base_lookup(PyObject *self, PyObject *key, size_t *idx) -> int {
         return -1;
     }
     clingo_symbol_t sym = 0;
-    if (auto res = py_symbol_to_clingo_check(state->symbol_type, key, &sym); res != 1) {
+    if (auto res = py_symbol_check(state->symbol_type, key, &sym); res != 1) {
         return res;
     }
     auto *t = reinterpret_cast<PyTermBaseObject *>(self);
@@ -1241,7 +1241,7 @@ auto py_theory_base_len(PyObject *self) -> Py_ssize_t {
         py_handle_error();
         return -1;
     }
-    if (n > static_cast<size_t>(std::numeric_limits<Py_ssize_t>::max())) {
+    if (std::cmp_greater(n, std::numeric_limits<Py_ssize_t>::max())) {
         PyErr_SetString(PyExc_OverflowError, "size does not fit in Py_ssize_t");
         return -1;
     }
@@ -1417,9 +1417,9 @@ auto parse_signature_tuple(PyObject *tuple, clingo_signature_t *sig) -> int {
         return 0;
     }
 
-    auto *name_obj = PyTuple_GetItem(tuple, 0);                    // borrowed
-    auto *arity_obj = PyTuple_GetItem(tuple, 1);                   // borrowed
-    auto *sign_obj = n == 3 ? PyTuple_GetItem(tuple, 2) : Py_True; // borrowed
+    auto *name_obj = PyTuple_GetItem(tuple, 0);
+    auto *arity_obj = PyTuple_GetItem(tuple, 1);
+    auto *sign_obj = n == 3 ? PyTuple_GetItem(tuple, 2) : Py_True;
 
     if (!PyUnicode_Check(name_obj)) {
         return 0;
@@ -1459,7 +1459,7 @@ auto parse_base_key(PyObject *self, PyObject *key, clingo_signature_t *sig, clin
     }
 
     clingo_symbol_t sym = 0;
-    auto is_sym = py_symbol_to_clingo_check(state->symbol_type, key, &sym);
+    auto is_sym = py_symbol_check(state->symbol_type, key, &sym);
     if (is_sym < 0) {
         return -1;
     }
@@ -1860,8 +1860,9 @@ void register_base(py::module &m) {
     }
 }
 
-auto py_base_new(PyTypeObject *type, const clingo_base_t *base) -> PyObject * {
-    auto *obj = type->tp_alloc(type, 0);
+auto py_base_new(PyObject *type, clingo_base_t const *base) -> PyObject * {
+    auto *to = reinterpret_cast<PyTypeObject *>(type);
+    auto *obj = to->tp_alloc(to, 0);
     if (obj == nullptr) {
         return nullptr;
     }
@@ -1870,28 +1871,35 @@ auto py_base_new(PyTypeObject *type, const clingo_base_t *base) -> PyObject * {
     return obj;
 }
 
-auto py_base_type() -> PyTypeObject * {
+auto py_base_type() -> PyObject * {
     auto mod = Guard<PyObject *, Py_DECREF>(PyImport_ImportModule("clingo.base"));
     if (mod.get() == nullptr) {
         return nullptr;
     }
     auto *state = get_state(mod.get());
-    if (state == nullptr || state->base_type == nullptr) {
+    if (state == nullptr) {
         return nullptr;
     }
-    return reinterpret_cast<PyTypeObject *>(state->base_type);
+    return state->base_type;
+}
+
+auto py_base_get(PyObject *type, PyObject *obj) -> clingo_base_t const * {
+    if (PyObject_TypeCheck(obj, reinterpret_cast<PyTypeObject *>(type)) == 0) {
+        PyErr_SetString(PyExc_TypeError, "object is not of type clingo.base.Base");
+        return nullptr;
+    }
+    return reinterpret_cast<PyBaseObject *>(obj)->base;
 }
 
 auto convert(TypeHint<"clingo.base.Base"> base, MixedLitSpan const &lits, bool flip, bool disjunctive) -> LitVec {
     auto *base_type = py_base_type();
     if (base_type == nullptr) {
-        throw py::error_already_set();
+        throw py::error_already_set{};
     }
-    if (PyObject_TypeCheck(base.ptr(), base_type) == 0) {
-        throw py::type_error{"base must be an instance of clingo.base.Base"};
+    clingo_base_t const *c_base = py_base_get(base_type, base.ptr());
+    if (c_base == nullptr) {
+        throw py::error_already_set{};
     }
-    auto *base_obj = reinterpret_cast<PyBaseObject *>(base.ptr());
-    auto const *c_base = base_obj->base;
 
     auto res = LitVec{};
     res.reserve(lits.size());
