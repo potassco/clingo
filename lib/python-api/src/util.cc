@@ -2,8 +2,8 @@
 
 namespace PyClingo {
 
-auto add_int_enum(char const *module_name, char const *enum_name, std::span<IntEnumMember const> members,
-                  PyObject *module, PyObject **store, std::span<PyObject *> cache) -> bool {
+auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMember const> members, PyObject **store,
+                  std::span<PyObject *> cache) -> bool {
     auto enum_mod = Guard<PyObject *, Py_DECREF>(PyImport_ImportModule("enum"));
     if (enum_mod == nullptr) {
         return false;
@@ -37,6 +37,11 @@ auto add_int_enum(char const *module_name, char const *enum_name, std::span<IntE
         return false;
     }
 
+    auto const *module_name = PyModule_GetName(module);
+    if (module_name == nullptr) {
+        return false;
+    }
+
     auto mod = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(module_name));
     if (mod == nullptr || PyObject_SetAttrString(enum_obj.get(), "__module__", mod.get()) < 0) {
         return false;
@@ -60,7 +65,7 @@ auto add_int_enum(char const *module_name, char const *enum_name, std::span<IntE
         }
     }
 
-    if (PyModule_AddObjectRef(module, enum_name, *store) < 0) {
+    if (PyModule_AddObjectRef(module, enum_name, enum_obj) < 0) {
         return false;
     }
 
@@ -75,6 +80,24 @@ auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **
         return false;
     }
     *store = obj.release();
+    return true;
+}
+
+auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool {
+    const char *n = std::strrchr(def->m_name, '.');
+    if (n == nullptr) {
+        PyErr_Format(PyExc_RuntimeError, "invalid submodule name '%s'", def->m_name);
+        return false;
+    }
+    n = n + 1;
+
+    auto submodule = Guard<PyObject *, Py_DECREF>(PyModule_Create(def));
+    auto *modules = PyImport_GetModuleDict();
+    if (modules == nullptr || PyModule_AddObjectRef(module, n, submodule) < 0 ||
+        PyDict_SetItemString(modules, def->m_name, submodule) < 0) {
+        return false;
+    }
+    *store = submodule.release();
     return true;
 }
 

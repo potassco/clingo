@@ -89,6 +89,7 @@ using PyTermBaseIter = struct {
 };
 
 struct BaseModuleState {
+    PyObject *symbol_type{nullptr};
     PyObject *atom_type{nullptr};
     PyObject *atom_base_type{nullptr};
     PyObject *atom_base_iter_type{nullptr};
@@ -171,12 +172,16 @@ auto py_atom_get_literal(PyObject *self, [[maybe_unused]] void *arg) -> PyObject
 }
 
 auto py_atom_get_symbol(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
     auto *a = reinterpret_cast<PyAtomObject *>(self);
     clingo_symbol_t sym = 0;
     if (!clingo_atom_base_symbol(a->base, a->index, &sym)) {
         return py_handle_error();
     }
-    return py_symbol_from_clingo_object(sym, true);
+    return py_symbol_from_clingo(state->symbol_type, sym, true);
 }
 
 auto py_atom_getset = std::array{
@@ -232,6 +237,11 @@ auto py_atom_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
 }
 
 auto py_atom_base_iter_next(PyObject *self) -> PyObject * {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+
     auto *it = reinterpret_cast<PyAtomBaseIter *>(self);
     if (it->index >= it->size) {
         return nullptr;
@@ -243,12 +253,7 @@ auto py_atom_base_iter_next(PyObject *self) -> PyObject * {
         if (!clingo_atom_base_symbol(it->base, idx, &sym)) {
             return py_handle_error();
         }
-        return py_symbol_from_clingo_object(sym, true);
-    }
-
-    auto *state = get_state_from_self(self);
-    if (state == nullptr) {
-        return nullptr;
+        return py_symbol_from_clingo(state->symbol_type, sym, true);
     }
 
     if (it->kind == IterType::values) {
@@ -259,7 +264,7 @@ auto py_atom_base_iter_next(PyObject *self) -> PyObject * {
     if (!clingo_atom_base_symbol(it->base, idx, &sym)) {
         return py_handle_error();
     }
-    auto key = Guard<PyObject *, Py_DECREF>(py_symbol_from_clingo_object(sym, true));
+    auto key = Guard<PyObject *, Py_DECREF>(py_symbol_from_clingo(state->symbol_type, sym, true));
     auto val =
         Guard<PyObject *, Py_DECREF>(py_atom_new(reinterpret_cast<PyTypeObject *>(state->atom_type), it->base, idx));
     if (key.get() == nullptr || val.get() == nullptr) {
@@ -307,9 +312,13 @@ auto py_atom_base_len(PyObject *self) -> Py_ssize_t {
 }
 
 auto atom_base_lookup(PyObject *self, PyObject *key, size_t *idx, clingo_symbol_t *sym_out = nullptr) -> int {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return -1;
+    }
     clingo_symbol_t sym = 0;
     size_t index = 0;
-    if (auto res = py_symbol_to_clingo_check(key, &sym); res != 1) {
+    if (auto res = py_symbol_to_clingo_check(state->symbol_type, key, &sym); res != 1) {
         return res;
     }
     auto *a = reinterpret_cast<PyAtomBaseObject *>(self);
@@ -480,12 +489,16 @@ auto py_term_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
 }
 
 auto py_term_get_symbol(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
     auto *t = reinterpret_cast<PyTermObject *>(self);
     clingo_symbol_t sym = 0;
     if (!clingo_term_base_symbol(t->base, t->index, &sym)) {
         return py_handle_error();
     }
-    return py_symbol_from_clingo_object(sym, true);
+    return py_symbol_from_clingo(state->symbol_type, sym, true);
 }
 
 auto py_term_get_condition(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
@@ -572,6 +585,11 @@ auto py_term_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
 }
 
 auto py_term_base_iter_next(PyObject *self) -> PyObject * {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+
     auto *it = reinterpret_cast<PyTermBaseIter *>(self);
     if (it->index >= it->size) {
         return nullptr;
@@ -583,12 +601,7 @@ auto py_term_base_iter_next(PyObject *self) -> PyObject * {
         if (!clingo_term_base_symbol(it->base, idx, &sym)) {
             return py_handle_error();
         }
-        return py_symbol_from_clingo_object(sym, true);
-    }
-
-    auto *state = get_state_from_self(self);
-    if (state == nullptr) {
-        return nullptr;
+        return py_symbol_from_clingo(state->symbol_type, sym, true);
     }
 
     if (it->kind == IterType::values) {
@@ -599,7 +612,7 @@ auto py_term_base_iter_next(PyObject *self) -> PyObject * {
     if (!clingo_term_base_symbol(it->base, idx, &sym)) {
         return py_handle_error();
     }
-    auto key = Guard<PyObject *, Py_DECREF>(py_symbol_from_clingo_object(sym, true));
+    auto key = Guard<PyObject *, Py_DECREF>(py_symbol_from_clingo(state->symbol_type, sym, true));
     auto val =
         Guard<PyObject *, Py_DECREF>(py_term_new(reinterpret_cast<PyTypeObject *>(state->term_type), it->base, idx));
     if (key.get() == nullptr || val.get() == nullptr) {
@@ -647,8 +660,12 @@ auto py_term_base_len(PyObject *self) -> Py_ssize_t {
 }
 
 auto term_base_lookup(PyObject *self, PyObject *key, size_t *idx) -> int {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return -1;
+    }
     clingo_symbol_t sym = 0;
-    if (auto res = py_symbol_to_clingo_check(key, &sym); res != 1) {
+    if (auto res = py_symbol_to_clingo_check(state->symbol_type, key, &sym); res != 1) {
         return res;
     }
     auto *t = reinterpret_cast<PyTermBaseObject *>(self);
@@ -1431,13 +1448,18 @@ auto parse_signature_tuple(PyObject *tuple, clingo_signature_t *sig) -> int {
     return 1;
 }
 
-auto parse_base_key(PyObject *key, clingo_signature_t *sig, clingo_symbol_t *sym_opt) -> int {
+auto parse_base_key(PyObject *self, PyObject *key, clingo_signature_t *sig, clingo_symbol_t *sym_opt) -> int {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return -1;
+    }
+
     if (PyTuple_Check(key) != 0) {
         return parse_signature_tuple(key, sig);
     }
 
     clingo_symbol_t sym = 0;
-    auto is_sym = py_symbol_to_clingo_check(key, &sym);
+    auto is_sym = py_symbol_to_clingo_check(state->symbol_type, key, &sym);
     if (is_sym < 0) {
         return -1;
     }
@@ -1469,7 +1491,7 @@ auto py_base_contains(PyObject *self, PyObject *key) -> int {
     auto *b = reinterpret_cast<PyBaseObject *>(self);
     clingo_signature_t sig{};
     clingo_symbol_t sym = 0;
-    auto is_key = parse_base_key(key, &sig, &sym);
+    auto is_key = parse_base_key(self, key, &sig, &sym);
     if (is_key < 0) {
         return -1;
     }
@@ -1513,7 +1535,7 @@ auto base_get(PyObject *self, PyObject *key, PyObject *def) -> PyObject * {
 
     clingo_signature_t sig{};
     clingo_symbol_t sym = 0;
-    auto is_key = parse_base_key(key, &sig, &sym);
+    auto is_key = parse_base_key(self, key, &sig, &sym);
     if (is_key < 0) {
         return nullptr;
     }
@@ -1743,6 +1765,7 @@ auto base_module_traverse(PyObject *module, visitproc visit, void *arg) -> int {
     if (state == nullptr) {
         return 0;
     }
+    Py_VISIT(state->symbol_type);
     Py_VISIT(state->atom_type);
     Py_VISIT(state->atom_base_type);
     Py_VISIT(state->atom_base_iter_type);
@@ -1764,6 +1787,7 @@ auto base_module_clear(PyObject *module) -> int {
     if (state == nullptr) {
         return 0;
     }
+    Py_CLEAR(state->symbol_type);
     Py_CLEAR(state->atom_type);
     Py_CLEAR(state->atom_base_type);
     Py_CLEAR(state->atom_base_iter_type);
@@ -1799,8 +1823,9 @@ PyModuleDef base_def = {
 } // namespace
 
 void register_base(py::module &m) {
-    auto base_mod = Guard<PyObject *, Py_DECREF>(PyModule_Create(&base_def));
-    if (base_mod.get() == nullptr) {
+    // TODO: this is going to be the return value at some point
+    auto base_mod = Guard<PyObject *, Py_DECREF>(nullptr);
+    if (!add_submodule(m.ptr(), &base_def, &base_mod.get())) {
         throw py::error_already_set();
     }
 
@@ -1809,8 +1834,13 @@ void register_base(py::module &m) {
         throw py::error_already_set();
     }
 
-    if (!add_int_enum("clingo.base", "TheoryTermType", theory_term_members, base_mod, &state->theory_term_type_enum,
-                      {})) {
+    state->symbol_type = py_symbol_type();
+    if (state->symbol_type == nullptr) {
+        throw py::error_already_set();
+    }
+    Py_INCREF(state->symbol_type);
+
+    if (!add_int_enum(base_mod, "TheoryTermType", theory_term_members, &state->theory_term_type_enum, {})) {
         throw py::error_already_set();
     }
 
@@ -1826,12 +1856,6 @@ void register_base(py::module &m) {
         !add_type(base_mod.get(), "TheoryBase", &py_theory_base_spec, &state->theory_base_type) ||
         !add_type(base_mod.get(), "_BaseIter", &py_base_iter_spec, &state->base_iter_type) ||
         !add_type(base_mod.get(), "Base", &py_base_spec, &state->base_type)) {
-        throw py::error_already_set();
-    }
-
-    auto *modules = PyImport_GetModuleDict();
-    if (modules == nullptr || PyModule_AddObjectRef(m.ptr(), "base", base_mod.get()) < 0 ||
-        PyDict_SetItemString(modules, "clingo.base", base_mod.get()) < 0) {
         throw py::error_already_set();
     }
 }

@@ -478,9 +478,10 @@ inline auto py_c_function_cast(PyCFunctionWithKeywords fun) noexcept -> PyCFunct
 
 using IntEnumMember = std::tuple<char const *, int>;
 
-auto add_int_enum(char const *module_name, char const *enum_name, std::span<IntEnumMember const> members,
-                  PyObject *module, PyObject **store, std::span<PyObject *> cache) -> bool;
+auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMember const> members, PyObject **store,
+                  std::span<PyObject *> cache) -> bool;
 
 auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **store) -> bool;
 
+auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool;
 } // namespace PyClingo
