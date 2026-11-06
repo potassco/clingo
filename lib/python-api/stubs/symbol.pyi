@@ -25,12 +25,11 @@ p(3)
 ```
 """
 
-from __future__ import annotations
-
 import enum
 import typing
+from collections.abc import Sequence
 
-import clingo.core
+from clingo.core import Library
 
 __all__: list[str] = [
     "Function",
@@ -45,9 +44,9 @@ __all__: list[str] = [
 ]
 
 def Function(
-    lib: clingo.core.Library,
+    lib: Library,
     name: str,
-    arguments: typing.Sequence[Symbol] = [],
+    arguments: Sequence[Symbol] = [],
     is_positive: bool = True,
 ) -> Symbol:
     """
@@ -65,7 +64,7 @@ def Function(
         is_positive: Whether the function is positive.
     """
 
-def Number(lib: clingo.core.Library, number: int, /) -> Symbol:
+def Number(lib: Library, number: int, /) -> Symbol:
     """
     Construct a numeric symbol given a number.
 
@@ -74,7 +73,7 @@ def Number(lib: clingo.core.Library, number: int, /) -> Symbol:
         number: The given number.
     """
 
-def String(lib: clingo.core.Library, string: str, /) -> Symbol:
+def String(lib: Library, string: str, /) -> Symbol:
     """
     Construct a string symbol given a string.
 
@@ -83,7 +82,7 @@ def String(lib: clingo.core.Library, string: str, /) -> Symbol:
         string: The given string.
     """
 
-def Tuple_(lib: clingo.core.Library, arguments: typing.Sequence[Symbol], /) -> Symbol:
+def Tuple_(lib: Library, arguments: Sequence[Symbol], /) -> Symbol:
     """
     Construct a tuple symbol.
 
@@ -94,7 +93,7 @@ def Tuple_(lib: clingo.core.Library, arguments: typing.Sequence[Symbol], /) -> S
         arguments: The arguments in form of a list of symbols.
     """
 
-def parse_term(lib: clingo.core.Library, string: str, /) -> Symbol:
+def parse_term(lib: Library, string: str, /) -> Symbol:
     """
     Parse the given string using clingo's term parser for ground terms.
 
@@ -105,8 +104,14 @@ def parse_term(lib: clingo.core.Library, string: str, /) -> Symbol:
         string: The string to be parsed.
     """
 
-Infimum: Symbol  # value = Infimum
-Supremum: Symbol  # value = Supremum
+Infimum: Symbol
+"""
+The infimum symbol `#inf`.
+"""
+Supremum: Symbol
+"""
+The supremum symbol `#sup`.
+"""
 
 class SymbolType(enum.IntEnum):
     """
@@ -114,11 +119,29 @@ class SymbolType(enum.IntEnum):
     """
 
     Function = 5
+    """
+    A function symbol, for exmample `f(1,2)` or `g`.
+    """
     Infimum = 2
+    """
+    The infimum symbol `#inf`.
+    """
     Number = 0
+    """
+    A number symbol, for example `42` or `-1`.
+    """
     String = 3
+    """
+    A string symbol, for example `"hello"`.
+    """
     Supremum = 1
+    """
+    The supremum symbol `#sup`.
+    """
     Tuple = 4
+    """
+    A tuple symbol, for example `(1,2)` or `()`.
+    """
 
 class Symbol:
     """
@@ -140,47 +163,37 @@ class Symbol:
 
     def __eq__(self, value):
         """
-        Return self==value.
-        """
-
-    def __ge__(self, value):
-        """
-        Return self>=value.
-        """
-
-    def __gt__(self, value):
-        """
-        Return self>value.
-        """
-
-    def __hash__(self):
-        """
-        Return hash(self).
-        """
-
-    def __le__(self, value):
-        """
-        Return self<=value.
-        """
-
-    def __lt__(self, value):
-        """
-        Return self<value.
+        Compare with another object for equality.
         """
 
     def __ne__(self, value):
         """
-        Return self!=value.
+        Compare with another object for inequality.
         """
 
-    def __repr__(self):
+    def __hash__(self):
         """
-        Return repr(self).
+        Compute a hash value for this symbol.
         """
 
-    def __str__(self):
+    def __ge__(self, value):
         """
-        Return str(self).
+        Compare with another object for greater than or equal.
+        """
+
+    def __gt__(self, value):
+        """
+        Compare with another object for greater than.
+        """
+
+    def __le__(self, value):
+        """
+        Compare with another object for less than or equal.
+        """
+
+    def __lt__(self, value):
+        """
+        Compare with another object for less than.
         """
 
     @typing.overload
@@ -210,7 +223,7 @@ class Symbol:
         """
 
     @property
-    def arguments(self) -> typing.Sequence[Symbol]:
+    def arguments(self) -> Sequence[Symbol]:
         """
         The list of arguments.
         """

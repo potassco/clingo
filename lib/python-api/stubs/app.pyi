@@ -202,7 +202,10 @@ class App:
     """
 
     def __init__(
-        self, program_name: str | None = None, version: str | None = None
+        self,
+        program_name: str | None = None,
+        version: str | None = None,
+        commit_hash: str | None = None,
     ) -> None:
         """
         Initializes the application with a program name and its version.
@@ -215,6 +218,8 @@ class App:
                 The name of the application.
             version:
                 The version string of the application.
+            commit_hash:
+                The version control commit hash of the application.
         """
 
     def main(

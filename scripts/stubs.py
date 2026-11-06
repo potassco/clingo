@@ -11,7 +11,9 @@ import re
 import subprocess
 import sys
 import sysconfig
+import tempfile
 from glob import glob
+from pathlib import Path
 
 import black
 import isort
@@ -253,68 +255,82 @@ class Rewriter:
         args = ["pybind11-stubgen"]
         extension = ".pyi"
         libpath = sysconfig.get_path("purelib")
-        clingo_stubs = os.path.join(libpath, "clingo-stubs")
-        args.extend(["--root-suffix=-stubs"])
-
-        args.extend(
-            [
-                "--print-value-comments",
-                "--enum-class-locations",
-                "WeightConstraintType:clingo.propagate",
-                "--enum-class-locations",
-                "LogLevel:clingo.core",
-                "-o",
-                libpath,
-                "clingo",
-            ]
-        )
         env = os.environ.copy()
         env["PYTHONPATH"] = "./build/debug/bin/python"
-        subprocess.check_call(args, env=env)
 
-        for root, dirs, files in os.walk(clingo_stubs):
-            assert dirs is not None
-            for file in files:
-                if file.endswith(extension):
-                    sys.stderr.write(f"processing {file}...\n")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            args.extend(["--root-suffix=-stubs"])
+
+            args.extend(
+                [
+                    "--print-value-comments",
+                    "--enum-class-locations",
+                    "WeightConstraintType:clingo.propagate",
+                    "--enum-class-locations",
+                    "LogLevel:clingo.core",
+                    "-o",
+                    tmpdir,
+                    "clingo",
+                ]
+            )
+            subprocess.check_call(args, env=env)
+
+            for root, dirs, files in os.walk(tmpdir):
+                assert dirs is not None
+                for file in files:
                     path = os.path.join(root, file)
-                    with open(path, "r", encoding="utf8") as hnd:
-                        content = hnd.read()
-                    # if content contains collections.abc, we have to add collections.abc to the imports
-                    if (
-                        "collections.abc." in content
-                        and "import collections.abc" not in content
-                    ):
-                        imp = content.find("\nimport")
-                        assert imp >= 0
-                        content = (
-                            content[:imp] + "\nimport collections.abc" + content[imp:]
-                        )
-                    content = content.replace("typing.SupportsInt", "int")
-                    pattern = r"^(\w+):\s*typing\.Union\s*#\s*value\s*=\s*(.+)$"
-                    unions = []
-
-                    def append(match):
-                        unions.append(f"{match[1]}: typing.TypeAlias = {match[2]}")
-                        return ""
-
-                    content = re.sub(pattern, append, content, flags=re.MULTILINE)
-                    content = self.enums_to_top(content)
-                    if unions:
-                        content += "\n" + "\n".join(unions) + "\n"
-                    content = self.format(path, content)
-                    gen_content = None
                     gen_path = os.path.join("lib", "python-api", "stubs", file)
-                    try:
-                        with open(gen_path, "r", encoding="utf8") as hnd:
-                            gen_content = hnd.read()
-                    except IOError:
-                        pass
-                    if content != gen_content:
-                        with open(gen_path, "w", encoding="utf8") as hnd:
+                    target_path = os.path.join(libpath, Path(path).relative_to(tmpdir))
+
+                    # NOTE: stubs will be written manually in the future
+                    if file == "base.pyi" or file == "symbol.pyi":
+                        with (
+                            open(gen_path, "r", encoding="utf8") as hnd,
+                            open(target_path, "w", encoding="utf8") as hnd2,
+                        ):
+                            hnd2.write(hnd.read())
+                    elif file.endswith(extension):
+                        sys.stderr.write(f"processing {file}...\n")
+                        with open(path, "r", encoding="utf8") as hnd:
+                            content = hnd.read()
+                        # if content contains collections.abc, we have to add collections.abc to the imports
+                        if (
+                            "collections.abc." in content
+                            and "import collections.abc" not in content
+                        ):
+                            imp = content.find("\nimport")
+                            assert imp >= 0
+                            content = (
+                                content[:imp]
+                                + "\nimport collections.abc"
+                                + content[imp:]
+                            )
+                        content = content.replace("typing.SupportsInt", "int")
+                        pattern = r"^(\w+):\s*(?:\(\s*)?types\.UnionType(?:\s*\))?\s*#\s*value\s*=\s*(.+)$"
+                        unions = []
+
+                        def append(match):
+                            unions.append(f"{match[1]}: typing.TypeAlias = {match[2]}")
+                            return ""
+
+                        content = re.sub(pattern, append, content, flags=re.MULTILINE)
+                        content = self.enums_to_top(content)
+                        if unions:
+                            content += "\n" + "\n".join(unions) + "\n"
+                        content = self.format(path, content)
+                        gen_content = None
+                        try:
+                            with open(gen_path, "r", encoding="utf8") as hnd:
+                                gen_content = hnd.read()
+                        except OSError:
+                            pass
+                        if content != gen_content:
+                            with open(gen_path, "w", encoding="utf8") as hnd:
+                                Path(gen_path).parent.mkdir(parents=True, exist_ok=True)
+                                hnd.write(content)
+                        with open(target_path, "w", encoding="utf8") as hnd:
+                            Path(target_path).parent.mkdir(parents=True, exist_ok=True)
                             hnd.write(content)
-                    with open(path, "w", encoding="utf8") as hnd:
-                        hnd.write(content)
 
         try:
             for lib in glob("./build/debug/bin/python/clingo*.so"):

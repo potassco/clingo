@@ -438,4 +438,50 @@ auto make_comparable_base(pybind11::class_<T, O...> cls) -> pybind11::class_<T, 
     return make_comparable<T>(std::move(cls));
 }
 
+template <class T, auto Destroy> class Guard {
+  public:
+    constexpr explicit Guard(T v = {}) noexcept : value_{v} {}
+
+    Guard(Guard const &other) = delete;
+    auto operator=(Guard const &other) -> Guard & = delete;
+    constexpr Guard(Guard &&other) noexcept = delete;
+    constexpr auto operator=(Guard &&other) noexcept = delete;
+
+    ~Guard() noexcept {
+        if (value_ != T{}) {
+            Destroy(value_);
+        }
+    }
+
+    // NOLINTNEXTLINE
+    constexpr operator T &() noexcept { return value_; }
+    [[nodiscard]] constexpr auto get() noexcept -> T & { return value_; }
+
+    auto release() noexcept -> T {
+        auto v = value_;
+        value_ = T{};
+        return v;
+    }
+
+  private:
+    T value_{};
+};
+
+template <size_t N> auto cast_kw(std::array<char const *, N> const &kwlist) -> char ** {
+    // NOLINTNEXTLINE
+    return const_cast<char **>(kwlist.data());
+}
+
+inline auto py_c_function_cast(PyCFunctionWithKeywords fun) noexcept -> PyCFunction {
+    return reinterpret_cast<PyCFunction>(reinterpret_cast<void *>(fun)); // NOLINT
+}
+
+using IntEnumMember = std::tuple<char const *, int>;
+
+auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMember const> members, PyObject **store,
+                  std::span<PyObject *> cache) -> bool;
+
+auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **store) -> bool;
+
+auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool;
 } // namespace PyClingo

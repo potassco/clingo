@@ -472,7 +472,7 @@ mappings with string keys, and floats.
 Append the given value to the array.
 
 Args:
-	value: The value to append.
+    value: The value to append.
 )"_d);
 
     stats_map_view //

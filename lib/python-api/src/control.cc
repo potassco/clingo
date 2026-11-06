@@ -1,6 +1,7 @@
 #include "control.hh"
 #include "ast.hh"
 #include "core.hh"
+#include "iterator.hh"
 #include "stats.hh"
 #include "util.hh"
 
@@ -195,10 +196,14 @@ auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
     return res;
 }
 
-auto Control::base() -> Base {
+auto Control::base() -> TypeHint<"clingo.base.Base"> {
     clingo_base_t const *base = nullptr;
     clingo_control_base(get(), &base);
-    return Base{base};
+    auto *type = py_base_type();
+    if (type == nullptr) {
+        throw py::error_already_set();
+    }
+    return py::reinterpret_steal<TypeHint<"clingo.base.Base">>(py_base_new(type, base));
 }
 
 void Control::observe(Observer &obs, bool preprocess) {
@@ -558,13 +563,13 @@ symbols.
 
 Args:
     parts:
-		A sequence of tuples, each containing a section name and a sequence of
-		symbols. The name identifies the program section to ground, and the
-		symbols bind its parameters.  If `None`, the implicit base section
-		without arguments is grounded.
+        A sequence of tuples, each containing a section name and a sequence of
+        symbols. The name identifies the program section to ground, and the
+        symbols bind its parameters.  If `None`, the implicit base section
+        without arguments is grounded.
     context:
-		An optional object providing functions that can be called during
-		grounding.
+        An optional object providing functions that can be called during
+        grounding.
 )"_d)
         .def("start_ground", &Control::start_ground, py::arg("parts") = std::nullopt, py::arg("context") = py::none(),
              py::arg("on_finish") = py::none(), R"(
@@ -576,10 +581,10 @@ grounding program parts.
 
 Args:
     parts:
-		A sequence of parts to ground.
+        A sequence of parts to ground.
     context:
-		An optional object providing functions that can be called during
-		grounding.
+        An optional object providing functions that can be called during
+        grounding.
     on_finish:
         An optional callback called once grounding has finished.
 )"_d)
@@ -597,7 +602,7 @@ with self.start_solve(assumptions, on_model, on_unsat, on_stats, on_finish) as h
 
 Args:
     assumptions:
-		A list of assumptions.
+        A list of assumptions.
     on_model:
         Optional callback to intercept models.
     on_unsat:
@@ -605,7 +610,7 @@ Args:
     on_stats:
         Optional callback extend statistics.
     on_finish:
-		Optional callback called once search has finished.
+        Optional callback called once search has finished.
 Returns:
     A `clingo.solve.SolveResult` representing the result of the search.
 )"_d)
@@ -624,11 +629,11 @@ blocks until solving is complete.
 
 Args:
     assumptions:
-		A list of assumptions that constrain this search. Each assumption is
-		either a `tuple[clingo.symbol.Symbol, bool]` indicating an atom's truth
-		value or a program literal (see `clingo.base.Atom.literal`). For
-		example, using `[(clingo.symbol.Function(lib, "a"), True)]` only admits
-		answer sets that contain atom `a`.
+        A list of assumptions that constrain this search. Each assumption is
+        either a `tuple[clingo.symbol.Symbol, bool]` indicating an atom's truth
+        value or a program literal (see `clingo.base.Atom.literal`). For
+        example, using `[(clingo.symbol.Function(lib, "a"), True)]` only admits
+        answer sets that contain atom `a`.
     on_model:
         Optional callback that receives a `clingo.solve.Model` object when
         a model is found. Returning `False` from the callback stops solving.
@@ -639,11 +644,11 @@ Args:
         Two `clingo.stats.Stats` objects are passed: step-specific and
         accumulated stats.
     on_finish:
-		Optional callback called once search has finished. A
-		`clingo.solve.SolveResult` is passed to the callback.
+        Optional callback called once search has finished. A
+        `clingo.solve.SolveResult` is passed to the callback.
     yield_:
-		If `True`, the returned `clingo.solve.SolveHandle` is iterable,
-		yielding  `clingo.solve.Model` objects during solving.
+        If `True`, the returned `clingo.solve.SolveHandle` is iterable,
+        yielding  `clingo.solve.Model` objects during solving.
     async_:
         If `True`, solving runs asynchronously in a separate thread.
         Note: Callbacks (`on_model`, `on_stats`, etc.) will also be called
@@ -652,8 +657,8 @@ Returns:
     A `clingo.solve.SolveHandle` to control the search.
 
 Notes:
-	Asynchronous solving requires compiling clingo with thread support.
-	Blocking methods on `SolveHandle` release the GIL but are not thread-safe.
+    Asynchronous solving requires compiling clingo with thread support.
+    Blocking methods on `SolveHandle` release the GIL but are not thread-safe.
 
 See Also:
     `clingo.solve`
@@ -684,8 +689,8 @@ Inspect the ground program of the current step.
 
 Args:
     observer: The program observer to inspect the program.
-	preprocess:
-		Whether the program should be preprocessed first (default: True).
+    preprocess:
+        Whether the program should be preprocessed first (default: True).
 )"_d)
         .def("discard", &Control::discard, py::arg("minimize") = false, py::arg("project") = false, R"(
 Discard statements of the selected types.

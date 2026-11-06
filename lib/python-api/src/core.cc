@@ -7,6 +7,39 @@
 
 namespace PyClingo {
 
+auto py_handle_error() -> std::nullptr_t {
+    clingo_string_t str;
+    clingo_result_t rc = clingo_result_success;
+    clingo_get_error(&rc, &str);
+    PyObject *exc_type = PyExc_RuntimeError;
+    switch (rc) {
+        case clingo_result_bad_alloc: {
+            exc_type = PyExc_MemoryError;
+            break;
+        }
+        case clingo_result_invalid:
+        case clingo_result_range: {
+            exc_type = PyExc_ValueError;
+            break;
+        }
+        default: {
+            break;
+        }
+    }
+    // NOLINTBEGIN
+    auto *buf = static_cast<char *>(malloc(str.size + 1));
+    if (buf != nullptr) {
+        memcpy(buf, str.data, str.size);
+        buf[str.size] = '\0';
+        PyErr_SetString(exc_type, buf);
+        free(buf);
+    } else {
+        PyErr_SetString(PyExc_RuntimeError, "unknown error");
+    }
+    // NOLINTEND
+    return nullptr;
+}
+
 void raise_error() {
     clingo_string_t str;
     clingo_result_t rc = clingo_result_success;

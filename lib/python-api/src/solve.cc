@@ -59,10 +59,14 @@ class ModelIterator {
 
 } // namespace
 
-auto SolveControl::base() -> Base {
+auto SolveControl::base() -> TypeHint<"clingo.base.Base"> {
     clingo_base_t const *base = nullptr;
     handle_error(clingo_solve_control_base(ctl_, &base));
-    return Base{base};
+    auto *type = py_base_type();
+    if (type == nullptr) {
+        throw py::error_already_set();
+    }
+    return py::reinterpret_steal<TypeHint<"clingo.base.Base">>(py_base_new(type, base));
 }
 
 auto SolveControl::add_clause(MixedLitSpan const &lits) {
@@ -417,7 +421,7 @@ This only has an effect if there is an underlying clingo application, which
 will print the added symbols.
 
 Args:
-	symbols: The symbols to add to the model.
+    symbols: The symbols to add to the model.
 )")
         .def("__str__", &Model::str, "Get a string representation of the model.")
         .def_property_readonly("control", &Model::control, "Get the associated solve control object.")

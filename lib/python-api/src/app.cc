@@ -415,8 +415,8 @@ Args:
 Register command-line options for the application.
 
 Args:
-	options:
-		An instance of AppOptions to add new options.
+    options:
+        An instance of AppOptions to add new options.
 )"_d)
         .def("validate_options", &App::validate_options, R"(
 Validate the options passed to the application.
@@ -432,10 +432,10 @@ use case would be to use the printer and then print additional information
 below the model.
 
 Args:
-	model:
-		The current model held by the solver.
-	default_printer:
-		A callable that prints the model in default format.
+    model:
+        The current model held by the solver.
+    default_printer:
+        A callable that prints the model in default format.
 )"_d)
         .def("main", &App::main, py::arg("control"), py::arg("files"), R"(
 Run the main execution flow of the application.
@@ -459,12 +459,12 @@ then executes the main functionality of the Clingo application. It can
 optionally use a provided App instance to customize this behavior.
 
 Args:
-	lib:
-		The Clingo core library interface.
-	arguments:
-		A list of command-line arguments.
-	app:
-		An optional App instance containing application-specific logic.
+    lib:
+        The Clingo core library interface.
+    arguments:
+        A list of command-line arguments.
+    app:
+        An optional App instance containing application-specific logic.
 
 Returns:
     An integer exit code.
