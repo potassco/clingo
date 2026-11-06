@@ -1,0 +1,60 @@
+#include "util.hh"
+
+namespace PyClingo {
+
+auto create_int_enum(const char *enum_name, std::span<IntEnumMember const> members, std::span<PyObject *> cache)
+    -> PyObject * {
+    auto enum_mod = Guard<PyObject *, Py_DECREF>(PyImport_ImportModule("enum"));
+    if (enum_mod == nullptr) {
+        return nullptr;
+    }
+
+    auto int_enum = Guard<PyObject *, Py_DECREF>(PyObject_GetAttrString(enum_mod.get(), "IntEnum"));
+    if (int_enum == nullptr) {
+        return nullptr;
+    }
+
+    auto name = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(enum_name));
+    if (name == nullptr) {
+        return nullptr;
+    }
+
+    auto members_dict = Guard<PyObject *, Py_DECREF>(PyDict_New());
+    if (members_dict == nullptr) {
+        return nullptr;
+    }
+
+    for (auto const &[member_name, member_value] : members) {
+        auto value = Guard<PyObject *, Py_DECREF>(PyLong_FromLong(member_value));
+        if (value == nullptr || PyDict_SetItemString(members_dict.get(), member_name, value.get()) < 0) {
+            return nullptr;
+        }
+    }
+
+    auto enum_obj = Guard<PyObject *, Py_DECREF>(
+        PyObject_CallFunctionObjArgs(int_enum.get(), name.get(), members_dict.get(), nullptr));
+    if (enum_obj == nullptr) {
+        return nullptr;
+    }
+
+    if (!cache.empty()) {
+        for (auto const &[member_name, member_value] : members) {
+            if (member_value < 0 || static_cast<size_t>(member_value) >= cache.size()) {
+                PyErr_Format(PyExc_RuntimeError, "enum value %d for '%s' is out of cache bounds", member_value,
+                             member_name);
+                return nullptr;
+            }
+
+            auto member = Guard<PyObject *, Py_DECREF>(PyObject_CallFunction(enum_obj.get(), "i", member_value));
+            auto idx = static_cast<size_t>(member_value);
+            // NOLINTNEXTLINE
+            assert(idx < cache.size() && cache[idx] == nullptr);
+            // NOLINTNEXTLINE
+            cache[idx] = member.release();
+        }
+    }
+
+    return enum_obj.release();
+}
+
+} // namespace PyClingo

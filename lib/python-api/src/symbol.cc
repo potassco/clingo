@@ -1,4 +1,3 @@
-#define WITH_DOC_STRING
 #define PY_SSIZE_T_CLEAN
 
 #include "symbol.hh"
@@ -9,16 +8,13 @@ namespace PyClingo {
 
 namespace {
 
-using IntEnumMember = std::tuple<char const *, int, char const *>;
-
 constexpr auto symbol_type_members = std::array<IntEnumMember, 6>{
-    IntEnumMember{"Number", static_cast<int>(clingo_symbol_type_number), "A numeric symbol, e.g., `1`."},
-    IntEnumMember{"Infimum", static_cast<int>(clingo_symbol_type_infimum), "The `#inf` symbol."},
-    IntEnumMember{"Supremum", static_cast<int>(clingo_symbol_type_supremum), "The `#sup` symbol."},
-    IntEnumMember{"String", static_cast<int>(clingo_symbol_type_string), "A string symbol, e.g., `\"a\"`."},
-    IntEnumMember{"Tuple", static_cast<int>(clingo_symbol_type_tuple), "A tuple symbol `(1,a)`."},
-    IntEnumMember{"Function", static_cast<int>(clingo_symbol_type_function),
-                  "A function symbol, e.g., `c`, `-c`, or `f(1,\"a\")`."},
+    IntEnumMember{"Number", static_cast<int>(clingo_symbol_type_number)},
+    IntEnumMember{"Infimum", static_cast<int>(clingo_symbol_type_infimum)},
+    IntEnumMember{"Supremum", static_cast<int>(clingo_symbol_type_supremum)},
+    IntEnumMember{"String", static_cast<int>(clingo_symbol_type_string)},
+    IntEnumMember{"Tuple", static_cast<int>(clingo_symbol_type_tuple)},
+    IntEnumMember{"Function", static_cast<int>(clingo_symbol_type_function)},
 };
 
 constexpr size_t symbol_type_count = symbol_type_members.size();
@@ -42,7 +38,6 @@ auto get_symbol_module_state(PyObject *module) -> SymbolModuleState * {
 }
 
 auto get_symbol_type(SymbolModuleState *state) -> PyTypeObject * {
-    // NOLINTNEXTLINE
     return reinterpret_cast<PyTypeObject *>(state->symbol_type);
 }
 
@@ -57,96 +52,6 @@ auto get_symbol_module_state_from_self(PyObject *self) -> SymbolModuleState * {
 
 // ---------- helpers ----------
 
-auto set_enum_value_doc(PyObject *enum_type, int value, const char *doc) -> bool {
-    auto member = Guard<PyObject *, Py_DECREF>(PyObject_CallFunction(enum_type, "i", value));
-    if (member == nullptr) {
-        return false;
-    }
-
-    auto doc_obj = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(doc));
-    if (doc_obj == nullptr) {
-        return false;
-    }
-
-    return PyObject_SetAttrString(member.get(), "__doc__", doc_obj.get()) == 0;
-}
-
-auto create_int_enum(const char *module_name, const char *enum_name, std::span<IntEnumMember const> members,
-                     std::span<PyObject *> cache, const char *enum_doc) -> PyObject * {
-    auto enum_mod = Guard<PyObject *, Py_DECREF>(PyImport_ImportModule("enum"));
-    if (enum_mod == nullptr) {
-        return nullptr;
-    }
-
-    auto int_enum = Guard<PyObject *, Py_DECREF>(PyObject_GetAttrString(enum_mod.get(), "IntEnum"));
-    if (int_enum == nullptr) {
-        return nullptr;
-    }
-
-    auto name = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(enum_name));
-    if (name == nullptr) {
-        return nullptr;
-    }
-
-    auto members_dict = Guard<PyObject *, Py_DECREF>(PyDict_New());
-    if (members_dict == nullptr) {
-        return nullptr;
-    }
-
-    for (auto const &[member_name, member_value, member_doc] : members) {
-        if (member_doc == nullptr) {
-            PyErr_Format(PyExc_ValueError, "doc string for enum member '%s' is null", member_name);
-            return nullptr;
-        }
-        auto value = Guard<PyObject *, Py_DECREF>(PyLong_FromLong(member_value));
-        if (value == nullptr || PyDict_SetItemString(members_dict.get(), member_name, value.get()) < 0) {
-            return nullptr;
-        }
-    }
-
-    auto enum_obj = Guard<PyObject *, Py_DECREF>(
-        PyObject_CallFunctionObjArgs(int_enum.get(), name.get(), members_dict.get(), nullptr));
-    if (enum_obj == nullptr) {
-        return nullptr;
-    }
-
-    // NOTE: markers for pybind11-stubgen
-    auto mod = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(module_name));
-    if (mod == nullptr || PyObject_SetAttrString(enum_obj.get(), "__module__", mod.get()) < 0) {
-        return nullptr;
-    }
-    if (PyObject_SetAttrString(enum_obj.get(), "__pybind11_native_enum__", Py_True) < 0) {
-        return nullptr;
-    }
-
-    auto cls_doc = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(enum_doc));
-    if (cls_doc == nullptr || PyObject_SetAttrString(enum_obj.get(), "__doc__", cls_doc.get()) < 0) {
-        return nullptr;
-    }
-
-    if (!cache.empty()) {
-        for (auto const &[member_name, member_value, member_doc] : members) {
-            if (member_value < 0 || static_cast<size_t>(member_value) >= cache.size()) {
-                PyErr_Format(PyExc_RuntimeError, "enum value %d for '%s' is out of cache bounds", member_value,
-                             member_name);
-                return nullptr;
-            }
-
-            auto member = Guard<PyObject *, Py_DECREF>(PyObject_CallFunction(enum_obj.get(), "i", member_value));
-            if (member == nullptr || !set_enum_value_doc(enum_obj.get(), member_value, member_doc)) {
-                return nullptr;
-            }
-            auto idx = static_cast<size_t>(member_value);
-            // NOLINTNEXTLINE
-            assert(idx < cache.size() && cache[idx] == nullptr);
-            // NOLINTNEXTLINE
-            cache[idx] = member.release();
-        }
-    }
-
-    return enum_obj.release();
-}
-
 auto py_symbol_from_clingo(clingo_symbol_t sym, PyTypeObject *symbol_type, bool acquire) -> PyObject * {
     auto *obj = PyObject_New(PySymbolObject, symbol_type);
     if (obj == nullptr) {
@@ -159,7 +64,6 @@ auto py_symbol_from_clingo(clingo_symbol_t sym, PyTypeObject *symbol_type, bool 
         clingo_symbol_acquire(sym);
     }
     obj->sym = sym;
-    // NOLINTNEXTLINE
     return reinterpret_cast<PyObject *>(obj);
 }
 
@@ -199,7 +103,6 @@ auto cast_library(PyObject *obj) -> Library * {
 }
 
 auto cast_symbol(PyObject *self) -> PySymbolObject * {
-    // NOLINTNEXTLINE
     return reinterpret_cast<PySymbolObject *>(self);
 }
 
@@ -485,7 +388,6 @@ auto py_symbol_get_type(PyObject *self, [[maybe_unused]] void *closure) -> PyObj
     }
     auto idx = static_cast<size_t>(symbol_type(cast_symbol(self)->sym));
     assert(idx < state->vals.size());
-    // NOLINTNEXTLINE
     auto *obj = state->vals[idx];
     if (obj == nullptr) {
         PyErr_SetString(PyExc_RuntimeError, "symbol type cache missing");
@@ -713,7 +615,6 @@ auto py_symbol_sequence(PyObject *obj, PyTypeObject *symbol_type, SymbolSeq &out
             PyErr_SetString(PyExc_TypeError, "arguments must contain only Symbol");
             return false;
         }
-        // NOLINTNEXTLINE
         *it++ = s->sym;
     }
     return true;
@@ -810,136 +711,78 @@ auto py_parse_term([[maybe_unused]] PyObject *module, PyObject *args) -> PyObjec
     return py_symbol_from_clingo(sym, get_symbol_type(state), false);
 }
 
-// NOLINTNEXTLINE
 auto py_symbol_methods = std::array{
     PyMethodDef{
         "match",
         py_c_function_cast(py_symbol_match),
         METH_VARARGS | METH_KEYWORDS,
-        PyDoc_STR(R"(
-match(*args, **kwargs)
-Overloaded function.
-
-1. match(self: clingo.symbol.Symbol, name: str, arity: int = 0, is_positive: bool = True) -> bool
-
-Check if this is a function symbol with the given signature.
-
-Args:
-    name: The name of the function.
-    arity: The arity of the function.
-    is_positive: Whether to match positive or negative signatures.
-
-Returns:
-    Whether the function matches.
-
-
-2. match(self: clingo.symbol.Symbol, arity: int = 0) -> bool
-
-Check if this is a tuple symbol with the given arity.
-
-Args:
-    arity: The arity of the function.
-
-Returns:
-    Whether the tuple matches.
-)"_d),
+        PyDoc_STR("Match functions or tuples against a given signature."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
 
-// NOLINTNEXTLINE
 auto py_symbol_getset = std::array{
     PyGetSetDef{
         "signature",
         py_symbol_get_signature,
         nullptr,
-        PyDoc_STR(R"(
-signature(self: clingo.symbol.Symbol) -> tuple[str, int, bool] | None
-
-Get the signature of function symbols.
-
-The Boolean in the signature is True if the associated symbol is positive.
-)"_d),
+        PyDoc_STR("The signature of the symbol."),
         nullptr,
     },
     PyGetSetDef{
         "type",
         py_symbol_get_type,
         nullptr,
-        PyDoc_STR(R"(
-type(self: clingo.symbol.Symbol) -> clingo.symbol.SymbolType
-
-The type of the symbol.)"_d),
+        PyDoc_STR("The type of the symbol."),
         nullptr,
     },
     PyGetSetDef{
         "number",
         py_symbol_get_number,
         nullptr,
-        PyDoc_STR(R"(
-number(self: clingo.symbol.Symbol) -> int
-
-The numeric value.)"_d),
+        PyDoc_STR("The numeric value of the symbol."),
         nullptr,
     },
     PyGetSetDef{
         "string",
         py_symbol_get_string,
         nullptr,
-        PyDoc_STR(R"(
-string(self: clingo.symbol.Symbol) -> str
-
-The string value.)"_d),
+        PyDoc_STR("The string value of the symbol."),
         nullptr,
     },
     PyGetSetDef{
         "name",
         py_symbol_get_name,
         nullptr,
-        PyDoc_STR(R"(
-name(self: clingo.symbol.Symbol) -> str
-
-The name.)"_d),
+        PyDoc_STR("The name of a function symbol."),
         nullptr,
     },
     PyGetSetDef{
         "arguments",
         py_symbol_get_arguments,
         nullptr,
-        PyDoc_STR(R"(
-arguments(self: clingo.symbol.Symbol) -> Sequence[Symbol]
-
-The list of arguments.)"_d),
+        PyDoc_STR("The arguments of a function or tuple symbol."),
         nullptr,
     },
     PyGetSetDef{
         "arity",
         py_symbol_get_arity,
         nullptr,
-        PyDoc_STR(R"(
-arity(self: clingo.symbol.Symbol) -> int
-
-The arity of a function or tuple.)"_d),
+        PyDoc_STR("The arity of a function or tuple symbol."),
         nullptr,
     },
     PyGetSetDef{
         "is_positive",
         py_symbol_get_is_positive,
         nullptr,
-        PyDoc_STR(R"(
-is_positive(self: clingo.symbol.Symbol) -> bool
-
-Whether the symbol is positive, e.g., `1` or `p`.)"_d),
+        PyDoc_STR("Whether the symbol is positive, e.g., `1` or `p`."),
         nullptr,
     },
     PyGetSetDef{
         "is_negative",
         py_symbol_get_is_negative,
         nullptr,
-        PyDoc_STR(R"(
-is_negative(self: clingo.symbol.Symbol) -> bool
-
-Whether the symbol is negative, e.g., `-1` or `-p`.)"_d),
+        PyDoc_STR("Whether the symbol is negative, e.g., `-1` or `-p`."),
         nullptr,
     },
     PyGetSetDef{
@@ -951,39 +794,22 @@ Whether the symbol is negative, e.g., `-1` or `-p`.)"_d),
     },
 };
 
-// NOLINTNEXTLINE
 auto py_symbol_slots = std::array{
     PyType_Slot{
         Py_tp_doc,
-        // NOLINTNEXTLINE
-        PyDoc_STR(const_cast<char *>(R"(
-Represents a clingo symbol.
-
-This includes `#inf` and `#sup`, numbers, strings, tuples, functions (including
-constants with `len(arguments) == 0`.
-
-Symbol objects implement Python's rich comparison operators and are ordered
-like in clingo. They can also be used as keys in dictionaries. Their string
-representation corresponds to their clingo representation.
-
-Note that this class does not have a constructor. Instead there are the
-preconstructed symbols `clingo.symbol.Infimum` and `clingo.symbol.Supremum` and
-the functions `clingo.symbol.Number`, `clingo.symbol.String`,
-`clingo.symbol.Tuple_`, and `clingo.symbol.Function` to construct symbol
-objects.
-)"_d)),
+        PyDoc_STR(const_cast<char *>("Class representing a clingo symbol.")),
     },
     PyType_Slot{
         Py_tp_dealloc,
-        reinterpret_cast<void *>(py_symbol_dealloc), // NOLINT
+        reinterpret_cast<void *>(py_symbol_dealloc),
     },
     PyType_Slot{
         Py_tp_str,
-        reinterpret_cast<void *>(py_symbol_str), // NOLINT
+        reinterpret_cast<void *>(py_symbol_str),
     },
     PyType_Slot{
         Py_tp_repr,
-        reinterpret_cast<void *>(py_symbol_repr), // NOLINT
+        reinterpret_cast<void *>(py_symbol_repr),
     },
     PyType_Slot{
         Py_tp_methods,
@@ -995,11 +821,11 @@ objects.
     },
     PyType_Slot{
         Py_tp_hash,
-        reinterpret_cast<void *>(py_symbol_hash), // NOLINT
+        reinterpret_cast<void *>(py_symbol_hash),
     },
     PyType_Slot{
         Py_tp_richcompare,
-        reinterpret_cast<void *>(py_symbol_richcompare), // NOLINT
+        reinterpret_cast<void *>(py_symbol_richcompare),
     },
     PyType_Slot{
         0,
@@ -1007,94 +833,41 @@ objects.
     },
 };
 
-// NOLINTNEXTLINE
 auto py_symbol_spec = PyType_Spec{
     "clingo.symbol.Symbol", sizeof(PySymbolObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
     py_symbol_slots.data(),
 };
 
-// NOLINTNEXTLINE
 auto symbol_module_methods = std::array{
     PyMethodDef{
         "Number",
         py_number,
         METH_VARARGS,
-        PyDoc_STR(R"(
-Number(lib: clingo.core.Library, number: int, /) -> clingo.symbol.Symbol
-
-Construct a numeric symbol given a number.
-
-Args:
-    lib: A library object to store the number in.
-    number: The given number.
-)"_d),
+        PyDoc_STR("Construct a numeric symbol given a number."),
     },
     PyMethodDef{
         "String",
         py_string,
         METH_VARARGS,
-        PyDoc_STR(R"(
-String(lib: clingo.core.Library, string: str, /) -> clingo.symbol.Symbol
-
-Construct a string symbol given a string.
-
-Args:
-    lib: A library object to store the string in.
-    string: The given string.
-)"_d),
+        PyDoc_STR("Construct a string symbol given a string."),
     },
     PyMethodDef{
         "Tuple_",
         py_tuple,
         METH_VARARGS,
-        PyDoc_STR(R"(
-Tuple_(lib: clingo.core.Library, arguments: Sequence[clingo.symbol.Symbol], /) -> clingo.symbol.Symbol
-
-Construct a tuple symbol.
-
-This is a shortcut for `Function(lib, "", arguments)`.
-
-Args:
-    lib: A library object to store the tuple in.
-    arguments: The arguments in form of a list of symbols.
-)"_d),
+        PyDoc_STR("Construct a tuple symbol."),
     },
     PyMethodDef{
         "Function",
-        py_c_function_cast(py_function), // NOLINT
+        py_c_function_cast(py_function),
         METH_VARARGS | METH_KEYWORDS,
-        PyDoc_STR(R"(
-Function(lib: clingo.core.Library, name: str, arguments: Sequence[clingo.symbol.Symbol] = [], is_positive: bool = True) -> clingo.symbol.Symbol
-
-Construct a function symbol.
-
-This includes constants and tuples. Constants have an empty argument list and
-tuples have an empty name. Functions can represent classically negated atoms.
-Argument `clingo.symbol.Symbol.is_positive` has to be set to `False` to
-represent such atoms.
-
-Args:
-    lib: A library object to store the function in.
-    name: The name of the function.
-    arguments: The arguments in the form of a list of symbols.
-    is_positive: Whether the function is positive.
-)"_d),
+        PyDoc_STR("Construct a function symbol."),
     },
     PyMethodDef{
         "parse_term",
         py_parse_term,
         METH_VARARGS,
-        PyDoc_STR(R"(
-parse_term(lib: clingo.core.Library, string: str, /) -> clingo.symbol.Symbol
-
-Parse the given string using clingo's term parser for ground terms.
-
-The function also evaluates arithmetic functions.
-
-Args:
-    lib: A library object to store parsed symbols in.
-    string: The string to be parsed.
-)"_d),
+        PyDoc_STR("Parse the given string using clingo's term parser for ground terms."),
     },
     PyMethodDef{
         nullptr,
@@ -1120,36 +893,10 @@ void symbol_module_free(void *module) {
     symbol_module_clear(static_cast<PyObject *>(module));
 }
 
-// NOLINTNEXTLINE
 PyModuleDef symbol_def = {
     PyModuleDef_HEAD_INIT,
     "clingo.symbol",
-    PyDoc_STR(R"(
-Functions and classes for symbol manipulation.
-
-Examples
---------
-
-```python
->>> from clingo.core import Library
->>> from clingo.symbol import Function, Number, parse_term
->>>
->>> lib = Library()
->>>
->>> num = Number(lib, 42)
->>> num.number
-42
->>> fun = Function(lib, "f", [num])
->>> fun.name
-'f'
->>> [ str(arg) for arg in fun.arguments ]
-['42']
->>> parse_term(lib, str(fun)) == fun
-True
->>> parse_term(lib, 'p(1+2)')
-p(3)
-```
-)"_d),
+    PyDoc_STR("Functions and classes for symbol manipulation."),
     static_cast<Py_ssize_t>(sizeof(SymbolModuleState)),
     symbol_module_methods.data(),
     nullptr,
@@ -1170,8 +917,8 @@ void register_symbol(pybind11::module &m) {
         throw py::error_already_set();
     }
 
-    auto symbol_type_enum = Guard<PyObject *, Py_DECREF>(create_int_enum(
-        "clingo.symbol", "SymbolType", symbol_type_members, state->vals, PyDoc_STR("Enumeration of symbols types.")));
+    auto symbol_type_enum =
+        Guard<PyObject *, Py_DECREF>(create_int_enum("SymbolType", symbol_type_members, state->vals));
     if (symbol_type_enum == nullptr || PyModule_AddObjectRef(symbol, "SymbolType", symbol_type_enum) < 0) {
         throw py::error_already_set();
     }

@@ -59,10 +59,14 @@ class ModelIterator {
 
 } // namespace
 
-auto SolveControl::base() -> TypeHint<"Base"> {
+auto SolveControl::base() -> TypeHint<"clingo.base.Base"> {
     clingo_base_t const *base = nullptr;
     handle_error(clingo_solve_control_base(ctl_, &base));
-    return py::reinterpret_steal<TypeHint<"Base">>(py_base_from_clingo_object(base));
+    auto *type = py_base_type();
+    if (type == nullptr) {
+        throw py::error_already_set();
+    }
+    return py::reinterpret_steal<TypeHint<"clingo.base.Base">>(py_base_new(type, base));
 }
 
 auto SolveControl::add_clause(MixedLitSpan const &lits) {

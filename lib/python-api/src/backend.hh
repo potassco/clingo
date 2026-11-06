@@ -14,7 +14,7 @@ class Observer {
   public:
     void init_program(bool incremental);
     void begin_step();
-    void end_step(TypeHint<"Base"> base);
+    void end_step(TypeHint<"clingo.base.Base"> base);
     void rule(AtomSpan head, LitSpan body, bool choice);
     void weight_rule(AtomSpan head, clingo_weight_t lower, WeightLitSpan body, bool choice);
     void minimize(WeightLitSpan literals, clingo_weight_t priority);

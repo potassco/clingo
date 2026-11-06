@@ -62,7 +62,7 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
                      Annotation<std::optional<StatsCallback>> on_stats,
                      Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
         -> Annotation<SolveHandle>;
-    auto base() -> TypeHint<"Base">;
+    auto base() -> TypeHint<"clingo.base.Base">;
     void observe(Observer &obs, bool preprocess);
     auto backend() -> BackendManager;
     auto config() -> Config;

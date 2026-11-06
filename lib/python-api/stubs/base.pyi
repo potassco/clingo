@@ -33,13 +33,11 @@ False
 ```
 """
 
-from __future__ import annotations
-
-import collections.abc
 import enum
 import typing
+from collections.abc import Iterator, Sequence
 
-import clingo.symbol
+from clingo.symbol import Symbol
 
 __all__: list[str] = [
     "Atom",
@@ -54,30 +52,58 @@ __all__: list[str] = [
     "TheoryTermType",
 ]
 
+_T = typing.TypeVar("_T")
+
 class TheoryTermType(enum.IntEnum):
     """
     Enumeration of theory term types.
     """
 
     Function = 3
+    """
+    For function theory terms.
+    """
     List = 1
+    """
+    For list theory terms.
+    """
     Number = 4
+    """
+    For numeric theory terms.
+    """
     Set = 2
+    """
+    For set theory terms.
+    """
     Symbol = 5
+    """
+    For symbolic theory terms (simple strings).
+    """
     Tuple = 0
+    """
+    For tuple theory terms.
+    """
 
 class Atom:
     """
     A class providing information about symbolic atoms.
     """
 
-    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __eq__(self, other: object) -> bool:
+        """
+        Compare with another object for equality.
+        """
+
+    def __ne__(self, other: object) -> bool:
+        """
+        Compare with another object for inequality.
+        """
+
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
         """
 
-    def __ne__(self, arg0: typing.Any) -> bool: ...
     @property
     def literal(self) -> int:
         """
@@ -85,29 +111,29 @@ class Atom:
         """
 
     @property
-    def symbol(self) -> clingo.symbol.Symbol:
+    def symbol(self) -> Symbol:
         """
         Get the symbol of the atom.
         """
 
 class AtomBase:
     """
-    An class providing information about symbolic atoms.
+    A class providing information about symbolic atoms.
 
-    Implements `Mapping[Symbol, Atom]`.
+    Implements a mapping from symbols to atoms.
     """
 
-    def __contains__(self, key: clingo.symbol.Symbol) -> bool:
+    def __contains__(self, key: Symbol) -> bool:
         """
         Check if the map contains the given key.
         """
 
-    def __getitem__(self, key: clingo.symbol.Symbol) -> Atom:
+    def __getitem__(self, key: Symbol) -> Atom:
         """
         Get the value for the given key.
         """
 
-    def __iter__(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
+    def __iter__(self) -> Iterator[Symbol]:
         """
         Get an iterator over the keys in the map.
         """
@@ -117,24 +143,29 @@ class AtomBase:
         Get the number elements in the map.
         """
 
-    def get(
-        self, key: clingo.symbol.Symbol, default: Atom | None = None
-    ) -> Atom | None:
+    @typing.overload
+    def get(self, key: Symbol) -> Atom | None:
+        """
+        Get the value for the given key or None if absent.
+        """
+
+    @typing.overload
+    def get(self, key: Symbol, default: _T) -> Atom | _T:
         """
         Get the value for the given key or the default if absent.
         """
 
-    def items(self) -> collections.abc.Iterator[tuple[clingo.symbol.Symbol, Atom]]:
+    def items(self) -> Iterator[tuple[Symbol, Atom]]:
         """
         Get an iterator over the items in the map.
         """
 
-    def keys(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
+    def keys(self) -> Iterator[Symbol]:
         """
         Get an iterator over the keys in the map.
         """
 
-    def values(self) -> collections.abc.Iterator[Atom]:
+    def values(self) -> Iterator[Atom]:
         """
         Get an iterator over the values in the map.
         """
@@ -144,21 +175,29 @@ class Term:
     A class providing information about terms.
     """
 
-    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __eq__(self, other: object) -> bool:
+        """
+        Compare with another object for equality.
+        """
+
+    def __ne__(self, other: object) -> bool:
+        """
+        Compare with another object for inequality.
+        """
+
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
         """
 
-    def __ne__(self, arg0: typing.Any) -> bool: ...
     @property
-    def condition(self) -> typing.Sequence[typing.Sequence[int]]:
+    def condition(self) -> Sequence[Sequence[int]]:
         """
         Get the condition of the term.
         """
 
     @property
-    def symbol(self) -> clingo.symbol.Symbol:
+    def symbol(self) -> Symbol:
         """
         Get the symbol of the term.
         """
@@ -169,20 +208,20 @@ class TermBase:
 
     The base is established by the show directives occurring in a program.
 
-    Implements `Mapping[Symbol, Term]`.
+    Implements a mapping from symbols to terms.
     """
 
-    def __contains__(self, key: clingo.symbol.Symbol) -> bool:
+    def __contains__(self, key: Symbol) -> bool:
         """
         Check if the map contains the given key.
         """
 
-    def __getitem__(self, key: clingo.symbol.Symbol) -> Term:
+    def __getitem__(self, key: Symbol) -> Term:
         """
         Get the value for the given key.
         """
 
-    def __iter__(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
+    def __iter__(self) -> Iterator[Symbol]:
         """
         Get an iterator over the keys in the map.
         """
@@ -192,24 +231,29 @@ class TermBase:
         Get the number elements in the map.
         """
 
-    def get(
-        self, key: clingo.symbol.Symbol, default: Term | None = None
-    ) -> Term | None:
+    @typing.overload
+    def get(self, key: Symbol) -> Term | None:
+        """
+        Get the value for the given key or None if absent.
+        """
+
+    @typing.overload
+    def get(self, key: Symbol, default: _T) -> Term | _T:
         """
         Get the value for the given key or the default if absent.
         """
 
-    def items(self) -> collections.abc.Iterator[tuple[clingo.symbol.Symbol, Term]]:
+    def items(self) -> Iterator[tuple[Symbol, Term]]:
         """
         Get an iterator over the items in the map.
         """
 
-    def keys(self) -> collections.abc.Iterator[clingo.symbol.Symbol]:
+    def keys(self) -> Iterator[Symbol]:
         """
         Get an iterator over the keys in the map.
         """
 
-    def values(self) -> collections.abc.Iterator[Term]:
+    def values(self) -> Iterator[Term]:
         """
         Get an iterator over the values in the map.
         """
@@ -219,20 +263,23 @@ class TheoryTerm:
     A view to inspect a theory term.
     """
 
-    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __eq__(self, other: object) -> bool:
+        """
+        Compare with another object for equality.
+        """
+
+    def __ne__(self, other: object) -> bool:
+        """
+        Compare with another object for inequality.
+        """
+
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
         """
 
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str:
-        """
-        Get a string representation of the term.
-        """
-
     @property
-    def arguments(self) -> typing.Sequence[TheoryTerm]:
+    def arguments(self) -> Sequence[TheoryTerm]:
         """
         Get the arguments of a function, tuple, list, or set theory term.
         """
@@ -260,20 +307,23 @@ class TheoryElement:
     A view to inspect a theory element.
     """
 
-    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __eq__(self, other: object) -> bool:
+        """
+        Compare with another object for equality.
+        """
+
+    def __ne__(self, other: object) -> bool:
+        """
+        Compare with another object for inequality.
+        """
+
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
         """
 
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str:
-        """
-        Get a string representation of the element.
-        """
-
     @property
-    def condition(self) -> typing.Sequence[int]:
+    def condition(self) -> Sequence[int]:
         """
         Get the condition of a theory element.
         """
@@ -289,7 +339,7 @@ class TheoryElement:
         """
 
     @property
-    def tuple(self) -> typing.Sequence[TheoryTerm]:
+    def tuple(self) -> Sequence[TheoryTerm]:
         """
         Get the term tuple of a theory element.
         """
@@ -299,20 +349,23 @@ class TheoryAtom:
     A view to inspect a theory atom.
     """
 
-    def __eq__(self, arg0: typing.Any) -> bool: ...
+    def __eq__(self, other: object) -> bool:
+        """
+        Compare with another object for equality.
+        """
+
+    def __ne__(self, other: object) -> bool:
+        """
+        Compare with another object for inequality.
+        """
+
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
         """
 
-    def __ne__(self, arg0: typing.Any) -> bool: ...
-    def __str__(self) -> str:
-        """
-        Get a string representation of the atom.
-        """
-
     @property
-    def elements(self) -> typing.Sequence[TheoryElement]:
+    def elements(self) -> Sequence[TheoryElement]:
         """
         Get the elements of a theory atom.
         """
@@ -337,7 +390,7 @@ class TheoryAtom:
 
 class TheoryBase:
     """
-    A class  prooviding information about theory atoms.
+    A class providing information about theory atoms.
 
     Implements `Sequence[TheoryAtom]`.
     """
@@ -352,7 +405,7 @@ class TheoryBase:
         Get the value at the given index.
         """
 
-    def __iter__(self) -> collections.abc.Iterator[TheoryAtom]:
+    def __iter__(self) -> Iterator[TheoryAtom]:
         """
         Get an iterator for the sequence.
         """
@@ -362,7 +415,7 @@ class TheoryBase:
         Get the size of the sequence.
         """
 
-    def __reversed__(self) -> collections.abc.Iterator[TheoryAtom]:
+    def __reversed__(self) -> Iterator[TheoryAtom]:
         """
         Get a reverse iterator for the sequence.
         """
@@ -381,20 +434,14 @@ class Base:
     """
     A class providing information about symbolic and theory atoms and shown terms.
 
-    Implements `Mapping[tuple[str, int, bool], AtomBase]` providing additional
-    overloads to directly lookup symbols and short signatures (assuming a positive
-    sign):
-
-    - `__getitem__: Callable[[Symbol], Atom]`
-    - `__contains__: Callable[[Symbol], bool]`
-    - `__getitem__: Callable[[tuple[str, int]], AtomBase]`
-    - `__contains__: Callable[[tuple[str, int]], bool]`
+    Implements a mapping from signatures to atom bases and provides access to
+    the term and theory bases.
     """
 
     @typing.overload
     def __contains__(self, key: tuple[str, int, bool]) -> bool:
         """
-        Check if the map contains the given key.
+        Check if there is an atom base with the given signature.
         """
 
     @typing.overload
@@ -404,7 +451,7 @@ class Base:
         """
 
     @typing.overload
-    def __contains__(self, symbol: clingo.symbol.Symbol) -> bool:
+    def __contains__(self, symbol: Symbol) -> bool:
         """
         Check if there is an atom with the given symbol.
         """
@@ -412,13 +459,7 @@ class Base:
     @typing.overload
     def __getitem__(self, key: tuple[str, int, bool]) -> AtomBase:
         """
-        Get the value for the given key.
-        """
-
-    @typing.overload
-    def __getitem__(self, symbol: clingo.symbol.Symbol) -> Atom:
-        """
-        Get the atom with the given symbol.
+        Get the atom base with the given signature.
         """
 
     @typing.overload
@@ -429,7 +470,13 @@ class Base:
         This function provides a shortcut assuming the sign is positive.
         """
 
-    def __iter__(self) -> collections.abc.Iterator[tuple[str, int, bool]]:
+    @typing.overload
+    def __getitem__(self, symbol: Symbol) -> Atom:
+        """
+        Get the atom with the given symbol.
+        """
+
+    def __iter__(self) -> Iterator[tuple[str, int, bool]]:
         """
         Get an iterator over the keys in the map.
         """
@@ -439,11 +486,40 @@ class Base:
         Get the number elements in the map.
         """
 
-    def get(
-        self, key: tuple[str, int, bool], default: AtomBase | None = None
-    ) -> AtomBase | None:
+    @typing.overload
+    def get(self, key: tuple[str, int, bool]) -> AtomBase | None:
         """
-        Get the value for the given key or the default if absent.
+        Get the atom base for the given signature or None if absent.
+        """
+
+    @typing.overload
+    def get(self, key: tuple[str, int, bool], default: _T) -> AtomBase | _T:
+        """
+        Get the atom base for the given signature or the default if absent.
+        """
+
+    @typing.overload
+    def get(self, key: tuple[str, int]) -> AtomBase | None:
+        """
+        Get the atom base for the given (short) signature or the default if absent.
+        """
+
+    @typing.overload
+    def get(self, key: tuple[str, int], default: _T) -> AtomBase | _T:
+        """
+        Get the atom base for the given (short) signature or the default if absent.
+        """
+
+    @typing.overload
+    def get(self, key: Symbol) -> Atom | None:
+        """
+        Get the atom for the given symbol or None if absent.
+        """
+
+    @typing.overload
+    def get(self, key: Symbol, default: _T) -> Atom | _T:
+        """
+        Get the atom for the given symbol or the default if absent.
         """
 
     def is_current(self, literal: int) -> bool:
@@ -499,17 +575,17 @@ class Base:
             Whether the literal is shown.
         """
 
-    def items(self) -> collections.abc.Iterator[tuple[tuple[str, int, bool], AtomBase]]:
+    def items(self) -> Iterator[tuple[tuple[str, int, bool], AtomBase]]:
         """
         Get an iterator over the items in the map.
         """
 
-    def keys(self) -> collections.abc.Iterator[tuple[str, int, bool]]:
+    def keys(self) -> Iterator[tuple[str, int, bool]]:
         """
         Get an iterator over the keys in the map.
         """
 
-    def values(self) -> collections.abc.Iterator[AtomBase]:
+    def values(self) -> Iterator[AtomBase]:
         """
         Get an iterator over the values in the map.
         """

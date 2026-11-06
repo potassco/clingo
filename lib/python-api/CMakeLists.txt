@@ -35,6 +35,7 @@ set(source-group
     "src/symbol.hh"
     "src/theory.cc"
     "src/theory.hh"
+    "src/util.cc"
     "src/util.hh")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source

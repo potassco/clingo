@@ -271,10 +271,14 @@ class PropagateInit : public PropagateControl {
         return Library::cast(lib);
     }
 
-    auto base() -> TypeHint<"Base"> {
+    auto base() -> TypeHint<"clingo.base.Base"> {
         clingo_base_t const *base = nullptr;
         handle_error(clingo_propagate_init_base(init_, &base));
-        return py::reinterpret_steal<TypeHint<"Base">>(py_base_from_clingo_object(base));
+        auto *type = py_base_type();
+        if (type == nullptr) {
+            throw py::error_already_set();
+        }
+        return py::reinterpret_steal<TypeHint<"clingo.base.Base">>(py_base_new(type, base));
     }
 
     auto get_check_mode() -> clingo_propagator_check_mode_e {
