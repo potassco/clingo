@@ -306,7 +306,7 @@ class Rewriter:
                                 + content[imp:]
                             )
                         content = content.replace("typing.SupportsInt", "int")
-                        pattern = r"^(\w+):\s*typing\.Union\s*#\s*value\s*=\s*(.+)$"
+                        pattern = r"^(\w+):\s*(?:\(\s*)?types\.UnionType(?:\s*\))?\s*#\s*value\s*=\s*(.+)$"
                         unions = []
 
                         def append(match):
@@ -326,8 +326,10 @@ class Rewriter:
                             pass
                         if content != gen_content:
                             with open(gen_path, "w", encoding="utf8") as hnd:
+                                Path(gen_path).parent.mkdir(parents=True, exist_ok=True)
                                 hnd.write(content)
                         with open(target_path, "w", encoding="utf8") as hnd:
+                            Path(target_path).parent.mkdir(parents=True, exist_ok=True)
                             hnd.write(content)
 
         try:
