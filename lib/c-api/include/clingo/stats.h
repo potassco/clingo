@@ -140,7 +140,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_size(clingo_stats_t const *stats
 //! @param[in] key the key
 //! @param[in] name name of the subkey
 //! @param[in] size the size of the name
-//! @param[out] subkey resulting subkey if @p result is true
+//! @param[out] subkey (optional) resulting subkey if @p result is true
 //! @param[out] result true if the map has a subkey with the given name
 //! @return whether the call was successful
 //! @note @p subkey is optional and can be set to NULL to only check for existence

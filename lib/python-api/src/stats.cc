@@ -191,7 +191,15 @@ auto stats_detect_type(PyObject *value, clingo_stats_type_t *type) -> int {
             *type = clingo_stats_type_map;
             return 0;
         }
-        if (PyFloat_Check(value) != 0 || PyLong_Check(value) != 0 || PyObject_HasAttrString(value, "__float__") != 0) {
+        if (PyFloat_Check(value) != 0 || PyLong_Check(value) != 0) {
+            *type = clingo_stats_type_value;
+            return 0;
+        }
+        auto res = PyObject_HasAttrString(value, "__float__");
+        if (res < 0) {
+            return -1;
+        }
+        if (res != 0) {
             *type = clingo_stats_type_value;
             return 0;
         }
