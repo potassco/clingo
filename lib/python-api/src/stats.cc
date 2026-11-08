@@ -172,21 +172,29 @@ auto stats_resolve_callable_arg(clingo_stats_t *stats, uint64_t key, bool has_ol
 }
 
 auto stats_detect_type(PyObject *value, clingo_stats_type_t *type) -> int {
-    if (PyDict_Check(value) != 0) {
-        *type = clingo_stats_type_map;
-        return 0;
-    }
-    if (PySequence_Check(value) != 0 || PyMapping_Check(value) != 0) {
-        auto has_items = PyObject_HasAttrString(value, "items");
-        if (has_items < 0) {
-            return -1;
+    if (PyUnicode_Check(value) == 0 && PyBytes_Check(value) == 0 && PyByteArray_Check(value) == 0) {
+        if (PySequence_Check(value) != 0) {
+            // NOTE: Custom types implementing __getitem__ are classified as
+            // sequences and mappings. We heuristically skip sequences that
+            // implement items(). More complex tests could use collections.abc
+            // but that would be overkill here.
+            auto res = PyObject_HasAttrString(value, "items");
+            if (res < 0) {
+                return -1;
+            }
+            if (res == 0) {
+                *type = clingo_stats_type_array;
+                return 0;
+            }
         }
-        *type = has_items == 1 ? clingo_stats_type_map : clingo_stats_type_array;
-        return 0;
-    }
-    if (PyFloat_Check(value) != 0 || PyLong_Check(value) != 0 || PyObject_HasAttrString(value, "__float__") == 1) {
-        *type = clingo_stats_type_value;
-        return 0;
+        if (PyMapping_Check(value) != 0) {
+            *type = clingo_stats_type_map;
+            return 0;
+        }
+        if (PyFloat_Check(value) != 0 || PyLong_Check(value) != 0) {
+            *type = clingo_stats_type_value;
+            return 0;
+        }
     }
     PyErr_SetString(PyExc_TypeError, "expected sequence, mapping, or float");
     return -1;
@@ -317,33 +325,20 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
         }
 
         case clingo_stats_type_map: {
-            auto items = Guard<PyObject *, Py_DECREF>(PyObject_CallMethod(value, "items", nullptr));
-            if (items.get() == nullptr) {
-                return -1;
-            }
-            auto it = Guard<PyObject *, Py_DECREF>(PyObject_GetIter(items.get()));
-            if (it.get() == nullptr) {
+            auto keys = Guard<PyObject *, Py_DECREF>(PyObject_GetIter(value));
+            if (keys.get() == nullptr) {
                 return -1;
             }
 
             while (true) {
-                auto elem = Guard<PyObject *, Py_DECREF>(PyIter_Next(it.get()));
-                if (elem.get() == nullptr) {
+                auto kobj = Guard<PyObject *, Py_DECREF>(PyIter_Next(keys.get()));
+                if (kobj.get() == nullptr) {
                     if (PyErr_Occurred() != nullptr) {
                         return -1;
                     }
                     break;
                 }
-                if (PySequence_Check(elem.get()) == 0) {
-                    PyErr_SetString(PyExc_TypeError, "items() must yield key/value pairs");
-                    return -1;
-                }
-
-                auto kobj = Guard<PyObject *, Py_DECREF>(PySequence_GetItem(elem.get(), 0));
-                if (kobj.get() == nullptr) {
-                    return -1;
-                }
-                auto vobj = Guard<PyObject *, Py_DECREF>(PySequence_GetItem(elem.get(), 1));
+                auto vobj = Guard<PyObject *, Py_DECREF>{PyObject_GetItem(value, kobj.get())};
                 if (vobj.get() == nullptr) {
                     return -1;
                 }
@@ -1116,7 +1111,7 @@ auto py_stats_view_spec = PyType_Spec{
     "clingo.stats.StatsView",
     sizeof(PyStatsObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING | Py_TPFLAGS_BASETYPE,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_BASETYPE,
     py_stats_view_slots.data(),
 };
 
@@ -1214,9 +1209,6 @@ auto py_stats_map_spec = PyType_Spec{
 
 auto py_stats_methods = std::array{
     PyMethodDef{"update", py_stats_update_method, METH_O, PyDoc_STR("Update statistics with nested values.")},
-    PyMethodDef{"keys", py_stats_map_keys, METH_NOARGS, PyDoc_STR("Get iterator over keys.")},
-    PyMethodDef{"values", py_stats_map_values, METH_NOARGS, PyDoc_STR("Get iterator over values.")},
-    PyMethodDef{"items", py_stats_map_items, METH_NOARGS, PyDoc_STR("Get iterator over items.")},
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
 
@@ -1241,10 +1233,7 @@ auto py_stats_slots = std::array{
 };
 
 auto py_stats_spec = PyType_Spec{
-    "clingo.stats.Stats",
-    sizeof(PyStatsObject),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING,
+    "clingo.stats.Stats",  sizeof(PyStatsObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
     py_stats_slots.data(),
 };
 
@@ -1361,7 +1350,7 @@ auto py_stats_view_type() -> PyObject * {
 }
 
 auto py_stats_get(PyObject *type, PyObject *obj, clingo_stats_t **stats, uint64_t *key) -> bool {
-    assert(type != nullptr && obj != nullptr && stats != nullptr && key != nullptr);
+    assert(type != nullptr && obj != nullptr);
     if (PyObject_TypeCheck(obj, reinterpret_cast<PyTypeObject *>(type)) == 0) {
         PyErr_SetString(PyExc_TypeError, "object is not of expected clingo.stats type");
         return false;
