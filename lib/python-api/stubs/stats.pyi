@@ -144,7 +144,7 @@ class Stats(StatsView):
         Return an iterator over this statistics object, which must be a map or an array.
         """
 
-    def update(self, values: object) -> None:
+    def update(self, values: object, /) -> None:
         """
         Update the statistics with the given values.
 

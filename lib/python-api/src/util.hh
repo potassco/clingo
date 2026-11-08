@@ -444,14 +444,16 @@ template <class T, auto Destroy> class Guard {
 
     Guard(Guard const &other) = delete;
     auto operator=(Guard const &other) -> Guard & = delete;
-    constexpr Guard(Guard &&other) noexcept = delete;
-    constexpr auto operator=(Guard &&other) noexcept = delete;
-
-    ~Guard() noexcept {
-        if (value_ != T{}) {
-            Destroy(value_);
+    constexpr Guard(Guard &&other) noexcept : value_{std::exchange(other.value_, T{})} {}
+    constexpr auto operator=(Guard &&other) noexcept -> Guard & {
+        if (this != &other) {
+            destroy_();
+            value_ = std::exchange(other.value_, T{});
         }
+        return *this;
     }
+
+    ~Guard() noexcept { destroy_(); }
 
     // NOLINTNEXTLINE
     constexpr operator T &() noexcept { return value_; }
@@ -464,6 +466,11 @@ template <class T, auto Destroy> class Guard {
     }
 
   private:
+    void destroy_() {
+        if (value_ != T{}) {
+            Destroy(value_);
+        }
+    }
     T value_{};
 };
 

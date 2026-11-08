@@ -171,25 +171,12 @@ auto stats_resolve_callable_arg(clingo_stats_t *stats, uint64_t key, bool has_ol
     return stats_nestify(stats, key);
 }
 
-auto stats_to_double(PyObject *obj, double *out) -> int {
-    auto f = Guard<PyObject *, Py_DECREF>(PyNumber_Float(obj));
-    if (f.get() == nullptr) {
-        return -1;
-    }
-    auto x = PyFloat_AsDouble(f.get());
-    if (PyErr_Occurred() != nullptr) {
-        return -1;
-    }
-    *out = x;
-    return 0;
-}
-
 auto stats_detect_type(PyObject *value, clingo_stats_type_t *type) -> int {
     if (PyDict_Check(value) != 0) {
         *type = clingo_stats_type_map;
         return 0;
     }
-    if (PySequence_Check(value) != 0) {
+    if (PySequence_Check(value) != 0 || PyMapping_Check(value) != 0) {
         auto has_items = PyObject_HasAttrString(value, "items");
         if (has_items < 0) {
             return -1;
@@ -207,27 +194,26 @@ auto stats_detect_type(PyObject *value, clingo_stats_type_t *type) -> int {
 
 auto stats_prepare_value(clingo_stats_t *stats, uint64_t key, bool has_old, PyObject *value, clingo_stats_type_t *type,
                          PyObject **prepared) -> int {
-    PyObject *resolved = nullptr;
+    auto resolved = Guard<PyObject *, Py_DECREF>(nullptr);
     if (PyCallable_Check(value) == 1) {
         auto arg = Guard<PyObject *, Py_DECREF>(stats_resolve_callable_arg(stats, key, has_old));
         if (arg.get() == nullptr) {
             return -1;
         }
-        resolved = PyObject_CallFunctionObjArgs(value, arg.get(), nullptr);
-        if (resolved == nullptr) {
+        resolved.get() = PyObject_CallFunctionObjArgs(value, arg.get(), nullptr);
+        if (resolved.get() == nullptr) {
             return -1;
         }
     } else {
-        resolved = value;
+        resolved.get() = value;
         Py_INCREF(resolved);
     }
 
     if (stats_detect_type(resolved, type) < 0) {
-        Py_DECREF(resolved);
         return -1;
     }
 
-    *prepared = resolved;
+    *prepared = resolved.release();
     return 0;
 }
 
@@ -239,9 +225,9 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
 
     switch (static_cast<clingo_stats_type_e>(ty)) {
         case clingo_stats_type_value: {
-            PyObject *src = value;
-            auto hold = Guard<PyObject *, Py_DECREF>(nullptr);
+            auto src = Guard<PyObject *, Py_DECREF>{nullptr};
             if (PyCallable_Check(value) == 1) {
+                auto hold = Guard<PyObject *, Py_DECREF>(nullptr);
                 if (init) {
                     Py_INCREF(Py_None);
                     hold.get() = Py_None;
@@ -256,15 +242,20 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
                         return -1;
                     }
                 }
-                auto called = Guard<PyObject *, Py_DECREF>(PyObject_CallFunctionObjArgs(value, hold.get(), nullptr));
-                if (called.get() == nullptr) {
+                src.get() = PyObject_CallFunctionObjArgs(value, hold.get(), nullptr);
+                if (src.get() == nullptr) {
                     return -1;
                 }
-                src = called.get();
+                if (src.get() == Py_None) {
+                    return 0;
+                }
+            } else {
+                src.get() = value;
+                Py_INCREF(src.get());
             }
 
-            double x = 0.0;
-            if (stats_to_double(src, &x) < 0) {
+            auto x = PyFloat_AsDouble(src);
+            if (PyErr_Occurred() != nullptr) {
                 return -1;
             }
             if (!clingo_stats_value_set(stats, key, x)) {
@@ -349,8 +340,11 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
                 }
 
                 auto kobj = Guard<PyObject *, Py_DECREF>(PySequence_GetItem(elem.get(), 0));
+                if (kobj.get() == nullptr) {
+                    return -1;
+                }
                 auto vobj = Guard<PyObject *, Py_DECREF>(PySequence_GetItem(elem.get(), 1));
-                if (kobj.get() == nullptr || vobj.get() == nullptr) {
+                if (vobj.get() == nullptr) {
                     return -1;
                 }
 
@@ -538,6 +532,16 @@ auto stats_array_subscript_impl(PyObject *self, PyObject *key, PyObject *out_typ
         return nullptr;
     }
 
+    size_t n = 0;
+    if (!clingo_stats_array_size(o->stats, o->key, &n)) {
+        return py_handle_error();
+    }
+
+    if (i >= n) {
+        PyErr_SetString(PyExc_IndexError, "array index out of bounds");
+        return nullptr;
+    }
+
     uint64_t subkey = 0;
     if (!clingo_stats_array_at(o->stats, o->key, i, &subkey)) {
         return py_handle_error();
@@ -595,7 +599,10 @@ auto py_stats_get_type_enum(PyObject *self, [[maybe_unused]] void *arg) -> PyObj
 
 auto py_stats_str(PyObject *self) -> PyObject * {
     auto *o = py_stats_cast(self);
-    auto *bld = string_builder();
+    auto bld = Guard<clingo_string_builder_t *, clingo_string_builder_free>();
+    if (!clingo_string_builder_new(&bld.get())) {
+        return py_handle_error();
+    }
     if (!clingo_stats_to_string(o->stats, o->key, bld)) {
         return py_handle_error();
     }
@@ -916,6 +923,17 @@ auto py_stats_array_ass_subscript(PyObject *self, PyObject *key, PyObject *value
         return -1;
     }
 
+    size_t n = 0;
+    if (!clingo_stats_array_size(o->stats, o->key, &n)) {
+        py_handle_error();
+        return -1;
+    }
+
+    if (i >= n) {
+        PyErr_SetString(PyExc_IndexError, "array index out of bounds");
+        return -1;
+    }
+
     uint64_t subkey = 0;
     if (!clingo_stats_array_at(o->stats, o->key, i, &subkey)) {
         py_handle_error();
@@ -1046,8 +1064,8 @@ auto py_stats_set_value(PyObject *self, PyObject *value, [[maybe_unused]] void *
         return -1;
     }
 
-    double x = 0.0;
-    if (stats_to_double(value, &x) < 0) {
+    auto x = PyFloat_AsDouble(value);
+    if (PyErr_Occurred() != nullptr) {
         return -1;
     }
     if (!clingo_stats_value_set(o->stats, o->key, x)) {
@@ -1349,8 +1367,12 @@ auto py_stats_get(PyObject *type, PyObject *obj, clingo_stats_t **stats, uint64_
         return false;
     }
     auto *s = reinterpret_cast<PyStatsObject *>(obj);
-    *stats = s->stats;
-    *key = s->key;
+    if (stats != nullptr) {
+        *stats = s->stats;
+    }
+    if (key != nullptr) {
+        *key = s->key;
+    }
     return true;
 }
 

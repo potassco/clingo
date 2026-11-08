@@ -354,8 +354,17 @@ auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optio
                 handle_error(clingo_stats_map_add_subkey(stats, root, clingo_user_stats_accu.data, clingo_user_stats_accu.size,
                                                          clingo_stats_type_map, &accu));
                 auto *type = py_stats_type();
+                if (type == nullptr) {
+                    throw py::error_already_set();
+                }
                 auto step_stats = py::reinterpret_steal<StatsView>(py_stats_new(type, stats, step));
+                if (step_stats.ptr() == nullptr) {
+                    throw py::error_already_set();
+                }
                 auto accu_stats = py::reinterpret_steal<StatsView>(py_stats_new(type, stats, accu));
+                if (accu_stats.ptr() == nullptr) {
+                    throw py::error_already_set();
+                }
                 (*hnd->stats_)(step_stats, accu_stats);
             }
             CLINGO_CATCH;
