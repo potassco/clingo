@@ -191,7 +191,7 @@ auto stats_detect_type(PyObject *value, clingo_stats_type_t *type) -> int {
             *type = clingo_stats_type_map;
             return 0;
         }
-        if (PyFloat_Check(value) != 0 || PyLong_Check(value) != 0) {
+        if (PyFloat_Check(value) != 0 || PyLong_Check(value) != 0 || PyObject_HasAttrString(value, "__float__") != 0) {
             *type = clingo_stats_type_value;
             return 0;
         }
@@ -325,20 +325,34 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
         }
 
         case clingo_stats_type_map: {
-            auto keys = Guard<PyObject *, Py_DECREF>(PyObject_GetIter(value));
-            if (keys.get() == nullptr) {
+            auto items = Guard<PyObject *, Py_DECREF>(PyObject_CallMethod(value, "items", nullptr));
+            if (items.get() == nullptr) {
+                return -1;
+            }
+            auto it = Guard<PyObject *, Py_DECREF>(PyObject_GetIter(items.get()));
+            if (it.get() == nullptr) {
                 return -1;
             }
 
             while (true) {
-                auto kobj = Guard<PyObject *, Py_DECREF>(PyIter_Next(keys.get()));
-                if (kobj.get() == nullptr) {
+                auto elem = Guard<PyObject *, Py_DECREF>(PyIter_Next(it.get()));
+                if (elem.get() == nullptr) {
                     if (PyErr_Occurred() != nullptr) {
                         return -1;
                     }
                     break;
                 }
-                auto vobj = Guard<PyObject *, Py_DECREF>{PyObject_GetItem(value, kobj.get())};
+                if (PySequence_Check(elem.get()) == 0) {
+                    PyErr_SetString(PyExc_TypeError, "items() must yield key/value pairs");
+                    return -1;
+                }
+
+                auto kobj = Guard<PyObject *, Py_DECREF>(PySequence_GetItem(elem.get(), 0));
+                if (kobj.get() == nullptr) {
+                    return -1;
+                }
+
+                auto vobj = Guard<PyObject *, Py_DECREF>(PySequence_GetItem(elem.get(), 1));
                 if (vobj.get() == nullptr) {
                     return -1;
                 }
