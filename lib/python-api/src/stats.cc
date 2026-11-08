@@ -504,6 +504,14 @@ auto stats_subscript_impl(PyObject *self, PyObject *key, PyObject *out_type, cha
     if (stats_key_to_size(key, &i) < 0) {
         return nullptr;
     }
+    size_t n = 0;
+    if (!clingo_stats_array_size(o->stats, o->key, &n)) {
+        return py_handle_error();
+    }
+    if (i >= n) {
+        PyErr_SetString(PyExc_IndexError, "array index out of bounds");
+        return nullptr;
+    }
 
     uint64_t subkey = 0;
     if (!clingo_stats_array_at(o->stats, o->key, i, &subkey)) {
@@ -534,18 +542,18 @@ auto stats_map_subscript_impl(PyObject *self, PyObject *key, PyObject *out_type)
     return py_stats_alloc(out_type, o->stats, subkey);
 }
 
-auto stats_array_subscript_impl(PyObject *self, PyObject *key, PyObject *out_type) -> PyObject * {
+auto stats_array_subscript_impl(PyObject *self, Py_ssize_t index, PyObject *out_type) -> PyObject * {
     auto *o = py_stats_cast(self);
-    size_t i = 0;
-    if (stats_key_to_size(key, &i) < 0) {
+    if (index < 0) {
+        PyErr_SetString(PyExc_IndexError, "array index out of bounds");
         return nullptr;
     }
+    auto i = static_cast<size_t>(index);
 
     size_t n = 0;
     if (!clingo_stats_array_size(o->stats, o->key, &n)) {
         return py_handle_error();
     }
-
     if (i >= n) {
         PyErr_SetString(PyExc_IndexError, "array index out of bounds");
         return nullptr;
@@ -896,20 +904,20 @@ auto py_stats_view_get_value(PyObject *self, [[maybe_unused]] void *arg) -> PyOb
     return PyFloat_FromDouble(v);
 }
 
-auto py_stats_array_view_subscript(PyObject *self, PyObject *key) -> PyObject * {
+auto py_stats_array_view_subscript(PyObject *self, Py_ssize_t index) -> PyObject * {
     auto *state = get_state_from_self(self);
     if (state == nullptr) {
         return nullptr;
     }
-    return stats_array_subscript_impl(self, key, state->stats_view_type);
+    return stats_array_subscript_impl(self, index, state->stats_view_type);
 }
 
-auto py_stats_array_subscript(PyObject *self, PyObject *key) -> PyObject * {
+auto py_stats_array_subscript(PyObject *self, Py_ssize_t index) -> PyObject * {
     auto *state = get_state_from_self(self);
     if (state == nullptr) {
         return nullptr;
     }
-    return stats_array_subscript_impl(self, key, state->stats_type);
+    return stats_array_subscript_impl(self, index, state->stats_type);
 }
 
 auto py_stats_array_view_iter(PyObject *self) -> PyObject * {
@@ -920,24 +928,24 @@ auto py_stats_array_iter(PyObject *self) -> PyObject * {
     return py_stats_iter_new(self, IterKind::array_items);
 }
 
-auto py_stats_array_ass_subscript(PyObject *self, PyObject *key, PyObject *value) -> int {
+auto py_stats_array_ass_subscript(PyObject *self, Py_ssize_t index, PyObject *value) -> int {
     if (value == nullptr) {
         PyErr_SetString(PyExc_TypeError, "deleting elements is not supported");
         return -1;
     }
 
-    auto *o = py_stats_cast(self);
-    size_t i = 0;
-    if (stats_key_to_size(key, &i) < 0) {
+    if (index < 0) {
+        PyErr_SetString(PyExc_IndexError, "array index out of bounds");
         return -1;
     }
+    auto i = static_cast<size_t>(index);
+    auto *o = py_stats_cast(self);
 
     size_t n = 0;
     if (!clingo_stats_array_size(o->stats, o->key, &n)) {
         py_handle_error();
         return -1;
     }
-
     if (i >= n) {
         PyErr_SetString(PyExc_IndexError, "array index out of bounds");
         return -1;
@@ -1132,8 +1140,8 @@ auto py_stats_view_spec = PyType_Spec{
 auto py_stats_array_view_slots = std::array{
     PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Class representing a read-only array of stats."))},
     PyType_Slot{Py_tp_str, reinterpret_cast<void *>(py_stats_str)},
-    PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_stats_view_len)},
-    PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_stats_array_view_subscript)},
+    PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_stats_view_len)},
+    PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_stats_array_view_subscript)},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_stats_array_view_iter)},
     PyType_Slot{0, nullptr},
 };
@@ -1142,7 +1150,7 @@ auto py_stats_array_view_spec = PyType_Spec{
     "clingo.stats.StatsArrayView",
     sizeof(PyStatsObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING | Py_TPFLAGS_BASETYPE,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_SEQUENCE | Py_TPFLAGS_BASETYPE,
     py_stats_array_view_slots.data(),
 };
 
@@ -1155,9 +1163,9 @@ auto py_stats_array_slots = std::array{
     PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Class representing an array of stats."))},
     PyType_Slot{Py_tp_str, reinterpret_cast<void *>(py_stats_str)},
     PyType_Slot{Py_tp_methods, py_stats_array_methods.data()},
-    PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_stats_view_len)},
-    PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_stats_array_subscript)},
-    PyType_Slot{Py_mp_ass_subscript, reinterpret_cast<void *>(py_stats_array_ass_subscript)},
+    PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_stats_view_len)},
+    PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_stats_array_subscript)},
+    PyType_Slot{Py_sq_ass_item, reinterpret_cast<void *>(py_stats_array_ass_subscript)},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_stats_array_iter)},
     PyType_Slot{0, nullptr},
 };
@@ -1166,7 +1174,7 @@ auto py_stats_array_spec = PyType_Spec{
     "clingo.stats.StatsArray",
     sizeof(PyStatsObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_SEQUENCE,
     py_stats_array_slots.data(),
 };
 
