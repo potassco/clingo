@@ -274,7 +274,7 @@ class PropagateInit : public PropagateControl {
     auto base() -> TypeHint<"clingo.base.Base"> {
         clingo_base_t const *base = nullptr;
         handle_error(clingo_propagate_init_base(init_, &base));
-        auto *type = py_base_type();
+        auto *type = py_base_type_ref();
         if (type == nullptr) {
             throw py::error_already_set();
         }

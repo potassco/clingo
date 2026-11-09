@@ -73,7 +73,7 @@ void Observer::observe(clingo_control_t *ctl, bool preprocess) {
         },
         [](clingo_base_t const *base, void *data) -> bool {
             CLINGO_TRY {
-                auto *type = py_base_type();
+                auto *type = py_base_type_ref();
                 if (type == nullptr) {
                     throw py::error_already_set();
                 }

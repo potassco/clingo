@@ -474,6 +474,17 @@ template <class T, auto Destroy> class Guard {
     T value_{};
 };
 
+using PyGuard = Guard<PyObject *, Py_DECREF>;
+
+inline auto steal(PyObject *obj) -> PyGuard {
+    return PyGuard(obj);
+}
+
+inline auto borrow(PyObject *obj) -> PyGuard {
+    Py_XINCREF(obj);
+    return PyGuard(obj);
+}
+
 template <size_t N> auto cast_kw(std::array<char const *, N> const &kwlist) -> char ** {
     // NOLINTNEXTLINE
     return const_cast<char **>(kwlist.data());

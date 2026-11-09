@@ -166,7 +166,7 @@ class Theory {
         // NOTE: the accu and steps roots can be obtained from the stats object
         // in C. Both objects contain the same base C pointer.
         if (theory_.on_stats != nullptr) {
-            auto *type = py_stats_type();
+            auto *type = py_stats_type_ref();
             if (type == nullptr) {
                 throw py::error_already_set();
             }

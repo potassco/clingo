@@ -59,7 +59,7 @@ auto symbol_args_list(PyObject *type, clingo_symbol_t sym) -> PyObject * {
     if (!clingo_symbol_arguments(sym, &args, &size)) {
         return py_handle_error();
     }
-    auto list = Guard<PyObject *, Py_DECREF>(PyList_New(static_cast<Py_ssize_t>(size)));
+    auto list = steal(PyList_New(static_cast<Py_ssize_t>(size)));
     if (list == nullptr) {
         return nullptr;
     }
@@ -119,16 +119,15 @@ auto py_symbol_str(PyObject *self) -> PyObject * {
     return PyUnicode_FromStringAndSize(str.data, static_cast<Py_ssize_t>(str.size));
 }
 
-auto py_string_escape(clingo_string_builder_t *bld, clingo_string_t value) -> bool {
-    auto str =
-        Guard<PyObject *, Py_DECREF>(PyUnicode_FromStringAndSize(value.data, static_cast<Py_ssize_t>(value.size)));
+auto string_escape(clingo_string_builder_t *bld, clingo_string_t value) -> bool {
+    auto str = steal(PyUnicode_FromStringAndSize(value.data, static_cast<Py_ssize_t>(value.size)));
     if (str == nullptr) {
         auto msg = std::string_view{"failed to create string"};
         clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
         PyErr_Clear();
         return false;
     }
-    auto rep = Guard<PyObject *, Py_DECREF>(PyObject_Repr(str));
+    auto rep = steal(PyObject_Repr(str));
     if (rep == nullptr) {
         auto msg = std::string_view{"failed to create string representation"};
         clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
@@ -146,9 +145,9 @@ auto py_string_escape(clingo_string_builder_t *bld, clingo_string_t value) -> bo
     return clingo_string_builder_append(bld, val, static_cast<size_t>(size));
 }
 
-auto py_symbol_build_repr(clingo_string_builder_t *bld, clingo_symbol_t sym) -> bool;
+auto symbol_build_repr(clingo_string_builder_t *bld, clingo_symbol_t sym) -> bool;
 
-auto py_symbol_build_repr_tuple(clingo_string_builder_t *bld, clingo_symbol_t sym) -> bool {
+auto symbol_build_repr_tuple(clingo_string_builder_t *bld, clingo_symbol_t sym) -> bool {
     clingo_symbol_t const *args = nullptr;
     size_t size = 0;
     if (!clingo_symbol_arguments(sym, &args, &size)) {
@@ -169,14 +168,14 @@ auto py_symbol_build_repr_tuple(clingo_string_builder_t *bld, clingo_symbol_t sy
         } else {
             sep = true;
         }
-        if (!py_symbol_build_repr(bld, arg)) {
+        if (!symbol_build_repr(bld, arg)) {
             return false;
         }
     }
     return clingo_string_builder_append(bld, pst.data(), pst.size());
 };
 
-auto py_symbol_build_repr(clingo_string_builder_t *bld, clingo_symbol_t sym) -> bool {
+auto symbol_build_repr(clingo_string_builder_t *bld, clingo_symbol_t sym) -> bool {
     switch (symbol_type(sym)) {
         case clingo_symbol_type_infimum: {
             auto val = std::string_view{"Infimum"};
@@ -189,7 +188,8 @@ auto py_symbol_build_repr(clingo_string_builder_t *bld, clingo_symbol_t sym) -> 
         case clingo_symbol_type_number: {
             auto pre = std::string_view{"Number("};
             auto pst = std::string_view{")"};
-            return clingo_string_builder_append(bld, pre.data(), pre.size()) && clingo_symbol_to_string(sym, bld) &&
+            return clingo_string_builder_append(bld, pre.data(), pre.size()) && //
+                   clingo_symbol_to_string(sym, bld) &&                         //
                    clingo_string_builder_append(bld, pst.data(), pst.size());
         }
         case clingo_symbol_type_string: {
@@ -199,14 +199,15 @@ auto py_symbol_build_repr(clingo_string_builder_t *bld, clingo_symbol_t sym) -> 
             if (!clingo_symbol_string(sym, &str)) {
                 return false;
             }
-            return clingo_string_builder_append(bld, pre.data(), pre.size()) && py_string_escape(bld, str) &&
+            return clingo_string_builder_append(bld, pre.data(), pre.size()) && //
+                   string_escape(bld, str) &&                                   //
                    clingo_string_builder_append(bld, pst.data(), pst.size());
         }
         case clingo_symbol_type_tuple: {
             auto pre = std::string_view{"Tuple_("};
             auto pst = std::string_view{")"};
-            return clingo_string_builder_append(bld, pre.data(), pre.size()) && py_symbol_build_repr_tuple(bld, sym) &&
-                   clingo_string_builder_append(bld, pst.data(), pst.size());
+            return clingo_string_builder_append(bld, pre.data(), pre.size()) && //
+                   symbol_build_repr_tuple(bld, sym) && clingo_string_builder_append(bld, pst.data(), pst.size());
         }
         case clingo_symbol_type_function: {
             auto pre = std::string_view{"Function("};
@@ -222,16 +223,17 @@ auto py_symbol_build_repr(clingo_string_builder_t *bld, clingo_symbol_t sym) -> 
             }
             auto sgn = std::string_view{pos ? "True" : "False"};
             return clingo_string_builder_append(bld, pre.data(), pre.size()) && //
-                   py_string_escape(bld, name) &&                               //
+                   string_escape(bld, name) &&                                  //
                    clingo_string_builder_append(bld, cmm.data(), cmm.size()) && //
-                   py_symbol_build_repr_tuple(bld, sym) &&                      //
+                   symbol_build_repr_tuple(bld, sym) &&                         //
                    clingo_string_builder_append(bld, cmm.data(), cmm.size()) && //
                    clingo_string_builder_append(bld, sgn.data(), sgn.size()) && //
                    clingo_string_builder_append(bld, pst.data(), pst.size());
         }
     }
     // cannot happen
-    Py_RETURN_NONE;
+    auto msg = std::string_view{"invalid symbol type"};
+    return clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
 };
 
 auto py_symbol_repr(PyObject *self) -> PyObject * {
@@ -240,7 +242,7 @@ auto py_symbol_repr(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!py_symbol_build_repr(bld.get(), s->sym)) {
+    if (!symbol_build_repr(bld.get(), s->sym)) {
         return py_handle_error();
     }
     clingo_string_t str;
@@ -390,7 +392,7 @@ auto py_symbol_get_number(PyObject *self, [[maybe_unused]] void *closure) -> PyO
         return PyLong_FromLong(num);
     }
     clingo_clear_error();
-    auto str = Guard<PyObject *, Py_DECREF>(py_symbol_str(self));
+    auto str = steal(py_symbol_str(self));
     if (str == nullptr) {
         return nullptr;
     }
@@ -512,7 +514,7 @@ auto py_number([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * 
     if (overflow == 0 && std::numeric_limits<int32_t>::min() <= val && val <= std::numeric_limits<int32_t>::max()) {
         sym = clingo_symbol_create_number(static_cast<int32_t>(val));
     } else {
-        auto num_str = Guard<PyObject *, Py_DECREF>(PyObject_Str(num_obj));
+        auto num_str = steal(PyObject_Str(num_obj));
         if (num_str == nullptr) {
             return nullptr;
         }
@@ -573,7 +575,7 @@ struct SymbolSeq {
 };
 
 auto py_symbol_sequence(PyObject *obj, PyObject *symbol_type, SymbolSeq &out) -> bool {
-    auto seq = Guard<PyObject *, Py_DECREF>(PySequence_Fast(obj, "arguments must be a sequence of Symbol"));
+    auto seq = steal(PySequence_Fast(obj, "arguments must be a sequence of Symbol"));
     if (seq == nullptr) {
         return false;
     }
@@ -905,7 +907,7 @@ PyModuleDef symbol_def = {
 
 void register_symbol(pybind11::module &m) {
     // TODO: this is going to be the return value at some point
-    auto symbol = Guard<PyObject *, Py_DECREF>(nullptr);
+    auto symbol = PyGuard{nullptr};
     if (!add_submodule(m.ptr(), &symbol_def, &symbol.get())) {
         throw py::error_already_set();
     }
@@ -923,23 +925,27 @@ void register_symbol(pybind11::module &m) {
         throw py::error_already_set();
     }
 
-    auto inf = Guard<PyObject *, Py_DECREF>(py_symbol_new(state->symbol_type, clingo_symbol_create_infimum(), false));
+    auto inf = steal(py_symbol_new(state->symbol_type, clingo_symbol_create_infimum(), false));
     if (inf == nullptr || PyModule_AddObjectRef(symbol, "Infimum", inf) < 0) {
         throw py::error_already_set();
     }
-    auto sup = Guard<PyObject *, Py_DECREF>(py_symbol_new(state->symbol_type, clingo_symbol_create_supremum(), false));
+    auto sup = steal(py_symbol_new(state->symbol_type, clingo_symbol_create_supremum(), false));
     if (sup == nullptr || PyModule_AddObjectRef(symbol, "Supremum", sup) < 0) {
         throw py::error_already_set();
     }
 }
 
-auto py_symbol_type() -> PyObject * {
-    auto mod = Guard<PyObject *, Py_DECREF>(PyImport_ImportModule("clingo.symbol"));
+auto py_symbol_type_ref() -> PyObject * {
+    auto mod = steal(PyImport_ImportModule("clingo.symbol"));
     if (mod == nullptr) {
         return nullptr;
     }
     auto *state = get_symbol_module_state(mod.get());
     if (state == nullptr) {
+        return nullptr;
+    }
+    if (state->symbol_type == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "failed to resolve symbol type");
         return nullptr;
     }
     return state->symbol_type;
@@ -988,7 +994,7 @@ namespace pybind11::detail {
 static auto get_symbol_type() -> PyObject * {
     // we use a static variable here for performance reasons
     // this means the python interpreter can be loaded only once
-    static auto *symbol_type = PyClingo::py_symbol_type();
+    static auto *symbol_type = PyClingo::py_symbol_type_ref();
     return symbol_type;
 }
 
@@ -996,8 +1002,12 @@ auto type_caster<PyClingo::Symbol>::load(handle src, [[maybe_unused]] bool noclu
     if (src.is_none()) {
         return false;
     }
+    auto *type = get_symbol_type();
+    if (type == nullptr) {
+        throw error_already_set();
+    }
     auto *obj = src.ptr();
-    if (!PyObject_TypeCheck(obj, reinterpret_cast<PyTypeObject *>(get_symbol_type()))) {
+    if (!PyObject_TypeCheck(obj, reinterpret_cast<PyTypeObject *>(type))) {
         return false;
     }
     auto *s = PyClingo::cast_symbol(obj);
@@ -1007,7 +1017,11 @@ auto type_caster<PyClingo::Symbol>::load(handle src, [[maybe_unused]] bool noclu
 
 auto type_caster<PyClingo::Symbol>::cast(PyClingo::Symbol const &src, [[maybe_unused]] return_value_policy policy,
                                          [[maybe_unused]] handle parent) -> handle {
-    PyObject *obj = PyClingo::py_symbol_new(get_symbol_type(), src.handle(), true);
+    auto *type = get_symbol_type();
+    if (type == nullptr) {
+        throw error_already_set();
+    }
+    PyObject *obj = PyClingo::py_symbol_new(type, src.handle(), true);
     if (obj == nullptr) {
         throw error_already_set();
     }

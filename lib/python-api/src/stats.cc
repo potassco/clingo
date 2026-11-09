@@ -115,7 +115,7 @@ auto stats_key_to_size(PyObject *key, size_t *out) -> int {
         PyErr_SetString(PyExc_TypeError, "index must be an integer");
         return -1;
     }
-    auto idx_obj = Guard<PyObject *, Py_DECREF>(PyNumber_Index(key));
+    auto idx_obj = steal(PyNumber_Index(key));
     if (idx_obj.get() == nullptr) {
         return -1;
     }
@@ -210,19 +210,18 @@ auto stats_detect_type(PyObject *value, clingo_stats_type_t *type) -> int {
 
 auto stats_prepare_value(clingo_stats_t *stats, uint64_t key, bool has_old, PyObject *value, clingo_stats_type_t *type,
                          PyObject **prepared) -> int {
-    auto resolved = Guard<PyObject *, Py_DECREF>(nullptr);
+    auto resolved = PyGuard{nullptr};
     if (PyCallable_Check(value) == 1) {
-        auto arg = Guard<PyObject *, Py_DECREF>(stats_resolve_callable_arg(stats, key, has_old));
+        auto arg = steal(stats_resolve_callable_arg(stats, key, has_old));
         if (arg.get() == nullptr) {
             return -1;
         }
-        resolved.get() = PyObject_CallFunctionObjArgs(value, arg.get(), nullptr);
+        resolved = steal(PyObject_CallFunctionObjArgs(value, arg.get(), nullptr));
         if (resolved.get() == nullptr) {
             return -1;
         }
     } else {
-        resolved.get() = value;
-        Py_INCREF(resolved);
+        resolved = borrow(value);
     }
 
     if (stats_detect_type(resolved, type) < 0) {
@@ -241,24 +240,23 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
 
     switch (static_cast<clingo_stats_type_e>(ty)) {
         case clingo_stats_type_value: {
-            auto src = Guard<PyObject *, Py_DECREF>{nullptr};
+            auto src = PyGuard{nullptr};
             if (PyCallable_Check(value) == 1) {
-                auto hold = Guard<PyObject *, Py_DECREF>(nullptr);
+                auto hold = PyGuard{nullptr};
                 if (init) {
-                    Py_INCREF(Py_None);
-                    hold.get() = Py_None;
+                    hold = borrow(Py_None);
                 } else {
                     double old = 0.0;
                     if (!clingo_stats_value_get(stats, key, &old)) {
                         py_handle_error();
                         return -1;
                     }
-                    hold.get() = PyFloat_FromDouble(old);
+                    hold = steal(PyFloat_FromDouble(old));
                     if (hold.get() == nullptr) {
                         return -1;
                     }
                 }
-                src.get() = PyObject_CallFunctionObjArgs(value, hold.get(), nullptr);
+                src = steal(PyObject_CallFunctionObjArgs(value, hold.get(), nullptr));
                 if (src.get() == nullptr) {
                     return -1;
                 }
@@ -266,8 +264,7 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
                     return 0;
                 }
             } else {
-                src.get() = value;
-                Py_INCREF(src.get());
+                src = borrow(value);
             }
 
             auto x = PyFloat_AsDouble(src);
@@ -282,7 +279,7 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
         }
 
         case clingo_stats_type_array: {
-            auto it = Guard<PyObject *, Py_DECREF>(PyObject_GetIter(value));
+            auto it = steal(PyObject_GetIter(value));
             if (it.get() == nullptr) {
                 return -1;
             }
@@ -294,7 +291,7 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
             }
 
             while (true) {
-                auto elem = Guard<PyObject *, Py_DECREF>(PyIter_Next(it.get()));
+                auto elem = steal(PyIter_Next(it.get()));
                 if (elem.get() == nullptr) {
                     if (PyErr_Occurred() != nullptr) {
                         return -1;
@@ -314,7 +311,7 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
                     ++i;
                 } else {
                     clingo_stats_type_t subtype = 0;
-                    auto prepared = Guard<PyObject *, Py_DECREF>(nullptr);
+                    auto prepared = PyGuard{nullptr};
                     if (stats_prepare_value(stats, 0, false, elem.get(), &subtype, &prepared.get()) < 0) {
                         return -1;
                     }
@@ -333,17 +330,17 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
         }
 
         case clingo_stats_type_map: {
-            auto items = Guard<PyObject *, Py_DECREF>(PyObject_CallMethod(value, "items", nullptr));
+            auto items = steal(PyObject_CallMethod(value, "items", nullptr));
             if (items.get() == nullptr) {
                 return -1;
             }
-            auto it = Guard<PyObject *, Py_DECREF>(PyObject_GetIter(items.get()));
+            auto it = steal(PyObject_GetIter(items.get()));
             if (it.get() == nullptr) {
                 return -1;
             }
 
             while (true) {
-                auto elem = Guard<PyObject *, Py_DECREF>(PyIter_Next(it.get()));
+                auto elem = steal(PyIter_Next(it.get()));
                 if (elem.get() == nullptr) {
                     if (PyErr_Occurred() != nullptr) {
                         return -1;
@@ -355,12 +352,12 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
                     return -1;
                 }
 
-                auto kobj = Guard<PyObject *, Py_DECREF>(PySequence_GetItem(elem.get(), 0));
+                auto kobj = steal(PySequence_GetItem(elem.get(), 0));
                 if (kobj.get() == nullptr) {
                     return -1;
                 }
 
-                auto vobj = Guard<PyObject *, Py_DECREF>(PySequence_GetItem(elem.get(), 1));
+                auto vobj = steal(PySequence_GetItem(elem.get(), 1));
                 if (vobj.get() == nullptr) {
                     return -1;
                 }
@@ -379,7 +376,7 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
                 }
 
                 clingo_stats_type_t subtype = 0;
-                auto prepared = Guard<PyObject *, Py_DECREF>(nullptr);
+                auto prepared = PyGuard{nullptr};
                 if (stats_prepare_value(stats, old_subkey, found, vobj.get(), &subtype, &prepared.get()) < 0) {
                     return -1;
                 }
@@ -423,7 +420,7 @@ auto stats_nestify(clingo_stats_t *stats, uint64_t key) -> PyObject * {
             if (!stats_array_len(stats, key, &n)) {
                 return nullptr;
             }
-            auto out = Guard<PyObject *, Py_DECREF>(PyList_New(static_cast<Py_ssize_t>(n)));
+            auto out = steal(PyList_New(static_cast<Py_ssize_t>(n)));
             if (out.get() == nullptr) {
                 return nullptr;
             }
@@ -447,7 +444,7 @@ auto stats_nestify(clingo_stats_t *stats, uint64_t key) -> PyObject * {
             if (!stats_map_len(stats, key, &n)) {
                 return nullptr;
             }
-            auto out = Guard<PyObject *, Py_DECREF>(PyDict_New());
+            auto out = steal(PyDict_New());
             if (out.get() == nullptr) {
                 return nullptr;
             }
@@ -467,10 +464,12 @@ auto stats_nestify(clingo_stats_t *stats, uint64_t key) -> PyObject * {
                     return nullptr;
                 }
 
-                auto k = Guard<PyObject *, Py_DECREF>(
-                    PyUnicode_FromStringAndSize(name.data, static_cast<Py_ssize_t>(name.size)));
-                auto v = Guard<PyObject *, Py_DECREF>(stats_nestify(stats, subkey));
-                if (k.get() == nullptr || v.get() == nullptr) {
+                auto k = steal(PyUnicode_FromStringAndSize(name.data, static_cast<Py_ssize_t>(name.size)));
+                if (k.get() == nullptr) {
+                    return nullptr;
+                }
+                auto v = steal(stats_nestify(stats, subkey));
+                if (v.get() == nullptr) {
                     return nullptr;
                 }
                 if (PyDict_SetItem(out.get(), k.get(), v.get()) < 0) {
@@ -775,7 +774,7 @@ auto py_stats_iter_next(PyObject *self) -> PyObject * {
             auto *val_type = (it->kind == IterKind::map_values_view || it->kind == IterKind::map_items_view)
                                  ? state->stats_view_type
                                  : state->stats_type;
-            auto val = Guard<PyObject *, Py_DECREF>(py_stats_alloc(val_type, it->stats, subkey));
+            auto val = steal(py_stats_alloc(val_type, it->stats, subkey));
             if (val.get() == nullptr) {
                 return nullptr;
             }
@@ -784,8 +783,7 @@ auto py_stats_iter_next(PyObject *self) -> PyObject * {
                 return val.release();
             }
 
-            auto key = Guard<PyObject *, Py_DECREF>(
-                PyUnicode_FromStringAndSize(name.data, static_cast<Py_ssize_t>(name.size)));
+            auto key = steal(PyUnicode_FromStringAndSize(name.data, static_cast<Py_ssize_t>(name.size)));
             if (key.get() == nullptr) {
                 return nullptr;
             }
@@ -972,7 +970,7 @@ auto py_stats_array_append(PyObject *self, PyObject *arg) -> PyObject * {
     auto *o = py_stats_cast(self);
 
     clingo_stats_type_t subtype = 0;
-    auto prepared = Guard<PyObject *, Py_DECREF>(nullptr);
+    auto prepared = PyGuard{nullptr};
     if (stats_prepare_value(o->stats, 0, false, arg, &subtype, &prepared.get()) < 0) {
         return nullptr;
     }
@@ -1051,7 +1049,7 @@ auto py_stats_map_ass_subscript(PyObject *self, PyObject *key, PyObject *value) 
     }
 
     clingo_stats_type_t subtype = 0;
-    auto prepared = Guard<PyObject *, Py_DECREF>(nullptr);
+    auto prepared = PyGuard{nullptr};
     if (stats_prepare_value(o->stats, old_subkey, found, value, &subtype, &prepared.get()) < 0) {
         return -1;
     }
@@ -1324,7 +1322,7 @@ PyModuleDef stats_def = {
 } // namespace
 
 void register_stats(pybind11::module &m) {
-    auto stats_mod = Guard<PyObject *, Py_DECREF>(nullptr);
+    auto stats_mod = PyGuard{nullptr};
     if (!add_submodule(m.ptr(), &stats_def, &stats_mod.get())) {
         throw py::error_already_set();
     }
@@ -1355,8 +1353,8 @@ auto py_stats_new(PyObject *type, clingo_stats_t *stats, uint64_t key) -> PyObje
     return py_stats_alloc(type, stats, key);
 }
 
-auto py_stats_type() -> PyObject * {
-    auto mod = Guard<PyObject *, Py_DECREF>(PyImport_ImportModule("clingo.stats"));
+auto py_stats_type_ref() -> PyObject * {
+    auto mod = steal(PyImport_ImportModule("clingo.stats"));
     if (mod.get() == nullptr) {
         return nullptr;
     }
@@ -1367,8 +1365,8 @@ auto py_stats_type() -> PyObject * {
     return state->stats_type;
 }
 
-auto py_stats_view_type() -> PyObject * {
-    auto mod = Guard<PyObject *, Py_DECREF>(PyImport_ImportModule("clingo.stats"));
+auto py_stats_view_type_ref() -> PyObject * {
+    auto mod = steal(PyImport_ImportModule("clingo.stats"));
     if (mod.get() == nullptr) {
         return nullptr;
     }

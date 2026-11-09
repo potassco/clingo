@@ -199,7 +199,7 @@ auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
 auto Control::base() -> TypeHint<"clingo.base.Base"> {
     clingo_base_t const *base = nullptr;
     clingo_control_base(get(), &base);
-    auto *type = py_base_type();
+    auto *type = py_base_type_ref();
     if (type == nullptr) {
         throw py::error_already_set();
     }
@@ -227,7 +227,7 @@ auto Control::stats() -> StatsView {
     handle_error(clingo_control_stats(get(), &stats));
     uint64_t key = 0;
     handle_error(clingo_stats_root(stats, &key));
-    auto *type = py_stats_view_type();
+    auto *type = py_stats_view_type_ref();
     if (type == nullptr) {
         throw py::error_already_set();
     }
@@ -353,7 +353,7 @@ auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optio
                 uint64_t accu = 0;
                 handle_error(clingo_stats_map_add_subkey(stats, root, clingo_user_stats_accu.data, clingo_user_stats_accu.size,
                                                          clingo_stats_type_map, &accu));
-                auto *type = py_stats_type();
+                auto *type = py_stats_type_ref();
                 if (type == nullptr) {
                     throw py::error_already_set();
                 }
