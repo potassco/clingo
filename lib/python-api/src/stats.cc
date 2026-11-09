@@ -549,6 +549,35 @@ auto stats_map_subscript_impl(PyObject *self, PyObject *key, PyObject *out_type)
     return py_stats_alloc(out_type, o->stats, subkey);
 }
 
+auto stats_map_get_impl(PyObject *self, PyObject *args, PyObject *out_type) -> PyObject * {
+    PyObject *key = nullptr;
+    PyObject *def = Py_None;
+    if (PyArg_ParseTuple(args, "O|O:get", &key, &def) == 0) {
+        return nullptr;
+    }
+
+    auto *o = py_stats_cast(self);
+
+    char const *k = nullptr;
+    Py_ssize_t kn = 0;
+    if (stats_key_to_str(key, &k, &kn) < 0) {
+        return nullptr;
+    }
+
+    uint64_t subkey = 0;
+    bool found = false;
+    if (!stats_get_subkey_by_name(o->stats, o->key, std::string_view{k, static_cast<size_t>(kn)}, &subkey, &found)) {
+        return nullptr;
+    }
+
+    if (!found) {
+        Py_INCREF(def);
+        return def;
+    }
+
+    return py_stats_alloc(out_type, o->stats, subkey);
+}
+
 auto stats_array_subscript_impl(PyObject *self, Py_ssize_t index, PyObject *out_type) -> PyObject * {
     auto *o = py_stats_cast(self);
     if (index < 0) {
@@ -987,6 +1016,30 @@ auto py_stats_array_append(PyObject *self, PyObject *arg) -> PyObject * {
     Py_RETURN_NONE;
 }
 
+auto py_stats_array_extend(PyObject *self, PyObject *arg) -> PyObject * {
+    auto it = steal(PyObject_GetIter(arg));
+    if (it.get() == nullptr) {
+        return nullptr;
+    }
+
+    while (true) {
+        auto elem = steal(PyIter_Next(it.get()));
+        if (elem.get() == nullptr) {
+            if (PyErr_Occurred() != nullptr) {
+                return nullptr;
+            }
+            break;
+        }
+
+        auto appended = steal(py_stats_array_append(self, elem.get()));
+        if (appended.get() == nullptr) {
+            return nullptr;
+        }
+    }
+
+    Py_RETURN_NONE;
+}
+
 auto py_stats_map_view_subscript(PyObject *self, PyObject *key) -> PyObject * {
     auto *state = get_state_from_self(self);
     if (state == nullptr) {
@@ -1001,6 +1054,70 @@ auto py_stats_map_subscript(PyObject *self, PyObject *key) -> PyObject * {
         return nullptr;
     }
     return stats_map_subscript_impl(self, key, state->stats_type);
+}
+
+auto py_stats_map_view_get(PyObject *self, PyObject *args) -> PyObject * {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    return stats_map_get_impl(self, args, state->stats_view_type);
+}
+
+auto py_stats_map_get(PyObject *self, PyObject *args) -> PyObject * {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    return stats_map_get_impl(self, args, state->stats_type);
+}
+
+auto py_stats_map_setdefault(PyObject *self, PyObject *args) -> PyObject * {
+    PyObject *key = nullptr;
+    PyObject *def = nullptr;
+    if (PyArg_ParseTuple(args, "OO:setdefault", &key, &def) == 0) {
+        return nullptr;
+    }
+
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    auto *o = py_stats_cast(self);
+
+    char const *k = nullptr;
+    Py_ssize_t kn = 0;
+    if (stats_key_to_str(key, &k, &kn) < 0) {
+        return nullptr;
+    }
+
+    uint64_t old_subkey = 0;
+    bool found = false;
+    if (!stats_get_subkey_by_name(o->stats, o->key, std::string_view{k, static_cast<size_t>(kn)}, &old_subkey,
+                                  &found)) {
+        return nullptr;
+    }
+
+    if (found) {
+        return py_stats_alloc(state->stats_type, o->stats, old_subkey);
+    }
+
+    clingo_stats_type_t subtype = 0;
+    auto prepared = PyGuard{nullptr};
+    if (stats_prepare_value(o->stats, old_subkey, found, def, &subtype, &prepared.get()) < 0) {
+        return nullptr;
+    }
+
+    uint64_t subkey = 0;
+    if (!clingo_stats_map_add_subkey(o->stats, o->key, k, static_cast<size_t>(kn), subtype, &subkey)) {
+        return py_handle_error();
+    }
+
+    if (stats_update(o->stats, subkey, prepared.get(), true) < 0) {
+        return nullptr;
+    }
+
+    return py_stats_alloc(state->stats_type, o->stats, subkey);
 }
 
 auto py_stats_map_view_iter(PyObject *self) -> PyObject * {
@@ -1162,6 +1279,7 @@ auto py_stats_array_view_spec = PyType_Spec{
 
 auto py_stats_array_methods = std::array{
     PyMethodDef{"append", py_stats_array_append, METH_O, PyDoc_STR("Append a value to the array.")},
+    PyMethodDef{"extend", py_stats_array_extend, METH_O, PyDoc_STR("Append values from an iterable to the array.")},
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
 
@@ -1185,6 +1303,7 @@ auto py_stats_array_spec = PyType_Spec{
 };
 
 auto py_stats_map_view_methods = std::array{
+    PyMethodDef{"get", py_stats_map_view_get, METH_VARARGS, PyDoc_STR("Get value for key or default.")},
     PyMethodDef{"keys", py_stats_map_keys, METH_NOARGS, PyDoc_STR("Get iterator over keys.")},
     PyMethodDef{"values", py_stats_map_view_values, METH_NOARGS, PyDoc_STR("Get iterator over values.")},
     PyMethodDef{"items", py_stats_map_view_items, METH_NOARGS, PyDoc_STR("Get iterator over items.")},
@@ -1197,6 +1316,7 @@ auto py_stats_map_view_slots = std::array{
     PyType_Slot{Py_tp_methods, py_stats_map_view_methods.data()},
     PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_stats_view_len)},
     PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_stats_map_view_subscript)},
+    PyType_Slot{Py_sq_contains, reinterpret_cast<void *>(py_stats_view_contains)},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_stats_map_view_iter)},
     PyType_Slot{0, nullptr},
 };
@@ -1210,9 +1330,36 @@ auto py_stats_map_view_spec = PyType_Spec{
 };
 
 auto py_stats_map_methods = std::array{
-    PyMethodDef{"keys", py_stats_map_keys, METH_NOARGS, PyDoc_STR("Get iterator over keys.")},
-    PyMethodDef{"values", py_stats_map_values, METH_NOARGS, PyDoc_STR("Get iterator over values.")},
-    PyMethodDef{"items", py_stats_map_items, METH_NOARGS, PyDoc_STR("Get iterator over items.")},
+    PyMethodDef{
+        "get",
+        py_stats_map_get,
+        METH_VARARGS,
+        PyDoc_STR("Get value for key or default."),
+    },
+    PyMethodDef{
+        "setdefault",
+        py_stats_map_setdefault,
+        METH_VARARGS,
+        PyDoc_STR("Insert key with default if not already in the map."),
+    },
+    PyMethodDef{
+        "keys",
+        py_stats_map_keys,
+        METH_NOARGS,
+        PyDoc_STR("Get iterator over keys."),
+    },
+    PyMethodDef{
+        "values",
+        py_stats_map_values,
+        METH_NOARGS,
+        PyDoc_STR("Get iterator over values."),
+    },
+    PyMethodDef{
+        "items",
+        py_stats_map_items,
+        METH_NOARGS,
+        PyDoc_STR("Get iterator over items."),
+    },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
 
@@ -1223,6 +1370,7 @@ auto py_stats_map_slots = std::array{
     PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_stats_view_len)},
     PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_stats_map_subscript)},
     PyType_Slot{Py_mp_ass_subscript, reinterpret_cast<void *>(py_stats_map_ass_subscript)},
+    PyType_Slot{Py_sq_contains, reinterpret_cast<void *>(py_stats_view_contains)},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_stats_map_view_iter)},
     PyType_Slot{0, nullptr},
 };

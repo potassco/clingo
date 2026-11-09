@@ -51,6 +51,8 @@ __all__: list[str] = [
     "StatsView",
 ]
 
+_T = typing.TypeVar("_T")
+
 class StatsType(enum.IntEnum):
     """
     The type of a stats object.
@@ -240,6 +242,11 @@ class StatsArray(StatsArrayView):
             value: The value to append.
         """
 
+    def extend(self, values: object, /) -> None:
+        """
+        Append all values from the given iterable to the array.
+        """
+
 class StatsMapView:
     """
     Class representing a read-only map of stats.
@@ -260,6 +267,36 @@ class StatsMapView:
     def __len__(self) -> int:
         """
         Return the length of the map.
+        """
+
+    def __contains__(self, key: str) -> bool:
+        """
+        Return whether the map contains the given key.
+        """
+
+    @typing.overload
+    def get(self, key: str) -> StatsView | None:
+        """
+        Return the value for `key` if present, otherwise return `None`.
+
+        Args:
+            key: The key to lookup.
+        Returns:
+            The value associated with the key or `None` if the key is not
+            found.
+        """
+
+    @typing.overload
+    def get(self, key: str, default: _T) -> StatsView | _T:
+        """
+        Return the value for `key` if present, otherwise return `default`.
+
+        Args:
+            key: The key to lookup.
+            default: The default value to return if the key is not found.
+        Returns:
+            The value associated with the key or the default value if the key
+            is not found.
         """
 
     def items(self) -> Iterator[tuple[str, StatsView]]:
@@ -297,6 +334,42 @@ class StatsMap(StatsMapView):
     def __setitem__(self, key: str, value: object) -> None:
         """
         Set the value at the given key.
+        """
+
+    @typing.overload
+    def get(self, key: str) -> Stats | None:
+        """
+        Return the value for `key` if present, otherwise return `None`.
+
+        Args:
+            key: The key to lookup.
+        Returns:
+            The value associated with the key or `None` if the key is not
+            found.
+        """
+
+    @typing.overload
+    def get(self, key: str, default: _T) -> Stats | _T:
+        """
+        Return the value for `key` if present, otherwise return `default`.
+
+        Args:
+            key: The key to lookup.
+            default: The default value to return if the key is not found.
+        Returns:
+            The value associated with the key or the default value if the key
+            is not found.
+        """
+
+    def setdefault(self, key: str, default: object) -> Stats:
+        """
+        Insert key with default if not already in the map.
+
+        Args:
+            key: The key to lookup.
+            default: The default value to insert.
+        Returns:
+            The newly inserted value or the existing value.
         """
 
     def items(self) -> Iterator[tuple[str, Stats]]:
