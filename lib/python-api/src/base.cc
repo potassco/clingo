@@ -210,30 +210,30 @@ auto py_atom_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
     if (state == nullptr || state->atom_base_iter_type == nullptr) {
         return nullptr;
     }
-    auto *type = reinterpret_cast<PyTypeObject *>(state->atom_base_iter_type);
-    auto *obj = type->tp_alloc(type, 0);
-    if (obj == nullptr) {
+
+    auto *a = reinterpret_cast<PyAtomBaseObject *>(owner);
+    auto *t = reinterpret_cast<PyTypeObject *>(state->atom_base_iter_type);
+    size_t n = 0;
+    if (!clingo_atom_base_size(a->base, &n)) {
+        return py_handle_error();
+    }
+    if (std::cmp_greater(n, std::numeric_limits<Py_ssize_t>::max())) {
+        PyErr_SetString(PyExc_OverflowError, "size does not fit in Py_ssize_t");
         return nullptr;
     }
 
-    auto *it = reinterpret_cast<PyAtomBaseIter *>(obj);
-    auto *a = reinterpret_cast<PyAtomBaseObject *>(owner);
+    auto obj = steal(t->tp_alloc(t, 0));
+    if (obj == nullptr) {
+        return nullptr;
+    }
+    auto *it = reinterpret_cast<PyAtomBaseIter *>(obj.get());
+
     it->base = a->base;
     it->index = 0;
     it->kind = kind;
 
-    size_t n = 0;
-    if (!clingo_atom_base_size(it->base, &n)) {
-        Py_DECREF(obj);
-        return py_handle_error();
-    }
-    if (n > static_cast<size_t>(std::numeric_limits<Py_ssize_t>::max())) {
-        Py_DECREF(obj);
-        PyErr_SetString(PyExc_OverflowError, "size does not fit in Py_ssize_t");
-        return nullptr;
-    }
     it->size = static_cast<Py_ssize_t>(n);
-    return obj;
+    return obj.release();
 }
 
 auto py_atom_base_iter_next(PyObject *self) -> PyObject * {
@@ -264,10 +264,12 @@ auto py_atom_base_iter_next(PyObject *self) -> PyObject * {
     if (!clingo_atom_base_symbol(it->base, idx, &sym)) {
         return py_handle_error();
     }
-    auto key = Guard<PyObject *, Py_DECREF>(py_symbol_new(state->symbol_type, sym, true));
-    auto val =
-        Guard<PyObject *, Py_DECREF>(py_atom_new(reinterpret_cast<PyTypeObject *>(state->atom_type), it->base, idx));
-    if (key.get() == nullptr || val.get() == nullptr) {
+    auto key = steal(py_symbol_new(state->symbol_type, sym, true));
+    if (key.get() == nullptr) {
+        return nullptr;
+    }
+    auto val = steal(py_atom_new(reinterpret_cast<PyTypeObject *>(state->atom_type), it->base, idx));
+    if (val.get() == nullptr) {
         return nullptr;
     }
     return PyTuple_Pack(2, key.get(), val.get());
@@ -304,7 +306,7 @@ auto py_atom_base_len(PyObject *self) -> Py_ssize_t {
         py_handle_error();
         return -1;
     }
-    if (n > static_cast<size_t>(std::numeric_limits<Py_ssize_t>::max())) {
+    if (std::cmp_greater(n, std::numeric_limits<Py_ssize_t>::max())) {
         PyErr_SetString(PyExc_OverflowError, "size does not fit in Py_ssize_t");
         return -1;
     }
@@ -510,13 +512,13 @@ auto py_term_get_condition(PyObject *self, [[maybe_unused]] void *arg) -> PyObje
         return py_handle_error();
     }
 
-    auto out = Guard<PyObject *, Py_DECREF>(PyList_New(static_cast<Py_ssize_t>(n)));
+    auto out = steal(PyList_New(static_cast<Py_ssize_t>(n)));
     if (out.get() == nullptr) {
         return nullptr;
     }
 
     for (size_t i = 0; i < n; ++i) {
-        auto inner = Guard<PyObject *, Py_DECREF>(PyList_New(static_cast<Py_ssize_t>(sizes[i])));
+        auto inner = steal(PyList_New(static_cast<Py_ssize_t>(sizes[i])));
         if (inner.get() == nullptr) {
             return nullptr;
         }
@@ -575,7 +577,7 @@ auto py_term_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
         Py_DECREF(obj);
         return py_handle_error();
     }
-    if (n > static_cast<size_t>(std::numeric_limits<Py_ssize_t>::max())) {
+    if (std::cmp_greater(n, std::numeric_limits<Py_ssize_t>::max())) {
         Py_DECREF(obj);
         PyErr_SetString(PyExc_OverflowError, "size does not fit in Py_ssize_t");
         return nullptr;
@@ -612,10 +614,12 @@ auto py_term_base_iter_next(PyObject *self) -> PyObject * {
     if (!clingo_term_base_symbol(it->base, idx, &sym)) {
         return py_handle_error();
     }
-    auto key = Guard<PyObject *, Py_DECREF>(py_symbol_new(state->symbol_type, sym, true));
-    auto val =
-        Guard<PyObject *, Py_DECREF>(py_term_new(reinterpret_cast<PyTypeObject *>(state->term_type), it->base, idx));
-    if (key.get() == nullptr || val.get() == nullptr) {
+    auto key = steal(py_symbol_new(state->symbol_type, sym, true));
+    if (key.get() == nullptr) {
+        return nullptr;
+    }
+    auto val = steal(py_term_new(reinterpret_cast<PyTypeObject *>(state->term_type), it->base, idx));
+    if (val.get() == nullptr) {
         return nullptr;
     }
     return PyTuple_Pack(2, key.get(), val.get());
@@ -889,7 +893,7 @@ auto py_theory_term_get_arguments(PyObject *self, [[maybe_unused]] void *arg) ->
         return py_handle_error();
     }
 
-    auto list = Guard<PyObject *, Py_DECREF>(PyList_New(static_cast<Py_ssize_t>(n)));
+    auto list = steal(PyList_New(static_cast<Py_ssize_t>(n)));
     if (list.get() == nullptr) {
         return nullptr;
     }
@@ -991,7 +995,7 @@ auto py_theory_element_get_tuple(PyObject *self, [[maybe_unused]] void *arg) -> 
     if (!clingo_theory_base_element_tuple(t->base, t->index, &vals, &n)) {
         return py_handle_error();
     }
-    auto out = Guard<PyObject *, Py_DECREF>(PyList_New(static_cast<Py_ssize_t>(n)));
+    auto out = steal(PyList_New(static_cast<Py_ssize_t>(n)));
     if (out.get() == nullptr) {
         return nullptr;
     }
@@ -1012,7 +1016,7 @@ auto py_theory_element_get_condition(PyObject *self, [[maybe_unused]] void *arg)
     if (!clingo_theory_base_element_condition(t->base, t->index, &vals, &n)) {
         return py_handle_error();
     }
-    auto out = Guard<PyObject *, Py_DECREF>(PyList_New(static_cast<Py_ssize_t>(n)));
+    auto out = steal(PyList_New(static_cast<Py_ssize_t>(n)));
     if (out.get() == nullptr) {
         return nullptr;
     }
@@ -1147,7 +1151,7 @@ auto py_theory_atom_get_elements(PyObject *self, [[maybe_unused]] void *arg) -> 
     if (!clingo_theory_base_atom_elements(t->base, t->index, &ids, &n)) {
         return py_handle_error();
     }
-    auto out = Guard<PyObject *, Py_DECREF>(PyList_New(static_cast<Py_ssize_t>(n)));
+    auto out = steal(PyList_New(static_cast<Py_ssize_t>(n)));
     if (out.get() == nullptr) {
         return nullptr;
     }
@@ -1191,10 +1195,12 @@ auto py_theory_atom_get_guard(PyObject *self, [[maybe_unused]] void *arg) -> PyO
         return py_handle_error();
     }
 
-    auto op_obj = Guard<PyObject *, Py_DECREF>(PyUnicode_FromStringAndSize(op.data, static_cast<Py_ssize_t>(op.size)));
-    auto term_obj = Guard<PyObject *, Py_DECREF>(
-        py_theory_term_new(reinterpret_cast<PyTypeObject *>(state->theory_term_type), t->base, term));
-    if (op_obj.get() == nullptr || term_obj.get() == nullptr) {
+    auto op_obj = steal(PyUnicode_FromStringAndSize(op.data, static_cast<Py_ssize_t>(op.size)));
+    if (op_obj.get() == nullptr) {
+        return nullptr;
+    }
+    auto term_obj = steal(py_theory_term_new(reinterpret_cast<PyTypeObject *>(state->theory_term_type), t->base, term));
+    if (term_obj.get() == nullptr) {
         return nullptr;
     }
     return PyTuple_Pack(2, op_obj.get(), term_obj.get());
@@ -1323,26 +1329,28 @@ auto py_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
         return nullptr;
     }
 
-    auto *type = reinterpret_cast<PyTypeObject *>(state->base_iter_type);
-    auto *obj = type->tp_alloc(type, 0);
-    if (obj == nullptr) {
-        return nullptr;
-    }
-
-    auto *it = reinterpret_cast<PyBaseIter *>(obj);
+    auto *t = reinterpret_cast<PyTypeObject *>(state->base_iter_type);
     auto *b = reinterpret_cast<PyBaseObject *>(owner);
-    it->base = const_cast<clingo_base_t *>(b->base);
-
     size_t n = 0;
-    if (!clingo_base_atoms_size(it->base, &n)) {
+    if (!clingo_base_atoms_size(b->base, &n)) {
         py_handle_error();
         return nullptr;
     }
+    if (std::cmp_greater(n, std::numeric_limits<Py_ssize_t>::max())) {
+        PyErr_SetString(PyExc_OverflowError, "size does not fit in Py_ssize_t");
+        return nullptr;
+    }
 
+    auto obj = steal(t->tp_alloc(t, 0));
+    if (obj.get() == nullptr) {
+        return nullptr;
+    }
+    auto *it = reinterpret_cast<PyBaseIter *>(obj.get());
+    it->base = const_cast<clingo_base_t *>(b->base);
     it->index = 0;
     it->size = static_cast<Py_ssize_t>(n);
     it->kind = kind;
-    return obj;
+    return obj.release();
 }
 
 auto py_base_iter_next(PyObject *self) -> PyObject * {
@@ -1372,12 +1380,13 @@ auto py_base_iter_next(PyObject *self) -> PyObject * {
         return py_atom_base_new(reinterpret_cast<PyTypeObject *>(state->atom_base_type), atoms);
     }
 
-    auto key = Guard<PyObject *, Py_DECREF>(Py_BuildValue("(s#nO)", sig.name, static_cast<Py_ssize_t>(sig.size),
-                                                          static_cast<Py_ssize_t>(sig.arity),
-                                                          sig.is_positive ? Py_True : Py_False));
-    auto val =
-        Guard<PyObject *, Py_DECREF>(py_atom_base_new(reinterpret_cast<PyTypeObject *>(state->atom_base_type), atoms));
-    if (key.get() == nullptr || val.get() == nullptr) {
+    auto key = steal(Py_BuildValue("(s#nO)", sig.name, static_cast<Py_ssize_t>(sig.size),
+                                   static_cast<Py_ssize_t>(sig.arity), sig.is_positive ? Py_True : Py_False));
+    if (key.get() == nullptr) {
+        return nullptr;
+    }
+    auto val = steal(py_atom_base_new(reinterpret_cast<PyTypeObject *>(state->atom_base_type), atoms));
+    if (val.get() == nullptr) {
         return nullptr;
     }
     return PyTuple_Pack(2, key.get(), val.get());
@@ -1404,7 +1413,7 @@ auto py_base_len(PyObject *self) -> Py_ssize_t {
         py_handle_error();
         return -1;
     }
-    if (n > static_cast<size_t>(std::numeric_limits<Py_ssize_t>::max())) {
+    if (std::cmp_greater(n, std::numeric_limits<Py_ssize_t>::max())) {
         PyErr_SetString(PyExc_OverflowError, "size does not fit in Py_ssize_t");
         return -1;
     }
@@ -1824,7 +1833,7 @@ PyModuleDef base_def = {
 
 void register_base(py::module &m) {
     // TODO: this is going to be the return value at some point
-    auto base_mod = Guard<PyObject *, Py_DECREF>(nullptr);
+    auto base_mod = PyGuard{nullptr};
     if (!add_submodule(m.ptr(), &base_def, &base_mod.get())) {
         throw py::error_already_set();
     }
@@ -1834,7 +1843,7 @@ void register_base(py::module &m) {
         throw py::error_already_set();
     }
 
-    state->symbol_type = py_symbol_type();
+    state->symbol_type = py_symbol_type_ref();
     if (state->symbol_type == nullptr) {
         throw py::error_already_set();
     }
@@ -1871,13 +1880,17 @@ auto py_base_new(PyObject *type, clingo_base_t const *base) -> PyObject * {
     return obj;
 }
 
-auto py_base_type() -> PyObject * {
-    auto mod = Guard<PyObject *, Py_DECREF>(PyImport_ImportModule("clingo.base"));
+auto py_base_type_ref() -> PyObject * {
+    auto mod = steal(PyImport_ImportModule("clingo.base"));
     if (mod.get() == nullptr) {
         return nullptr;
     }
     auto *state = get_state(mod.get());
     if (state == nullptr) {
+        return nullptr;
+    }
+    if (state->base_type == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "clingo.base.Base type not initialized");
         return nullptr;
     }
     return state->base_type;
@@ -1892,7 +1905,7 @@ auto py_base_get(PyObject *type, PyObject *obj) -> clingo_base_t const * {
 }
 
 auto convert(TypeHint<"clingo.base.Base"> base, MixedLitSpan const &lits, bool flip, bool disjunctive) -> LitVec {
-    auto *base_type = py_base_type();
+    auto *base_type = py_base_type_ref();
     if (base_type == nullptr) {
         throw py::error_already_set{};
     }

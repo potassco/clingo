@@ -74,11 +74,20 @@ auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMemb
     return true;
 }
 
-auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **store) -> bool {
-    auto obj = Guard<PyObject *, Py_DECREF>(PyType_FromModuleAndSpec(module, spec, nullptr));
+auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **store, PyObject *base) -> bool {
+    auto bases = Guard<PyObject *, Py_DECREF>(nullptr);
+    if (base != nullptr) {
+        bases.get() = PyTuple_Pack(1, base);
+        if (bases.get() == nullptr) {
+            return false;
+        }
+    }
+
+    auto obj = Guard<PyObject *, Py_DECREF>(PyType_FromModuleAndSpec(module, spec, bases.get()));
     if (obj.get() == nullptr || PyModule_AddObjectRef(module, name, obj.get()) < 0) {
         return false;
     }
+
     *store = obj.release();
     return true;
 }

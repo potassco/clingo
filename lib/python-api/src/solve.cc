@@ -62,7 +62,7 @@ class ModelIterator {
 auto SolveControl::base() -> TypeHint<"clingo.base.Base"> {
     clingo_base_t const *base = nullptr;
     handle_error(clingo_solve_control_base(ctl_, &base));
-    auto *type = py_base_type();
+    auto *type = py_base_type_ref();
     if (type == nullptr) {
         throw py::error_already_set();
     }

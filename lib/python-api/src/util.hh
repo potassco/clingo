@@ -444,14 +444,16 @@ template <class T, auto Destroy> class Guard {
 
     Guard(Guard const &other) = delete;
     auto operator=(Guard const &other) -> Guard & = delete;
-    constexpr Guard(Guard &&other) noexcept = delete;
-    constexpr auto operator=(Guard &&other) noexcept = delete;
-
-    ~Guard() noexcept {
-        if (value_ != T{}) {
-            Destroy(value_);
+    constexpr Guard(Guard &&other) noexcept : value_{std::exchange(other.value_, T{})} {}
+    constexpr auto operator=(Guard &&other) noexcept -> Guard & {
+        if (this != &other) {
+            destroy_();
+            value_ = std::exchange(other.value_, T{});
         }
+        return *this;
     }
+
+    ~Guard() noexcept { destroy_(); }
 
     // NOLINTNEXTLINE
     constexpr operator T &() noexcept { return value_; }
@@ -464,8 +466,24 @@ template <class T, auto Destroy> class Guard {
     }
 
   private:
+    void destroy_() {
+        if (value_ != T{}) {
+            Destroy(value_);
+        }
+    }
     T value_{};
 };
+
+using PyGuard = Guard<PyObject *, Py_DECREF>;
+
+inline auto steal(PyObject *obj) -> PyGuard {
+    return PyGuard(obj);
+}
+
+inline auto borrow(PyObject *obj) -> PyGuard {
+    Py_XINCREF(obj);
+    return PyGuard(obj);
+}
 
 template <size_t N> auto cast_kw(std::array<char const *, N> const &kwlist) -> char ** {
     // NOLINTNEXTLINE
@@ -481,7 +499,8 @@ using IntEnumMember = std::tuple<char const *, int>;
 auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMember const> members, PyObject **store,
                   std::span<PyObject *> cache) -> bool;
 
-auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **store) -> bool;
+auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **store, PyObject *base = nullptr)
+    -> bool;
 
 auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool;
 } // namespace PyClingo
