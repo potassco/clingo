@@ -25,9 +25,19 @@ namespace PyClingo {
 namespace py = pybind11;
 
 //! Store the active exception as a clingo error.
+//!
+//! Pybind11 version.
 auto store_error() -> bool;
+//! Store the active exception as a clingo error.
+//!
+//! Plain C API version.
+auto store_python_error(std::string_view fallback) -> bool;
 //! Raise the current clingo error as an exception.
 void raise_error();
+//! Raise the current clingo error as a python exception.
+//!
+//! Plain C API version.
+void raise_python_error();
 
 //! This function should be used to handle failing C API calls.
 //!

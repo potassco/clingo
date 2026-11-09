@@ -163,6 +163,8 @@ template <class T> class reference_keeper {
   public:
     void tie(py::handle obj) { list_.append(obj); }
 
+    auto keeper_ref() -> PyObject * { return list_.ptr(); }
+
     static void setup(PyHeapTypeObject *heap_type) {
         auto *type = &heap_type->ht_type;
         type->tp_flags |= Py_TPFLAGS_HAVE_GC;
@@ -476,6 +478,18 @@ template <class T, auto Destroy> class Guard {
 
 using PyGuard = Guard<PyObject *, Py_DECREF>;
 
+class GILGuard {
+  public:
+    GILGuard() : state_{PyGILState_Ensure()} {}
+    ~GILGuard() { PyGILState_Release(state_); }
+
+    GILGuard(GILGuard const &) = delete;
+    auto operator=(GILGuard const &) -> GILGuard & = delete;
+
+  private:
+    PyGILState_STATE state_;
+};
+
 inline auto steal(PyObject *obj) -> PyGuard {
     return PyGuard(obj);
 }
@@ -503,4 +517,5 @@ auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **
     -> bool;
 
 auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool;
+
 } // namespace PyClingo

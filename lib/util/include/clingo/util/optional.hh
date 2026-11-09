@@ -23,7 +23,7 @@ using transform_vec_result = std::optional<std::vector<typename transform_result
 //! @addtogroup util_optional
 //! @{
 
-//! Implemenatation of std::optional<T>::transform.
+//! Implementation of std::optional<T>::transform.
 template <class T, class F> constexpr auto transform(std::optional<T> &x, F &&f) -> Detail::transform_result<T &, F> {
     if (x.has_value()) {
         return std::invoke(std::forward<F>(f), *x);
@@ -31,7 +31,7 @@ template <class T, class F> constexpr auto transform(std::optional<T> &x, F &&f)
     return std::nullopt;
 }
 
-//! Implemenatation of std::optional<T>::transform.
+//! Implementation of std::optional<T>::transform.
 template <class T, class F>
 constexpr auto transform(std::optional<T> const &x, F &&f) -> Detail::transform_result<T const &, F> {
     if (x.has_value()) {
@@ -41,7 +41,7 @@ constexpr auto transform(std::optional<T> const &x, F &&f) -> Detail::transform_
 }
 
 //! Map the value in the optional with the given predicate.
-//! Implemenatation of std::optional<T>::transform.
+//! Implementation of std::optional<T>::transform.
 template <class T, class F> constexpr auto transform(std::optional<T> &&x, F &&f) -> Detail::transform_result<T, F> {
     if (x.has_value()) {
         return std::invoke(std::forward<F>(f), *std::move(x));
@@ -49,7 +49,7 @@ template <class T, class F> constexpr auto transform(std::optional<T> &&x, F &&f
     return std::nullopt;
 }
 
-//! Implemenatation of std::optional<T>::transform.
+//! Implementation of std::optional<T>::transform.
 template <class T, class F>
 constexpr auto transform(std::optional<T> const &&x, F &&f) -> Detail::transform_result<T const, F> {
     if (x.has_value()) {
@@ -58,7 +58,7 @@ constexpr auto transform(std::optional<T> const &&x, F &&f) -> Detail::transform
     return std::nullopt;
 }
 
-//! Implemenatation of std::optional<T>::and_then.
+//! Implementation of std::optional<T>::and_then.
 template <class T, class F> constexpr auto and_then(std::optional<T> &x, F &&f) -> Detail::and_then_result<T &, F> {
     if (x) {
         return std::invoke(std::forward<F>(f), *x);
@@ -66,7 +66,7 @@ template <class T, class F> constexpr auto and_then(std::optional<T> &x, F &&f) 
     return std::remove_cvref_t<std::invoke_result_t<F, T &>>{};
 }
 
-//! Implemenatation of std::optional<T>::and_then.
+//! Implementation of std::optional<T>::and_then.
 template <class T, class F>
 constexpr auto and_then(std::optional<T> const &x, F &&f) -> Detail::and_then_result<T const &, F> {
     if (x) {
@@ -75,7 +75,7 @@ constexpr auto and_then(std::optional<T> const &x, F &&f) -> Detail::and_then_re
     return std::remove_cvref_t<std::invoke_result_t<F, T const &>>{};
 }
 
-//! Implemenatation of std::optional<T>::and_then.
+//! Implementation of std::optional<T>::and_then.
 template <class T, class F> constexpr auto and_then(std::optional<T> &&x, F &&f) -> Detail::and_then_result<T, F> {
     if (x) {
         return std::invoke(std::forward<F>(f), *std::move(x));
@@ -83,7 +83,7 @@ template <class T, class F> constexpr auto and_then(std::optional<T> &&x, F &&f)
     return std::remove_cvref_t<std::invoke_result_t<F, T>>{};
 }
 
-//! Implemenatation of std::optional<T>::and_then.
+//! Implementation of std::optional<T>::and_then.
 template <class T, class F>
 constexpr auto and_then(std::optional<T> const &&x, F &&f) -> Detail::and_then_result<T const, F> {
     if (x) {

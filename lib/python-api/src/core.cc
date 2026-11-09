@@ -1,3 +1,5 @@
+#define PY_SSIZE_T_CLEAN
+
 #include "core.hh"
 #include "util.hh"
 
@@ -110,6 +112,100 @@ auto store_error() -> bool {
     } catch (...) {
         auto msg = std::string_view{"no message"};
         return clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
+    }
+}
+
+static auto exc_str(PyObject *ptype, PyObject *pvalue, PyObject *ptrace) -> PyObject * {
+    auto tb = steal(PyImport_ImportModule("traceback"));
+    if (tb.get() == nullptr) {
+        return nullptr;
+    }
+
+    auto format_exception = steal(PyObject_GetAttrString(tb.get(), "format_exception"));
+    if (format_exception.get() == nullptr || PyCallable_Check(format_exception.get()) == 0) {
+        return nullptr;
+    }
+
+    auto lines = steal(PyObject_CallFunctionObjArgs(format_exception.get(), ptype != nullptr ? ptype : Py_None,
+                                                    pvalue != nullptr ? pvalue : Py_None,
+                                                    ptrace != nullptr ? ptrace : Py_None, nullptr));
+    if (lines.get() == nullptr) {
+        return nullptr;
+    }
+
+    auto sep = steal(PyUnicode_FromString(""));
+    if (sep.get() == nullptr) {
+        return nullptr;
+    }
+
+    return PyUnicode_Join(sep.get(), lines.get());
+}
+
+auto store_python_error(std::string_view fallback) -> bool {
+    if (PyErr_Occurred() == nullptr) {
+        clingo_set_error(clingo_result_runtime, fallback.data(), fallback.size());
+        return false;
+    }
+
+    auto code = clingo_result_runtime;
+    if (PyErr_ExceptionMatches(PyExc_ValueError) != 0) {
+        code = clingo_result_invalid;
+    } else if (PyErr_ExceptionMatches(PyExc_IndexError) != 0) {
+        code = clingo_result_range;
+    } else if (PyErr_ExceptionMatches(PyExc_MemoryError) != 0) {
+        code = clingo_result_bad_alloc;
+    }
+
+    auto ptype = PyGuard{nullptr};
+    auto pvalue = PyGuard{nullptr};
+    auto ptrace = PyGuard{nullptr};
+    PyErr_Fetch(&ptype.get(), &pvalue.get(), &ptrace.get());
+    PyErr_NormalizeException(&ptype.get(), &pvalue.get(), &ptrace.get());
+
+    auto str = steal(exc_str(ptype.get(), pvalue.get(), ptrace.get()));
+    std::string_view msg = fallback;
+    if (str.get() != nullptr) {
+        Py_ssize_t n = 0;
+        auto const *u = PyUnicode_AsUTF8AndSize(str.get(), &n);
+        if (u != nullptr) {
+            msg = {u, static_cast<size_t>(n)};
+        } else {
+            PyErr_Clear();
+        }
+    } else {
+        PyErr_Clear();
+    }
+    return clingo_set_error(code, msg.data(), msg.size());
+}
+
+void raise_python_error() {
+    clingo_result_t code = clingo_result_success;
+    clingo_string_t msg;
+    clingo_get_error(&code, &msg);
+    PyObject *exc_type = PyExc_RuntimeError;
+    switch (code) {
+        case clingo_result_invalid: {
+            exc_type = PyExc_ValueError;
+            break;
+        }
+        case clingo_result_range: {
+            exc_type = PyExc_IndexError;
+            break;
+        }
+        case clingo_result_bad_alloc: {
+            exc_type = PyExc_MemoryError;
+            break;
+        }
+        default: {
+            break;
+        }
+    }
+
+    auto s = steal(PyUnicode_FromStringAndSize(msg.data, static_cast<Py_ssize_t>(msg.size)));
+    if (s.get() != nullptr) {
+        PyErr_SetObject(exc_type, s.release());
+    } else {
+        PyErr_SetString(exc_type, "no message");
     }
 }
 
