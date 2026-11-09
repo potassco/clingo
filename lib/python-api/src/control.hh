@@ -2,7 +2,6 @@
 
 #include "backend.hh"
 #include "base.hh"
-#include "config.hh"
 #include "ground.hh"
 #include "iterable.hh"
 #include "propagate.hh"
@@ -65,7 +64,7 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     auto base() -> TypeHint<"clingo.base.Base">;
     void observe(Observer &obs, bool preprocess);
     auto backend() -> BackendManager;
-    auto config() -> Config;
+    auto config() -> TypeHint<"clingo.config.Config">;
     auto stats() -> StatsView;
     auto profile() -> py::list;
     void main();

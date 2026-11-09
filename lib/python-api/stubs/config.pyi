@@ -3,7 +3,7 @@ Functions and classes related to configuration.
 
 Examples
 --------
-The following example shows how inpsect the configuration and modify it to
+The following example shows how inspect the configuration and modify it to
 enumerate all models:
 
 ```python
@@ -58,7 +58,7 @@ class CustomConfig:
         self.value = None
         self.array = []
 
-    def set_val(self, value: str | None):
+    def set_val(self, value: str):
         self.value = value
 
     def get_val(self):
@@ -108,11 +108,36 @@ val: "a"
 ```
 """
 
-from __future__ import annotations
-
 import typing
+from collections.abc import Callable, Sequence
 
 __all__: list[str] = ["Config"]
+
+from typing import Protocol
+
+class ArrayGetter(Protocol):
+    """
+    Getter for array configuration entries.
+    """
+    def __call__(self, index: int | None = None, /) -> str | None:
+        """
+        Get the value at the given index.
+
+        Handling the case that index is None is left to the user. Possibilities
+        include returning the first element or a default one.
+        """
+
+class ArraySetter(Protocol):
+    """
+    Setter for array configuration entries.
+    """
+    def __call__(self, value: str, index: int | None = None, /) -> None:
+        """
+        Set the value at the given index.
+
+        Handling the case that index is None is left to the user. Possibilities
+        include setting the first element or a default one.
+        """
 
 class Config:
     """
@@ -160,60 +185,115 @@ class Config:
 
     def __len__(self) -> int:
         """
-        Get the length of an array config.
+        Get the length of a sequence config.
         """
 
-    def __setattr__(self, name: str, value: typing.Any) -> None:
+    def __setattr__(self, name: str, value: object) -> None:
         """
         Set the value with the given name.
+
+        Values are automatically converted to strings.
         """
 
-    def __str__(self) -> str:
-        """
-        A readable representation to inspect the configuration.
-        """
-
+    @typing.overload
     def add_entry(
         self,
         name: str,
         description: str,
-        get: (
-            typing.Callable[[], str | None]
-            | typing.Callable[[int | None], str | None]
-            | None
-        ) = None,
-        set: (
-            typing.Callable[[str], None]
-            | typing.Callable[[str, int | None], None]
-            | None
-        ) = None,
-        size: typing.Callable[[], int] | None = None,
     ) -> None:
         """
         Add a custom configuration entry.
 
-        Entries that have a value should pass get and/or set callbacks; entries with
-        values under an array must implement get/set with an optional integer index.
-        Array entries must give a size callback.
+        This overload is used for entries that group other entries and do not
+        have a value.
 
         Notes:
         - Entries can have at most one array parent entry.
-        - It is up to the user to handle array insertion. Possible options include
-          increasing the size of an array upon assignment of values or by setting a
-          special size field that controls the size of the array.
-        - Custom entries can be added under the root key. Existing solver configuration
-          entries cannot be extened.
+        - Custom entries can be added under the root key. Existing solver
+          configuration entries cannot be extened.
+
+        Args:
+            name: Name of the new entry.
+            description: Description of the new entry.
+        """
+
+    @typing.overload
+    def add_entry(
+        self,
+        name: str,
+        description: str,
+        get: Callable[[], str | None] | None = None,
+        set: Callable[[str], None] | None = None,
+    ) -> None:
+        """
+        Add a custom configuration entry.
+
+        This overload is used for entries that have a value and are not part of
+        a sequence. At least one get or set callback must be provided.
 
         Args:
             name: Name of the new entry.
             description: Description of the new entry.
             get: Callable to get the value.
             set: Callable to set the value.
-            size: Callable to get the size (for array entries).
+        """
+
+    @typing.overload
+    def add_entry(
+        self,
+        name: str,
+        description: str,
+        get: ArrayGetter | None = None,
+        set: ArraySetter | None = None,
+        size: Callable[[], int] | None = None,
+    ) -> None:
+        """
+        Add a custom configuration entry.
+
+        This overload is used for entries that are part of a sequence. At least
+        one get, set, or size callbacks must be provided.
+
+        It is up to the user to handle array insertion. Possible options
+        include increasing the size of an array upon assignment of values or by
+        setting a special size field that controls the size of the array.
+
+        Args:
+            name: Name of the new entry.
+            description: Description of the new entry.
+            get: Callable to get the value.
+            set: Callable to set the value.
+            size: Callable to get the size.
+        """
+
+    @typing.overload
+    def add_entry(
+        self,
+        name: str,
+        description: str,
+        get: Callable[[], str | None] | None = None,
+        set: Callable[[str], None] | None = None,
+        size: Callable[[], int] | None = None,
+    ) -> None:
+        """
+        Add a custom configuration entry.
+
+        This overload is used for entries that are part of a sequence but set
+        meta values that apply to all array entries. At least one get, set, or
+        size callbacks must be provided.
+
+        This could for example be used to get/set the array size, specify
+        default values, etc.
+
+        Args:
+            name: Name of the new entry.
+            description: Description of the new entry.
+            get: Callable to get the value.
+            set: Callable to set the value.
+            size: Callable to get the size.
         """
 
     @property
-    def attributes(self) -> typing.Sequence[str]:
+    def attributes(self) -> Sequence[str]:
         """
         Get the attribute names of nested configurations.
         """
@@ -239,8 +319,13 @@ class Config:
     @property
     def value(self) -> str | None:
         """
-        Get/set the string value of the configuration entry.
+        Get the string value of the configuration entry.
         """
 
     @value.setter
-    def value(self, arg1: typing.Any) -> None: ...
+    def value(self, value: object) -> None:
+        """
+        Set the value of the configuration entry.
+
+        Values are automatically converted to strings.
+        """

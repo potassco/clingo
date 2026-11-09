@@ -1,5 +1,6 @@
 #include "control.hh"
 #include "ast.hh"
+#include "config.hh"
 #include "core.hh"
 #include "iterator.hh"
 #include "stats.hh"
@@ -214,12 +215,20 @@ auto Control::backend() -> BackendManager {
     return BackendManager{get()};
 }
 
-auto Control::config() -> Config {
+auto Control::config() -> TypeHint<"clingo.config.Config"> {
     clingo_config_t *config = nullptr;
     handle_error(clingo_control_config(get(), &config));
     clingo_id_t key = 0;
     handle_error(clingo_config_root(config, &key));
-    return Config{*this, config, key};
+    auto *type = py_config_type_ref();
+    if (type == nullptr) {
+        throw py::error_already_set();
+    }
+    auto cfg = steal(py_config_new(type, keeper_ref(), config, key));
+    if (cfg.get() == nullptr) {
+        throw py::error_already_set();
+    }
+    return py::reinterpret_steal<TypeHint<"clingo.config.Config">>(cfg.release());
 }
 
 auto Control::stats() -> StatsView {
