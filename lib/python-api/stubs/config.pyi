@@ -250,13 +250,39 @@ class Config:
         """
         Add a custom configuration entry.
 
-        This overload is used for entries that are part of a sequence. At least one get or
-        set callback must be provided. The size callback is required to get the size of the
-        array.
+        This overload is used for entries that are part of a sequence. At least
+        one get, set, or size callbacks must be provided.
 
         It is up to the user to handle array insertion. Possible options
         include increasing the size of an array upon assignment of values or by
         setting a special size field that controls the size of the array.
+
+        Args:
+            name: Name of the new entry.
+            description: Description of the new entry.
+            get: Callable to get the value.
+            set: Callable to set the value.
+            size: Callable to get the size.
+        """
+
+    @typing.overload
+    def add_entry(
+        self,
+        name: str,
+        description: str,
+        get: Callable[[], str | None] | None = None,
+        set: Callable[[str], None] | None = None,
+        size: Callable[[], int] | None = None,
+    ) -> None:
+        """
+        Add a custom configuration entry.
+
+        This overload is used for entries that are part of a sequence but set
+        meta values that apply to all array entries. At least one get, set, or
+        size callbacks must be provided.
+
+        This could for example be used to get/set the array size, specify
+        default values, etc.
 
         Args:
             name: Name of the new entry.

@@ -243,11 +243,7 @@ auto py_config_len(PyObject *self) -> Py_ssize_t {
 auto py_config_item(PyObject *self, Py_ssize_t index) -> PyObject * {
     auto *cfg = py_config_cast(self);
     auto *type = reinterpret_cast<PyObject *>(Py_TYPE(self));
-    auto len = py_config_len(self);
-    if (len < 0) {
-        return nullptr;
-    }
-    if (index < 0 || index >= len) {
+    if (index < 0) {
         PyErr_SetString(PyExc_IndexError, "array index out of bounds");
         return nullptr;
     }
@@ -287,6 +283,10 @@ auto py_config_getattr(PyObject *self, PyObject *name) -> PyObject * {
 }
 
 auto py_config_setattr(PyObject *self, PyObject *name, PyObject *value) -> int {
+    if (value == nullptr) {
+        PyErr_SetString(PyExc_TypeError, "cannot delete configuration entries");
+        return -1;
+    }
     auto *type = reinterpret_cast<PyObject *>(Py_TYPE(self));
     auto *cfg = py_config_cast(self);
     auto descr = steal(PyObject_GetAttr(type, name));

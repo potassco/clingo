@@ -203,7 +203,7 @@ void raise_python_error() {
 
     auto s = steal(PyUnicode_FromStringAndSize(msg.data, static_cast<Py_ssize_t>(msg.size)));
     if (s.get() != nullptr) {
-        PyErr_SetObject(exc_type, s.release());
+        PyErr_SetObject(exc_type, s.get());
     } else {
         PyErr_SetString(exc_type, "no message");
     }
